@@ -44,7 +44,9 @@ mix phx.server
 Open http://localhost:4000
 
 1. Click **Start new session**
-2. Type an action on the play screen (Phase 0 uses mock GM narration)
+2. Type an action on the play screen
+
+Without `XAI_API_KEY`, Tier 1 uses heuristics and Tier 2 uses mock narration. Set `XAI_API_KEY` in `.env` for full Grok GM responses.
 
 ## Project layout
 
@@ -65,7 +67,7 @@ priv/
 ## Phase status
 
 - [x] Phase 0: Phoenix + Jido + LiveView play loop with mock GM
-- [ ] Phase 1: Two-tier LLM pipeline + server mechanics
+- [x] Phase 1: Two-tier LLM pipeline + server mechanics (mock GM when no API key)
 - [ ] Phase 2: Ash authoring layer + Tigris images
 - [ ] Phase 3: NPC agents + world clock
 

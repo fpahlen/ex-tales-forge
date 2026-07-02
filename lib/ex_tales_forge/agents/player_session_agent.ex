@@ -10,7 +10,5 @@ defmodule TalesForge.Agents.PlayerSessionAgent do
       turn_count: [type: :integer, default: 0],
       entries: [type: {:list, :map}, default: []]
     ],
-    signal_routes: [
-      {"player.message", TalesForge.Actions.PlayerMessage}
-    ]
+    signal_routes: []
 end

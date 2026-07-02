@@ -27,13 +27,19 @@ mix phx.server          # http://localhost:4000
 mix test
 ```
 
+## Turn pipeline
+
+1. `GameSessions.submit_message/3` — Tier 1 intent (heuristic or LLM)
+2. `TalesForge.Workers.ProcessTurn` (Oban `:llm` queue) — Tier 2 GM + mechanics
+3. PubSub `{:turn_completed, payload}` → LiveView
+
 ## Layout
 
 ```
 lib/ex_tales_forge/
   agents/       # PlayerSessionAgent, NPCAgent (later)
-  actions/      # Jido actions (PlayerMessage, ParseIntent, TellStory)
-  game/         # Pure mechanics/inventory
+  game/         # intent, mechanics, action_handler, turn_processor
+  workers/      # Oban ProcessTurn
   schemas/      # Ecto runtime schemas
 priv/rules/     # Markdown rulebook
 ```

@@ -1,17 +1,19 @@
 defmodule TalesForge.GameSessions do
   @moduledoc """
-  Coordinates database sessions with Jido player session agents.
+  Coordinates database sessions, Tier 1 intent, and Tier 2 Oban jobs.
   """
 
   import Ecto.Query
 
-  alias Jido.AgentServer
-  alias Jido.Signal
   alias TalesForge.Agents.PlayerSessionAgent
+  alias TalesForge.Game.Context
+  alias TalesForge.Game.Intent
+  alias TalesForge.Game.Schemas.PlayerAction
+  alias TalesForge.Game.World
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
-  alias TalesForge.Schemas.Turn
+  alias TalesForge.Workers.ProcessTurn
 
   def list_sessions do
     GameSession
@@ -25,9 +27,9 @@ defmodule TalesForge.GameSessions do
     attrs =
       Map.merge(
         %{
-          name: "New Adventure",
+          name: "Crossroads Hamlet",
           status: "active",
-          world_state: default_world_state()
+          world_state: World.default_world_state()
         },
         attrs
       )
@@ -41,119 +43,165 @@ defmodule TalesForge.GameSessions do
     end
   end
 
-  def submit_message(session_id, text) when is_binary(text) do
+  def submit_message(session_id, text, opts \\ []) when is_binary(text) do
     trimmed = String.trim(text)
 
     if trimmed == "" do
       {:error, :empty_message}
     else
-      with {:ok, pid} <- ensure_agent_pid(session_id),
-           {:ok, agent} <- deliver_player_message(pid, trimmed) do
-        state = agent_state(agent)
-
-        with {:ok, _turn} <- persist_turn(session_id, trimmed, state) do
-          SessionPubSub.broadcast(session_id, {:turn_completed, state})
-          {:ok, state}
-        end
+      with %GameSession{} = session <- Repo.get(GameSession, session_id),
+           :ok <- ensure_agent(session),
+           {:ok, outcome} <- resolve_and_enqueue(session, trimmed, opts) do
+        {:ok, outcome}
+      else
+        nil -> {:error, :not_found}
+        {:error, _} = err -> err
       end
     end
   end
-
-  def agent_id(session_id), do: "session-#{session_id}"
 
   def ensure_agent_started(%GameSession{id: id}) do
     ensure_agent(%GameSession{id: id})
   end
 
-  defp ensure_agent(%GameSession{id: id}) do
-    case start_agent(id) do
-      {:ok, _pid} -> :ok
-      other -> other
+  def agent_id(session_id), do: "session-#{session_id}"
+
+  defp resolve_and_enqueue(%GameSession{} = session, raw_action, opts) do
+    context = Context.build_intent_context(session)
+
+    try do
+      player_action = build_player_action(session, raw_action, context, opts)
+      enqueue_turn(session, raw_action, player_action)
+    rescue
+      e in [Intent.ClarificationNeeded] ->
+        clarification = Intent.build_clarification(e.extraction, raw_action)
+        save_clarification(session, clarification)
+        SessionPubSub.broadcast(session.id, {:clarification_needed, clarification})
+        {:ok, %{status: :clarification, clarification: clarification}}
     end
   end
 
-  defp ensure_agent_pid(session_id) do
-    aid = agent_id(session_id)
+  defp build_player_action(%GameSession{} = session, raw_action, context, opts) do
+    option_id = Keyword.get(opts, :option_id)
+    clarification_id = Keyword.get(opts, :clarification_id)
 
-    case TalesForge.Jido.whereis(aid) do
-      nil ->
-        with {:ok, session} <- fetch_session(session_id),
-             :ok <- ensure_agent(session),
-             pid when not is_nil(pid) <- TalesForge.Jido.whereis(aid) do
-          {:ok, pid}
-        else
-          nil -> {:error, :agent_unavailable}
-          {:error, _} = err -> err
+    cond do
+      option_id && clarification_id ->
+        resolve_clarification_option(session, context, clarification_id, option_id)
+
+      clarification_id && raw_action != "" ->
+        pending = get_pending(session, clarification_id)
+        enriched = pending["raw_action"] <> "\nClarification: " <> raw_action
+        Intent.extract_intent(enriched, context)
+
+      true ->
+        Intent.extract_intent(raw_action, context)
+    end
+  end
+
+  defp resolve_clarification_option(session, context, clarification_id, option_id) do
+    pending = get_pending(session, clarification_id)
+
+    option =
+      pending["options"]
+      |> Enum.find(&(&1["id"] == option_id))
+
+    if is_nil(option) do
+      raise ArgumentError, "invalid clarification option"
+    end
+
+    extraction = %TalesForge.Game.Schemas.IntentExtraction{
+      overall_intent: pending["overall_intent"],
+      actions:
+        pending
+        |> Map.get("actions")
+        |> case do
+          nil -> [heuristic_from_pending(pending, option)]
+          actions -> Enum.map(actions, &TalesForge.Game.Schemas.SingleAction.decode/1)
+        end,
+      primary_index: option["action_index"],
+      confidence: pending["confidence"] || 1.0,
+      needs_clarification: false
+    }
+
+    Intent.validate_player_action(extraction, context)
+  end
+
+  defp heuristic_from_pending(pending, option) do
+    TalesForge.Game.Intent.heuristic_intent(
+      "#{pending["raw_action"]} (#{option["label"]})",
+      %{"exits" => [], "exit_names" => %{}, "present_npcs" => [], "npc_details" => %{}}
+    )
+    |> Map.get(:actions)
+    |> List.first()
+  end
+
+  defp get_pending(%GameSession{} = session, clarification_id) do
+    pending =
+      session.world_state
+      |> Map.get("pending_clarification")
+
+    if pending && pending["clarification_id"] == clarification_id do
+      pending
+    else
+      raise ArgumentError, "clarification expired"
+    end
+  end
+
+  defp enqueue_turn(%GameSession{} = session, raw_action, %PlayerAction{} = player_action) do
+    session
+    |> clear_clarification()
+    |> case do
+      {:ok, session} ->
+        %{
+          session_id: session.id,
+          raw_action: raw_action,
+          player_action: PlayerAction.encode(player_action)
+        }
+        |> ProcessTurn.new()
+        |> Oban.insert()
+        |> case do
+          {:ok, _job} ->
+            SessionPubSub.broadcast(session.id, {:turn_processing, %{}})
+            {:ok, %{status: :processing}}
+
+          {:error, reason} ->
+            {:error, reason}
         end
-
-      pid ->
-        {:ok, pid}
     end
   end
 
-  defp start_agent(session_id) do
-    case TalesForge.Jido.start_agent(PlayerSessionAgent,
-           id: agent_id(session_id),
-           initial_state: %{
-             session_id: session_id,
-             turn_count: 0,
-             entries: []
-           }
-         ) do
-      {:ok, pid} -> {:ok, pid}
-      {:error, {:already_started, pid}} -> {:ok, pid}
-      other -> other
+  defp save_clarification(%GameSession{} = session, clarification) do
+    world_state = Map.put(session.world_state || %{}, "pending_clarification", clarification)
+
+    session
+    |> GameSession.changeset(%{world_state: world_state})
+    |> Repo.update()
+  end
+
+  defp clear_clarification(%GameSession{} = session) do
+    world_state = Map.delete(session.world_state || %{}, "pending_clarification")
+
+    session
+    |> GameSession.changeset(%{world_state: world_state})
+    |> Repo.update()
+  end
+
+  defp ensure_agent(%GameSession{id: id}) do
+    aid = agent_id(id)
+
+    if TalesForge.Jido.whereis(aid) do
+      :ok
+    else
+      case TalesForge.Jido.start_agent(PlayerSessionAgent,
+             id: aid,
+             initial_state: %{session_id: id, turn_count: 0, entries: []}
+           ) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+        {:error, {:already_registered, _pid}} -> :ok
+        other -> other
+      end
     end
-  end
-
-  defp agent_state(%{state: state}), do: state
-  defp agent_state(state) when is_map(state), do: state
-
-  defp deliver_player_message(pid, text) do
-    signal =
-      Signal.new!(
-        "player.message",
-        %{text: text},
-        source: "/tales_forge/liveview"
-      )
-
-    AgentServer.call(pid, signal)
-  end
-
-  defp persist_turn(session_id, player_text, %{turn_count: turn_count, entries: entries}) do
-    gm_entry = entries |> Enum.reverse() |> Enum.find(&(&1.role == "gm"))
-
-    attrs = %{
-      game_session_id: session_id,
-      turn_number: turn_count,
-      player_action: player_text,
-      narrative: gm_entry && gm_entry.text,
-      mechanical_resolution: %{}
-    }
-
-    %Turn{}
-    |> Turn.changeset(attrs)
-    |> Repo.insert()
-  end
-
-  defp fetch_session(session_id) do
-    case Repo.get(GameSession, session_id) do
-      nil -> {:error, :not_found}
-      session -> {:ok, session}
-    end
-  end
-
-  defp default_world_state do
-    %{
-      "location_id" => "crossroads_hamlet_tavern",
-      "location_name" => "The Ledger & Ladle",
-      "world_clock" => "late afternoon",
-      "character" => %{
-        "name" => "Elara Voss",
-        "wounds" => 0,
-        "wound_max" => 3,
-        "coins" => %{"gold" => 2, "silver" => 10, "copper" => 0}
-      }
-    }
   end
 end

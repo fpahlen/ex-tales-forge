@@ -1,4 +1,4 @@
-defmodule TalesForge.Repo.Migrations.AddOban do
+defmodule TalesForge.Repo.Migrations.UpdateObanV14 do
   use Ecto.Migration
 
   def up do
@@ -6,6 +6,6 @@ defmodule TalesForge.Repo.Migrations.AddOban do
   end
 
   def down do
-    Oban.Migration.down(version: 1)
+    Oban.Migration.down(version: 12)
   end
 end
