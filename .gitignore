@@ -35,3 +35,8 @@ ex_tales_forge-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Local secrets — never commit real API keys or database passwords
+.env
+.env.*
+!.env.example
+

@@ -153,7 +153,7 @@ defmodule TalesForge.Game.Mechanics do
   defp nat_notes(20), do: " Natural 20."
   defp nat_notes(_), do: ""
 
-  defp to_int(value, default) when is_integer(value), do: value
+  defp to_int(value, _default) when is_integer(value), do: value
   defp to_int(value, _default) when is_float(value), do: trunc(value)
 
   defp to_int(value, default) when is_binary(value) do

@@ -91,7 +91,8 @@ defmodule TalesForge.MixProject do
         "esbuild ex_tales_forge --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"],
+      "dev.check": ["compile", "dev.check"]
     ]
   end
 end
