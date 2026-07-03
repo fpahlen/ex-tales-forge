@@ -92,7 +92,8 @@ defmodule TalesForge.MixProject do
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"],
-      "dev.check": ["compile", "dev.check"]
+      "dev.check": ["compile", "dev.check"],
+      "e2e.smoke": ["compile", "e2e.smoke"]
     ]
   end
 end

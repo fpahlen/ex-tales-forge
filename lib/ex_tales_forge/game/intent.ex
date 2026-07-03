@@ -101,19 +101,50 @@ defmodule TalesForge.Game.Intent do
 
     case LLM.complete_intent(system, user) do
       {:ok, extraction} ->
-        primary = primary_action(extraction)
-
-        if skill_missing?(primary) do
-          LLM.complete_intent(
-            system,
-            user <> "\n\nYour previous response omitted parameters.skill for a check action."
-          )
-        else
-          {:ok, extraction}
-        end
+        {:ok, extraction |> finalize_tier1(system, user, raw_action) |> ensure_skill(raw_action)}
 
       error ->
         error
+    end
+  end
+
+  defp finalize_tier1(extraction, system, user, _raw_action) do
+    primary = primary_action(extraction)
+
+    if skill_missing?(primary) do
+      case LLM.complete_intent(
+             system,
+             user <> "\n\nYour previous response omitted parameters.skill for a check action."
+           ) do
+        {:ok, retried} -> retried
+        _ -> extraction
+      end
+    else
+      extraction
+    end
+  end
+
+  defp ensure_skill(%IntentExtraction{} = extraction, raw_action) do
+    primary = primary_action(extraction)
+
+    if skill_missing?(primary) do
+      case Mechanics.infer_skill_from_action(raw_action) do
+        nil ->
+          extraction
+
+        skill ->
+          patched = %SingleAction{
+            primary
+            | parameters: Map.put(primary.parameters || %{}, "skill", skill)
+          }
+
+          %{
+            extraction
+            | actions: List.replace_at(extraction.actions, extraction.primary_index, patched)
+          }
+      end
+    else
+      extraction
     end
   end
 
