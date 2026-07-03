@@ -13,6 +13,7 @@ defmodule TalesForge.GameSessions do
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.World
+  alias TalesForge.NPC
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
@@ -41,9 +42,11 @@ defmodule TalesForge.GameSessions do
            %GameSession{}
            |> GameSession.changeset(attrs)
            |> Repo.insert(),
+         :ok <- NPC.seed_session(session),
+         {:ok, session} <- NPC.refresh_session_world_state(session),
          :ok <- ensure_agent(session),
          {:ok, _} <- ensure_scene(session) do
-      {:ok, session}
+      {:ok, Repo.preload(session, :npc_instances)}
     end
   end
 

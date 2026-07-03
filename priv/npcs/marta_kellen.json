@@ -1,0 +1,47 @@
+{
+  "id": "marta_kellen",
+  "name": "Marta Kellen",
+  "race": "human",
+  "role": "barkeep",
+  "default_location_id": "weary_pilgrim",
+  "appearance": "Sharp-eyed woman in her forties, sleeves rolled, hands never far from a club or towel.",
+  "personality": "Practical, protective of her regulars, slow to trust strangers.",
+  "backstory": "Has run The Weary Pilgrim through lean seasons and hard winters; knows every face that belongs in her common room.",
+  "motivations": {
+    "personality_traits": {
+      "openness": 5,
+      "conscientiousness": 7,
+      "extraversion": 6,
+      "agreeableness": 5,
+      "neuroticism": 4
+    },
+    "primary_need": "safety",
+    "primary_motivation": "Security and protection from harm",
+    "current_concerns": [
+      "missing ledger",
+      "unwanted attention in her tavern"
+    ],
+    "current_concern": {
+      "focus": "missing ledger",
+      "priority": 8,
+      "blocked_by": null,
+      "since_tick": 0
+    },
+    "mood": "cautious",
+    "agency_tier": "normal"
+  },
+  "stock": [
+    {
+      "id": "ale_mug",
+      "name": "Mug of Ale",
+      "price_copper": 2,
+      "quantity": 99
+    },
+    {
+      "id": "common_wine",
+      "name": "Bottle of Common Wine",
+      "price_copper": 15,
+      "quantity": 10
+    }
+  ]
+}

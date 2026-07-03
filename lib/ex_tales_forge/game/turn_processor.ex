@@ -11,7 +11,9 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.World
+  alias TalesForge.Game.WorldClock
   alias TalesForge.LLM
+  alias TalesForge.NPC
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, Turn}
@@ -39,7 +41,7 @@ defmodule TalesForge.Game.TurnProcessor do
              player_action,
              handler
            ),
-         world_state <- apply_world_updates(session.world_state, character, handler, gm_result),
+         world_state <- apply_world_updates(session, character, handler, gm_result),
          {:ok, session} <- persist(session, world_state),
          {:ok, turn} <- persist_turn(session, turn_number, raw_action, gm_result, mechanical) do
       entries = build_entries(raw_action, gm_result.narrative, mechanical, turn.id)
@@ -84,23 +86,54 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  defp apply_world_updates(world_state, character, handler, gm_result) do
-    world_state =
-      world_state
+  defp apply_world_updates(%GameSession{} = session, character, handler, gm_result) do
+    base_world = session.world_state || %{}
+
+    character =
+      gm_result.state_updates
+      |> character_patches()
+      |> Enum.reduce(character, &deep_merge_maps/2)
+
+    advanced_world =
+      base_world
       |> put_in(["character"], character)
       |> maybe_move(handler)
       |> maybe_apply_context_summary(gm_result.context_summary)
+      |> WorldClock.advance()
 
-    location_id = get_in(world_state, ["character", "location_id"])
+    world_tick = Map.get(advanced_world, "world_tick")
+    :ok = NPC.apply_gm_updates(session.id, gm_result, world_tick)
+
+    location_id = get_in(advanced_world, ["character", "location_id"])
     location = World.location(location_id)
 
-    world_state
+    advanced_world
     |> Map.put("location_id", location_id)
     |> Map.put(
       "location_name",
-      Map.get(location || %{}, "name", Map.get(world_state, "location_name"))
+      Map.get(location || %{}, "name", Map.get(advanced_world, "location_name"))
     )
+    |> Map.put("present_npcs", NPC.sync_present_npcs(session.id, location_id))
+    |> Map.put("npc_state", NPC.refresh_world_npc_state(session.id))
   end
+
+  defp character_patches(state_updates) do
+    state_updates
+    |> List.wrap()
+    |> Enum.filter(fn
+      %{"path" => "characters/" <> _} -> true
+      _ -> false
+    end)
+    |> Enum.map(&Map.get(&1, "patch", %{}))
+  end
+
+  defp deep_merge_maps(left, right) when is_map(left) and is_map(right) do
+    Map.merge(left, right, fn _key, l, r ->
+      if is_map(l) and is_map(r), do: deep_merge_maps(l, r), else: r
+    end)
+  end
+
+  defp deep_merge_maps(_left, right), do: right
 
   defp maybe_move(world_state, %{handler: "move", state_hints: %{"location_id" => location_id}})
        when is_binary(location_id) do

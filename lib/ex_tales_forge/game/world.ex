@@ -3,6 +3,8 @@ defmodule TalesForge.Game.World do
   Authored world seed for Crossroads Hamlet (Phase 1).
   """
 
+  alias TalesForge.Game.WorldClock
+
   @locations %{
     "weary_pilgrim" => %{
       "id" => "weary_pilgrim",
@@ -64,7 +66,8 @@ defmodule TalesForge.Game.World do
       "location_id" => "weary_pilgrim",
       "location_name" => "The Weary Pilgrim",
       "present_npcs" => ["marta_kellen"],
-      "world_clock" => "late afternoon",
+      "world_tick" => WorldClock.default_start_tick(),
+      "world_clock" => WorldClock.format(WorldClock.default_start_tick()),
       "last_scene_location" => nil,
       "situation_lines" => [
         "You have just pushed through the tavern door.",
