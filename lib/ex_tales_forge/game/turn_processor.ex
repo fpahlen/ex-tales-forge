@@ -14,6 +14,8 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.WorldClock
   alias TalesForge.LLM
   alias TalesForge.NPC
+  alias TalesForge.NPCRegistry
+  alias TalesForge.NPCSignals
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, Turn}
@@ -43,7 +45,9 @@ defmodule TalesForge.Game.TurnProcessor do
            ),
          world_state <- apply_world_updates(session, character, handler, gm_result),
          {:ok, session} <- persist(session, world_state),
-         {:ok, turn} <- persist_turn(session, turn_number, raw_action, gm_result, mechanical) do
+         {:ok, turn} <- persist_turn(session, turn_number, raw_action, gm_result, mechanical),
+         :ok <- NPCRegistry.sync(session),
+         :ok <- NPCSignals.emit_turn_signals(session.id, world_state, handler, raw_action) do
       entries = build_entries(raw_action, gm_result.narrative, mechanical, turn.id)
 
       payload = %{

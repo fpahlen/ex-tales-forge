@@ -52,6 +52,85 @@ defmodule TalesForge.NPC do
     Repo.get_by(NpcInstance, game_session_id: session_id, npc_id: npc_id)
   end
 
+  def record_memory(session_id, npc_id, summary, world_tick)
+      when is_binary(session_id) and is_binary(npc_id) and is_binary(summary) do
+    trimmed = String.trim(summary)
+
+    if trimmed == "" do
+      :ok
+    else
+      case get_instance(session_id, npc_id) do
+        %NpcInstance{} = inst -> persist_memory(inst, trimmed, world_tick)
+        nil -> :ok
+      end
+    end
+  end
+
+  def bump_relationship(session_id, npc_id, delta) when is_number(delta) do
+    case get_instance(session_id, npc_id) do
+      %NpcInstance{} = inst ->
+        score = Map.get(inst.runtime_state, "relationship_score", 0.0) + delta
+        runtime = Map.put(inst.runtime_state, "relationship_score", score)
+        inst |> update_runtime!(runtime)
+        {:ok, score}
+
+      nil ->
+        {:ok, 0.0}
+    end
+  end
+
+  def adjust_concern(session_id, npc_id, delta_ticks) when is_integer(delta_ticks) do
+    case get_instance(session_id, npc_id) do
+      %NpcInstance{} = inst ->
+        case Map.get(inst.runtime_state, "current_concern") do
+          %{} = concern ->
+            waiting = Map.get(inst.runtime_state, "concern_wait_ticks", 0) + delta_ticks
+            {waiting, concern} = maybe_escalate_concern(waiting, concern)
+            priority = Map.get(concern, "priority", 0)
+
+            runtime =
+              inst.runtime_state
+              |> Map.put("current_concern", concern)
+              |> Map.put("concern_wait_ticks", waiting)
+
+            update_runtime!(inst, runtime)
+            {:ok, %{concern_priority: priority, concern_wait_ticks: waiting}}
+
+          _ ->
+            :ok
+        end
+
+      nil ->
+        :ok
+    end
+  end
+
+  def evaluate_initiative(session_id, npc_id) do
+    inst = get_instance(session_id, npc_id)
+    priority = concern_priority(inst)
+    %{initiative_pending: priority >= 8, concern_priority: priority}
+  end
+
+  def build_agent_state(session_id, npc_id) do
+    case get_instance(session_id, npc_id) do
+      %NpcInstance{} = inst ->
+        %{
+          session_id: session_id,
+          npc_id: npc_id,
+          location_id: Map.get(inst.runtime_state, "location_id"),
+          mood: Map.get(inst.runtime_state, "mood", "neutral"),
+          relationship_score: Map.get(inst.runtime_state, "relationship_score", 0.0),
+          concern_priority: concern_priority(inst),
+          concern_wait_ticks: Map.get(inst.runtime_state, "concern_wait_ticks", 0),
+          initiative_pending: false,
+          last_interaction_tick: Map.get(inst.runtime_state, "last_interaction_tick")
+        }
+
+      nil ->
+        %{session_id: session_id, npc_id: npc_id}
+    end
+  end
+
   def apply_gm_updates(session_id, gm_result, world_tick) do
     gm_result.npc_memory_updates
     |> List.wrap()
@@ -161,13 +240,7 @@ defmodule TalesForge.NPC do
   defp append_memory(session_id, update, world_tick) when is_map(update) do
     npc_id = Map.get(update, "npc_id") || Map.get(update, :npc_id)
     summary = Map.get(update, "summary") || Map.get(update, :summary)
-
-    if is_binary(npc_id) and is_binary(summary) and String.trim(summary) != "" do
-      case get_instance(session_id, npc_id) do
-        %NpcInstance{} = inst -> persist_memory(inst, summary, world_tick)
-        nil -> :ok
-      end
-    end
+    record_memory(session_id, npc_id, summary || "", world_tick)
   end
 
   defp append_memory(_session_id, _update, _world_tick), do: :ok
@@ -185,7 +258,10 @@ defmodule TalesForge.NPC do
       |> Kernel.++([entry])
       |> Enum.take(-@memory_limit)
 
-    update_runtime!(inst, Map.put(inst.runtime_state, "memories", memories))
+    inst
+    |> update_runtime!(Map.put(inst.runtime_state, "memories", memories))
+
+    :ok
   end
 
   defp apply_state_update(session_id, %{"path" => path, "patch" => patch})
@@ -262,4 +338,20 @@ defmodule TalesForge.NPC do
   end
 
   defp deep_merge(_left, right), do: right
+
+  defp maybe_escalate_concern(waiting, concern) when waiting >= 4 do
+    priority = min(10, Map.get(concern, "priority", 5) + 1)
+    {waiting - 4, Map.put(concern, "priority", priority)}
+  end
+
+  defp maybe_escalate_concern(waiting, concern), do: {waiting, concern}
+
+  defp concern_priority(%NpcInstance{} = inst) do
+    case Map.get(inst.runtime_state, "current_concern") do
+      %{} = concern -> Map.get(concern, "priority", 0)
+      _ -> 0
+    end
+  end
+
+  defp concern_priority(nil), do: 0
 end
