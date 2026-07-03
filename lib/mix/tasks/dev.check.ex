@@ -25,9 +25,7 @@ defmodule Mix.Tasks.Dev.Check do
     if File.exists?(env_path) do
       Mix.shell().info("[ok] .env found at #{env_path}")
     else
-      Mix.shell().error(
-        "[missing] .env — copy the template: cp .env.example .env"
-      )
+      Mix.shell().error("[missing] .env — copy the template: cp .env.example .env")
     end
   end
 
@@ -57,10 +55,14 @@ defmodule Mix.Tasks.Dev.Check do
     end
 
     Mix.shell().info("      LLM provider: #{provider}")
+    Mix.shell().info("      Tier 1 model: #{TalesForge.LLM.tier1_model()}")
+    Mix.shell().info("      Tier 2 model: #{TalesForge.LLM.tier2_model()}")
 
-    if provider == "mock" and key_present?(key) do
-      Mix.shell().info(
-        "      Tip: Ollama may be taking Tier 1 — set TIER1_MODEL=xai/grok-4.3 in .env to force xAI"
+    model = TalesForge.LLM.effective_xai_model()
+
+    if key_present?(key) and TalesForge.LLM.reasoning_model?(model) do
+      Mix.shell().error(
+        "[warning] XAI_MODEL looks like a reasoning model — use grok-4.20-0309-non-reasoning for fast turns"
       )
     end
   end

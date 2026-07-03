@@ -82,11 +82,7 @@ Open http://localhost:4000
 
 With `XAI_API_KEY` set, the play header shows `GM source: api` after your first turn. Without it, you will see `GM source: mock`.
 
-If you have Ollama running locally, Tier 1 may prefer it over xAI. Force xAI by adding to `.env`:
-
-```
-TIER1_MODEL=xai/grok-4.3
-```
+Default model is fast non-reasoning Grok (`grok-4.20-0309-non-reasoning`). Verify turn latency with `mix e2e.smoke` (3s budget per turn).
 
 ## Project layout
 

@@ -5,6 +5,8 @@ defmodule TalesForge.GameSessions do
 
   import Ecto.Query
 
+  require Logger
+
   alias TalesForge.Agents.PlayerSessionAgent
   alias TalesForge.Game.Context
   alias TalesForge.Game.Intent
@@ -68,9 +70,18 @@ defmodule TalesForge.GameSessions do
 
   defp resolve_and_enqueue(%GameSession{} = session, raw_action, opts) do
     context = Context.build_intent_context(session)
+    started = System.monotonic_time(:millisecond)
 
     try do
-      player_action = build_player_action(session, raw_action, context, opts)
+      {player_action, intent_source} =
+        build_player_action(session, raw_action, context, opts)
+
+      elapsed = System.monotonic_time(:millisecond) - started
+
+      Logger.info(
+        "intent resolved session=#{session.id} duration_ms=#{elapsed} source=#{intent_source}"
+      )
+
       enqueue_turn(session, raw_action, player_action)
     rescue
       e in [Intent.ClarificationNeeded] ->
@@ -87,15 +98,22 @@ defmodule TalesForge.GameSessions do
 
     cond do
       option_id && clarification_id ->
-        resolve_clarification_option(session, context, clarification_id, option_id)
+        {resolve_clarification_option(session, context, clarification_id, option_id),
+         :clarification}
 
       clarification_id && raw_action != "" ->
         pending = get_pending(session, clarification_id)
         enriched = pending["raw_action"] <> "\nClarification: " <> raw_action
-        Intent.extract_intent(enriched, context)
+        {Intent.extract_intent(enriched, context), :llm}
 
       true ->
-        Intent.extract_intent(raw_action, context)
+        {bundle, source} = Intent.resolve_bundle(raw_action, context)
+
+        if Intent.needs_clarification?(bundle) do
+          raise Intent.ClarificationNeeded, extraction: bundle
+        end
+
+        {Intent.validate_player_action(bundle, context), source}
     end
   end
 

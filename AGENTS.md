@@ -60,11 +60,7 @@ lsof -ti :4000 | xargs kill -9
 
 **No LLM logs during play** — restart the server after editing `.env`. Create a new session (cached state may skip the LLM).
 
-**Ollama hijacking Tier 1** — if Ollama is running on `:11434`, Tier 1 may prefer it. Force xAI in `.env`:
-
-```
-TIER1_MODEL=xai/grok-4.3
-```
+**Turns feel slow (> 3s)** — confirm `.env` uses `XAI_MODEL=grok-4.20-0309-non-reasoning` (not a reasoning model). Run `mix e2e.smoke` to check the 3s budget. Tier 1 skips LLM for clear actions via heuristics.
 
 **PostgreSQL not running**:
 
@@ -83,7 +79,7 @@ Set API keys in `.env` (loaded automatically in dev via `config/runtime.exs`). P
 | Provider | Key | Notes |
 |----------|-----|-------|
 | `mock` | none | Deterministic fallback for offline dev |
-| `xai` | `XAI_API_KEY` | Default when key is present; model via `XAI_MODEL` (default `grok-4.3`) |
+| `xai` | `XAI_API_KEY` | Default when key is present; model via `XAI_MODEL` (default `grok-4.20-0309-non-reasoning`) |
 | `openai` | `OPENAI_API_KEY` | |
 | `anthropic` | `ANTHROPIC_API_KEY` | |
 
@@ -93,13 +89,15 @@ Each turn runs Tier 1 intent extraction (small model, temp 0) then Tier 2 storyt
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
-| `TIER1_MODEL` | auto | Intent extraction model |
-| `TIER2_MODEL` | auto | GM narration model |
+| `XAI_MODEL` | `grok-4.20-0309-non-reasoning` | Fast non-reasoning Grok for all tiers |
+| `TIER1_MAX_TOKENS` | `400` | Intent JSON cap |
+| `TIER2_MAX_TOKENS` | `700` | GM narration cap |
+| `TIER1_HEURISTIC_THRESHOLD` | `0.85` | Skip Tier 1 LLM when heuristics are confident |
 | `TIER1_TEMPERATURE` | `0` | Intent extraction |
 | `TIER2_TEMPERATURE` | `0.7` | Storytelling |
-| `TIER1_CONFIDENCE_THRESHOLD` | `0.75` | Heuristic fallback cutoff |
+| `TIER1_CONFIDENCE_THRESHOLD` | `0.75` | Clarification cutoff |
 
-Tier 1 auto-selects Ollama when running locally. Compound or ambiguous actions may return a clarification prompt before the turn resolves.
+When `XAI_API_KEY` is set, both tiers use xAI Grok (never Ollama). Reasoning models are rejected. Clear actions use heuristics first (~0ms Tier 1). Target: full turn < 3s (`mix e2e.smoke` enforces).
 
 Set `LOG_LEVEL=debug` in `.env` for full LLM request/response logging.
 
