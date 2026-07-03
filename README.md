@@ -12,28 +12,62 @@ This is a greenfield Elixir rewrite. Game rules and prompts are borrowed from [t
 | Game runtime | Jido 2.x agents + actions |
 | Database | PostgreSQL + Ecto |
 | Background jobs | Oban |
-| LLM (planned) | jido_ai / req_llm (Tier 1 intent + Tier 2 GM) |
+| LLM | xAI Grok (Tier 1 intent + Tier 2 GM) |
 | Images (planned) | Tigris on Fly.io |
 | Deploy (planned) | Fly.io |
 
 ## Prerequisites
 
 - Elixir 1.15+
-- PostgreSQL (local default: `postgres` / `postgres`)
+- PostgreSQL 16+ (local default: `postgres` / `postgres`)
 - Node.js (for asset bundling)
 
-## Setup
+## Local setup
+
+### 1. Environment file
+
+Secrets live in `.env` at the project root. This file is gitignored — only `.env.example` is committed.
 
 ```bash
 cd ex-tales-forge
+cp .env.example .env
+```
+
+Edit `.env` and add your xAI API key:
+
+```
+XAI_API_KEY=xai-your-key-here
+```
+
+The app loads `.env` automatically in development via `config/runtime.exs`. You do not need to `export` variables manually.
+
+### 2. Database
+
+Start PostgreSQL if it is not already running:
+
+```bash
+brew services start postgresql@16
+```
+
+Create the database and run migrations:
+
+```bash
 mix setup
 ```
 
-Copy environment template if you need LLM keys later:
+To use a non-default connection string, uncomment `DATABASE_URL` in `.env`:
+
+```
+DATABASE_URL=ecto://postgres:postgres@localhost/ex_tales_forge_dev
+```
+
+### 3. Verify
 
 ```bash
-cp .env.example .env
+mix dev.check
 ```
+
+You should see PostgreSQL connected and your API key masked (e.g. `xai-...abcd`). If the key is missing, the game falls back to mock GM narration.
 
 ## Run
 
@@ -46,7 +80,13 @@ Open http://localhost:4000
 1. Click **Start new session**
 2. Type an action on the play screen
 
-Without `XAI_API_KEY`, Tier 1 uses heuristics and Tier 2 uses mock narration. Set `XAI_API_KEY` in `.env` for full Grok GM responses.
+With `XAI_API_KEY` set, the play header shows `GM source: api` after your first turn. Without it, you will see `GM source: mock`.
+
+If you have Ollama running locally, Tier 1 may prefer it over xAI. Force xAI by adding to `.env`:
+
+```
+TIER1_MODEL=xai/grok-4.3
+```
 
 ## Project layout
 

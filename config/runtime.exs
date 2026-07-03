@@ -1,5 +1,15 @@
 import Config
 
+if config_env() == :dev do
+  env_path = Path.expand("../.env", __DIR__)
+
+  if File.exists?(env_path) do
+    env_path
+    |> then(&Dotenvy.source!([&1, System.get_env()]))
+    |> System.put_env()
+  end
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration
@@ -22,6 +32,16 @@ end
 
 config :ex_tales_forge, TalesForgeWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+
+if config_env() == :dev do
+  if database_url = System.get_env("DATABASE_URL") do
+    config :ex_tales_forge, TalesForge.Repo,
+      url: database_url,
+      stacktrace: true,
+      show_sensitive_data_on_connection_error: true,
+      pool_size: 10
+  end
+end
 
 if config_env() == :prod do
   database_url =
