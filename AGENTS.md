@@ -37,6 +37,67 @@ Greenfield Elixir rewrite of [text-forge](../text-forge). Borrow rules, prompts,
 4. Commit and push on the feature branch; merge to `main` via PR when ready.
 5. If already on `main` with uncommitted work, stash or commit to a new feature branch before continuing.
 
+## Elixir coding guidelines
+
+### Formatting (mandatory)
+
+- Run `mix format` before every commit
+- `mix precommit` runs `mix format` then `mix quality` (format check + Credo)
+- [.formatter.exs](.formatter.exs) is authoritative (Phoenix, Ecto, LiveView HEEx)
+
+### Idioms
+
+| Prefer | Over |
+|--------|------|
+| `\|>` for linear data transforms | nested calls and temp variables |
+| `with` for `{:ok, _}` / `{:error, _}` pipelines | nested `case` or deep `if` |
+| multiclause functions + pattern matching | long `cond` / `if/else` chains |
+| tagged tuples for control flow | bare values or exceptions for expected paths |
+| guards in function heads (`when`) | repeated runtime nil checks |
+
+```elixir
+# Good: with + tagged tuples
+with {:ok, session} <- Repo.insert(changeset),
+     :ok <- ensure_agent(session) do
+  {:ok, session}
+end
+
+# Good: pipe for transforms
+extraction
+|> ensure_skill(raw_action)
+|> validate_player_action(context)
+
+# Good: pattern match in function head
+def handle_info({:turn_completed, payload}, socket) do
+  ...
+end
+```
+
+### Project conventions
+
+- **Orchestration** in contexts (`GameSessions`, `TurnProcessor`); Oban workers stay thin
+- **Pure game logic** in `TalesForge.Game.*` — no `Repo` in mechanics/intent
+- **Config** through `TalesForge.Config` — avoid scattered `System.get_env/1` in lib
+- **LLM calls** only in `TalesForge.LLM`
+- **Logging:** `require Logger` at module top; include ids and timings (`session=`, `tier=`, `duration_ms=`)
+- **Errors:** `{:error, reason}` for expected failures; `raise` for programmer bugs; `rescue` only for domain exceptions (e.g. `Intent.ClarificationNeeded`)
+
+### Anti-patterns
+
+- `if is_nil(x)` when a function clause or `with` handles nil
+- Committing without `mix precommit`
+- Bypassing format or Credo locally "just this once"
+
+### Quality commands
+
+```bash
+mix format          # auto-format
+mix format.check    # fail if not formatted (CI-friendly)
+mix credo           # lint lib/
+mix quality         # format.check + credo --strict
+mix precommit       # compile, format, quality, test — run before PR
+```
+
 ## Dev commands
 
 ```bash
@@ -45,7 +106,7 @@ mix setup                     # deps, DB, assets
 mix dev.check                 # Postgres + API key + provider
 mix phx.server                # http://localhost:4000
 mix test
-mix precommit                 # format + test (run before opening a PR)
+mix precommit                 # format + quality + test (run before opening a PR)
 ```
 
 ### Troubleshooting
