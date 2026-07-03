@@ -39,7 +39,8 @@ defmodule TalesForge.Game.World do
       "id" => "marta_kellen",
       "name" => "Marta Kellen",
       "role" => "barkeep",
-      "disposition" => "wary but fair"
+      "disposition" => "wary but fair",
+      "portrait_url" => nil
     }
   }
 
