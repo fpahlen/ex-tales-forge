@@ -85,6 +85,11 @@ defmodule TalesForge.NPC do
         case Map.get(inst.runtime_state, "current_concern") do
           %{} = concern ->
             waiting = Map.get(inst.runtime_state, "concern_wait_ticks", 0) + delta_ticks
+            old_priority = Map.get(concern, "priority", 0)
+
+            initiative_ready? =
+              waiting >= 4 and old_priority >= 8 and not initiative_emitted?(inst)
+
             {waiting, concern} = maybe_escalate_concern(waiting, concern)
             priority = Map.get(concern, "priority", 0)
 
@@ -92,9 +97,16 @@ defmodule TalesForge.NPC do
               inst.runtime_state
               |> Map.put("current_concern", concern)
               |> Map.put("concern_wait_ticks", waiting)
+              |> maybe_reset_initiative_emitted(old_priority, priority)
 
             update_runtime!(inst, runtime)
-            {:ok, %{concern_priority: priority, concern_wait_ticks: waiting}}
+
+            {:ok,
+             %{
+               concern_priority: priority,
+               concern_wait_ticks: waiting,
+               initiative_pending: initiative_ready? and not initiative_emitted?(inst)
+             }}
 
           _ ->
             :ok
@@ -108,21 +120,74 @@ defmodule TalesForge.NPC do
   def evaluate_initiative(session_id, npc_id) do
     inst = get_instance(session_id, npc_id)
     priority = concern_priority(inst)
-    %{initiative_pending: priority >= 8, concern_priority: priority}
+    waiting = concern_wait_ticks(inst)
+    emitted? = initiative_emitted?(inst)
+
+    %{
+      initiative_pending: waiting >= 4 and priority >= 8 and not emitted?,
+      concern_priority: priority
+    }
   end
+
+  def initiative_text(%NpcInstance{npc_id: "marta_kellen"} = inst) do
+    focus =
+      inst.runtime_state
+      |> Map.get("current_concern", %{})
+      |> Map.get("focus", "the missing ledger")
+
+    case focus do
+      "missing ledger" ->
+        "Marta wipes the bar and catches your eye. \"That ledger didn't walk off on its own. If you've heard anything, I need to know before sundown.\""
+
+      "unwanted attention in her tavern" ->
+        "Marta's voice stays low but firm. \"Too many strangers tonight. Keep your business quiet, or take it outside.\""
+
+      _ ->
+        "Marta hesitates, then speaks up. \"Something's been bothering me — #{focus}.\""
+    end
+  end
+
+  def initiative_text(%NpcInstance{} = inst) do
+    name = Map.get(inst.personality || %{}, "name", inst.npc_id)
+    "#{name} speaks up, as if a worry has been pressing on them for some time."
+  end
+
+  def mark_initiative_emitted(%NpcInstance{} = inst, world_tick) do
+    runtime =
+      inst.runtime_state
+      |> Map.put("initiative_emitted", true)
+      |> Map.put("initiative_emitted_at_tick", world_tick)
+
+    update_runtime!(inst, runtime)
+    :ok
+  end
+
+  def concern_priority(%NpcInstance{} = inst) do
+    case Map.get(inst.runtime_state, "current_concern") do
+      %{} = concern -> Map.get(concern, "priority", 0)
+      _ -> 0
+    end
+  end
+
+  def concern_priority(nil), do: 0
 
   def build_agent_state(session_id, npc_id) do
     case get_instance(session_id, npc_id) do
       %NpcInstance{} = inst ->
+        %{initiative_pending: pending?, concern_priority: priority} =
+          evaluate_initiative(session_id, npc_id)
+
         %{
           session_id: session_id,
           npc_id: npc_id,
           location_id: Map.get(inst.runtime_state, "location_id"),
           mood: Map.get(inst.runtime_state, "mood", "neutral"),
           relationship_score: Map.get(inst.runtime_state, "relationship_score", 0.0),
-          concern_priority: concern_priority(inst),
-          concern_wait_ticks: Map.get(inst.runtime_state, "concern_wait_ticks", 0),
-          initiative_pending: false,
+          concern_priority: priority,
+          concern_wait_ticks: concern_wait_ticks(inst),
+          initiative_pending: pending?,
+          initiative_emitted: initiative_emitted?(inst),
+          last_initiative_tick: Map.get(inst.runtime_state, "initiative_emitted_at_tick"),
           last_interaction_tick: Map.get(inst.runtime_state, "last_interaction_tick")
         }
 
@@ -306,6 +371,7 @@ defmodule TalesForge.NPC do
       "name" => Map.get(definition, "name", inst.npc_id),
       "role" => Map.get(definition, "role", "present"),
       "disposition" => Map.get(inst.runtime_state, "mood", "neutral"),
+      "concern_priority" => concern_priority(inst),
       "portrait_url" => Map.get(definition, "portrait_url")
     }
   end
@@ -346,12 +412,22 @@ defmodule TalesForge.NPC do
 
   defp maybe_escalate_concern(waiting, concern), do: {waiting, concern}
 
-  defp concern_priority(%NpcInstance{} = inst) do
-    case Map.get(inst.runtime_state, "current_concern") do
-      %{} = concern -> Map.get(concern, "priority", 0)
-      _ -> 0
-    end
+  defp concern_wait_ticks(%NpcInstance{} = inst),
+    do: Map.get(inst.runtime_state, "concern_wait_ticks", 0)
+
+  defp concern_wait_ticks(nil), do: 0
+
+  defp initiative_emitted?(%NpcInstance{} = inst),
+    do: Map.get(inst.runtime_state, "initiative_emitted", false)
+
+  defp initiative_emitted?(nil), do: false
+
+  defp maybe_reset_initiative_emitted(runtime, old_priority, new_priority)
+       when new_priority > old_priority do
+    runtime
+    |> Map.put("initiative_emitted", false)
+    |> Map.delete("initiative_emitted_at_tick")
   end
 
-  defp concern_priority(nil), do: 0
+  defp maybe_reset_initiative_emitted(runtime, _old_priority, _new_priority), do: runtime
 end

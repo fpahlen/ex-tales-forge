@@ -6,15 +6,16 @@ defmodule TalesForge.Actions.NPC.ReactToTime do
     description: "Advance NPC concern and initiative when world time passes",
     schema: []
 
-  alias TalesForge.Actions.NPC.{AdjustConcern, EvaluateInitiative}
+  alias TalesForge.Actions.NPC.{AdjustConcern, EmitInitiative}
 
   @impl true
   def run(_params, context) do
     delta_ticks = signal_field(context, :delta_ticks, 1)
 
     with {:ok, concern_state} <- AdjustConcern.run(%{delta_ticks: delta_ticks}, context),
-         {:ok, initiative_state} <- EvaluateInitiative.run(%{}, context) do
-      {:ok, Map.merge(concern_state, initiative_state)}
+         context = update_in(context.state, &Map.merge(&1, concern_state)),
+         {:ok, emit_state} <- EmitInitiative.run(%{}, context) do
+      {:ok, Map.merge(concern_state, emit_state)}
     end
   end
 

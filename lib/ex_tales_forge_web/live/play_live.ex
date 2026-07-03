@@ -115,6 +115,17 @@ defmodule TalesForgeWeb.PlayLive do
      |> put_flash(:error, "Turn failed: #{reason}")}
   end
 
+  def handle_info({:npc_initiative, payload}, socket) do
+    entry = %{
+      id: "npc-initiative-#{payload.npc_id}-#{payload.world_tick}",
+      role: "npc",
+      npc_name: payload.npc_name,
+      text: payload.text
+    }
+
+    {:noreply, append_entries(socket, [entry])}
+  end
+
   @impl true
   def render(assigns) do
     world = assigns.session.world_state || %{}

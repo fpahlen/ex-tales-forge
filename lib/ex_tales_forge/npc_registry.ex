@@ -39,6 +39,7 @@ defmodule TalesForge.NPCRegistry do
 
     Enum.each(to_start, &start_agent(session_id, agent_npc_id(session_id, &1)))
     Enum.each(to_stop, &stop_agent/1)
+    Enum.each(to_stop, &await_agent_stopped/1)
 
     :ok
   end
@@ -72,14 +73,35 @@ defmodule TalesForge.NPCRegistry do
     end
   end
 
+  defp await_agent_stopped(agent_id) do
+    Enum.reduce_while(1..20, :ok, fn _, _ ->
+      if is_nil(TalesForge.Jido.whereis(agent_id)) do
+        {:halt, :ok}
+      else
+        Process.sleep(5)
+        {:cont, :ok}
+      end
+    end)
+  end
+
   defp stop_agent(agent_id) do
-    case TalesForge.Jido.stop_agent(agent_id) do
-      :ok ->
-        Logger.debug("npc agent stopped id=#{agent_id}")
+    case TalesForge.Jido.whereis(agent_id) do
+      nil ->
         :ok
 
-      {:error, :not_found} ->
-        :ok
+      pid ->
+        _ = TalesForge.Jido.stop_agent(pid)
+        ref = Process.monitor(pid)
+
+        receive do
+          {:DOWN, ^ref, _, _, _} ->
+            Logger.debug("npc agent stopped id=#{agent_id}")
+            :ok
+        after
+          1_000 ->
+            Logger.warning("npc agent stop timed out id=#{agent_id}")
+            :ok
+        end
     end
   end
 

@@ -163,7 +163,9 @@ defmodule TalesForgeWeb.PlayComponents do
               <.npc_avatar npc={npc} />
               <div class="min-w-0">
                 <p class="truncate text-sm font-medium text-[var(--paper-ink)]">{npc.name}</p>
-                <p class="truncate text-xs text-[var(--paper-muted)]">{npc.role}</p>
+                <p class="truncate text-xs text-[var(--paper-muted)]">
+                  {npc_role_label(npc)}
+                </p>
               </div>
             </li>
           </ul>
@@ -286,6 +288,7 @@ defmodule TalesForgeWeb.PlayComponents do
         id: npc_id,
         name: Map.get(detail, "name", npc_id),
         role: Map.get(detail, "role", "present"),
+        concern_priority: Map.get(detail, "concern_priority", 0),
         portrait_url: Map.get(detail, "portrait_url")
       }
     end)
@@ -301,6 +304,7 @@ defmodule TalesForgeWeb.PlayComponents do
   def entry_heading(%{role: "scene", location_name: name}), do: "You arrive at #{name}"
   def entry_heading(%{role: "gm"}), do: "Game Master"
   def entry_heading(%{role: "player"}), do: "You"
+  def entry_heading(%{role: "npc", npc_name: name}) when is_binary(name), do: name
   def entry_heading(_), do: "Narrator"
 
   defp entry_heading_class(%{role: "scene"}),
@@ -311,6 +315,9 @@ defmodule TalesForgeWeb.PlayComponents do
 
   defp entry_heading_class(%{role: "player"}),
     do: "play-label text-[var(--paper-muted)]"
+
+  defp entry_heading_class(%{role: "npc"}),
+    do: "play-label font-medium text-[var(--paper-accent)]"
 
   defp entry_heading_class(_), do: "play-label"
 
@@ -325,6 +332,10 @@ defmodule TalesForgeWeb.PlayComponents do
   defp entry_body_class(%{role: "player"}),
     do:
       "whitespace-pre-wrap rounded border border-[var(--paper-rule)] bg-[var(--paper-bg)] px-3 py-2 text-sm text-[var(--paper-ink)]"
+
+  defp entry_body_class(%{role: "npc"}),
+    do:
+      "whitespace-pre-wrap rounded border border-[var(--paper-accent)]/30 bg-[var(--paper-panel)] px-3 py-2 text-sm italic text-[var(--paper-ink)] shadow-sm"
 
   defp entry_body_class(_),
     do:
@@ -387,4 +398,11 @@ defmodule TalesForgeWeb.PlayComponents do
     |> Map.get("learning_points", %{})
     |> map_size() == 0
   end
+
+  defp npc_role_label(%{concern_priority: priority, role: role})
+       when is_integer(priority) and priority >= 8 do
+    "#{role} · troubled"
+  end
+
+  defp npc_role_label(%{role: role}), do: role
 end
