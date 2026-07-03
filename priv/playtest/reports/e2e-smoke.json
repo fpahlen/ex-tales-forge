@@ -1,0 +1,72 @@
+{
+  "status": "PASS",
+  "started_at": "2026-07-03T07:11:26.362881Z",
+  "warnings": [],
+  "session_id": "e7ce873a-d28d-4515-9c40-47b7b3840eff",
+  "llm_source": "api",
+  "steps": [
+    {
+      "status": "PASS",
+      "action": "look around the tavern",
+      "step": 1,
+      "llm_source": "api",
+      "turn_number": 1,
+      "issues": [],
+      "latency_ms": 6024,
+      "mechanical": {
+        "effective_skill": 3,
+        "lp_awarded": 1.0,
+        "notes": "Rolled 8 vs insight 3 (base 2). +1.0 LP.",
+        "outcome": "failure",
+        "roll": 8,
+        "skill": "insight"
+      },
+      "narrative_preview": "Elara's gaze sweeps the low-ceilinged tavern, the scent of woodsmoke and ale thick in the air. Chalk marks on the slate behind the bar catch her eye—tallies of debts or games, perhaps—and the hearth c"
+    },
+    {
+      "status": "PASS",
+      "action": "I ask Marta what the chalk marks mean",
+      "step": 2,
+      "llm_source": "api",
+      "turn_number": 2,
+      "issues": [],
+      "latency_ms": 8034,
+      "mechanical": {
+        "effective_skill": 5,
+        "lp_awarded": 1.0,
+        "notes": "Rolled 7 vs persuasion 5 (base 3). +1.0 LP.",
+        "outcome": "partial_success",
+        "roll": 7,
+        "skill": "persuasion"
+      },
+      "narrative_preview": "Elara steps closer to the bar, resting her hands lightly on the worn counter as she addresses Marta with a friendly, inquisitive tone. \"Those chalk marks behind you—I've been wondering what they track"
+    },
+    {
+      "status": "PASS",
+      "action": "I head outside to Crossroads Square",
+      "step": 3,
+      "llm_source": "api",
+      "turn_number": 3,
+      "issues": [],
+      "latency_ms": 5020,
+      "mechanical": {
+        "notes": "No skill check required.",
+        "outcome": "none"
+      },
+      "narrative_preview": "Elara steps away from the bar, the low hum of the Weary Pilgrim fading behind her as she pushes through the heavy oak door. The scent of woodsmoke gives way to crisp evening air and the distant clatte"
+    }
+  ],
+  "preflight": {
+    "status": "ok",
+    "warnings": [],
+    "checks": {
+      "server": true,
+      "database": true,
+      "llm_provider": "xai",
+      "xai_api_key": true,
+      "dotenv": true
+    }
+  },
+  "llm_provider": "xai",
+  "finished_at": "2026-07-03T07:12:38.670948Z"
+}

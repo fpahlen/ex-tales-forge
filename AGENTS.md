@@ -134,4 +134,11 @@ priv/prompts/   # LLM system prompts (from text-forge)
 
 ## Playtest agent (`/play_test`)
 
-After code changes, run a live playthrough to verify intent extraction and GM responses. See [`.grok/skills/play-test/SKILL.md`](.grok/skills/play-test/SKILL.md). Automated Elixir playtest runner is not yet implemented — use manual browser checks until then.
+After code changes, run a live playthrough to verify intent extraction and GM responses:
+
+```bash
+mix phx.server   # terminal 1
+mix e2e.smoke    # terminal 2
+```
+
+See [`.grok/skills/play-test/SKILL.md`](.grok/skills/play-test/SKILL.md). Reports land in `priv/playtest/reports/`.
