@@ -111,6 +111,14 @@ priv/
 - [ ] Phase 2: Ash authoring layer + Tigris images
 - [ ] Phase 3: NPC agents + world clock
 
+## Development
+
+See [AGENTS.md](AGENTS.md) for git workflow, non-negotiables, LLM conventions, and troubleshooting.
+
+- Work on feature branches — never commit directly to `main`
+- Run `mix precommit` before opening a PR
+- After gameplay changes, smoke-test with `/play_test` (see `.grok/skills/play-test/SKILL.md`)
+
 ## Tests
 
 ```bash
