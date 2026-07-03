@@ -1,0 +1,19 @@
+defmodule TalesForge.Workers.ProcessScene do
+  @moduledoc """
+  Oban worker for opening scene narration before player turns.
+  """
+  use Oban.Worker,
+    queue: :llm,
+    max_attempts: 3,
+    unique: [period: 60, fields: [:args], keys: [:session_id]]
+
+  alias TalesForge.Game.SceneProcessor
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"session_id" => session_id}}) do
+    case SceneProcessor.run(session_id) do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+end

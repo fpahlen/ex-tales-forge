@@ -29,6 +29,15 @@ defmodule TalesForge.LLM do
     }
   }
 
+  @scene_schema %{
+    "type" => "object",
+    "required" => ["location_name", "narrative"],
+    "properties" => %{
+      "location_name" => %{"type" => "string"},
+      "narrative" => %{"type" => "string"}
+    }
+  }
+
   @gm_schema %{
     "type" => "object",
     "required" => ["narrative"],
@@ -60,6 +69,29 @@ defmodule TalesForge.LLM do
       |> case do
         {:ok, map} -> {:ok, IntentExtraction.decode(map)}
         error -> error
+      end
+    end
+  end
+
+  def complete_scene(system, user, intent_context) when is_map(intent_context) do
+    model = tier2_model()
+
+    if model == "mock" do
+      {:ok, mock_scene_response(intent_context)}
+    else
+      complete_json(model, system, user, @scene_schema, Config.tier2_temperature(),
+        tier: :scene,
+        max_tokens: Config.tier2_max_tokens()
+      )
+      |> case do
+        {:ok, %{"location_name" => location_name, "narrative" => narrative}} ->
+          {:ok, %{location_name: location_name, narrative: narrative}}
+
+        {:ok, map} ->
+          {:error, {:invalid_scene, map}}
+
+        error ->
+          error
       end
     end
   end
@@ -101,6 +133,23 @@ defmodule TalesForge.LLM do
       "target" => handler.target,
       "notes" => handler.notes
     }
+  end
+
+  defp mock_scene_response(context) do
+    location_name = Map.get(context, "location_name", "Unknown")
+    blurb = Map.get(context, "location_blurb", "")
+    situation = Map.get(context, "situation_lines", []) |> Enum.join("\n")
+
+    narrative =
+      [
+        blurb,
+        situation,
+        "\n_Mock GM: set XAI_API_KEY for full scene narration._"
+      ]
+      |> Enum.reject(&(is_nil(&1) or &1 == ""))
+      |> Enum.join("\n\n")
+
+    %{location_name: location_name, narrative: narrative}
   end
 
   defp mock_turn_response(

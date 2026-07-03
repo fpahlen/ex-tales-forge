@@ -14,7 +14,7 @@ defmodule Mix.Tasks.E2e.Smoke do
   alias TalesForge.GameSessions
   alias TalesForge.LLM
   alias TalesForge.Repo
-  alias TalesForge.Schemas.Turn
+  alias TalesForge.Schemas.{Scene, Turn}
 
   @shortdoc "Run live E2E smoke test (requires mix phx.server + XAI_API_KEY)"
 
@@ -51,6 +51,24 @@ defmodule Mix.Tasks.E2e.Smoke do
     Mix.shell().info("E2E smoke: starting tavern scenario (#{length(@scenario)} turns)")
 
     {:ok, session} = GameSessions.create_session(%{name: "E2E Smoke #{started_at}"})
+
+    case wait_for_opening_scene(session.id) do
+      {:ok, scene, latency_ms} ->
+        Mix.shell().info(
+          "  opening scene: #{scene.location_name} (#{latency_ms}ms, #{String.length(scene.narrative)} chars)"
+        )
+
+      {:error, reason} ->
+        write_report(%{
+          status: "FAIL",
+          started_at: DateTime.to_iso8601(started_at),
+          preflight: preflight,
+          steps: [],
+          warnings: ["opening scene: #{inspect(reason)}"]
+        })
+
+        System.halt(1)
+    end
 
     {steps, warnings} =
       Enum.map_reduce(@scenario, [], fn %{step: step_num, action: action}, warns ->
@@ -208,6 +226,40 @@ defmodule Mix.Tasks.E2e.Smoke do
 
       {:error, _} = err ->
         err
+    end
+  end
+
+  defp wait_for_opening_scene(session_id) do
+    deadline = System.monotonic_time(:millisecond) + @turn_timeout_ms
+    wait_for_opening_scene(session_id, deadline, System.monotonic_time(:millisecond))
+  end
+
+  defp wait_for_opening_scene(session_id, deadline, started) do
+    case fetch_opening_scene(session_id) do
+      {:ok, scene} ->
+        latency = System.monotonic_time(:millisecond) - started
+        {:ok, scene, latency}
+
+      :not_found ->
+        if System.monotonic_time(:millisecond) >= deadline do
+          {:error, :timeout}
+        else
+          Process.sleep(@poll_interval_ms)
+          wait_for_opening_scene(session_id, deadline, started)
+        end
+    end
+  end
+
+  defp fetch_opening_scene(session_id) do
+    scene =
+      Scene
+      |> where([s], s.game_session_id == ^session_id and s.location_id == "weary_pilgrim")
+      |> Repo.one()
+
+    if scene && String.trim(scene.narrative) != "" do
+      {:ok, scene}
+    else
+      :not_found
     end
   end
 

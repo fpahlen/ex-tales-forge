@@ -5,6 +5,7 @@ defmodule TalesForge.Game.Prompts do
 
   def intent_system, do: read_prompt("intent_system.txt")
   def gm_system, do: read_prompt("gm_system.txt")
+  def scene_system, do: read_prompt("scene_system.txt")
 
   def load_rules do
     @rules_dir

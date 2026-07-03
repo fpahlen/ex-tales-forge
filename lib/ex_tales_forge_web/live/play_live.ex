@@ -1,6 +1,7 @@
 defmodule TalesForgeWeb.PlayLive do
   use TalesForgeWeb, :live_view
 
+  alias TalesForge.Game.SceneProcessor
   alias TalesForge.GameSessions
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
@@ -14,10 +15,12 @@ defmodule TalesForgeWeb.PlayLive do
     session =
       id
       |> GameSessions.get_session!()
-      |> Repo.preload(:turns)
+      |> Repo.preload([:turns, :scenes])
 
     :ok = GameSessions.ensure_agent_started(session)
+    {:ok, _} = GameSessions.ensure_scene(session)
 
+    status = GameSessions.scene_status(id)
     entries = load_entries(session)
 
     {:ok,
@@ -25,6 +28,8 @@ defmodule TalesForgeWeb.PlayLive do
      |> assign(:page_title, session.name)
      |> assign(:session, session)
      |> assign(:thinking, false)
+     |> assign(:scene_loading, status.needs_scene)
+     |> assign(:scene_image_url, current_scene_image(session))
      |> assign(:clarification, nil)
      |> assign(:llm_source, "mock")
      |> stream(:entries, entries, reset: true)}
@@ -49,6 +54,32 @@ defmodule TalesForgeWeb.PlayLive do
   end
 
   @impl true
+  def handle_info({:scene_processing, _}, socket) do
+    {:noreply, assign(socket, :scene_loading, true)}
+  end
+
+  def handle_info({:scene_completed, payload}, socket) do
+    session =
+      socket.assigns.session
+      |> Map.put(:world_state, payload.world_state)
+      |> refresh_scenes()
+
+    {:noreply,
+     socket
+     |> assign(:scene_loading, false)
+     |> assign(:session, session)
+     |> assign(:llm_source, payload.llm_source)
+     |> assign(:scene_image_url, payload.image_url)
+     |> append_entries(payload.entries)}
+  end
+
+  def handle_info({:scene_failed, reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:scene_loading, false)
+     |> put_flash(:error, "Scene failed: #{reason}")}
+  end
+
   def handle_info({:turn_processing, _}, socket) do
     {:noreply, assign(socket, :thinking, true)}
   end
@@ -63,13 +94,16 @@ defmodule TalesForgeWeb.PlayLive do
   def handle_info({:turn_completed, payload}, socket) do
     session = Map.put(socket.assigns.session, :world_state, payload.world_state)
 
-    {:noreply,
-     socket
-     |> assign(:thinking, false)
-     |> assign(:clarification, nil)
-     |> assign(:session, session)
-     |> assign(:llm_source, payload.llm_source)
-     |> append_entries(payload.entries)}
+    socket =
+      socket
+      |> assign(:thinking, false)
+      |> assign(:clarification, nil)
+      |> assign(:session, session)
+      |> assign(:llm_source, payload.llm_source)
+      |> append_entries(payload.entries)
+      |> maybe_start_scene_after_travel(payload, session)
+
+    {:noreply, socket}
   end
 
   def handle_info({:turn_failed, reason}, socket) do
@@ -83,12 +117,14 @@ defmodule TalesForgeWeb.PlayLive do
   def render(assigns) do
     world = assigns.session.world_state || %{}
     character = Map.get(world, "character", %{})
+    input_disabled = assigns.thinking or assigns.scene_loading
 
     assigns =
       assigns
       |> assign(:location_name, Map.get(world, "location_name", "Unknown"))
       |> assign(:world_clock, Map.get(world, "world_clock", "—"))
       |> assign(:character, character)
+      |> assign(:input_disabled, input_disabled)
 
     ~H"""
     <Layouts.app flash={@flash}>
@@ -108,18 +144,10 @@ defmodule TalesForgeWeb.PlayLive do
             phx-update="stream"
           >
             <div :for={{dom_id, entry} <- @streams.entries} id={dom_id} class="space-y-1">
-              <p class={[
-                "text-xs font-semibold uppercase tracking-wide",
-                entry.role == "gm" && "text-amber-800",
-                entry.role == "player" && "text-zinc-500"
-              ]}>
-                {if entry.role == "gm", do: "Game Master", else: "You"}
+              <p class={entry_heading_class(entry)}>
+                {entry_heading(entry)}
               </p>
-              <div class={[
-                "whitespace-pre-wrap rounded-lg px-3 py-2 text-sm leading-relaxed",
-                entry.role == "gm" && "bg-white text-zinc-800 shadow-sm",
-                entry.role == "player" && "bg-amber-100 text-zinc-900"
-              ]}>
+              <div class={entry_body_class(entry)}>
                 {entry.text}
               </div>
               <p :if={entry.role == "gm" && entry[:mechanical]} class="text-xs text-zinc-500">
@@ -127,6 +155,9 @@ defmodule TalesForgeWeb.PlayLive do
               </p>
             </div>
 
+            <p :if={@scene_loading} class="text-sm italic text-zinc-500">
+              The GM is setting the scene…
+            </p>
             <p :if={@thinking} class="text-sm italic text-zinc-500">The GM is thinking…</p>
           </section>
 
@@ -150,15 +181,15 @@ defmodule TalesForgeWeb.PlayLive do
             <input
               type="text"
               name="message"
-              placeholder="What do you do?"
+              placeholder={if @scene_loading, do: "Wait for the scene…", else: "What do you do?"}
               autocomplete="off"
               class="flex-1 rounded-lg border border-zinc-300 px-3 py-2"
-              disabled={@thinking}
+              disabled={@input_disabled}
             />
             <button
               type="submit"
               class="rounded-lg bg-amber-700 px-4 py-2 font-medium text-white hover:bg-amber-800 disabled:opacity-50"
-              disabled={@thinking}
+              disabled={@input_disabled}
             >
               Act
             </button>
@@ -168,8 +199,19 @@ defmodule TalesForgeWeb.PlayLive do
         <aside class="space-y-4">
           <section class="rounded-xl border border-zinc-200 bg-white p-4">
             <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">Scene</h2>
-            <div class="flex aspect-video items-center justify-center rounded-lg bg-zinc-100 text-sm text-zinc-500">
-              Scene image (Phase 2)
+            <div :if={@scene_image_url} class="overflow-hidden rounded-lg">
+              <img
+                src={@scene_image_url}
+                alt={@location_name}
+                class="aspect-video w-full object-cover"
+              />
+            </div>
+            <div
+              :if={!@scene_image_url}
+              class="flex aspect-video flex-col items-center justify-center rounded-lg bg-zinc-100 px-4 text-center text-sm text-zinc-500"
+            >
+              <span class="font-medium text-zinc-700">{@location_name}</span>
+              <span class="mt-1">No scene image yet</span>
             </div>
           </section>
 
@@ -205,6 +247,13 @@ defmodule TalesForgeWeb.PlayLive do
     """
   end
 
+  defp maybe_start_scene_after_travel(socket, %{needs_scene: true}, session) do
+    {:ok, _} = GameSessions.ensure_scene(session.id)
+    assign(socket, :scene_loading, true)
+  end
+
+  defp maybe_start_scene_after_travel(socket, _payload, _session), do: socket
+
   defp submit_action(socket, message, opts) do
     session_id = socket.assigns.session.id
     socket = assign(socket, :thinking, true)
@@ -220,6 +269,12 @@ defmodule TalesForgeWeb.PlayLive do
         {:noreply,
          socket |> assign(:thinking, false) |> put_flash(:error, "Say something first.")}
 
+      {:error, :needs_scene} ->
+        {:noreply,
+         socket
+         |> assign(:thinking, false)
+         |> put_flash(:error, "Wait for the GM to describe the scene before you act.")}
+
       {:error, _reason} ->
         {:noreply,
          socket
@@ -229,22 +284,87 @@ defmodule TalesForgeWeb.PlayLive do
   end
 
   defp load_entries(session) do
-    session.turns
-    |> Enum.sort_by(& &1.turn_number)
-    |> Enum.flat_map(fn turn ->
-      mechanical = turn.mechanical_resolution || %{}
+    scene_rows =
+      Enum.map(session.scenes, fn scene ->
+        {scene.inserted_at, SceneProcessor.build_entry(scene)}
+      end)
 
-      [
-        %{id: "#{turn.id}-player", role: "player", text: turn.player_action},
-        %{
-          id: "#{turn.id}-gm",
-          role: "gm",
-          text: turn.narrative || "",
-          mechanical: mechanical
-        }
-      ]
-    end)
+    turn_rows =
+      session.turns
+      |> Enum.sort_by(& &1.turn_number)
+      |> Enum.flat_map(fn turn ->
+        mechanical = turn.mechanical_resolution || %{}
+
+        [
+          {turn.inserted_at,
+           %{id: "#{turn.id}-player", role: "player", text: turn.player_action}},
+          {turn.inserted_at,
+           %{
+             id: "#{turn.id}-gm",
+             role: "gm",
+             text: turn.narrative || "",
+             mechanical: mechanical
+           }}
+        ]
+      end)
+
+    (scene_rows ++ turn_rows)
+    |> Enum.sort_by(fn {inserted_at, _} -> inserted_at end, DateTime)
+    |> Enum.map(fn {_inserted_at, entry} -> entry end)
   end
+
+  defp current_scene_image(%{world_state: world_state, scenes: scenes}) do
+    location_id = Map.get(world_state || %{}, "location_id")
+
+    scenes
+    |> Enum.find(&(&1.location_id == location_id))
+    |> case do
+      %{image_url: url} when is_binary(url) and url != "" -> url
+      _ -> nil
+    end
+  end
+
+  defp refresh_scenes(%{id: id} = session) do
+    scenes =
+      id
+      |> GameSessions.get_session!()
+      |> Repo.preload(:scenes)
+      |> Map.get(:scenes)
+
+    Map.put(session, :scenes, scenes)
+  end
+
+  defp entry_heading(%{role: "scene", location_name: name}), do: "You arrive at #{name}"
+  defp entry_heading(%{role: "gm"}), do: "Game Master"
+  defp entry_heading(%{role: "player"}), do: "You"
+  defp entry_heading(_), do: "Narrator"
+
+  defp entry_heading_class(%{role: "scene"}),
+    do: "text-xs font-semibold uppercase tracking-wide text-zinc-600"
+
+  defp entry_heading_class(%{role: "gm"}),
+    do: "text-xs font-semibold uppercase tracking-wide text-amber-800"
+
+  defp entry_heading_class(%{role: "player"}),
+    do: "text-xs font-semibold uppercase tracking-wide text-zinc-500"
+
+  defp entry_heading_class(_),
+    do: "text-xs font-semibold uppercase tracking-wide text-zinc-500"
+
+  defp entry_body_class(%{role: "scene"}),
+    do:
+      "whitespace-pre-wrap rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm leading-relaxed text-zinc-800 shadow-sm"
+
+  defp entry_body_class(%{role: "gm"}),
+    do:
+      "whitespace-pre-wrap rounded-lg bg-white px-3 py-2 text-sm leading-relaxed text-zinc-800 shadow-sm"
+
+  defp entry_body_class(%{role: "player"}),
+    do:
+      "whitespace-pre-wrap rounded-lg bg-amber-100 px-3 py-2 text-sm leading-relaxed text-zinc-900"
+
+  defp entry_body_class(_),
+    do: "whitespace-pre-wrap rounded-lg bg-white px-3 py-2 text-sm leading-relaxed text-zinc-800"
 
   defp append_entries(socket, entries) do
     Enum.reduce(entries, socket, fn entry, sock ->

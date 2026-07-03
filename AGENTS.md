@@ -173,19 +173,23 @@ Set `LOG_LEVEL=debug` in `.env` for full LLM request/response logging.
 
 When rules or prompts change in text-forge, sync the corresponding files here. Product principles are shared; storage and runtime differ by design.
 
-## Turn pipeline
+## Scene + turn pipeline
 
-1. `GameSessions.submit_message/3` — Tier 1 intent (heuristic or LLM)
-2. `TalesForge.Workers.ProcessTurn` (Oban `:llm` queue) — Tier 2 GM + mechanics
-3. PubSub `{:turn_completed, payload}` → LiveView
+Play always opens with a **scene** (GM exposition, not a turn). Player input is blocked until `last_scene_location` matches `location_id`.
+
+1. `GameSessions.create_session/1` or `ensure_scene/1` — `TalesForge.Workers.ProcessScene` (Oban `:llm`) describes the location
+2. PubSub `{:scene_completed, payload}` → LiveView narrative log + sidebar image (`image_url` when authored)
+3. `GameSessions.submit_message/3` — Tier 1 intent (heuristic or LLM); returns `{:error, :needs_scene}` if scene pending
+4. `TalesForge.Workers.ProcessTurn` — Tier 2 GM + mechanics
+5. PubSub `{:turn_completed, payload}` → LiveView; if travel changed location, `needs_scene: true` triggers step 1 again
 
 ## Layout
 
 ```
 lib/ex_tales_forge/
   agents/       # PlayerSessionAgent, NPCAgent (later)
-  game/         # intent, mechanics, action_handler, turn_processor
-  workers/      # Oban ProcessTurn
+  game/         # intent, mechanics, scene_processor, turn_processor
+  workers/      # Oban ProcessScene, ProcessTurn
   schemas/      # Ecto runtime schemas
 priv/rules/     # Markdown rulebook (from text-forge)
 priv/prompts/   # LLM system prompts (from text-forge)

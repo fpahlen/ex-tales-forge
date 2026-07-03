@@ -10,12 +10,13 @@ defmodule TalesForge.GameSessions do
   alias TalesForge.Agents.PlayerSessionAgent
   alias TalesForge.Game.Context
   alias TalesForge.Game.Intent
+  alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.World
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
-  alias TalesForge.Workers.ProcessTurn
+  alias TalesForge.Workers.{ProcessScene, ProcessTurn}
 
   def list_sessions do
     GameSession
@@ -40,9 +41,30 @@ defmodule TalesForge.GameSessions do
            %GameSession{}
            |> GameSession.changeset(attrs)
            |> Repo.insert(),
-         :ok <- ensure_agent(session) do
+         :ok <- ensure_agent(session),
+         {:ok, _} <- ensure_scene(session) do
       {:ok, session}
     end
+  end
+
+  def scene_status(session_id) do
+    session_id
+    |> get_session!()
+    |> SceneProcessor.scene_status()
+  end
+
+  def ensure_scene(%GameSession{} = session) do
+    if SceneProcessor.needs_scene?(session.world_state) do
+      enqueue_scene(session.id)
+    else
+      {:ok, :scene_ready}
+    end
+  end
+
+  def ensure_scene(session_id) when is_binary(session_id) do
+    session_id
+    |> get_session!()
+    |> ensure_scene()
   end
 
   def submit_message(session_id, text, opts \\ []) when is_binary(text) do
@@ -53,6 +75,7 @@ defmodule TalesForge.GameSessions do
     else
       with %GameSession{} = session <- Repo.get(GameSession, session_id),
            :ok <- ensure_agent(session),
+           :ok <- require_scene_ready(session),
            {:ok, outcome} <- resolve_and_enqueue(session, trimmed, opts) do
         {:ok, outcome}
       else
@@ -163,6 +186,29 @@ defmodule TalesForge.GameSessions do
       pending
     else
       raise ArgumentError, "clarification expired"
+    end
+  end
+
+  defp require_scene_ready(%GameSession{} = session) do
+    if SceneProcessor.needs_scene?(session.world_state) do
+      ensure_scene(session)
+      {:error, :needs_scene}
+    else
+      :ok
+    end
+  end
+
+  defp enqueue_scene(session_id) do
+    %{session_id: session_id}
+    |> ProcessScene.new()
+    |> Oban.insert()
+    |> case do
+      {:ok, _job} ->
+        SessionPubSub.broadcast(session_id, {:scene_processing, %{}})
+        {:ok, :processing}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
