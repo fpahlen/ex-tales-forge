@@ -129,6 +129,24 @@ defmodule TalesForge.NPC do
     }
   end
 
+  def initiative_text(%NpcInstance{npc_id: "worried_merchant"} = inst) do
+    focus =
+      inst.runtime_state
+      |> Map.get("current_concern", %{})
+      |> Map.get("focus", "the stolen ledger")
+
+    case focus do
+      "stolen ledger" ->
+        "Henrik Bale steps toward you, voice tight. \"Please — if you've heard who took that ledger, tell me before rumors spread.\""
+
+      "ruined reputation" ->
+        "Henrik glances at the crowd, then lowers his voice. \"I can't afford another whisper campaign against my name.\""
+
+      _ ->
+        "Henrik Bale wrings his hands. \"It's this business with #{focus} — I need answers.\""
+    end
+  end
+
   def initiative_text(%NpcInstance{npc_id: "marta_kellen"} = inst) do
     focus =
       inst.runtime_state

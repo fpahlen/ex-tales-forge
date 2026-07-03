@@ -28,6 +28,10 @@ defmodule TalesForge.NPCTest do
     assert inst.personality["name"] == "Marta Kellen"
     assert inst.runtime_state["location_id"] == "weary_pilgrim"
     assert "marta_kellen" in session.world_state["present_npcs"]
+
+    henrik = NPC.get_instance(session.id, "worried_merchant")
+    assert henrik.personality["name"] == "Henrik Bale"
+    assert henrik.runtime_state["location_id"] == "crossroads_square"
   end
 
   test "apply_gm_updates appends npc memory" do
@@ -53,7 +57,7 @@ defmodule TalesForge.NPCTest do
     assert {:ok, session} = GameSessions.create_session(%{name: "NPC Presence"})
 
     assert ["marta_kellen"] = NPC.sync_present_npcs(session.id, "weary_pilgrim")
-    assert [] = NPC.sync_present_npcs(session.id, "crossroads_square")
+    assert ["worried_merchant"] = NPC.sync_present_npcs(session.id, "crossroads_square")
 
     inst = NPC.get_instance(session.id, "marta_kellen")
 
@@ -63,7 +67,10 @@ defmodule TalesForge.NPCTest do
     })
     |> Repo.update!()
 
-    assert ["marta_kellen"] = NPC.sync_present_npcs(session.id, "crossroads_square")
+    assert ["marta_kellen", "worried_merchant"] =
+             NPC.sync_present_npcs(session.id, "crossroads_square")
+             |> Enum.sort()
+
     assert [] = NPC.sync_present_npcs(session.id, "weary_pilgrim")
   end
 end

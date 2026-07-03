@@ -79,7 +79,7 @@ defmodule TalesForge.GameSessions do
       {:error, :empty_message}
     else
       with %GameSession{} = session <- Repo.get(GameSession, session_id),
-           :ok <- ensure_agent(session),
+           :ok <- ensure_runtime_started(session),
            :ok <- require_scene_ready(session),
            {:ok, outcome} <- resolve_and_enqueue(session, trimmed, opts) do
         {:ok, outcome}
@@ -90,8 +90,21 @@ defmodule TalesForge.GameSessions do
     end
   end
 
-  def ensure_agent_started(%GameSession{id: id}) do
-    ensure_agent(%GameSession{id: id})
+  def ensure_agent_started(%GameSession{} = session) do
+    ensure_runtime_started(session)
+  end
+
+  def ensure_agent_started(session_id) when is_binary(session_id) do
+    session_id
+    |> get_session!()
+    |> ensure_runtime_started()
+  end
+
+  def ensure_runtime_started(%GameSession{} = session) do
+    with :ok <- ensure_agent(session),
+         :ok <- NPCRegistry.sync(session) do
+      :ok
+    end
   end
 
   def agent_id(session_id), do: "session-#{session_id}"
