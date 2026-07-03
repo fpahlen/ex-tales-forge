@@ -1,8 +1,8 @@
 {
   "status": "PASS",
-  "started_at": "2026-07-03T07:11:26.362881Z",
+  "started_at": "2026-07-03T07:50:10.095101Z",
   "warnings": [],
-  "session_id": "e7ce873a-d28d-4515-9c40-47b7b3840eff",
+  "session_id": "3af92c81-0a0f-42d5-bcb6-2d1c4e38c80d",
   "llm_source": "api",
   "steps": [
     {
@@ -12,16 +12,16 @@
       "llm_source": "api",
       "turn_number": 1,
       "issues": [],
-      "latency_ms": 6024,
+      "latency_ms": 2510,
       "mechanical": {
         "effective_skill": 3,
         "lp_awarded": 1.0,
-        "notes": "Rolled 8 vs insight 3 (base 2). +1.0 LP.",
+        "notes": "Rolled 7 vs insight 3 (base 2). +1.0 LP.",
         "outcome": "failure",
-        "roll": 8,
+        "roll": 7,
         "skill": "insight"
       },
-      "narrative_preview": "Elara's gaze sweeps the low-ceilinged tavern, the scent of woodsmoke and ale thick in the air. Chalk marks on the slate behind the bar catch her eye—tallies of debts or games, perhaps—and the hearth c"
+      "narrative_preview": "You pause just inside the heavy oak door of the Weary Pilgrim, letting your eyes adjust to the warm, smoky glow of the hearth. The low ceiling and scent of ale and roasted chestnuts wrap around you li"
     },
     {
       "status": "PASS",
@@ -30,16 +30,16 @@
       "llm_source": "api",
       "turn_number": 2,
       "issues": [],
-      "latency_ms": 8034,
+      "latency_ms": 2512,
       "mechanical": {
         "effective_skill": 5,
         "lp_awarded": 1.0,
-        "notes": "Rolled 7 vs persuasion 5 (base 3). +1.0 LP.",
-        "outcome": "partial_success",
-        "roll": 7,
+        "notes": "Rolled 15 vs persuasion 5 (base 3). +1.0 LP.",
+        "outcome": "failure",
+        "roll": 15,
         "skill": "persuasion"
       },
-      "narrative_preview": "Elara steps closer to the bar, resting her hands lightly on the worn counter as she addresses Marta with a friendly, inquisitive tone. \"Those chalk marks behind you—I've been wondering what they track"
+      "narrative_preview": "Elara leans against the worn bar, her voice carrying a warm, coaxing tone as she asks Marta about the chalk marks on the slate. The barkeep pauses mid-wipe, her sharp eyes narrowing before softening w"
     },
     {
       "status": "PASS",
@@ -48,12 +48,12 @@
       "llm_source": "api",
       "turn_number": 3,
       "issues": [],
-      "latency_ms": 5020,
+      "latency_ms": 2009,
       "mechanical": {
         "notes": "No skill check required.",
         "outcome": "none"
       },
-      "narrative_preview": "Elara steps away from the bar, the low hum of the Weary Pilgrim fading behind her as she pushes through the heavy oak door. The scent of woodsmoke gives way to crisp evening air and the distant clatte"
+      "narrative_preview": "You nod farewell to Marta, who gives a friendly wave and returns to wiping down the bar. Pushing open the heavy oak door, you step out from the warm, smoky interior of the Weary Pilgrim into the brigh"
     }
   ],
   "preflight": {
@@ -68,5 +68,5 @@
     }
   },
   "llm_provider": "xai",
-  "finished_at": "2026-07-03T07:12:38.670948Z"
+  "finished_at": "2026-07-03T07:50:17.221967Z"
 }

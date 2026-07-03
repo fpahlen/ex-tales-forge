@@ -13,7 +13,10 @@ defmodule TalesForge.Config do
   def xai_api_key, do: System.get_env("XAI_API_KEY", "")
   def openai_api_key, do: System.get_env("OPENAI_API_KEY", "")
   def anthropic_api_key, do: System.get_env("ANTHROPIC_API_KEY", "")
-  def xai_model, do: System.get_env("XAI_MODEL", "grok-4.3")
+  @default_xai_model "grok-4.20-0309-non-reasoning"
+
+  def xai_model, do: System.get_env("XAI_MODEL", @default_xai_model)
+  def default_xai_model, do: @default_xai_model
 
   def tier1_model, do: blank_to_nil(System.get_env("TIER1_MODEL"))
   def tier2_model, do: blank_to_nil(System.get_env("TIER2_MODEL"))
@@ -21,6 +24,9 @@ defmodule TalesForge.Config do
   def tier1_temperature, do: env_float("TIER1_TEMPERATURE", 0.0)
   def tier2_temperature, do: env_float("TIER2_TEMPERATURE", 0.7)
   def tier1_confidence_threshold, do: env_float("TIER1_CONFIDENCE_THRESHOLD", 0.75)
+  def tier1_heuristic_threshold, do: env_float("TIER1_HEURISTIC_THRESHOLD", 0.85)
+  def tier1_max_tokens, do: env_int("TIER1_MAX_TOKENS", 400)
+  def tier2_max_tokens, do: env_int("TIER2_MAX_TOKENS", 700)
 
   def ollama_api_base, do: System.get_env("OLLAMA_API_BASE", "http://localhost:11434")
   def log_level, do: System.get_env("LOG_LEVEL", "info")
@@ -32,6 +38,15 @@ defmodule TalesForge.Config do
       present?(anthropic_api_key()) -> "anthropic"
       true -> "mock"
     end
+  end
+
+  defp env_int(key, default) do
+    case System.get_env(key) do
+      nil -> default
+      value -> String.to_integer(value)
+    end
+  rescue
+    ArgumentError -> default
   end
 
   defp env_float(key, default) do

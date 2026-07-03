@@ -16,6 +16,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Schemas.{GameSession, Turn}
 
   def run(session_id, raw_action, player_action_map) do
+    started = System.monotonic_time(:millisecond)
     player_action = TalesForge.Game.Schemas.PlayerAction.decode(player_action_map)
 
     with %GameSession{} = session <- Repo.get(GameSession, session_id),
@@ -52,6 +53,12 @@ defmodule TalesForge.Game.TurnProcessor do
         location_name: Map.get(world_state, "location_name"),
         world_state: world_state
       }
+
+      elapsed = System.monotonic_time(:millisecond) - started
+
+      Logger.info(
+        "turn completed session=#{session_id} turn=#{turn_number} duration_ms=#{elapsed} llm_source=#{LLM.llm_source(LLM.provider())}"
+      )
 
       SessionPubSub.broadcast(session_id, {:turn_completed, payload})
       {:ok, payload}

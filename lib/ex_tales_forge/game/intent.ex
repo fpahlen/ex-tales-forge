@@ -24,27 +24,38 @@ defmodule TalesForge.Game.Intent do
   end
 
   def extract_intent(raw_action, context) when is_binary(raw_action) do
-    bundle =
-      case LLM.provider() do
-        "mock" ->
-          heuristic_intent(raw_action, context)
-
-        _ ->
-          case call_tier1(raw_action, context) do
-            {:ok, extraction} ->
-              extraction
-
-            {:error, reason} ->
-              Logger.warning("tier1 intent failed reason=#{inspect(reason)}; using heuristic")
-              heuristic_intent(raw_action, context)
-          end
-      end
+    {bundle, _source} = resolve_bundle(raw_action, context)
 
     if should_clarify?(bundle) do
       raise ClarificationNeeded, extraction: bundle
     end
 
     validate_player_action(bundle, context)
+  end
+
+  def needs_clarification?(%IntentExtraction{} = extraction), do: should_clarify?(extraction)
+
+  def resolve_bundle(raw_action, context) when is_binary(raw_action) do
+    case LLM.provider() do
+      "mock" ->
+        {heuristic_intent(raw_action, context), :heuristic}
+
+      _ ->
+        heuristic = heuristic_intent(raw_action, context)
+
+        if heuristic_sufficient?(heuristic, context) do
+          {heuristic, :heuristic}
+        else
+          case call_tier1(raw_action, context) do
+            {:ok, extraction} ->
+              {extraction, :llm}
+
+            {:error, reason} ->
+              Logger.warning("tier1 intent failed reason=#{inspect(reason)}; using heuristic")
+              {heuristic, :heuristic}
+          end
+        end
+    end
   end
 
   def validate_player_action(%IntentExtraction{} = extraction, _context) do
@@ -101,28 +112,28 @@ defmodule TalesForge.Game.Intent do
 
     case LLM.complete_intent(system, user) do
       {:ok, extraction} ->
-        {:ok, extraction |> finalize_tier1(system, user, raw_action) |> ensure_skill(raw_action)}
+        {:ok, ensure_skill(extraction, raw_action)}
 
       error ->
         error
     end
   end
 
-  defp finalize_tier1(extraction, system, user, _raw_action) do
+  defp heuristic_sufficient?(%IntentExtraction{} = extraction, context) do
     primary = primary_action(extraction)
 
-    if skill_missing?(primary) do
-      case LLM.complete_intent(
-             system,
-             user <> "\n\nYour previous response omitted parameters.skill for a check action."
-           ) do
-        {:ok, retried} -> retried
-        _ -> extraction
-      end
-    else
-      extraction
-    end
+    extraction.confidence >= Config.tier1_heuristic_threshold() and
+      length(extraction.actions) == 1 and
+      not extraction.needs_clarification and
+      not ambiguous_move?(primary, context) and
+      not skill_missing?(primary)
   end
+
+  defp ambiguous_move?(%SingleAction{action_type: :move, target: target}, context) do
+    is_nil(target) or target == "" or target not in context["exits"]
+  end
+
+  defp ambiguous_move?(_, _), do: false
 
   defp ensure_skill(%IntentExtraction{} = extraction, raw_action) do
     primary = primary_action(extraction)

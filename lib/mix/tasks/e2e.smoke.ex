@@ -25,6 +25,7 @@ defmodule Mix.Tasks.E2e.Smoke do
   ]
 
   @turn_timeout_ms 90_000
+  @max_turn_latency_ms 3_000
   @poll_interval_ms 500
   @mock_marker "_Mock GM:"
 
@@ -255,11 +256,18 @@ defmodule Mix.Tasks.E2e.Smoke do
     empty? = String.trim(narrative) == ""
     llm_source = LLM.llm_source(LLM.provider())
 
+    over_budget? = latency_ms > @max_turn_latency_ms
+
     issues =
       []
       |> then(fn i -> if empty?, do: ["empty narrative" | i], else: i end)
       |> then(fn i -> if mock?, do: ["mock GM narration" | i], else: i end)
       |> then(fn i -> if llm_source != "api", do: ["llm_source=#{llm_source}" | i], else: i end)
+      |> then(fn i ->
+        if over_budget?,
+          do: ["turn latency budget exceeded (#{latency_ms}ms > #{@max_turn_latency_ms}ms)" | i],
+          else: i
+      end)
 
     status = if issues == [], do: "PASS", else: "FAIL"
 
