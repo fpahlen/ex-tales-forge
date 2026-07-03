@@ -13,15 +13,16 @@ defmodule Mix.Tasks.E2e.Smoke do
 
   alias TalesForge.GameSessions
   alias TalesForge.LLM
+  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Scene, Turn}
 
   @shortdoc "Run live E2E smoke test (requires mix phx.server + XAI_API_KEY)"
 
   @scenario [
-    %{step: 1, action: "look around the tavern"},
-    %{step: 2, action: "I ask Marta what the chalk marks mean"},
-    %{step: 3, action: "I head outside to Crossroads Square"}
+    %{step: 1, action: "look around the tavern", npc_expect: :tavern_present},
+    %{step: 2, action: "I ask Marta what the chalk marks mean", npc_expect: :marta_memory},
+    %{step: 3, action: "I head outside to Crossroads Square", npc_expect: :square_present}
   ]
 
   @turn_timeout_ms 90_000
@@ -71,9 +72,11 @@ defmodule Mix.Tasks.E2e.Smoke do
     end
 
     {steps, warnings} =
-      Enum.map_reduce(@scenario, [], fn %{step: step_num, action: action}, warns ->
-        run_step(session.id, step_num, action, warns)
+      Enum.map_reduce(@scenario, [], fn step, warns ->
+        run_step(session.id, step, warns)
       end)
+
+    npc_checks = Enum.map(steps, &Map.take(&1, [:step, :npc_check, :npc_issues]))
 
     status = if Enum.all?(steps, &(&1.status == "PASS")), do: "PASS", else: "FAIL"
 
@@ -86,6 +89,7 @@ defmodule Mix.Tasks.E2e.Smoke do
       llm_source: LLM.llm_source(LLM.provider()),
       preflight: preflight,
       steps: steps,
+      npc_checks: npc_checks,
       warnings: warnings
     }
 
@@ -143,12 +147,12 @@ defmodule Mix.Tasks.E2e.Smoke do
     %{status: status, checks: checks, warnings: warnings}
   end
 
-  defp run_step(session_id, step_num, action, warnings) do
+  defp run_step(session_id, %{step: step_num, action: action} = step, warnings) do
     started = System.monotonic_time(:millisecond)
     Mix.shell().info("  step #{step_num}: #{action}")
 
     try do
-      submit_step(session_id, step_num, action, started, warnings)
+      submit_step(session_id, step_num, action, Map.get(step, :npc_expect), started, warnings)
     rescue
       e ->
         latency = System.monotonic_time(:millisecond) - started
@@ -166,12 +170,14 @@ defmodule Mix.Tasks.E2e.Smoke do
     end
   end
 
-  defp submit_step(session_id, step_num, action, started, warnings) do
+  defp submit_step(session_id, step_num, action, npc_expect, started, warnings) do
     case submit_with_clarification(session_id, action) do
       {:ok, :processing} ->
         case wait_for_turn(session_id, step_num) do
           {:ok, turn, latency_ms} ->
             result = evaluate_turn(step_num, action, turn, latency_ms)
+            {npc_issues, npc_check} = evaluate_npc_expect(session_id, npc_expect)
+            result = merge_npc_result(result, npc_issues, npc_check)
             {result, warnings}
 
           {:error, reason} ->
@@ -292,6 +298,73 @@ defmodule Mix.Tasks.E2e.Smoke do
 
     if turn, do: {:ok, turn}, else: :not_found
   end
+
+  defp merge_npc_result(step, npc_issues, npc_check) do
+    issues = step.issues ++ npc_issues
+    status = if issues == [], do: "PASS", else: "FAIL"
+
+    if npc_issues != [] do
+      Mix.shell().error("    NPC — #{Enum.join(npc_issues, ", ")}")
+    end
+
+    step
+    |> Map.put(:issues, issues)
+    |> Map.put(:status, status)
+    |> Map.put(:npc_issues, npc_issues)
+    |> Map.put(:npc_check, npc_check)
+  end
+
+  defp evaluate_npc_expect(session_id, :tavern_present) do
+    session = GameSessions.get_session!(session_id)
+    present = Map.get(session.world_state, "present_npcs", [])
+
+    issues =
+      []
+      |> then(fn i ->
+        if "marta_kellen" in present, do: i, else: ["marta_kellen not present" | i]
+      end)
+      |> then(fn i ->
+        if "worried_merchant" in present,
+          do: ["worried_merchant should not be at tavern" | i],
+          else: i
+      end)
+
+    {issues, %{present_npcs: present}}
+  end
+
+  defp evaluate_npc_expect(session_id, :marta_memory) do
+    case NPC.get_instance(session_id, "marta_kellen") do
+      nil ->
+        {["marta_kellen instance missing"], %{}}
+
+      inst ->
+        memories = Map.get(inst.runtime_state, "memories", [])
+        issues = if memories == [], do: ["marta has no memories after speak"], else: []
+        {issues, %{marta_memories: length(memories)}}
+    end
+  end
+
+  defp evaluate_npc_expect(session_id, :square_present) do
+    session = GameSessions.get_session!(session_id)
+    present = Map.get(session.world_state, "present_npcs", [])
+    location = Map.get(session.world_state, "location_id")
+
+    issues =
+      []
+      |> then(fn i ->
+        if location == "crossroads_square", do: i, else: ["expected crossroads_square" | i]
+      end)
+      |> then(fn i ->
+        if "worried_merchant" in present, do: i, else: ["worried_merchant not at square" | i]
+      end)
+      |> then(fn i ->
+        if "marta_kellen" in present, do: ["marta_kellen should not be at square" | i], else: i
+      end)
+
+    {issues, %{present_npcs: present, location_id: location}}
+  end
+
+  defp evaluate_npc_expect(_session_id, _other), do: {[], %{}}
 
   defp evaluate_turn(step_num, action, turn, latency_ms) do
     narrative = turn.narrative || ""

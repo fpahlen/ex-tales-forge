@@ -179,12 +179,24 @@ When rules or prompts change in text-forge, sync the corresponding files here. P
 - Each player turn advances `world_tick` by 1 via `TalesForge.Game.WorldClock`
 - `world_clock` in the UI is a **derived label** (e.g. `Day 1 · late afternoon`)
 
-## NPC runtime (Phase 3 foundation)
+## NPC runtime
 
-- Authored defs: `priv/npcs/*.json` (from text-forge)
+- Authored defs: `priv/npcs/*.json` (from text-forge) — `marta_kellen` (Weary Pilgrim), `worried_merchant` (Crossroads Square)
 - Per-session persistence: `NpcInstance` (personality + `runtime_state` with memories, mood, `location_id`)
 - GM `npc_memory_updates` and `state_updates` (npc paths) are applied in `TurnProcessor`
 - `present_npcs` syncs from NPC `location_id` vs player location
+- `NPCRegistry` spawns/stops `TalesForge.Agents.NPCAgent` per present NPC; `NPCRecovery` re-syncs on boot
+
+### NPC signal catalog (v1)
+
+| Signal | Emitter | Handler | Effect |
+|--------|---------|---------|--------|
+| `world.time.passed` | `NPCSignals` / turn | `ReactToTime` | Escalate concern; evaluate initiative |
+| `player.talked_to` | `NPCSignals` / speak turn | `OnPlayerTalked` | Memory + relationship bump |
+| `conversation.message` | `NPCSignals` / overhear | `OnOverheard` | Memory for non-target NPCs |
+| `{:npc_initiative, payload}` | `NPCInitiative` → PubSub | `PlayLive` | Proactive NPC line in narrative log |
+
+Agent IDs: `npc-{session_id}-{npc_id}`. Initiative fires once per concern escalation when priority ≥8 and worry ticks ≥4 (~1 in-game hour).
 
 ## Scene + turn pipeline
 
@@ -200,7 +212,8 @@ Play always opens with a **scene** (GM exposition, not a turn). Player input is 
 
 ```
 lib/ex_tales_forge/
-  agents/       # PlayerSessionAgent, NPCAgent (later)
+  agents/       # PlayerSessionAgent, NPCAgent
+  actions/npc/  # Jido NPC signal handlers
   game/         # intent, mechanics, scene_processor, turn_processor
   workers/      # Oban ProcessScene, ProcessTurn
   schemas/      # Ecto runtime schemas

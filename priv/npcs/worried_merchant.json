@@ -1,0 +1,33 @@
+{
+  "id": "worried_merchant",
+  "name": "Henrik Bale",
+  "race": "human",
+  "role": "merchant",
+  "default_location_id": "crossroads_square",
+  "appearance": "Middle-aged trader in a travel-stained coat, clutching a satchel that looks too light.",
+  "personality": "Anxious, quick to justify himself, watches exits when strangers approach.",
+  "backstory": "Carried a merchant ledger through Crossroads Hamlet until it vanished; now fears both theft and scandal.",
+  "motivations": {
+    "personality_traits": {
+      "openness": 5,
+      "conscientiousness": 6,
+      "extraversion": 4,
+      "agreeableness": 4,
+      "neuroticism": 7
+    },
+    "primary_need": "safety",
+    "primary_motivation": "Security and protection from harm",
+    "current_concerns": [
+      "stolen ledger",
+      "ruined reputation"
+    ],
+    "current_concern": {
+      "focus": "stolen ledger",
+      "priority": 8,
+      "blocked_by": null,
+      "since_tick": 0
+    },
+    "mood": "anxious",
+    "agency_tier": "normal"
+  }
+}
