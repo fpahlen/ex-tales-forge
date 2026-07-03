@@ -12,6 +12,7 @@ defmodule TalesForge.Schemas.GameSession do
     field :world_clock, :utc_datetime
 
     has_many :turns, TalesForge.Schemas.Turn
+    has_many :scenes, TalesForge.Schemas.Scene
     has_many :npc_instances, TalesForge.Schemas.NpcInstance
 
     timestamps(type: :utc_datetime)

@@ -8,6 +8,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Context
   alias TalesForge.Game.Mechanics
+  alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.World
   alias TalesForge.LLM
@@ -51,7 +52,8 @@ defmodule TalesForge.Game.TurnProcessor do
         llm_provider: LLM.provider(),
         llm_source: LLM.llm_source(LLM.provider()),
         location_name: Map.get(world_state, "location_name"),
-        world_state: world_state
+        world_state: world_state,
+        needs_scene: SceneProcessor.needs_scene?(world_state)
       }
 
       elapsed = System.monotonic_time(:millisecond) - started

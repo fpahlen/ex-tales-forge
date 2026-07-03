@@ -11,7 +11,8 @@ defmodule TalesForge.Game.World do
       "blurb" =>
         "A low-ceilinged tavern smelling of woodsmoke and spilled ale. Chalk marks score the slate behind the bar.",
       "fixtures" => ["chalked slate", "bar counter", "hearth"],
-      "ground_items" => []
+      "ground_items" => [],
+      "scene_image_url" => nil
     },
     "crossroads_square" => %{
       "id" => "crossroads_square",
@@ -47,6 +48,15 @@ defmodule TalesForge.Game.World do
 
   def location(id), do: Map.get(@locations, id)
 
+  def scene_image_url(location_id) do
+    location_id
+    |> location()
+    |> case do
+      %{"scene_image_url" => url} when is_binary(url) and url != "" -> url
+      _ -> nil
+    end
+  end
+
   def default_world_state do
     %{
       "adventure_id" => "crossroads_ledger",
@@ -54,6 +64,7 @@ defmodule TalesForge.Game.World do
       "location_name" => "The Weary Pilgrim",
       "present_npcs" => ["marta_kellen"],
       "world_clock" => "late afternoon",
+      "last_scene_location" => nil,
       "situation_lines" => [
         "You have just pushed through the tavern door.",
         "Marta Kellen watches from behind the bar."
