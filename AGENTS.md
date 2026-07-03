@@ -173,6 +173,19 @@ Set `LOG_LEVEL=debug` in `.env` for full LLM request/response logging.
 
 When rules or prompts change in text-forge, sync the corresponding files here. Product principles are shared; storage and runtime differ by design.
 
+## Game clock
+
+- `world_tick` in `world_state` — 1 tick ≈ 15 in-game minutes; 4 ticks ≈ 1 hour; 96 ticks ≈ 1 day (~100 is a fair approximation)
+- Each player turn advances `world_tick` by 1 via `TalesForge.Game.WorldClock`
+- `world_clock` in the UI is a **derived label** (e.g. `Day 1 · late afternoon`)
+
+## NPC runtime (Phase 3 foundation)
+
+- Authored defs: `priv/npcs/*.json` (from text-forge)
+- Per-session persistence: `NpcInstance` (personality + `runtime_state` with memories, mood, `location_id`)
+- GM `npc_memory_updates` and `state_updates` (npc paths) are applied in `TurnProcessor`
+- `present_npcs` syncs from NPC `location_id` vs player location
+
 ## Scene + turn pipeline
 
 Play always opens with a **scene** (GM exposition, not a turn). Player input is blocked until `last_scene_location` matches `location_id`.

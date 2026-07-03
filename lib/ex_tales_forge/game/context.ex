@@ -3,6 +3,7 @@ defmodule TalesForge.Game.Context do
 
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.World
+  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, Turn}
 
@@ -41,7 +42,9 @@ defmodule TalesForge.Game.Context do
     npc_lines =
       Enum.map(context["present_npcs"], fn npc_id ->
         detail = Map.get(context["npc_details"], npc_id, %{})
-        "- #{npc_id}: #{Map.get(detail, "name", npc_id)} (#{Map.get(detail, "role", "present")})"
+        mood = Map.get(detail, "disposition", Map.get(detail, "mood", "present"))
+
+        "- #{npc_id}: #{Map.get(detail, "name", npc_id)} (#{Map.get(detail, "role", "present")}, mood: #{mood})"
       end)
 
     turn_lines =
@@ -78,6 +81,7 @@ defmodule TalesForge.Game.Context do
     intent = build_intent_context(session)
 
     %{
+      session_id: session.id,
       rules: TalesForge.Game.Prompts.load_rules(),
       intent_context: intent,
       formatted_intent: format_intent_context(intent),
@@ -86,12 +90,22 @@ defmodule TalesForge.Game.Context do
   end
 
   def format_gm_prompt(context) do
+    npc_sections =
+      NPC.format_gm_sections(
+        context.session_id,
+        Map.get(context.intent_context, "present_npcs", [])
+      )
+
     """
     #{context.rules}
 
     ---
 
     #{context.formatted_intent}
+
+    ---
+
+    #{npc_sections}
     """
   end
 
