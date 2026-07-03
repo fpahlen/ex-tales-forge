@@ -1,0 +1,71 @@
+defmodule TalesForge.NPCSignals do
+  @moduledoc """
+  Emits Jido signals to present NPC agents after turn processing.
+  """
+
+  require Logger
+
+  alias Jido.AgentServer
+  alias Jido.Signal
+  alias TalesForge.NPCRegistry
+
+  def emit_turn_signals(session_id, world_state, handler, raw_action) do
+    present_npcs = Map.get(world_state, "present_npcs", [])
+    world_tick = Map.get(world_state, "world_tick", 0)
+
+    emit_time_passed(session_id, world_tick, 1, present_npcs)
+
+    if speak_to_npc?(handler) do
+      emit_player_talked(session_id, handler.target, raw_action, world_tick)
+    end
+
+    :ok
+  end
+
+  def emit_time_passed(session_id, world_tick, delta_ticks, present_npc_ids) do
+    payload = %{
+      "session_id" => session_id,
+      "world_tick" => world_tick,
+      "delta_ticks" => delta_ticks
+    }
+
+    Enum.each(present_npc_ids, fn npc_id ->
+      deliver(session_id, npc_id, "world.time.passed", payload)
+    end)
+  end
+
+  def emit_player_talked(session_id, npc_id, player_text, world_tick) do
+    payload = %{
+      "session_id" => session_id,
+      "npc_id" => npc_id,
+      "player_text" => player_text,
+      "world_tick" => world_tick
+    }
+
+    deliver(session_id, npc_id, "player.talked_to", payload)
+  end
+
+  defp deliver(session_id, npc_id, type, payload) do
+    aid = NPCRegistry.agent_id(session_id, npc_id)
+    signal = Signal.new!(type, payload, source: "/game/turn_processor")
+
+    case TalesForge.Jido.whereis(aid) do
+      nil ->
+        :ok
+
+      pid ->
+        case AgentServer.cast(pid, signal) do
+          :ok ->
+            :ok
+
+          {:error, reason} ->
+            Logger.debug(
+              "npc signal undelivered session=#{session_id} npc=#{npc_id} type=#{type} reason=#{inspect(reason)}"
+            )
+        end
+    end
+  end
+
+  defp speak_to_npc?(%{handler: "speak", target: target}) when is_binary(target), do: true
+  defp speak_to_npc?(_), do: false
+end
