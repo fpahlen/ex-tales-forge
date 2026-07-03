@@ -13,8 +13,8 @@ defmodule TalesForge.Actions.NPC.AdjustConcern do
   @impl true
   def run(%{delta_ticks: delta_ticks}, %{state: state}) do
     case NPC.adjust_concern(state.session_id, state.npc_id, delta_ticks) do
-      {:ok, %{concern_priority: priority, concern_wait_ticks: waiting}} ->
-        {:ok, %{concern_priority: priority, concern_wait_ticks: waiting}}
+      {:ok, concern_state} ->
+        {:ok, concern_state}
 
       :ok ->
         {:ok, %{}}

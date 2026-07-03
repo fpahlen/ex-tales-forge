@@ -19,6 +19,7 @@ defmodule TalesForge.NPCSignals do
       emit_player_talked(session_id, handler.target, raw_action, world_tick)
     end
 
+    emit_overhear(session_id, world_tick, present_npcs, handler, raw_action)
     :ok
   end
 
@@ -63,6 +64,30 @@ defmodule TalesForge.NPCSignals do
               "npc signal undelivered session=#{session_id} npc=#{npc_id} type=#{type} reason=#{inspect(reason)}"
             )
         end
+    end
+  end
+
+  defp emit_overhear(session_id, world_tick, present_npcs, handler, raw_action) do
+    trimmed = String.trim(raw_action || "")
+
+    if trimmed != "" do
+      speak_target = if speak_to_npc?(handler), do: handler.target, else: nil
+
+      present_npcs
+      |> Enum.reject(&(&1 == speak_target))
+      |> Enum.each(fn npc_id ->
+        deliver(
+          session_id,
+          npc_id,
+          "conversation.message",
+          %{
+            "session_id" => session_id,
+            "speaker" => "player",
+            "message" => trimmed,
+            "world_tick" => world_tick
+          }
+        )
+      end)
     end
   end
 

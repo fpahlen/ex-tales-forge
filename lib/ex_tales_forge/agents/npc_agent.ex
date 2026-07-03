@@ -14,6 +14,8 @@ defmodule TalesForge.Agents.NPCAgent do
       concern_priority: [type: :integer, default: 0],
       concern_wait_ticks: [type: :integer, default: 0],
       initiative_pending: [type: :boolean, default: false],
+      initiative_emitted: [type: :boolean, default: false],
+      last_initiative_tick: [type: :integer, default: nil],
       last_interaction_tick: [type: :integer, default: nil]
     ],
     signal_routes: [

@@ -11,6 +11,7 @@ defmodule TalesForge.Game.SceneProcessor do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.World
   alias TalesForge.LLM
+  alias TalesForge.NPC
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, Scene}
@@ -99,19 +100,22 @@ defmodule TalesForge.Game.SceneProcessor do
     end
   end
 
-  defp finalize_scene(%GameSession{} = session, %Scene{} = scene, llm_source) do
+  defp finalize_scene(%GameSession{id: session_id}, %Scene{} = scene, llm_source) do
+    session = Repo.get!(GameSession, session_id)
+
     world_state =
       session.world_state
       |> Map.put("last_scene_location", scene.location_id)
       |> Map.put("location_name", scene.location_name)
 
-    with {:ok, session} <- persist_world_state(session, world_state) do
+    with {:ok, session} <- persist_world_state(session, world_state),
+         {:ok, session} <- NPC.refresh_session_world_state(session) do
       payload = %{
         session_id: session.id,
         location_id: scene.location_id,
         location_name: scene.location_name,
         image_url: scene.image_url,
-        world_state: world_state,
+        world_state: session.world_state,
         llm_source: llm_source,
         entries: [build_entry(scene)]
       }

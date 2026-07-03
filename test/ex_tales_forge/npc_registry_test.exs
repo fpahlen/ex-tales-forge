@@ -9,11 +9,9 @@ defmodule TalesForge.NPCRegistryTest do
   alias TalesForge.NPCRegistry
   alias TalesForge.NPCSignals
   alias TalesForge.Repo
-  alias TalesForge.Schemas.NpcInstance
+  alias TalesForge.Schemas.{GameSession, NpcInstance}
 
   setup do
-    for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
     on_exit(fn ->
       for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
     end)
@@ -29,8 +27,9 @@ defmodule TalesForge.NPCRegistryTest do
   end
 
   test "sync stops agent when NPC leaves player location" do
-    assert {:ok, session} = GameSessions.create_session(%{name: "NPC Travel"})
+    assert {:ok, session} = insert_session_without_scene("NPC Travel")
 
+    :ok = NPCRegistry.sync(session)
     aid = NPCRegistry.agent_id(session.id, "marta_kellen")
     assert Jido.whereis(aid)
 
@@ -42,10 +41,12 @@ defmodule TalesForge.NPCRegistryTest do
     })
     |> Repo.update!()
 
-    {:ok, session} = NPC.refresh_session_world_state(session)
+    {:ok, _session} = NPC.refresh_session_world_state(session)
+
+    session = GameSessions.get_session!(session.id)
     assert "marta_kellen" not in session.world_state["present_npcs"]
 
-    :ok = NPCRegistry.sync(session)
+    :ok = NPCRegistry.sync(session.id)
     refute Jido.whereis(aid)
   end
 
@@ -117,6 +118,25 @@ defmodule TalesForge.NPCRegistryTest do
            end)
 
     assert Map.get(inst.runtime_state, "relationship_score", 0.0) > 0.0
+  end
+
+  defp insert_session_without_scene(name) do
+    attrs = %{
+      name: name,
+      status: "active",
+      world_state:
+        TalesForge.Game.World.default_world_state()
+        |> Map.put("last_scene_location", "weary_pilgrim")
+    }
+
+    with {:ok, session} <-
+           %GameSession{}
+           |> GameSession.changeset(attrs)
+           |> Repo.insert(),
+         :ok <- TalesForge.NPC.seed_session(session),
+         {:ok, session} <- TalesForge.NPC.refresh_session_world_state(session) do
+      {:ok, session}
+    end
   end
 
   defp deliver_sync(session_id, npc_id, type, payload) do
