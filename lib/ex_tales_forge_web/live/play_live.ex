@@ -1,6 +1,8 @@
 defmodule TalesForgeWeb.PlayLive do
   use TalesForgeWeb, :live_view
 
+  import TalesForgeWeb.PlayComponents
+
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.GameSessions
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
@@ -117,133 +119,46 @@ defmodule TalesForgeWeb.PlayLive do
   def render(assigns) do
     world = assigns.session.world_state || %{}
     character = Map.get(world, "character", %{})
-    input_disabled = assigns.thinking or assigns.scene_loading
 
     assigns =
       assigns
       |> assign(:location_name, Map.get(world, "location_name", "Unknown"))
       |> assign(:world_clock, Map.get(world, "world_clock", "—"))
       |> assign(:character, character)
-      |> assign(:input_disabled, input_disabled)
+      |> assign(:present_npcs, present_npcs(world))
+      |> assign(:quick_stats, quick_stats(character))
+      |> assign(:input_disabled, assigns.thinking or assigns.scene_loading)
 
     ~H"""
-    <Layouts.app flash={@flash}>
-      <div class="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div class="space-y-4">
-          <header class="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-            <.link navigate={~p"/"} class="text-sm text-amber-700 hover:underline">← Sessions</.link>
-            <h1 class="mt-1 text-xl font-bold text-zinc-900">{@session.name}</h1>
-            <p class="text-sm text-zinc-500">
-              {@location_name} · {@world_clock} · GM source: {@llm_source}
-            </p>
-          </header>
+    <Layouts.play flash={@flash}>
+      <.play_header
+        session_name={@session.name}
+        world_clock={@world_clock}
+        location_name={@location_name}
+        quick_stats={@quick_stats}
+      />
 
-          <section
-            id="narrative-log"
-            class="min-h-[28rem] space-y-4 overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4"
-            phx-update="stream"
-          >
-            <div :for={{dom_id, entry} <- @streams.entries} id={dom_id} class="space-y-1">
-              <p class={entry_heading_class(entry)}>
-                {entry_heading(entry)}
-              </p>
-              <div class={entry_body_class(entry)}>
-                {entry.text}
-              </div>
-              <p :if={entry.role == "gm" && entry[:mechanical]} class="text-xs text-zinc-500">
-                {format_mechanical(entry.mechanical)}
-              </p>
-            </div>
-
-            <p :if={@scene_loading} class="text-sm italic text-zinc-500">
-              The GM is setting the scene…
-            </p>
-            <p :if={@thinking} class="text-sm italic text-zinc-500">The GM is thinking…</p>
-          </section>
-
-          <section :if={@clarification} class="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p class="mb-3 text-sm font-medium text-amber-900">{@clarification["question"]}</p>
-            <div class="space-y-2">
-              <button
-                :for={opt <- @clarification["options"]}
-                type="button"
-                phx-click="pick_clarification"
-                phx-value-option_id={opt["id"]}
-                class="block w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-left text-sm hover:bg-amber-100"
-              >
-                <span class="font-medium">{opt["label"]}</span>
-                <span :if={opt["description"]} class="block text-zinc-600">{opt["description"]}</span>
-              </button>
-            </div>
-          </section>
-
-          <.form for={%{}} phx-submit="send_message" class="flex gap-2">
-            <input
-              type="text"
-              name="message"
-              placeholder={if @scene_loading, do: "Wait for the scene…", else: "What do you do?"}
-              autocomplete="off"
-              class="flex-1 rounded-lg border border-zinc-300 px-3 py-2"
-              disabled={@input_disabled}
-            />
-            <button
-              type="submit"
-              class="rounded-lg bg-amber-700 px-4 py-2 font-medium text-white hover:bg-amber-800 disabled:opacity-50"
-              disabled={@input_disabled}
-            >
-              Act
-            </button>
-          </.form>
+      <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 py-3 sm:px-4 lg:flex-row">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col lg:min-h-0">
+          <.narrative_panel
+            streams={@streams}
+            scene_loading={@scene_loading}
+            thinking={@thinking}
+            clarification={@clarification}
+            input_disabled={@input_disabled}
+          />
         </div>
-
-        <aside class="space-y-4">
-          <section class="rounded-xl border border-zinc-200 bg-white p-4">
-            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">Scene</h2>
-            <div :if={@scene_image_url} class="overflow-hidden rounded-lg">
-              <img
-                src={@scene_image_url}
-                alt={@location_name}
-                class="aspect-video w-full object-cover"
-              />
-            </div>
-            <div
-              :if={!@scene_image_url}
-              class="flex aspect-video flex-col items-center justify-center rounded-lg bg-zinc-100 px-4 text-center text-sm text-zinc-500"
-            >
-              <span class="font-medium text-zinc-700">{@location_name}</span>
-              <span class="mt-1">No scene image yet</span>
-            </div>
-          </section>
-
-          <section class="rounded-xl border border-zinc-200 bg-white p-4">
-            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-              Character
-            </h2>
-            <dl class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <dt class="text-zinc-500">Name</dt>
-                <dd class="font-medium">{Map.get(@character, "name", "—")}</dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-zinc-500">Wounds</dt>
-                <dd class="font-medium">
-                  {Map.get(@character, "wounds", 0)}/{Map.get(@character, "wound_max", 3)}
-                </dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-zinc-500">Coins</dt>
-                <dd class="font-medium">{format_coins(Map.get(@character, "coins", %{}))}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section class="rounded-xl border border-zinc-200 bg-white p-4">
-            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">Present</h2>
-            <p class="text-sm text-zinc-600">Marta Kellen (barkeep)</p>
-          </section>
-        </aside>
+        <.visual_panel
+          location_name={@location_name}
+          scene_image_url={@scene_image_url}
+          present_npcs={@present_npcs}
+        />
       </div>
-    </Layouts.app>
+
+      <div class="shrink-0 px-3 pb-3 sm:px-4">
+        <.state_panel character={@character} />
+      </div>
+    </Layouts.play>
     """
   end
 
@@ -334,72 +249,9 @@ defmodule TalesForgeWeb.PlayLive do
     Map.put(session, :scenes, scenes)
   end
 
-  defp entry_heading(%{role: "scene", location_name: name}), do: "You arrive at #{name}"
-  defp entry_heading(%{role: "gm"}), do: "Game Master"
-  defp entry_heading(%{role: "player"}), do: "You"
-  defp entry_heading(_), do: "Narrator"
-
-  defp entry_heading_class(%{role: "scene"}),
-    do: "text-xs font-semibold uppercase tracking-wide text-zinc-600"
-
-  defp entry_heading_class(%{role: "gm"}),
-    do: "text-xs font-semibold uppercase tracking-wide text-amber-800"
-
-  defp entry_heading_class(%{role: "player"}),
-    do: "text-xs font-semibold uppercase tracking-wide text-zinc-500"
-
-  defp entry_heading_class(_),
-    do: "text-xs font-semibold uppercase tracking-wide text-zinc-500"
-
-  defp entry_body_class(%{role: "scene"}),
-    do:
-      "whitespace-pre-wrap rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm leading-relaxed text-zinc-800 shadow-sm"
-
-  defp entry_body_class(%{role: "gm"}),
-    do:
-      "whitespace-pre-wrap rounded-lg bg-white px-3 py-2 text-sm leading-relaxed text-zinc-800 shadow-sm"
-
-  defp entry_body_class(%{role: "player"}),
-    do:
-      "whitespace-pre-wrap rounded-lg bg-amber-100 px-3 py-2 text-sm leading-relaxed text-zinc-900"
-
-  defp entry_body_class(_),
-    do: "whitespace-pre-wrap rounded-lg bg-white px-3 py-2 text-sm leading-relaxed text-zinc-800"
-
   defp append_entries(socket, entries) do
     Enum.reduce(entries, socket, fn entry, sock ->
       stream_insert(sock, :entries, entry)
     end)
   end
-
-  defp format_mechanical(%{"outcome" => "none"}), do: nil
-
-  defp format_mechanical(mechanical) when is_map(mechanical) do
-    skill = Map.get(mechanical, "skill")
-    outcome = Map.get(mechanical, "outcome")
-    roll = Map.get(mechanical, "roll")
-    lp = Map.get(mechanical, "lp_awarded")
-
-    parts =
-      [
-        skill && "Skill: #{skill}",
-        outcome && "Outcome: #{outcome}",
-        roll && "Roll: #{roll}",
-        lp && "+#{lp} LP"
-      ]
-      |> Enum.reject(&is_nil/1)
-
-    if parts == [], do: nil, else: Enum.join(parts, " · ")
-  end
-
-  defp format_mechanical(_), do: nil
-
-  defp format_coins(coins) when is_map(coins) do
-    gold = Map.get(coins, "gold", 0)
-    silver = Map.get(coins, "silver", 0)
-    copper = Map.get(coins, "copper", 0)
-    "#{gold}g #{silver}s #{copper}c"
-  end
-
-  defp format_coins(_), do: "—"
 end

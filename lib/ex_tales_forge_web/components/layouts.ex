@@ -35,40 +35,37 @@ defmodule TalesForgeWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://phoenix.hexdocs.pm/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </header>
+    <div class="paper-home min-h-dvh">
+      <header class="border-b border-[var(--paper-rule)] bg-[var(--paper-panel)] px-4 py-3 sm:px-6">
+        <div class="mx-auto flex max-w-3xl items-center justify-between">
+          <.link navigate={~p"/"} class="font-serif text-lg font-semibold text-[var(--paper-ink)]">
+            Tales Forge
+          </.link>
+          <.theme_toggle />
+        </div>
+      </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
-        {render_slot(@inner_block)}
-      </div>
-    </main>
+      <main class="px-4 py-10 sm:px-6">
+        <div class="mx-auto max-w-3xl space-y-4">
+          {render_slot(@inner_block)}
+        </div>
+      </main>
 
-    <.flash_group flash={@flash} />
+      <.flash_group flash={@flash} />
+    </div>
+    """
+  end
+
+  attr :flash, :map, required: true
+
+  slot :inner_block, required: true
+
+  def play(assigns) do
+    ~H"""
+    <div class="play-shell flex h-dvh flex-col overflow-hidden">
+      {render_slot(@inner_block)}
+      <.flash_group flash={@flash} />
+    </div>
     """
   end
 

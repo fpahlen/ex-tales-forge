@@ -105,4 +105,53 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* Pen-and-paper palette (Tales Forge play + home) */
+:root {
+  --paper-bg: #f4ead5;
+  --paper-panel: #faf6ec;
+  --paper-ink: #3d2f24;
+  --paper-muted: #6b5c4f;
+  --paper-rule: #d4c4a8;
+  --paper-accent: #9a3412;
+  --paper-margin: #ebe3d0;
+}
+
+.paper-home {
+  background-color: var(--paper-bg);
+  color: var(--paper-ink);
+}
+
+.play-shell {
+  background-color: var(--paper-bg);
+  background-image:
+    linear-gradient(var(--paper-rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-rule) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--paper-ink);
+}
+
+.play-panel {
+  background-color: var(--paper-panel);
+  border: 1px solid var(--paper-rule);
+  box-shadow: 0 1px 3px rgb(61 47 36 / 8%);
+}
+
+.play-header {
+  border-bottom: 2px solid var(--paper-rule);
+  background-color: var(--paper-panel);
+}
+
+.play-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--paper-muted);
+}
+
+.play-narrative-body {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  line-height: 1.65;
+}
+
 /* This file is for your main application CSS */
