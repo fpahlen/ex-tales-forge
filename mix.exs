@@ -68,7 +68,8 @@ defmodule TalesForge.MixProject do
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -91,7 +92,15 @@ defmodule TalesForge.MixProject do
         "esbuild ex_tales_forge --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"],
+      "format.check": ["format --check-formatted"],
+      quality: ["format.check", "credo --strict"],
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "quality",
+        "test"
+      ],
       "dev.check": ["compile", "dev.check"],
       "e2e.smoke": ["compile", "e2e.smoke"]
     ]

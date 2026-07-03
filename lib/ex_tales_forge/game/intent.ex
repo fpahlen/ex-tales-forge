@@ -41,20 +41,28 @@ defmodule TalesForge.Game.Intent do
         {heuristic_intent(raw_action, context), :heuristic}
 
       _ ->
-        heuristic = heuristic_intent(raw_action, context)
+        resolve_bundle_live(raw_action, context)
+    end
+  end
 
-        if heuristic_sufficient?(heuristic, context) do
-          {heuristic, :heuristic}
-        else
-          case call_tier1(raw_action, context) do
-            {:ok, extraction} ->
-              {extraction, :llm}
+  defp resolve_bundle_live(raw_action, context) do
+    heuristic = heuristic_intent(raw_action, context)
 
-            {:error, reason} ->
-              Logger.warning("tier1 intent failed reason=#{inspect(reason)}; using heuristic")
-              {heuristic, :heuristic}
-          end
-        end
+    if heuristic_sufficient?(heuristic, context) do
+      {heuristic, :heuristic}
+    else
+      tier1_or_heuristic(raw_action, context, heuristic)
+    end
+  end
+
+  defp tier1_or_heuristic(raw_action, context, heuristic) do
+    case call_tier1(raw_action, context) do
+      {:ok, extraction} ->
+        {extraction, :llm}
+
+      {:error, reason} ->
+        Logger.warning("tier1 intent failed reason=#{inspect(reason)}; using heuristic")
+        {heuristic, :heuristic}
     end
   end
 
@@ -221,17 +229,23 @@ defmodule TalesForge.Game.Intent do
 
   defp infer_target_location(raw_action, context) do
     if Regex.match?(@move_hints, raw_action) do
-      lowered = String.downcase(raw_action)
+      raw_action
+      |> String.downcase()
+      |> find_matching_exit(context)
+    end
+  end
 
-      Enum.find_value(context["exits"], fn exit_id ->
-        readable = String.replace(exit_id, "_", " ")
-        name = Map.get(context["exit_names"], exit_id, exit_id)
+  defp find_matching_exit(lowered, context) do
+    Enum.find_value(context["exits"], &exit_mentioned_in_action?(lowered, &1, context))
+  end
 
-        if String.contains?(lowered, exit_id) or String.contains?(lowered, readable) or
-             String.contains?(lowered, String.downcase(name)) do
-          exit_id
-        end
-      end)
+  defp exit_mentioned_in_action?(lowered, exit_id, context) do
+    readable = String.replace(exit_id, "_", " ")
+    name = Map.get(context["exit_names"], exit_id, exit_id)
+
+    if String.contains?(lowered, exit_id) or String.contains?(lowered, readable) or
+         String.contains?(lowered, String.downcase(name)) do
+      exit_id
     end
   end
 

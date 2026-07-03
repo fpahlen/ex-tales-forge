@@ -78,14 +78,7 @@ defmodule Mix.Tasks.E2e.Smoke do
   end
 
   defp run_preflight do
-    warnings = []
-
-    warnings =
-      if File.exists?(Path.expand(".env")) do
-        warnings
-      else
-        ["missing .env file" | warnings]
-      end
+    dotenv_exists? = File.exists?(Path.expand(".env"))
 
     db_ok =
       case Repo.query("SELECT 1") do
@@ -98,16 +91,13 @@ defmodule Mix.Tasks.E2e.Smoke do
     provider = TalesForge.Config.llm_provider()
 
     warnings =
-      cond do
-        TalesForge.Config.llm_provider() == "mock" ->
-          ["LLM_PROVIDER=mock — smoke test expects live API" | warnings]
-
-        provider != "xai" and key_ok ->
-          ["LLM provider is #{provider}, expected xai for smoke test" | warnings]
-
-        true ->
-          warnings
-      end
+      []
+      |> maybe_warn(!dotenv_exists?, "missing .env file")
+      |> maybe_warn(provider == "mock", "LLM_PROVIDER=mock — smoke test expects live API")
+      |> maybe_warn(
+        provider != "xai" and key_ok,
+        "LLM provider is #{provider}, expected xai for smoke test"
+      )
 
     server_ok = server_running?()
 
@@ -129,6 +119,7 @@ defmodule Mix.Tasks.E2e.Smoke do
       Mix.shell().info("[ok] preflight passed (provider=#{provider})")
     else
       Mix.shell().error("[fail] preflight — #{inspect(checks)}")
+      preflight_hints(checks)
     end
 
     %{status: status, checks: checks, warnings: warnings}
@@ -293,13 +284,25 @@ defmodule Mix.Tasks.E2e.Smoke do
   end
 
   defp server_running? do
-    case Req.get("http://localhost:4000", receive_timeout: 5_000) do
+    case Req.get("http://localhost:4000", receive_timeout: 5_000, retry: false) do
       {:ok, %{status: status}} when status in 200..399 -> true
       _ -> false
     end
   rescue
     _ -> false
   end
+
+  defp maybe_warn(warnings, true, message), do: [message | warnings]
+  defp maybe_warn(warnings, false, _message), do: warnings
+
+  defp preflight_hints(%{server: false}) do
+    Mix.shell().error(
+      "[hint] Start Phoenix in another terminal first: mix phx.server\n" <>
+        "       Then re-run: mix e2e.smoke"
+    )
+  end
+
+  defp preflight_hints(_), do: :ok
 
   defp write_report(report) do
     path = Path.expand("priv/playtest/reports/e2e-smoke.json")
