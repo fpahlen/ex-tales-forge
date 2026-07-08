@@ -10,10 +10,11 @@ defmodule TalesForge.Game.Context do
   def build_intent_context(%GameSession{} = session) do
     world = session.world_state || %{}
     location_id = Map.get(world, "location_id", "weary_pilgrim")
-    location = World.location(location_id) || %{}
+    location = World.runtime_location(world, location_id)
     present_npcs = Map.get(world, "present_npcs", ["marta_kellen"])
     npc_state = Map.get(world, "npc_state", World.npcs())
     character = Map.get(world, "character", %{})
+    npc_stock = NPC.stock_map(session.id, present_npcs)
 
     %{
       "location_id" => location_id,
@@ -21,6 +22,7 @@ defmodule TalesForge.Game.Context do
       "location_blurb" => Map.get(location, "blurb", ""),
       "fixtures" => Map.get(location, "fixtures", []),
       "ground_items" => Map.get(location, "ground_items", []),
+      "npc_stock" => npc_stock,
       "exits" => Map.get(location, "exits", []),
       "exit_names" => exit_names(Map.get(location, "exits", [])),
       "present_npcs" => present_npcs,

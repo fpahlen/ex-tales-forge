@@ -240,6 +240,35 @@ defmodule TalesForge.NPC do
     |> Enum.sort()
   end
 
+  def stock_map(session_id, npc_ids) when is_list(npc_ids) do
+    Enum.reduce(npc_ids, %{}, fn npc_id, acc ->
+      case get_instance(session_id, npc_id) do
+        %NpcInstance{} = inst ->
+          stock = Map.get(inst.runtime_state, "stock", definition_stock(inst))
+          Map.put(acc, npc_id, stock)
+
+        nil ->
+          acc
+      end
+    end)
+  end
+
+  def persist_stock_updates(_session_id, updates) when map_size(updates) == 0, do: :ok
+
+  def persist_stock_updates(session_id, updates) when is_map(updates) do
+    Enum.each(updates, fn {npc_id, stock} ->
+      case get_instance(session_id, npc_id) do
+        %NpcInstance{} = inst ->
+          update_runtime!(inst, Map.put(inst.runtime_state, "stock", stock))
+
+        nil ->
+          :ok
+      end
+    end)
+
+    :ok
+  end
+
   def refresh_world_npc_state(session_id) do
     session_id
     |> list_instances()
@@ -292,7 +321,8 @@ defmodule TalesForge.NPC do
         "mood" => get_in(definition, ["motivations", "mood"]) || "neutral",
         "relationship_score" => 0.0,
         "memories" => [],
-        "since_tick" => world_tick
+        "since_tick" => world_tick,
+        "stock" => seed_stock(definition)
       }
       |> maybe_seed_concern_tick(definition, world_tick)
 
@@ -406,6 +436,18 @@ defmodule TalesForge.NPC do
     inst.runtime_state
     |> Map.get("memories", [])
     |> Enum.take(-@memory_context_limit)
+  end
+
+  defp seed_stock(definition) do
+    definition
+    |> Map.get("stock", [])
+    |> TalesForge.Game.Inventory.normalize_stock()
+  end
+
+  defp definition_stock(%NpcInstance{} = inst) do
+    inst.personality
+    |> Map.get("stock", [])
+    |> TalesForge.Game.Inventory.normalize_stock()
   end
 
   defp load_definition_file(file) do

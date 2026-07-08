@@ -51,6 +51,10 @@ defmodule TalesForge.Game.World do
 
   def location(id), do: Map.get(@locations, id)
 
+  def runtime_location(world_state, location_id) when is_map(world_state) do
+    get_in(world_state, ["locations", location_id]) || location(location_id) || %{}
+  end
+
   def scene_image_url(location_id) do
     location_id
     |> location()
