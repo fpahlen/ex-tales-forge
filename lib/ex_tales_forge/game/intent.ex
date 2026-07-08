@@ -4,6 +4,7 @@ defmodule TalesForge.Game.Intent do
   require Logger
 
   alias TalesForge.Config
+  alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.LLM
@@ -174,16 +175,17 @@ defmodule TalesForge.Game.Intent do
     skill = Mechanics.infer_skill_from_action(raw_action)
 
     parameters =
-      if skill && action_type != :move do
-        %{"skill" => skill}
-      else
-        %{}
-      end
+      %{}
+      |> maybe_put_skill(skill, action_type)
+      |> Map.merge(infer_inventory_parameters(raw_action, action_type, context, target_npc))
+
+    {target, action_parameters} =
+      inventory_target(action_type, target_location, target_npc, parameters)
 
     action = %SingleAction{
       action_type: action_type,
-      target: target_location || target_npc,
-      parameters: parameters
+      target: target,
+      parameters: action_parameters
     }
 
     %IntentExtraction{
@@ -217,6 +219,8 @@ defmodule TalesForge.Game.Intent do
       Regex.match?(~r/\b(attack|fight|strike|stab|shoot|punch)\b/i, lowered) -> :combat
       Regex.match?(~r/\b(say|ask|tell|speak|shout|whisper|greet)\b/i, lowered) -> :speak
       Regex.match?(~r/\b(buy|purchase)\b/i, lowered) -> :buy
+      Regex.match?(~r/\bpay\b.+\bfor\b/i, lowered) -> :buy
+      Regex.match?(~r/\b(pay|tip|bribe|toll)\b/i, lowered) -> :spend
       Regex.match?(~r/\b(sell)\b/i, lowered) -> :sell
       Regex.match?(~r/\b(trade|swap|barter)\b/i, lowered) -> :trade
       Regex.match?(~r/\b(drop|discard)\b/i, lowered) -> :drop
@@ -271,6 +275,94 @@ defmodule TalesForge.Game.Intent do
         (first_name != "" and String.contains?(lowered, first_name))
     end)
   end
+
+  defp maybe_put_skill(params, skill, action_type) do
+    if skill && action_type != :move do
+      Map.put(params, "skill", skill)
+    else
+      params
+    end
+  end
+
+  defp inventory_target(action_type, target_location, target_npc, parameters) do
+    case action_type do
+      type when type in [:drop, :pickup] ->
+        {Map.get(parameters, "item_id") || target_npc, parameters}
+
+      :buy ->
+        {Map.get(parameters, "npc_id") || target_npc, parameters}
+
+      :sell ->
+        {target_npc, parameters}
+
+      :spend ->
+        {target_npc, parameters}
+
+      _ ->
+        {target_location || target_npc, parameters}
+    end
+  end
+
+  defp infer_inventory_parameters(raw_action, action_type, context, target_npc) do
+    case action_type do
+      :spend ->
+        %{"amount_copper" => Inventory.parse_copper_hint(raw_action)}
+
+      :drop ->
+        item_id = match_item_in_text(raw_action, context["player_inventory"] || [])
+        base = if(item_id, do: %{"item_id" => item_id}, else: %{})
+        Map.put(base, "quantity", 1)
+
+      :pickup ->
+        item_id = match_item_in_text(raw_action, context["ground_items"] || [])
+        base = if(item_id, do: %{"item_id" => item_id}, else: %{})
+        Map.put(base, "quantity", 1)
+
+      :buy ->
+        stock =
+          context
+          |> Map.get("npc_stock", %{})
+          |> stock_for_npc(target_npc)
+
+        item_id = match_item_in_text(raw_action, stock)
+
+        params =
+          case Enum.find(stock, &(&1["id"] == item_id)) do
+            %{"price_copper" => price} when is_integer(price) ->
+              %{"price_copper" => price}
+
+            _ ->
+              %{}
+          end
+
+        params
+        |> maybe_put("item_id", item_id)
+        |> maybe_put("npc_id", target_npc)
+        |> Map.put("quantity", 1)
+
+      :sell ->
+        item_id = match_item_in_text(raw_action, context["player_inventory"] || [])
+
+        %{}
+        |> maybe_put("item_id", item_id)
+        |> maybe_put("npc_id", target_npc)
+        |> Map.put("quantity", 1)
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp stock_for_npc(_npc_stock, nil), do: []
+  defp stock_for_npc(npc_stock, npc_id), do: Map.get(npc_stock, npc_id, [])
+
+  defp match_item_in_text(raw_action, items) do
+    Inventory.resolve_item_id(raw_action, Inventory.normalize_items(items))
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, _key, ""), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp sanitize_summary(text) do
     text

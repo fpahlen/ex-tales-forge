@@ -7,6 +7,7 @@ defmodule TalesForge.Game.TurnProcessor do
 
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Context
+  alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.MechanicalResolution
@@ -43,7 +44,7 @@ defmodule TalesForge.Game.TurnProcessor do
              player_action,
              handler
            ),
-         world_state <- apply_world_updates(session, character, handler, gm_result),
+         world_state <- apply_world_updates(session, character, handler, gm_result, player_action),
          {:ok, session} <- persist(session, world_state),
          {:ok, turn} <- persist_turn(session, turn_number, raw_action, gm_result, mechanical),
          :ok <- NPCRegistry.sync(session),
@@ -90,7 +91,7 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  defp apply_world_updates(%GameSession{} = session, character, handler, gm_result) do
+  defp apply_world_updates(%GameSession{} = session, character, handler, gm_result, player_action) do
     base_world = session.world_state || %{}
 
     character =
@@ -102,6 +103,7 @@ defmodule TalesForge.Game.TurnProcessor do
       base_world
       |> put_in(["character"], character)
       |> maybe_move(handler)
+      |> maybe_apply_inventory(session.id, player_action.action, handler)
       |> maybe_apply_context_summary(gm_result.context_summary)
       |> WorldClock.advance()
 
@@ -149,6 +151,21 @@ defmodule TalesForge.Game.TurnProcessor do
   end
 
   defp maybe_move(world_state, _), do: world_state
+
+  defp maybe_apply_inventory(world_state, session_id, action, handler) do
+    case Inventory.apply_server_inventory(world_state, session_id, action, handler) do
+      {:ok, updated, %{applied: applied}} when is_list(applied) ->
+        Logger.info("inventory applied session=#{session_id} changes=#{inspect(applied)}")
+        updated
+
+      {:ok, updated, _} ->
+        updated
+
+      {:error, reason} ->
+        Logger.warning("inventory skipped session=#{session_id} reason=#{reason}")
+        world_state
+    end
+  end
 
   defp maybe_apply_context_summary(world_state, nil), do: world_state
 

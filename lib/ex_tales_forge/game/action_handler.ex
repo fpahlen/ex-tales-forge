@@ -5,7 +5,7 @@ defmodule TalesForge.Game.ActionHandler do
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
 
   @stub_actions ~w(use_item)a
-  @inventory_actions ~w(pickup drop buy sell trade)a
+  @inventory_actions ~w(pickup drop buy sell trade spend)a
 
   def resolve(%PlayerAction{} = player_action) do
     action = player_action.action
