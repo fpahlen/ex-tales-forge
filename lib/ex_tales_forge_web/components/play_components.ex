@@ -2,6 +2,7 @@ defmodule TalesForgeWeb.PlayComponents do
   @moduledoc false
   use TalesForgeWeb, :html
 
+  attr :session_id, :string, required: true
   attr :session_name, :string, required: true
   attr :world_clock, :string, required: true
   attr :location_name, :string, required: true
@@ -21,6 +22,12 @@ defmodule TalesForgeWeb.PlayComponents do
           <h1 class="truncate font-serif text-lg font-semibold text-[var(--paper-ink)]">
             {@session_name}
           </h1>
+          <.link
+            href={~p"/admin/sessions/#{@session_id}"}
+            class="play-label shrink-0 text-[var(--paper-muted)] hover:text-[var(--paper-accent)] hover:underline"
+          >
+            Admin
+          </.link>
         </div>
         <dl class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
           <div class="flex items-baseline gap-2">
