@@ -47,13 +47,20 @@ defmodule TalesForgeWeb.HomeLive do
         <h2 class="play-label">Recent sessions</h2>
         <ul class="divide-y divide-[var(--paper-rule)] rounded-lg border border-[var(--paper-rule)] bg-[var(--paper-panel)]">
           <li :for={session <- @sessions} class="px-4 py-3">
-            <.link
-              navigate={~p"/play/#{session.id}"}
-              class="flex items-center justify-between hover:opacity-80"
-            >
-              <span class="font-medium text-[var(--paper-ink)]">{session.name}</span>
-              <span class="text-sm text-[var(--paper-muted)]">{session.status}</span>
-            </.link>
+            <div class="flex items-center justify-between gap-3">
+              <.link navigate={~p"/play/#{session.id}"} class="flex-1 hover:opacity-80">
+                <span class="font-medium text-[var(--paper-ink)]">{session.name}</span>
+              </.link>
+              <div class="flex items-center gap-3 text-sm">
+                <.link
+                  href={~p"/admin/sessions/#{session.id}"}
+                  class="text-[var(--paper-muted)] hover:text-[var(--paper-accent)] hover:underline"
+                >
+                  Admin
+                </.link>
+                <span class="text-[var(--paper-muted)]">{session.status}</span>
+              </div>
+            </div>
           </li>
         </ul>
       </section>

@@ -143,6 +143,7 @@ defmodule TalesForgeWeb.PlayLive do
     ~H"""
     <Layouts.play flash={@flash}>
       <.play_header
+        session_id={@session.id}
         session_name={@session.name}
         world_clock={@world_clock}
         location_name={@location_name}

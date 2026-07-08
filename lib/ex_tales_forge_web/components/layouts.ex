@@ -39,11 +39,19 @@ defmodule TalesForgeWeb.Layouts do
     ~H"""
     <div class="paper-home min-h-dvh">
       <header class="border-b border-[var(--paper-rule)] bg-[var(--paper-panel)] px-4 py-3 sm:px-6">
-        <div class="mx-auto flex max-w-3xl items-center justify-between">
+        <div class="mx-auto flex max-w-3xl items-center justify-between gap-4">
           <.link navigate={~p"/"} class="font-serif text-lg font-semibold text-[var(--paper-ink)]">
             Tales Forge
           </.link>
-          <.theme_toggle />
+          <div class="flex items-center gap-3">
+            <.link
+              href={~p"/admin"}
+              class="text-sm text-[var(--paper-muted)] hover:text-[var(--paper-accent)] hover:underline"
+            >
+              Admin
+            </.link>
+            <.theme_toggle />
+          </div>
         </div>
       </header>
 
