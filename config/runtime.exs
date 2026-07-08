@@ -138,3 +138,8 @@ if config_env() == :prod do
   #
   # See https://swoosh.hexdocs.pm/Swoosh.html#module-installation for details.
 end
+
+config :ex_tales_forge, :admin_auth,
+  enabled: config_env() != :test,
+  username: System.get_env("ADMIN_USERNAME") || "admin",
+  password: System.get_env("ADMIN_PASSWORD") || "admin"

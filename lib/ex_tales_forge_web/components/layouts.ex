@@ -5,6 +5,8 @@ defmodule TalesForgeWeb.Layouts do
   """
   use TalesForgeWeb, :html
 
+  import TalesForgeWeb.AdminComponents
+
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
   # skeleton of your application, namely HTML headers
@@ -59,6 +61,35 @@ defmodule TalesForgeWeb.Layouts do
   attr :flash, :map, required: true
 
   slot :inner_block, required: true
+
+  attr :active, :string, default: "dashboard"
+
+  def admin(assigns) do
+    ~H"""
+    <div class="paper-home min-h-dvh">
+      <header class="border-b border-[var(--paper-rule)] bg-[var(--paper-panel)] px-4 py-3 sm:px-6">
+        <div class="mx-auto flex max-w-6xl items-center justify-between">
+          <div>
+            <p class="play-label text-[var(--paper-accent)]">Tales Forge</p>
+            <h1 class="font-serif text-lg font-semibold text-[var(--paper-ink)]">Admin</h1>
+          </div>
+          <.theme_toggle />
+        </div>
+      </header>
+
+      <div class="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[12rem_1fr]">
+        <aside class="rounded-lg border border-[var(--paper-rule)] bg-[var(--paper-panel)] p-3">
+          <.nav active={@active} />
+        </aside>
+        <main class="space-y-4">
+          {render_slot(@inner_block)}
+        </main>
+      </div>
+
+      <.flash_group flash={@flash} />
+    </div>
+    """
+  end
 
   def play(assigns) do
     ~H"""
