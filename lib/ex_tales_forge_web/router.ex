@@ -14,6 +14,37 @@ defmodule TalesForgeWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :admin do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_root_layout, html: {TalesForgeWeb.Layouts, :root}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+    plug TalesForgeWeb.Plugs.AdminAuth
+  end
+
+  scope "/admin", TalesForgeWeb.AdminLive do
+    pipe_through :admin
+
+    live "/", DashboardLive, :index
+    live "/sessions", SessionLive.Index, :index
+    live "/sessions/:id", SessionLive.Show, :show
+    live "/sessions/:id/npcs", NpcLive.Index, :index
+    live "/sessions/:id/npcs/:npc_id", NpcLive.Show, :show
+    live "/sessions/:id/turns", TurnLive.Index, :index
+    live "/npc-definitions", NpcDefinitionLive.Index, :index
+    live "/npc-definitions/:id", NpcDefinitionLive.Show, :show
+  end
+
+  scope "/admin" do
+    pipe_through :admin
+
+    import Phoenix.LiveDashboard.Router
+
+    live_dashboard "/oban", metrics: TalesForgeWeb.Telemetry
+  end
+
   scope "/", TalesForgeWeb do
     pipe_through :browser
 

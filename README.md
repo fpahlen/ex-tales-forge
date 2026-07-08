@@ -84,6 +84,25 @@ With `XAI_API_KEY` set, the play header shows `GM source: api` after your first 
 
 Default model is fast non-reasoning Grok (`grok-4.20-0309-non-reasoning`). Verify turn latency with `mix e2e.smoke` (3s budget per turn).
 
+## Admin console
+
+Open http://localhost:4000/admin (HTTP Basic Auth).
+
+Set credentials in `.env`:
+
+```
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin
+```
+
+From the admin UI you can:
+
+- List and delete game sessions; edit `world_state` JSON
+- Inspect and edit per-session NPC runtime state (stock, mood, memories)
+- Browse turn history (read-only)
+- Edit authored NPC definitions in `priv/npcs/*.json`
+- Open LiveDashboard at `/admin/oban` for Oban/telemetry
+
 ## Project layout
 
 ```
