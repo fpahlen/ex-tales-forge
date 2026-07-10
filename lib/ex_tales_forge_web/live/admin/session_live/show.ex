@@ -3,35 +3,54 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
 
   import TalesForgeWeb.AdminComponents
 
+  alias AshPhoenix.Form
   alias TalesForge.Admin
-  alias TalesForge.Schemas.GameSession
+  alias TalesForge.AdminResources.GameSession, as: AdminGameSession
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    session = Admin.get_session!(id)
+    # Load via Ash for admin form usage. Core play paths still use Ecto.
+    session = Ash.get!(AdminGameSession, id)
+
     world_state_json = Admin.encode_json(session.world_state || %{})
+
+    ash_form =
+      Form.for_update(session, :update,
+        domain: TalesForge.AdminResources,
+        as: "session"
+      )
 
     {:ok,
      socket
      |> assign(:page_title, session.name)
      |> assign(:session, session)
      |> assign(:world_state_json, world_state_json)
-     |> assign(:form, to_form(GameSession.changeset(session, %{}), as: :session))}
+     |> assign(:ash_form, ash_form)
+     |> assign(:form, to_form(ash_form))}
   end
 
   @impl true
   def handle_event("save_session", %{"session" => params}, socket) do
-    case Admin.update_session(socket.assigns.session, params) do
+    case Form.submit(socket.assigns.ash_form, params: params) do
       {:ok, session} ->
+        new_ash_form =
+          Form.for_update(session, :update, domain: TalesForge.AdminResources, as: "session")
+
         {:noreply,
          socket
          |> assign(:session, session)
-         |> assign(:form, to_form(GameSession.changeset(session, %{}), as: :session))
+         |> assign(:ash_form, new_ash_form)
+         |> assign(:form, to_form(new_ash_form))
          |> put_flash(:info, "Session updated.")}
 
-      {:error, changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset, as: :session))}
+      {:error, ash_form} ->
+        {:noreply, assign(socket, :ash_form, ash_form) |> assign(:form, to_form(ash_form))}
     end
+  end
+
+  def handle_event("validate_session", %{"session" => params}, socket) do
+    ash_form = Form.validate(socket.assigns.ash_form, params)
+    {:noreply, assign(socket, :ash_form, ash_form) |> assign(:form, to_form(ash_form))}
   end
 
   def handle_event("save_world_state", %{"world_state_json" => json}, socket) do
@@ -63,7 +82,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
   end
 
   def handle_event("delete", _params, socket) do
-    {:ok, _} = Admin.delete_session(socket.assigns.session)
+    Admin.delete_session(socket.assigns.session)
     {:noreply, push_navigate(socket, to: ~p"/admin/sessions")}
   end
 
@@ -127,7 +146,13 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
       </.section_card>
 
       <.section_card title="Session fields">
-        <.form for={@form} id="session-form" phx-submit="save_session" class="space-y-3">
+        <.form
+          for={@form}
+          id="session-form"
+          phx-submit="save_session"
+          phx-change="validate_session"
+          class="space-y-3"
+        >
           <.input field={@form[:name]} type="text" label="Name" />
           <.input
             field={@form[:status]}

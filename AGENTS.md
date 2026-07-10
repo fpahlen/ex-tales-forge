@@ -12,11 +12,11 @@ Greenfield Elixir rewrite of [text-forge](../text-forge). Borrow rules, prompts,
 - **Runtime:** Jido 2.x agents + actions
 - **Persistence:** Ecto + PostgreSQL (`GameSession`, `Turn`, `NpcInstance`)
 - **Jobs:** Oban (LLM + images later)
-- **Authoring (later):** Ash domains for roster/adventures — not the game loop
+- **Authoring (Phase 2+):** Ash domains for pre-play (Authoring.*) and admin-only runtime tables (AdminResources.* over existing Ecto tables). Core game loop (GameSessions, NPC, workers, Jido, Context) is 100% Ecto. Admin LiveViews use AshPhoenix.Form for UX; JSON kept for complex maps. See admin_domain.ex and comments in game_sessions.ex / npc.ex.
 
 ## Non-negotiables
 
-1. Ash owns content that exists **before** play; Jido + Oban own **during** play
+1. Ash owns **pre-play authoring** (Authoring.*) and **admin surfaces only** (AdminResources.* for runtime tables). Core runtime (play loop, Jido, Oban, GameSessions, NPC logic) is strictly Ecto + Repo. Never mix in core paths.
 2. Tier 1 intent must run before Tier 2 GM; raw player text never reaches Tier 2
 3. Server rolls dice and applies LP/inventory — the LLM narrates, not invents mechanics
 4. Important authored state stays human-readable: `priv/rules/*.md`, `priv/prompts/*.txt`

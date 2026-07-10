@@ -69,7 +69,13 @@ defmodule TalesForge.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+
+      # Ash for Phase 2 authoring layer (pre-play content only)
+      {:ash, "~> 3.0"},
+      {:ash_postgres, "~> 2.0"},
+      {:ash_phoenix, "~> 2.0"},
+      {:igniter, "~> 0.6", only: [:dev, :test]}
     ]
   end
 
@@ -102,7 +108,8 @@ defmodule TalesForge.MixProject do
         "test"
       ],
       "dev.check": ["compile", "dev.check"],
-      "e2e.smoke": ["compile", "e2e.smoke"]
+      "e2e.smoke": ["compile", "e2e.smoke"],
+      "tales.import_pack": ["tales.import_pack"]
     ]
   end
 end

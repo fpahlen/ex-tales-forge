@@ -1,6 +1,8 @@
 defmodule TalesForge.Agents.NPCAgent do
   @moduledoc """
   Jido agent for one present NPC in a play session.
+
+  Core runtime. Ecto only.
   """
   use Jido.Agent,
     name: "npc",

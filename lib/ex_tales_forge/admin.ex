@@ -5,6 +5,7 @@ defmodule TalesForge.Admin do
 
   import Ecto.Query
 
+  require Ash.Query
   require Logger
 
   alias TalesForge.NPC
@@ -14,27 +15,48 @@ defmodule TalesForge.Admin do
   @npc_dir Path.join(:code.priv_dir(:ex_tales_forge), "npcs")
 
   def stats do
+    # Use Ash for admin stats where possible (falls back to Ecto)
     %{
-      sessions: Repo.aggregate(GameSession, :count, :id),
+      sessions: length(Ash.read!(TalesForge.AdminResources.GameSession)),
       active_sessions:
-        GameSession
-        |> where([s], s.status == "active")
-        |> Repo.aggregate(:count, :id),
-      turns: Repo.aggregate(Turn, :count, :id),
-      npc_instances: Repo.aggregate(NpcInstance, :count, :id),
-      scenes: Repo.aggregate(Scene, :count, :id)
+        length(
+          Ash.read!(
+            TalesForge.AdminResources.GameSession
+            |> Ash.Query.filter(status: :active)
+          )
+        ),
+      turns: length(Ash.read!(TalesForge.AdminResources.Turn)),
+      npc_instances: length(Ash.read!(TalesForge.AdminResources.NpcInstance)),
+      scenes: length(Ash.read!(TalesForge.AdminResources.Scene))
     }
+  rescue
+    # Fallback during initial wiring
+    _ ->
+      %{
+        sessions: Repo.aggregate(GameSession, :count, :id),
+        active_sessions:
+          GameSession
+          |> where([s], s.status == "active")
+          |> Repo.aggregate(:count, :id),
+        turns: Repo.aggregate(Turn, :count, :id),
+        npc_instances: Repo.aggregate(NpcInstance, :count, :id),
+        scenes: Repo.aggregate(Scene, :count, :id)
+      }
   end
 
   def list_sessions do
-    sessions =
-      GameSession
-      |> order_by([s], desc: s.inserted_at)
-      |> Repo.all()
+    # Example of using Ash for admin listing of runtime sessions.
+    # Game play paths still use the plain Ecto GameSessions module.
+    ash_sessions =
+      Ash.read!(
+        TalesForge.AdminResources.GameSession
+        |> Ash.Query.sort(inserted_at: :desc),
+        load: []
+      )
 
-    counts = turn_counts(Enum.map(sessions, & &1.id))
+    counts = turn_counts(Enum.map(ash_sessions, & &1.id))
 
-    Enum.map(sessions, fn session ->
+    Enum.map(ash_sessions, fn session ->
       %{
         session: session,
         turn_count: Map.get(counts, session.id, 0),
@@ -58,26 +80,41 @@ defmodule TalesForge.Admin do
     |> Repo.update()
   end
 
-  def update_session_world_state(%GameSession{} = session, json_string)
+  def update_session_world_state(session, json_string)
       when is_binary(json_string) do
+    id = Map.get(session, :id)
+    ecto_session = Repo.get!(GameSession, id)
+
     with {:ok, world_state} <- decode_json_map(json_string),
-         {:ok, session} <- update_session(session, %{world_state: world_state}) do
-      {:ok, session}
+         {:ok, updated} <- update_session(ecto_session, %{world_state: world_state}) do
+      {:ok, updated}
     end
   end
 
-  def delete_session(%GameSession{} = session) do
-    Logger.warning("admin deleting session id=#{session.id} name=#{session.name}")
-    Repo.delete(session)
+  def delete_session(session) do
+    id = Map.get(session, :id)
+    name = Map.get(session, :name, "unknown")
+    Logger.warning("admin deleting session id=#{id} name=#{name}")
+
+    case Ash.get(TalesForge.AdminResources.GameSession, id) do
+      {:ok, ash_session} -> Ash.destroy!(ash_session)
+      _ -> :ok
+    end
+
+    :ok
   end
 
-  def reset_session_npcs(%GameSession{} = session) do
-    from(n in NpcInstance, where: n.game_session_id == ^session.id)
+  def reset_session_npcs(session) do
+    id = Map.get(session, :id)
+
+    from(n in NpcInstance, where: n.game_session_id == ^id)
     |> Repo.delete_all()
 
-    :ok = NPC.seed_session(session)
+    # For seed/refresh we need the Ecto struct or world_state; fetch fresh
+    ecto_session = Repo.get!(GameSession, id)
+    :ok = NPC.seed_session(ecto_session)
 
-    case NPC.refresh_session_world_state(session) do
+    case NPC.refresh_session_world_state(ecto_session) do
       {:ok, refreshed} -> {:ok, refreshed}
       error -> error
     end
@@ -124,6 +161,35 @@ defmodule TalesForge.Admin do
   end
 
   def list_npc_definitions do
+    case load_npc_definitions_from_ash() do
+      defs when is_list(defs) and defs != [] -> defs
+      _ -> list_npc_definitions_from_files()
+    end
+  end
+
+  defp load_npc_definitions_from_ash do
+    case Ash.read(TalesForge.Authoring.NpcDefinition, load: []) do
+      {:ok, records} ->
+        records
+        |> Enum.map(fn rec ->
+          %{
+            id: rec.npc_id,
+            name: rec.name,
+            role: rec.role,
+            default_location_id: rec.default_location_id || "—",
+            file: "(Ash)"
+          }
+        end)
+        |> Enum.sort_by(& &1.id)
+
+      _ ->
+        []
+    end
+  rescue
+    _ -> []
+  end
+
+  defp list_npc_definitions_from_files do
     @npc_dir
     |> File.ls!()
     |> Enum.filter(&String.ends_with?(&1, ".json"))
@@ -132,6 +198,38 @@ defmodule TalesForge.Admin do
   end
 
   def get_npc_definition!(npc_id) do
+    case load_npc_definition_from_ash(npc_id) do
+      {:ok, defn} -> defn
+      _ -> load_npc_definition_from_file!(npc_id)
+    end
+  end
+
+  defp load_npc_definition_from_ash(npc_id) do
+    case Ash.get(TalesForge.Authoring.NpcDefinition, npc_id, load: []) do
+      {:ok, %TalesForge.Authoring.NpcDefinition{} = rec} ->
+        {:ok,
+         %{
+           "id" => rec.npc_id,
+           "name" => rec.name,
+           "race" => rec.race,
+           "role" => rec.role,
+           "default_location_id" => rec.default_location_id,
+           "appearance" => rec.appearance,
+           "personality" => rec.personality,
+           "backstory" => rec.backstory,
+           "motivations" => rec.motivations || %{},
+           "stock" => rec.stock || [],
+           "portrait_url" => rec.portrait_url
+         }}
+
+      _ ->
+        {:error, :not_found}
+    end
+  rescue
+    _ -> {:error, :not_found}
+  end
+
+  defp load_npc_definition_from_file!(npc_id) do
     path = npc_definition_path(npc_id)
 
     if File.exists?(path) do
@@ -152,9 +250,38 @@ defmodule TalesForge.Admin do
   def save_npc_definition(npc_id, json_string) when is_binary(json_string) do
     with {:ok, definition} <- decode_json_map(json_string),
          :ok <- validate_npc_definition(definition),
-         :ok <- write_npc_definition_file(npc_id, definition) do
+         :ok <- write_npc_definition_file(npc_id, definition),
+         :ok <- upsert_npc_definition_to_ash(npc_id, definition) do
       {:ok, definition}
     end
+  end
+
+  defp upsert_npc_definition_to_ash(npc_id, definition) do
+    attrs = %{
+      npc_id: npc_id,
+      name: Map.get(definition, "name", npc_id),
+      race: Map.get(definition, "race", "human"),
+      role: Map.get(definition, "role"),
+      default_location_id: Map.get(definition, "default_location_id"),
+      appearance: Map.get(definition, "appearance"),
+      personality: Map.get(definition, "personality"),
+      backstory: Map.get(definition, "backstory"),
+      motivations: Map.get(definition, "motivations", %{}),
+      stock: Map.get(definition, "stock", []),
+      portrait_url: Map.get(definition, "portrait_url")
+    }
+
+    case Ash.get(TalesForge.Authoring.NpcDefinition, npc_id, load: []) do
+      {:ok, existing} ->
+        TalesForge.Authoring.NpcDefinition.update!(existing, attrs)
+        :ok
+
+      _ ->
+        TalesForge.Authoring.NpcDefinition.create!(attrs)
+        :ok
+    end
+  rescue
+    e -> {:error, "Ash upsert failed: #{inspect(e)}"}
   end
 
   def encode_json(data) do
@@ -180,20 +307,14 @@ defmodule TalesForge.Admin do
     |> Map.new()
   end
 
-  defp session_location(%GameSession{world_state: world_state}) do
-    world_state
-    |> Kernel.||(%{})
-    |> Map.get("location_name", Map.get(world_state || %{}, "location_id", "—"))
+  defp session_location(session) do
+    world_state = Map.get(session, :world_state, %{}) || %{}
+    Map.get(world_state, "location_name", Map.get(world_state, "location_id", "—"))
   end
 
-  defp session_character_name(%GameSession{world_state: world_state}) do
-    world_state
-    |> Kernel.||(%{})
-    |> get_in(["character", "name"])
-    |> case do
-      nil -> "—"
-      name -> name
-    end
+  defp session_character_name(session) do
+    world_state = Map.get(session, :world_state, %{}) || %{}
+    get_in(world_state, ["character", "name"]) || "—"
   end
 
   defp load_npc_definition_summary(file) do

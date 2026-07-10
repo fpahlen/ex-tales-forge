@@ -1,6 +1,8 @@
 defmodule TalesForge.Workers.ProcessTurn do
   @moduledoc """
   Oban worker for Tier 2 GM narration and turn persistence.
+
+  Core runtime path. Uses Ecto-only game modules. No Ash.
   """
   use Oban.Worker, queue: :llm, max_attempts: 3
 
