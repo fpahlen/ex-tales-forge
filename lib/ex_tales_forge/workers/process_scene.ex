@@ -1,6 +1,8 @@
 defmodule TalesForge.Workers.ProcessScene do
   @moduledoc """
   Oban worker for opening scene narration before player turns.
+
+  Core runtime. Ecto + Game modules only.
   """
   use Oban.Worker,
     queue: :llm,

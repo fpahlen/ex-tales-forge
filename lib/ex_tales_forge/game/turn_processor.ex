@@ -1,7 +1,17 @@
 defmodule TalesForge.Game.TurnProcessor do
   @moduledoc """
   Tier 2 GM response, server mechanics, and session persistence.
+
+  ## Core runtime invariant
+  This module and everything it calls must remain 100% Ecto-based for
+  live game state. Ash (AdminResources or Authoring) is not allowed here.
   """
+
+  require Logger
+
+  alias TalesForge.Game.ActionHandler
+  alias TalesForge.Game.Context
+  alias TalesForge.Game.Inventory
 
   require Logger
 

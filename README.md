@@ -100,7 +100,8 @@ From the admin UI you can:
 - List and delete game sessions; edit `world_state` JSON
 - Inspect and edit per-session NPC runtime state (stock, mood, memories)
 - Browse turn history (read-only)
-- Edit authored NPC definitions in `priv/npcs/*.json`
+- Edit authored NPC definitions (Ash) and runtime session/NPC state (via Ash admin resources, but play uses Ecto)
+- Admin LiveViews use AshPhoenix.Form for simple fields; JSON editors kept for complex state like `world_state`
 - Open LiveDashboard at `/admin/oban` for Oban/telemetry
 
 ## Project layout
@@ -123,7 +124,7 @@ priv/
 
 - [x] Phase 0: Phoenix + Jido + LiveView play loop with mock GM
 - [x] Phase 1: Two-tier LLM pipeline + server mechanics (mock GM when no API key)
-- [ ] Phase 2: Ash authoring layer + Tigris images
+- [x] Phase 2: Ash for pre-play authoring + admin surfaces (AshPhoenix.Forms on runtime tables via AdminResources, but **core play paths remain 100% Ecto**). Generic linked-MD pack importer + `mix tales.import_pack`. Materialization and admin LiveViews updated. See plan.
 - [ ] Phase 3: NPC agents + world clock
 
 ## Development

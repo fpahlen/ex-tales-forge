@@ -3,13 +3,21 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
 
   import TalesForgeWeb.AdminComponents
 
+  alias AshPhoenix.Form
   alias TalesForge.Admin
-  alias TalesForge.Schemas.NpcInstance
+  alias TalesForge.AdminResources.NpcInstance, as: AdminNpcInstance
 
   @impl true
   def mount(%{"id" => session_id, "npc_id" => npc_id}, _session, socket) do
     session = Admin.get_session!(session_id)
-    npc = Admin.get_npc_instance!(session_id, npc_id)
+    # Load via Ash admin resource for form
+    npc = Ash.get!(AdminNpcInstance, npc_id, filter: [game_session_id: session_id])
+
+    ash_form =
+      Form.for_update(npc, :update,
+        domain: TalesForge.AdminResources,
+        as: "npc"
+      )
 
     {:ok,
      socket
@@ -18,24 +26,31 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
      |> assign(:npc, npc)
      |> assign(:runtime_json, Admin.encode_json(npc.runtime_state || %{}))
      |> assign(:personality_json, Admin.encode_json(npc.personality || %{}))
-     |> assign(:form, to_form(NpcInstance.changeset(npc, %{}), as: :npc))}
+     |> assign(:ash_form, ash_form)
+     |> assign(:form, to_form(ash_form))}
   end
 
   @impl true
-  def handle_event("save_disposition", %{"npc" => %{"disposition" => disposition}}, socket) do
-    {value, _} = Float.parse(disposition)
-
-    case Admin.update_npc_instance(socket.assigns.npc, %{disposition: value}) do
+  def handle_event("save_disposition", %{"npc" => params}, socket) do
+    case Form.submit(socket.assigns.ash_form, params: params) do
       {:ok, npc} ->
+        new_ash = Form.for_update(npc, :update, domain: TalesForge.AdminResources, as: "npc")
+
         {:noreply,
          socket
          |> assign(:npc, npc)
-         |> assign(:form, to_form(NpcInstance.changeset(npc, %{}), as: :npc))
+         |> assign(:ash_form, new_ash)
+         |> assign(:form, to_form(new_ash))
          |> put_flash(:info, "Disposition updated.")}
 
-      {:error, changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset, as: :npc))}
+      {:error, ash_form} ->
+        {:noreply, assign(socket, :ash_form, ash_form) |> assign(:form, to_form(ash_form))}
     end
+  end
+
+  def handle_event("validate_disposition", %{"npc" => params}, socket) do
+    ash_form = Form.validate(socket.assigns.ash_form, params)
+    {:noreply, assign(socket, :ash_form, ash_form) |> assign(:form, to_form(ash_form))}
   end
 
   def handle_event("save_runtime", %{"runtime_json" => json}, socket) do
@@ -67,7 +82,13 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
       </header>
 
       <.section_card title="Disposition">
-        <.form for={@form} id="npc-form" phx-submit="save_disposition" class="max-w-xs space-y-3">
+        <.form
+          for={@form}
+          id="npc-form"
+          phx-submit="save_disposition"
+          phx-change="validate_disposition"
+          class="max-w-xs space-y-3"
+        >
           <.input field={@form[:disposition]} type="number" label="Disposition" step="0.1" />
           <button type="submit" class="rounded bg-[var(--paper-accent)] px-4 py-2 text-sm text-white">
             Save

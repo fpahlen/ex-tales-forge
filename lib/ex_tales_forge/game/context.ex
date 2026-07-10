@@ -1,6 +1,10 @@
 defmodule TalesForge.Game.Context do
   @moduledoc false
 
+  # NON-NEGOTIABLE: Core runtime. Pure Ecto + game logic only.
+  # No Ash (neither AdminResources nor Authoring) in context building for turns.
+  # Rules come from Prompts (which may be pack-aware), but state is Ecto.
+
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.World
   alias TalesForge.NPC
@@ -81,13 +85,15 @@ defmodule TalesForge.Game.Context do
 
   def build_gm_context(%GameSession{} = session) do
     intent = build_intent_context(session)
+    world = session.world_state || %{}
+    adventure_id = Map.get(world, "adventure_id")
 
     %{
       session_id: session.id,
-      rules: TalesForge.Game.Prompts.load_rules(),
+      rules: TalesForge.Game.Prompts.load_rules(adventure_id),
       intent_context: intent,
       formatted_intent: format_intent_context(intent),
-      world_state: session.world_state || %{}
+      world_state: world
     }
   end
 

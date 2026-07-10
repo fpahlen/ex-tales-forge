@@ -1,6 +1,8 @@
 defmodule TalesForge.Agents.PlayerSessionAgent do
   @moduledoc """
   Owns hot state for one active play session.
+
+  Jido runtime agent. Must stay Ecto-only for state.
   """
   use Jido.Agent,
     name: "player_session",
