@@ -26,6 +26,10 @@ Greenfield Elixir rewrite of [text-forge](../text-forge). Borrow rules, prompts,
 
 ## Git workflow
 
+**CRITICAL RULE (added per user instruction):**
+- NEVER start working directly on the main branch.
+- ALWAYS create a work branch before doing any work.
+
 1. **Never commit development work directly to `main`.**
 2. Before starting a new feature or fix, create a branch:
    ```bash
