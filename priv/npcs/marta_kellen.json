@@ -1,35 +1,35 @@
 {
-  "id": "marta_kellen",
-  "name": "Marta Kellen",
-  "race": "human",
-  "role": "barkeep",
-  "default_location_id": "weary_pilgrim",
   "appearance": "Sharp-eyed woman in her forties, sleeves rolled, hands never far from a club or towel.",
-  "personality": "Practical, protective of her regulars, slow to trust strangers.",
   "backstory": "Has run The Weary Pilgrim through lean seasons and hard winters; knows every face that belongs in her common room.",
+  "default_location_id": "weary_pilgrim",
+  "id": "marta_kellen",
   "motivations": {
-    "personality_traits": {
-      "openness": 5,
-      "conscientiousness": 7,
-      "extraversion": 6,
-      "agreeableness": 5,
-      "neuroticism": 4
+    "agency_tier": "normal",
+    "current_concern": {
+      "blocked_by": null,
+      "focus": "missing ledger",
+      "priority": 8,
+      "since_tick": 0
     },
-    "primary_need": "safety",
-    "primary_motivation": "Security and protection from harm",
     "current_concerns": [
       "missing ledger",
       "unwanted attention in her tavern"
     ],
-    "current_concern": {
-      "focus": "missing ledger",
-      "priority": 8,
-      "blocked_by": null,
-      "since_tick": 0
-    },
     "mood": "cautious",
-    "agency_tier": "normal"
+    "personality_traits": {
+      "agreeableness": 5,
+      "conscientiousness": 7,
+      "extraversion": 6,
+      "neuroticism": 4,
+      "openness": 5
+    },
+    "primary_motivation": "Security and protection from harm",
+    "primary_need": "safety"
   },
+  "name": "Marta Kellen",
+  "personality": "Practical, protective of her regulars, slow to trust strangers.",
+  "race": "human",
+  "role": "barkeep",
   "stock": [
     {
       "id": "ale_mug",

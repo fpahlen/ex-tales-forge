@@ -13,7 +13,10 @@ defmodule TalesForgeWeb.HomeLive do
 
   @impl true
   def handle_event("new_session", _params, socket) do
-    case GameSessions.create_session(%{name: "Crossroads Hamlet"}) do
+    case GameSessions.create_session(%{
+           name: "Crossroads Hamlet",
+           adventure_id: "crossroads_ledger"
+         }) do
       {:ok, session} ->
         {:noreply, push_navigate(socket, to: ~p"/play/#{session.id}")}
 

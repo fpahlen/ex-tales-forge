@@ -10,7 +10,8 @@ import Config
 config :ex_tales_forge,
   namespace: TalesForge,
   ecto_repos: [TalesForge.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  ash_domains: [TalesForge.Authoring, TalesForge.AdminResources]
 
 config :ex_tales_forge, TalesForge.Jido,
   max_tasks: 1000,
