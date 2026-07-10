@@ -1,6 +1,10 @@
 defmodule TalesForge.Game.World do
   @moduledoc """
-  Authored world seed for Crossroads Hamlet (Phase 1).
+  Authored world seed for Crossroads Hamlet (Phase 1/2 transition).
+
+  Phase 2: Primary source of authored world/NPC data is now Ash (TalesForge.Authoring).
+  This module provides legacy hardcoded defaults + helpers. New sessions pull
+  rich defs via NPC.seed_session (which prefers Ash).
   """
 
   alias TalesForge.Game.WorldClock
