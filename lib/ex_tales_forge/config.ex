@@ -62,4 +62,32 @@ defmodule TalesForge.Config do
   defp blank_to_nil(value), do: value
 
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
+
+  # Tigris (S3-compatible) for Phase 2 images
+  def tigris_access_key, do: System.get_env("AWS_ACCESS_KEY_ID", "")
+  def tigris_secret_key, do: System.get_env("AWS_SECRET_ACCESS_KEY", "")
+  def tigris_endpoint, do: System.get_env("AWS_ENDPOINT_URL_S3", "https://fly.storage.tigris.dev")
+  def tigris_bucket, do: System.get_env("BUCKET_NAME", "tales-forge-images")
+  # optional CDN base, e.g. https://<bucket>.tigris.dev
+  def public_url_base, do: System.get_env("PUBLIC_URL_BASE", "")
+
+  def tigris_configured? do
+    present?(tigris_access_key()) and present?(tigris_secret_key())
+  end
+
+  # Image generation provider.
+  # Grok/xAI ("xai") is the default image generator when XAI_API_KEY is present.
+  def image_provider do
+    case blank_to_nil(System.get_env("IMAGE_PROVIDER")) do
+      nil ->
+        if present?(xai_api_key()), do: "xai", else: "mock"
+
+      value ->
+        String.downcase(value)
+    end
+  end
+
+  def xai_base, do: System.get_env("XAI_BASE_URL", "https://api.x.ai/v1")
+
+  def xai_image_model, do: System.get_env("XAI_IMAGE_MODEL", "grok-2-image")
 end

@@ -40,5 +40,78 @@
   </head>
   <body>
     {@inner_content}
+
+    <!-- Global image lightbox / larger window viewer -->
+    <div
+      id="image-modal"
+      onclick="closeImageModal()"
+      class="hidden fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4 cursor-zoom-out"
+    >
+      <div onclick="event.stopImmediatePropagation()" class="relative max-w-[95vw] max-h-[95vh]">
+        <img
+          id="modal-image"
+          class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl bg-[var(--paper-bg)]"
+          alt=""
+        />
+        <button
+          onclick="closeImageModal(); event.stopImmediatePropagation();"
+          class="absolute -top-2 -right-2 bg-white text-black rounded-full w-9 h-9 flex items-center justify-center text-xl font-bold shadow hover:bg-gray-200"
+          aria-label="Close image viewer"
+        >
+          ×
+        </button>
+        <div class="mt-2 text-center text-xs text-gray-400">
+          Click outside or press Esc to close
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function openImageModal(src, alt = '') {
+        const modal = document.getElementById('image-modal');
+        const img = document.getElementById('modal-image');
+        img.src = src;
+        img.alt = alt;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        // Close on Escape
+        const onEsc = (e) => {
+          if (e.key === 'Escape') {
+            closeImageModal();
+            document.removeEventListener('keydown', onEsc);
+          }
+        };
+        document.addEventListener('keydown', onEsc, { once: true });
+      }
+
+      function closeImageModal() {
+        const modal = document.getElementById('image-modal');
+        const img = document.getElementById('modal-image');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        // clear to free memory / avoid flicker
+        setTimeout(() => { img.src = ''; }, 150);
+      }
+
+      // Optional: allow closing with Escape even if not opened via function (defensive)
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          const modal = document.getElementById('image-modal');
+          if (!modal.classList.contains('hidden')) {
+            closeImageModal();
+          }
+        }
+      });
+
+      // Make all .image-zoomable images open the modal on click
+      document.addEventListener('click', function(e) {
+        const img = e.target.closest('.image-zoomable');
+        if (img && img.src) {
+          e.preventDefault();
+          const alt = img.alt || img.getAttribute('data-alt') || '';
+          openImageModal(img.src, alt);
+        }
+      });
+    </script>
   </body>
 </html>

@@ -1,18 +1,20 @@
 {
-  "status": "PASS",
-  "started_at": "2026-07-03T07:50:10.095101Z",
+  "status": "FAIL",
+  "started_at": "2026-07-11T07:43:24.151663Z",
   "warnings": [],
-  "session_id": "3af92c81-0a0f-42d5-bcb6-2d1c4e38c80d",
+  "session_id": "f14bc64c-02f9-40fa-a10a-31cf741b946d",
   "llm_source": "api",
   "steps": [
     {
-      "status": "PASS",
+      "status": "FAIL",
       "action": "look around the tavern",
       "step": 1,
       "llm_source": "api",
       "turn_number": 1,
-      "issues": [],
-      "latency_ms": 2510,
+      "issues": [
+        "turn latency budget exceeded (4021ms > 3000ms)"
+      ],
+      "latency_ms": 4021,
       "mechanical": {
         "effective_skill": 3,
         "lp_awarded": 1.0,
@@ -21,39 +23,60 @@
         "roll": 7,
         "skill": "insight"
       },
-      "narrative_preview": "You pause just inside the heavy oak door of the Weary Pilgrim, letting your eyes adjust to the warm, smoky glow of the hearth. The low ceiling and scent of ale and roasted chestnuts wrap around you li"
+      "narrative_preview": "You step through the heavy oak door of the Weary Pilgrim, the scent of woodsmoke and stale ale wrapping around you like a familiar but weary embrace. Flickering lantern light dances across low-beamed ",
+      "npc_issues": [],
+      "npc_check": {
+        "present_npcs": [
+          "marta_kellen"
+        ]
+      }
     },
     {
-      "status": "PASS",
+      "status": "FAIL",
       "action": "I ask Marta what the chalk marks mean",
       "step": 2,
       "llm_source": "api",
       "turn_number": 2,
-      "issues": [],
-      "latency_ms": 2512,
+      "issues": [
+        "turn latency budget exceeded (3516ms > 3000ms)"
+      ],
+      "latency_ms": 3516,
       "mechanical": {
         "effective_skill": 5,
         "lp_awarded": 1.0,
-        "notes": "Rolled 15 vs persuasion 5 (base 3). +1.0 LP.",
-        "outcome": "failure",
-        "roll": 15,
+        "notes": "Rolled 1 vs persuasion 5 (base 3). +1.0 LP. Natural 1 — exceptional success.",
+        "outcome": "success",
+        "roll": 1,
         "skill": "persuasion"
       },
-      "narrative_preview": "Elara leans against the worn bar, her voice carrying a warm, coaxing tone as she asks Marta about the chalk marks on the slate. The barkeep pauses mid-wipe, her sharp eyes narrowing before softening w"
+      "narrative_preview": "You lean against the worn bar counter, offering Marta a warm, disarming smile as the low murmur of the tavern wraps around you both. \"Those chalk marks on the slate intrigue me,\" you say, your voice c",
+      "npc_issues": [],
+      "npc_check": {
+        "marta_memories": 2
+      }
     },
     {
-      "status": "PASS",
+      "status": "FAIL",
       "action": "I head outside to Crossroads Square",
       "step": 3,
       "llm_source": "api",
       "turn_number": 3,
-      "issues": [],
-      "latency_ms": 2009,
+      "issues": [
+        "turn latency budget exceeded (3010ms > 3000ms)"
+      ],
+      "latency_ms": 3010,
       "mechanical": {
         "notes": "No skill check required.",
         "outcome": "none"
       },
-      "narrative_preview": "You nod farewell to Marta, who gives a friendly wave and returns to wiping down the bar. Pushing open the heavy oak door, you step out from the warm, smoky interior of the Weary Pilgrim into the brigh"
+      "narrative_preview": "You push open the heavy oak door of the Weary Pilgrim, stepping from the smoky warmth into the crisp air of Crossroads Square. Sunlight filters through scattered clouds, illuminating the wide cobblest",
+      "npc_issues": [],
+      "npc_check": {
+        "present_npcs": [
+          "worried_merchant"
+        ],
+        "location_id": "crossroads_square"
+      }
     }
   ],
   "preflight": {
@@ -68,5 +91,33 @@
     }
   },
   "llm_provider": "xai",
-  "finished_at": "2026-07-03T07:50:17.221967Z"
+  "finished_at": "2026-07-11T07:43:37.409323Z",
+  "npc_checks": [
+    {
+      "step": 1,
+      "npc_issues": [],
+      "npc_check": {
+        "present_npcs": [
+          "marta_kellen"
+        ]
+      }
+    },
+    {
+      "step": 2,
+      "npc_issues": [],
+      "npc_check": {
+        "marta_memories": 2
+      }
+    },
+    {
+      "step": 3,
+      "npc_issues": [],
+      "npc_check": {
+        "present_npcs": [
+          "worried_merchant"
+        ],
+        "location_id": "crossroads_square"
+      }
+    }
+  ]
 }

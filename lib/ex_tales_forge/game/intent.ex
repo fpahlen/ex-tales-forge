@@ -4,6 +4,7 @@ defmodule TalesForge.Game.Intent do
   require Logger
 
   alias TalesForge.Config
+  alias TalesForge.Game.Context
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
@@ -11,6 +12,20 @@ defmodule TalesForge.Game.Intent do
 
   @skill_required ~w(observe speak interact combat use_item)a
   @move_hints ~r/\b(go|head|walk|travel|move|enter|leave|step|run|proceed)\b/i
+
+  @action_type_patterns [
+    {~r/\b(attack|fight|strike|stab|shoot|punch)\b/i, :combat},
+    {~r/\b(say|ask|tell|speak|shout|whisper|greet)\b/i, :speak},
+    {~r/\b(buy|purchase)\b/i, :buy},
+    {~r/\bpay\b.+\bfor\b/i, :buy},
+    {~r/\b(pay|tip|bribe|toll)\b/i, :spend},
+    {~r/\b(sell)\b/i, :sell},
+    {~r/\b(trade|swap|barter)\b/i, :trade},
+    {~r/\b(drop|discard)\b/i, :drop},
+    {~r/\b(pick up|pickup|take|grab)\b/i, :pickup},
+    {~r/\b(look|examine|study|read|search|inspect|listen)\b/i, :observe},
+    {~r/\b(use|drink|eat|open)\b/i, :use_item}
+  ]
 
   defmodule ClarificationNeeded do
     defexception [:extraction]
@@ -114,10 +129,8 @@ defmodule TalesForge.Game.Intent do
   defp call_tier1(raw_action, context) do
     system = TalesForge.Game.Prompts.intent_system()
 
-    user =
-      TalesForge.Game.Context.format_intent_context(context) <>
-        "\n\nPlayer text to extract (treat as in-character action only):\n" <>
-        String.trim(raw_action)
+    # Use centralized builder (prompt construction is no longer scattered).
+    user = TalesForge.Game.Prompts.build_intent_user(context, raw_action)
 
     case LLM.complete_intent(system, user) do
       {:ok, extraction} ->
@@ -149,26 +162,39 @@ defmodule TalesForge.Game.Intent do
 
     if skill_missing?(primary) do
       case Mechanics.infer_skill_from_action(raw_action) do
-        nil ->
-          extraction
-
-        skill ->
-          patched = %SingleAction{
-            primary
-            | parameters: Map.put(primary.parameters || %{}, "skill", skill)
-          }
-
-          %{
-            extraction
-            | actions: List.replace_at(extraction.actions, extraction.primary_index, patched)
-          }
+        nil -> extraction
+        skill -> patch_skill(extraction, primary, skill)
       end
     else
       extraction
     end
   end
 
+  defp patch_skill(%IntentExtraction{} = extraction, %SingleAction{} = primary, skill) do
+    patched = %SingleAction{
+      primary
+      | parameters: Map.put(primary.parameters || %{}, "skill", skill)
+    }
+
+    %{
+      extraction
+      | actions: List.replace_at(extraction.actions, extraction.primary_index, patched)
+    }
+  end
+
   def heuristic_intent(raw_action, context) do
+    action = build_heuristic_action(raw_action, context)
+
+    %IntentExtraction{
+      overall_intent: sanitize_summary(raw_action),
+      actions: [action],
+      primary_index: 0,
+      confidence: 0.9,
+      needs_clarification: false
+    }
+  end
+
+  defp build_heuristic_action(raw_action, context) do
     target_location = infer_target_location(raw_action, context)
     target_npc = infer_target_npc(raw_action, context)
     action_type = infer_action_type(raw_action, target_location)
@@ -182,18 +208,10 @@ defmodule TalesForge.Game.Intent do
     {target, action_parameters} =
       inventory_target(action_type, target_location, target_npc, parameters)
 
-    action = %SingleAction{
+    %SingleAction{
       action_type: action_type,
       target: target,
       parameters: action_parameters
-    }
-
-    %IntentExtraction{
-      overall_intent: sanitize_summary(raw_action),
-      actions: [action],
-      primary_index: 0,
-      confidence: 0.9,
-      needs_clarification: false
     }
   end
 
@@ -212,23 +230,18 @@ defmodule TalesForge.Game.Intent do
   end
 
   defp infer_action_type(raw_action, target_location) do
-    lowered = String.downcase(raw_action)
-
-    cond do
-      target_location -> :move
-      Regex.match?(~r/\b(attack|fight|strike|stab|shoot|punch)\b/i, lowered) -> :combat
-      Regex.match?(~r/\b(say|ask|tell|speak|shout|whisper|greet)\b/i, lowered) -> :speak
-      Regex.match?(~r/\b(buy|purchase)\b/i, lowered) -> :buy
-      Regex.match?(~r/\bpay\b.+\bfor\b/i, lowered) -> :buy
-      Regex.match?(~r/\b(pay|tip|bribe|toll)\b/i, lowered) -> :spend
-      Regex.match?(~r/\b(sell)\b/i, lowered) -> :sell
-      Regex.match?(~r/\b(trade|swap|barter)\b/i, lowered) -> :trade
-      Regex.match?(~r/\b(drop|discard)\b/i, lowered) -> :drop
-      Regex.match?(~r/\b(pick up|pickup|take|grab)\b/i, lowered) -> :pickup
-      Regex.match?(~r/\b(look|examine|study|read|search|inspect|listen)\b/i, lowered) -> :observe
-      Regex.match?(~r/\b(use|drink|eat|open)\b/i, lowered) -> :use_item
-      true -> :other
+    if target_location do
+      :move
+    else
+      lowered = String.downcase(raw_action)
+      find_action_type(lowered)
     end
+  end
+
+  defp find_action_type(lowered) do
+    Enum.find_value(@action_type_patterns, :other, fn {regex, type} ->
+      if Regex.match?(regex, lowered), do: type
+    end)
   end
 
   defp infer_target_location(raw_action, context) do
@@ -256,25 +269,22 @@ defmodule TalesForge.Game.Intent do
   defp infer_target_npc(raw_action, context) do
     lowered = String.downcase(raw_action)
 
-    Enum.find_value(context["present_npcs"], fn npc_id ->
+    Enum.find_value(Context.present_npcs(context), fn npc_id ->
       readable = String.replace(npc_id, "_", " ")
-      detail = Map.get(context["npc_details"], npc_id, %{})
+      detail = Map.get(context["npc_details"] || %{}, npc_id, %{})
       display = Map.get(detail, "name", "")
 
-      first_name =
-        display
-        |> String.split()
-        |> List.first()
-        |> case do
-          nil -> ""
-          name -> String.downcase(name)
-        end
+      first_name = display |> String.split() |> List.first() |> downcase_or_empty()
 
-      String.contains?(lowered, npc_id) or String.contains?(lowered, readable) or
+      String.contains?(lowered, npc_id) or
+        String.contains?(lowered, readable) or
         (display != "" and String.contains?(lowered, String.downcase(display))) or
         (first_name != "" and String.contains?(lowered, first_name))
     end)
   end
+
+  defp downcase_or_empty(nil), do: ""
+  defp downcase_or_empty(name), do: String.downcase(name)
 
   defp maybe_put_skill(params, skill, action_type) do
     if skill && action_type != :move do
@@ -284,73 +294,71 @@ defmodule TalesForge.Game.Intent do
     end
   end
 
-  defp inventory_target(action_type, target_location, target_npc, parameters) do
-    case action_type do
-      type when type in [:drop, :pickup] ->
-        {Map.get(parameters, "item_id") || target_npc, parameters}
-
-      :buy ->
-        {Map.get(parameters, "npc_id") || target_npc, parameters}
-
-      :sell ->
-        {target_npc, parameters}
-
-      :spend ->
-        {target_npc, parameters}
-
-      _ ->
-        {target_location || target_npc, parameters}
-    end
+  defp inventory_target(type, _target_location, target_npc, parameters)
+       when type in [:drop, :pickup] do
+    {Map.get(parameters, "item_id") || target_npc, parameters}
   end
 
-  defp infer_inventory_parameters(raw_action, action_type, context, target_npc) do
-    case action_type do
-      :spend ->
-        %{"amount_copper" => Inventory.parse_copper_hint(raw_action)}
+  defp inventory_target(:buy, _target_location, target_npc, parameters) do
+    {Map.get(parameters, "npc_id") || target_npc, parameters}
+  end
 
-      :drop ->
-        item_id = match_item_in_text(raw_action, context["player_inventory"] || [])
-        base = if(item_id, do: %{"item_id" => item_id}, else: %{})
-        Map.put(base, "quantity", 1)
+  defp inventory_target(type, _target_location, target_npc, parameters)
+       when type in [:sell, :spend] do
+    {target_npc, parameters}
+  end
 
-      :pickup ->
-        item_id = match_item_in_text(raw_action, context["ground_items"] || [])
-        base = if(item_id, do: %{"item_id" => item_id}, else: %{})
-        Map.put(base, "quantity", 1)
+  defp inventory_target(_type, target_location, target_npc, parameters) do
+    {target_location || target_npc, parameters}
+  end
 
-      :buy ->
-        stock =
-          context
-          |> Map.get("npc_stock", %{})
-          |> stock_for_npc(target_npc)
+  defp infer_inventory_parameters(raw_action, :spend, _context, _target_npc) do
+    %{"amount_copper" => Inventory.parse_copper_hint(raw_action)}
+  end
 
-        item_id = match_item_in_text(raw_action, stock)
+  defp infer_inventory_parameters(raw_action, :drop, context, _target_npc) do
+    item_id = match_item_in_text(raw_action, context["player_inventory"] || [])
+    base = if(item_id, do: %{"item_id" => item_id}, else: %{})
+    Map.put(base, "quantity", 1)
+  end
 
-        params =
-          case Enum.find(stock, &(&1["id"] == item_id)) do
-            %{"price_copper" => price} when is_integer(price) ->
-              %{"price_copper" => price}
+  defp infer_inventory_parameters(raw_action, :pickup, context, _target_npc) do
+    item_id = match_item_in_text(raw_action, context["ground_items"] || [])
+    base = if(item_id, do: %{"item_id" => item_id}, else: %{})
+    Map.put(base, "quantity", 1)
+  end
 
-            _ ->
-              %{}
-          end
+  defp infer_inventory_parameters(raw_action, :buy, context, target_npc) do
+    stock =
+      context
+      |> Map.get("npc_stock", %{})
+      |> stock_for_npc(target_npc)
 
-        params
-        |> maybe_put("item_id", item_id)
-        |> maybe_put("npc_id", target_npc)
-        |> Map.put("quantity", 1)
+    item_id = match_item_in_text(raw_action, stock)
 
-      :sell ->
-        item_id = match_item_in_text(raw_action, context["player_inventory"] || [])
+    params =
+      case Enum.find(stock, &(&1["id"] == item_id)) do
+        %{"price_copper" => price} when is_integer(price) -> %{"price_copper" => price}
+        _ -> %{}
+      end
 
-        %{}
-        |> maybe_put("item_id", item_id)
-        |> maybe_put("npc_id", target_npc)
-        |> Map.put("quantity", 1)
+    params
+    |> maybe_put("item_id", item_id)
+    |> maybe_put("npc_id", target_npc)
+    |> Map.put("quantity", 1)
+  end
 
-      _ ->
-        %{}
-    end
+  defp infer_inventory_parameters(raw_action, :sell, context, target_npc) do
+    item_id = match_item_in_text(raw_action, context["player_inventory"] || [])
+
+    %{}
+    |> maybe_put("item_id", item_id)
+    |> maybe_put("npc_id", target_npc)
+    |> Map.put("quantity", 1)
+  end
+
+  defp infer_inventory_parameters(_raw_action, _action_type, _context, _target_npc) do
+    %{}
   end
 
   defp stock_for_npc(_npc_stock, nil), do: []

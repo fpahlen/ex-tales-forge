@@ -6,6 +6,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
   alias AshPhoenix.Form
   alias TalesForge.Admin
   alias TalesForge.AdminResources.GameSession, as: AdminGameSession
+  alias TalesForge.Game.Context
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -88,7 +89,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
 
   @impl true
   def render(assigns) do
-    character = get_in(assigns.session.world_state, ["character"]) || %{}
+    character = Context.character(assigns.session.world_state || %{}) || %{}
 
     assigns = assign(assigns, :character, character)
 
@@ -130,12 +131,12 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
           </div>
           <div>
             <dt class="text-[var(--paper-muted)]">Location</dt><dd>
-              {Map.get(@session.world_state, "location_name", "—")}
+              {Context.location_name(@session.world_state) || "—"}
             </dd>
           </div>
           <div>
             <dt class="text-[var(--paper-muted)]">World tick</dt><dd>
-              {Map.get(@session.world_state, "world_tick", "—")}
+              {Context.world_tick(@session.world_state) || "—"}
             </dd>
           </div>
           <div>

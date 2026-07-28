@@ -6,6 +6,7 @@ defmodule TalesForge.LLM do
   require Logger
 
   alias TalesForge.Config
+  alias TalesForge.Game.Context
 
   alias TalesForge.Game.Schemas.{
     GMStructuredResponse,
@@ -15,41 +16,9 @@ defmodule TalesForge.LLM do
     PlayerAction
   }
 
-  @intent_schema %{
-    "type" => "object",
-    "required" => ["overall_intent", "actions"],
-    "properties" => %{
-      "overall_intent" => %{"type" => "string"},
-      "actions" => %{"type" => "array", "minItems" => 1},
-      "primary_index" => %{"type" => "integer"},
-      "confidence" => %{"type" => "number"},
-      "needs_clarification" => %{"type" => "boolean"},
-      "clarification_question" => %{"type" => ["string", "null"]},
-      "clarification_options" => %{"type" => "array"}
-    }
-  }
-
-  @scene_schema %{
-    "type" => "object",
-    "required" => ["location_name", "narrative"],
-    "properties" => %{
-      "location_name" => %{"type" => "string"},
-      "narrative" => %{"type" => "string"}
-    }
-  }
-
-  @gm_schema %{
-    "type" => "object",
-    "required" => ["narrative"],
-    "properties" => %{
-      "narrative" => %{"type" => "string"},
-      "mechanical_resolution" => %{"type" => "object"},
-      "state_updates" => %{"type" => "array"},
-      "npc_memory_updates" => %{"type" => "array"},
-      "overlay_deltas" => %{"type" => "object"},
-      "context_summary" => %{"type" => ["string", "null"]}
-    }
-  }
+  # JSON schemas now live in Prompts (co-located with system prompt loading and
+  # user-message construction). We still import them here for the complete_* paths.
+  # This keeps "prompt contract" information from being spread across files.
 
   def provider, do: Config.llm_provider()
 
@@ -62,7 +31,12 @@ defmodule TalesForge.LLM do
     if model == "mock" do
       {:error, :mock_intent}
     else
-      complete_json(model, system, user, @intent_schema, Config.tier1_temperature(),
+      complete_json(
+        model,
+        system,
+        user,
+        TalesForge.Game.Prompts.intent_schema(),
+        Config.tier1_temperature(),
         tier: :tier1,
         max_tokens: Config.tier1_max_tokens()
       )
@@ -79,7 +53,12 @@ defmodule TalesForge.LLM do
     if model == "mock" do
       {:ok, mock_scene_response(intent_context)}
     else
-      complete_json(model, system, user, @scene_schema, Config.tier2_temperature(),
+      complete_json(
+        model,
+        system,
+        user,
+        TalesForge.Game.Prompts.scene_schema(),
+        Config.tier2_temperature(),
         tier: :scene,
         max_tokens: Config.tier2_max_tokens()
       )
@@ -108,14 +87,22 @@ defmodule TalesForge.LLM do
     if model == "mock" do
       {:ok, mock_turn_response(player_action, handler, turn_number)}
     else
+      # Use centralized builder so all "how we instruct the GM" lives in one place
+      # (Prompts + the base formatted prompt from Context).
       user_prompt =
-        user <>
-          "\n\nValidated player action (turn #{turn_number}):\n" <>
-          Jason.encode!(PlayerAction.encode(player_action), pretty: true) <>
-          "\n\nAction handler result:\n" <>
-          Jason.encode!(handler_payload(handler), pretty: true)
+        TalesForge.Game.Prompts.build_gm_user(
+          user,
+          player_action,
+          handler,
+          turn_number
+        )
 
-      complete_json(model, system, user_prompt, @gm_schema, Config.tier2_temperature(),
+      complete_json(
+        model,
+        system,
+        user_prompt,
+        TalesForge.Game.Prompts.gm_schema(),
+        Config.tier2_temperature(),
         tier: :tier2,
         max_tokens: Config.tier2_max_tokens()
       )
@@ -126,19 +113,10 @@ defmodule TalesForge.LLM do
     end
   end
 
-  defp handler_payload(%HandlerResult{} = handler) do
-    %{
-      "handler" => handler.handler,
-      "skill" => handler.skill,
-      "target" => handler.target,
-      "notes" => handler.notes
-    }
-  end
-
   defp mock_scene_response(context) do
-    location_name = Map.get(context, "location_name", "Unknown")
+    location_name = Context.location_name(context) || "Unknown"
     blurb = Map.get(context, "location_blurb", "")
-    situation = Map.get(context, "situation_lines", []) |> Enum.join("\n")
+    situation = Context.situation_lines(context) |> Enum.join("\n")
 
     narrative =
       [
@@ -172,10 +150,8 @@ defmodule TalesForge.LLM do
   end
 
   defp complete_json(model, system, user, schema, temperature, opts) do
-    user_with_schema =
-      user <>
-        "\n\nReturn JSON matching this schema:\n" <>
-        Jason.encode!(schema, pretty: true)
+    # Schema injection is now provided by Prompts (single source for prompt contracts).
+    user_with_schema = TalesForge.Game.Prompts.with_json_schema(user, schema)
 
     dispatch_opts = Keyword.take(opts, [:tier, :max_tokens])
 
@@ -184,9 +160,7 @@ defmodule TalesForge.LLM do
       {:ok, map}
     else
       {:error, :invalid_json} ->
-        retry_user =
-          "Your previous response was invalid. Return ONLY valid JSON matching the schema.\n\n" <>
-            user_with_schema
+        retry_user = TalesForge.Game.Prompts.json_retry_prefix() <> user_with_schema
 
         with {:ok, raw} <- dispatch(model, system, retry_user, temperature, dispatch_opts),
              {:ok, map} <- parse_json(raw) do
@@ -210,36 +184,7 @@ defmodule TalesForge.LLM do
       "llm call start tier=#{tier} provider=#{provider} model=#{model} temp=#{temperature} max_tokens=#{max_tokens}"
     )
 
-    result =
-      cond do
-        String.starts_with?(model, "xai/") or provider == "xai" ->
-          call_openai_compatible(
-            model,
-            system,
-            user,
-            temperature,
-            xai_base(),
-            Config.xai_api_key(),
-            max_tokens
-          )
-
-        String.starts_with?(model, "gpt-") or provider == "openai" ->
-          call_openai_compatible(
-            model,
-            system,
-            user,
-            temperature,
-            openai_base(),
-            Config.openai_api_key(),
-            max_tokens
-          )
-
-        String.starts_with?(model, "ollama/") ->
-          call_ollama(model, system, user, temperature)
-
-        true ->
-          {:error, {:unsupported_model, model}}
-      end
+    result = call_provider(model, provider, system, user, temperature, max_tokens)
 
     case result do
       {:ok, content} ->
@@ -253,6 +198,38 @@ defmodule TalesForge.LLM do
 
       error ->
         error
+    end
+  end
+
+  defp call_provider(model, provider, system, user, temperature, max_tokens) do
+    cond do
+      String.starts_with?(model, "xai/") or provider == "xai" ->
+        call_openai_compatible(
+          model,
+          system,
+          user,
+          temperature,
+          xai_base(),
+          Config.xai_api_key(),
+          max_tokens
+        )
+
+      String.starts_with?(model, "gpt-") or provider == "openai" ->
+        call_openai_compatible(
+          model,
+          system,
+          user,
+          temperature,
+          openai_base(),
+          Config.openai_api_key(),
+          max_tokens
+        )
+
+      String.starts_with?(model, "ollama/") ->
+        call_ollama(model, system, user, temperature)
+
+      true ->
+        {:error, {:unsupported_model, model}}
     end
   end
 

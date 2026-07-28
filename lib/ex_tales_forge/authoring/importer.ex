@@ -63,6 +63,7 @@ defmodule TalesForge.Authoring.Importer do
   import Ash.Query
 
   alias TalesForge.Authoring.{Adventure, Location, NpcDefinition}
+  alias TalesForge.Images
 
   # Example rule files shown in error messages for user guidance.
   # (Not used for enforcement.)
@@ -793,7 +794,9 @@ defmodule TalesForge.Authoring.Importer do
                   Location
                   |> filter(
                     adventure_id == ^pack.adventure_id and location_id == ^loc.location_id
-                  ), load: [])
+                  ),
+                  load: []
+                )
 
               Location.update!(ex, Map.drop(attrs, [:adventure_id, :location_id]))
           end
@@ -831,6 +834,11 @@ defmodule TalesForge.Authoring.Importer do
               update_attrs = Map.drop(attrs, [:npc_id, :race])
               NpcDefinition.update!(ex, update_attrs)
           end
+      end
+
+      # Auto-generate portrait (pencil GM sketch) if none provided in the pack (authored urls win).
+      if is_nil(npc.portrait_url) or npc.portrait_url == "" do
+        Images.enqueue_portrait(npc.npc_id)
       end
     end)
 

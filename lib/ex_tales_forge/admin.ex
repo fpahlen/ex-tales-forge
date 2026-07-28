@@ -8,6 +8,7 @@ defmodule TalesForge.Admin do
   require Ash.Query
   require Logger
 
+  alias TalesForge.Game.Context
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, NpcInstance, Scene, Turn}
@@ -96,9 +97,15 @@ defmodule TalesForge.Admin do
     name = Map.get(session, :name, "unknown")
     Logger.warning("admin deleting session id=#{id} name=#{name}")
 
+    # Explicit cascade for runtime children (core data is Ecto).
+    # Ash destroy on the session itself will remove the parent row.
+    from(t in Turn, where: t.game_session_id == ^id) |> Repo.delete_all()
+    from(s in Scene, where: s.game_session_id == ^id) |> Repo.delete_all()
+    from(n in NpcInstance, where: n.game_session_id == ^id) |> Repo.delete_all()
+
     case Ash.get(TalesForge.AdminResources.GameSession, id) do
       {:ok, ash_session} -> Ash.destroy!(ash_session)
-      _ -> :ok
+      _ -> Repo.delete_all(from(gs in GameSession, where: gs.id == ^id))
     end
 
     :ok
@@ -177,7 +184,8 @@ defmodule TalesForge.Admin do
             name: rec.name,
             role: rec.role,
             default_location_id: rec.default_location_id || "—",
-            file: "(Ash)"
+            file: "(Ash)",
+            portrait_url: rec.portrait_url
           }
         end)
         |> Enum.sort_by(& &1.id)
@@ -205,8 +213,10 @@ defmodule TalesForge.Admin do
   end
 
   defp load_npc_definition_from_ash(npc_id) do
-    case Ash.get(TalesForge.Authoring.NpcDefinition, npc_id, load: []) do
-      {:ok, %TalesForge.Authoring.NpcDefinition{} = rec} ->
+    case Ash.read(TalesForge.Authoring.NpcDefinition |> Ash.Query.filter(npc_id == ^npc_id),
+           load: []
+         ) do
+      {:ok, [%TalesForge.Authoring.NpcDefinition{} = rec | _]} ->
         {:ok,
          %{
            "id" => rec.npc_id,
@@ -271,15 +281,23 @@ defmodule TalesForge.Admin do
       portrait_url: Map.get(definition, "portrait_url")
     }
 
-    case Ash.get(TalesForge.Authoring.NpcDefinition, npc_id, load: []) do
-      {:ok, existing} ->
+    case Ash.read(TalesForge.Authoring.NpcDefinition |> Ash.Query.filter(npc_id == ^npc_id),
+           load: []
+         ) do
+      {:ok, [existing | _]} ->
         TalesForge.Authoring.NpcDefinition.update!(existing, attrs)
-        :ok
 
       _ ->
         TalesForge.Authoring.NpcDefinition.create!(attrs)
-        :ok
     end
+
+    # Auto-generate a pencil-sketch GM portrait using appearance + personality if none supplied.
+    # Ignore enqueue result so with-pipelines still get :ok (Oban returns {:ok, job}).
+    if is_nil(Map.get(definition, "portrait_url")) or Map.get(definition, "portrait_url") == "" do
+      _ = TalesForge.Images.enqueue_portrait(npc_id)
+    end
+
+    :ok
   rescue
     e -> {:error, "Ash upsert failed: #{inspect(e)}"}
   end
@@ -308,13 +326,11 @@ defmodule TalesForge.Admin do
   end
 
   defp session_location(session) do
-    world_state = Map.get(session, :world_state, %{}) || %{}
-    Map.get(world_state, "location_name", Map.get(world_state, "location_id", "—"))
+    Context.location_name(session.world_state) || Context.location_id(session.world_state) || "—"
   end
 
   defp session_character_name(session) do
-    world_state = Map.get(session, :world_state, %{}) || %{}
-    get_in(world_state, ["character", "name"]) || "—"
+    Context.character(session.world_state) |> Map.get("name") || "—"
   end
 
   defp load_npc_definition_summary(file) do
@@ -326,7 +342,8 @@ defmodule TalesForge.Admin do
       name: Map.get(definition, "name", id),
       role: Map.get(definition, "role", "—"),
       default_location_id: Map.get(definition, "default_location_id", "—"),
-      file: file
+      file: file,
+      portrait_url: Map.get(definition, "portrait_url")
     }
   end
 

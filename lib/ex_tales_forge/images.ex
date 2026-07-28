@@ -1,12 +1,13 @@
 defmodule TalesForge.Images do
   @moduledoc """
-  Image enqueue + helpers for scenes (depict narrative text).
+  Image enqueue + helpers for scenes (narrative) and NPC portraits.
 
-  - Uses prompt-to-image (e.g. pollinations) so generated images match the scene description.
+  - Scenes: depict full narrative using Grok/xAI (or fallback) + "pencil sketch by GM on paper" style.
+  - Portraits: generated from NPC `appearance` (description) + `personality` (plus name/role).
+    Same Grok default + consistent pencil-sketch-GM style.
+  - Enqueue only happens when no authored `*_url` is present (authored from packs win).
   - Never uses non-descriptive placeholders like picsum.
   """
-
-  alias TalesForge.Workers.GenerateImage
 
   alias TalesForge.Workers.GenerateImage
 
@@ -17,7 +18,8 @@ defmodule TalesForge.Images do
   end
 
   def enqueue_scene_image(location_id, opts \\ []) do
-    # opts can include :session_id, :narrative (preferred for fresh scene), :location_name
+    # opts: :session_id, :narrative, :location_name, :npc_refs
+    # (npc_refs: list of %{name, appearance, personality, portrait_url})
     args = Map.merge(%{type: :scene, target_id: location_id}, Map.new(opts))
 
     args
@@ -33,8 +35,4 @@ defmodule TalesForge.Images do
     base = TalesForge.Config.public_url_base()
     if base != "", do: "#{base}/#{key}", else: "#{tigris_endpoint()}/#{tigris_bucket()}/#{key}"
   end
-
-  # Fallback only if generation fails
-  def fallback_image_url,
-    do: "https://image.pollinations.ai/prompt/generic%20fantasy%20scene?width=800&height=600"
 end

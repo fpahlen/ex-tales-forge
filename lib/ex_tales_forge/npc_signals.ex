@@ -7,11 +7,12 @@ defmodule TalesForge.NPCSignals do
 
   alias Jido.AgentServer
   alias Jido.Signal
+  alias TalesForge.Game.Context
   alias TalesForge.NPCRegistry
 
   def emit_turn_signals(session_id, world_state, handler, raw_action) do
-    present_npcs = Map.get(world_state, "present_npcs", [])
-    world_tick = Map.get(world_state, "world_tick", 0)
+    present_npcs = Context.present_npcs(world_state)
+    world_tick = Context.world_tick(world_state)
 
     emit_time_passed(session_id, world_tick, 1, present_npcs)
 

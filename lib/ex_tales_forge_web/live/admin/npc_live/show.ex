@@ -7,11 +7,19 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
   alias TalesForge.Admin
   alias TalesForge.AdminResources.NpcInstance, as: AdminNpcInstance
 
+  require Ash.Query
+
   @impl true
   def mount(%{"id" => session_id, "npc_id" => npc_id}, _session, socket) do
     session = Admin.get_session!(session_id)
-    # Load via Ash admin resource for form
-    npc = Ash.get!(AdminNpcInstance, npc_id, filter: [game_session_id: session_id])
+
+    # Load via Ash admin resource for form, using filter on business keys (npc_id + game_session_id)
+    # because the Ash pk is a uuid, not the slug npc_id
+    query =
+      AdminNpcInstance
+      |> Ash.Query.filter(npc_id == ^npc_id and game_session_id == ^session_id)
+
+    npc = Ash.read_one!(query, domain: TalesForge.AdminResources, not_found_error?: true)
 
     ash_form =
       Form.for_update(npc, :update,

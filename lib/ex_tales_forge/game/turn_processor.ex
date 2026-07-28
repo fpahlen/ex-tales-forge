@@ -12,12 +12,6 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Context
   alias TalesForge.Game.Inventory
-
-  require Logger
-
-  alias TalesForge.Game.ActionHandler
-  alias TalesForge.Game.Context
-  alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.MechanicalResolution
@@ -68,7 +62,7 @@ defmodule TalesForge.Game.TurnProcessor do
         mechanical_resolution: MechanicalResolution.encode(mechanical),
         llm_provider: LLM.provider(),
         llm_source: LLM.llm_source(LLM.provider()),
-        location_name: Map.get(world_state, "location_name"),
+        location_name: Context.location_name(world_state),
         world_state: world_state,
         needs_scene: SceneProcessor.needs_scene?(world_state)
       }
@@ -93,7 +87,7 @@ defmodule TalesForge.Game.TurnProcessor do
   end
 
   defp apply_mechanics(world_state, gm_skill, player_action, handler) do
-    character = Map.get(world_state, "character", %{})
+    character = Context.character(world_state)
 
     case Mechanics.apply_server_mechanics(character, gm_skill, player_action, handler) do
       {updated, %MechanicalResolution{} = resolution} -> {updated, resolution}
@@ -101,36 +95,95 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  defp apply_world_updates(%GameSession{} = session, character, handler, gm_result, player_action) do
+  defp apply_world_updates(
+         %GameSession{} = session,
+         _incoming_character,
+         handler,
+         gm_result,
+         player_action
+       ) do
     base_world = session.world_state || %{}
 
     character =
       gm_result.state_updates
       |> character_patches()
-      |> Enum.reduce(character, &deep_merge_maps/2)
+      |> Enum.reduce(Context.character(base_world), &deep_merge_maps/2)
 
-    advanced_world =
+    world =
       base_world
-      |> put_in(["character"], character)
-      |> maybe_move(handler)
-      |> maybe_apply_inventory(session.id, player_action.action, handler)
-      |> maybe_apply_context_summary(gm_result.context_summary)
+      |> Context.put_character(character)
+      |> apply_move(handler)
+      |> apply_inventory(session.id, player_action.action, handler)
+      |> apply_context_summary(gm_result.context_summary)
       |> WorldClock.advance()
 
-    world_tick = Map.get(advanced_world, "world_tick")
+    world_tick = Context.world_tick(world)
     :ok = NPC.apply_gm_updates(session.id, gm_result, world_tick)
 
-    location_id = get_in(advanced_world, ["character", "location_id"])
+    world
+    |> apply_location_updates()
+    |> sync_npcs_and_state(session.id)
+  end
+
+  defp apply_move(world_state, handler) do
+    case handler do
+      %{handler: "move", state_hints: %{"location_id" => location_id}}
+      when is_binary(location_id) ->
+        put_in(world_state, ["character", "location_id"], location_id)
+
+      %{handler: "move", target: target} when is_binary(target) ->
+        put_in(world_state, ["character", "location_id"], target)
+
+      _ ->
+        world_state
+    end
+  end
+
+  defp apply_inventory(world_state, session_id, action, handler) do
+    case Inventory.apply_server_inventory(world_state, session_id, action, handler) do
+      {:ok, updated, %{applied: applied}} when is_list(applied) ->
+        Logger.info("inventory applied session=#{session_id} changes=#{inspect(applied)}")
+        updated
+
+      {:ok, updated, _} ->
+        updated
+
+      {:error, reason} ->
+        Logger.warning("inventory skipped session=#{session_id} reason=#{reason}")
+        world_state
+    end
+  end
+
+  defp apply_context_summary(world_state, nil), do: world_state
+
+  defp apply_context_summary(world_state, summary) do
+    lines =
+      summary
+      |> String.split("\n")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+
+    Map.put(world_state, "situation_lines", lines)
+  end
+
+  defp apply_location_updates(world_state) do
+    location_id = Context.current_location_id(world_state) || "weary_pilgrim"
     location = World.location(location_id)
 
-    advanced_world
+    world_state
     |> Map.put("location_id", location_id)
     |> Map.put(
       "location_name",
-      Map.get(location || %{}, "name", Map.get(advanced_world, "location_name"))
+      Map.get(location || %{}, "name", Context.location_name(world_state))
     )
-    |> Map.put("present_npcs", NPC.sync_present_npcs(session.id, location_id))
-    |> Map.put("npc_state", NPC.refresh_world_npc_state(session.id))
+  end
+
+  defp sync_npcs_and_state(world_state, session_id) do
+    location_id = Context.current_location_id(world_state) || "weary_pilgrim"
+
+    world_state
+    |> Map.put("present_npcs", NPC.sync_present_npcs(session_id, location_id))
+    |> Map.put("npc_state", NPC.refresh_world_npc_state(session_id))
   end
 
   defp character_patches(state_updates) do
@@ -150,44 +203,6 @@ defmodule TalesForge.Game.TurnProcessor do
   end
 
   defp deep_merge_maps(_left, right), do: right
-
-  defp maybe_move(world_state, %{handler: "move", state_hints: %{"location_id" => location_id}})
-       when is_binary(location_id) do
-    put_in(world_state, ["character", "location_id"], location_id)
-  end
-
-  defp maybe_move(world_state, %{handler: "move", target: target}) when is_binary(target) do
-    put_in(world_state, ["character", "location_id"], target)
-  end
-
-  defp maybe_move(world_state, _), do: world_state
-
-  defp maybe_apply_inventory(world_state, session_id, action, handler) do
-    case Inventory.apply_server_inventory(world_state, session_id, action, handler) do
-      {:ok, updated, %{applied: applied}} when is_list(applied) ->
-        Logger.info("inventory applied session=#{session_id} changes=#{inspect(applied)}")
-        updated
-
-      {:ok, updated, _} ->
-        updated
-
-      {:error, reason} ->
-        Logger.warning("inventory skipped session=#{session_id} reason=#{reason}")
-        world_state
-    end
-  end
-
-  defp maybe_apply_context_summary(world_state, nil), do: world_state
-
-  defp maybe_apply_context_summary(world_state, summary) do
-    lines =
-      summary
-      |> String.split("\n")
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == ""))
-
-    Map.put(world_state, "situation_lines", lines)
-  end
 
   defp persist(%GameSession{} = session, world_state) do
     session

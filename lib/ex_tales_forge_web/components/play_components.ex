@@ -2,6 +2,8 @@ defmodule TalesForgeWeb.PlayComponents do
   @moduledoc false
   use TalesForgeWeb, :html
 
+  alias TalesForge.Game.Context
+
   attr :session_id, :string, required: true
   attr :session_name, :string, required: true
   attr :world_clock, :string, required: true
@@ -147,7 +149,8 @@ defmodule TalesForgeWeb.PlayComponents do
             :if={@scene_image_url}
             src={@scene_image_url}
             alt={@location_name}
-            class="aspect-video w-full object-cover"
+            class="aspect-video w-full object-cover image-zoomable hover:opacity-95 hover:ring-2 hover:ring-[var(--paper-accent)]/70 transition-all cursor-zoom-in"
+            data-alt={@location_name}
           />
           <div
             :if={!@scene_image_url}
@@ -192,7 +195,8 @@ defmodule TalesForgeWeb.PlayComponents do
         :if={@npc.portrait_url}
         src={@npc.portrait_url}
         alt={@npc.name}
-        class="h-full w-full object-cover"
+        class="h-full w-full object-cover image-zoomable hover:ring-1 hover:ring-[var(--paper-accent)]/60 transition-all cursor-zoom-in"
+        data-alt={@npc.name}
       />
       <span
         :if={!@npc.portrait_url}
@@ -285,8 +289,9 @@ defmodule TalesForgeWeb.PlayComponents do
   end
 
   def present_npcs(world_state) when is_map(world_state) do
-    npc_ids = Map.get(world_state, "present_npcs", [])
-    npc_state = Map.get(world_state, "npc_state", %{})
+    # Delegate raw extraction to Context for DRY; then transform for UI display.
+    npc_ids = Context.present_npcs(world_state)
+    npc_state = Context.npc_state(world_state)
 
     Enum.map(npc_ids, fn npc_id ->
       detail = Map.get(npc_state, npc_id, %{})

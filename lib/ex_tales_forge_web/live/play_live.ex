@@ -3,6 +3,7 @@ defmodule TalesForgeWeb.PlayLive do
 
   import TalesForgeWeb.PlayComponents
 
+  alias TalesForge.Game.Context
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.GameSessions
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
@@ -75,6 +76,33 @@ defmodule TalesForgeWeb.PlayLive do
      |> append_entries(payload.entries)}
   end
 
+  # Async image generation finished (from Oban worker after narrative).
+  # Update both the direct assign (used by visual panel) and the in-memory scenes
+  # list (so current_scene_image / future refreshes see the url).
+  def handle_info({:scene_image_ready, %{image_url: url, location_id: loc_id} = payload}, socket)
+      when is_binary(url) do
+    current_session = socket.assigns.session
+    current_loc = Context.location_id(current_session.world_state || %{})
+    same_session? = Map.get(payload, :session_id) == current_session.id
+    same_location? = loc_id == current_loc
+
+    if same_session? and same_location? do
+      updated_scenes =
+        Enum.map(current_session.scenes || [], fn s ->
+          if Map.get(s, :location_id) == loc_id, do: %{s | image_url: url}, else: s
+        end)
+
+      session = Map.put(current_session, :scenes, updated_scenes)
+
+      {:noreply,
+       socket
+       |> assign(:session, session)
+       |> assign(:scene_image_url, url)}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_info({:scene_failed, reason}, socket) do
     {:noreply,
      socket
@@ -129,11 +157,11 @@ defmodule TalesForgeWeb.PlayLive do
   @impl true
   def render(assigns) do
     world = assigns.session.world_state || %{}
-    character = Map.get(world, "character", %{})
+    character = Context.character(world)
 
     assigns =
       assigns
-      |> assign(:location_name, Map.get(world, "location_name", "Unknown"))
+      |> assign(:location_name, Context.location_name(world) || "Unknown")
       |> assign(:world_clock, Map.get(world, "world_clock", "—"))
       |> assign(:character, character)
       |> assign(:present_npcs, present_npcs(world))
@@ -241,7 +269,7 @@ defmodule TalesForgeWeb.PlayLive do
   end
 
   defp current_scene_image(%{world_state: world_state, scenes: scenes}) do
-    location_id = Map.get(world_state || %{}, "location_id")
+    location_id = Context.location_id(world_state || %{})
 
     scenes
     |> Enum.find(&(&1.location_id == location_id))

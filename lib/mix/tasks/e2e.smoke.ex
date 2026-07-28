@@ -11,6 +11,7 @@ defmodule Mix.Tasks.E2e.Smoke do
 
   import Ecto.Query
 
+  alias TalesForge.Game.Context
   alias TalesForge.GameSessions
   alias TalesForge.LLM
   alias TalesForge.NPC
@@ -316,7 +317,7 @@ defmodule Mix.Tasks.E2e.Smoke do
 
   defp evaluate_npc_expect(session_id, :tavern_present) do
     session = GameSessions.get_session!(session_id)
-    present = Map.get(session.world_state, "present_npcs", [])
+    present = Context.present_npcs(session.world_state || %{})
 
     issues =
       []
@@ -346,8 +347,8 @@ defmodule Mix.Tasks.E2e.Smoke do
 
   defp evaluate_npc_expect(session_id, :square_present) do
     session = GameSessions.get_session!(session_id)
-    present = Map.get(session.world_state, "present_npcs", [])
-    location = Map.get(session.world_state, "location_id")
+    present = Context.present_npcs(session.world_state || %{})
+    location = Context.location_id(session.world_state || %{})
 
     issues =
       []

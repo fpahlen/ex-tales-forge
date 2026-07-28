@@ -6,6 +6,7 @@ defmodule TalesForge.NPCRegistry do
   require Logger
 
   alias TalesForge.Agents.NPCAgent
+  alias TalesForge.Game.Context
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
@@ -24,7 +25,7 @@ defmodule TalesForge.NPCRegistry do
   end
 
   def sync(session_id, world_state) when is_binary(session_id) and is_map(world_state) do
-    present = Map.get(world_state, "present_npcs", []) |> MapSet.new()
+    present = Context.present_npcs(world_state) |> MapSet.new()
     desired = Enum.map(present, &agent_id(session_id, &1))
 
     running =

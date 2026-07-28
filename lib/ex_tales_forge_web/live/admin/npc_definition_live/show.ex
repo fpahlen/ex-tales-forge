@@ -3,17 +3,37 @@ defmodule TalesForgeWeb.AdminLive.NpcDefinitionLive.Show do
 
   import TalesForgeWeb.AdminComponents
 
+  require Ash.Query
+
   alias TalesForge.Admin
+  alias TalesForge.Images
 
   @impl true
   def mount(%{"id" => npc_id}, _session, socket) do
     json = Admin.npc_definition_json(npc_id)
+    portrait_url = get_portrait_url(npc_id)
+
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(TalesForge.PubSub, "npc_definitions:#{npc_id}")
+    end
 
     {:ok,
      socket
      |> assign(:page_title, npc_id)
      |> assign(:npc_id, npc_id)
-     |> assign(:json, json)}
+     |> assign(:json, json)
+     |> assign(:portrait_url, portrait_url)}
+  end
+
+  defp get_portrait_url(npc_id) do
+    case Ash.read(TalesForge.Authoring.NpcDefinition |> Ash.Query.filter(npc_id == ^npc_id),
+           load: []
+         ) do
+      {:ok, [%TalesForge.Authoring.NpcDefinition{} = rec | _]} -> rec.portrait_url
+      _ -> nil
+    end
+  rescue
+    _ -> nil
   end
 
   @impl true
@@ -30,6 +50,23 @@ defmodule TalesForgeWeb.AdminLive.NpcDefinitionLive.Show do
     end
   end
 
+  def handle_event("generate_portrait", _params, socket) do
+    npc_id = socket.assigns.npc_id
+    Images.enqueue_portrait(npc_id)
+
+    {:noreply,
+     put_flash(socket, :info, "Portrait generation enqueued. It will update live shortly.")}
+  end
+
+  @impl true
+  def handle_info({:portrait_updated, url}, socket) do
+    {:noreply,
+     socket
+     |> assign(:portrait_url, url)
+     |> assign(:json, Admin.npc_definition_json(socket.assigns.npc_id))
+     |> put_flash(:info, "Portrait ready!")}
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -40,6 +77,35 @@ defmodule TalesForgeWeb.AdminLive.NpcDefinitionLive.Show do
         </.link>
         <h2 class="font-serif text-2xl font-bold text-[var(--paper-ink)]">{@npc_id}</h2>
       </header>
+
+      <.section_card title="Portrait">
+        <%= if @portrait_url && @portrait_url != "" do %>
+          <img
+            src={@portrait_url}
+            alt={@npc_id}
+            class="h-32 w-32 rounded-lg object-cover border border-[var(--paper-rule)] image-zoomable hover:ring-2 hover:ring-[var(--paper-accent)]/60 cursor-zoom-in"
+            data-alt={@npc_id}
+          />
+          <button
+            type="button"
+            phx-click="generate_portrait"
+            class="mt-2 rounded bg-[var(--paper-accent)] px-3 py-1 text-sm text-white"
+          >
+            Regenerate portrait (Grok sketch)
+          </button>
+        <% else %>
+          <div class="h-32 w-32 rounded-lg bg-[var(--paper-margin)] flex items-center justify-center text-sm text-[var(--paper-muted)] border border-[var(--paper-rule)]">
+            No portrait yet
+          </div>
+          <button
+            type="button"
+            phx-click="generate_portrait"
+            class="mt-2 rounded bg-[var(--paper-accent)] px-3 py-1 text-sm text-white"
+          >
+            Generate portrait (Grok sketch)
+          </button>
+        <% end %>
+      </.section_card>
 
       <.section_card title="Definition JSON">
         <form phx-submit="save" class="space-y-3">

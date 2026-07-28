@@ -9,31 +9,30 @@ defmodule TalesForge.Game.ActionHandler do
   @stub_actions ~w(use_item)a
   @inventory_actions ~w(pickup drop buy sell trade spend)a
 
-  def resolve(%PlayerAction{} = player_action) do
-    action = player_action.action
+  def resolve(%PlayerAction{action: action} = _player_action) do
     skill = action.parameters |> Map.get("skill") |> Mechanics.normalize_skill_name()
 
-    cond do
-      action.action_type in @stub_actions ->
+    case action.action_type do
+      t when t in @stub_actions ->
         %HandlerResult{
           handler: "freeform",
           skill: skill,
           target: action.target,
-          notes: "Stub handler for #{action.action_type}; narrated as freeform."
+          notes: "Stub handler for #{t}; narrated as freeform."
         }
 
-      action.action_type in @inventory_actions ->
+      t when t in @inventory_actions ->
         %HandlerResult{
           handler: "inventory",
           target: action.target,
-          notes: "Inventory #{action.action_type}.",
+          notes: "Inventory #{t}.",
           state_hints: %{
-            "action_type" => Atom.to_string(action.action_type),
+            "action_type" => Atom.to_string(t),
             "parameters" => action.parameters
           }
         }
 
-      action.action_type == :move ->
+      :move ->
         %HandlerResult{
           handler: "move",
           skill: skill,
@@ -42,7 +41,7 @@ defmodule TalesForge.Game.ActionHandler do
           state_hints: %{"location_id" => action.target}
         }
 
-      action.action_type == :speak ->
+      :speak ->
         %HandlerResult{
           handler: "speak",
           skill: skill || "persuasion",
@@ -50,20 +49,20 @@ defmodule TalesForge.Game.ActionHandler do
           notes: "Speak to #{action.target}."
         }
 
-      action.action_type in [:observe, :interact, :combat, :other, :freeform] ->
+      t when t in [:observe, :interact, :combat, :other, :freeform] ->
         %HandlerResult{
           handler: "skill_check",
           skill: skill || "insight",
           target: action.target,
-          notes: "Skill check for #{action.action_type}."
+          notes: "Skill check for #{t}."
         }
 
-      true ->
+      other ->
         %HandlerResult{
           handler: "freeform",
           skill: skill,
           target: action.target,
-          notes: "Unhandled action_type #{action.action_type}; freeform."
+          notes: "Unhandled action_type #{other}; freeform."
         }
     end
   end

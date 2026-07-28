@@ -7,6 +7,8 @@ defmodule TalesForge.Game.WorldClock do
   - 96 ticks ≈ 1 day (~100 is a fair round-number approximation)
   """
 
+  alias TalesForge.Game.Context
+
   @minutes_per_tick 15
   @ticks_per_hour 4
   @ticks_per_day 96
@@ -20,7 +22,7 @@ defmodule TalesForge.Game.WorldClock do
   def default_start_tick, do: @default_start_tick
 
   def advance(world_state, delta \\ 1) when is_map(world_state) and is_integer(delta) do
-    tick = Map.get(world_state, "world_tick", @default_start_tick) + delta
+    tick = Context.world_tick(world_state) + delta
 
     world_state
     |> Map.put("world_tick", tick)

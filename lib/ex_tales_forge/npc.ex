@@ -12,6 +12,7 @@ defmodule TalesForge.NPC do
 
   import Ecto.Query
 
+  alias TalesForge.Game.Context
   alias TalesForge.Game.WorldClock
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, NpcInstance}
@@ -44,13 +45,13 @@ defmodule TalesForge.NPC do
       "personality" => rec.personality,
       "backstory" => rec.backstory,
       "motivations" => rec.motivations || %{},
-      "stock" => rec.stock || []
-      # portrait_url available on rec but not needed in seed map
+      "stock" => rec.stock || [],
+      "portrait_url" => rec.portrait_url
     }
   end
 
   def refresh_session_world_state(%GameSession{} = session) do
-    location_id = Map.get(session.world_state, "location_id", "weary_pilgrim")
+    location_id = Context.location_id(session.world_state) || "weary_pilgrim"
 
     world_state =
       session.world_state
@@ -63,7 +64,7 @@ defmodule TalesForge.NPC do
   end
 
   def seed_session(%{id: session_id, world_state: world_state}) do
-    world_tick = Map.get(world_state, "world_tick", WorldClock.default_start_tick())
+    world_tick = Context.world_tick(world_state) || WorldClock.default_start_tick()
 
     definitions =
       case load_authored_definitions() do

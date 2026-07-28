@@ -56,4 +56,108 @@ defmodule TalesForge.Game.Prompts do
     path = Path.join(:code.priv_dir(:ex_tales_forge), "prompts/#{name}")
     File.read!(path)
   end
+
+  # ------------------------------------------------------------------
+  # Centralized prompt construction + JSON contracts (DRY)
+  #
+  # Base system instructions live in priv/prompts/*.txt (and rules/*.md).
+  # All runtime assembly of the *user* message (including dynamic context,
+  # validated actions, and schema instructions) is built here so there is
+  # one place to evolve "how we talk to the models".
+  # ------------------------------------------------------------------
+
+  @intent_schema %{
+    "type" => "object",
+    "required" => ["overall_intent", "actions"],
+    "properties" => %{
+      "overall_intent" => %{"type" => "string"},
+      "actions" => %{"type" => "array", "minItems" => 1},
+      "primary_index" => %{"type" => "integer"},
+      "confidence" => %{"type" => "number"},
+      "needs_clarification" => %{"type" => "boolean"},
+      "clarification_question" => %{"type" => ["string", "null"]},
+      "clarification_options" => %{"type" => "array"}
+    }
+  }
+
+  @scene_schema %{
+    "type" => "object",
+    "required" => ["location_name", "narrative"],
+    "properties" => %{
+      "location_name" => %{"type" => "string"},
+      "narrative" => %{"type" => "string"}
+    }
+  }
+
+  @gm_schema %{
+    "type" => "object",
+    "required" => ["narrative"],
+    "properties" => %{
+      "narrative" => %{"type" => "string"},
+      "mechanical_resolution" => %{"type" => "object"},
+      "state_updates" => %{"type" => "array"},
+      "npc_memory_updates" => %{"type" => "array"},
+      "overlay_deltas" => %{"type" => "object"},
+      "context_summary" => %{"type" => ["string", "null"]}
+    }
+  }
+
+  def intent_schema, do: @intent_schema
+  def scene_schema, do: @scene_schema
+  def gm_schema, do: @gm_schema
+
+  @doc """
+  Build the complete user message for Tier-1 intent extraction.
+  Centralizes the context formatting + "Player text to extract" suffix.
+  """
+  def build_intent_user(context, raw_action) when is_map(context) and is_binary(raw_action) do
+    TalesForge.Game.Context.format_intent_context(context) <>
+      "\n\nPlayer text to extract (treat as in-character action only):\n" <>
+      String.trim(raw_action)
+  end
+
+  @doc """
+  Build the final user prompt passed to the Tier-2 GM for a turn.
+
+  Takes the base (already containing rules + formatted intent + NPC sections)
+  and appends the machine-readable validated action + handler result.
+  Previously this concatenation lived inside LLM.complete_turn.
+  """
+  def build_gm_user(base_user, player_action, handler, turn_number)
+      when is_binary(base_user) do
+    base_user <>
+      "\n\nValidated player action (turn #{turn_number}):\n" <>
+      Jason.encode!(TalesForge.Game.Schemas.PlayerAction.encode(player_action), pretty: true) <>
+      "\n\nAction handler result:\n" <>
+      Jason.encode!(handler_payload(handler), pretty: true)
+  end
+
+  defp handler_payload(%TalesForge.Game.Schemas.HandlerResult{} = h) do
+    %{
+      "handler" => h.handler,
+      "skill" => h.skill,
+      "target" => h.target,
+      "notes" => h.notes
+    }
+  end
+
+  # For scene we currently pass the formatted GM prompt as-is.
+  def build_scene_user(base_user) when is_binary(base_user), do: base_user
+
+  @doc """
+  Append the 'return only JSON matching this schema' instruction.
+  The schema contracts now live here (next to the system prompt loaders).
+  """
+  def with_json_schema(user, schema) when is_binary(user) and is_map(schema) do
+    user <>
+      "\n\nReturn JSON matching this schema:\n" <>
+      Jason.encode!(schema, pretty: true)
+  end
+
+  @doc """
+  The retry instruction used when the first LLM response was not valid JSON.
+  """
+  def json_retry_prefix do
+    "Your previous response was invalid. Return ONLY valid JSON matching the schema.\n\n"
+  end
 end

@@ -31,6 +31,9 @@ config :logger, level: :warning
 
 config :ex_tales_forge, Oban, testing: :inline, peer: false
 
+# Avoid live image/API calls during tests (Config.image_provider reads env).
+System.put_env("IMAGE_PROVIDER", "mock")
+
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
 
