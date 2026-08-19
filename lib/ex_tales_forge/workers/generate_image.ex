@@ -2,27 +2,32 @@ defmodule TalesForge.Workers.GenerateImage do
   @moduledoc """
   Oban worker for image generation. Grok/xAI is the default image generator.
 
-  Image style is centralized in gm_pencil_sketch_style/1 so scenes and portraits
+  ## Contract
+
+  Job args (string or atom keys; normalized once in `perform/1`):
+
+  - `type` (required): `"scene"` | `"portrait"`
+  - `target_id` (required): location_id for scenes, npc_id slug for portraits
+  - scene-only: `session_id`, `narrative`, `location_name`, `npc_refs`
+
+  Invalid `type` or missing `target_id` → `{:error, reason}` (fail fast; no silent success).
+  Unknown NPC definition for portrait → log + `:ok` (expected when authoring row missing).
+
+  Image style is centralized in `gm_pencil_sketch_style/1` so scenes and portraits
   always use identical "pencil sketch by a very skilled GM on paper" instructions (DRY).
 
   For scenes:
   - Builds a prompt that renders the narrative as a pencil sketch drawn by a skilled GM on paper.
-  - If :npc_refs provided (list of maps with name/appearance/portrait_url from present NPCs at scene time), appends "Character consistency" section so NPCs look exactly like their known portraits (e.g. Martha Kellen matches her portrait, not random).
-  - Calls xAI (Grok) image generation by default when XAI_API_KEY is present.
-  - Falls back to pollinations if needed.
+  - If `:npc_refs` provided, appends character-consistency lines for present NPCs.
+  - Calls xAI (Grok) when configured; falls back to pollinations; mock in tests.
   - (Future: download bytes + upload to Tigris for permanent short URLs.)
-  - Updates runtime Scene.image_url (Ecto).
-  - Broadcasts {:scene_image_ready, ...} for PlayLive.
+  - Updates runtime `Scene.image_url` (Ecto) and broadcasts `{:scene_image_ready, ...}`.
 
   For portraits:
   - Target is an NpcDefinition (by npc_id slug).
-  - Builds prompt from appearance (description) + personality (+ name/role).
-  - Same Grok default + pencil-sketch-GM-on-paper style (via shared helper).
-  - Updates portrait_url on Authoring.NpcDefinition (Ash).
-  - Also patches portrait_url inside personality snapshots of NpcInstance rows so live sessions see it.
-  - Authored portrait_url from packs take precedence (only generate if blank).
-
-  Authored images (scene or portrait) from packs take precedence and are never overwritten.
+  - Builds prompt from appearance + personality (+ name/role).
+  - Updates `portrait_url` on Authoring.NpcDefinition (Ash) and patches NpcInstance snapshots.
+  - Authored `portrait_url` from packs takes precedence (only generate if blank).
   """
 
   use Oban.Worker,
@@ -38,44 +43,74 @@ defmodule TalesForge.Workers.GenerateImage do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
-    type = Map.get(args, "type") || Map.get(args, :type)
-    target_id = Map.get(args, "target_id") || Map.get(args, :target_id)
+    with {:ok, job} <- normalize_args(args) do
+      Logger.info("GenerateImage starting type=#{job.type} target=#{job.target_id}")
 
-    Logger.info("GenerateImage starting type=#{type} target=#{target_id}")
-
-    case type do
-      "scene" ->
-        generate_scene_image(args)
-
-      :scene ->
-        generate_scene_image(args)
-
-      "portrait" ->
-        generate_portrait_image(args)
-
-      :portrait ->
-        generate_portrait_image(args)
-
-      _ ->
-        Logger.info("GenerateImage: unknown type #{type}")
-        :ok
+      case job.type do
+        :scene -> generate_scene_image(job)
+        :portrait -> generate_portrait_image(job)
+      end
     end
   end
 
-  defp generate_scene_image(args) do
-    location_id = Map.get(args, "target_id") || Map.get(args, :target_id)
-    session_id = Map.get(args, "session_id") || Map.get(args, :session_id)
-    narrative = Map.get(args, "narrative") || Map.get(args, :narrative) || ""
-    location_name = Map.get(args, "location_name") || Map.get(args, :location_name) || location_id
-    npc_refs = Map.get(args, "npc_refs") || Map.get(args, :npc_refs) || []
+  # --- Args contract (string/atom keys → one shape) ---
+
+  @doc false
+  def normalize_args(args) when is_map(args) do
+    type_raw = arg(args, :type)
+    target_id = arg(args, :target_id)
+
+    case parse_type(type_raw) do
+      {:ok, type} when is_binary(target_id) and target_id != "" ->
+        {:ok,
+         %{
+           type: type,
+           target_id: target_id,
+           session_id: arg(args, :session_id),
+           narrative: arg(args, :narrative) || "",
+           location_name: arg(args, :location_name) || target_id,
+           npc_refs: arg(args, :npc_refs) || []
+         }}
+
+      {:ok, _type} ->
+        Logger.error("GenerateImage: missing target_id args=#{inspect(args)}")
+        {:error, :missing_target_id}
+
+      {:error, _} = err ->
+        err
+    end
+  end
+
+  def normalize_args(_), do: {:error, :invalid_args}
+
+  defp parse_type(type) when type in ["scene", :scene], do: {:ok, :scene}
+  defp parse_type(type) when type in ["portrait", :portrait], do: {:ok, :portrait}
+
+  defp parse_type(other) do
+    Logger.error("GenerateImage: invalid type=#{inspect(other)}")
+    {:error, :invalid_type}
+  end
+
+  defp arg(map, key) when is_atom(key) do
+    Map.get(map, key) || Map.get(map, Atom.to_string(key))
+  end
+
+  defp generate_scene_image(job) do
+    %{
+      target_id: location_id,
+      session_id: session_id,
+      narrative: narrative,
+      location_name: location_name,
+      npc_refs: npc_refs
+    } = job
 
     prompt = build_scene_prompt(location_name, narrative, npc_refs)
 
     reference_images =
       npc_refs
       |> Enum.flat_map(fn ref ->
-        purl = Map.get(ref, "portrait_url") || Map.get(ref, :portrait_url)
-        if purl && purl != "", do: [purl], else: []
+        purl = arg(ref, :portrait_url)
+        if present?(purl), do: [purl], else: []
       end)
       # start with primary ref for API compatibility; text refs cover the rest
       |> Enum.take(1)
@@ -83,9 +118,9 @@ defmodule TalesForge.Workers.GenerateImage do
     image_url = generate_image_bytes(prompt, reference_images)
 
     # Future: download response bytes and upload to Tigris for a short permanent URL.
-    # Currently returns direct image URL (xAI or pollinations) that depicts the prompt.
+    # Currently returns direct image URL (xAI, pollinations, or mock).
 
-    if session_id do
+    if is_binary(session_id) and session_id != "" do
       update_scene_image(session_id, location_id, image_url)
 
       TalesForge.PubSub.GameSession.broadcast(
@@ -103,9 +138,7 @@ defmodule TalesForge.Workers.GenerateImage do
     :ok
   end
 
-  defp generate_portrait_image(args) do
-    npc_id = Map.get(args, "target_id") || Map.get(args, :target_id)
-
+  defp generate_portrait_image(%{target_id: npc_id}) do
     # Load via Ash (authoring) using filter on the stable npc_id (like importer does).
     # Ash.get with slug may not resolve (pk is uuid); filter does.
     case Ash.read(TalesForge.Authoring.NpcDefinition |> filter(npc_id == ^npc_id), load: []) do
@@ -117,7 +150,6 @@ defmodule TalesForge.Workers.GenerateImage do
           role = defn.role || ""
 
           prompt = build_portrait_prompt(name, desc, pers, role)
-
           image_url = generate_image_bytes(prompt)
 
           # Update authored definition (Ash) — matches importer usage
@@ -134,6 +166,8 @@ defmodule TalesForge.Workers.GenerateImage do
           )
 
           Logger.info("GenerateImage portrait done npc=#{npc_id} url=#{image_url}")
+        else
+          Logger.info("GenerateImage portrait skipped (authored url present) npc=#{npc_id}")
         end
 
       _ ->
@@ -213,10 +247,10 @@ defmodule TalesForge.Workers.GenerateImage do
   end
 
   defp npc_consistency_line(ref) do
-    name = Map.get(ref, "name") || Map.get(ref, :name) || "NPC"
-    app = Map.get(ref, "appearance") || Map.get(ref, :appearance) || ""
-    pers = Map.get(ref, "personality") || Map.get(ref, :personality) || ""
-    purl = Map.get(ref, "portrait_url") || Map.get(ref, :portrait_url) || ""
+    name = arg(ref, :name) || "NPC"
+    app = arg(ref, :appearance) || ""
+    pers = arg(ref, :personality) || ""
+    purl = arg(ref, :portrait_url) || ""
     base_desc = if app != "", do: app, else: pers
 
     ref_part =

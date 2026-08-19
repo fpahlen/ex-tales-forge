@@ -13,7 +13,7 @@ This is a greenfield Elixir rewrite. Game rules and prompts are borrowed from [t
 | Database | PostgreSQL + Ecto |
 | Background jobs | Oban |
 | LLM | xAI Grok (Tier 1 intent + Tier 2 GM) |
-| Images (planned) | Tigris on Fly.io |
+| Images | Grok/xAI sketches (scene + NPC portraits); Tigris permanent storage planned |
 | Deploy (planned) | Fly.io |
 
 ## Prerequisites

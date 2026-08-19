@@ -11,7 +11,7 @@ Greenfield Elixir rewrite of [text-forge](../text-forge). Borrow rules, prompts,
 - **UI:** Phoenix LiveView + Tailwind
 - **Runtime:** Jido 2.x agents + actions
 - **Persistence:** Ecto + PostgreSQL (`GameSession`, `Turn`, `NpcInstance`)
-- **Jobs:** Oban (LLM + images later)
+- **Jobs:** Oban (`:llm` for scene/turn, `:images` for scene sketches + NPC portraits)
 - **Authoring (Phase 2+):** Ash domains for pre-play (Authoring.*) and admin-only runtime tables (AdminResources.* over existing Ecto tables). Core game loop (GameSessions, NPC, workers, Jido, Context) is 100% Ecto. Admin LiveViews use AshPhoenix.Form for UX; JSON kept for complex maps. See admin_domain.ex and comments in game_sessions.ex / npc.ex.
 
 ## Non-negotiables
@@ -23,6 +23,30 @@ Greenfield Elixir rewrite of [text-forge](../text-forge). Borrow rules, prompts,
 5. LLM responses use structured JSON (Tier 1 `PlayerAction` via `TalesForge.Game.Intent`)
 6. Turn history is auditable — persisted in the `Turn` schema (text-forge uses git commits per campaign turn; same goal, different storage)
 7. Borrow rules/prompts/lore from `../text-forge`; do not port v1 Supabase code
+
+## Pragmatic defaults
+
+Agent behavior skills live under [`.grok/skills/pragmatic-*/`](.grok/skills/). Load the matching skill when its trigger fits; do not invent process theater.
+
+| Skill | When |
+|-------|------|
+| `pragmatic-tracer-bullets` | New feature or spike — thin end-to-end path before thickening |
+| `pragmatic-requirements` | Vague or conflicting product need — surface assumptions, prefer real play feedback |
+| `pragmatic-good-enough` | Scope / polish debates — explicit quality bar, not endless refinement |
+| `pragmatic-etc` | Design choices — prefer local change impact and clear boundaries |
+| `pragmatic-dry` | Logic, config, rules, prompts, docs — one authoritative place per fact |
+| `pragmatic-design-by-contract` | Functions/APIs — pre/postconditions; fail fast on programmer errors |
+| `pragmatic-no-coincidence` | Generated or “it works” code you cannot explain under boundary cases |
+| `pragmatic-test-to-code` | Features/bugs — tests (or properties) as first user of the API |
+| `pragmatic-refactor` | After non-trivial change — small structural hygiene while tests stay green |
+| `pragmatic-broken-windows` | Review/debug — fix or board up defects; no silent entropy |
+
+**Project-specific notes:**
+
+- Ash authoring vs Ecto runtime is intentional separation (ETC), not a DRY violation — do not merge the layers.
+- Rules/prompts: sync with `../text-forge`; never invent a third copy in code comments.
+- Prefer tracer bullets (`mix e2e.smoke`, play-test, scene → image → LiveView) over speculative full designs.
+- Image pipeline good enough for now: generate URL + persist + PubSub; Tigris permanent storage is deferred thickening.
 
 ## Git workflow
 
