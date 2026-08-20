@@ -14,7 +14,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Index do
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
     session = Admin.get_session!(id)
-    {:ok, _} = Admin.delete_session(session)
+    :ok = Admin.delete_session(session)
 
     {:noreply,
      socket

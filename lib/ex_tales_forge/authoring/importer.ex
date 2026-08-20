@@ -793,7 +793,9 @@ defmodule TalesForge.Authoring.Importer do
                   Location
                   |> filter(
                     adventure_id == ^pack.adventure_id and location_id == ^loc.location_id
-                  ), load: [])
+                  ),
+                  load: []
+                )
 
               Location.update!(ex, Map.drop(attrs, [:adventure_id, :location_id]))
           end

@@ -1,0 +1,149 @@
+defmodule TalesForge.Game.PackTest do
+  use TalesForge.DataCase, async: false
+
+  alias TalesForge.Fronts
+  alias TalesForge.Game.Fronts, as: FrontDefs
+  alias TalesForge.Game.Pack
+  alias TalesForge.Game.World
+  alias TalesForge.GameSessions
+  alias TalesForge.Jido
+  alias TalesForge.NPC
+  alias TalesForge.Repo
+  alias TalesForge.Schemas.FrontInstance
+
+  setup do
+    on_exit(fn ->
+      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
+    end)
+
+    :ok
+  end
+
+  defp create_tin_valley_session do
+    GameSessions.create_session(%{name: "Tin Valley", adventure_id: "tin_valley"})
+  end
+
+  describe "Pack.load/1 tin_valley" do
+    test "loads connected graph, pack NPCs, and three fronts" do
+      pack = Pack.load("tin_valley")
+
+      assert pack.adventure_id == "tin_valley"
+      assert pack.starting_location_id == "valley_inn"
+      assert pack.initial_present_npc_ids == ["innkeep"]
+
+      assert Map.has_key?(pack.locations, "valley_inn")
+      assert "market_square" in pack.locations["valley_inn"]["exits"]
+      assert "orc_approach" in pack.locations["market_square"]["exits"]
+      assert "orc_nest" in pack.locations["orc_approach"]["exits"]
+
+      npc_ids = Enum.map(pack.npcs, & &1["id"]) |> Enum.sort()
+      assert npc_ids == ["guild_steward", "innkeep"]
+
+      front_ids = Enum.map(pack.fronts, & &1["id"]) |> Enum.sort()
+      assert front_ids == ["miners_guild", "orc_nest", "thing_below"]
+
+      statuses = Map.new(pack.fronts, &{&1["id"], &1["status"]})
+      assert statuses["orc_nest"] == "live"
+      assert statuses["miners_guild"] == "live"
+      assert statuses["thing_below"] == "dormant"
+    end
+
+    test "raises when adventure directory is missing" do
+      assert_raise ArgumentError, ~r/missing/, fn ->
+        Pack.load("does_not_exist_pack")
+      end
+    end
+  end
+
+  describe "Game.Fronts.validate!/1" do
+    test "raises when portent spawns_front is missing (thing_below contract)" do
+      fronts = [
+        %{
+          "id" => "miners_guild",
+          "status" => "live",
+          "portents" => [%{"id" => "they_dig_too_deep", "spawns_front" => "thing_below"}]
+        }
+      ]
+
+      assert_raise ArgumentError, ~r/spawns_front/, fn ->
+        FrontDefs.validate!(fronts)
+      end
+    end
+
+    test "raises when an exit target is missing from locations" do
+      pack = Pack.load("tin_valley")
+      inn = Map.put(pack.locations["valley_inn"], "exits", ["no_such_place"])
+      bad = Map.put(pack.locations, "valley_inn", inn)
+
+      assert_raise ArgumentError, ~r/exit/, fn ->
+        Pack.validate_graph!("valley_inn", bad)
+      end
+    end
+  end
+
+  describe "create_session tin_valley" do
+    test "materializes start, Elara, pack NPCs, and front rows" do
+      assert {:ok, session} = create_tin_valley_session()
+      world = session.world_state
+      elara = World.default_world_state()["character"]
+
+      assert session.name == "Tin Valley"
+      assert world["adventure_id"] == "tin_valley"
+      assert world["location_id"] == "valley_inn"
+      assert world["character"]["location_id"] == "valley_inn"
+      assert world["location_name"] == "Valley Inn"
+      assert "market_square" in world["locations"]["valley_inn"]["exits"]
+
+      assert world["character"]["id"] == elara["id"]
+      assert world["character"]["stats"] == elara["stats"]
+      assert world["character"]["inventory"] == elara["inventory"]
+      assert world["character"]["skills"] == elara["skills"]
+
+      npc_ids = Enum.map(session.npc_instances, & &1.npc_id) |> Enum.sort()
+      assert npc_ids == ["guild_steward", "innkeep"]
+      refute NPC.get_instance(session.id, "marta_kellen")
+      refute NPC.get_instance(session.id, "worried_merchant")
+
+      fronts = Fronts.list_all(session.id)
+      by_id = Map.new(fronts, &{&1.front_id, &1})
+      assert map_size(by_id) == 3
+      assert by_id["orc_nest"].status == "live"
+      assert by_id["miners_guild"].status == "live"
+      assert by_id["thing_below"].status == "dormant"
+      assert by_id["orc_nest"].runtime_state["clocks"]["alert"]["value"] == "asleep"
+      assert Enum.sort(world["live_fronts"]) == ["miners_guild", "orc_nest"]
+    end
+  end
+
+  describe "create_session crossroads_ledger" do
+    test "does not raise on dangling kings_road and seeds Marta and Henrik" do
+      assert {:ok, session} = GameSessions.create_session(%{})
+
+      assert session.world_state["adventure_id"] == "crossroads_ledger"
+      square = session.world_state["locations"]["crossroads_square"]
+      assert square
+      assert "kings_road" in (square["exits"] || World.location("crossroads_square")["exits"])
+
+      assert NPC.get_instance(session.id, "marta_kellen")
+      assert NPC.get_instance(session.id, "worried_merchant")
+      assert Fronts.list_all(session.id) == []
+    end
+  end
+
+  test "front_id is unique per session" do
+    assert {:ok, session} = create_tin_valley_session()
+
+    assert {:error, changeset} =
+             %FrontInstance{}
+             |> FrontInstance.changeset(%{
+               game_session_id: session.id,
+               front_id: "orc_nest",
+               status: "live",
+               definition: %{},
+               runtime_state: %{}
+             })
+             |> Repo.insert()
+
+    assert errors_on(changeset) != %{}
+  end
+end

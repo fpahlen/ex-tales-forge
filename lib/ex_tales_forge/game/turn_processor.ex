@@ -121,13 +121,13 @@ defmodule TalesForge.Game.TurnProcessor do
     :ok = NPC.apply_gm_updates(session.id, gm_result, world_tick)
 
     location_id = get_in(advanced_world, ["character", "location_id"])
-    location = World.location(location_id)
+    location = World.runtime_location(advanced_world, location_id)
 
     advanced_world
     |> Map.put("location_id", location_id)
     |> Map.put(
       "location_name",
-      Map.get(location || %{}, "name", Map.get(advanced_world, "location_name"))
+      Map.get(location, "name", Map.get(advanced_world, "location_name"))
     )
     |> Map.put("present_npcs", NPC.sync_present_npcs(session.id, location_id))
     |> Map.put("npc_state", NPC.refresh_world_npc_state(session.id))

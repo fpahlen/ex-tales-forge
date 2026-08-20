@@ -21,8 +21,10 @@ defmodule TalesForge.GameSessions do
   require Logger
 
   alias TalesForge.Agents.PlayerSessionAgent
+  alias TalesForge.Fronts
   alias TalesForge.Game.Context
   alias TalesForge.Game.Intent
+  alias TalesForge.Game.Pack
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.World
@@ -42,33 +44,46 @@ defmodule TalesForge.GameSessions do
   def get_session!(id), do: Repo.get!(GameSession, id)
 
   def create_session(attrs \\ %{}) do
-    # Phase 2 authoring: try to materialize initial world_state from an Ash Adventure
-    base_world =
-      case resolve_adventure_world_state(attrs) do
-        world when is_map(world) -> world
-        _ -> World.default_world_state()
-      end
+    adventure_id = adventure_id_from(attrs)
+    world = materialize_world(adventure_id)
 
-    attrs =
-      Map.merge(
-        %{
-          name: "Crossroads Hamlet",
-          status: "active",
-          world_state: base_world
-        },
-        attrs
-      )
+    session_attrs =
+      %{
+        name: default_session_name(adventure_id),
+        status: "active",
+        world_state: world
+      }
+      |> Map.merge(Map.drop(attrs, [:adventure_id, "adventure_id"]))
+      |> Map.put(:world_state, world)
 
     with {:ok, session} <-
            %GameSession{}
-           |> GameSession.changeset(attrs)
+           |> GameSession.changeset(session_attrs)
            |> Repo.insert(),
          :ok <- NPC.seed_session(session),
+         :ok <- Fronts.seed_session(session),
          {:ok, session} <- NPC.refresh_session_world_state(session),
          :ok <- ensure_agent(session),
          :ok <- NPCRegistry.sync(session),
          {:ok, _} <- ensure_scene(session) do
-      {:ok, Repo.preload(session, :npc_instances)}
+      {:ok, Repo.preload(session, [:npc_instances, :front_instances])}
+    end
+  end
+
+  defp adventure_id_from(attrs) do
+    Map.get(attrs, :adventure_id) || Map.get(attrs, "adventure_id") || "crossroads_ledger"
+  end
+
+  defp default_session_name("tin_valley"), do: "Tin Valley"
+  defp default_session_name(_), do: "Crossroads Hamlet"
+
+  # Dual path: complete packs fail-fast via Pack; Crossroads keeps today's seed.
+  defp materialize_world("tin_valley"), do: Pack.materialize("tin_valley")
+
+  defp materialize_world(adventure_id) do
+    case resolve_adventure_world_state(%{adventure_id: adventure_id}) do
+      world when is_map(world) -> world
+      _ -> World.default_world_state()
     end
   end
 

@@ -12,6 +12,7 @@ defmodule TalesForge.NPC do
 
   import Ecto.Query
 
+  alias TalesForge.Game.Pack
   alias TalesForge.Game.WorldClock
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, NpcInstance}
@@ -62,9 +63,34 @@ defmodule TalesForge.NPC do
     |> Repo.update()
   end
 
-  def seed_session(%{id: session_id, world_state: world_state}) do
+  def seed_session(%{id: session_id, world_state: world_state} = session) do
+    case Map.get(world_state, "adventure_id") do
+      "tin_valley" ->
+        seed_from_pack(session, Pack.load("tin_valley").npcs)
+
+      _ ->
+        seed_legacy(
+          session_id,
+          Map.get(world_state, "world_tick", WorldClock.default_start_tick())
+        )
+    end
+  end
+
+  defp seed_from_pack(%{id: session_id, world_state: world_state}, npcs) do
     world_tick = Map.get(world_state, "world_tick", WorldClock.default_start_tick())
 
+    Enum.each(npcs, fn definition ->
+      npc_id = Map.get(definition, "id") || Map.get(definition, :id)
+
+      if npc_id do
+        insert_instance!(session_id, to_string(npc_id), definition, world_tick)
+      end
+    end)
+
+    :ok
+  end
+
+  defp seed_legacy(session_id, world_tick) do
     definitions =
       case load_authored_definitions() do
         defs when is_list(defs) and defs != [] -> defs

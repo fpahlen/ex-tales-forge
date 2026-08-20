@@ -1,0 +1,14 @@
+{
+  "id": "thing_below",
+  "name": "What the mine woke",
+  "status": "dormant",
+  "goal": "Come up through the workings.",
+  "personality": "Patient, hungry, not yet a voice.",
+  "resources": {},
+  "beliefs": {},
+  "clocks": {},
+  "triggers": [],
+  "rules": [],
+  "public_facts": [],
+  "portents": []
+}

@@ -1,0 +1,40 @@
+{
+  "id": "orc_nest",
+  "name": "Orc nest in the cut",
+  "area": "tin_valley",
+  "status": "live",
+  "goal": "Hold the valley and keep the stolen goods.",
+  "personality": "Clannish, vengeful, not stupid.",
+  "resources": {"warriors": 12, "scouts": 2, "coin": 0},
+  "beliefs": {"player_known": false, "guild_pressure": "low"},
+  "clocks": {
+    "alert": {"value": "asleep", "enum": ["asleep", "wary", "prepared"]},
+    "scout_due": {"tick": 4, "status": "dormant"}
+  },
+  "triggers": [
+    {
+      "id": "hidden_scouts",
+      "on": "enter",
+      "location_id": "orc_approach",
+      "unless_skill": ["stealth", "insight"],
+      "min_outcome": "success",
+      "event": "player.failed_notice",
+      "event_on_notice": "player.noticed",
+      "player_aware_on_notice": true
+    }
+  ],
+  "rules": [
+    {"id": "prepare_on_miss", "on_event": "player.failed_notice", "move": "raise_alert"}
+  ],
+  "moves": {
+    "raise_alert": {
+      "public_fact": {
+        "id": "nest_standing_to_arms",
+        "text": "The camp is standing to arms — sentries doubled, fires banked, blades out.",
+        "visibility": ["orc_nest"]
+      }
+    }
+  },
+  "public_facts": [],
+  "portents": []
+}

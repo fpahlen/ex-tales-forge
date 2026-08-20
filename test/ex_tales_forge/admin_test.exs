@@ -34,7 +34,7 @@ defmodule TalesForge.AdminTest do
   test "delete_session cascades turns and npc instances" do
     {:ok, session} = GameSessions.create_session(%{name: "Delete Test"})
     assert length(Admin.list_npc_instances(session.id)) > 0
-    assert {:ok, _} = Admin.delete_session(session)
+    assert :ok = Admin.delete_session(session)
     refute Repo.get(TalesForge.Schemas.GameSession, session.id)
     assert Admin.list_turns(session.id) == []
     assert Repo.all(from n in NpcInstance, where: n.game_session_id == ^session.id) == []

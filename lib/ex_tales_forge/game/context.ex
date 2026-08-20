@@ -11,11 +11,17 @@ defmodule TalesForge.Game.Context do
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, Turn}
 
+  def adventure_id(world) when is_map(world) do
+    Map.get(world, "adventure_id") || "crossroads_ledger"
+  end
+
+  def adventure_id(_), do: "crossroads_ledger"
+
   def build_intent_context(%GameSession{} = session) do
     world = session.world_state || %{}
     location_id = Map.get(world, "location_id", "weary_pilgrim")
     location = World.runtime_location(world, location_id)
-    present_npcs = Map.get(world, "present_npcs", ["marta_kellen"])
+    present_npcs = present_npcs_for(world)
     npc_state = Map.get(world, "npc_state", World.npcs())
     character = Map.get(world, "character", %{})
     npc_stock = NPC.stock_map(session.id, present_npcs)
@@ -28,7 +34,7 @@ defmodule TalesForge.Game.Context do
       "ground_items" => Map.get(location, "ground_items", []),
       "npc_stock" => npc_stock,
       "exits" => Map.get(location, "exits", []),
-      "exit_names" => exit_names(Map.get(location, "exits", [])),
+      "exit_names" => exit_names(world, Map.get(location, "exits", [])),
       "present_npcs" => present_npcs,
       "npc_details" => npc_details(present_npcs, npc_state),
       "character" => character_summary(character),
@@ -117,9 +123,28 @@ defmodule TalesForge.Game.Context do
     """
   end
 
-  defp exit_names(exits) do
+  defp present_npcs_for(world) do
+    present = Map.get(world, "present_npcs")
+
+    cond do
+      is_list(present) and present != [] ->
+        present
+
+      adventure_id(world) == "tin_valley" ->
+        present || []
+
+      true ->
+        ["marta_kellen"]
+    end
+  end
+
+  defp exit_names(world, exits) do
     Enum.into(exits, %{}, fn exit_id ->
-      name = World.location(exit_id) |> then(&Map.get(&1 || %{}, "name", exit_id))
+      name =
+        world
+        |> World.runtime_location(exit_id)
+        |> Map.get("name", exit_id)
+
       {exit_id, name}
     end)
   end
