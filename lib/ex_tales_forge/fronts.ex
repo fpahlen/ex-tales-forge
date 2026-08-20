@@ -41,6 +41,41 @@ defmodule TalesForge.Fronts do
     Repo.get_by(FrontInstance, game_session_id: session_id, front_id: front_id)
   end
 
+  def sim_fronts(session_id) when is_binary(session_id) do
+    Enum.map(list_all(session_id), &to_sim/1)
+  end
+
+  def persist_tick_multi(multi, session_id, sim) when is_map(sim) do
+    Enum.reduce(sim.fronts, multi, fn front, acc ->
+      inst = get_instance(session_id, front_id(front))
+
+      if inst do
+        cs =
+          FrontInstance.changeset(inst, %{
+            runtime_state: runtime(front),
+            status: status(front)
+          })
+
+        Ecto.Multi.update(acc, {:front, inst.front_id}, cs)
+      else
+        acc
+      end
+    end)
+  end
+
+  defp to_sim(%FrontInstance{} = inst) do
+    %{
+      front_id: inst.front_id,
+      status: inst.status,
+      definition: inst.definition,
+      runtime_state: inst.runtime_state
+    }
+  end
+
+  defp front_id(%{front_id: id}), do: id
+  defp runtime(%{runtime_state: state}), do: state
+  defp status(%{status: status}), do: status
+
   defp seed_from_pack(%GameSession{id: session_id, world_state: world}, fronts) do
     world_tick = Map.get(world, "world_tick", WorldClock.default_start_tick())
 

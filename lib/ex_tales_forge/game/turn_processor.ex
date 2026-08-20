@@ -9,31 +9,29 @@ defmodule TalesForge.Game.TurnProcessor do
 
   require Logger
 
+  alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Context
-  alias TalesForge.Game.Inventory
-
-  require Logger
-
-  alias TalesForge.Game.ActionHandler
-  alias TalesForge.Game.Context
+  alias TalesForge.Game.Events
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
+  alias TalesForge.Game.Perception
   alias TalesForge.Game.SceneProcessor
-  alias TalesForge.Game.Schemas.MechanicalResolution
+  alias TalesForge.Game.Schemas.{GMStructuredResponse, MechanicalResolution, PlayerAction}
   alias TalesForge.Game.World
   alias TalesForge.Game.WorldClock
+  alias TalesForge.Game.WorldSim
   alias TalesForge.LLM
   alias TalesForge.NPC
   alias TalesForge.NPCRegistry
   alias TalesForge.NPCSignals
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{GameSession, Turn}
+  alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
 
   def run(session_id, raw_action, player_action_map) do
     started = System.monotonic_time(:millisecond)
-    player_action = TalesForge.Game.Schemas.PlayerAction.decode(player_action_map)
+    player_action = PlayerAction.decode(player_action_map)
 
     with %GameSession{} = session <- Repo.get(GameSession, session_id),
          turn_number <- next_turn_number(session_id),
@@ -54,25 +52,17 @@ defmodule TalesForge.Game.TurnProcessor do
              player_action,
              handler
            ),
-         world_state <- apply_world_updates(session, character, handler, gm_result, player_action),
-         {:ok, session} <- persist(session, world_state),
-         {:ok, turn} <- persist_turn(session, turn_number, raw_action, gm_result, mechanical),
-         :ok <- NPCRegistry.sync(session),
-         :ok <- NPCSignals.emit_turn_signals(session.id, world_state, handler, raw_action) do
-      entries = build_entries(raw_action, gm_result.narrative, mechanical, turn.id)
-
-      payload = %{
-        session_id: session_id,
-        turn_count: turn_number,
-        entries: entries,
-        mechanical_resolution: MechanicalResolution.encode(mechanical),
-        llm_provider: LLM.provider(),
-        llm_source: LLM.llm_source(LLM.provider()),
-        location_name: Map.get(world_state, "location_name"),
-        world_state: world_state,
-        needs_scene: SceneProcessor.needs_scene?(world_state)
-      }
-
+         {:ok, payload} <-
+           finalize_turn(
+             session,
+             turn_number,
+             raw_action,
+             player_action,
+             handler,
+             mechanical,
+             gm_result,
+             character
+           ) do
       elapsed = System.monotonic_time(:millisecond) - started
 
       Logger.info(
@@ -89,6 +79,84 @@ defmodule TalesForge.Game.TurnProcessor do
         Logger.error("turn processor failed session=#{session_id} reason=#{inspect(reason)}")
         SessionPubSub.broadcast(session_id, {:turn_failed, inspect(reason)})
         err
+    end
+  end
+
+  @doc false
+  def simulate!(session, raw_action, player_action, handler, mechanical) do
+    gm_result = %GMStructuredResponse{
+      narrative: "ok",
+      mechanical_resolution: mechanical,
+      state_updates: [],
+      context_summary: nil
+    }
+
+    character = Map.get(session.world_state || %{}, "character", %{})
+    turn_number = next_turn_number(session.id)
+
+    finalize_turn(
+      session,
+      turn_number,
+      raw_action,
+      player_action,
+      handler,
+      mechanical,
+      gm_result,
+      character
+    )
+  end
+
+  defp finalize_turn(
+         session,
+         turn_number,
+         raw_action,
+         player_action,
+         handler,
+         mechanical,
+         gm_result,
+         character
+       ) do
+    world_before = session.world_state || %{}
+    world_moved = apply_world_updates(session, character, handler, gm_result, player_action)
+    fronts = Fronts.sim_fronts(session.id)
+
+    events =
+      Events.from_turn(player_action, handler, mechanical, world_before, world_moved, fronts)
+
+    {:ok, sim} = WorldSim.tick(%{fronts: fronts, events: events})
+
+    hidden = Enum.reject(events, & &1["player_aware"])
+
+    world_after =
+      world_moved
+      |> Perception.scrub_situation_lines(hidden)
+      |> Perception.snapshot_public_facts(sim.fronts)
+
+    with {:ok, %{session: session, turn: turn}} <-
+           persist_turn_multi(
+             session,
+             world_after,
+             turn_number,
+             raw_action,
+             gm_result,
+             mechanical,
+             events,
+             sim
+           ),
+         :ok <- NPCRegistry.sync(session),
+         :ok <- NPCSignals.emit_turn_signals(session.id, world_after, handler, raw_action) do
+      {:ok,
+       %{
+         session_id: session.id,
+         turn_count: turn_number,
+         entries: build_entries(raw_action, gm_result.narrative, mechanical, turn.id),
+         mechanical_resolution: MechanicalResolution.encode(mechanical),
+         llm_provider: LLM.provider(),
+         llm_source: LLM.llm_source(LLM.provider()),
+         location_name: Map.get(world_after, "location_name"),
+         world_state: world_after,
+         needs_scene: SceneProcessor.needs_scene?(world_after)
+       }}
     end
   end
 
@@ -189,24 +257,59 @@ defmodule TalesForge.Game.TurnProcessor do
     Map.put(world_state, "situation_lines", lines)
   end
 
-  defp persist(%GameSession{} = session, world_state) do
-    session
-    |> GameSession.changeset(%{world_state: world_state})
-    |> Repo.update()
-  end
+  defp persist_turn_multi(
+         session,
+         world_state,
+         turn_number,
+         raw_action,
+         gm_result,
+         mechanical,
+         events,
+         sim
+       ) do
+    turn_cs =
+      %Turn{}
+      |> Turn.changeset(%{
+        game_session_id: session.id,
+        turn_number: turn_number,
+        player_action: raw_action,
+        narrative: gm_result.narrative,
+        mechanical_resolution: MechanicalResolution.encode(mechanical)
+      })
 
-  defp persist_turn(session, turn_number, raw_action, gm_result, mechanical) do
-    attrs = %{
-      game_session_id: session.id,
-      turn_number: turn_number,
-      player_action: raw_action,
-      narrative: gm_result.narrative,
-      mechanical_resolution: MechanicalResolution.encode(mechanical)
-    }
+    event_multi =
+      events
+      |> Enum.with_index()
+      |> Enum.reduce(
+        Ecto.Multi.new()
+        |> Ecto.Multi.update(
+          :session,
+          GameSession.changeset(session, %{world_state: world_state})
+        )
+        |> Ecto.Multi.insert(:turn, turn_cs),
+        fn {ev, idx}, acc ->
+          cs =
+            %SessionEvent{}
+            |> SessionEvent.changeset(%{
+              game_session_id: session.id,
+              kind: ev["kind"],
+              actor: ev["actor"],
+              player_aware: ev["player_aware"],
+              tick: ev["tick"],
+              location_id: ev["location_id"],
+              payload: ev["payload"] || %{}
+            })
 
-    %Turn{}
-    |> Turn.changeset(attrs)
-    |> Repo.insert()
+          Ecto.Multi.insert(acc, {:event, idx}, cs)
+        end
+      )
+
+    case event_multi
+         |> Fronts.persist_tick_multi(session.id, sim)
+         |> Repo.transaction() do
+      {:ok, result} -> {:ok, result}
+      {:error, _step, reason, _} -> {:error, reason}
+    end
   end
 
   defp next_turn_number(session_id) do

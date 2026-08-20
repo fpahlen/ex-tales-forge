@@ -6,6 +6,7 @@ defmodule TalesForge.Game.Context do
   # Rules come from Prompts (which may be pack-aware), but state is Ecto.
 
   alias TalesForge.Game.Mechanics
+  alias TalesForge.Game.Perception
   alias TalesForge.Game.World
   alias TalesForge.NPC
   alias TalesForge.Repo
@@ -110,8 +111,15 @@ defmodule TalesForge.Game.Context do
         Map.get(context.intent_context, "present_npcs", [])
       )
 
+    session = %GameSession{id: context.session_id, world_state: context.world_state || %{}}
+    facts = Perception.format_facts_section(Perception.visible_world(session))
+
     """
     #{context.rules}
+
+    ---
+
+    #{facts}
 
     ---
 

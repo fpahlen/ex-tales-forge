@@ -8,6 +8,10 @@ defmodule TalesForge.Game.Prompts do
   def gm_system, do: read_prompt("gm_system.txt")
   def scene_system, do: read_prompt("scene_system.txt")
 
+  def build_scene_user(%TalesForge.Schemas.GameSession{} = session) do
+    TalesForge.Game.Context.format_gm_prompt(TalesForge.Game.Context.build_gm_context(session))
+  end
+
   @doc """
   Load rules for the global system (default, used for legacy / non-pack adventures).
   """

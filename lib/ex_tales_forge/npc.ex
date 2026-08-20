@@ -358,7 +358,7 @@ defmodule TalesForge.NPC do
 
     npc_json =
       present
-      |> Enum.map(&merged_npc_context/1)
+      |> Enum.map(&prompt_npc_context/1)
       |> Jason.encode!(pretty: true)
 
     memory_lines =
@@ -367,7 +367,8 @@ defmodule TalesForge.NPC do
         inst
         |> recent_memories()
         |> Enum.map(fn mem ->
-          "- #{inst.npc_id}: #{Map.get(mem, "summary", "")}"
+          text = Map.get(mem, "what") || Map.get(mem, "summary", "")
+          "- #{inst.npc_id}: #{text}"
         end)
       end)
 
@@ -497,18 +498,43 @@ defmodule TalesForge.NPC do
     }
   end
 
-  defp merged_npc_context(%NpcInstance{} = inst) do
+  defp prompt_npc_context(%NpcInstance{} = inst) do
     definition = inst.personality || %{}
+    runtime = inst.runtime_state || %{}
+    concern = runtime["current_concern"] || %{}
+    motivations = definition["motivations"] || %{}
 
-    definition
-    |> Map.put("runtime_state", inst.runtime_state)
-    |> Map.put("relationship_score", Map.get(inst.runtime_state, "relationship_score", 0.0))
+    %{
+      "id" => inst.npc_id,
+      "name" => Map.get(definition, "name", inst.npc_id),
+      "role" => Map.get(definition, "role"),
+      "appearance" => Map.get(definition, "appearance"),
+      "personality" => Map.get(definition, "personality"),
+      "personality_traits" => motivations["personality_traits"],
+      "mood" => runtime["mood"],
+      "relationship_score" => Map.get(runtime, "relationship_score", 0.0),
+      "stock" => visible_stock(runtime["stock"] || definition["stock"]),
+      "concern_focus" => concern["focus"],
+      "memories" => visible_memories(runtime["memories"])
+    }
+  end
+
+  defp visible_stock(stock) do
+    stock
+    |> List.wrap()
+    |> Enum.map(&Map.take(&1, ["id", "name", "price_copper", "quantity"]))
+  end
+
+  defp visible_memories(memories) do
+    memories
+    |> List.wrap()
+    |> Enum.reject(&(&1["secret"] == true))
+    |> Enum.take(-@memory_context_limit)
+    |> Enum.map(&Map.take(&1, ["who", "tick", "what", "felt", "summary"]))
   end
 
   defp recent_memories(%NpcInstance{} = inst) do
-    inst.runtime_state
-    |> Map.get("memories", [])
-    |> Enum.take(-@memory_context_limit)
+    visible_memories(Map.get(inst.runtime_state || %{}, "memories", []))
   end
 
   defp seed_stock(definition) do
