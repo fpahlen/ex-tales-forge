@@ -120,6 +120,8 @@ priv/
   rules/             # Markdown rulebook (from text-forge)
 ```
 
+Game architecture (fronts, WorldSim, table GM): [docs/architecture.md](docs/architecture.md).
+
 ## Phase status
 
 - [x] Phase 0: Phoenix + Jido + LiveView play loop with mock GM
