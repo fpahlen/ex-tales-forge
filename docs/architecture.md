@@ -10,6 +10,8 @@
 | **Canonical copy** | `docs/architecture.md` |
 | **Out of scope** | Scene/NPC image generation (`feature/scene-image-generation`); Tigris permanent storage |
 
+Teaching check (ElixirConf 2027, three slides): [elixirconf-2027/README.md](elixirconf-2027/README.md).
+
 This document is the product spec and the implementation map. It describes how the game runs **today**, the agreed architecture around **fronts / antagonist plans**, the BEAM process topology, the LLM split (table GM vs chronicler), and a tracer-first PR plan. Locked decisions are recorded, not reopened.
 
 ---

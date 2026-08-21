@@ -120,7 +120,7 @@ priv/
   rules/             # Markdown rulebook (from text-forge)
 ```
 
-Game architecture (fronts, WorldSim, table GM): [docs/architecture.md](docs/architecture.md).
+Game architecture (fronts, WorldSim, table GM): [docs/architecture.md](docs/architecture.md). ElixirConf 2027 slides (board vs tale, intent, BEAM): [docs/elixirconf-2027/README.md](docs/elixirconf-2027/README.md).
 
 ## Phase status
 
