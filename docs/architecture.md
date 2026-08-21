@@ -4,7 +4,7 @@
 |-------|--------|
 | **Title** | Tales Forge Game Architecture |
 | **Author** | Architecture (draft) |
-| **Date** | 2026-08-20 |
+| **Date** | 2026-08-21 |
 | **Status** | Draft |
 | **Repo** | ex-tales-forge |
 | **Canonical copy** | `docs/architecture.md` |
@@ -22,7 +22,7 @@ Today the loop is a two-tier LLM turn against a static location graph. NPCs have
 
 The product thesis is locked: **the adventure is not a quest list.** It is what happens when the player's actions interfere with the plans of the major antagonists of an area, and when those antagonists interfere with each other.
 
-The proposed architecture introduces **authored fronts** (2–3 per area) as first-class runtime entities. Each front has a goal, personality, resources, beliefs (not omniscience), clocks, portents, and structured memories. After the existing table-GM turn, events — including hidden ones — hit live fronts. Authored rules fire first. When a branch cannot be enumerated, a **chronicler** LLM picks **one legal next move** from a server-enforced palette. The table GM remains the only voice the player hears, and it may only narrate what this player perceived. Faction thinking never blocks the player's turn.
+The proposed architecture introduces **authored fronts** (2–3 per area) as first-class runtime entities. Each front has a goal, personality, doctrine, resources, beliefs (not omniscience), clocks, and memories. After the player’s table-GM turn, the world is a **hidden turn-based strategy game**: the Guild plans, the nest plans, the player already moved. Authored **board rules** resolve obvious physics (you cannot spend coin you do not have; missed scouts update nest beliefs). A **thinking** LLM, with a short identity prompt, writes a **plan** — not table narration. Plans collide in space and time. The table GM is the only voice the player hears.
 
 The first playable slice is a dedicated tracer pack with two fronts (orc nest, miners guild), **no chronicler LLM**, and tests that fail if missed scouts leak into the **post-travel scene prompt** or if the nest is unprepared after a miss. That slice is not playable against today's `create_session/1` until PR-2 materializes `tin_valley` (Ash adventure_id alone is not enough).
 
@@ -156,7 +156,7 @@ Marta remains a **person with a concern**, not a front. The thing under the mine
 
 2. **World time advances on player turns only.** `WorldClock.advance/2` already does +1 tick per turn. No wall-clock while idle or logged off. Off-screen actors react on those ticks and on events the turn produced.
 
-3. **Background brain = authored rules + clocks first.** The chronicler LLM picks **one legal next move** (JSON) only when the branch cannot be enumerated. It is not a second storytelling GM.
+3. **Hidden TBS, not a second storytelling GM.** Each major front is a strategy player with a short identity prompt (concern, personality, means, taboos). A thinking-mode LLM writes a **plan**. Elixir is the board: locations, resources, clocks, occupancy, collisions. Authored trigger rules still handle obvious physics (missed scouts, dawdle clocks) without an LLM. The chronicler never sees raw player text and never writes player-facing prose.
 
 4. **Table GM is the only voice the player hears.** It reads world facts through a **perception filter**. It must not narrate facts the player did not perceive. It must not invent that a faction "doesn't know" when their beliefs say they do (if the player can observe the faction acting).
 
@@ -176,7 +176,7 @@ Marta remains a **person with a concern**, not a front. The thing under the mine
 
 12. **WorldSim starts as a pure module called from `TurnProcessor`, not a GenServer.** SessionSupervisor + Front DynamicSupervisor thicken after the tracer is playable (PR-5). Do not build the tree to discover the game.
 
-13. **Legal moves are a closed palette the server enforces.** `raise_alert | spend_coin | send_messenger | hire_extra | withdraw | lie | mark_debt | stall`. Preconditions are data (coin, scouts, clocks). The LLM may not invent a fourth resource.
+13. **The LLM plans; the server owns board verbs.** Do not make “pick `raise_alert`” the whole thought. Identity + situation → plan steps (`intent`, `where`, `cost`, `eta_ticks`). Board verbs (`hire`, `move_force`, `fortify`, `withdraw`, `wait`, `spend`) are physics: must name a pack location, must afford the cost, cannot spawn a new front. Public-fact *text* stays authored. Thinking model is allowed **only** on the async chronicler (short prompt); table GM stays fast non-reasoning.
 
 14. **Image generation is adjacent, not this design.**
 
@@ -454,9 +454,118 @@ def notice_event(trigger, handler, mechanical, new_location) do
 end
 ```
 
-### Legal move palette (server-enforced)
+### Hidden TBS: identity prompt, plans, board verbs
 
-Closed set. Chronicler and rules emit these tags only.
+The table-GM / intent path stays hardened (raw player text, jailbreaks, compound actions). The world brain does **not** need that. It needs a short “you are the Guild” sheet, a briefing of **what that actor knows**, and a plan.
+
+This is almost a turn-based strategy game **hidden from every participant**: Guild, nest, and player each act on the same clock; nobody sees the others’ plan documents. The player only sees what Perception allows.
+
+**Thinking mode.** Chronicler may use a reasoning model. Prompts must stay short (identity + briefing, not rules.md). Table GM and Tier 1 stay on the fast non-reasoning model (`XAI_MODEL`); chronicler is async Oban and must not block the player. Do not turn table turns into thinking calls.
+
+#### Identity (authored adventure text)
+
+Markdown (or a short JSON string) on the front, not a 400-token security novel:
+
+```markdown
+# Miners Guild of Tin Valley
+You are the Miners Guild.
+Primary concern: profit from the tin vein.
+Personality: impatient, fond of charters, ruthless to obstacles.
+Means: coin, hirelings, the mine workings, a claim on the cut.
+Never: abandon the claim; spend the last of the payroll on a vanity war.
+```
+
+Same shape for the nest / chieftain. This is `doctrine` + `personality` + `goal` + `means`. Stored on `FrontInstance.definition`. The table GM does not receive this block in full — only Perception facts.
+
+#### Briefing (what *you* know — not omniscience)
+
+Built in Elixir from **beliefs**, not from raw `world_state`. The Guild is told “orcs squat on the next excavation.” They are **not** told the player missed hidden scouts unless Guild beliefs say so.
+
+```json
+{
+  "world_tick": 42,
+  "you": {
+    "id": "miners_guild",
+    "resources": {"coin": 40, "hirelings": 0},
+    "beliefs": {"orcs_on_the_cut": true},
+    "clocks": {"clear_orcs": 3, "dig": 0}
+  },
+  "you_know": [
+    "A band of orcs occupies the cut above the next excavation (orc_nest).",
+    "The market square has no hired steel yet."
+  ],
+  "map": [{"id": "market_square", "exits": ["valley_inn", "orc_approach", "mine_workings"]}]
+}
+```
+
+Call the Guild. Then call the nest with **its** sheet and **its** `you_know`. Then the player has already taken their table turn (their “strategy move”). Do **not** put all three in one prompt — each actor plans from incomplete information.
+
+System prompt (entire file, keep it tiny):
+
+```
+You are the faction in `you`. Write a plan, not a story.
+
+Output ONLY JSON:
+{"intent": "...", "steps": [{"verb": "...", "where": "...", "cost": {}, "eta_ticks": 1}]}
+
+verb must be one of: wait, hire, move_force, fortify, withdraw, spend, message.
+where must be a map id you were given, or null.
+cost.coin cannot exceed you.resources.coin.
+Do not invent locations, fronts, or resources.
+If you should do nothing, one step: {"verb": "wait", "where": null, "cost": {}, "eta_ticks": 1}.
+```
+
+No jailbreak section. No player text.
+
+#### Plan (LLM) vs board (Elixir)
+
+The model does **not** pick `raise_alert` as its whole thought. It plans like a TBS player (“hire steel in the square, then move them to the nest in six ticks”). Elixir is the board:
+
+| Board verb | Physics |
+|------------|---------|
+| `wait` | always legal |
+| `hire` | `cost.coin ≤ resources.coin`; may spawn extra later (PR-7) |
+| `move_force` | `where` ∈ pack locations; occupies that hex after `eta_ticks` |
+| `fortify` | `where` must be a place this front occupies; may write a **pack** public_fact |
+| `withdraw` | move_force toward a listed haven |
+| `spend` | decrement coin |
+| `message` | `where` / `to_front_id` must exist; updates the *other* front’s beliefs after eta |
+
+Queued on the session as **orders**:
+
+```json
+{
+  "id": "...",
+  "front_id": "miners_guild",
+  "intent": "clear the orcs from the excavation",
+  "verb": "move_force",
+  "where": "orc_nest",
+  "cost": {"coin": 10},
+  "issued_tick": 42,
+  "eta_ticks": 6,
+  "status": "pending"
+}
+```
+
+Store on `FrontInstance.runtime_state["orders"]` (or a later `front_orders` table). Each player turn: decrement eta; when 0, **resolve**.
+
+#### Collision in space and time
+
+When two pending orders (or a pending order and the player) share `where` on the same tick, Elixir resolves occupancy — not a third prose GM.
+
+- Guild `move_force` lands on `orc_nest` while nest is `prepared` → different outcome than if the nest is asleep (clock/belief already set by the scout **rule**).
+- Player standing in `market_square` when `hire` resolves → table GM may narrate retainers (public fact).
+- Player not there → only Guild beliefs and a town fact if `visibility` includes the square.
+
+The tracer’s coded rules (missed scouts → nest prepared; dawdle clock) are **board physics / fog of war**, not the Guild’s brain. They stay. Do not replace them with a thinking call on every enter.
+
+#### Player is the third faction
+
+The player’s validated `PlayerAction` **is** their strategy move for that tick. Fronts do not get raw text; they get consequences (`player.travel` to `orc_approach`, `player.dawdled` in town) filtered into **their** beliefs. Hidden TBS: the player also does not see the Guild’s plan JSON.
+
+### Board verbs (server-enforced physics)
+
+Closed set of **physics**, not a menu that replaces thinking. Tracer rules and plan resolution both emit these. The old names (`raise_alert`, `hire_extra`) map onto `fortify` / `hire` plus pack public_facts.
 
 | Move | Typical actor | Preconditions (examples) | Effects (examples) |
 |------|---------------|--------------------------|--------------------|
@@ -540,9 +649,9 @@ Tracer proofs (pure rules, zero LLM):
 
 `scout_due.on_overdue` is a **third** stimulus. Mark it **dormant in the tracer pack** (omit `on_overdue` or `"status": "dormant"` on that clock) so Proof 1–2 are the only live rules. Do not test overdue scouts in PR-3.
 
-Chronicler prompt (later): front JSON + recent events + **enumerated legal moves**. Output: `{move, args}`. Temperature 0. Max tokens small (~200). `TalesForge.LLM.complete_chronicler/2` only.
+Chronicler (later): **identity + `you_know` briefing**, thinking model, short system prompt. Output: `{intent, steps[]}` with board verbs. One call **per unmatched front** (Guild, then nest) — incomplete information. Drop unknown locations/fronts; refuse unaffordable `cost`. No narrative field.
 
-If output contains `front_id` not in the session's authored set → drop. If output contains `extra` with `parent_front_id` in the set and a `job` → keep (PR-7).
+If output contains a new `front_id` → drop. If a `hire` step is legal, extras land in PR-7.
 
 **Cap (PR-6):** Oban unique on `[:session_id, :turn_number]` (not `[:session_id]` over 60s — that would drop a second unmatched turn inside a minute). Max **one chronicler job per session per turn**, often **zero**. Pass `tick`/`turn_number` in job args; at apply time re-check preconditions and **drop if `world_tick` advanced past the unmatched generation**. `config/test.exs` sets `Oban, testing: :inline` — PR-6's "does not block the player" test **must** use `:manual` (e.g. `Oban.Testing.with_testing_mode(:manual, ...)`) so enqueue does not run the LLM inside `TurnProcessor`.
 
@@ -1420,7 +1529,7 @@ Each PR is independently reviewable and mergeable on a feature branch. Tracer PR
   - Enqueue from TurnProcessor only when `sim.unmatched != []`
   - Tests: mock LLM illegal `hire_extra` with coin 0 → dropped; unknown `front_id` → dropped; player turn returns before job finishes using **`Oban.testing: :manual`** (default test config is `:inline` and would run the job inside `TurnProcessor`); tracer rules still do not enqueue
 - **Depends on:** PR-3 (and ideally PR-4). Not PR-5.
-- **Changes:** Background brain for non-enumerated branches. Temperature 0. No prose. Does not block `turn_completed`.
+- **Changes:** Hidden TBS planner. Short identity prompts; thinking model allowed here only. `{intent, steps[]}` → orders on the front; resolve when `eta_ticks` hits 0. Collisions in space×time are Elixir. Does not block `turn_completed`. Tracer rules still enqueue nothing.
 
 ### PR-7 — Session extras
 

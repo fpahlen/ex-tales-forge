@@ -22,7 +22,8 @@ defmodule TalesForge.Game.Pack do
     adventure = load_adventure!(dir)
     locations = load_locations!(dir)
     npcs = load_npcs!(dir)
-    fronts = Fronts.parse_dir!(Path.join(dir, "fronts"))
+    fronts_dir = Path.join(dir, "fronts")
+    fronts = fronts_dir |> Fronts.parse_dir!() |> Enum.map(&attach_identity(&1, fronts_dir))
 
     validate_graph!(adventure["starting_location_id"], locations)
     Fronts.validate!(fronts)
@@ -97,6 +98,17 @@ defmodule TalesForge.Game.Pack do
 
     {fm, _body} = parse_md!(path)
     stringify_keys(fm)
+  end
+
+  defp attach_identity(front, fronts_dir) do
+    path = Path.join(fronts_dir, front["id"] <> ".md")
+
+    if File.exists?(path) do
+      {_fm, body} = parse_md!(path)
+      Map.put(front, "identity", String.trim(body))
+    else
+      front
+    end
   end
 
   defp load_locations!(dir) do

@@ -37,7 +37,11 @@ defmodule TalesForge.Game.PackTest do
       assert "orc_nest" in pack.locations["orc_approach"]["exits"]
 
       npc_ids = Enum.map(pack.npcs, & &1["id"]) |> Enum.sort()
-      assert npc_ids == ["guild_steward", "innkeep"]
+      assert npc_ids == ["guild_steward", "innkeep", "prospector"]
+
+      guild = Enum.find(pack.fronts, &(&1["id"] == "miners_guild"))
+      assert guild["identity"] =~ "You are the Miners Guild"
+      assert guild["identity"] =~ "Killing a prospector"
 
       front_ids = Enum.map(pack.fronts, & &1["id"]) |> Enum.sort()
       assert front_ids == ["miners_guild", "orc_nest", "thing_below"]
@@ -100,7 +104,14 @@ defmodule TalesForge.Game.PackTest do
       assert world["character"]["skills"] == elara["skills"]
 
       npc_ids = Enum.map(session.npc_instances, & &1.npc_id) |> Enum.sort()
-      assert npc_ids == ["guild_steward", "innkeep"]
+      assert npc_ids == ["guild_steward", "innkeep", "prospector"]
+      assert world["present_npcs"] == ["innkeep"]
+
+      assert NPC.get_instance(session.id, "prospector").runtime_state["location_id"] ==
+               "mine_workings"
+
+      refute NPC.get_instance(session.id, "miners_guild")
+      refute Fronts.get_instance(session.id, "prospector")
       refute NPC.get_instance(session.id, "marta_kellen")
       refute NPC.get_instance(session.id, "worried_merchant")
 

@@ -12,4 +12,6 @@ situation_lines:
 
 A cut of tin country under two plans: the orc nest that holds stolen goods, and the Miners Guild that wants the hill.
 
-Start at the [[Valley Inn]]. The [[Market Square]] leads to the [[Cut above the nest]] and the [[Mine workings]].
+Every session starts the same: the door of the [[Valley Inn]], Brenna at the bar. The rest is an instance. You might kill [[Caldern Voss]] at the shaft — a man, not the Guild. Breaking the Guild is an epic.
+
+The [[Market Square]] leads to the [[Cut above the nest]] and the [[Mine workings]].
