@@ -1,6 +1,6 @@
 # ElixirConf 2027 — three slides
 
-A teaching check: if we can explain Tales Forge in three slides, we agree on how the game runs.
+If we can explain Tales Forge in three slides, we agree on how the game runs. If we cannot, the spec is still arguing with itself.
 
 | Slide | File | Question it answers |
 |-------|------|---------------------|

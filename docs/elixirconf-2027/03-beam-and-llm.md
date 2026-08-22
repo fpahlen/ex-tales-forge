@@ -19,4 +19,4 @@ The world is markdown. The opening is frozen. After the door we do not write eve
 
 ---
 
-**Speaker notes.** Geography is data and PubSub, not a restart domain. If we had nested the atlas in OTP, walking from the inn to the square would have been a reparent. The BEAM win is isolation and queues, not a map-shaped tree.
+**Speaker notes.** Geography is data and PubSub, not a restart domain. If we had nested the atlas in OTP, walking from the inn to the square would have been a reparent. That would have been a long afternoon. The BEAM win is isolation and queues, not a map-shaped tree.

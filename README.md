@@ -1,8 +1,8 @@
 # ex-tales-forge
 
-Tales Forge on the BEAM — a text-first AI RPG with Jido agents, Phoenix LiveView, PostgreSQL, and Oban.
+A few friends and I have been building a text-first RPG on Elixir. Phoenix for the table, Jido for the hot session, Postgres for the save, Oban for the slow thinking.
 
-This is a greenfield Elixir rewrite. Game rules and prompts are borrowed from [text-forge](../text-forge); v1 Supabase code is reference-only.
+This is a greenfield rewrite. Rules and prompts come from [text-forge](../text-forge). We did not port the old Supabase code.
 
 ## Stack
 
@@ -120,7 +120,7 @@ priv/
   rules/             # Markdown rulebook (from text-forge)
 ```
 
-Game architecture (fronts, WorldSim, table GM): [docs/architecture.md](docs/architecture.md). ElixirConf 2027 slides (board vs tale, intent, BEAM): [docs/elixirconf-2027/README.md](docs/elixirconf-2027/README.md).
+How the game actually runs: [docs/architecture.md](docs/architecture.md). Three slides if we have to explain it at ElixirConf: [docs/elixirconf-2027/README.md](docs/elixirconf-2027/README.md).
 
 ## Phase status
 

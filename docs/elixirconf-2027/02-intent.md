@@ -2,7 +2,9 @@
 
 ![A sealed envelope passing a gate toward a waiting GM](images/02-intent.jpg)
 
-Intent is a **contract**, not a vibe.
+We learned this the hard way: if you hand the GM the messy sentence, it starts inventing dice.
+
+So we clean it first.
 
 ```mermaid
 flowchart TD
@@ -19,4 +21,4 @@ flowchart TD
 
 ---
 
-**Speaker notes.** Two-tier is not fashion. Raw text in the storyteller is how you get invented mechanics and prompt injection in the same breath. Heuristics keep the common case off the model so a full turn can stay under a few seconds.
+**Speaker notes.** Two-tier is not fashion. Raw text in the storyteller is how you get invented mechanics and prompt injection in the same breath. Clear “go to the square” does not even need a model. Heuristics keep the common case off Grok so a full turn can stay under a few seconds.

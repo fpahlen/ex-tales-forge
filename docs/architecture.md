@@ -1,9 +1,9 @@
-# Tales Forge Game Architecture: Fronts, Simulation, and the Table GM
+# Tales Forge — how the game actually runs
 
 | Field | Value |
 |-------|--------|
-| **Title** | Tales Forge Game Architecture |
-| **Author** | Architecture (draft) |
+| **Title** | Tales Forge game architecture |
+| **Author** | Draft |
 | **Date** | 2026-08-21 |
 | **Status** | Draft |
 | **Repo** | ex-tales-forge |
@@ -12,27 +12,33 @@
 
 Teaching check (ElixirConf 2027, three slides): [elixirconf-2027/README.md](elixirconf-2027/README.md).
 
-This document is the product spec and the implementation map. It describes how the game runs **today**, the agreed architecture around **fronts / antagonist plans**, the BEAM process topology, the LLM split (table GM vs chronicler), and a tracer-first PR plan. Locked decisions are recorded, not reopened.
+This is the spec and the map: how the game runs today, what we are building around fronts (antagonist plans), where Elixir processes live, how we split the table GM from the chronicler, and a tracer-first PR plan.
+
+The big calls are written down so we do not reopen them by accident.
 
 ---
 
 ## Overview
 
-Tales Forge is a text-first, instanced AI RPG on the BEAM: Phoenix LiveView for the table, Jido agents for hot session/NPC runtime, Ecto + PostgreSQL for persistence, Oban for LLM and (later) simulation jobs. Ash owns **pre-play authoring** only. The play loop is 100% Ecto.
+We noticed something while we were building the game: the AI was more consistent if we cleaned up what the player said *before* the storyteller saw it.
 
-Today the loop is a two-tier LLM turn against a static location graph. NPCs have personality, OCEAN traits, and a `current_concern` that can escalate into proactive speech. That is a person with a worry — not an adventure. **Crossroads Ledger** is a missing-ledger hook with no opposing plan that has resources, clocks, or the ability to act off-screen. The table waits. The world does not run.
+Tales Forge is a text-first, instanced RPG on the BEAM. Phoenix LiveView for the table, Jido for the hot session and present NPCs, Ecto + PostgreSQL for the save, Oban for LLM work (and later simulation). Ash owns **pre-play authoring** only. The play loop is 100% Ecto.
 
-The product thesis is locked: **the adventure is not a quest list.** It is what happens when the player's actions interfere with the plans of the major antagonists of an area, and when those antagonists interfere with each other.
+Today the loop is a two-tier turn against a static location graph. NPCs have personality, OCEAN traits, and a `current_concern` that can escalate into a line of dialogue. That is a person with a worry — not an adventure. **Crossroads Ledger** is a missing-ledger hook. Nobody is looking for the ledger off-screen. No guild is hiring steel. No nest is preparing. The table waits. The world does not run.
 
-The proposed architecture introduces **authored fronts** (2–3 per area) as first-class runtime entities. Each front has a goal, personality, doctrine, resources, beliefs (not omniscience), clocks, and memories. After the player’s table-GM turn, the world is a **hidden turn-based strategy game**: the Guild plans, the nest plans, the player already moved. Authored **board rules** resolve obvious physics (you cannot spend coin you do not have; missed scouts update nest beliefs). A **thinking** LLM, with a short identity prompt, writes a **plan** — not table narration. Plans collide in space and time. The table GM is the only voice the player hears.
+The adventure is not a quest list. The Guild wants the tin. The nest wants the cut. You walk in the door. What happens after that is the collision of those plans — and we cannot pre-write every branch.
 
-The first playable slice is a dedicated tracer pack with two fronts (orc nest, miners guild), **no chronicler LLM**, and tests that fail if missed scouts leak into the **post-travel scene prompt** or if the nest is unprepared after a miss. That slice is not playable against today's `create_session/1` until PR-2 materializes `tin_valley` (Ash adventure_id alone is not enough).
+So we treat the major antagonists of an area as **fronts** (2–3 per area): a goal, a personality, doctrine, resources, beliefs (not omniscience), clocks, memories. After the player’s table-GM turn, the world is a **hidden turn-based strategy game**. The Guild plans. The nest plans. The player already moved.
+
+Elixir owns the board: you cannot spend coin you do not have; missed scouts update nest beliefs. A **thinking** model, with a short “you are the Guild…” plus what that front actually knows, writes a **plan** — not table talk. Plans collide in space and time. The table GM is the only voice you hear.
+
+The first playable slice is a dedicated tracer pack with two fronts (orc nest, miners guild), **no chronicler LLM**, and tests that fail if missed scouts leak into the **post-travel scene prompt** or if the nest is unprepared after a miss. That slice is not playable against today's `create_session/1` until PR-2 materializes `tin_valley` (an Ash `adventure_id` alone is not enough).
 
 ---
 
-## Background & Motivation
+## Where we are now
 
-### Current state (what actually runs)
+### What actually runs
 
 The OTP root in `lib/ex_tales_forge/application.ex` is a **flat** `:one_for_one` supervisor:
 
@@ -90,13 +96,13 @@ NPC agency today is **present-only**:
 - `conversation.message` → overheard memory for non-target present NPCs.
 - Memories: last 20 on the instance; last 5 concatenated into the table GM prompt via `NPC.format_gm_sections/2`. **Only present NPCs.** Distant facts rot out of the prompt.
 
-Marta (`priv/npcs/marta_kellen.json`) has `agency_tier: "normal"`, OCEAN, and `current_concern: {focus: "missing ledger", priority: 8}`. After four ticks of worry she speaks about the ledger (`NPC.initiative_text/1`). That is a **baby front**: a person with a concern, not a plan with scouts, coin, and a portent.
+Marta (`priv/npcs/marta_kellen.json`) has `agency_tier: "normal"`, OCEAN, and `current_concern: {focus: "missing ledger", priority: 8}`. After four ticks of worry she speaks about the ledger (`NPC.initiative_text/1`). That is a person with a concern — not a plan with scouts, coin, and a portent.
 
-### Pain: Crossroads Ledger does not run
+### Why Crossroads Ledger does not run
 
-`priv/adventures/crossroads_ledger/adventure.md` is a hook: a missing merchant ledger, Marta at The Weary Pilgrim, Henrik Bale (`worried_merchant`) at the square. There is **no opposing plan with resources**. No one is looking for the ledger off-screen. No guild is hiring steel. No nest is preparing. The player can drink forever; the world waits. That is a scene, not an adventure.
+`priv/adventures/crossroads_ledger/adventure.md` is a hook: a missing merchant ledger, Marta at The Weary Pilgrim, Henrik Bale (`worried_merchant`) at the square. There is **no opposing plan with resources**. The player can drink forever; the world waits. That is a scene, not an adventure.
 
-Secondary pains that this architecture must close:
+The other holes we have to close:
 
 1. **Omniscient GM prompt.** `Context.format_gm_prompt/1` concatenates pack rules, formatted intent (including `situation_lines` and recent-turn **player** text slices), and `NPC.format_gm_sections/2`. It does **not** dump raw `world_state`. The leak today is `NPC.merged_npc_context/1` putting the full `runtime_state` (memories, concern wait-ticks, initiative flags) into the present-NPC JSON. Front clocks would be a second leak if injected the same way. `context_summary` → `situation_lines` can persist invented hidden facts across later turns.
 2. **GM invents mechanics.** `Mechanics` rolls 1d20 and awards LP, but social outcomes are unbounded: a nat-1 intimidation can be narrated as "he tells you everything" because `gm_system.txt` does not constrain by relative power, personality, or beliefs. `overlay_deltas` are decoded and **never applied**.
@@ -105,23 +111,23 @@ Secondary pains that this architecture must close:
 
 ### Adjacent work (not this design)
 
-Image generation (Grok sketches for scenes and NPC portraits) lives on `feature/scene-image-generation` and in `TalesForge.Workers.GenerateImage` / Oban `:images`. Tigris permanent storage is deferred. This document mentions images only as an existing async pattern: **table returns, Oban thinks, PubSub patches the UI**.
+Image generation (Grok sketches for scenes and NPC portraits) lives on `feature/scene-image-generation` and in `TalesForge.Workers.GenerateImage` / Oban `:images`. Tigris can wait. Images are mentioned here only as a pattern we already have: **the table returns, Oban thinks, PubSub patches the UI**.
 
 ---
 
-## Goals & Non-Goals
+## What this is for / what this is not
 
-### Goals
+### For
 
-1. Encode the product thesis: play is interference with **authored antagonist plans**, and plans interfering with each other.
-2. Make one **playable tracer** (orc nest + miners guild) where hidden events change later scenes without leaking into the current narration.
+1. Play is interference with **authored antagonist plans**, and those plans interfering with each other.
+2. One **playable tracer** (orc nest + miners guild) where hidden events change later scenes without leaking into the current narration.
 3. Keep the existing two-tier turn (intent → table GM) and **do not block** the player on faction LLM.
-4. Give fronts a legal move palette the **server enforces** (no hire if coin is 0).
-5. Split LLM roles: **table GM** narrates perceived facts; **chronicler** picks one legal JSON move when rules cannot enumerate the branch.
+4. Fronts get a legal move palette the **server enforces** (no hire if coin is 0).
+5. Split LLM roles: **table GM** narrates perceived facts; **chronicler** writes a plan when rules cannot enumerate the branch.
 6. Persist structured memories/debts so later retrieval can put last year's slight back in the prompt.
-7. Define a session-shaped OTP topology as a **failure domain**, not a map.
+7. A session-shaped OTP topology as a **failure domain**, not a map.
 
-### Non-goals
+### Not
 
 - Shared MMO world / one atlas for all players.
 - Wall-clock or AFK simulation while the player is logged off.
@@ -136,9 +142,9 @@ Image generation (Grok sketches for scenes and NPC portraits) lives on `feature/
 
 ---
 
-## Human GM Habits → System
+## What a human GM already does
 
-This is the product spec. Each habit maps to a concrete subsystem. If the mapping is missing, the habit is not encoded.
+A human GM does these five things. If we cannot point at a subsystem, we have not actually encoded the habit.
 
 | # | Human GM habit | System encoding | First lands in |
 |---|----------------|-----------------|----------------|
@@ -152,7 +158,7 @@ Marta remains a **person with a concern**, not a front. The thing under the mine
 
 ---
 
-## Key Decisions
+## Calls we already made
 
 1. **Instanced campaigns, not an MMO.** Each `GameSession` is its own copy of the pack. 1000 concurrent players = 1000 small trees. Rejected: shared world, cross-session fronts, global location occupancy.
 
@@ -188,7 +194,7 @@ Marta remains a **person with a concern**, not a front. The thing under the mine
 
 ---
 
-## How the Game Runs Today (detailed)
+## How the game runs today (the long version)
 
 ### Session lifecycle
 
@@ -209,7 +215,7 @@ Player input is blocked in `PlayLive` while `scene_loading` or `thinking` (`inpu
 
 **After travel**, `PlayLive.maybe_start_scene_after_travel/3` enqueues `ProcessScene` from `{:turn_completed, payload}` when `needs_scene: true`. That worker **reloads the session from the DB**. WorldSim patches must be committed before broadcast or the new location's scene is stale. The travel-turn table GM itself is built from the **pre-move** session (`Context.build_gm_context(session)` at the top of `TurnProcessor.run/3`) — it is the **wrong** leak surface (see TurnProcessor hook).
 
-### Two-tier LLM (non-negotiable, kept)
+### Two-tier LLM (we keep this)
 
 | Tier | Where | Model / temp | Input | Output |
 |------|-------|--------------|-------|--------|
@@ -223,7 +229,7 @@ Raw player text never reaches Tier 2 (`Intent.sanitize_summary/1` strips instruc
 
 `TalesForge.Game.Mechanics.apply_server_mechanics/4` rolls 1d20 vs effective skill (base + stat bonus). Outcomes: success / partial_success / failure. LP written onto `character.learning_points`. The GM is told not to invent rolls (`priv/prompts/gm_system.txt`) and not to patch LP or inventory. Skill is skipped for `move` and `inventory` handlers.
 
-**Gap:** there is no `outcome_bounds` structure. Social skills (intimidation, persuasion, deception) use the same numeric curve as climbing. Personality and relative power are prompt flavor, not a contract.
+The hole: there is no `outcome_bounds` structure. Social skills (intimidation, persuasion, deception) use the same numeric curve as climbing. Personality and relative power are prompt flavor, not a contract.
 
 ### NPC runtime (seed of fronts)
 
@@ -241,9 +247,9 @@ flowchart LR
   PS --> LV[PlayLive narrative log]
 ```
 
-This is the right *shape* (signals, rule-based concern, persist then notify) and the wrong *scope* (present people only; no resources; no hidden events).
+The shape is right (signals, rule-based concern, persist then notify). The scope is wrong: present people only, no resources, no hidden events.
 
-### Pack vs runtime (ETC, kept)
+### Pack vs runtime (keep the split)
 
 | Layer | Owner | Examples |
 |-------|-------|----------|
@@ -252,7 +258,7 @@ This is the right *shape* (signals, rule-based concern, persist then notify) and
 | Live play | Ecto `GameSession`, `Turn`, `NpcInstance`, `Scene` | `world_state` JSON + instance rows |
 | Admin surfaces | Ash `AdminResources.*` over the same tables | `/admin` JSON editors |
 
-Do not merge these layers. Fronts follow the same split: pack JSON/markdown → optional Ash `FrontDefinition` (Phase 2 importer) → Ecto `FrontInstance`.
+Do not merge these layers. We already split authoring from play on purpose. Fronts follow the same split: pack JSON/markdown → optional Ash `FrontDefinition` (Phase 2 importer) → Ecto `FrontInstance`.
 
 ### Pack materialization (PR-2; dual path — do not break Crossroads)
 
@@ -335,13 +341,13 @@ end
 
 ---
 
-## Proposed Design
+## What we are building
 
 ### Product model
 
 An **area** (Crossroads Hamlet, Tin Valley) authors **2–3 fronts**. A front is a plan with a body: a nest, a guild, a cult, a sheriff's office — not a room and not a single barkeeper.
 
-Worked example (tracer + thickening):
+The tracer example (and what we thicken later):
 
 > The player raids an orc nest to return something stolen. Hidden orc scouts watch the approach. If the player fails to notice them, the chieftain is prepared. If the scout party never returns, that is a different stimulus. Meanwhile the **Miners Guild** wants the orcs gone so they can expand a tin mine. If they succeed (or overreach), an authored portent: **they dig too deep**.
 
@@ -394,11 +400,11 @@ sequenceDiagram
   end
 ```
 
-Invariant: **the player is unblocked at `turn_completed`**. Chronicler work is visible on the *next* turn or scene, the same way scene images already arrive via `{:scene_image_ready, …}`.
+The player is unblocked at `turn_completed`. Chronicler work shows up on the *next* turn or scene, the same way scene images already arrive via `{:scene_image_ready, …}`.
 
 ### Event contract and layering (triggers vs rules)
 
-Every turn produces a list of events **before** fronts tick. Events are data, not prose.
+Every turn produces a list of events **before** fronts tick. Events are data, not a story.
 
 ```elixir
 %{
@@ -432,7 +438,7 @@ The persisted `session_events` row uses the table `binary_id` primary key as the
 
 Hidden events (`player_aware: false`) **must not** appear in `Context.format_gm_prompt/1` or `Prompts.build_scene_user/1`. They **must** appear in WorldSim's input and as `session_events` rows.
 
-#### Tracer notice-check (locked; live move path)
+#### Tracer notice-check (live move path)
 
 Today `"go to the orc approach"` is `action_type: :move`; `ActionHandler` emits `handler: "move"`; `Mechanics.resolve_check_skill/5` returns **nil** for `move`/`inventory`; outcome is `"none"`. `"sneak to the orc approach"` does **not** match `@move_hints` (`go|head|walk|travel|…`), so it is **not a move** and will not change `location_id`. Heuristics never attach `parameters.skill` on `:move`. The table GM runs **before** `apply_server_mechanics`. Do **not** invert dice order in the tracer (PR-9).
 
@@ -460,9 +466,9 @@ end
 
 The table-GM / intent path stays hardened (raw player text, jailbreaks, compound actions). The world brain does **not** need that. It needs a short “you are the Guild” sheet, a briefing of **what that actor knows**, and a plan.
 
-This is almost a turn-based strategy game **hidden from every participant**: Guild, nest, and player each act on the same clock; nobody sees the others’ plan documents. The player only sees what Perception allows.
+This is almost a turn-based strategy game **hidden from everyone at the table**: Guild, nest, and player each act on the same clock; nobody sees the others’ plan documents. The player only sees what Perception allows.
 
-**Thinking mode.** Chronicler may use a reasoning model. Prompts must stay short (identity + briefing, not rules.md). Table GM and Tier 1 stay on the fast non-reasoning model (`XAI_MODEL`); chronicler is async Oban and must not block the player. Do not turn table turns into thinking calls.
+**Thinking mode.** The chronicler may use a reasoning model. Prompts stay short (identity + briefing, not rules.md). Table GM and Tier 1 stay on the fast non-reasoning model (`XAI_MODEL`). The chronicler is async Oban and must not block the player. Do not turn table turns into thinking calls.
 
 #### Identity (authored adventure text)
 
@@ -521,7 +527,7 @@ No jailbreak section. No player text.
 
 #### Plan (LLM) vs board (Elixir)
 
-The model does **not** pick `raise_alert` as its whole thought. It plans like a TBS player (“hire steel in the square, then move them to the nest in six ticks”). Elixir is the board:
+The model does **not** pick `raise_alert` as its whole thought. It plans like a TBS player (“hire steel in the square, then move them to the nest in six ticks”). Elixir is the board.
 
 | Board verb | Physics |
 |------------|---------|
@@ -559,7 +565,7 @@ When two pending orders (or a pending order and the player) share `where` on the
 - Player standing in `market_square` when `hire` resolves → table GM may narrate retainers (public fact).
 - Player not there → only Guild beliefs and a town fact if `visibility` includes the square.
 
-The tracer’s coded rules (missed scouts → nest prepared; dawdle clock) are **board physics / fog of war**, not the Guild’s brain. They stay. Do not replace them with a thinking call on every enter.
+The tracer’s coded rules (missed scouts → nest prepared; dawdle clock) are **board physics / fog of war**, not the Guild’s brain. They stay. Do not replace them with a thinking call on every enter. That would be expensive and, honestly, worse.
 
 #### Player is the third faction
 
@@ -657,9 +663,9 @@ If output contains a new `front_id` → drop. If a `hire` step is legal, extras 
 
 **Cap (PR-6):** Oban unique on `[:session_id, :turn_number]` (not `[:session_id]` over 60s — that would drop a second unmatched turn inside a minute). Max **one chronicler job per session per turn**, often **zero**. Pass `tick`/`turn_number` in job args; at apply time re-check preconditions and **drop if `world_tick` advanced past the unmatched generation**. `config/test.exs` sets `Oban, testing: :inline` — PR-6's "does not block the player" test **must** use `:manual` (e.g. `Oban.Testing.with_testing_mode(:manual, ...)`) so enqueue does not run the LLM inside `TurnProcessor`.
 
-### Perception filter (table GM contract)
+### Perception filter (what the table GM is allowed to see)
 
-Single module `TalesForge.Game.Perception`. **Context and SceneProcessor both call this — no second implementation.**
+Single module `TalesForge.Game.Perception`. **Context and SceneProcessor both call this — no second implementation.** If we write it twice we will leak.
 
 ```elixir
 # Session entry used by Context.format_gm_prompt/1 and SceneProcessor.generate_scene/2.
@@ -752,7 +758,7 @@ Authored in the pack (`portents/they_dig_too_deep.md` + trigger in the guild fro
 
 ---
 
-## BEAM / OTP Process Topology
+## BEAM / OTP — processes, not a map
 
 ### Today (keep working until PR-5)
 
@@ -813,7 +819,7 @@ flowchart TB
 | BEAM comfort | Fine |
 | Real limiter | LLM: Oban `:llm` concurrency is **5** today (`config/config.exs`). Table GM must keep that budget. Chronicler goes on a new `:sim` queue (concurrency 2–5) so it cannot starve turns. Cap one job per session per turn, often zero |
 
-`config :ex_tales_forge, TalesForge.Jido, max_tasks: 1000` is **`Task.Supervisor` `max_children`** (`deps/jido/lib/jido.ex` `init/1`), not an agent cap. The agent `DynamicSupervisor` has no `max_children`. Do not quote `max_tasks` as proof that 10k–30k session processes fit. 1000 concurrent Jido *tasks* could matter if actions fan out; NPC signals today are `AgentServer.cast`. The real limiter remains Oban `:llm` concurrency **5**. Confirm task vs agent semantics before any production scale claim; not a tracer blocker.
+`config :ex_tales_forge, TalesForge.Jido, max_tasks: 1000` is **`Task.Supervisor` `max_children`** (`deps/jido/lib/jido.ex` `init/1`), not an agent cap. The agent `DynamicSupervisor` has no `max_children`. Do not quote `max_tasks` as proof that 10k–30k session processes fit. 1000 concurrent Jido *tasks* could matter if actions fan out; NPC signals today are `AgentServer.cast`. The real limiter remains Oban `:llm` concurrency **5**. Confirm task vs agent semantics before any production scale claim. Not a tracer blocker.
 
 Session DynamicSupervisor should use `:one_for_one`. WorldSim crash: log, restart, reload from Ecto; do not replay the in-flight turn.
 
@@ -821,7 +827,9 @@ Boot: extend `NPCRecovery` into `SessionRecovery` — for each `status == "activ
 
 ---
 
-## LLM Split: Table GM vs Chronicler
+## Two models, two jobs
+
+We already learned this on the player side: if you hand the storyteller the messy sentence, it starts inventing dice. The same split applies off-screen. The table GM talks. The chronicler plans. They do not share a prompt.
 
 | | **Table GM** (existing Tier 2) | **Chronicler** (new, PR-6) |
 |--|-------------------------------|----------------------------|
@@ -836,7 +844,7 @@ Boot: extend `NPCRecovery` into `SessionRecovery` — for each `status == "activ
 | Module | `LLM.complete_turn/5`, `complete_scene/3` | `LLM.complete_chronicler/2` |
 | Prompt file | `priv/prompts/gm_system.txt` | `priv/prompts/chronicler_system.txt` |
 
-Table GM prompt additions (PR-4, without waiting for chronicler):
+Table GM prompt additions (PR-4, we do not wait for the chronicler):
 
 - "Narrate only what this player perceived. The Perceived world section is complete for that purpose."
 - "If a present NPC or visible faction is acting from beliefs, do not invent ignorance."
@@ -848,11 +856,11 @@ Chronicler prompt (PR-6):
 - "You are not the GM. Pick exactly one legal move from the list. If none fit, stall."
 - "Do not emit prose. Do not emit a new front_id."
 
-Both stay inside `TalesForge.LLM`. No ad-hoc `Req.post` in workers.
+Both stay inside `TalesForge.LLM`. No ad-hoc `Req.post` in workers. One client.
 
 ---
 
-## API / Interface Changes
+## APIs
 
 ### New (pure game — no Repo)
 
@@ -978,11 +986,11 @@ Do not tick fronts *before* the table GM: this turn's GM is pre-move on purpose.
 
 ### `Context.format_gm_prompt/1`
 
-Add a `## Perceived world` block from `Perception.visible_world/1`. NPC JSON uses the allow-list. Pass `mechanical_resolution` into the GM user prompt only as **outcome bounds** once PR-9 exists; today the GM still guesses tone before the server roll (`TurnProcessor` calls LLM *then* `apply_mechanics`). That ordering is a known smell. **Do not silently invert this in the tracer.** PR-9: **roll first, then GM**. That is a behavior change and needs its own PR so Crossroads playtests stay comparable until then.
+Add a `## Perceived world` block from `Perception.visible_world/1`. NPC JSON uses the allow-list. Pass `mechanical_resolution` into the GM user prompt only as **outcome bounds** once PR-9 exists; today the GM still guesses tone before the server roll (`TurnProcessor` calls LLM *then* `apply_mechanics`). That ordering is a smell. **Do not silently invert this in the tracer.** PR-9: **roll first, then GM**. That is a behavior change and needs its own PR so Crossroads playtests stay comparable until then.
 
 ---
 
-## Data Model Changes
+## Data model
 
 ### Pack format (authored, human-readable)
 
@@ -1149,7 +1157,7 @@ Importer (Phase 2, not tracer-blocking): `mix tales.import_pack priv/adventures/
 
 | Store | What | Why |
 |-------|------|-----|
-| `front_instances` | One row per `(game_session_id, front_id)`: `definition` (authored copy), `runtime_state` (clocks, resources, beliefs, memories, public_facts), `status` (`live` / `dormant` / `spent`) | Same ETC as `NpcInstance`. Independent patches from WorldSim / chronicler without rewriting the whole `world_state`. Admin can list clocks. Queryable for retrieval. |
+| `front_instances` | One row per `(game_session_id, front_id)`: `definition` (authored copy), `runtime_state` (clocks, resources, beliefs, memories, public_facts), `status` (`live` / `dormant` / `spent`) | Same split as `NpcInstance`. Independent patches from WorldSim / chronicler without rewriting the whole `world_state`. Admin can list clocks. Queryable for retrieval. |
 | `session_events` | Append-only events (`kind`, `actor`, `player_aware`, `tick`, `location_id`, `payload`) | Hidden vs visible history; tests assert a `player.failed_notice` row exists **and** that it is absent from GM prompt. Auditable like `turns`. |
 | `world_state["live_fronts"]` | `["orc_nest", "miners_guild"]` | Cheap index for Context; not the source of truth. |
 | `world_state["public_facts"]` | Perception snapshot for the current location | What the next GM/scene call should see without joining in a hurry. Rebuilt after each tick. |
@@ -1231,9 +1239,9 @@ Migrations: `references(:game_sessions, type: :binary_id, on_delete: :delete_all
 
 ---
 
-## Tracer Bullet (must ship playable)
+## Tracer (must be playable)
 
-**Not:** idle ticks, location OTP tree, chronicler, extras, CK3, Crossroads rewrite.
+Not: idle ticks, location OTP tree, chronicler, extras, CK3, Crossroads rewrite.
 
 **Pack:** `tin_valley` as above. Start at `valley_inn`. Two live fronts.
 
@@ -1282,7 +1290,9 @@ Do **not** change the default Marta `mix e2e.smoke` in the tracer PR. Manual pla
 
 ---
 
-## Alternatives Considered
+## Other shapes we looked at
+
+We tried these on paper. They lose.
 
 ### 1. Second prose GM vs facts/prose split
 
@@ -1293,7 +1303,7 @@ Do **not** change the default Marta `mix e2e.smoke` in the tracer PR. Manual pla
 | Control | Faction GM invents armies, ignorance, new villains | Legal palette + perception filter |
 | Fit with non-negotiable 3 | LLM invents mechanics off-screen | Server clocks/resources; LLM picks a move tag |
 
-A second prose GM recreates Crossroads' problem at larger scale: a model performing "something happened" without a plan. Rejected.
+A second prose GM recreates Crossroads at larger scale: a model performing "something happened" without a plan. No.
 
 ### 2. OTP tree mirroring the map vs Registry + session supervisors
 
@@ -1303,35 +1313,35 @@ A second prose GM recreates Crossroads' problem at larger scale: a model perform
 | Geography | Process tree becomes the atlas | Authored `exits` + PubSub topics |
 | Fronts | Temptation to parent soldiers under the nest | Front is not OTP parent of rooms or extras |
 
-Locked decision 6. Occupied LocationAgents remain optional and sibling-scoped, never geographic children.
+Call 6. Occupied LocationAgents remain optional and sibling-scoped, never geographic children.
 
 ### 3. Shared MMO world vs instanced (rejected: instanced)
 
-A shared atlas would make fronts global (one nest vs 1000 players), force wall-clock time, and smash instancing. 1000 small trees match `GameSession` as it exists. Locked decision 1.
+A shared atlas would make fronts global (one nest vs 1000 players), force wall-clock time, and smash instancing. 1000 small trees match `GameSession` as it exists. Call 1.
 
 ### 4. Real-time AFK sim vs turn ticks (rejected: turn ticks)
 
-AFK sim implies Oban cron per session, LLM spend while nobody is playing, and "the guild won while you slept" without a player turn to perceive it. `WorldClock` is already turn-based. Off-screen actors act on **those** ticks. Locked decision 2.
+AFK sim implies Oban cron per session, LLM spend while nobody is playing, and "the guild won while you slept" without a player turn to perceive it. That was depressing just to write down. `WorldClock` is already turn-based. Off-screen actors act on **those** ticks. Call 2.
 
 ### 5. Fully generative politics at session start vs authored fronts
 
-Generative "who hates whom" is cheap novelty and expensive consistency. It invents major antagonists mid-setup, which locked decision 8 forbids in-session and we also forbid at session start. Authored 2–3 fronts + extras is the human GM habit: prepare the villains, improvise the bruisers.
+Generative "who hates whom" is cheap novelty and expensive consistency. It invents major antagonists mid-setup, which call 8 forbids in-session and we also forbid at session start. Authored 2–3 fronts + extras is the human GM habit: prepare the villains, improvise the bruisers.
 
 ### 6. Runtime fronts in Ash vs Ecto
 
-Ash is the admin/authoring tool (`AdminResources`, `Authoring.Importer`). Play paths are Ecto by contract (`GameSessions`, `TurnProcessor`, `NPC` all say so in moduledocs). Runtime fronts in Ash would mix layers, pull Ash into Oban workers, and fight the `NpcInstance` pattern. **Ecto `FrontInstance`.** Ash `FrontDefinition` may exist later for pack import only.
+Ash is the admin/authoring tool (`AdminResources`, `Authoring.Importer`). Play paths are Ecto by contract (`GameSessions`, `TurnProcessor`, `NPC` all say so in moduledocs). Runtime fronts in Ash would mix layers, pull Ash into Oban workers, and fight the `NpcInstance` pattern. **Ecto `FrontInstance`.** Ash `FrontDefinition` can wait for pack import.
 
 ### 7. `world_state` JSON vs `FrontInstance` table (decided: table)
 
-JSON-only is faster to prototype and worse to query, patch concurrently, and admin. Follow `NpcInstance`: table from the data-model PR so the tracer tests hit the real API. `FrontInstance.runtime_state` is still a JSON blob — PR-6 must re-check preconditions / drop stale ticks rather than assume the table serializes chronicler vs the next turn.
+JSON-only is faster to prototype and worse to query, patch concurrently, and admin. Follow `NpcInstance`: table from the data-model PR so the tracer tests hit the real API. `FrontInstance.runtime_state` is still a JSON blob — PR-6 must re-check preconditions / drop stale ticks rather than assume the table serializes chronicler vs the next turn. We already made that mistake once.
 
 ### 8. Invert GM/dice order now vs later
 
-Rolling after the GM (today) lets the model set tone then get contradicted by the d20. Rolling first is correct for "dice inform." Doing it in the tracer couples a prompt/behavior change to the fronts proof. **Later (PR-9)** with explicit prompt + test changes.
+Rolling after the GM (today) lets the model set tone then get contradicted by the d20. Rolling first is correct for "dice inform." Doing it in the tracer couples a prompt/behavior change to the fronts proof. **Later (PR-9)** with explicit prompt + test changes. Do not sneak it in.
 
 ---
 
-## Security & Privacy Considerations
+## Security and privacy
 
 | Threat | Severity | Mitigation |
 |--------|----------|------------|
@@ -1351,7 +1361,7 @@ Instanced data: deleting a `GameSession` already `on_delete: :delete_all` for tu
 
 ## Observability
 
-Existing pattern: `require Logger`; include `session=`, `tier=`, `duration_ms=` (`TurnProcessor`, `LLM.dispatch/5`, `NPCRecovery`).
+Same pattern as today: `require Logger`; include `session=`, `tier=`, `duration_ms=` (`TurnProcessor`, `LLM.dispatch/5`, `NPCRecovery`).
 
 Add:
 
@@ -1376,7 +1386,7 @@ Admin (PR-5+ / clock visibility): show live fronts, clocks, last events, `player
 
 ---
 
-## Rollout Plan
+## Rollout
 
 - **Feature flags:** none required. New adventure id `tin_valley` is the flag. Default `create_session` remains Crossroads (`World.default_world_state/0`).
 - **Staging:** run `mix test` including tracer tests; optional live play of `tin_valley` with `XAI_API_KEY` to see Perception in real prose (tests must not depend on the model for proofs 1–2).
@@ -1396,9 +1406,9 @@ Risks:
 
 ---
 
-## Open Questions
+## Still open
 
-Locked decisions are not listed here. Remaining choices that do not block the tracer:
+The calls above are not open. These still are, and they do not block the tracer:
 
 1. **When should Crossroads Ledger gain a real opposing front?** Recommended: after `tin_valley` is playable, author a ledger-thief / fence front in a follow-up pack revision. Not in PR-3.
 
@@ -1441,9 +1451,9 @@ Not open: instancing, turn ticks, no invented major fronts, Ecto runtime, table 
 
 ---
 
-## PR Plan
+## PR plan
 
-Each PR is independently reviewable and mergeable on a feature branch. Tracer PR is the first playable proof of the thesis. Tests are the first user of new APIs. `mix precommit` before review.
+Each PR is independently reviewable and mergeable on a feature branch. The tracer PR is the first playable proof. Tests are the first user of new APIs. `mix precommit` before review.
 
 ### PR-1 — Land the architecture doc
 
@@ -1585,4 +1595,4 @@ Admin clock visibility can be a small PR after PR-2 (`AdminResources.FrontInstan
 
 ---
 
-*End of draft. Canonical copy after PR-1: `docs/architecture.md`.*
+Canonical copy: `docs/architecture.md`.
