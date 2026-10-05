@@ -9,3 +9,7 @@ Suggested starting set (copy or link from Drive / `/workspace/tales-forge-plan/`
 - Personas
 - Design: game data vs sessions
 - Design: decision queue and shared docs
+
+In this folder:
+
+- [Infrastructure assets](infrastructure.md)
