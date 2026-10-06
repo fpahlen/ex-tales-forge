@@ -18,6 +18,7 @@ Also in this folder:
 - [Infrastructure assets](infrastructure.md)
 - [Environments and how changes reach production](environments.md)
 - [Design: playtest loop](design-playtest-loop.md): how persona bots play, get scored, and feed fixes and decisions (draft)
+- [Plan: porting character creation from the old app](character-creation-port.md): how the old app's creation works and a proposed port to the Elixir app (draft)
 - [Setting up Resend (email)](resend-setup.md)
 - [Adding API keys and secrets to Fly](fly-secrets.md)
 
