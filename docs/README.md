@@ -16,3 +16,4 @@ Also in this folder:
 
 - [Infrastructure assets](infrastructure.md)
 - [Setting up Resend (email)](resend-setup.md)
+- [Adding API keys and secrets to Fly](fly-secrets.md)
