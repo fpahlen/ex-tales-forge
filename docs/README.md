@@ -15,3 +15,4 @@ Persona input is collected with a Google Form: [Tales Forge: Your input on our p
 Also in this folder:
 
 - [Infrastructure assets](infrastructure.md)
+- [Setting up Resend (email)](resend-setup.md)
