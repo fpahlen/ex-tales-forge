@@ -19,6 +19,9 @@ Everything Tales Forge runs on, in one place. "Login held by" says who can get i
 | xAI API key | AI game master | Exists | Usage-based; the main per-session cost | Fredrik | Fly secret `XAI_API_KEY` |
 | GitHub docs token | Lets the admin import from `tales-forge-docs` and check `whyse-ab/tales-forge` team membership | Live (fine-grained, contents read + Members read) | Free | Fredrik | Fly secret `GITHUB_DOCS_TOKEN` |
 | GitHub OAuth app *Tales Forge Admin* | "Sign in with GitHub" on the admin (email links stay as fallback) | Live since v13 (2026-10-06), registered under `whyse-ab` | Free | Fredrik | Fly secrets `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` |
+| GitHub Actions CI and prod deploy | Tests every PR; deploys `main` to `tales-forge` after the tests pass ([environments](environments.md)) | Planned: workflow on the `ci-deploy` branch of ex-tales-forge, not merged | Free (public repo) | Fredrik | Actions secret `FLY_API_TOKEN` (deploy token for `tales-forge`, not created) |
+| Fly app `tales-forge-playtest` and its own Postgres | Long-lived playtest for persona bots and invited testers; tracks `main` | Planned, not created | ~$1–6.50/month est. depending on autostop ([environments](environments.md#costs-estimates-2026-10-06)) | — | Fly secrets on `tales-forge-playtest`; Actions secret `FLY_API_TOKEN_PLAYTEST` (not created) |
+| Fly PR preview apps `tales-forge-pr-<n>` | One throwaway app and database per open PR, destroyed on close | Planned, not created | ~$1.50–2.50/month est. | — | Generated per app; Actions secret for a Fly app-creating token (not created) |
 | Google Drive folder | Shared docs and persona form until migrated here | Exists ([folder](https://drive.google.com/drive/folders/1tlNoL8WZJPgbFQVT4SipKi9odGnQM_PB)) | Free | Fredrik | — |
 | Shared password vault | Logins and secrets not stuck in one head | Not chosen | Depends on tool | — | — |
 
@@ -26,7 +29,7 @@ Everything Tales Forge runs on, in one place. "Login held by" says who can get i
 
 | Asset | What it's for | When |
 |---|---|---|
-| Separate API keys for self-play bots | Measure bot cost per session apart from real players | When self-play starts (November) |
+| Separate API keys for self-play bots | Measure bot cost per session apart from real players (this is the playtest app's own `XAI_API_KEY`) | When self-play starts (November) |
 | Error and uptime monitoring (e.g. Sentry free tier plus an uptime check) | Know when the game breaks | Before outside players arrive |
 | Stripe | Module purchases and prepaid credits | Before the first paying customer |
 
