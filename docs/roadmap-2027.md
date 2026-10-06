@@ -33,22 +33,22 @@ Development isn't limited by human hours. It runs in two loops:
 Human time goes to **decisions, reviewing risky changes, monthly real playtests and talking to real players.** The founders' pace of decisions sets the pace of the project. Working assumption: **3–5 decisions per week (A)**, with the backlog below ordered so the next decision is always the most valuable one.
 
 ```mermaid
-flowchart LR
+flowchart TD
   subgraph INNER["Inner loop: bots, 24/7"]
-    B["Build: bot opens PR"] --> T["Test: compiler, Credo, Dialyzer, ExUnit"]
-    T --> P["Self-play: persona agents + Ronny red team"]
-    P --> S["Score: persona needs, latency, cost per session, coherence, rules"]
-    S --> F{"Clear-cut finding?"}
-    F -- "yes: bot fixes" --> B
+    B["Build:<br/>bot opens PR"] --> T["Test: compiler,<br/>Credo, Dialyzer,<br/>ExUnit"]
+    T --> P["Self-play:<br/>persona agents<br/>+ Ronny<br/>red team"]
+    P --> S["Score: persona<br/>needs, latency,<br/>cost per session,<br/>coherence, rules"]
+    S --> F{"Clear-cut<br/>finding?"}
+    F -- "yes:<br/>bot fixes" --> B
   end
-  S --> G{"Gates passed + human review of risky areas?"}
+  S ---> G{"Gates passed<br/>+ human review<br/>of risky areas?"}
   G -- "yes" --> DEP["Deploy"]
-  F -- "needs judgment" --> Q["Decision backlog"]
-  subgraph OUTER["Outer loop: founders as product owners"]
-    Q --> C["Conversations: what next, persona trade-offs, taste calls"]
-    C --> H["Real playtests and talks with real players"]
+  F -- "needs<br/>judgment" ----> Q["Decision backlog"]
+  subgraph OUTER["Outer loop: founders as POs"]
+    Q --> C["Conversations:<br/>what next,<br/>persona<br/>trade-offs,<br/>taste calls"]
+    C --> H["Real playtests<br/>and talks with<br/>real players"]
   end
-  H --> N["New issues, rubrics, priorities"]
+  H --> N["New issues,<br/>rubrics, priorities"]
   N --> B
 ```
 
