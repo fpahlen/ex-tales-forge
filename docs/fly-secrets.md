@@ -43,9 +43,9 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `ADMIN_EMAILS` | Comma-separated emails allowed into the admin | Yes, fredrik@whyse.se only |
 | `GITHUB_DOCS_TOKEN` | Read-only GitHub token so the admin can import this docs repo | Yes |
 | `XAI_API_KEY` | AI game master (xAI). Without it the GM gives mock narration | Yes (since 2026-10-06) |
-| `GITHUB_OAUTH_CLIENT_ID` | "Sign in with GitHub" on the admin: Client ID of the GitHub OAuth app *Tales Forge Admin* (see [infrastructure.md](infrastructure.md#github-sign-in-for-the-admin)). Without it and the secret, only email links work | No, not set yet |
-| `GITHUB_OAUTH_CLIENT_SECRET` | Client secret of the same OAuth app | No, not set yet |
-| `ADMIN_GITHUB_TEAM` | Optional. A GitHub team as `org/team-slug`, e.g. `whyse-ab/tales-forge`; its active members can sign in to the admin with GitHub. Unset = team access off (only `ADMIN_EMAILS` counts). Needs `GITHUB_DOCS_TOKEN` to be able to read `whyse-ab` members | No, not set yet (off) |
+| `GITHUB_OAUTH_CLIENT_ID` | "Sign in with GitHub" on the admin: Client ID of the GitHub OAuth app *Tales Forge Admin* (see [infrastructure.md](infrastructure.md#github-sign-in-for-the-admin)). Without it and the secret, only email links work | Yes (live since v13, 2026-10-06) |
+| `GITHUB_OAUTH_CLIENT_SECRET` | Client secret of the same OAuth app | Yes (live since v13, 2026-10-06) |
+| `ADMIN_GITHUB_TEAM` | Optional. A GitHub team as `org/team-slug`, e.g. `whyse-ab/tales-forge`; its active members can sign in to the admin with GitHub. Unset = team access off (only `ADMIN_EMAILS` counts). Needs `GITHUB_DOCS_TOKEN` to be able to read `whyse-ab` members | No, unset (team access off) |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` | Optional other AI providers | No |
 | `MAIL_ADAPTER` | Email provider for magic links, e.g. `resend` | No, see [Resend setup](resend-setup.md) |
 | `RESEND_API_KEY` | Resend sending key | No |
