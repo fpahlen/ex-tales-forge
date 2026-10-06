@@ -17,6 +17,7 @@ Also in this folder:
 - [Examples of play](examples-of-play.md): five short sample sessions in Merovingia, one per persona (draft)
 - [Infrastructure assets](infrastructure.md)
 - [Environments and how changes reach production](environments.md)
+- [Design: playtest loop](design-playtest-loop.md): how persona bots play, get scored, and feed fixes and decisions (draft)
 - [Setting up Resend (email)](resend-setup.md)
 - [Adding API keys and secrets to Fly](fly-secrets.md)
 
