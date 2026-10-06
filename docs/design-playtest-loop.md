@@ -46,7 +46,7 @@ Checked in `ex-tales-forge` on `main` (commit `bd5af30`):
 - **No self-play, persona bots, judge or scorecard code exists yet.** The hits for "persona" in the code are NPC personalities, not player personas.
 - **`mix e2e.smoke`** (`lib/mix/tasks/e2e.smoke.ex`) is the closest thing. It plays a fixed three-turn tavern scenario against a running dev server with the real AI, checks each turn's latency against the 3 s limit and whether the expected NPCs show up and remember things, and writes `priv/playtest/reports/e2e-smoke.json` and `.md`. It runs by hand; it is not part of CI. The last saved report is from 2026-07-03.
 - **What's already recorded per session:** each turn stores the player's action, the narration and a `mechanical_resolution` map (roll and outcome). `session_events` carry a `player_aware` flag, so events the player never sees are already kept apart.
-- **Not recorded yet:** the GM's hidden reasoning as its own record. AI token use and cost per call are recorded since ex-tales-forge #19, see *Build progress*.
+- **Not recorded yet:** the GM's hidden reasoning as its own record (in review, see *Build progress*). AI token use and cost per call are recorded since ex-tales-forge #19, see *Build progress*.
 - **Playtest environment:** `fly.playtest.toml` and the playtest deploy workflow exist; see [environments](environments.md).
 
 ## Build progress
@@ -55,6 +55,7 @@ Checked in `ex-tales-forge` on `main` (commit `bd5af30`):
 |---|---|---|
 | 1 | AI cost per LLM call: `ai_calls` table with tokens (in, out, cached, reasoning), model, cost, latency and status, linked to session and turn number | Done: [ex-tales-forge #19](https://github.com/whyse-ab/ex-tales-forge/pull/19), plus the fix [#21](https://github.com/whyse-ab/ex-tales-forge/pull/21) so rows are actually written in production; verified live 2026-10-06 |
 | 2 | Per-session and per-day spending caps with a hard stop, set by `AI_CAP_SESSION_USD` and `AI_CAP_DAY_USD` (unset = off; day = since midnight Stockholm time). A capped call sends nothing, is logged and stored as a `capped` row, and the player sees a calm "the Game Master is resting" message | Done: [ex-tales-forge #20](https://github.com/whyse-ab/ex-tales-forge/pull/20). Live on playtest ($1.00 per session, $10.00 per day); off in production |
+| 3 | GM hidden reasoning per turn: a short hidden `gm_notes` field in the GM reply, stored with the raw GM reply as a `gm_reasoning` session event (`player_aware: false`) in the turn's transaction; never shown to the player or fed back into prompts | Done: [ex-tales-forge #22](https://github.com/whyse-ab/ex-tales-forge/pull/22) |
 
 ## The steps
 
