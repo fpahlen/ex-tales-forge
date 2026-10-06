@@ -16,12 +16,13 @@ Everything Tales Forge runs on, in one place. "Login held by" says who can get i
 | Fly.io account and app `tales-forge` | Hosts the game and its admin, region `arn` (Stockholm) | Live at tales-forge.fly.dev (org personal, account fredrik@whyse.se); deployed from PR #15 branch | ~$6–7/month (shared-cpu-1x, 1 GB, always on; auto-stop caused failed cold starts) | Fredrik | Shared vault (todo) |
 | Postgres on Fly | Sessions, decisions, comments | Self-run Fly Postgres `tales-forge-db` (arn), attached | ~$6/month (shared-cpu-1x, 1 GB; 256 MB stalled under load. Unsupported; managed ~$38/month later if needed) | Fredrik | Fly secret `DATABASE_URL` |
 | Resend | Sends sign-in links now, player mail later | Not created | Free at current volume | — | Fly secret `RESEND_API_KEY` |
-| xAI API key | AI game master | Exists | Usage-based; the main per-session cost | Fredrik | Fly secret `XAI_API_KEY` |
+| xAI API keys | AI game master | Production key live; separate playtest key live on `tales-forge-playtest` | Usage-based; the main per-session cost | Fredrik | Fly secret `XAI_API_KEY` (one per app) |
 | GitHub docs token | Lets the admin import from `tales-forge-docs` and check `whyse-ab/tales-forge` team membership | Live (fine-grained, contents read + Members read) | Free | Fredrik | Fly secret `GITHUB_DOCS_TOKEN` |
 | GitHub OAuth app *Tales Forge Admin* | "Sign in with GitHub" on the admin (email links stay as fallback) | Live since v13 (2026-10-06), registered under `whyse-ab` | Free | Fredrik | Fly secrets `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` |
-| GitHub Actions CI and prod deploy | Tests every PR; deploys `main` to `tales-forge` after the tests pass ([environments](environments.md)) | Planned: workflow on the `ci-deploy` branch of ex-tales-forge, not merged | Free (public repo) | Fredrik | Actions secret `FLY_API_TOKEN` (deploy token for `tales-forge`, not created) |
-| Fly app `tales-forge-playtest` and its own Postgres | Long-lived playtest for persona bots and invited testers; tracks `main` | Planned, not created | ~$1–6.50/month est. depending on autostop ([environments](environments.md#costs-estimates-2026-10-06)) | — | Fly secrets on `tales-forge-playtest`; Actions secret `FLY_API_TOKEN_PLAYTEST` (not created) |
-| Fly PR preview apps `tales-forge-pr-<n>` | One throwaway app and database per open PR, destroyed on close | Planned, not created | ~$1.50–2.50/month est. | — | Generated per app; Actions secret for a Fly app-creating token (not created) |
+| GitHub Actions CI and prod deploy | Tests every PR; deploys `main` to `tales-forge` after the tests pass ([environments](environments.md)). `main` is protected: required check `Test` | Live (`.github/workflows/ci.yml`, merged in PR #16) | Free (public repo) | Fredrik | Actions secret `FLY_API_TOKEN` (deploy token for `tales-forge`, set) |
+| Fly app `tales-forge-playtest` | Long-lived playtest for persona bots and, later, invited testers; tracks `main` (deployed right after prod by `.github/workflows/playtest.yml`, ex-tales-forge PR #17) | Live at [tales-forge-playtest.fly.dev](https://tales-forge-playtest.fly.dev) since 2026-10-06: arn, shared-cpu-1x 512 MB plus 512 MB swap, 1 machine (`801e9ef6136178`) always on | ~$3.84/month | Fredrik | Fly secrets on `tales-forge-playtest` (`DATABASE_URL`, `SECRET_KEY_BASE`, `ADMIN_EMAILS`, `ADMIN_GITHUB_TEAM`, `XAI_API_KEY`); Actions secret `FLY_API_TOKEN_PLAYTEST` (not created) |
+| Postgres `tales-forge-playtest-db` | Playtest database; later also holds one database per PR preview | Live: self-run Fly Postgres (postgres-flex 18.1, same type as prod), arn, single node, shared-cpu-1x 512 MB, 1 GB volume, machine `d8d1116b5d1918`, always on, attached to `tales-forge-playtest` | ~$3.99/month ($3.84 machine plus $0.15 volume) | Fredrik | Fly secret `DATABASE_URL` on `tales-forge-playtest`; superuser password not stored |
+| Fly PR preview apps `tales-forge-pr-<n>` | One throwaway app per open PR, with its own database on `tales-forge-playtest-db`, no AI key, destroyed on close | Decided, not built | ~$1.50/month est. | — | Generated per app; Actions secret for a Fly app-creating token (not created) |
 | Google Drive folder | Shared docs and persona form until migrated here | Exists ([folder](https://drive.google.com/drive/folders/1tlNoL8WZJPgbFQVT4SipKi9odGnQM_PB)) | Free | Fredrik | — |
 | Shared password vault | Logins and secrets not stuck in one head | Not chosen | Depends on tool | — | — |
 
@@ -29,7 +30,7 @@ Everything Tales Forge runs on, in one place. "Login held by" says who can get i
 
 | Asset | What it's for | When |
 |---|---|---|
-| Separate API keys for self-play bots | Measure bot cost per session apart from real players (this is the playtest app's own `XAI_API_KEY`) | When self-play starts (November) |
+| Self-play bots on playtest | Measure bot cost per session apart from real players, using the playtest app's own `XAI_API_KEY` (key exists) | When self-play starts (November) |
 | Error and uptime monitoring (e.g. Sentry free tier plus an uptime check) | Know when the game breaks | Before outside players arrive |
 | Stripe | Module purchases and prepaid credits | Before the first paying customer |
 
@@ -61,3 +62,5 @@ Secrets: `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, optional `ADMIN
 ## Fly secrets checklist
 
 `DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `ADMIN_EMAILS`, `ADMIN_MAIL_FROM`, `MAIL_ADAPTER`, `RESEND_API_KEY` (or `POSTMARK_API_KEY`), `GITHUB_DOCS_TOKEN`, `XAI_API_KEY`; optional `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `ADMIN_GITHUB_TEAM`. Steps are in `docs/DEPLOY-FLY.md` in ex-tales-forge.
+
+Playtest (`tales-forge-playtest`) only needs `DATABASE_URL` and `SECRET_KEY_BASE` to boot. It has `ADMIN_EMAILS`, `ADMIN_GITHUB_TEAM` and its own `XAI_API_KEY` too; `PHX_HOST` is in `fly.playtest.toml`. Per-secret status: [environments](environments.md#secrets-per-environment-names-only) and [fly-secrets](fly-secrets.md#playtest-tales-forge-playtest).

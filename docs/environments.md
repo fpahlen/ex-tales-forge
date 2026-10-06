@@ -5,11 +5,11 @@ updated: 2026-10-06
 
 # Environments and how changes reach production
 
-This is the approved plan. **Only production exists today.** Playtest and PR previews are planned and not created yet. Automatic deploys are waiting on the `ci-deploy` branch in ex-tales-forge being merged and on a deploy token.
+Status 2026-10-06: **production** and **playtest** are live. Production deploys automatically from `main` through GitHub Actions. PR previews are decided but not built yet.
 
 ## Branches
 
-- `main` is what runs in production. Nobody pushes to it directly; everything goes in through a pull request.
+- `main` is what runs in production. Nobody pushes to it directly; everything goes in through a pull request. `main` is protected: the CI check **`Test`** must pass before anything lands on it.
 - Each change gets a short-lived branch (`feature/...`, `fix/...`), a PR, and is deleted after merge.
 - There is no long-lived `dev` or `staging` branch.
 
@@ -17,25 +17,26 @@ This is the approved plan. **Only production exists today.** Playtest and PR pre
 
 | | Production | Playtest | PR preview |
 |---|---|---|---|
-| Fly app | `tales-forge` | `tales-forge-playtest` | `tales-forge-pr-<number>` |
-| Database | `tales-forge-db` (own Fly Postgres) | Own small Fly Postgres in `arn` | Small throwaway database, deleted with the app |
-| Runs | `main` | `main`, after production (or a manual promote) | The PR's branch |
+| Fly app | `tales-forge` | `tales-forge-playtest` ([tales-forge-playtest.fly.dev](https://tales-forge-playtest.fly.dev)) | `tales-forge-pr-<number>` (its own app) |
+| App machine | shared-cpu-1x, 1 GB, 1 machine always on | shared-cpu-1x, 512 MB plus 512 MB swap, 1 machine always on | Small, created per PR |
+| Database | `tales-forge-db` (own Fly Postgres) | `tales-forge-playtest-db`: own Fly Postgres (postgres-flex 18), single node, shared-cpu-1x 512 MB, 1 GB volume, always on | A database per PR **on the playtest cluster** `tales-forge-playtest-db`, dropped with the app |
+| Runs | `main` | `main`, deployed automatically right after production (or by hand) | The PR's branch |
 | Who uses it | Players, admins | Persona bots (self-play) and a few invited testers | Whoever reviews the PR |
-| Lifetime | Always on | Long-lived; can sleep when idle | Created when the PR opens, destroyed when it closes |
-| AI key | Production `XAI_API_KEY` | Its own `XAI_API_KEY`, so bot cost is counted separately | None (mock narration), or a capped key |
-| Status | Live | Planned, not created | Planned, not created |
+| Lifetime | Always on | Long-lived, always on | Created when the PR opens, destroyed when it closes |
+| AI key | Production `XAI_API_KEY` | Its own `XAI_API_KEY`, so bot cost is counted separately | None: mock narration |
+| Status | Live | Live since 2026-10-06 | Decided, not built |
 
 Region is `arn` (Stockholm) for all three. The `tales-forge.ai` domain stays on Netlify. No environment gets Fly certificates or DNS changes.
 
 ## How a change gets to production
 
 1. Push a branch and open a PR. GitHub Actions runs the checks: compile with warnings as errors, format check, Credo, tests, and `mix hex.audit`.
-2. Later, a preview app also starts for the PR, with its link posted on the PR.
+2. Later (not built yet), a preview app also starts for the PR, with its link posted on the PR.
 3. When the checks are green and the change is reviewed, merge to `main`.
-4. On `main`, Actions runs the checks again and then deploys to `tales-forge`. Database migrations run first (`/app/bin/migrate`). Only one deploy runs at a time, and a running deploy is never cancelled.
-5. Playtest then gets the same build, either automatically after production or with a manual "promote".
+4. On `main`, Actions (`.github/workflows/ci.yml`) runs the checks again and then deploys to `tales-forge`. Database migrations run first (`/app/bin/migrate`). Only one deploy runs at a time, and a running deploy is never cancelled. This is live.
+5. Playtest then gets the same commit: `.github/workflows/playtest.yml` runs after every green CI run on `main` and deploys to `tales-forge-playtest`. It can also be started by hand (Actions → "Deploy to playtest"). It is a separate workflow, so a failed playtest deploy never fails or blocks production. (Workflow in ex-tales-forge PR #17; it needs the Actions secret `FLY_API_TOKEN_PLAYTEST`.)
 
-A manual `fly deploy` is the fallback when Actions is down. It is the same command CI runs; see `docs/DEPLOY-FLY.md` in ex-tales-forge.
+A manual `fly deploy` is the fallback when Actions is down. It is the same command CI runs; see `docs/DEPLOY-FLY.md` in ex-tales-forge. For playtest: `fly deploy --remote-only --depot=false -c fly.playtest.toml -a tales-forge-playtest --ha=false`.
 
 ## What needs Fredrik's OK
 
@@ -43,6 +44,10 @@ A manual `fly deploy` is the fallback when Actions is down. It is the same comma
 - Creating or deleting Fly apps, databases, volumes, deploy tokens and GitHub secrets.
 - Anything that adds cost, such as a bigger machine, an always-on playtest, or Managed Postgres.
 - Inviting playtesters and giving out admin access (`ADMIN_EMAILS`, `ADMIN_GITHUB_TEAM`).
+
+## Invited testers (later)
+
+Invited testers will come later, either through playtest's `ADMIN_EMAILS` or through a separate tester list. Nothing is built for this yet. Email sign-in on playtest also needs a mail key first (see the secrets below).
 - A new AI key, or raising the spending cap on one.
 
 ## Costs (estimates, 2026-10-06)
@@ -52,30 +57,50 @@ Fly list prices for `arn` per 30 days: shared-cpu-1x is $2.28 with 256 MB, $3.84
 | Environment | Setup | Estimate per month |
 |---|---|---|
 | Production (today) | App 1 GB always on; DB 1 GB always on plus a 1 GB volume | ~$14 |
-| Playtest app | 512 MB, always 1 running / sleeps when idle | $3.84 / ~$0.50–2 |
-| Playtest DB | 256 MB plus a 1 GB volume, always on / sleeps after 1 h idle | $2.43 / ~$0.50–1.50 |
-| PR previews | About 4 PRs a month, 3 days each: app plus its own tiny DB / app plus a database on the playtest Postgres | ~$2.50 / ~$1.50 |
-| **New cost in total** | Cheapest to most expensive | **~$3 to ~$9** (~$10.50 if the playtest DB needs 512 MB) |
+| Playtest app (live) | `tales-forge-playtest`: shared-cpu-1x 512 MB, 1 machine always on (swap is free) | ~$3.84 |
+| Playtest DB (live) | `tales-forge-playtest-db`: shared-cpu-1x 512 MB always on ($3.84) plus a 1 GB volume ($0.15) | ~$3.99 |
+| PR previews (not built) | About 4 PRs a month, 3 days each: own small app plus a database on the playtest cluster | ~$1.50 |
+| **New cost in total** | Playtest ~$7.83 plus previews | **~$8 now, ~$9.50 with previews** |
 
 Total new cost stays under $15/month in every option. Sources: [Fly pricing](https://fly.io/docs/about/pricing/), [Fly billing](https://fly.io/docs/about/billing/).
 
-Sleeping (autostop) caveats: production runs always on because waking from sleep failed there. The 256 MB database stalled under load in production. Our Fly Postgres type is no longer maintained by Fly, and its sleep mode only kicks in once the app has stopped and closed its connections.
+Why always on: production runs always on because waking from sleep failed there. The 256 MB database stalled under load in production. Our Fly Postgres type is no longer maintained by Fly, and its sleep mode only kicks in once the app has stopped and closed its connections. So playtest's app and database never sleep either.
+
+Memory: at 512 MB with no swap, the playtest app was killed for running out of memory during boot. With 512 MB of swap it boots in about 25 s and runs with roughly 165 MB swapped out. If it feels slow, moving to 1 GB adds about $3/month.
 
 ## Secrets per environment (names only)
 
 Values live in Fly secrets or GitHub Actions secrets, never in the repos.
 
 **Production** (Fly app `tales-forge`): `DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `ADMIN_EMAILS`, `ADMIN_GITHUB_TEAM`, `GITHUB_DOCS_TOKEN`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `XAI_API_KEY`; later `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM`. See [fly-secrets.md](fly-secrets.md).
-GitHub Actions secret: `FLY_API_TOKEN`, a deploy token that only works on `tales-forge` (not created yet).
+GitHub Actions secret: `FLY_API_TOKEN`, a deploy token that only works on `tales-forge` (set).
 
-**Playtest** (Fly app `tales-forge-playtest`, planned): `DATABASE_URL`, its own `SECRET_KEY_BASE`, `PHX_HOST` (`tales-forge-playtest.fly.dev`), its own `XAI_API_KEY`, its own `ADMIN_EMAILS` and `ADMIN_GITHUB_TEAM`, and `GITHUB_DOCS_TOKEN`. "Sign in with GitHub" there needs a second OAuth app with its own `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET`, because an OAuth app only accepts its own callback address. Mail secrets are only needed if testers sign in by email.
-GitHub Actions secret: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only.
+**Playtest** (Fly app `tales-forge-playtest`, live). All values are its own, never copied from production:
 
-**PR previews** (planned): `DATABASE_URL` (set when the database is attached), and `SECRET_KEY_BASE`, newly generated for each preview by the workflow and never stored anywhere else. `PHX_HOST` is the preview's own `.fly.dev` name. Optional: `ADMIN_EMAILS`. No AI key by default, so the game master gives mock narration, and no mail key.
+| Name | Status |
+|---|---|
+| `DATABASE_URL` | Set (by `fly postgres attach tales-forge-playtest-db`) |
+| `SECRET_KEY_BASE` | Set (newly generated) |
+| `ADMIN_EMAILS` | Set (fredrik@whyse.se) |
+| `ADMIN_GITHUB_TEAM` | Set (`whyse-ab/tales-forge`), but has no effect without GitHub sign-in |
+| `XAI_API_KEY` | Set, live: a separate playtest key |
+| `PHX_HOST` | Not a secret here: `tales-forge-playtest.fly.dev` is in `fly.playtest.toml` |
+| `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | Not set. The OAuth app's callback is fixed to tales-forge.fly.dev, so "Sign in with GitHub" is hidden on playtest. It would need a second OAuth app |
+| `GITHUB_DOCS_TOKEN` | Not set. The app runs without it. In the admin, "Sync from repo" for decisions and docs fails with "no docs source", and GitHub team checks are off |
+| `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | Not set (production has none either), so magic-link emails aren't delivered and nobody can sign in to the playtest admin yet |
+
+GitHub Actions secret: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only. **Not created yet.** Fredrik creates it in the Fly dashboard.
+
+**PR previews** (decided, not built): each preview is its own Fly app with its own database on the playtest cluster `tales-forge-playtest-db`. App and database are destroyed when the PR closes. Secrets: `DATABASE_URL` (set when the database is attached), and `SECRET_KEY_BASE`, newly generated for each preview by the workflow and never stored anywhere else. `PHX_HOST` is the preview's own `.fly.dev` name. Optional: `ADMIN_EMAILS`. No AI key, so the game master gives mock narration, and no mail key.
 GitHub Actions secret: a Fly token that can create and destroy apps, which is broader than a deploy token (see the open decisions).
+
+## Decided (2026-10-06)
+
+- Playtest keeps 1 machine always running, and so does its database (~$8/month in total).
+- Previews get their own app and a per-PR database on the playtest cluster, with no AI key, destroyed when the PR closes.
+- `main` is protected with the required check `Test`. Production deploys automatically from `main` through Actions; playtest follows right after.
 
 ## Open decisions
 
-- Who creates the Fly deploy token(s) and adds them as GitHub Actions secrets.
-- Whether playtest keeps 1 machine always running (~$4) or sleeps when idle (~$1, slower first visit, and self-play has to run through the web, not only as background jobs).
-- Previews: their own tiny database or a database on the playtest Postgres, and whether previews live in a separate Fly organization so their token can't touch production.
+- Whether previews live in a separate Fly organization so their app-creating token can't touch production.
+- How invited testers sign in to playtest (`ADMIN_EMAILS` or a separate tester list, plus a mail key).
