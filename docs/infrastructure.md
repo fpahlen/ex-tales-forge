@@ -12,7 +12,7 @@ Everything Tales Forge runs on, in one place. "Login held by" says who can get i
 | Asset | What it's for | Status | Cost | Login held by | Secret stored in |
 |---|---|---|---|---|---|
 | Domain `tales-forge.ai` | Game and admin addresses | Exists | Yearly renewal (check registrar) | Fredrik | Shared vault (todo) |
-| GitHub organization (e.g. `tales-forge`) | Holds `ex-tales-forge`, `tales-forge-docs`, `text-forge`; founders in one team | Not created yet; repos are under `fpahlen` | Free (branch protection on private repos needs Team, ~$4/user/month, skipped for now) | Fredrik | — |
+| GitHub organization `whyse-ab` | Holds `ex-tales-forge`, `tales-forge-docs`, `text-forge`; founders in one team | Created as `whyse-ab` (Team plan); ex-tales-forge and tales-forge-docs moved 2026-10-06, text-forge still under `fpahlen` | Team plan (branch protection included) | Fredrik | — |
 | Fly.io account and app `tales-forge` | Hosts the game and its admin, region `arn` (Stockholm) | Account being set up; deploy files in ex-tales-forge PR #15 | ~$4–7/month (shared-cpu-1x, 1 GB, auto-stop) | Fredrik | Shared vault (todo) |
 | Postgres on Fly | Sessions, decisions, comments | Not created; choice open | Managed ~$38/month, or self-run ~a few $/month (unsupported) | Fredrik | Fly secret `DATABASE_URL` |
 | Resend | Sends sign-in links now, player mail later | Not created | Free at current volume | — | Fly secret `RESEND_API_KEY` |
