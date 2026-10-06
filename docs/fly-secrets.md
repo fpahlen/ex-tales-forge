@@ -7,7 +7,7 @@ updated: 2026-10-06
 
 API keys, passwords and tokens go into **Fly secrets**, never into the code or `fly.toml`. Fly stores them encrypted and gives them to the app as environment variables. Setting or changing a secret restarts the app, which takes about 10 seconds.
 
-App: `tales-forge`, org `personal`, account fredrik@whyse.se.
+Apps: `tales-forge` (production) and `tales-forge-playtest` (playtest), org `personal`, account fredrik@whyse.se. Each app has its own secrets; never copy a value from one to the other. The tables below cover production first, then [playtest](#playtest-tales-forge-playtest).
 
 ## Option 1: the Fly dashboard (easiest)
 
@@ -33,7 +33,7 @@ Tip: put a space before the command so it doesn't end up in your shell history (
 
 Ask Case or Bobby to add a key. You get a masked input box in the chat, so the value never appears in the conversation, and the bot sets it on Fly for you.
 
-## Which secrets the app uses
+## Which secrets the app uses (production, `tales-forge`)
 
 | Name | What it's for | Set? (2026-10-06) |
 |---|---|---|
@@ -52,6 +52,24 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `ADMIN_MAIL_FROM` | Sender address for login emails (default `admin@tales-forge.ai`) | No |
 
 Mailgun and Postmark (`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `POSTMARK_API_KEY`) are also supported by the code but not used.
+
+## Playtest (`tales-forge-playtest`)
+
+Same names as production, with **separate values** (never copied from prod). [Dashboard](https://fly.io/apps/tales-forge-playtest/secrets); on the command line use `-a tales-forge-playtest`.
+
+| Name | Set? (2026-10-06) |
+|---|---|
+| `DATABASE_URL` | Yes, set by `fly postgres attach tales-forge-playtest-db` (database `tales_forge_playtest` on the playtest cluster) |
+| `SECRET_KEY_BASE` | Yes, newly generated for playtest |
+| `ADMIN_EMAILS` | Yes, fredrik@whyse.se only. Invited testers come later, here or through a separate tester list |
+| `ADMIN_GITHUB_TEAM` | Yes, `whyse-ab/tales-forge`. Has no effect until GitHub sign-in and `GITHUB_DOCS_TOKEN` exist on playtest |
+| `XAI_API_KEY` | Yes, live: a separate playtest key (added by Case), so bot and tester cost is counted apart from production |
+| `PHX_HOST` | Not a secret: `tales-forge-playtest.fly.dev` is in `fly.playtest.toml` |
+| `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | No. The *Tales Forge Admin* OAuth app only accepts the tales-forge.fly.dev callback, so "Sign in with GitHub" is hidden on playtest. It would need a second OAuth app |
+| `GITHUB_DOCS_TOKEN` | No. Not needed to boot; without it, "Sync from repo" in the admin fails and GitHub team checks are off |
+| `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | No, so magic-link emails aren't sent on playtest |
+
+GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Not created yet.
 
 ## Good habits
 
