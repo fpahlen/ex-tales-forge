@@ -48,6 +48,7 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `ADMIN_GITHUB_TEAM` | Optional. A GitHub team as `org/team-slug`, e.g. `whyse-ab/tales-forge`; its active members can sign in to the admin with GitHub. Unset = team access off (only `ADMIN_EMAILS` counts). Needs `GITHUB_DOCS_TOKEN` to be able to read `whyse-ab` members | Yes: `whyse-ab/tales-forge` (since v15, 2026-10-06) |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` | Optional other AI providers | No |
 | `AI_CAP_SESSION_USD`, `AI_CAP_DAY_USD` | Optional AI spending caps in USD, per game session and per day (since midnight Stockholm time). Not set = that cap is off. Not secret, but set the same way (ex-tales-forge PR #20) | No, not set = off |
+| `PLAYTEST_RUNNER_ENABLED` | Turns on the persona bot runner (ex-tales-forge PR #23) when set to `true`. Not secret, but set the same way | **Never** set in production |
 | `MAIL_ADAPTER` | Email provider for magic links, e.g. `resend` | No, see [Resend setup](resend-setup.md) |
 | `RESEND_API_KEY` | Resend sending key | No |
 | `ADMIN_MAIL_FROM` | Sender address for login emails (default `admin@tales-forge.ai`) | No |
@@ -70,6 +71,7 @@ Same names as production, with **separate values** (never copied from prod), exc
 | `GITHUB_DOCS_TOKEN` | Yes, the same fine-grained whyse-ab token as production (contents read, Members read). Used for the team check and "Sync from repo" |
 | `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | No, so magic-link emails aren't sent on playtest |
 | `AI_CAP_SESSION_USD`, `AI_CAP_DAY_USD` | Yes, since 2026-10-06: $1.00 per session, $10.00 per day. Changing them needs Fredrik's OK |
+| `PLAYTEST_RUNNER_ENABLED` | Not yet. Set to `true` after ex-tales-forge PR #23 is merged and deployed, so persona bot runs can be started here |
 
 GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.
 
