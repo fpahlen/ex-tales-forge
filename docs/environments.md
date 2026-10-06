@@ -47,7 +47,7 @@ A manual `fly deploy` is the fallback when Actions is down. It is the same comma
 
 ## Invited testers (later)
 
-Invited testers will come later, either through playtest's `ADMIN_EMAILS` or through a separate tester list. Nothing is built for this yet. Email sign-in on playtest also needs a mail key first (see the secrets below).
+The founders are the first testers: they sign in to playtest with GitHub through the `whyse-ab/tales-forge` team, like production. A separate tester list comes later, when outside testers join. Email sign-in on playtest also needs a mail key first (see the secrets below).
 - A new AI key, or raising the spending cap on one.
 
 ## Costs (estimates, 2026-10-06)
@@ -75,21 +75,21 @@ Values live in Fly secrets or GitHub Actions secrets, never in the repos.
 **Production** (Fly app `tales-forge`): `DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `ADMIN_EMAILS`, `ADMIN_GITHUB_TEAM`, `GITHUB_DOCS_TOKEN`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `XAI_API_KEY`; later `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM`. See [fly-secrets.md](fly-secrets.md).
 GitHub Actions secret: `FLY_API_TOKEN`, a deploy token that only works on `tales-forge` (set).
 
-**Playtest** (Fly app `tales-forge-playtest`, live). All values are its own, never copied from production:
+**Playtest** (Fly app `tales-forge-playtest`, live). All values are its own, never copied from production, except the read-only `GITHUB_DOCS_TOKEN`:
 
 | Name | Status |
 |---|---|
 | `DATABASE_URL` | Set (by `fly postgres attach tales-forge-playtest-db`) |
 | `SECRET_KEY_BASE` | Set (newly generated) |
 | `ADMIN_EMAILS` | Set (fredrik@whyse.se) |
-| `ADMIN_GITHUB_TEAM` | Set (`whyse-ab/tales-forge`), but has no effect without GitHub sign-in |
+| `ADMIN_GITHUB_TEAM` | Set (`whyse-ab/tales-forge`): the founders sign in with GitHub, same check as production |
 | `XAI_API_KEY` | Set, live: a separate playtest key |
 | `PHX_HOST` | Not a secret here: `tales-forge-playtest.fly.dev` is in `fly.playtest.toml` |
-| `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | Not set. The OAuth app's callback is fixed to tales-forge.fly.dev, so "Sign in with GitHub" is hidden on playtest. It would need a second OAuth app |
-| `GITHUB_DOCS_TOKEN` | Not set. The app runs without it. In the admin, "Sync from repo" for decisions and docs fails with "no docs source", and GitHub team checks are off |
-| `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | Not set (production has none either), so magic-link emails aren't delivered and nobody can sign in to the playtest admin yet |
+| `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | Set, from a second OAuth app with the playtest callback |
+| `GITHUB_DOCS_TOKEN` | Set, same read-only token as production; needed for the team check |
+| `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | Not set (production has none either), so magic-link emails aren't delivered; sign-in is GitHub only |
 
-GitHub Actions secret: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only. **Not created yet.** Fredrik creates it in the Fly dashboard.
+GitHub Actions secret: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (set).
 
 **PR previews** (decided, not built): each preview is its own Fly app with its own database on the playtest cluster `tales-forge-playtest-db`. App and database are destroyed when the PR closes. Secrets: `DATABASE_URL` (set when the database is attached), and `SECRET_KEY_BASE`, newly generated for each preview by the workflow and never stored anywhere else. `PHX_HOST` is the preview's own `.fly.dev` name. Optional: `ADMIN_EMAILS`. No AI key, so the game master gives mock narration, and no mail key.
 GitHub Actions secret: a Fly token that can create and destroy apps, which is broader than a deploy token (see the open decisions).
@@ -103,4 +103,4 @@ GitHub Actions secret: a Fly token that can create and destroy apps, which is br
 ## Open decisions
 
 - Whether previews live in a separate Fly organization so their app-creating token can't touch production.
-- How invited testers sign in to playtest (`ADMIN_EMAILS` or a separate tester list, plus a mail key).
+- How outside testers sign in to playtest later (a separate tester list, plus a mail key). The founders already use the GitHub team.
