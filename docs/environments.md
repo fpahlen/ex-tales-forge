@@ -64,6 +64,8 @@ Fly list prices for `arn` per 30 days: shared-cpu-1x is $2.28 with 256 MB, $3.84
 
 Total new cost stays under $15/month in every option. Sources: [Fly pricing](https://fly.io/docs/about/pricing/), [Fly billing](https://fly.io/docs/about/billing/).
 
+The admin costs page (`/admin/costs`, ex-tales-forge PR #28) shows these fixed costs next to actual AI spend for both environments. Its figures come from one config block, `config :ex_tales_forge, TalesForge.Costs` in ex-tales-forge's `config/config.exs`; update it when the numbers here change.
+
 Why always on: production runs always on because waking from sleep failed there. The 256 MB database stalled under load in production. Our Fly Postgres type is no longer maintained by Fly, and its sleep mode only kicks in once the app has stopped and closed its connections. So playtest's app and database never sleep either.
 
 Memory: at 512 MB with no swap, the playtest app was killed for running out of memory during boot. With 512 MB of swap it boots in about 25 s and runs with roughly 165 MB swapped out. If it feels slow, moving to 1 GB adds about $3/month.

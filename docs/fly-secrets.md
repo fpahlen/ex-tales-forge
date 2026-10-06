@@ -7,7 +7,7 @@ updated: 2026-10-06
 
 API keys, passwords and tokens go into **Fly secrets**, never into the code or `fly.toml`. Fly stores them encrypted and gives them to the app as environment variables. Setting or changing a secret restarts the app, which takes about 10 seconds.
 
-Apps: `tales-forge` (production) and `tales-forge-playtest` (playtest), org `personal`, account fredrik@whyse.se. Each app has its own secrets; never copy a value from one to the other. The tables below cover production first, then [playtest](#playtest-tales-forge-playtest).
+Apps: `tales-forge` (production) and `tales-forge-playtest` (playtest), org `personal`, account fredrik@whyse.se. Each app has its own secrets; never copy a value from one to the other. The exceptions are `GITHUB_DOCS_TOKEN` and `COSTS_PEER_TOKEN`, which must be the same on both apps. The tables below cover production first, then [playtest](#playtest-tales-forge-playtest).
 
 ## Option 1: the Fly dashboard (easiest)
 
@@ -50,15 +50,19 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `AI_CAP_SESSION_USD`, `AI_CAP_DAY_USD` | Optional AI spending caps in USD, per game session and per day (since midnight Stockholm time). Not set = that cap is off. The session cap counts only the game's calls, not the persona bot or the judge; the day cap counts everything (ex-tales-forge PR #20, #24). Not secret, but set the same way | No, not set = off |
 | `AI_CAP_PERSONA_RUN_USD` | Optional cap in USD on the persona bot's own AI calls per playtest run; hitting it stops the run (`persona_cap`). **Defaults to $0.50 when not set** (ex-tales-forge PR #24). Not secret, but set the same way | No (the runner never runs in production) |
 | `PLAYTEST_RUNNER_ENABLED` | Turns on the persona bot runner (ex-tales-forge PR #23) when set to `true`. Not secret, but set the same way | **Never** set in production |
+| `COSTS_PEER_TOKEN` | Shared bearer token for the admin costs page (ex-tales-forge PR #28). It turns on this app's `GET /internal/costs` (off with a 404 while unset) and lets this app read the other app's numbers. **Same value on both apps**: generate it once (e.g. `openssl rand -hex 32`) and set it on `tales-forge` and `tales-forge-playtest` | No, not set yet |
+| `COSTS_PEER_URL` | Base URL of the other app for the costs page: `https://tales-forge-playtest.fly.dev` on production. Config, not a secret, but set the same way. Without it (or without the token) the page says "not configured" | No, not set yet |
 | `MAIL_ADAPTER` | Email provider for magic links, e.g. `resend` | No, see [Resend setup](resend-setup.md) |
 | `RESEND_API_KEY` | Resend sending key | No |
 | `ADMIN_MAIL_FROM` | Sender address for login emails (default `admin@tales-forge.ai`) | No |
 
 Mailgun and Postmark (`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `POSTMARK_API_KEY`) are also supported by the code but not used.
 
+Fixed monthly costs on the costs page (Fly machines, GitHub, the domain and so on), the USD to SEK rate and the playtest warning threshold are not secrets. They live in one config block in ex-tales-forge, `config :ex_tales_forge, TalesForge.Costs` in `config/config.exs`. Edit the figures there.
+
 ## Playtest (`tales-forge-playtest`)
 
-Same names as production, with **separate values** (never copied from prod), except `GITHUB_DOCS_TOKEN`, which is the same read-only whyse-ab token. [Dashboard](https://fly.io/apps/tales-forge-playtest/secrets); on the command line use `-a tales-forge-playtest`.
+Same names as production, with **separate values** (never copied from prod), except `GITHUB_DOCS_TOKEN`, which is the same read-only whyse-ab token, and `COSTS_PEER_TOKEN`, which must match production's. [Dashboard](https://fly.io/apps/tales-forge-playtest/secrets); on the command line use `-a tales-forge-playtest`.
 
 | Name | Set? (2026-10-06) |
 |---|---|
@@ -74,6 +78,8 @@ Same names as production, with **separate values** (never copied from prod), exc
 | `AI_CAP_SESSION_USD`, `AI_CAP_DAY_USD` | Yes, since 2026-10-06: $1.00 per session, $10.00 per day. Changing them needs Fredrik's OK |
 | `AI_CAP_PERSONA_RUN_USD` | Not set, so the $0.50 per run default applies (from ex-tales-forge PR #24). Set it like the other caps (`fly secrets set AI_CAP_PERSONA_RUN_USD=... -a tales-forge-playtest`) only to change that; changing it needs Fredrik's OK |
 | `PLAYTEST_RUNNER_ENABLED` | Yes, `true`: staged 2026-10-06 with the deploy of ex-tales-forge PR #23 |
+| `COSTS_PEER_TOKEN` | Not set yet. The **same value** as on production; it turns on playtest's `GET /internal/costs`, which production's costs page reads |
+| `COSTS_PEER_URL` | Not set. Optional: `https://tales-forge.fly.dev` lets playtest's costs page show production too. Config, not a secret |
 
 GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.
 
