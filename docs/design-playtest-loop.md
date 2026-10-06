@@ -53,8 +53,8 @@ Checked in `ex-tales-forge` on `main` (commit `bd5af30`):
 
 | Build step | What | Status |
 |---|---|---|
-| 1 | AI cost per LLM call: `ai_calls` table with tokens (in, out, cached, reasoning), model, cost, latency and status, linked to session and turn number | Done: merged in [ex-tales-forge #19](https://github.com/whyse-ab/ex-tales-forge/pull/19) |
-| 2 | Per-session and per-day spending caps with a hard stop, set by `AI_CAP_SESSION_USD` and `AI_CAP_DAY_USD` (unset = off; day = since midnight Stockholm time). A capped call sends nothing, is logged and stored as a `capped` row, and the player sees a calm "the Game Master is resting" message | In review: [ex-tales-forge PR #20](https://github.com/whyse-ab/ex-tales-forge/pull/20) |
+| 1 | AI cost per LLM call: `ai_calls` table with tokens (in, out, cached, reasoning), model, cost, latency and status, linked to session and turn number | Done: [ex-tales-forge #19](https://github.com/whyse-ab/ex-tales-forge/pull/19), plus the fix [#21](https://github.com/whyse-ab/ex-tales-forge/pull/21) so rows are actually written in production; verified live 2026-10-06 |
+| 2 | Per-session and per-day spending caps with a hard stop, set by `AI_CAP_SESSION_USD` and `AI_CAP_DAY_USD` (unset = off; day = since midnight Stockholm time). A capped call sends nothing, is logged and stored as a `capped` row, and the player sees a calm "the Game Master is resting" message | Done: [ex-tales-forge #20](https://github.com/whyse-ab/ex-tales-forge/pull/20). Live on playtest ($1.00 per session, $10.00 per day); off in production |
 
 ## The steps
 
