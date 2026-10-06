@@ -42,7 +42,7 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `PHX_HOST` | Public host name (`tales-forge.fly.dev`) | Yes |
 | `ADMIN_EMAILS` | Comma-separated emails allowed into the admin | Yes, fredrik@whyse.se only |
 | `GITHUB_DOCS_TOKEN` | Read-only GitHub token so the admin can import this docs repo | Yes |
-| `XAI_API_KEY` | AI game master (xAI). Without it the GM gives mock narration | No |
+| `XAI_API_KEY` | AI game master (xAI). Without it the GM gives mock narration | Yes (since 2026-10-06) |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` | Optional other AI providers | No |
 | `MAIL_ADAPTER` | Email provider for magic links, e.g. `resend` | No, see [Resend setup](resend-setup.md) |
 | `RESEND_API_KEY` | Resend sending key | No |
