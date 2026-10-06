@@ -46,15 +46,15 @@ Checked in `ex-tales-forge` on `main` (commit `bd5af30`):
 - **No self-play, persona bots, judge or scorecard code exists yet.** The hits for "persona" in the code are NPC personalities, not player personas.
 - **`mix e2e.smoke`** (`lib/mix/tasks/e2e.smoke.ex`) is the closest thing. It plays a fixed three-turn tavern scenario against a running dev server with the real AI, checks each turn's latency against the 3 s limit and whether the expected NPCs show up and remember things, and writes `priv/playtest/reports/e2e-smoke.json` and `.md`. It runs by hand; it is not part of CI. The last saved report is from 2026-07-03.
 - **What's already recorded per session:** each turn stores the player's action, the narration and a `mechanical_resolution` map (roll and outcome). `session_events` carry a `player_aware` flag, so events the player never sees are already kept apart.
-- **Not recorded yet:** AI token use and cost per call (the AI client logs model and max tokens, not usage), and the GM's hidden reasoning as its own record. Cost per call is in review, see *Build progress*.
+- **Not recorded yet:** the GM's hidden reasoning as its own record. AI token use and cost per call are recorded since ex-tales-forge #19, see *Build progress*.
 - **Playtest environment:** `fly.playtest.toml` and the playtest deploy workflow exist; see [environments](environments.md).
 
 ## Build progress
 
 | Build step | What | Status |
 |---|---|---|
-| 1 | AI cost per LLM call: `ai_calls` table with tokens (in, out, cached, reasoning), model, cost, latency and status, linked to session and turn number | In review: [ex-tales-forge PR #19](https://github.com/whyse-ab/ex-tales-forge/pull/19) |
-| 2 | Per-session and per-day spending caps with a hard stop on playtest, configured via env | Not started |
+| 1 | AI cost per LLM call: `ai_calls` table with tokens (in, out, cached, reasoning), model, cost, latency and status, linked to session and turn number | Done: merged in [ex-tales-forge #19](https://github.com/whyse-ab/ex-tales-forge/pull/19) |
+| 2 | Per-session and per-day spending caps with a hard stop, set by `AI_CAP_SESSION_USD` and `AI_CAP_DAY_USD` (unset = off; day = since midnight Stockholm time). A capped call sends nothing, is logged and stored as a `capped` row, and the player sees a calm "the Game Master is resting" message | In review: [ex-tales-forge PR #20](https://github.com/whyse-ab/ex-tales-forge/pull/20) |
 
 ## The steps
 
