@@ -47,7 +47,8 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `GITHUB_OAUTH_CLIENT_SECRET` | Client secret of the same OAuth app | Yes (live since v13, 2026-10-06) |
 | `ADMIN_GITHUB_TEAM` | Optional. A GitHub team as `org/team-slug`, e.g. `whyse-ab/tales-forge`; its active members can sign in to the admin with GitHub. Unset = team access off (only `ADMIN_EMAILS` counts). Needs `GITHUB_DOCS_TOKEN` to be able to read `whyse-ab` members | Yes: `whyse-ab/tales-forge` (since v15, 2026-10-06) |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` | Optional other AI providers | No |
-| `AI_CAP_SESSION_USD`, `AI_CAP_DAY_USD` | Optional AI spending caps in USD, per game session and per day (since midnight Stockholm time). Not set = that cap is off. Not secret, but set the same way (ex-tales-forge PR #20) | No, not set = off |
+| `AI_CAP_SESSION_USD`, `AI_CAP_DAY_USD` | Optional AI spending caps in USD, per game session and per day (since midnight Stockholm time). Not set = that cap is off. The session cap counts only the game's calls, not the persona bot or the judge; the day cap counts everything (ex-tales-forge PR #20, #24). Not secret, but set the same way | No, not set = off |
+| `AI_CAP_PERSONA_RUN_USD` | Optional cap in USD on the persona bot's own AI calls per playtest run; hitting it stops the run (`persona_cap`). **Defaults to $0.50 when not set** (ex-tales-forge PR #24). Not secret, but set the same way | No (the runner never runs in production) |
 | `PLAYTEST_RUNNER_ENABLED` | Turns on the persona bot runner (ex-tales-forge PR #23) when set to `true`. Not secret, but set the same way | **Never** set in production |
 | `MAIL_ADAPTER` | Email provider for magic links, e.g. `resend` | No, see [Resend setup](resend-setup.md) |
 | `RESEND_API_KEY` | Resend sending key | No |
@@ -71,7 +72,8 @@ Same names as production, with **separate values** (never copied from prod), exc
 | `GITHUB_DOCS_TOKEN` | Yes, the same fine-grained whyse-ab token as production (contents read, Members read). Used for the team check and "Sync from repo" |
 | `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | No, so magic-link emails aren't sent on playtest |
 | `AI_CAP_SESSION_USD`, `AI_CAP_DAY_USD` | Yes, since 2026-10-06: $1.00 per session, $10.00 per day. Changing them needs Fredrik's OK |
-| `PLAYTEST_RUNNER_ENABLED` | Not yet. Set to `true` after ex-tales-forge PR #23 is merged and deployed, so persona bot runs can be started here |
+| `AI_CAP_PERSONA_RUN_USD` | Not set, so the $0.50 per run default applies (from ex-tales-forge PR #24). Set it like the other caps (`fly secrets set AI_CAP_PERSONA_RUN_USD=... -a tales-forge-playtest`) only to change that; changing it needs Fredrik's OK |
+| `PLAYTEST_RUNNER_ENABLED` | Yes, `true`: staged 2026-10-06 with the deploy of ex-tales-forge PR #23 |
 
 GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.
 
