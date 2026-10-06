@@ -17,7 +17,7 @@ Everything Tales Forge runs on, in one place. "Login held by" says who can get i
 | Postgres on Fly | Sessions, decisions, comments | Self-run Fly Postgres `tales-forge-db` (arn), attached | ~$6/month (shared-cpu-1x, 1 GB; 256 MB stalled under load. Unsupported; managed ~$38/month later if needed) | Fredrik | Fly secret `DATABASE_URL` |
 | Resend | Sends sign-in links now, player mail later | Not created | Free at current volume | — | Fly secret `RESEND_API_KEY` |
 | xAI API key | AI game master | Exists | Usage-based; the main per-session cost | Fredrik | Fly secret `XAI_API_KEY` |
-| GitHub docs token | Lets the admin import from `tales-forge-docs` | Not created | Free | Fredrik | Fly secret `GITHUB_DOCS_TOKEN` |
+| GitHub docs token | Lets the admin import from `tales-forge-docs` and check `whyse-ab/tales-forge` team membership | Live (fine-grained, contents read + Members read) | Free | Fredrik | Fly secret `GITHUB_DOCS_TOKEN` |
 | GitHub OAuth app *Tales Forge Admin* | "Sign in with GitHub" on the admin (email links stay as fallback) | Live since v13 (2026-10-06), registered under `whyse-ab` | Free | Fredrik | Fly secrets `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` |
 | Google Drive folder | Shared docs and persona form until migrated here | Exists ([folder](https://drive.google.com/drive/folders/1tlNoL8WZJPgbFQVT4SipKi9odGnQM_PB)) | Free | Fredrik | — |
 | Shared password vault | Logins and secrets not stuck in one head | Not chosen | Depends on tool | — | — |
