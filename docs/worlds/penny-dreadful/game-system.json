@@ -1,0 +1,349 @@
+{
+  "$schema": "../../src/types/module-game-system.schema.json",
+  "genre": "Victorian Gothic Horror",
+  "gm_title": "Narrator",
+  "player_default_term": "investigator",
+  "setting_tone": "Gaslit London streets, fog-shrouded alleys, and crumbling estates. The supernatural hides in plain sight among polite society. Séances, opium dens, and secret societies blur the line between science and the occult. Death is intimate and personal — monsters wear human faces.",
+  "image_style": "Victorian pen-and-ink illustration, heavy crosshatching, dramatic chiaroscuro lighting, detailed period clothing and architecture. Gothic atmosphere with deep shadows. Sepia-toned or black and white. No color. Style of Gustave Doré engravings.",
+  "scene_image_style": "Victorian pen-and-ink engraving, atmospheric fog and gaslight, detailed Gothic architecture, dramatic shadows and light contrast. Style of 19th century book illustrations. No readable text or signs in the image.",
+  "race_label": "Heritage",
+  "fallback_narrative": "The Narrator pauses, the gaslight flickering... (The last response was malformed. Please try again.)",
+  "transit_sensory": {
+    "dawn": ["Grey light seeps through sooty curtains", "The Thames mist begins to thin", "A milk cart rattles on wet cobblestones", "Factory whistles sound in the distance"],
+    "morning": ["Hansom cabs clatter through the streets", "Newsboys cry the morning headlines", "Coal smoke hangs low over the rooftops", "The fog lifts reluctantly from the river"],
+    "afternoon": ["Pale sunlight struggles through overcast skies", "Ladies promenade in Hyde Park", "The clamour of Covent Garden fills the air", "Church bells chime the hour"],
+    "evening": ["Gas lamps hiss to life along the Embankment", "Theatre crowds gather in the West End", "The fog rolls in thick from the river", "Shadows pool in narrow alleyways"],
+    "night": ["London belongs to those who prowl its darker streets", "A distant scream echoes and is swallowed by fog", "Gaslight barely penetrates the murk", "Something moves in the shadows between streetlamps"],
+    "midnight": ["The witching hour settles over the city", "Only the night soil men and their carts stir", "An unnatural silence grips the streets", "The fog seems almost alive, pressing against windows"]
+  },
+
+  "skills": [
+    { "id": "firearms", "name": "Firearms", "domain": "martial", "aliases": ["Shooting", "Guns"] },
+    { "id": "fencing", "name": "Fencing", "domain": "martial", "aliases": ["Swordplay"] },
+    { "id": "fisticuffs", "name": "Fisticuffs", "domain": "martial", "aliases": ["Brawling", "Unarmed"] },
+    { "id": "dodge", "name": "Dodge", "domain": "martial" },
+    { "id": "tactics", "name": "Tactics", "domain": "martial" },
+    { "id": "throwing", "name": "Throwing", "domain": "martial" },
+
+    { "id": "stealth", "name": "Stealth", "domain": "finesse" },
+    { "id": "lockpicking", "name": "Lockpicking", "domain": "finesse" },
+    { "id": "sleight_of_hand", "name": "Sleight of Hand", "domain": "finesse" },
+    { "id": "climbing", "name": "Climbing", "domain": "finesse" },
+    { "id": "disguise", "name": "Disguise", "domain": "finesse" },
+    { "id": "forgery", "name": "Forgery", "domain": "finesse" },
+
+    { "id": "persuasion", "name": "Persuasion", "domain": "social" },
+    { "id": "deception", "name": "Deception", "domain": "social" },
+    { "id": "intimidation", "name": "Intimidation", "domain": "social" },
+    { "id": "insight", "name": "Insight", "domain": "social" },
+    { "id": "etiquette", "name": "Etiquette", "domain": "social" },
+    { "id": "streetwise", "name": "Streetwise", "domain": "social" },
+    { "id": "seduction", "name": "Seduction", "domain": "social" },
+
+    { "id": "occult_lore", "name": "Occult Lore", "domain": "knowledge", "aliases": ["Occult"] },
+    { "id": "medicine", "name": "Medicine", "domain": "knowledge" },
+    { "id": "science", "name": "Science", "domain": "knowledge" },
+    { "id": "history", "name": "History", "domain": "knowledge" },
+    { "id": "theology", "name": "Theology", "domain": "knowledge" },
+    { "id": "law", "name": "Law", "domain": "knowledge" },
+    { "id": "languages", "name": "Languages", "domain": "knowledge" },
+    { "id": "cryptography", "name": "Cryptography", "domain": "knowledge" },
+
+    { "id": "surgery", "name": "Surgery", "domain": "craft" },
+    { "id": "alchemy", "name": "Alchemy", "domain": "craft" },
+    { "id": "first_aid", "name": "First Aid", "domain": "craft" },
+    { "id": "taxidermy", "name": "Taxidermy", "domain": "craft" },
+    { "id": "engineering", "name": "Engineering", "domain": "craft" },
+    { "id": "photography", "name": "Photography", "domain": "craft" }
+  ],
+
+  "variants": [
+    {
+      "id": "mortal",
+      "name": "Mortal",
+      "description": "An ordinary human — fragile, resilient, and terrifyingly brave in the face of the unknown.",
+      "stat_modifiers": {
+        "note": "+1 to any two stats (player choice)"
+      },
+      "skill_bonus": {
+        "type": "pool",
+        "amount": 5,
+        "description": "+5 starting skill points (freely distributed)"
+      },
+      "traits": [
+        {
+          "name": "Indomitable Will",
+          "description": "Reroll one failed Resolve check per session"
+        }
+      ],
+      "ocean_modifiers": {
+        "openness": 0,
+        "conscientiousness": 0,
+        "extraversion": 0,
+        "agreeableness": 0,
+        "neuroticism": 0
+      }
+    },
+    {
+      "id": "touched",
+      "name": "Touched",
+      "description": "Something has brushed against you from the other side — a vision, a curse, a gift you cannot refuse.",
+      "stat_modifiers": {
+        "wisdom": 2,
+        "intelligence": 1,
+        "constitution": -1
+      },
+      "skill_bonus": {
+        "type": "specific",
+        "skills": {
+          "Occult Lore": 3,
+          "Insight": 2
+        }
+      },
+      "traits": [
+        {
+          "name": "Second Sight",
+          "description": "Sense supernatural presences within 30 feet; +2 to Occult Lore when investigating the paranormal"
+        },
+        {
+          "name": "Haunted",
+          "description": "Disadvantage on social checks with the deeply religious or superstitious"
+        }
+      ],
+      "ocean_modifiers": {
+        "openness": 2,
+        "conscientiousness": -1,
+        "extraversion": -1,
+        "agreeableness": 0,
+        "neuroticism": 2
+      }
+    },
+    {
+      "id": "immortal",
+      "name": "Immortal",
+      "description": "You have lived far too long. The centuries weigh on you, and the blood still calls.",
+      "stat_modifiers": {
+        "constitution": 2,
+        "charisma": 1,
+        "wisdom": -1
+      },
+      "skill_bonus": {
+        "type": "specific",
+        "skills": {
+          "History": 3,
+          "Persuasion": 2
+        }
+      },
+      "traits": [
+        {
+          "name": "Unaging",
+          "description": "Immune to disease and aging; heal 1 wound per day naturally"
+        },
+        {
+          "name": "The Hunger",
+          "description": "Must feed regularly or suffer increasing penalties to all social and mental checks"
+        }
+      ],
+      "ocean_modifiers": {
+        "openness": -1,
+        "conscientiousness": 1,
+        "extraversion": -1,
+        "agreeableness": -2,
+        "neuroticism": 1
+      }
+    }
+  ],
+
+  "archetypes": [
+    {
+      "id": "explorer",
+      "name": "Explorer",
+      "description": "Globe-trotting seeker of forbidden knowledge. Explores forgotten places and brings back relics of power.",
+      "suggested_skills": ["Firearms", "History", "Languages"],
+      "primary_domain": "knowledge"
+    },
+    {
+      "id": "medium",
+      "name": "Medium",
+      "description": "A conduit between worlds. Speaks with the dead and perceives what others cannot.",
+      "suggested_skills": ["Occult Lore", "Insight", "Theology"],
+      "primary_domain": "knowledge"
+    },
+    {
+      "id": "alienist",
+      "name": "Alienist",
+      "description": "Early psychologist. Studies the criminal mind and the boundaries of human consciousness.",
+      "suggested_skills": ["Medicine", "Insight", "Science"],
+      "primary_domain": "craft"
+    },
+    {
+      "id": "cut_wife",
+      "name": "Cut-Wife",
+      "description": "Herbalist and hedge witch. Knows the old ways — potions, poultices, and darker arts.",
+      "suggested_skills": ["Alchemy", "Occult Lore", "First Aid"],
+      "primary_domain": "craft"
+    },
+    {
+      "id": "sharp",
+      "name": "Sharp",
+      "description": "Street-smart survivor. Knows every alley, fence, and informant in the city.",
+      "suggested_skills": ["Streetwise", "Stealth", "Lockpicking"],
+      "primary_domain": "finesse"
+    },
+    {
+      "id": "soldier",
+      "name": "Soldier",
+      "description": "Veteran of colonial wars. Deadly with firearms and unshakeable under pressure.",
+      "suggested_skills": ["Firearms", "Tactics", "Dodge"],
+      "primary_domain": "martial"
+    }
+  ],
+
+  "currency": {
+    "primary": {
+      "name": "Pound",
+      "symbol": "£",
+      "abbrev": "L",
+      "weight_oz": 0
+    },
+    "secondary": {
+      "name": "Shilling",
+      "symbol": "s",
+      "abbrev": "s",
+      "rate": 20
+    },
+    "tertiary": {
+      "name": "Penny",
+      "symbol": "d",
+      "abbrev": "d",
+      "rate": 240
+    },
+    "anchor": "1 pound = 20 shillings = 240 pence. A skilled worker earns about 1 pound per week.",
+    "starting_wealth": {
+      "nobility": { "gold": 100, "silver": 0, "copper": 0 },
+      "gentry": { "gold": 20, "silver": 200, "copper": 0 },
+      "merchant": { "gold": 5, "silver": 100, "copper": 500 },
+      "commoner": { "gold": 0, "silver": 20, "copper": 300 },
+      "underclass": { "gold": 0, "silver": 2, "copper": 50 }
+    }
+  },
+
+  "naming": {
+    "status_french_weight": {
+      "nobility": 0,
+      "gentry": 0,
+      "merchant": 0,
+      "commoner": 0,
+      "underclass": 0
+    },
+    "pools": {
+      "french": {
+        "male": [],
+        "female": [],
+        "houses": [],
+        "titles_male": [],
+        "titles_female": []
+      },
+      "english": {
+        "male": ["Ethan", "Victor", "Malcolm", "Ferdinand", "Dorian", "Caliban", "John", "Henry", "Arthur", "Charles",
+                 "Edmund", "William", "Thomas", "James", "Frederick", "Lawrence", "Sebastian", "Percy", "Ambrose", "Bartholomew"],
+        "female": ["Vanessa", "Brona", "Mina", "Lily", "Florence", "Gladys", "Evelyn", "Beatrice", "Ada", "Constance",
+                   "Millicent", "Prudence", "Agnes", "Edith", "Maud", "Cecily", "Harriet", "Winifred", "Cordelia", "Josephine"],
+        "descriptors": ["the Doctor", "the Surgeon", "the Inspector", "the Professor", "the Reverend",
+                       "the Chemist", "the Medium", "the Widow", "the Governess", "the Undertaker"],
+        "nicknames": ["Penny", "Red", "Scar", "Whisper", "Smiles", "Ghost", "Lucky", "Dodger", "Fingers", "Silk"]
+      },
+      "aurilian": {
+        "male": [],
+        "female": [],
+        "nomen": [],
+        "cognomen": []
+      }
+    },
+    "race_components": {},
+    "regional_modifiers": {
+      "mayfair": {
+        "flavor": "Upper-class London",
+        "name_twist": "Aristocratic English names, titles and estates",
+        "examples": { "noble": "Sir Malcolm Murray", "commoner": "Ethan Chandler" }
+      },
+      "whitechapel": {
+        "flavor": "East End poverty",
+        "name_twist": "Common English names, street nicknames, occupational surnames",
+        "examples": { "noble": "Dr. Victor Frankenstein", "commoner": "Brona Croft" }
+      },
+      "bloomsbury": {
+        "flavor": "Academic and literary",
+        "name_twist": "Educated, classical references, medical/scientific titles",
+        "examples": { "noble": "Professor Van Helsing", "commoner": "Mr. Lyle" }
+      }
+    }
+  },
+
+  "domains": {
+    "martial": {
+      "display_name": "Martial",
+      "core_attributes": ["strength", "dexterity", "constitution"],
+      "description": "Combat and physical confrontation"
+    },
+    "finesse": {
+      "display_name": "Finesse",
+      "core_attributes": ["dexterity", "intelligence"],
+      "description": "Precision, stealth, and manipulation"
+    },
+    "social": {
+      "display_name": "Social",
+      "core_attributes": ["charisma", "wisdom"],
+      "description": "Interpersonal influence and perception"
+    },
+    "knowledge": {
+      "display_name": "Knowledge",
+      "core_attributes": ["intelligence", "wisdom"],
+      "description": "Academic learning and lore"
+    },
+    "craft": {
+      "display_name": "Craft",
+      "core_attributes": ["intelligence", "dexterity"],
+      "description": "Creation, repair, and practical application"
+    }
+  },
+
+  "progression": {
+    "tiers": {
+      "novice": { "min": 1, "max": 5, "lp_threshold": 5, "improvement_modifier": 0 },
+      "adept": { "min": 6, "max": 10, "lp_threshold": 7, "improvement_modifier": 0 },
+      "expert": { "min": 11, "max": 15, "lp_threshold": 10, "improvement_modifier": -3 },
+      "master": { "min": 16, "max": 20, "lp_threshold": 15, "improvement_modifier": -5, "requires_trainer": true }
+    },
+    "floor_thresholds": [
+      { "min_level": 18, "floor": 6, "note": "Universal principles visible" },
+      { "min_level": 15, "floor": 4, "note": "Flow state, unconscious competence" },
+      { "min_level": 10, "floor": 2, "note": "Patterns starting to connect" },
+      { "min_level": 0, "floor": 0, "note": "Skills are still islands" }
+    ],
+    "echo_thresholds": [
+      { "min_level": 18, "bonus": 3, "tier": "master" },
+      { "min_level": 15, "bonus": 2, "tier": "expert" },
+      { "min_level": 10, "bonus": 1, "tier": "adept" },
+      { "min_level": 0, "bonus": 0, "tier": "novice" }
+    ],
+    "summit_sight_threshold": 18
+  },
+
+  "calendar": {
+    "epoch_year": 1888,
+    "year_format": "{year} AD",
+    "start_month_index": 0,
+    "days_per_month": [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  },
+
+  "disposition_descriptors": {
+    "loyal_ally":   ["Devoted confederate",        "Bound in solemn trust",       "Inseparable ally",           "Companion unto death"],
+    "friendly":     ["Agreeable acquaintance",      "Welcomed guest",              "Trusted associate",          "Dear friend"],
+    "warm":         ["Cautious cordiality",         "Growing esteem",              "Genuine regard",             "Fond familiarity"],
+    "neutral":      ["Polite indifference",         "Civil but guarded",           "Measured courtesy",          "Reserved appraisal"],
+    "cool":         ["A most unwelcome acquaintance","Civility through gritted teeth","Cold propriety",          "Barely-masked disdain"],
+    "hostile":      ["Thinly-veiled contempt",      "Open hostility",              "Bitter enmity",              "Dangerous antipathy"],
+    "bitter_enemy": ["Sworn nemesis",               "Implacable hatred",           "Vengeance unquenched",       "Mortal foe"]
+  }
+}

@@ -1,0 +1,441 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "module_id": "merovingia",
+    "last_updated": "2026-01-18",
+    "description": "Spring of the fifth year of King Clovis IV's reign"
+  },
+  "world_time": {
+    "day": 15,
+    "hour": 8,
+    "phase": "morning",
+    "season": "spring",
+    "year": 5
+  },
+  "key_npcs": [
+    {
+      "id": "elara-thorne",
+      "name": "Baroness Elara Thorne",
+      "canonical_ref": "./baronies/aquilon.md",
+      "category": "baron",
+      "location": {
+        "name": "Port-Vent",
+        "region": "Aquilon"
+      },
+      "current_concern": {
+        "description": "Orc raids from the marsh borderlands have intensified; seeking Sylvaine's aid",
+        "urgency": "medium",
+        "constraint": "Cannot commit fleet to inland defense"
+      },
+      "disposition": "Watchful, planning three moves ahead"
+    },
+    {
+      "id": "eldric-fontaine",
+      "name": "Baron Eldric Fontaine",
+      "canonical_ref": "./baronies/arborin.md",
+      "category": "baron",
+      "location": {
+        "name": "Rootheim",
+        "region": "Arborin"
+      },
+      "current_concern": {
+        "description": "Rochedur's quarrying has crept toward sacred groves; seeking diplomatic resolution",
+        "urgency": "high",
+        "constraint": "Cannot act hastily without tree ent consensus"
+      },
+      "disposition": "Patient fury, gathering support"
+    },
+    {
+      "id": "thrain-leclerc",
+      "name": "Baron Thrain Leclerc",
+      "canonical_ref": "./baronies/ferroigne.md",
+      "category": "baron",
+      "location": {
+        "name": "Forgehold",
+        "region": "Ferroigne"
+      },
+      "current_concern": {
+        "description": "Major ore vein discovered near contested Sylvaine border; preparing expansion",
+        "urgency": "medium",
+        "constraint": "Dwarven advisors urge caution about ancient wards"
+      },
+      "disposition": "Eager, barely restrained"
+    },
+    {
+      "id": "isolde-blanc",
+      "name": "Baroness Isolde Blanc",
+      "canonical_ref": "./baronies/glaciere.md",
+      "category": "baron",
+      "location": {
+        "name": "Frostspire",
+        "region": "Glacière"
+      },
+      "current_concern": {
+        "description": "Spring thaw threatening key ice-bridge; frost trolls demanding compensation",
+        "urgency": "medium",
+        "constraint": "Limited resources for troll tribute"
+      },
+      "disposition": "Cold, calculating seasonal survival"
+    },
+    {
+      "id": "alain-de-lumiere",
+      "name": "Baron Alain de Lumière",
+      "canonical_ref": "./baronies/lumiere.md",
+      "category": "baron",
+      "location": {
+        "name": "Radiance",
+        "region": "Lumière"
+      },
+      "current_concern": {
+        "description": "Rumors of shadow magic in court; investigating Vallombre's influence",
+        "urgency": "medium",
+        "constraint": "His chivalrous nature limits covert action"
+      },
+      "disposition": "Troubled by dishonorable enemies"
+    },
+    {
+      "id": "sable-moreau",
+      "name": "Baroness Sable Moreau",
+      "canonical_ref": "./baronies/marecage.md",
+      "category": "baron",
+      "location": {
+        "name": "Mudfort",
+        "region": "Marécage"
+      },
+      "current_concern": {
+        "description": "Aquilon's blockade strangling trade; plotting revenge through poison",
+        "urgency": "high",
+        "constraint": "Orc clans fractious, difficult to unite for action"
+      },
+      "disposition": "Seething, patient, deadly"
+    },
+    {
+      "id": "garrick-beaumont",
+      "name": "Baron Garrick Beaumont",
+      "canonical_ref": "./baronies/montfort.md",
+      "category": "baron",
+      "location": {
+        "name": "Harveston",
+        "region": "Montfort"
+      },
+      "current_concern": {
+        "description": "Grandmother pressuring for marriage; delaying while managing Rochedur documents threat",
+        "urgency": "medium",
+        "constraint": "Cannot act openly without exposing family secrets"
+      },
+      "disposition": "Jovial mask hiding worry"
+    },
+    {
+      "id": "drakon-roux",
+      "name": "Baron Drakon Roux",
+      "canonical_ref": "./baronies/pyremont.md",
+      "category": "baron",
+      "location": {
+        "name": "Summit Keep",
+        "region": "Pyremont"
+      },
+      "current_concern": {
+        "description": "Volcanic activity increasing; fire elementals restless in the deep",
+        "urgency": "low",
+        "constraint": "Mountain isolation limits communication with allies"
+      },
+      "disposition": "Fierce, focused on internal matters"
+    },
+    {
+      "id": "mira-laurent",
+      "name": "Baroness Mira Laurent",
+      "canonical_ref": "./baronies/rochedur.md",
+      "category": "baron",
+      "location": {
+        "name": "Stonehaven",
+        "region": "Rochedur"
+      },
+      "current_concern": {
+        "description": "Aurelian documents discovered that could invalidate Beaumont claims; deciding how to use them",
+        "urgency": "medium",
+        "constraint": "Revealing too early loses leverage"
+      },
+      "disposition": "Calculating, holding cards close"
+    },
+    {
+      "id": "lirael-duval",
+      "name": "Baroness Lirael Duval",
+      "canonical_ref": "./baronies/sylvaine.md",
+      "category": "baron",
+      "location": {
+        "name": "Eldertree",
+        "region": "Sylvaine"
+      },
+      "current_concern": {
+        "description": "Ferroigne expansion threatening border wards; preparing illusions to mislead",
+        "urgency": "medium",
+        "constraint": "Elven advisors divided on direct vs. subtle response"
+      },
+      "disposition": "Smoke-like, preparing misdirection"
+    },
+    {
+      "id": "nyra-beaumont",
+      "name": "Baroness Nyra Beaumont",
+      "canonical_ref": "./baronies/vallombre.md",
+      "category": "baron",
+      "location": {
+        "name": "Whisperdale",
+        "region": "Vallombre"
+      },
+      "current_concern": {
+        "description": "Portrait of grandmother discovered in Lumière; agents dispatched to destroy evidence",
+        "urgency": "high",
+        "constraint": "Cannot reveal herself or act openly"
+      },
+      "disposition": "Shadow among shadows, hunting"
+    },
+    {
+      "id": "rolf-girard",
+      "name": "Baron Rolf Girard",
+      "canonical_ref": "./baronies/ventdor.md",
+      "category": "baron",
+      "location": {
+        "name": "Galeburg",
+        "region": "Ventd'or"
+      },
+      "current_concern": {
+        "description": "River damming dispute with Ferroigne affecting horse grazing lands",
+        "urgency": "low",
+        "constraint": "Prefers diplomatic resolution to honor swift cavalry tradition"
+      },
+      "disposition": "Wind-watching, weighing options"
+    },
+    {
+      "id": "clovis-iv",
+      "name": "King Clovis IV",
+      "canonical_ref": "./king-clovis-iv.md",
+      "category": "court",
+      "location": {
+        "name": "Royal Palace of Couronne",
+        "region": "Couronne"
+      },
+      "current_concern": {
+        "description": "Obsessing over prophecy that Magister Corvinus claims proves his divine destiny",
+        "urgency": "high",
+        "constraint": "Cannot distinguish genuine counsel from manipulation"
+      },
+      "disposition": "Petulant, craving validation"
+    },
+    {
+      "id": "lord-malaric",
+      "name": "Lord Chancellor Malaric",
+      "canonical_ref": "./king-clovis-iv.md#lord-chancellor-malaric",
+      "category": "court",
+      "location": {
+        "name": "Royal Palace of Couronne",
+        "region": "Couronne"
+      },
+      "current_concern": {
+        "description": "Ensuring the Ancient Aurelias prophecy serves his unknown agenda",
+        "urgency": "medium",
+        "constraint": "Must maintain appearance of loyal advisor"
+      },
+      "disposition": "Eternally patient, unknowable"
+    },
+    {
+      "id": "lady-isabeau",
+      "name": "Lady Isabeau (Queen Mother)",
+      "canonical_ref": "./king-clovis-iv.md#lady-isabeau-the-queen-mother",
+      "category": "court",
+      "location": {
+        "name": "Royal Palace of Couronne",
+        "region": "Couronne"
+      },
+      "current_concern": {
+        "description": "Arranging Clovis's marriage; three candidates currently in consideration",
+        "urgency": "high",
+        "constraint": "Clovis avoids commitment; barons maneuvering"
+      },
+      "disposition": "Bitter, controlling, obsessive"
+    },
+    {
+      "id": "sir-percival",
+      "name": "Sir Percival the Bright",
+      "canonical_ref": "./king-clovis-iv.md#sir-percival-the-bright",
+      "category": "court",
+      "location": {
+        "name": "Royal Palace of Couronne",
+        "region": "Couronne"
+      },
+      "current_concern": {
+        "description": "Concerned about strange visitors Malaric receives at night",
+        "urgency": "low",
+        "constraint": "Unwavering loyalty prevents voicing suspicion"
+      },
+      "disposition": "Faithful, naive, devoted"
+    },
+    {
+      "id": "dolgrim-ironvow",
+      "name": "Master Dolgrim Ironvow",
+      "canonical_ref": "./guilds/miners-guild.md",
+      "category": "ambassador",
+      "location": {
+        "name": "Miners Guild Embassy",
+        "region": "Ferroigne"
+      },
+      "current_concern": {
+        "description": "Negotiating expanded mining rights in Glacière; frost troll agreements pending",
+        "urgency": "medium",
+        "constraint": "Guild bureaucracy requires formal approval from Irondeep"
+      },
+      "disposition": "Blunt, transactional, impatient with court"
+    },
+    {
+      "id": "serina-vex",
+      "name": "Lady Serina Vex",
+      "canonical_ref": "./guilds/thieves-guild.md",
+      "category": "ambassador",
+      "location": {
+        "name": "Grey Consortium Embassy",
+        "region": "Montfort"
+      },
+      "current_concern": {
+        "description": "Cold war with Nyra Beaumont's network; seeking leverage",
+        "urgency": "high",
+        "constraint": "Triumvirate Compact limits overt action"
+      },
+      "disposition": "Smiling danger, collecting secrets"
+    },
+    {
+      "id": "corvinus-ashborne",
+      "name": "Magister Corvinus Ashborne",
+      "canonical_ref": "./guilds/ancient-aurelias.md",
+      "category": "ambassador",
+      "location": {
+        "name": "Aurelian Archive",
+        "region": "Lumière"
+      },
+      "current_concern": {
+        "description": "Feeding Clovis fabricated prophecies; true goal unknown",
+        "urgency": "medium",
+        "constraint": "Must maintain scholarly credibility"
+      },
+      "disposition": "Grandiose, manipulative, believing his own myths"
+    },
+    {
+      "id": "marguerite-beaumont",
+      "name": "Lady Marguerite Beaumont",
+      "canonical_ref": "./families/beaumont.md",
+      "category": "other",
+      "location": {
+        "name": "Thornhaven Manor",
+        "region": "Montfort"
+      },
+      "current_concern": {
+        "description": "Pressuring grandchildren to marry; protecting family secrets",
+        "urgency": "medium",
+        "constraint": "Age limiting travel; relies on proxies"
+      },
+      "disposition": "Sharp as ever, scheming for legacy"
+    }
+  ],
+  "active_tensions": [
+    {
+      "id": "aquilon-marecage-blockade",
+      "parties": ["elara-thorne", "sable-moreau"],
+      "description": "Aquilon's naval blockade is starving Marécage; Baroness Moreau plots poison revenge",
+      "intensity": "heated",
+      "canonical_ref": "./baronies/aquilon.md#tensions",
+      "escalation_trigger": "Trade vessel attacked or poisoning discovered",
+      "resolution_path": "Negotiated trade treaty or third party mediation"
+    },
+    {
+      "id": "arborin-rochedur-groves",
+      "parties": ["eldric-fontaine", "mira-laurent"],
+      "description": "Rochedur quarrying threatens sacred groves; Arborin considers this unforgivable",
+      "intensity": "active",
+      "canonical_ref": "./baronies/arborin.md#tensions",
+      "escalation_trigger": "Quarrying reaches the Grove of Whispers",
+      "resolution_path": "Territorial agreement with buffer zone"
+    },
+    {
+      "id": "ferroigne-sylvaine-expansion",
+      "parties": ["thrain-leclerc", "lirael-duval"],
+      "description": "Ferroigne's mining expansion disturbs spirits in border ruins",
+      "intensity": "simmering",
+      "canonical_ref": "./baronies/ferroigne.md#tensions",
+      "escalation_trigger": "Mining breach into elven-warded area",
+      "resolution_path": "Joint archaeological survey before mining"
+    },
+    {
+      "id": "lumiere-vallombre-shadow",
+      "parties": ["alain-de-lumiere", "nyra-beaumont"],
+      "description": "Baron Alain exposed Nyra's lineage; she considers him a primary enemy",
+      "intensity": "heated",
+      "canonical_ref": "./baronies/vallombre.md#tensions",
+      "escalation_trigger": "Alain discovers portrait of Marguerite",
+      "resolution_path": "None apparent — this is personal"
+    },
+    {
+      "id": "montfort-rochedur-documents",
+      "parties": ["garrick-beaumont", "mira-laurent"],
+      "description": "Rochedur possesses documents threatening Beaumont legitimacy",
+      "intensity": "simmering",
+      "canonical_ref": "./baronies/montfort.md#plot-hooks",
+      "escalation_trigger": "Documents leaked or used as leverage",
+      "resolution_path": "Theft, forgery proof, or negotiated silence"
+    },
+    {
+      "id": "vallombre-grey-consortium",
+      "parties": ["nyra-beaumont", "serina-vex"],
+      "description": "Cold war for control of Merovingia's shadows between Nyra's network and the Thieves Guild",
+      "intensity": "active",
+      "canonical_ref": "./guilds/thieves-guild.md#the-vallombre-cold-war",
+      "escalation_trigger": "Open assassination or agent exposure",
+      "resolution_path": "Territory agreement or one side's defeat"
+    }
+  ],
+  "rumors": [
+    {
+      "id": "rumor-malaric-immortal",
+      "text": "They say Lord Chancellor Malaric has served three kings. Three! How can any man live so long?",
+      "origin_region": "Couronne",
+      "spread": "kingdom-wide",
+      "veracity": "unknown",
+      "truth_ref": "./king-clovis-iv.md#lord-chancellor-malaric"
+    },
+    {
+      "id": "rumor-beaumont-blood",
+      "text": "The Beaumont cousins have elven blood, you know. That's why they're so... peculiar.",
+      "origin_region": "Lumière",
+      "spread": "regional",
+      "veracity": "true",
+      "truth_ref": "./baronies/montfort.md#ruler-baron-garrick-beaumont"
+    },
+    {
+      "id": "rumor-clovis-prophecy",
+      "text": "The King has received a prophecy declaring him the greatest ruler since Clovis the First! Great things are coming!",
+      "origin_region": "Couronne",
+      "spread": "kingdom-wide",
+      "veracity": "false",
+      "truth_ref": "./guilds/ancient-aurelias.md"
+    },
+    {
+      "id": "rumor-fourth-guild",
+      "text": "Before the Triumvirate, there was a fourth guild — the Navigators. Some say they still exist, watching from the waves.",
+      "origin_region": "Aquilon",
+      "spread": "local",
+      "veracity": "unknown",
+      "truth_ref": "./guilds/README.md#the-fourth-chair"
+    },
+    {
+      "id": "rumor-royal-wedding",
+      "text": "The Queen Mother has three brides in mind for Clovis. War might come from whoever is rejected.",
+      "origin_region": "Couronne",
+      "spread": "kingdom-wide",
+      "veracity": "partial"
+    },
+    {
+      "id": "rumor-marecage-poison",
+      "text": "Don't eat anything that comes from the marshes. The Baroness Moreau puts poison in everything she exports.",
+      "origin_region": "Aquilon",
+      "spread": "regional",
+      "veracity": "partial"
+    }
+  ]
+}

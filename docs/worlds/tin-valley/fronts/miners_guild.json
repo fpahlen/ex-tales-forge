@@ -1,0 +1,42 @@
+{
+  "id": "miners_guild",
+  "name": "Miners Guild of Tin Valley",
+  "status": "live",
+  "goal": "Clear the orcs and expand the tin mine.",
+  "personality": "Greedy, impatient, progress at any cost.",
+  "resources": {"coin": 40, "hirelings": 0},
+  "beliefs": {"orcs_are_a_pest": true},
+  "clocks": {
+    "clear_orcs": {"value": 0, "threshold": 8, "on_threshold": "hiring_steel"},
+    "dig": {"value": 0, "status": "dormant"}
+  },
+  "triggers": [
+    {
+      "id": "dawdle_in_town",
+      "on": "time.passed",
+      "player_in": ["valley_inn", "market_square"],
+      "event": "player.dawdled"
+    }
+  ],
+  "rules": [
+    {
+      "id": "tick_clear_orcs",
+      "on_event": "player.dawdled",
+      "clock": "clear_orcs",
+      "delta": 1
+    }
+  ],
+  "public_facts_on": {
+    "hiring_steel": {
+      "text": "The Miners Guild is hiring steel in the square — retainers with new spears, paid in advance.",
+      "visibility": ["market_square", "valley_inn"]
+    }
+  },
+  "portents": [
+    {
+      "id": "they_dig_too_deep",
+      "when": {"clock": "dig", "gte": 8},
+      "spawns_front": "thing_below"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+---
+id: rochedur
+name: Barony of Rochedur
+scale: region
+cell_size_meters: 1000
+width: 12
+height: 10
+origin_x: 8
+origin_y: 5
+parent_ref: ../kingdom-merovingia.terrain
+legend:
+  1: Castle Stonehaven
+  2: Runekeeper's Tower
+  3: Old Quarry
+  4: The Smiling Troll Inn
+  ~: River Roche
+---
+MMMMMHHHHPPP
+MMMMHHHPPPPP
+MMHHH1PPPP2P
+MHHHPPPP~PPP
+HHPPPPPP~PPP
+HPPP4QFF~PPP
+PPPPQQFF~3PP
+PPPPQQFF~PPP
+PPPPPPPP~PPP
+PPPPPPPPPPPP

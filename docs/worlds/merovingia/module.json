@@ -1,0 +1,15 @@
+{
+  "id": "merovingia",
+  "name": "Kingdom of Merovingia",
+  "version": "1.0.0",
+  "engine_version": "1.0.0",
+  "author": "Tales Forge Team",
+  "description": "A fractured medieval realm where twelve baronies scheme beneath a crown worn by a boy who cannot hold it",
+  "tags": ["medieval", "political", "fantasy", "intrigue"],
+  "paths": {
+    "starting_state": "./starting-state/starting-state.json",
+    "schema": "./starting-state/schema.ts",
+    "readme": "./README.md",
+    "terrain": "./terrain"
+  }
+}
