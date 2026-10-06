@@ -55,21 +55,21 @@ Mailgun and Postmark (`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `POSTMARK_API_KEY`) a
 
 ## Playtest (`tales-forge-playtest`)
 
-Same names as production, with **separate values** (never copied from prod). [Dashboard](https://fly.io/apps/tales-forge-playtest/secrets); on the command line use `-a tales-forge-playtest`.
+Same names as production, with **separate values** (never copied from prod), except `GITHUB_DOCS_TOKEN`, which is the same read-only whyse-ab token. [Dashboard](https://fly.io/apps/tales-forge-playtest/secrets); on the command line use `-a tales-forge-playtest`.
 
 | Name | Set? (2026-10-06) |
 |---|---|
 | `DATABASE_URL` | Yes, set by `fly postgres attach tales-forge-playtest-db` (database `tales_forge_playtest` on the playtest cluster) |
 | `SECRET_KEY_BASE` | Yes, newly generated for playtest |
 | `ADMIN_EMAILS` | Yes, fredrik@whyse.se only. Invited testers come later, here or through a separate tester list |
-| `ADMIN_GITHUB_TEAM` | Yes, `whyse-ab/tales-forge`. Has no effect until GitHub sign-in and `GITHUB_DOCS_TOKEN` exist on playtest |
+| `ADMIN_GITHUB_TEAM` | Yes, `whyse-ab/tales-forge`. Active team members (the founders) can sign in with GitHub; pending invites don't count |
 | `XAI_API_KEY` | Yes, live: a separate playtest key (added by Case), so bot and tester cost is counted apart from production |
 | `PHX_HOST` | Not a secret: `tales-forge-playtest.fly.dev` is in `fly.playtest.toml` |
-| `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | No. The *Tales Forge Admin* OAuth app only accepts the tales-forge.fly.dev callback, so "Sign in with GitHub" is hidden on playtest. It would need a second OAuth app |
-| `GITHUB_DOCS_TOKEN` | No. Not needed to boot; without it, "Sync from repo" in the admin fails and GitHub team checks are off |
+| `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | Yes, from a second OAuth app for playtest (callback `https://tales-forge-playtest.fly.dev/admin/auth/github/callback`) |
+| `GITHUB_DOCS_TOKEN` | Yes, the same fine-grained whyse-ab token as production (contents read, Members read). Used for the team check and "Sync from repo" |
 | `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | No, so magic-link emails aren't sent on playtest |
 
-GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Not created yet.
+GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.
 
 ## Good habits
 
