@@ -2,14 +2,16 @@
 
 Longer design notes and plans. Prefer Markdown here; Google Drive is a temporary home until content is migrated or linked.
 
-Suggested starting set (copy or link from Drive / `/workspace/tales-forge-plan/` when ready):
+Docs copied from the [Google Drive folder](https://drive.google.com/drive/folders/1tlNoL8WZJPgbFQVT4SipKi9odGnQM_PB) (each file's front matter has a `source:` link to its Drive original):
 
-- Roadmap 2027
-- Why Elixir
-- Personas
-- Design: game data vs sessions
-- Design: decision queue and shared docs
+- [Roadmap 2027 (rev. 3)](roadmap-2027.md)
+- [Why Elixir](why-elixir.md)
+- [Personas](personas.md)
+- [Design: Game data vs sessions](design-game-data-vs-sessions.md)
+- [Design: Decision queue and shared docs](design-decision-queue-and-docs.md)
 
-In this folder:
+Persona input is collected with a Google Form (link only; responses stay in Drive): [Tales Forge: Your input on our player personas](https://docs.google.com/forms/d/e/1FAIpQLSdd8W5SJrnh5zZMDPXABKTErgYAKcl4Iag35CwZ_OYHifOqNQ/viewform).
+
+Also in this folder:
 
 - [Infrastructure assets](infrastructure.md)
