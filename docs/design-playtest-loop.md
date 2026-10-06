@@ -56,7 +56,8 @@ Checked in `ex-tales-forge` on `main` (commit `bd5af30`):
 | 1 | AI cost per LLM call: `ai_calls` table with tokens (in, out, cached, reasoning), model, cost, latency and status, linked to session and turn number | Done: [ex-tales-forge #19](https://github.com/whyse-ab/ex-tales-forge/pull/19), plus the fix [#21](https://github.com/whyse-ab/ex-tales-forge/pull/21) so rows are actually written in production; verified live 2026-10-06 |
 | 2 | Per-session and per-day spending caps with a hard stop, set by `AI_CAP_SESSION_USD` and `AI_CAP_DAY_USD` (unset = off; day = since midnight Stockholm time). A capped call sends nothing, is logged and stored as a `capped` row, and the player sees a calm "the Game Master is resting" message | Done: [ex-tales-forge #20](https://github.com/whyse-ab/ex-tales-forge/pull/20). Live on playtest ($1.00 per session, $10.00 per day); off in production |
 | 3 | GM hidden reasoning per turn: a short hidden `gm_notes` field in the GM reply, stored with the raw GM reply as a `gm_reasoning` session event (`player_aware: false`) in the turn's transaction; never shown to the player or fed back into prompts | Done: [ex-tales-forge #22](https://github.com/whyse-ab/ex-tales-forge/pull/22) |
-| 5 | Persona bot runner: `TalesForge.Playtest.Runner.start(persona, module, opts)` plays a new playtest session as a persona from [personas](personas.md), through the same paths a player uses. It sees only what the play page shows, and its moves come from an LLM call recorded in `ai_calls` as `persona` and counted by the caps. It stops at module end, death, a spending cap, a timeout or the turn limit (default 15). Each run is stored in `playtest_runs`. Off unless `PLAYTEST_RUNNER_ENABLED=true`; started over `rpc` on playtest, never in production | In review: [ex-tales-forge #23](https://github.com/whyse-ab/ex-tales-forge/pull/23) |
+| 5 | Persona bot runner: `TalesForge.Playtest.Runner.start(persona, module, opts)` plays a new playtest session as a persona from [personas](personas.md), through the same paths a player uses. It sees only what the play page shows, and its moves come from an LLM call recorded in `ai_calls` as `persona`. It stops at module end, death, a spending cap, a timeout or the turn limit (default 15). Each run is stored in `playtest_runs`. Off unless `PLAYTEST_RUNNER_ENABLED=true`; started over `rpc` on playtest, never in production | Done: [ex-tales-forge #23](https://github.com/whyse-ab/ex-tales-forge/pull/23) |
+| 6 | Judge and session report: `TalesForge.Playtest.Scorer.score(run_id)` makes one judge call (`ai_calls` purpose `scorer`) that reads the session record (what the player saw, server rolls, hidden GM notes) and scores it 1–5 per criterion against the persona's scorecard in [personas](personas.md), quoting the turn behind each score. Rubric `v1-<hash of the scorecard>`, so a scorecard edit is a new version. Stored in `playtest_scores`; runs that end finished or stopped are scored automatically, and re-scoring is a button. Admin pages `/admin/playtest` (start a run, list runs) and `/admin/playtest/:id` (turns side by side with what happened behind the screen, cost by purpose, score card). Persona and scorer calls are kept out of the session cap and the game's cost and time; see *Cost controls* | In review: [ex-tales-forge #24](https://github.com/whyse-ab/ex-tales-forge/pull/24) |
 
 ## The steps
 
@@ -297,6 +298,14 @@ AI spend on playtest must never surprise anyone. Three layers, cheapest first:
 1. **A budget cap per session.** The harness stops a session when it passes its token or money cap, and marks it as stopped on budget (that's a finding too).
 2. **A daily cap on the playtest key.** Set at the provider if possible, so it holds even if our own code is broken.
 3. **A runaway stop.** If spending per hour jumps well above normal (a loop, a bot stuck retrying), all bots stop and nothing restarts on its own.
+
+How this is built (ex-tales-forge #20, #24):
+
+- **Session cap** (`AI_CAP_SESSION_USD`) counts only the game's own calls (`gm`, `intent`, `scene`), so a bot run is capped at what a human session would be.
+- **Persona cap per run** (`AI_CAP_PERSONA_RUN_USD`, $0.50 when unset) counts the persona bot's own calls. Hitting it stops the run with stop reason `persona_cap` and stores a `capped` row.
+- **The scorer** is its own bucket, outside the session cap.
+- **Day cap** (`AI_CAP_DAY_USD`) is the safety net over everything: game, persona and scorer.
+- **Game cost and time leave the bot out.** Game time is from action submitted to turn done, plus scene time; the persona's thinking time, tokens and cost are stored apart on `playtest_runs` and shown as a separate "Persona (bot)" line. Raw wall clock is only shown labelled as including the bot.
 
 Raising a spending cap or adding an AI key needs Fredrik's OK ([environments](environments.md)). The actual numbers belong to the AI spend ceiling decision (`d-004`).
 
