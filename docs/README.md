@@ -10,7 +10,7 @@ Docs copied from the [Google Drive folder](https://drive.google.com/drive/folder
 - [Design: Game data vs sessions](design-game-data-vs-sessions.md)
 - [Design: Decision queue and shared docs](design-decision-queue-and-docs.md)
 
-Persona input is collected with a Google Form: [Tales Forge: Your input on our player personas](https://docs.google.com/forms/d/e/1FAIpQLSdd8W5SJrnh5zZMDPXABKTErgYAKcl4Iag35CwZ_OYHifOqNQ/viewform).
+Persona input is collected with a Google Form: [Tales Forge: Your input on our player personas](https://docs.google.com/forms/d/e/1FAIpQLSdd8W5SJrnh5zZMDPXABKTErgYAKcl4Iag35CwZ_OYHifOqNQ/viewform). First-pass synthesis: [Persona form notes](persona-form-notes.md).
 
 Also in this folder:
 
