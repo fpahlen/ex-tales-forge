@@ -79,7 +79,9 @@ One bot per persona plays the session against `tales-forge-playtest`, through th
 
 Bots play in their persona's style. Paul types in character with dice hidden; Hawk, Lars and Ronny play with dice shown.
 
-**The GM always opens; the persona responds.** Every session starts with the GM's opening narration of the first scene, as it does for a human player, who can't act before it exists. The bot's prompt starts with that opening on every turn, and the bot never makes the first move: if there is no opening, the run ends instead. The run report shows the opening before turn 1. Enforced in [ex-tales-forge #27](https://github.com/whyse-ab/ex-tales-forge/pull/27) (in review).
+**The GM always opens; the persona responds.** Every session starts with the GM's opening narration of the first scene, as it does for a human player, who can't act before it exists. The bot's prompt starts with that opening on every turn, and the bot never makes the first move: if there is no opening, the run ends instead. The run report shows the opening before turn 1. Enforced in [ex-tales-forge #27](https://github.com/whyse-ab/ex-tales-forge/pull/27).
+
+The **GM's own turn prompt** also carries that opening, clearly labelled as already told to the player, so the GM does not re-narrate the arrival on turn 1 (the same bug hit human players). In review: ex-tales-forge branch `gm-opening-in-turn`.
 
 - **In:** a test definition and the playtest build.
 - **Out:** a played session in the playtest database.
