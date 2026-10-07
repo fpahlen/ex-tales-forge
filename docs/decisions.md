@@ -9,6 +9,19 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: One Character entity: the seven design answers
+
+- **Decision:** confirmed by Fredrik on 2026-10-07 (via Case). These are the answers to the open questions in the Character plan:
+  1. **Scope:** characters are per session for now, but the schema is ready for a character to belong to a player and carry over (`owner_player_id`, `origin`). The persistent-world option (B) stays open in the design.
+  2. **PC levers:** PCs get OCEAN, a Maslow level and concerns, visible on the character sheet.
+  3. **AFK:** solo play pauses. In a party the GM takes over an absent PC after a timeout.
+  4. **Companions** decide by their reaction, concerns and party phase, not by obeying.
+  5. **Skill scale:** NPC skills are rescaled to the PC scale, and the trainer gap rule is re-checked.
+  6. **Memory:** one shared events table (the existing `session_events`) plus per-character, personality-filtered memory rows.
+  7. **Controller:** `player | gm | bot`. The persona runner uses `bot`.
+- **Why:** with one shape for PCs and NPCs, every lever (OCEAN, Maslow, concerns, Tuckman, perception) works the same for everyone. Per session keeps phase 1 small and matches today's data, and the owner column means carry-over needs no second migration. One shared record of each event, with a personal memory of it per character, avoids copying facts while letting characters remember the same event differently. The `bot` controller keeps playtest data and costs apart from real players.
+- **Details:** [Plan: one Character entity, section 6](plan-unify-character.md#6-decisions-confirmed-by-fredrik-2026-10-07)
+
 ## 2026-10-07: To try: living world
 
 - **To try (not a final decision):** an unscripted world in which nothing waits for the player.

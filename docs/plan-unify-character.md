@@ -1,7 +1,7 @@
 ---
 title: "Plan: one Character entity for player characters and NPCs"
 updated: 2026-10-07
-status: plan (no code; waiting for Fredrik's OK)
+status: plan; seven answers confirmed by Fredrik 2026-10-07; phase 1 (setup) in progress
 ---
 
 # Plan: one Character entity for player characters and NPCs
@@ -53,8 +53,9 @@ Every PC map has the same set of keys, and every `npc_instances.runtime_state` h
 | `id` | uuid | |
 | `game_session_id` | fk, `on_delete: :delete_all` | Characters live in one session for now (see open question 1) |
 | `slug` | string | `innkeep`, `elara_voss`, … Unique per session |
-| `controller` | `player` \| `gm` | The only difference between a PC and an NPC |
-| `controller_ref` | string, nullable | Who plays it: a player id later; null for `gm` |
+| `controller` | `player` \| `gm` \| `bot` | The only difference between a PC and an NPC (`bot` = persona runner) |
+| `controller_ref` | string, nullable | Who controls it right now: a player id or persona id; null for `gm` |
+| `owner_player_id` | nullable | Who the character belongs to, ready for carry-over between sessions (decision 1) |
 | `origin` | map | `{pack, adventure_id, definition_id}` or `{created, …}`, so a pack edit can be traced |
 | `definition` | map | Immutable copy of the authored source, the `front_instances.definition` pattern (today's misnamed `npc_instances.personality`) |
 | `name`, `race`, `role`, `location_id` | string | |
@@ -63,7 +64,7 @@ Every PC map has the same set of keys, and every `npc_instances.runtime_state` h
 | `ocean` | embedded, 5 × 0–10 | Fixed for the whole session |
 | `maslow_level` | enum: physiological, safety, belonging, esteem, self_actualisation | Plus `maslow_since_tick` |
 | `concerns` | embeds_many, 0–3 | text, focus, priority, since_tick, status. Replaces both `current_concern` and `current_concerns` |
-| `memories` | embeds_many | who, tick, kind (`memory` \| `promise` \| `reaction` \| `fact`), text, felt, secret. Capped in code (20), as today |
+| memories | separate `character_memories` rows (decision 6) | Each row is one character's personality-filtered view of a shared event. The shared events table is the existing `session_events` (kind, actor, tick, location, payload, player_aware): kind (`memory` \| `promise` \| `reaction` \| `fact`), text, felt, salience, secret. The prompt shows the top few, as today |
 | `inventory` | embeds_many | id, name, quantity, `price_copper` (nil = not for sale). NPC `stock` becomes inventory with prices |
 | `coins` | map | |
 | `wounds`, `wound_max`, `vitality`, `learning_points`, `learning_failures` | | NPCs get the same fields (unused at first) |
@@ -163,12 +164,24 @@ A flag is sensible for the read switch, because it changes what the GM sees. The
 - Phases 0–2: turn the flag off; the old fields are still written.
 - Phase 3 and later: roll back the release and run the migration `down`. `npc_instances` and `world_state` are kept until phase 4 for exactly this reason.
 
-## 6. Open questions for Fredrik
+## 6. Decisions (confirmed by Fredrik, 2026-10-07)
 
-1. **Scope:** do characters live in one session (recommended now), or in a player's library across sessions? A library needs accounts and ties into the character-creation port.
-2. **PC levers:** does the PC get authored OCEAN, Maslow and concerns? Are they visible to the player on the sheet, or hidden and used only when the GM controls the PC?
-3. **AFK:** in single player, pause (recommended), or let the GM take over after a timeout? For parties, what timeout, and how much may the GM decide for an absent PC?
-4. **Companions:** should a GM-controlled companion obey orders by default, or decide by reaction, concerns and party phase (proposed)?
-5. **Skill scale:** keep NPC raw skills (7–8) with default stats (10), or rescale them to the PC scale? Trainers depend on the gap.
-6. **Memory:** an embedded list on each character (simple), or a shared memories/facts table that matches the world-fact events (better for queries and admin)?
-7. **Controller values:** only `player | gm`, with the persona runner counting as a player (proposed), or a third `bot` value?
+Case suggested answers to the seven open questions. Fredrik confirmed all seven on 2026-10-07 ([decision](decisions.md#2026-10-07-one-character-entity-the-seven-design-answers)).
+
+1. **Scope:** characters live **per session for now**, but the schema is ready for a character to belong to a player and carry over. Concretely: `owner_player_id` (nullable) and `origin`, and nothing assumes one session forever. The persistent-world option stays open in the design. Options compared:
+
+   | Option | Characters and world state belong to | Good | Costs |
+   |---|---|---|---|
+   | A. Per session (**chosen for now**) | One `game_session` | Small, matches today's data, easy cleanup (cascade delete), no accounts needed | Nothing outlives a session; a faction can't remember the player next time |
+   | A+. Per session, owned by a player | A session, plus a nullable owner, so a character can be copied or moved into a new session | Carry-over without a world model; fits character creation and a library | Needs player accounts for the owner; the copy rules (what carries: skills, inventory, memories?) need deciding |
+   | B. Persistent world instance | A long-lived `world` (e.g. "Tin Valley #3") that sessions join; characters, factions, facts and clocks live on the world | Needed for the [living world](design-world-agents.md#living-world-design-to-try): the world moves between sessions, factions remember, parties share one world | A new top-level entity; sessions become visits to a world; per-world ticks cost CPU (small); harder resets, moderation and data growth; migration of `world_state` from the session to the world |
+
+   Phase 1 builds A with A+'s owner column. Moving to B later means adding `world_id` next to `game_session_id` and backfilling one world per existing session.
+2. **PC levers:** PCs get OCEAN, a Maslow level and concerns, **visible on the character sheet**.
+3. **AFK:** solo play pauses. In parties the GM takes over an absent PC after a timeout, and control goes back when the player returns.
+4. **Companions:** a GM-controlled companion decides by its reaction, concerns and party phase. It does not obey orders by default.
+5. **Skill scale:** NPC skills are **rescaled to the PC scale**. NPCs use the same raw values plus stat bonus and the same roll formula as PCs. The pack values are re-authored on that scale: a master trainer still sits well above a starting PC. The trainer gap rule (`Train`, today raw + 5) is re-checked against the new values.
+6. **Memory:** one **shared events table** (what happened, where, who was involved, who could perceive it) plus **per-character memory rows**: each character's personality-filtered view of an event (felt, salience, secret), pointing at the event. The shared table is the existing `session_events`, which already holds world facts and hidden events. It becomes world-scoped if option B lands.
+7. **Controller:** `player | gm | bot`. The persona runner uses `bot`, so playtest characters are easy to tell apart in data and costs.
+
+Effect on the phases: phase 0+1 (setup) adds `owner_player_id`, `controller` with three values, the shared events table and per-character memory rows. Rescaling NPC skills is a separate step after phase 1: it changes who can train whom (`Train`) and the skill values the GM sees, so it gets its own PR with the gap rule re-checked, and phase 1 keeps the GM prompts byte-identical. Nothing switches reads until phase 2.
