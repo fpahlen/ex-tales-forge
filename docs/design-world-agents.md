@@ -106,6 +106,27 @@ Two changes, following round 1:
 - **Extracted, for example:** Brenna promised "Stew's on the house tonight if it keeps you from pressing me further" and "Room's yours; up the narrow stair, second door on the left"; Tin Valley got "The orc nest is a half-day's hard walk east of the market square…". Restated prices were rejected as conflicts (the pack wins).
 - **Weak spots:** near-duplicate promises across turns, one rule filed as a promise, and the extraction runs on the tier-1 model; a cheaper fast model should cut its ~$0.001 per turn. The Lotta Jev scores are lower than in round 1, but run-to-run spread is large at this sample size; nothing in the per-turn data points to the prices or facts.
 
+## Character levers (design, not built)
+
+**Principle: few levers, emergent behaviour.** A person has four levers and a group has one. Elixir holds them on the agent and changes them from typed events. Each turn the Jev reaction reads them, and the GM gets the result as per-turn facts. Nothing new goes into the cached prefix, and there are no new LLM calls.
+
+| Lever | Held by | Changes | Feeds the Jev reaction | Feeds the GM per-turn facts |
+| --- | --- | --- | --- | --- |
+| **OCEAN** (0–10 ×5) | person, from the pack | never within a session | in the state text, as today: how strongly she reacts and to what | not sent; the GM sees its effect through the reaction |
+| **Maslow level** (physiological, safety, belonging, esteem, self-actualisation) | person: the lowest unmet need | drops at once on a threat to a lower need (raid, armed stranger, no coin); rises one level after a few calm turns with that need met | "Right now she needs: safety" in the state; threats to that need weigh most | one line: "Brenna: needs safety (the raids)" |
+| **Current concerns** (1–3 short goals) | person; pack defaults, e.g. Brenna wants returning, happy, safe customers and an inn kept out of the Guild feud | events advance, threaten or resolve them; the extraction call may propose a new one, validated like a fact; resolved concerns drop | listed in the state, plus one Score question: does this help or threaten her concerns? It drives the stance | "wants: …" facts on the person, kept within the facts budget |
+| **Memory** | person: facts, promises and recent reactions involving the player character (round 2) | added after each turn by extraction and the reaction; old items fade from the prompt but stay on the agent | the 2–3 most relevant memories about this player character | promises and facts, as today ("promised: …") |
+| **Group phase** (Tuckman: forming, storming, norming, performing) | group agent: party, bandit gang, village council; members are persons | shared events, below | a member's state includes the group's phase: storming makes them prickly with each other, performing makes them steady and confident with outsiders | one line per group present: "Bandit gang (storming): quarrel over the split" |
+
+**Group phase transitions** come from shared events in the session log, counted by Elixir, not judged by an LLM. The event kinds are tagged by rules or by the extraction call (`conflict`, `shared_success`, `shared_failure`, `betrayal`, `member_joined`, `member_lost`):
+
+- forming → storming: the first conflict inside the group (blame, a loot dispute, a failed shared check).
+- storming → norming: that conflict is resolved (an agreement, a shared success, one member backing another).
+- norming → performing: a few shared successes in a row with no new conflict.
+- any phase → storming: betrayal, a new member or the loss of the leader. A party that disbands ends.
+
+Emergence comes from the combination. A safety-starved Brenna, a storming bandit gang in town and a player character who keeps a promise produce different scenes, and nobody scripts them.
+
 ## Related
 
 - [Call types](call-types.md): the call-type rule and the Character model this builds on.
