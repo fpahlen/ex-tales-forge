@@ -31,20 +31,22 @@ Assumptions:
 1. Player cost = `gm` + `scene` calls. Persona and scorer are playtest-only.
 2. Billed time = GM latency only. Scene setup (about one call per session) is treated as overhead, not billed time.
 3. Exchange rate fixed at 1 USD ≈ 10.5 SEK for this draft.
-4. A commute turn takes 45–90 s of wall clock, so 20 minutes ≈ 13–27 turns.
+4. A commute turn takes 45–90 s of wall clock, so 20 minutes ≈ 13–27 turns. This is likely generous: the sample comes from persona bots, and humans type (or speak) much slower than bots, so real players will probably manage fewer turns per commute. Treat 13–27 turns as an upper bound.
 
 Derived figures:
 
 1. GM cost per turn: about $0.011 (≈ 0.11 SEK). GM time per turn: about 5.7 s.
 2. Scene cost per session: about $0.006.
 3. Game cost per billed GM-second, scene included: about $0.0021, so about $0.13 (≈ 1.3 SEK) per billed minute, or about $7.6 (≈ 80 SEK) per billed hour.
-4. One 20-minute commute: 13–27 turns ≈ 1.2–2.6 billed minutes, costing about $0.15–0.30 (≈ 1.5–3.1 SEK). If longer context makes turns up to 50% more expensive, the top end is about $0.45 (≈ 4.7 SEK).
+4. One 20-minute commute: at most about 13–27 turns ≈ 1.2–2.6 billed minutes, costing up to about $0.15–0.30 (≈ 1.5–3.1 SEK). Real human sessions will likely land at or below this, since typing is slower than the bots. If longer context makes turns up to 50% more expensive, the top end is about $0.45 (≈ 4.7 SEK).
 
 Implication for presentation: billed time is only about 6–13% of wall-clock play. A 20-minute commute uses only a few billed minutes, so "1 hour" of billed time is roughly 8–15 hours of real play. Selling "hours" of billed time would feel stingy and confusing ("I played all week and used 40 minutes?"). Options:
 
 1. Sell "commute sessions" or "play hours" in wall-clock terms, each mapped internally to a fixed number of billed GM-seconds (for example 1 play hour ≈ 6 billed minutes).
 2. Sell credits and show "about N commutes left".
 3. Show raw billed time ("GM time"), which is accurate but needs explaining.
+
+Voice input is a possible future mode that would raise turns per commute (speaking is faster than typing), though speaking out loud on a crowded commute may feel awkward for many players.
 
 ## 3. Character creation
 
