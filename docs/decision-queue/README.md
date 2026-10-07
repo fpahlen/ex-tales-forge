@@ -4,7 +4,7 @@ Most important first (`rank` ascending). Status: `open` | `discussing` | `decide
 
 | Rank | Id | Title | Status |
 |---:|---|---|---|
-| 1 | [`d-001-elixir-foundation`](d-001-elixir-foundation.md) | Confirm the Elixir rewrite as the foundation | open |
+| 1 | [`d-001-elixir-foundation`](d-001-elixir-foundation.md) | Confirm the Elixir rewrite as the foundation | decided |
 | 2 | [`d-002-persona-scorecards`](d-002-persona-scorecards.md) | Define the persona scorecards, including cost per session and latency | open |
 | 3 | [`d-003-coding-bot-platform`](d-003-coding-bot-platform.md) | Choose a coding-bot platform and set the guardrails | open |
 | 4 | [`d-004-ai-spend-ceiling`](d-004-ai-spend-ceiling.md) | Set the AI spend ceiling | open |
