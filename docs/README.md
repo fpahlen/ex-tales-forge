@@ -21,7 +21,8 @@ Also in this folder:
 - [Environments and how changes reach production](environments.md)
 - [Coding standards](coding-standards.md): moduledocs, docs, specs + Dialyzer, Credo strict, ExDoc, tests with coverage, all enforced in CI
 - [Module audit of ex-tales-forge (2026-10-07)](module-audit-2026-10-07.md): every module grouped as in use, framework, dead or unsure, with a ranked removal proposal
-- [Plan: remove Ash (plain Ecto)](plan-remove-ash.md): what goes, the admin forms on Ecto, the safe table drop, deps, rollout and rollback (plan; code not started)
+- [Plan: remove Ash (plain Ecto)](plan-remove-ash.md): what goes, the admin forms on Ecto, the safe table drop, deps, rollout and rollback (code: ex-tales-forge #47, open)
+- [Plan: one Character entity for PCs and NPCs](plan-unify-character.md): today's two shapes side by side, the target `characters` table and agent, the controller (player or GM, AFK, companions), data migration, levers, what breaks, phased rollout (plan; waiting for OK)
 - [Design sketch: world agents](design-world-agents.md): persons, locations and items as Elixir agents that hold facts for the GM (to try)
 - [Design: playtest loop](design-playtest-loop.md): how persona bots play, get scored, and feed fixes and decisions (draft)
 - [Jev persona-affect scoring](jev-scoring.md): TypeSafe Jev for numeric persona-feeling scores (first cut 2026-10-07; not built yet)
