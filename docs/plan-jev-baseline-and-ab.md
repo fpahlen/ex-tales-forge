@@ -20,7 +20,7 @@ status: plan (nothing run yet)
 | [#55](https://github.com/whyse-ab/ex-tales-forge/pull/55) | The git SHA and flags (variant, NPC_REACTIONS, WORLD_AGENTS, models, Jev rubric) stored on each run and shown on the run report |
 | [#59](https://github.com/whyse-ab/ex-tales-forge/pull/59) | `Playtest.Series`: an unattended, interleaved and resumable batch runner |
 
-Persona-chosen characters (each persona plays a character it created, instead of Elara) come after the rework merges, at lower priority. If they land before the baseline, the baseline uses them. Either way the run report shows which character was played.
+Persona-chosen characters ([#60](https://github.com/whyse-ab/ex-tales-forge/pull/60): each persona plays a character it created instead of Elara; see [the picks](playtest-persona-characters.md)) come after the rework merges, at lower priority. If they land before the baseline, the baseline uses them (`character: :default` would still play Elara). Either way, the export records which character was played.
 
 ## Design
 

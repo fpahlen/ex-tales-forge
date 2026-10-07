@@ -36,4 +36,4 @@ The options are: races human, dwarf, elf, gnome, half-elf and halfling; classes 
 ## Open points
 
 - Founder survey Q10–Q14 may change race, class or concept per persona. Update the JSON and this note; the old runs keep the character they played (it is in the session's world state).
-- Elara had Insight 3; Paul's and Hawk's new characters are better at what they try, and Lotta's CHA is lower. That is part of the comparison with the Elara runs. If a persona's score moves, check whether the character explains it (see [the measurement plan](plan-jev-baseline-and-ab.md)).
+- Elara (Tin Valley) is a classless human with persuasion 3, insight 2, stealth 2, melee 1 and CHA 14. Paul's new character is stronger at talk (CHA 17), Hawk's and Lars's at fighting, and Lotta's CHA is lower (10). That is part of the comparison with the Elara runs. If a persona's score moves, check whether the character explains it (see [the measurement plan](plan-jev-baseline-and-ab.md)).
