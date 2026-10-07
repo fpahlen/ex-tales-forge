@@ -58,7 +58,7 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 
 Mailgun and Postmark (`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `POSTMARK_API_KEY`) are also supported by the code but not used.
 
-Fixed monthly costs on the costs page (Fly machines, GitHub, the domain and so on), the USD to SEK rate and the playtest warning threshold are not secrets. They live in one config block in ex-tales-forge, `config :ex_tales_forge, TalesForge.Costs` in `config/config.exs`. Edit the figures there.
+Fixed costs on the costs page (Fly machines, GitHub, the domain, other hosting and so on), the USD to SEK rate and the playtest warning threshold are not secrets. They live in one config block in ex-tales-forge, `config :ex_tales_forge, TalesForge.Costs` in `config/config.exs`. Each item is either `{:usd_per_month, n}` or `{:sek_per_year, n}` (converted at the configured rate, shown as yearly and as monthly share ÷ 12); `:unknown` stays out of the totals. Domain tales-forge.ai is SEK 2,318.75/year and other hosting-related costs are SEK 400/year (both from Fredrik 2026-10-06). Edit the figures there.
 
 ## Playtest (`tales-forge-playtest`)
 
