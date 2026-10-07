@@ -54,6 +54,8 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `COSTS_PEER_URL` | Base URL of the other app for the costs page: `https://tales-forge-playtest.fly.dev` on production. Config, not a secret, but set the same way. Without it (or without the token) the page says "not configured" | Yes, since 2026-10-06: `https://tales-forge-playtest.fly.dev` |
 | `TYPESAFE_API_KEY` | TypeSafe Jev API key for persona-affect scoring. **Do not set on production yet** (playtest only) | No, not yet |
 | `TYPESAFE_INTENT_API_KEY` | Intent-gate Jev key. **Do not set on production yet** | No, not yet |
+| `NPC_REACTIONS` | `on` turns on the Jev NPC reaction before each GM call (ex-tales-forge PR #40; needs `TYPESAFE_API_KEY`). Default off. Not secret, but set the same way | **No, off** (unset) |
+| `WORLD_AGENTS` | `on` turns on the world-agents prototype: persons and locations hold facts for the GM (ex-tales-forge PR #40; also turns on NPC reactions). Default off. Not secret | **No, off** (unset) |
 | `MAIL_ADAPTER` | Email provider for magic links, e.g. `resend` | No, see [Resend setup](resend-setup.md) |
 | `RESEND_API_KEY` | Resend sending key | No |
 | `ADMIN_MAIL_FROM` | Sender address for login emails (default `admin@tales-forge.ai`) | No |
@@ -84,7 +86,9 @@ Same names as production, with **separate values** (never copied from prod), exc
 | `PLAYTEST_RUNNER_ENABLED` | Yes, `true`: staged 2026-10-06 with the deploy of ex-tales-forge PR #23 |
 | `COSTS_PEER_TOKEN` | Set 2026-10-06. The **same value** as on production; it turns on playtest's `GET /internal/costs`, which production's costs page reads |
 | `COSTS_PEER_URL` | Set 2026-10-06: `https://tales-forge.fly.dev`, so playtest's costs page shows production too. Config, not a secret |
-| `TYPESAFE_API_KEY` | TypeSafe Jev (persona-affect scorer). Console key name tales-forge-scorer. **Yes, set 2026-10-07** on playtest only | Yes, since 2026-10-07 |
+| `TYPESAFE_API_KEY` | TypeSafe Jev (persona-affect scorer, and the NPC reaction when `NPC_REACTIONS=on`). Console key name tales-forge-scorer. **Yes, set 2026-10-07** on playtest only | Yes, since 2026-10-07 |
+| `NPC_REACTIONS` | Yes, `on` since 2026-10-07 (Fredrik's OK, release v25): Brenna and other present NPCs get a Jev reaction before each GM call (`ai_calls` purpose `npc_reaction`). Unset it to turn it off |
+| `WORLD_AGENTS` | Not set (off). The world-agents prototype stays off on playtest for now |
 | `TYPESAFE_INTENT_API_KEY` | TypeSafe Jev key for a future intent-gate (separate from the scorer). Console key name tales-forge-intent-playtest. **Staged 2026-10-07** on playtest; takes effect when an intent-gate deploy ships. Not on production | Staged, not Deployed yet |
 
 GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.
