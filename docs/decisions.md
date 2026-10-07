@@ -9,6 +9,42 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: Brenna is a warm, chatty barkeep; a lead by turn 2; GM prose cleanup
+
+- **Decision (Fredrik's call, via Case):** Brenna, the Tin Valley innkeep, becomes a warm, chatty barkeep who genuinely enjoys running the tavern.
+  - Her OCEAN traits go up on extraversion and agreeableness: O4 C8 E5 A6 N5 → **O6 C7 E8 A8 N3**. Her mood is cheerful. Her concern becomes "keep the common room full, warm and talking, and her regulars safe while the hills are restless" (Maslow is still belonging).
+  - Her default brush-off is dropped. She treats a civil, paying guest warmly unless the character gives her a reason not to.
+  - The story gets moving by turn 2. NPCs can carry ready-made `hooks` (Brenna has four: Osric Vane paying for steel against the orc nest, Caldern Voss and the shaft, goods the orcs took off the valley road, and a free meal plus gossip for a helper). The GM prompt asks for one concrete lead (a job, a name or a place) by the end of the player's second turn at the latest.
+  - The GM's prose is cleaned up:
+    - always second person, so no "Elara …" openers;
+    - no echoing the player's words;
+    - no re-serving or re-describing;
+    - stock phrases ("eyes narrow", "scarred oak", "slides the mug across", "the hearth crackles") are named and avoided;
+    - prices, names and promises stay consistent.
+  - The old Brenna and the old prompts stay available as the opt-in `baseline` behaviour variant, so the rework can be A/B-tested on one deploy.
+  - Status: [ex-tales-forge PR #58](https://github.com/whyse-ab/ex-tales-forge/pull/58) is open, stacked on #56, and waits for Fredrik's approval. It is not merged or deployed.
+- **Why:** in the Jev analysis, Brenna's brush-off ("eyes narrow", flat voice, "clearly done") appeared in 39 of 44 runs. It was the most common cause of low turn scores (15 of the 19 lowest turns examined), hit Lotta hardest, and no run got past the inn in five turns.
+- **Details:** [Analysis: Jev scores 2026-10-07](analysis-jev-scores-2026-10-07.md), [PR #58](https://github.com/whyse-ab/ex-tales-forge/pull/58), [measurement plan](plan-jev-baseline-and-ab.md)
+
+## 2026-10-07: No skill roll on ordinary talk; a failed roll only means you learn nothing extra
+
+- **Decision (from Fredrik, via Case):**
+  - Ordinary talk and everyday actions (ordering, chatting, asking a question, looking around) get **no skill roll**. A check happens only when the outcome is genuinely uncertain and failing would cost something.
+  - A **failed** roll costs only what was tried for. A failed read, search or recall means the character learns nothing extra; it never makes an NPC colder, more suspicious or hostile.
+  - NPC attitude follows the character's words and deeds, not the dice. People notice an attempt only when the action itself shows (a lie, a threat, a clumsy grab).
+  - The fix is at the root, in three places:
+    - the intent heuristic no longer falls back to Insight (72% of rolls were Insight);
+    - intent no longer forces a skill onto every action;
+    - action resolution no longer defaults to a check.
+  - In addition, the intent and GM prompts state the rule, and unseen checks (Insight, history and similar) no longer reach NPC reactions.
+  - The old behaviour is kept as the opt-in `baseline` behaviour variant (`variant: "baseline"`) for A/B runs.
+  - Status: [ex-tales-forge PR #56](https://github.com/whyse-ab/ex-tales-forge/pull/56) is open and waits for Fredrik's approval. It is not merged or deployed.
+- **Why:** in the Jev analysis, the rules engine rolled Insight on 72% of turns (155 of 216), even for ordering ale, and those checks failed about 70% of the time.
+  - The GM then narrated each failure as the NPC turning colder: 87% of failed turns had cold phrasing.
+  - Within a run, a failed check cost about −0.35 on the turn score, and 9 of the 10 lowest non-Hawk turns were failed checks.
+  - In short, the dice punished players for talking.
+- **Details:** [Analysis: Jev scores 2026-10-07](analysis-jev-scores-2026-10-07.md), [PR #56](https://github.com/whyse-ab/ex-tales-forge/pull/56)
+
 ## 2026-10-07: GitHub team sign-in is the only login on production and playtest
 
 - **Decision (from Fredrik, via Case):** "Sign in with GitHub", checked against the GitHub team `whyse-ab/tales-forge` (`ADMIN_GITHUB_TEAM`), is the only login on production (`tales-forge`) and playtest (`tales-forge-playtest`) for now.
