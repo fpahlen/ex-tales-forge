@@ -33,9 +33,9 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
   - Roll **d20**. If the result is **equal to or higher than the current skill level**, the skill gains **+1**.
   - More LP means more attempts.
   - This **supersedes** the progression part of [Skill rules ported from the old game](#2026-10-07-skill-rules-ported-from-the-old-game-signature-skills-up-to-7-growth-no-longer-stalls) ([#64](https://github.com/whyse-ab/ex-tales-forge/pull/64)): the 5 / 7 / 10 / 15 LP tier thresholds, the failure requirement, the rest requirement and the tiered thresholds are gone. It also supersedes item 4 ("growth pace stays as it is for now") of [Skill rules: the open questions answered](#2026-10-07-skill-rules-the-open-questions-answered). LP are still earned per roll as before, including the stat bonus.
-  - Status: not started; the PR will be linked here when it exists.
+  - Status: [ex-tales-forge #67](https://github.com/whyse-ab/ex-tales-forge/pull/67) is open and waits for Fredrik's approval; not merged or deployed. In it: attempts happen at the end of every turn (every whole LP is spent), a trainer gives one free attempt at +5, and the Expert −3 / Master −5 modifiers are removed. The `baseline` variant keeps the #64 rule.
 - **Why:** skill growth has stopped. The baseline averages about 1.0 LP per run, and there were **0 improvement attempts in 65 runs**: an attempt needed 5 LP, a failure and a rest of an hour, and almost no run had all three. With one attempt per LP, every LP is a visible chance to grow, and the d20 ≥ level roll slows growth naturally as a skill gets higher (a success chance of (21 − level)/20).
-- **Details:** [Analysis: Jev baseline 2026-10-07, §6 and recommendation 7](analysis-jev-baseline-2026-10-07.md), [character creation port: skill rules](character-creation-port.md#skill-rules-ported-2026-10-07)
+- **Details:** [Analysis: Jev baseline 2026-10-07, §6 and recommendation 7](analysis-jev-baseline-2026-10-07.md), [character creation port: growth rule replaced](character-creation-port.md#growth-rule-replaced-2026-10-07-1-lp--one-improvement-attempt), [PR #67](https://github.com/whyse-ab/ex-tales-forge/pull/67)
 
 ## 2026-10-07: How the GM plays Brenna: no default echo, no stock tics
 

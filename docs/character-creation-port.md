@@ -274,7 +274,7 @@ The rules live in `priv/characters/creation.json` (`skills`, `occupation`) and `
 - **Suggested build:** the class, race and occupation skills plus filler skills tied to the highest stats (at least 6 skills), raised lowest first up to 5 until the points run out. The suggestion never buys a signature level; the player does that.
 - **Past occupation:** a player can pick laborer, innkeep, barkeep, merchant, guard, soldier, hunter, miner, priest, scholar, thief or noble. The class suggests one: warrior → soldier, thief → thief, ranger → hunter, cleric → priest, wizard → scholar, druid → hunter, no class → laborer.
 - **Untrained floor:** effective level = `max(skill + (stat − 10) ÷ 2, stat ÷ 3, (stat − 10) ÷ 2)`, rounded down.
-- **Progression:**
+- **Progression** (as ported in #64; **superseded on 2026-10-07** for the default variant by [1 LP = one attempt](#growth-rule-replaced-2026-10-07-1-lp--one-improvement-attempt), below; the `baseline` variant keeps it):
   - The LP needed to try depends on the tier: Novice (0–5) 5, Adept (6–10) 7, Expert (11–15) 10, Master (16+) 15.
   - At least one failure since the last attempt.
   - The improvement roll is `1d20 + modifier > level`, with modifier 0 / 0 / −3 / −5 by tier and a trainer lowering the target by 5. A Master still needs a trainer.
@@ -307,6 +307,44 @@ The rules live in `priv/characters/creation.json` (`skills`, `occupation`) and `
 - **Untrained floor:** **only for level-0 skills**, which is the literal old rule. A trained skill uses level + stat bonus, so levels 1–3 always count. Changed in #62, which replaces ambiguity 10 above.
 - **Past occupation and the levers:** the occupation now drives the OCEAN, Maslow and concerns defaults, as for NPCs; "adventurer" is only the fallback. Changed in #63, which replaces ambiguity 14 above. **The GM's sheet:** deferred to PR 5 ("The GM sees who the character is"), which adds race, class, background and the occupation in one character section with one golden update.
 - **Pace of growth:** unchanged for now. Playtest runs record per-skill growth (rolls, LP gained, attempts, improvements) on `playtest_runs.growth`, so the baseline shows the pace.
+
+### Growth rule replaced 2026-10-07: 1 LP = one improvement attempt
+
+The [Jev baseline](analysis-jev-baseline-2026-10-07.md#6-skill-growth-lp-from-playtest_runsgrowth-ex-tales-forge-66) found about 1.0 LP per run and **0 improvement attempts in 65 runs**: the #64 rule needed the tier's LP, a failure and a rest of an hour, and almost no run had all three. Fredrik replaced it ([decision](decisions.md#2026-10-07-skill-growth-spend-1-lp-for-one-improvement-attempt-supersedes-the-tiered-thresholds)). The code is in [ex-tales-forge #67](https://github.com/whyse-ab/ex-tales-forge/pull/67) (`TalesForge.Game.Progression`); it is open and waits for Fredrik's approval.
+
+- **The rule:** 1 LP buys one attempt on the skill that earned it. Roll d20; if the result is **≥ the current level**, the skill gets +1. The chance is **(21 − L)/20**. More LP means more attempts. LP are earned per roll as before, including the stat bonus.
+- **When (chosen in #67):** at the **end of every turn**, every whole LP a skill holds is spent at once. Fractions wait for the next roll, and the dead learn nothing.
+  - Rest almost never happened (0 attempts), the game has no reliable end-of-session event, and scene changes are unreliable today, so only a per-turn spend is sure to trigger.
+  - It also spends LP that sessions banked under #64.
+- **Trainers (chosen in #67):** a training session is **one free attempt (no LP) with +5** on the roll. The trainer must still be present and at least 5 levels above you, you pay the fee per day, and you must not be down or dead. The LP and failure gate is gone. Training costs coin and days, so it doesn't also cost LP; the +5 matters most where attempts usually fail, and past 20 only a trainer reaches the target.
+- **Expert −3 / Master −5 (chosen in #67): removed.** The curve already slows growth (90% at level 3, 45% at 12, 25% at 16, 5% at 20, a soft cap at 20). With the modifiers, the chance would be 0% from 16 up, a hard wall and two more non-intuitive rules.
+- **Baseline variant:** keeps the #64 rule and its rules text unchanged (`Progression.Tiered`, `variants/baseline/rules/`), so the A/B arm plays the old game.
+- **Growth log (#66):** each attempt is one `improvements` entry (`lp_spent` 1, or 0 with `bonus` 5 for a trainer), so `playtest_runs.growth` counts attempts and improvements as before.
+
+Expected growth of one skill that gets all of a run's LP (exact Markov-chain expectations from [`scripts/growth-model/growth_model.py`](scripts/growth-model/growth_model.py)):
+
+| Level L | p = (21 − L)/20 | Levels per run at 1 LP | at 2 LP | at 3 LP | Runs L → L+1 at 1 LP | at 2 LP | at 3 LP |
+|---|---|---|---|---|---|---|---|
+| 3 | 0.90 | 0.90 | 1.75 | 2.57 | 1.1 | 0.6 | 0.4 |
+| 5 | 0.80 | 0.80 | 1.56 | 2.28 | 1.2 | 0.6 | 0.4 |
+| 7 | 0.70 | 0.70 | 1.37 | 2.00 | 1.4 | 0.7 | 0.5 |
+| 12 | 0.45 | 0.45 | 0.88 | 1.28 | 2.2 | 1.1 | 0.7 |
+
+| Span | Runs at 1 LP | at 2 LP | at 3 LP |
+|---|---|---|---|
+| 3 → 5 | 2.3 | 1.1 | 0.8 |
+| 5 → 7 | 2.6 | 1.3 | 0.9 |
+| 7 → 12 | 8.5 | 4.2 | 2.8 |
+| 3 → 12 | 13.3 | 6.7 | 4.4 |
+| 3 → 20 | 49.9 | 25.0 | 16.6 |
+
+Under #64 at 1 LP per run, even with a rest and a failure every run, the next level took 5.7 runs from level 3, 6.3 from 5, 10.2 from 7 and 37 from 12.
+
+![Expected level of one skill over runs, new rule at 1–3 LP per run vs the #64 rule](images/growth-lp-attempts-2026-10-07.png)
+
+- **Caveats:**
+  - 1.0 LP per run is the whole character's average (Paul 0.12, Lars 2.19), and one skill gets less than that.
+  - The fast end comes from the LP-earning rate, not from this rule. A fight-heavy run (Ronny: 13.5 melee LP in one run) would take melee from 5 to about 14. If the rerun shows that is too fast, tune LP per roll (for example the stat bonus).
 
 ## Proposed port
 
