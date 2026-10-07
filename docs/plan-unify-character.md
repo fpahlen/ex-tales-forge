@@ -158,6 +158,14 @@ A flag is sensible for the read switch, because it changes what the GM sees. The
 | 4 | Drop `npc_instances` with the row-check pattern from #47 (abort unless reviewed); remove the flag and the old `NPC` paths | none | −400 | low |
 | Later | Lever behaviour (Maslow events, concern resolution, personality-filtered memory), groups + Tuckman, AFK handoff and companions (need parties), a character library across sessions (needs accounts) | own plans | — | — |
 
+**Status, 2026-10-07:** phases 0 and 1 (setup) are open as [ex-tales-forge #48](https://github.com/whyse-ab/ex-tales-forge/pull/48), not merged:
+- the `characters` and `character_memories` tables;
+- pack levers with validation, and Elara in the packs;
+- new sessions write characters, but nothing reads them;
+- a golden test keeps the GM prompts byte-identical.
+
+The backfill of existing sessions and the dual-write of per-turn changes moved to the next PR, together with the NPC skill rescale.
+
 **Total for phases 0–4:** about +1,800 / −1,350 LOC over 5–7 PRs. The net is small; the value is one shape for PCs and NPCs.
 
 **Rollback:**
