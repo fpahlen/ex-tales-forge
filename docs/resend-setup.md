@@ -5,7 +5,7 @@ updated: 2026-10-06
 
 # Setting up Resend (email)
 
-Resend sends the admin sign-in links now, and player mail later. The free plan is enough at our volume. Never put the API key in this repo or in chat.
+Not in use: admin sign-in links were removed on 2026-10-07 (ex-tales-forge PR #54, [decision](decisions.md#2026-10-07-github-team-sign-in-is-the-only-login-on-production-and-playtest)); sign-in is GitHub team only. Resend is kept for player mail later. The free plan is enough at our volume. Never put the API key in this repo or in chat.
 
 ## 1. Create the account
 

@@ -1,6 +1,6 @@
 ---
 title: "Adding API keys and secrets to Fly"
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Adding API keys and secrets to Fly
@@ -8,6 +8,8 @@ updated: 2026-10-06
 API keys, passwords and tokens go into **Fly secrets**, never into the code or `fly.toml`. Fly stores them encrypted and gives them to the app as environment variables. Setting or changing a secret restarts the app, which takes about 10 seconds.
 
 Apps: `tales-forge` (production) and `tales-forge-playtest` (playtest), org `personal`, account fredrik@whyse.se. Each app has its own secrets; never copy a value from one to the other. The exceptions are `GITHUB_DOCS_TOKEN` and `COSTS_PEER_TOKEN`, which must be the same on both apps. The tables below cover production first, then [playtest](#playtest-tales-forge-playtest).
+
+**Sign-in secrets check (2026-10-07, for ex-tales-forge PR #54, GitHub team sign-in only):** `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `GITHUB_DOCS_TOKEN` and `ADMIN_GITHUB_TEAM` are set on both apps. Compared by digest, not by value: `GITHUB_DOCS_TOKEN` and `ADMIN_GITHUB_TEAM` match, and the OAuth client ID and secret differ, because each app has its own OAuth app. Nothing was added or staged.
 
 ## Option 1: the Fly dashboard (easiest)
 
@@ -40,12 +42,12 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `DATABASE_URL` | Connection to the Postgres app `tales-forge-db` | Yes (set by `fly postgres attach`) |
 | `SECRET_KEY_BASE` | Signs sessions and cookies. Rotating it logs everyone out | Yes |
 | `PHX_HOST` | Public host name (`tales-forge.fly.dev`) | Yes |
-| `ADMIN_EMAILS` | Comma-separated emails allowed into the admin | Yes, fredrik@whyse.se only |
+| `ADMIN_EMAILS` | Was the magic-link allowlist. **Unused since ex-tales-forge PR #54** (GitHub team sign-in only); still set, can be unset once the PR is deployed | Yes, fredrik@whyse.se only |
 | `GITHUB_DOCS_TOKEN` | Fine-grained GitHub token (owner `whyse-ab`): read-only contents so the admin can import this docs repo, plus organization *Members: read* for the admin team check | Yes |
 | `XAI_API_KEY` | AI game master (xAI). Without it the GM gives mock narration | Yes (since 2026-10-06) |
-| `GITHUB_OAUTH_CLIENT_ID` | "Sign in with GitHub" on the admin: Client ID of the GitHub OAuth app *Tales Forge Admin* (see [infrastructure.md](infrastructure.md#github-sign-in-for-the-admin)). Without it and the secret, only email links work | Yes (live since v13, 2026-10-06) |
+| `GITHUB_OAUTH_CLIENT_ID` | "Sign in with GitHub", the only login (every page, PR #54): Client ID of the GitHub OAuth app *Tales Forge Admin* (callback `https://tales-forge.fly.dev/admin/auth/github/callback`, see [infrastructure.md](infrastructure.md#github-sign-in-for-the-admin)). Without it and the secret nobody can sign in | Yes (live since v13, 2026-10-06) |
 | `GITHUB_OAUTH_CLIENT_SECRET` | Client secret of the same OAuth app | Yes (live since v13, 2026-10-06) |
-| `ADMIN_GITHUB_TEAM` | Optional. A GitHub team as `org/team-slug`, e.g. `whyse-ab/tales-forge`; its active members can sign in to the admin with GitHub. Unset = team access off (only `ADMIN_EMAILS` counts). Needs `GITHUB_DOCS_TOKEN` to be able to read `whyse-ab` members | Yes: `whyse-ab/tales-forge` (since v15, 2026-10-06) |
+| `ADMIN_GITHUB_TEAM` | Required since PR #54. The GitHub team as `org/team-slug`, `whyse-ab/tales-forge`: only its active members can sign in (to everything, admin included). Unset = nobody can sign in. Needs `GITHUB_DOCS_TOKEN` to be able to read `whyse-ab` members | Yes: `whyse-ab/tales-forge` (since v15, 2026-10-06) |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` | Optional other AI providers | No |
 | `AI_CAP_SESSION_USD`, `AI_CAP_DAY_USD` | Optional AI spending caps in USD, per game session and per day (since midnight Stockholm time). Not set = that cap is off. The session cap counts only the game's calls, not the persona bot or the judge; the day cap counts everything (ex-tales-forge PR #20, #24). Not secret, but set the same way | No, not set = off |
 | `AI_CAP_PERSONA_RUN_USD` | Optional cap in USD on the persona bot's own AI calls per playtest run; hitting it stops the run (`persona_cap`). **Defaults to $0.50 when not set** (ex-tales-forge PR #24). Not secret, but set the same way | No (the runner never runs in production) |
@@ -56,7 +58,7 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `TYPESAFE_INTENT_API_KEY` | Intent-gate Jev key. **Do not set on production yet** | No, not yet |
 | `NPC_REACTIONS` | `on` turns on the Jev NPC reaction before each GM call (ex-tales-forge PR #40; needs `TYPESAFE_API_KEY`). Default off. Not secret, but set the same way | **No, off** (unset) |
 | `WORLD_AGENTS` | `on` turns on the world-agents prototype: persons and locations hold facts for the GM (ex-tales-forge PR #40; also turns on NPC reactions). Default off. Not secret | **No, off** (unset) |
-| `MAIL_ADAPTER` | Email provider for magic links, e.g. `resend` | No, see [Resend setup](resend-setup.md) |
+| `MAIL_ADAPTER` | Email provider, e.g. `resend`. Nothing sends mail since magic links were removed (PR #54) | No, see [Resend setup](resend-setup.md) |
 | `RESEND_API_KEY` | Resend sending key | No |
 | `ADMIN_MAIL_FROM` | Sender address for login emails (default `admin@tales-forge.ai`) | No |
 
@@ -74,13 +76,13 @@ Same names as production, with **separate values** (never copied from prod), exc
 |---|---|
 | `DATABASE_URL` | Yes, set by `fly postgres attach tales-forge-playtest-db` (database `tales_forge_playtest` on the playtest cluster) |
 | `SECRET_KEY_BASE` | Yes, newly generated for playtest |
-| `ADMIN_EMAILS` | Yes, fredrik@whyse.se only. Invited testers come later, here or through a separate tester list |
-| `ADMIN_GITHUB_TEAM` | Yes, `whyse-ab/tales-forge`. Active team members (the founders) can sign in with GitHub; pending invites don't count |
+| `ADMIN_EMAILS` | Yes, fredrik@whyse.se only. Unused since PR #54 (GitHub team sign-in only); can be unset once deployed |
+| `ADMIN_GITHUB_TEAM` | Yes, `whyse-ab/tales-forge`. Since PR #54 the only way in: active team members (the founders) sign in with GitHub; pending invites don't count |
 | `XAI_API_KEY` | Yes, live: a separate playtest key (added by Case), so bot and tester cost is counted apart from production |
 | `PHX_HOST` | Not a secret: `tales-forge-playtest.fly.dev` is in `fly.playtest.toml` |
 | `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | Yes, from a second OAuth app for playtest (callback `https://tales-forge-playtest.fly.dev/admin/auth/github/callback`) |
 | `GITHUB_DOCS_TOKEN` | Yes, the same fine-grained whyse-ab token as production (contents read, Members read). Used for the team check and "Sync from repo" |
-| `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | No, so magic-link emails aren't sent on playtest |
+| `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | No. Not needed: magic-link sign-in was removed (PR #54) |
 | `AI_CAP_SESSION_USD`, `AI_CAP_DAY_USD` | Yes, since 2026-10-06: $1.00 per session, $10.00 per day. Changing them needs Fredrik's OK |
 | `AI_CAP_PERSONA_RUN_USD` | Not set, so the $0.50 per run default applies (from ex-tales-forge PR #24). Set it like the other caps (`fly secrets set AI_CAP_PERSONA_RUN_USD=... -a tales-forge-playtest`) only to change that; changing it needs Fredrik's OK |
 | `PLAYTEST_RUNNER_ENABLED` | Yes, `true`: staged 2026-10-06 with the deploy of ex-tales-forge PR #23 |

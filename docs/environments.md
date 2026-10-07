@@ -47,7 +47,7 @@ A manual `fly deploy` is the fallback when Actions is down. It is the same comma
 
 ## Invited testers (later)
 
-The founders are the first testers: they sign in to playtest with GitHub through the `whyse-ab/tales-forge` team, like production. A separate tester list comes later, when outside testers join. Email sign-in on playtest also needs a mail key first (see the secrets below).
+The founders are the first testers: they sign in to playtest with GitHub through the `whyse-ab/tales-forge` team, like production. Since ex-tales-forge PR #54 ([decision 2026-10-07](decisions.md#2026-10-07-github-team-sign-in-is-the-only-login-on-production-and-playtest)) that is the only login on both apps, and every page needs it. Email sign-in is gone. Outside testers will need a new decision (team membership or another login).
 - A new AI key, or raising the spending cap on one.
 
 ## Costs (estimates, 2026-10-06)
@@ -83,13 +83,13 @@ GitHub Actions secret: `FLY_API_TOKEN`, a deploy token that only works on `tales
 |---|---|
 | `DATABASE_URL` | Set (by `fly postgres attach tales-forge-playtest-db`) |
 | `SECRET_KEY_BASE` | Set (newly generated) |
-| `ADMIN_EMAILS` | Set (fredrik@whyse.se) |
+| `ADMIN_EMAILS` | Set (fredrik@whyse.se); unused since PR #54 |
 | `ADMIN_GITHUB_TEAM` | Set (`whyse-ab/tales-forge`): the founders sign in with GitHub, same check as production |
 | `XAI_API_KEY` | Set, live: a separate playtest key |
 | `PHX_HOST` | Not a secret here: `tales-forge-playtest.fly.dev` is in `fly.playtest.toml` |
 | `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | Set, from a second OAuth app with the playtest callback |
 | `GITHUB_DOCS_TOKEN` | Set, same read-only token as production; needed for the team check |
-| `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | Not set (production has none either), so magic-link emails aren't delivered; sign-in is GitHub only |
+| `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM` | Not set (production has none either). Not needed: sign-in is GitHub team only (PR #54) |
 
 GitHub Actions secret: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (set).
 

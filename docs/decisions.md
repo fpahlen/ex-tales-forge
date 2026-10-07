@@ -9,6 +9,17 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: GitHub team sign-in is the only login on production and playtest
+
+- **Decision (from Fredrik, via Case):** "Sign in with GitHub", checked against the GitHub team `whyse-ab/tales-forge` (`ADMIN_GITHUB_TEAM`), is the only login on production (`tales-forge`) and playtest (`tales-forge-playtest`) for now.
+  - Email magic-link sign-in is disabled: its routes, the email form and the code that sent the links are gone, and old email-only sessions no longer count. The `ADMIN_EMAILS` allowlist no longer lets anyone in.
+  - Every page and LiveView needs a signed-in team member: play, character creation (and any route added later), admin, costs, code docs at `/admin/code-docs`, and playtest run reports. Only the login page, the GitHub OAuth request and callback, and the health check (`/health`; the Fly checks move off `/`) are open, plus the static files the login page needs and the token-guarded machine-to-machine `/internal/costs`. Anyone else is sent to the login page. A GitHub user who isn't on the team is refused there with a short message.
+  - No separate admin login: any signed-in team member gets the admin pages, with no extra admin check or second login step. The team check is the single gate.
+  - Status: [ex-tales-forge PR #54](https://github.com/whyse-ab/ex-tales-forge/pull/54) is open and waits for Fredrik's approval. It is not merged or deployed, so this takes effect when it is.
+- **Why:** both apps were publicly reachable, and Fredrik doesn't want that. No unauthenticated route, LiveView event or endpoint may start an AI call. The AI entry-point audit is in the PR.
+- **Supersedes:** [2026-10-06: Sign-in](#2026-10-06-sign-in) (admin uses email magic links, logins last 30 days). Logins still last up to 30 days, with team membership rechecked on every request.
+- **Details:** [ex-tales-forge PR #54](https://github.com/whyse-ab/ex-tales-forge/pull/54), [GitHub sign-in](infrastructure.md#github-sign-in-for-the-admin), [Fly secrets](fly-secrets.md)
+
 ## 2026-10-07: Clarification: the Tuckman phase belongs to the group, not the character
 
 - **Clarification (from Fredrik, via Case):** the Tuckman phases (forming, storming, norming, performing, adjourning) are a property of a team or group (party, gang, council), not a character attribute.
