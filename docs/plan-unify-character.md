@@ -90,7 +90,7 @@ To keep the first PRs small, `Mechanics`, `Inventory`, `Train` and `Vitality` ke
 - **AFK player** (matters for parties; single player just pauses):
   - After N minutes or N party turns without input, the controller flips to `gm` with `runtime.afk_from = "player:<id>"`. The GM plays the character conservatively: it follows the party, defends itself, and makes no big decisions.
   - When the player sends anything, control goes back. With the same data and calls, that is the "GM plays an absent player's character" goal from the decision.
-- **GM-controlled companion:** `controller: gm` plus membership in the player's party group (Tuckman phase on the group). The player gives orders by talking to the companion, which is a normal intent with the companion as target. The companion's Jev reaction, concerns and party phase decide whether it obeys. No new call types.
+- **GM-controlled companion:** `controller: gm` plus membership in the player's party group (Tuckman phase on the group). The player gives orders by talking to the companion, which is a normal intent with the companion as target. The companion's Jev reaction, its concerns and the party's phase (read from the party group, not stored on the companion) decide whether it obeys. No new call types.
 
 ### Seeding from packs
 
@@ -113,7 +113,7 @@ To keep the first PRs small, `Mechanics`, `Inventory`, `Train` and `Vitality` ke
 | Current concerns | `concerns` (0–3) | Replaces `current_concern`. Events advance or resolve them; the extraction call may propose one, validated like a fact |
 | Memory | `memories` + `world_fact` events about the character | One list per character, filtered by personality (open question 6) |
 | Mood | `mood` | Fixes the three-copies problem |
-| Group phase (Tuckman) | **Not on Character.** A later `groups` + `group_members` table (party, gang, council); a member's agent reads the phase | The AFK and companion rules use it once it exists |
+| Group phase (Tuckman: forming, storming, norming, performing, adjourning) | **Not on Character.** The phase is a property of the Group (party, gang, council) in a later `groups` table. A Character only references its membership(s) through `group_members`, and a member's agent reads the phase from the group | The AFK and companion rules use it once it exists |
 | World-agent Person | The Character agent itself | Facts (`world_fact` events) stay events. The Person agent is no longer a second process |
 
 ## 4. What breaks, and how each piece is kept safe
@@ -197,7 +197,7 @@ Case suggested answers to the seven open questions. Fredrik confirmed all seven 
    Phase 1 builds A with A+'s owner column. Moving to B later means adding `world_id` next to `game_session_id` and backfilling one world per existing session.
 2. **PC levers:** PCs get OCEAN, a Maslow level and concerns, **visible on the character sheet**.
 3. **AFK:** solo play pauses. In parties the GM takes over an absent PC after a timeout, and control goes back when the player returns.
-4. **Companions:** a GM-controlled companion decides by its reaction, concerns and party phase. It does not obey orders by default.
+4. **Companions:** a GM-controlled companion decides by its reaction, its concerns and its party's phase (read from the party group; the phase is not a character attribute). It does not obey orders by default.
 5. **Skill scale:** NPC skills are **rescaled to the PC scale**. NPCs use the same raw values plus stat bonus and the same roll formula as PCs. The pack values move to that scale (now by deriving them from occupation tiers, see [section 7](#7-defaults-from-class-race-standing-and-occupation-jev-for-descriptions)): a master trainer still sits well above a starting PC. The trainer gap rule (`Train`, today raw + 5) is re-checked against the new values.
 6. **Memory:** one **shared events table** (what happened, where, who was involved, who could perceive it) plus **per-character memory rows**: each character's personality-filtered view of an event (felt, salience, secret), pointing at the event. The shared table is the existing `session_events`, which already holds world facts and hidden events. It becomes world-scoped if option B lands.
 7. **Controller:** `player | gm | bot`. The persona runner uses `bot`, so playtest characters are easy to tell apart in data and costs.

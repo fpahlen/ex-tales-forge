@@ -111,7 +111,7 @@ Two changes, following round 1:
 
 ## Character levers (design, not built)
 
-**Principle: few levers, emergent behaviour.** A person has four levers and a group has one. Elixir holds them on the agent and changes them from typed events. Each turn the Jev reaction reads them, and the GM gets the result as per-turn facts. Nothing new goes into the cached prefix, and there are no new LLM calls.
+**Principle: few levers, emergent behaviour.** A person has four levers and a group has one, the Tuckman phase. The phase lives on the group, never on a character. Elixir holds them on the agent and changes them from typed events. Each turn the Jev reaction reads them, and the GM gets the result as per-turn facts. Nothing new goes into the cached prefix, and there are no new LLM calls.
 
 | Lever | Held by | Changes | Feeds the Jev reaction | Feeds the GM per-turn facts |
 | --- | --- | --- | --- | --- |
@@ -119,14 +119,15 @@ Two changes, following round 1:
 | **Maslow level** (physiological, safety, belonging, esteem, self-actualisation) | person: the lowest unmet need | drops at once on a threat to a lower need (raid, armed stranger, no coin); rises one level after a few calm turns with that need met | "Right now she needs: safety" in the state; threats to that need weigh most | one line: "Brenna: needs safety (the raids)" |
 | **Current concerns** (1–3 short goals) | person; pack defaults, e.g. Brenna wants returning, happy, safe customers and an inn kept out of the Guild feud | events advance, threaten or resolve them; the extraction call may propose a new one, validated like a fact; resolved concerns drop | listed in the state, plus one Score question: does this help or threaten her concerns? It drives the stance | "wants: …" facts on the person, kept within the facts budget |
 | **Memory** | person: facts, promises and recent reactions involving the player character (round 2) | added after each turn by extraction and the reaction; old items fade from the prompt but stay on the agent | the 2–3 most relevant memories about this player character | promises and facts, as today ("promised: …") |
-| **Group phase** (Tuckman: forming, storming, norming, performing) | group agent: party, bandit gang, village council; members are persons | shared events, below | a member's state includes the group's phase: storming makes them prickly with each other, performing makes them steady and confident with outsiders | one line per group present: "Bandit gang (storming): quarrel over the split" |
+| **Group phase** (Tuckman: forming, storming, norming, performing, adjourning) | the **group**: party, bandit gang, village council. It is not a character attribute: a person (Character) only references the group(s) it belongs to | shared events, below | a member's Jev state includes the phase, read from each of its groups: storming makes members prickly with each other, performing makes them steady and confident with outsiders | one line per group present: "Bandit gang (storming): quarrel over the split" |
 
 **Group phase transitions** come from shared events in the session log, counted by Elixir, not judged by an LLM. The event kinds are tagged by rules or by the extraction call (`conflict`, `shared_success`, `shared_failure`, `betrayal`, `member_joined`, `member_lost`):
 
 - forming → storming: the first conflict inside the group (blame, a loot dispute, a failed shared check).
 - storming → norming: that conflict is resolved (an agreement, a shared success, one member backing another).
 - norming → performing: a few shared successes in a row with no new conflict.
-- any phase → storming: betrayal, a new member or the loss of the leader. A party that disbands ends.
+- any phase → storming: betrayal, a new member or the loss of the leader.
+- any phase → adjourning: the group's task is done or it disbands (the party splits up, the council is dissolved). Members keep their memories of it; the group then ends.
 
 Emergence comes from the combination. A safety-starved Brenna, a storming bandit gang in town and a player character who keeps a promise produce different scenes, and nobody scripts them.
 

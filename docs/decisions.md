@@ -9,6 +9,15 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: Clarification: the Tuckman phase belongs to the group, not the character
+
+- **Clarification (from Fredrik, via Case):** the Tuckman phases (forming, storming, norming, performing, adjourning) are a property of a team or group (party, gang, council), not a character attribute.
+  - A Character references its group membership(s), and the phase lives on the Group.
+  - Wherever a character's behaviour depends on the phase, the phase is read from the group. That includes the companion rule ("decide by their reaction, concerns and party phase").
+- **Applies to:** the [2026-10-07 seven design answers](#2026-10-07-one-character-entity-the-seven-design-answers). In answer 4 (companions), "party phase" means the phase of the companion's party group. In the "Why", Tuckman is listed among the levers, but it is the group's lever, not one each character holds. That entry is unchanged otherwise.
+- **Why:** a phase describes how a group works together. Storing it per character would let members disagree about their own group's phase and would need syncing on every group event.
+- **Details:** [World agents: character levers](design-world-agents.md#character-levers-design-not-built), [Plan: one Character entity, section 3](plan-unify-character.md#3-levers-mapped-onto-character). The code has no Tuckman or phase field on characters (checked on ex-tales-forge `main`, `e867f16`).
+
 ## 2026-10-07: Characters: defaults, rescale, backfill and double-write (#50, #51)
 
 - **Decision:** approved by Fredrik on 2026-10-07 at 15:49: "Yes, merge #50 and #51, deploy, and run the backfill on prod and playtest".
