@@ -6,7 +6,7 @@ status: plan; port on the unified Character from 2026-10-07
 
 # Plan: porting character creation from the old app
 
-**Status:** draft, 2026-10-06. Research and a proposal only; no code has changed in either app.
+**Status:** draft, 2026-10-06, research and a proposal. Update 2026-10-07: PR 1 (#52) and PR 2 (#53) are merged and deployed; see [PRs](#prs).
 
 Checked against the old app `fpahlen/tales-forge-new-31993d9d` on `development` (commit `20b791c`) and `whyse-ab/ex-tales-forge` on `main` (commit `0aa49e9`).
 
@@ -232,8 +232,8 @@ Small PRs, each with CI green, the docs updated, and no merge or deploy without 
 
 | # | PR | Contents | LOC (rough) | Risk |
 |---|---|---|---|---|
-| 1 | **Race, class and the stat point buy on the unified Character** | `TalesForge.CharacterCreation`: new draft, choose race and class, set stats within the 75-point buy, race stat choices (Human two stats, Elf INT or WIS), typed name, validator with clear errors, `finalize/1` producing a pack-shaped character with levers derived through `Defaults`. `priv/characters/creation.json` (budget, ranges, race choices, class free skill points, starting kit). `create_session(%{character: …})` uses it instead of Elara; `seed_session` takes its levers. No UI and no prompt change. **Opened as [ex-tales-forge #52](https://github.com/whyse-ab/ex-tales-forge/pull/52)** | +550 planned, +980 actual (505 code, 72 data, 401 tests) | low (domain only; Elara stays the default) |
-| 2 | **Creation screen** | LiveView `/new/:adventure`: race and class with descriptions, a stat point buy with points left, a typed name, Begin adventure. Home buttons lead there; "Quick start as Elara" stays | +450 | low–medium (UI) |
+| 1 | **Race, class and the stat point buy on the unified Character** | `TalesForge.CharacterCreation`: new draft, choose race and class, set stats within the 75-point buy, race stat choices (Human two stats, Elf INT or WIS), typed name, validator with clear errors, `finalize/1` producing a pack-shaped character with levers derived through `Defaults`. `priv/characters/creation.json` (budget, ranges, race choices, class free skill points, starting kit). `create_session(%{character: …})` uses it instead of Elara; `seed_session` takes its levers. No UI and no prompt change. **Merged as [ex-tales-forge #52](https://github.com/whyse-ab/ex-tales-forge/pull/52)** (merge `71c0af8`, 2026-10-07) | +550 planned, +980 actual (505 code, 72 data, 401 tests) | low (domain only; Elara stays the default) |
+| 2 | **Creation screen** | LiveView `/new/:adventure`: race and class with descriptions, a stat point buy with points left, a typed name, Begin adventure. Home buttons lead there; "Quick start as Elara" stays. **Merged as [ex-tales-forge #53](https://github.com/whyse-ab/ex-tales-forge/pull/53)** (merge `00c370d`, 2026-10-07; production v51, playtest v39), behind the GitHub team sign-in from #54 | +450 planned, +867 / −22 actual (616 code incl. CSS, 248 tests, 3 docs) | low–medium (UI) |
 | 3 | **Persona runner: creation scenario** | Creation view in `PlayerView`, persona replies drive `CharacterCreation`, then play or stop; steps, time, backtracks, rule violations and cost recorded; Jev-scored creation run. First runs: Paul, Lotta, Ronny | +500 | medium (runner state, scoring) |
 | 4 | **The other sections, own input** | Background text, standing, origin, occupation, OCEAN and concerns, and the skill point buy (20–30, cap 5, Human +5, Half-Elf +2×2, Elf choice); re-derive on input change; edited fields keep the player's value | +550 | medium (many rules) |
 | 5 | **The GM sees who the character is** | A character section in the GM prompt (race, class, standing, background, backstory, personality line) in the cached prefix; a scene-prompt hook so the opening gives the character a reason to be there; golden fixtures updated in their own commit; a Paul comparison before and after | +250 | medium (prompt drift, cache) |
