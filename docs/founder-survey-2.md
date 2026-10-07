@@ -22,13 +22,13 @@ What we'll measure in beta:
 
 The answers also feed the pricing draft in [pricing draft: pool of play time](pricing-time-pool.md) (prepaid play time, only GM response time billed, about $1 per real hour; our target pattern is a 20-minute commute session).
 
-Lesson from the first persona form: inventing gameplay examples was hard. So this part only asks about **our own habits**: no made-up scenes needed. Aim: **under 5 minutes** to fill in.
+Lesson from the first persona form: inventing gameplay examples was hard. So the play-style part only asks about **our own habits**: no made-up scenes needed. With the character-choice grids below, aim: **under 8 minutes** total to fill in.
 
 ## Form: Play style
 
 **Form intro text:**
 
-> Hi! This one is quick (under 5 minutes) and there are no wrong answers. We'd like to know how *you* would fit Tales Forge into your week. Most of us play in more than one way (a bit on the bus, a long evening now and then), so pick every situation that fits you. Guesses are totally fine.
+> Hi! This one should stay under about 8 minutes and there are no wrong answers. First we ask how *you* would fit Tales Forge into your week; then which fantasy archetypes each persona would actually want to play. Most of us play in more than one way (a bit on the bus, a long evening now and then), so pick every situation that fits you. Guesses are totally fine.
 
 ### Q1. Where and when would you play?
 
@@ -103,6 +103,80 @@ Lesson from the first persona form: inventing gameplay examples was hard. So thi
 - **Type:** Paragraph (long answer)
 - **Required:** no
 - **Text:** Describe your ideal week with Tales Forge. When, where, with whom, and for how long?
+
+## Which characters would each persona play?
+
+**Purpose:** Playtests so far had every persona play the same pre-made character (Elara). That likely depressed scores — the character may not have been one that persona would choose. These questions tell us which archetypes each persona would actually pick, so we can seed persona-chosen characters in playtests and in character creation.
+
+**Personas (one-line reminder):**
+
+| Persona | Reminder |
+| --- | --- |
+| **Paul** | Theatrical role-player; story first, in character |
+| **Hawk** | Hard mode — fights for wins that aren't guaranteed |
+| **Lotta** | Identification — wants to be someone else and escape |
+| **Lars** | Adventurer — grand quests, action, clear progress |
+| **Ronny** | Anti-persona — wants to win, loot, and bend rules |
+
+**Archetypes used as rows** (Merovingia-flavoured fantasy; mix of the world's Warrior / Wizard / Thief / Druid / Cleric / Ranger plus court and trade roles that fit the baronies):
+
+1. Mute barbarian warrior
+2. Silver-tongued rogue
+3. Scholar mage
+4. Devout healer
+5. Honourable knight
+6. Shy apprentice
+7. Cunning merchant
+8. Wandering bard
+9. Grizzled ranger
+10. Outcast witch
+
+One multiple-choice grid per persona (same rows and columns) keeps the form short in Google Forms. Optional short answer after each grid.
+
+### Q10. Paul — which archetypes?
+
+- **Type:** Multiple choice grid (one answer per row)
+- **Required:** no (each row optional)
+- **Text:** As **Paul** (theatrical role-player; story first), how much would you want to play each archetype in Merovingia?
+- **Rows:** Mute barbarian warrior · Silver-tongued rogue · Scholar mage · Devout healer · Honourable knight · Shy apprentice · Cunning merchant · Wandering bard · Grizzled ranger · Outcast witch
+- **Columns:** 1 Would never play · 2 · 3 · 4 · 5 Would love to play
+- **Follow-up (Short answer, optional):** Any archetype missing that Paul would pick?
+
+### Q11. Hawk — which archetypes?
+
+- **Type:** Multiple choice grid (one answer per row)
+- **Required:** no (each row optional)
+- **Text:** As **Hawk** (hard mode — fights for wins that aren't guaranteed), how much would you want to play each archetype in Merovingia?
+- **Rows:** same as Q10
+- **Columns:** 1 Would never play · 2 · 3 · 4 · 5 Would love to play
+- **Follow-up (Short answer, optional):** Any archetype missing that Hawk would pick?
+
+### Q12. Lotta — which archetypes?
+
+- **Type:** Multiple choice grid (one answer per row)
+- **Required:** no (each row optional)
+- **Text:** As **Lotta** (identification — wants to be someone else and escape), how much would you want to play each archetype in Merovingia?
+- **Rows:** same as Q10
+- **Columns:** 1 Would never play · 2 · 3 · 4 · 5 Would love to play
+- **Follow-up (Short answer, optional):** Any archetype missing that Lotta would pick?
+
+### Q13. Lars — which archetypes?
+
+- **Type:** Multiple choice grid (one answer per row)
+- **Required:** no (each row optional)
+- **Text:** As **Lars** (adventurer — grand quests, action, clear progress), how much would you want to play each archetype in Merovingia?
+- **Rows:** same as Q10
+- **Columns:** 1 Would never play · 2 · 3 · 4 · 5 Would love to play
+- **Follow-up (Short answer, optional):** Any archetype missing that Lars would pick?
+
+### Q14. Ronny — which archetypes?
+
+- **Type:** Multiple choice grid (one answer per row)
+- **Required:** no (each row optional)
+- **Text:** As **Ronny** (anti-persona — wants to win, loot, and bend rules), how much would you want to play each archetype in Merovingia? (Still useful as a red-team signal; we do not optimise for him.)
+- **Rows:** same as Q10
+- **Columns:** 1 Would never play · 2 · 3 · 4 · 5 Would love to play
+- **Follow-up (Short answer, optional):** Any archetype missing that Ronny would pick?
 
 ## Scene reactions (to be added after persona playtests)
 
