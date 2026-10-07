@@ -58,8 +58,8 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `TYPESAFE_INTENT_API_KEY` | Intent-gate Jev key. **Do not set on production yet** | No, not yet |
 | `NPC_REACTIONS` | `on` turns on the Jev NPC reaction before each GM call (ex-tales-forge PR #40; needs `TYPESAFE_API_KEY`). Default off. Not secret, but set the same way | **No, off** (unset) |
 | `WORLD_AGENTS` | `on` turns on the world-agents prototype: persons and locations hold facts for the GM (ex-tales-forge PR #40; also turns on NPC reactions). Default off. Not secret | **No, off** (unset) |
-| `INN_WORLD` | `on` gives new Tin Valley sessions the places and people around the inn ([design](design-tin-valley-world.md), ex-tales-forge PR B). Read when a session is created. Default off. Not secret | **No, off** (unset) |
-| `WORLD_ANTAGONIST` | `on` adds the Tinjacks antagonist (a front on world time, with Rusk, Cobb and Pip) to new Tin Valley sessions; needs `INN_WORLD` ([design](design-tin-valley-world.md), ex-tales-forge PR C). Default off. Not secret | **No, off** (unset) |
+| `INN_WORLD` | `on` gives new Tin Valley sessions the places and people around the inn ([design](design-tin-valley-world.md), ex-tales-forge PR #72). Read when a session is created. Default off. Not secret | **No, off** (unset) |
+| `WORLD_ANTAGONIST` | `on` adds the Tinjacks antagonist (a front on world time, with Rusk, Cobb and Pip) to new Tin Valley sessions; needs `INN_WORLD` ([design](design-tin-valley-world.md), ex-tales-forge PR #73). Default off. Not secret | **No, off** (unset) |
 | `MAIL_ADAPTER` | Email provider, e.g. `resend`. Nothing sends mail since magic links were removed (PR #54) | No, see [Resend setup](resend-setup.md) |
 | `RESEND_API_KEY` | Resend sending key | No |
 | `ADMIN_MAIL_FROM` | Sender address for login emails (default `admin@tales-forge.ai`) | No |
@@ -93,8 +93,8 @@ Same names as production, with **separate values** (never copied from prod), exc
 | `TYPESAFE_API_KEY` | TypeSafe Jev (persona-affect scorer, and the NPC reaction when `NPC_REACTIONS=on`). Console key name tales-forge-scorer. **Yes, set 2026-10-07** on playtest only | Yes, since 2026-10-07 |
 | `NPC_REACTIONS` | Yes, `on` since 2026-10-07 (Fredrik's OK, release v25): Brenna and other present NPCs get a Jev reaction before each GM call (`ai_calls` purpose `npc_reaction`). Unset it to turn it off |
 | `WORLD_AGENTS` | Not set (off). The world-agents prototype stays off on playtest for now |
-| `INN_WORLD` | Planned `on`, set in `fly.playtest.toml` `[env]` by ex-tales-forge PR B (not a Fly secret). Takes effect once that PR is merged and deployed |
-| `WORLD_ANTAGONIST` | Planned `on`, set in `fly.playtest.toml` `[env]` by ex-tales-forge PR C (not a Fly secret). Takes effect once that PR is merged and deployed |
+| `INN_WORLD` | Planned `on`, set in `fly.playtest.toml` `[env]` by ex-tales-forge PR #72 (not a Fly secret). Takes effect once that PR is merged and deployed |
+| `WORLD_ANTAGONIST` | Planned `on`, set in `fly.playtest.toml` `[env]` by ex-tales-forge PR #73 (not a Fly secret). Takes effect once that PR is merged and deployed |
 | `TYPESAFE_INTENT_API_KEY` | TypeSafe Jev key for a future intent-gate (separate from the scorer). Console key name tales-forge-intent-playtest. **Staged 2026-10-07** on playtest; takes effect when an intent-gate deploy ships. Not on production | Staged, not Deployed yet |
 
 GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.

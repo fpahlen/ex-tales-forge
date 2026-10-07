@@ -8,8 +8,9 @@ updated: 2026-10-07
 **Status:** being built. It follows two decisions from 2026-10-07 ([build out the inn for every player type](decisions.md#2026-10-07-build-out-the-inn-and-its-surroundings-for-every-player-type-record-scene-changes), [Hawk gets an antagonist who acts on their own](decisions.md#2026-10-07-hawk-gets-real-conflict-a-minor-antagonist-who-acts-on-their-own)). The work is split into ex-tales-forge PRs:
 
 - **PR A**, [#68](https://github.com/whyse-ab/ex-tales-forge/pull/68): leaving a place is recorded as a scene change, and the prompt says where the character is and who is there. This is a bug fix with no flag.
-- **PR B**: the new places and people (`INN_WORLD`).
-- **PR C**: the antagonist (`WORLD_ANTAGONIST`) and real rolls in fights.
+- **PR B**, [#72](https://github.com/whyse-ab/ex-tales-forge/pull/72): the new places and people (`INN_WORLD`).
+- **PR C**, [#73](https://github.com/whyse-ab/ex-tales-forge/pull/73), stacked on #72: the antagonist (`WORLD_ANTAGONIST`).
+- **Fight rolls**, [#71](https://github.com/whyse-ab/ex-tales-forge/pull/71): more attack phrasings count as combat, so they roll. This is a bug fix with no flag (the goblin fight with no roll).
 
 This note is meant to be small enough to build now. Everything is pack data plus a few generic front moves, and **no new LLM call type**.
 
@@ -85,7 +86,7 @@ How each persona finds what they like:
 
 Brenna's own hooks stay as they are (another change owns how the GM plays Brenna). The new people carry the new hooks. The new hooks give action players a lead other than chores.
 
-## The antagonist: Rusk and the Tinjacks (PR C)
+## The antagonist: Rusk and the Tinjacks (PR C, #73)
 
 - **Who:** Rusk, a deserter from the levy, with his brute Cobb and the boy Pip as lookout. They call themselves the Tinjacks and hide in the old adit off the west road.
 - **Goal:** get rich on the valley's fear. They rob drovers on the west road and let the orcs take the blame, sell the loads through Hilde's back door, and squeeze the village for a "road toll" while the Guild's men are busy with the cut.
@@ -98,13 +99,15 @@ Brenna's own hooks stay as they are (another change owns how the GM plays Brenna
 | 6 (~1.5 h) | confrontation | Rusk and Cobb come down to the Valley Inn and collect a "road toll" from Brenna and her guests: coin or a beating. They are **present** at the inn. | inn, yard, square |
 | 12 (~3 h) | escalation | They burn Mags's wagon in the inn yard as a warning, then go back to the old adit. | whole village |
 
+Each stage fires once, even when a long wait or sleep passes several of them. The confrontation is skipped if the player is on the west road or at the old adit, and the escalation is skipped if the player is at the inn, in the yard, on the west road or at the old adit.
+
 - **How the player meets them:** the rumour from the first turn, then the incident (with clues from Tam, Hilde and Mags). Rusk and Cobb walk into the inn at the confrontation stage. Or the player goes to them: the west road, then the old adit. Entering the old adit without a successful stealth check means Pip whistles, and the Tinjacks stand ready.
-- **Fights use the real combat rules:** an attack on Rusk or Cobb is a `combat` action, so it always rolls (PR C also widens the attack phrasings that count as combat). Two successes break the gang. A failed combat roll wounds the character through the existing server harm.
-- **Other ways to win:** talking Pip round (a persuasion or intimidation success while Pip is present) gets him to give up the hideout and slows the clock. Rusk can be bargained with: he offers a cut.
+- **Fights use the real combat rules:** an attack on Rusk or Cobb is a `combat` action, so it always rolls ([#71](https://github.com/whyse-ab/ex-tales-forge/pull/71) widens the attack phrasings that count as combat). Two successes break the gang. A failed combat roll wounds the character through the existing server harm.
+- **Other ways to win:** talking Pip round (a persuasion, intimidation or insight success aimed at Pip) sends him home to Maude, and he gives up the hideout: where the loot is and when Rusk sleeps. It does not slow the clock. Bargaining with Rusk (he offers a cut) is left to the GM; it has no mechanics.
 - **How the outcome feeds back:**
   - **Broken:** the front stops. A village-wide perceived fact says the Tinjacks are broken and where the stolen goods are. Osric and Brenna remember who helped (memory moves), so Osric's regard and Brenna's welcome follow.
   - **Ignored:** the clock runs on to escalation, the village is poorer and more afraid, and the facts say so.
-  - **Lost:** wounds, and Rusk remembers the stranger he beat.
+  - **Lost:** wounds, and the front remembers the stranger who tried them and bled for it.
 
 ## How it is built
 
@@ -123,8 +126,8 @@ These are env vars, read when a session is created. They are not secrets: they g
 
 | Flag | Default | Production (`tales-forge`) | Playtest (`tales-forge-playtest`) | What it does |
 | --- | --- | --- | --- | --- |
-| `INN_WORLD` | off | off | on (in `fly.playtest.toml` with PR B) | Adds the five places and four people above to new Tin Valley sessions |
-| `WORLD_ANTAGONIST` | off | off | on (in `fly.playtest.toml` with PR C) | Adds the Tinjacks front and Rusk, Cobb and Pip; it needs `INN_WORLD` (it is ignored without it) |
+| `INN_WORLD` | off | off | on (in `fly.playtest.toml` with #72) | Adds the five places and four people above to new Tin Valley sessions |
+| `WORLD_ANTAGONIST` | off | off | on (in `fly.playtest.toml` with #73) | Adds the Tinjacks front and Rusk, Cobb and Pip; it needs `INN_WORLD` (it is ignored without it) |
 
 Existing flags are unchanged: `WORLD_AGENTS` is off on both apps, and `NPC_REACTIONS` is on on playtest and off on production ([Fly secrets](fly-secrets.md)).
 
