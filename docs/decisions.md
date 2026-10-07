@@ -9,6 +9,35 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: Characters: defaults, rescale, backfill and double-write (#50, #51)
+
+- **Decision:** approved by Fredrik on 2026-10-07 at 15:49: "Yes, merge #50 and #51, deploy, and run the backfill on prod and playtest".
+  - [#50](https://github.com/whyse-ab/ex-tales-forge/pull/50) (merge `8d8efc3`, production v47, playtest v35): `Characters.Defaults` (a global label list extended per pack, seeded per-character variation, validated overrides) and NPC skills on the PC scale.
+  - [#51](https://github.com/whyse-ab/ex-tales-forge/pull/51) (merge `e867f16`, production v48, playtest v36): backfill of existing sessions, and a double-write of the `characters` rows after every turn.
+  - The release migrate step passed on both apps. Nothing reads `characters` yet.
+- **Backfill (2026-10-07, about 15:58):**
+
+| App | Before | Run 1 | Run 2 | After |
+|---|---|---|---|---|
+| Production | 0 characters, 0 memories (5 sessions, 15 `npc_instances`) | inserted 20, memories 3, failed none | inserted 0 | 20 (5 PC + 15 NPC), 3 memories |
+| Playtest | 8 characters (2 PC + 6 NPC), 0 memories (22 sessions, 63 `npc_instances`, 18 playtest runs) | inserted 77, memories 141, failed none | inserted 0 | 85 (22 PC + 63 NPC), 141 memories |
+
+  - Every playtest-run PC has controller `bot` with the run's persona as its reference: paul 13, lotta 2, hawk 1, lars 1, ronny 1. The other 4 playtest PCs and all 5 production PCs are `player`.
+- **Check run:** Paul on playtest, 5 turns, Tin Valley.
+  - The rows were updated after each turn: memory rows landed with turns 2–5, and the PC's learning points moved.
+  - The new session's NPCs have the rescaled skills (innkeep persuasion 8, insight 8, etiquette 4).
+  - No double-write errors in the logs.
+  - Jev session affect 4.28 (confidence 0.63).
+  - Game cost $0.0402 ($0.0080/turn; GM alone $0.0293), cache hits 4/4. Persona cost $0.0082 is logged separately.
+- **Why:**
+  - It completes phase 1: every PC and NPC now has a `characters` row that stays in step with play. That is the precondition for phase 2 (the read switch).
+  - The rescale gives NPCs and PCs one skill scale without hand re-authoring.
+- **Known gaps:**
+  - The double-write runs after the turn, so an NPC change made outside a turn, or a memory written late in a turn, lands at the next turn.
+  - Levers and OCEAN are set only when a row is first created.
+  - Existing sessions keep their old NPC skill values.
+- **Details:** [Plan: one Character entity, phased rollout](plan-unify-character.md#5-phased-rollout)
+
 ## 2026-10-07: Character defaults: the four answers
 
 - **Decision:** confirmed by Fredrik on 2026-10-07 (via Case).

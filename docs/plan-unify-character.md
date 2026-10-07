@@ -1,7 +1,7 @@
 ---
 title: "Plan: one Character entity for player characters and NPCs"
 updated: 2026-10-07
-status: plan; seven answers confirmed by Fredrik 2026-10-07; phase 1 (setup) deployed 2026-10-07
+status: plan; seven answers confirmed by Fredrik 2026-10-07; phase 1 deployed and backfilled 2026-10-07
 ---
 
 # Plan: one Character entity for player characters and NPCs
@@ -164,7 +164,17 @@ A flag is sensible for the read switch, because it changes what the GM sees. The
 - new sessions write characters (the persona runner as `bot`), but nothing reads them;
 - a golden test keeps the GM prompts byte-identical.
 
-Next PR: backfill of existing sessions, dual-write of per-turn changes, and the NPC skill rescale, which now comes from the derived defaults ([section 7](#7-defaults-from-class-race-standing-and-occupation-jev-for-descriptions)). After that comes phase 2, the read switch behind a flag.
+**Status update, 2026-10-07 (afternoon):** phase 1 is complete. It was **merged, deployed and backfilled** as two PRs ([decision](decisions.md#2026-10-07-characters-defaults-rescale-backfill-and-double-write-50-51)):
+- [#50](https://github.com/whyse-ab/ex-tales-forge/pull/50) (main `8d8efc3`): `Characters.Defaults` ([section 7](#7-defaults-from-class-race-standing-and-occupation-jev-for-descriptions)) and NPC skills on the PC scale through `derive` blocks. The golden prompts did not change, because NPC skills never reach the GM prompt; only `Train` uses them.
+- [#51](https://github.com/whyse-ab/ex-tales-forge/pull/51) (main `e867f16`, production v48, playtest v36):
+  - the backfill (`Characters.backfill/0`);
+  - the double-write after every turn (`Characters.mirror/1`), done after the turn rather than inside the turn's Multi; failures are logged and the next turn re-syncs.
+  - The consistency-check mix task and admin badge from the table above are not built yet.
+- **Backfill:** production 20 rows (5 PCs + 15 NPCs) and playtest 85 rows (22 PCs + 63 NPCs). A second run inserted 0 on both.
+- Existing sessions keep the NPC skills they were seeded with; only new sessions get the rescaled values.
+- Nothing reads `characters` yet.
+
+Next: phase 2, the read switch behind `CHARACTERS=on`.
 
 **Total for phases 0–4:** about +1,800 / −1,350 LOC over 5–7 PRs. The net is small; the value is one shape for PCs and NPCs.
 
