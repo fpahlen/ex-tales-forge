@@ -28,7 +28,10 @@ Before each turn Elixir asks the relevant agents for facts; the GM gets them in 
 - The existing Jido NPC agents (`NPCAgent`, `NPCRegistry`) already run one process per present NPC. Long term, the Person agent and the NPC agent should be the same process; the prototype keeps them apart to stay small.
 - A turn talks to agents with `GenServer.call` on the same node: microseconds to a few ms. Agents never call the LLM themselves; a Person's gut reaction is a Jev call made for it by the turn (below).
 
-## Persistence (Ash)
+## Persistence (Ash; superseded)
+
+> Ash was removed on 2026-10-07 ([decision](decisions.md)); persistence is plain Ecto. The Character plan has the current model.
+
 
 - Target: two Ash resources. `World.Fact` (session, entity id and kind, fact kind `fact | price | promise | memory`, text, source `pack | gm`, turn, timestamps; identity on session + entity + normalized text) and `World.EntityState` (session, entity id, mood and other small mutable state as a map).
 - Pack facts are not copied per session: an agent starts from the adventure pack's definition and adds the session's rows on top.
@@ -126,6 +129,96 @@ Two changes, following round 1:
 - any phase → storming: betrayal, a new member or the loss of the leader. A party that disbands ends.
 
 Emergence comes from the combination. A safety-starved Brenna, a storming bandit gang in town and a player character who keeps a promise produce different scenes, and nobody scripts them.
+
+## Living world (design, to try)
+
+**Direction** (Fredrik via Case, 2026-10-07): an unscripted world in which nothing waits for the player. Factions and antagonists are agents with goals, plans and clocks, and they advance on world time. If nobody stops the Mining Guild, they dig too deep in the tin mine and something horrible gets loose. If the player stops them, the Guild notices and acts on it. Acting and not acting both have consequences.
+
+**What exists already:**
+- Tin Valley has fronts (`priv/adventures/tin_valley/fronts/`). The Guild has a `clear_orcs` clock (threshold 8 → hiring steel) and a dormant `dig` clock. The portent `they_dig_too_deep` spawns the `thing_below` front when `dig` reaches 8.
+- Runtime fronts are Ecto `front_instances` rows, and `WorldSim.tick/1` advances them as a pure function.
+- The limit today: the tick only runs **inside a player's turn**, per session. Between turns, and between sessions, the world stands still.
+
+### Faction agent
+
+A **Faction** is a world agent like a Person, but it stands for a group: the Mining Guild, the orc nest, a village council. It is today's front, given a process and a memory.
+
+| Part | Holds | Changes |
+|---|---|---|
+| Goals | 1–3 long goals ("expand the mine", "keep the valley") | Rarely; a lost goal can spawn a new front (portent) |
+| Plan | Ordered steps with preconditions, e.g. hire steel → clear the orcs → open the deep seam → dig | A step completes when its clock fills; a blocked step waits or picks the next legal move (`Fronts.Moves`) |
+| Clocks | Progress per step (the existing `clocks`), advanced by world time and by events | World tick (+1 per period when the step is unblocked); events add or subtract |
+| Resources | Coin, hirelings, supplies (existing `resources`) | Spent by moves; gained by trade and success |
+| Memory of actors | Who helped or hindered, with a score and the facts behind it ("the stranger freed the miners", "Brenna fed the scouts") | From events the faction could know about: witnessed, reported or rumoured |
+| Disposition | Toward each known character and faction (hostile .. allied), derived from memory | Recomputed when memory changes |
+| Members | Persons (Characters) who belong to it; the Guild steward is its face | Joins and losses are group events (Tuckman, below) |
+
+**Process:**
+- One process per faction per world instance, the same model as the Person agent: started lazily, registered by `{world_id, faction_id}`, rehydrated from its row.
+- The row is today's `front_instances`, plus memory and plan progress.
+- A faction never calls an LLM itself, and it never writes prose.
+
+### World tick
+
+- **What it is.** A periodic job (Oban cron, e.g. every 15 real minutes) advances every **active world instance** by the world time elapsed: the function `WorldSim.tick/1` that exists, run outside a turn.
+- **During play.** A player's turn still ticks the world by the turn's own ticks, as today, so the two never double-count: the cron catches up only on time no turn has covered (`last_ticked_at`).
+- **Pace.** World time per real time is a per-world setting. The open question is whether one world-day equals one real day or less. A solo world pauses when its only player is away unless the world is marked "runs while away".
+- **Each tick, per faction (all Elixir):**
+  1. Advance the unblocked clock.
+  2. Check portents and step preconditions.
+  3. Pick a legal move.
+  4. Apply it (resources, front status, spawned fronts).
+  5. Record a `session_event`, or world event, with `player_aware: false`.
+- **Guards.** Writes go in one transaction per world. Stale ticks are dropped by re-checking preconditions and the world tick, as the architecture doc already requires for the chronicler.
+
+### Faction reactions (Jev)
+
+- **When.** An event that touches a faction gets one Jev call for that faction. Examples: the player blocks the dig, kills hirelings, pays off the orcs.
+- **Input.** The faction's goals, current plan step, OCEAN-like temperament (a faction has a `temperament` with the same five 0–10 scores, read as the group's style), its memory of the actor, and the typed event.
+- **Output.** A typed reaction: stance toward the actor, intensity, and one move class from the legal palette (retaliate, bribe, hire, delay, ignore).
+- **Afterwards.** Elixir validates the move against `Fronts.Moves` and schedules it on the plan. Example: "the Guild hires two thugs to find the stranger", which becomes a new step with its own clock.
+- **Cost.** About $0.00004 per call, like a person reaction. Only events reach Jev, never ticks.
+
+### What the player perceives
+
+The GM narrates only what a character perceives. This follows the existing perception rules (`Game.Perception`): only `player_aware` events and public facts reach the GM, and hidden events are scrubbed.
+
+A world event becomes perceivable through:
+- **Direct encounter:** the character is at the location when it happens, or arrives while its traces are fresh (the thugs are at the inn).
+- **News:** a public fact spreads by location distance and time. The market square knows within a day, the inn by the evening, a remote camp never.
+- **Rumour:** a Person who knows the fact and has a reason to tell it (concerns, disposition) mentions it when talked to. It is marked as rumour with a reliability, and may be wrong.
+
+When a character perceives something, Elixir flips a copy of the event to `player_aware: true` for that character and adds it to the per-turn facts (never the cached prefix). The GM turns it into prose in the next turn. A session that starts after time away gets one short "while you were away" summary of what the character could have heard. That summary is one LLM call, made only when there is news.
+
+### Cost per world-day (rough)
+
+Assumptions: Tin Valley size, 3 factions, 96 ticks per world-day.
+
+| Work | Call type | Per world-day |
+|---|---|---|
+| Ticks (96 × 3 factions: clocks, portents, moves) | function | ~free (< 50 ms CPU in total) |
+| Faction reactions (~5–10 touching events) | jev | ~$0.0002–0.0004 |
+| News and rumour bookkeeping | function | ~free |
+| "While you were away" summary (only if the player returns and there is news) | llm | ~$0.001–0.003 per return |
+| GM narration of perceived events | llm | No extra call; ~100–300 more per-turn input tokens on the turns that carry news (~$0.0002–0.0004 per turn) |
+
+A world nobody visits costs well under $0.001 per world-day. A played world adds a few tenths of a cent per day on top of the normal turn cost (about $0.011 per GM turn, from [pricing](pricing-time-pool.md)).
+
+### Ties to the levers and world facts
+
+- **OCEAN:** factions get a `temperament` on the same scale. Members keep their own OCEAN, and the Jev reaction reads both, so a cautious steward in a reckless Guild hesitates.
+- **Maslow:** a faction step can threaten a person's need. The Guild's thugs at the inn drop Brenna to safety at once, and that changes her reactions and what she tells the player.
+- **Concerns:** faction moves advance or threaten people's concerns ("keep the inn out of the Guild feud"). A concern can also point at a faction ("find out who sabotaged the pumps").
+- **Tuckman:** a faction is a group. Its phase changes from shared events (a failed raid → storming, a quarrel over pay), and storming slows its clocks or splits a member off. The player can push it.
+- **World facts:** faction outcomes become facts on the locations and persons they touch ("the deep seam is open"), with the same validation and the same per-turn budget. The pack still wins on conflicts.
+- **Characters:** a faction's members and the player are the same Character type ([plan](plan-unify-character.md)). A faction can target a character it remembers, which needs characters that outlive one session.
+
+### Dependencies and open points
+
+- **A persistent world instance:** the world, its factions and their characters belong to one long-lived world rather than a single session. This is option B of Q1 in the [Character plan](plan-unify-character.md#6-decisions-confirmed-by-fredrik-2026-10-07).
+- **Pace and the "runs while away" rule** for solo worlds.
+- **How far news travels**, and how reliable rumours are.
+- **First prototype:** the Guild alone on a cron, the dig clock advancing between sessions, the portent firing, and the player hearing it as news. Measure cost and whether persona players notice.
 
 ## Related
 
