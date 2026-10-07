@@ -5,7 +5,7 @@ updated: 2026-10-07
 
 # Design sketch: world agents
 
-**Status:** to try, not decided ([decision log](decisions.md#2026-10-07-to-try-world-agents-hold-facts)). Prototype on Tin Valley behind `WORLD_AGENTS=on` (default off): [ex-tales-forge PR #40](https://github.com/whyse-ab/ex-tales-forge/pull/40), not merged.
+**Status:** to try, not decided ([decision log](decisions.md#2026-10-07-to-try-world-agents-hold-facts)). Prototype on Tin Valley behind `WORLD_AGENTS=on` (default off): round 1 in [ex-tales-forge PR #40](https://github.com/whyse-ab/ex-tales-forge/pull/40) (merged 2026-10-07, off in production and playtest), round 2 in [PR #42](https://github.com/whyse-ab/ex-tales-forge/pull/42) (not merged).
 
 ## Problem
 
@@ -69,6 +69,42 @@ The Jev reaction is the only added step on the critical path; everything else is
 - **Write-back:** the GM almost never fills `new_facts` (1 attempt in 20 turns), and no NPC made a promise, so promise memory is only unit-tested. Next try: Jev or Elixir extracts new facts from the narrative rather than relying on the GM.
 - **Cost and latency:** facts add ~320 uncached GM input tokens per turn (~$0.0004). The Jev reaction adds ~110–190 ms on the critical path; the function steps take ~1 ms. Turns 2+ cache: 13/16 hits, no regression (the prefix is byte-identical by test).
 - **Jev scores** rose, mostly because of the reactions: Lotta off 3.47/3.57 → 4.15/3.81, Paul off 3.79/4.11 → 4.13/4.41.
+
+## Round 2 (2026-10-07)
+
+Two changes, following round 1:
+
+- **Prices from code** (`World.Prices`, function step `turn.prices`). Price facts carry `item`, `copper` and `aliases`. When the player's words mention a priced thing here, the GM's per-turn data gets `Price: Bowl of stew, 5 copper`. When the player pays (a statement, not a question: pay or buy, handing over coins, or naming an amount), the server charges the coins and writes `Purchase: Bowl of stew, 5 copper, paid (server)`. The amount picks the items ("three silver and five copper" = room + stew). The GM is told to use those amounts.
+- **Facts read from the narration** (`World.Extract`). After the turn, off the critical path, one small LLM call (purpose `fact_extract`, call_type `llm`, conv id `<session>:facts`) returns `{about, kind, text}` facts and promises. Elixir validates them as before (and also rejects a second price for something any agent of the turn already prices), stores them as hidden `world_fact` session events, pushes them to the running agents and rehydrates them on restart. The GM's `new_facts` field is dropped. Persistence is still a prototype shortcut; the Ash `World.Fact` resource above remains the target.
+
+| Step | Call type | Measured |
+| --- | --- | --- |
+| Prices (`turn.prices`) | function | < 1 ms |
+| Extraction (`fact_extract`) | llm | ~$0.0010 per turn, ~1.1k input / ~34 output tokens, 550–750 ms, after the turn |
+| Validate and store (`turn.world_writeback`) | function | ~3 ms, after the turn |
+
+## Round 2 results (2026-10-07)
+
+6 local 5-turn runs (Lotta ×3, Paul ×3) with `WORLD_AGENTS=on`, compared with round 1's 4 world-agent runs; ~$0.34 xAI.
+
+| | Round 1 (4 runs) | Round 2 (6 runs) |
+| --- | --- | --- |
+| Wrong price in the narration | 2 | 0 |
+| Lore errors | 0 | 0 |
+| Facts and promises kept per run | GM: 1 attempt in 20 turns | 2–6 (avg 3.2), 8 promises in total |
+| GM input tokens (avg) | 9,835 | 9,784 |
+| GM latency p50 | 4.2–5.5 s | 3.3–5.5 s |
+| GM $/turn | $0.0070 | $0.0070 |
+| Extraction $/turn | — | $0.0010 |
+| Game $/turn (incl. scene) | $0.0089 | $0.0091 |
+| GM cache hits, turns 2+ | 13/16 | 20/24 |
+| Jev session, Lotta | 4.15, 3.81 | 3.39, 3.58, 3.62 |
+| Jev session, Paul | 4.13, 4.41 | 4.33, 4.49, 3.83 |
+
+- **Prices:** every price in the narration matched the list ("Five copper for the bowl", "Three silver for the room, paid now").
+- **Charging:** the first runs used a looser payment rule and missed payments the narration showed. Replaying all recorded player lines through the final rule charges 5 of 6 payments exactly (one 1c bread missed). The final-code run charged both its payments, and the GM wrote "the copper already taken".
+- **Extracted, for example:** Brenna promised "Stew's on the house tonight if it keeps you from pressing me further" and "Room's yours; up the narrow stair, second door on the left"; Tin Valley got "The orc nest is a half-day's hard walk east of the market square…". Restated prices were rejected as conflicts (the pack wins).
+- **Weak spots:** near-duplicate promises across turns, one rule filed as a promise, and the extraction runs on the tier-1 model; a cheaper fast model should cut its ~$0.001 per turn. The Lotta Jev scores are lower than in round 1, but run-to-run spread is large at this sample size; nothing in the per-turn data points to the prices or facts.
 
 ## Related
 
