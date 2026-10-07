@@ -85,7 +85,7 @@ Same names as production, with **separate values** (never copied from prod), exc
 | `COSTS_PEER_TOKEN` | Set 2026-10-06. The **same value** as on production; it turns on playtest's `GET /internal/costs`, which production's costs page reads |
 | `COSTS_PEER_URL` | Set 2026-10-06: `https://tales-forge.fly.dev`, so playtest's costs page shows production too. Config, not a secret |
 | `TYPESAFE_API_KEY` | TypeSafe Jev (persona-affect scorer). Console key name tales-forge-scorer. **Yes, set 2026-10-07** on playtest only | Yes, since 2026-10-07 |
-| `TYPESAFE_INTENT_API_KEY` | TypeSafe Jev key for a future intent-gate (separate from the scorer). Console key name tales-forge-intent. **Staged 2026-10-07** on playtest; takes effect when an intent-gate deploy ships. Not on production | Staged, not Deployed yet |
+| `TYPESAFE_INTENT_API_KEY` | TypeSafe Jev key for a future intent-gate (separate from the scorer). Console key name tales-forge-intent-playtest. **Staged 2026-10-07** on playtest; takes effect when an intent-gate deploy ships. Not on production | Staged, not Deployed yet |
 
 GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.
 
