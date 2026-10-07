@@ -19,6 +19,7 @@ Also in this folder:
 - [Examples of play](examples-of-play.md): five short sample sessions in Merovingia, one per persona (draft)
 - [Infrastructure assets](infrastructure.md)
 - [Environments and how changes reach production](environments.md)
+- [Coding standards](coding-standards.md): moduledocs, docs, specs + Dialyzer, Credo strict, ExDoc, tests with coverage, all enforced in CI
 - [Design sketch: world agents](design-world-agents.md): persons, locations and items as Elixir agents that hold facts for the GM (to try)
 - [Design: playtest loop](design-playtest-loop.md): how persona bots play, get scored, and feed fixes and decisions (draft)
 - [Jev persona-affect scoring](jev-scoring.md): TypeSafe Jev for numeric persona-feeling scores (first cut 2026-10-07; not built yet)
