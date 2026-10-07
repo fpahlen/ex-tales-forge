@@ -10,7 +10,7 @@ Docs copied from the [Google Drive folder](https://drive.google.com/drive/folder
 - [Design: Game data vs sessions](design-game-data-vs-sessions.md)
 - [Design: Decision queue and shared docs](design-decision-queue-and-docs.md)
 
-Persona input is collected with a Google Form: [Tales Forge: Your input on our player personas](https://docs.google.com/forms/d/e/1FAIpQLSdd8W5SJrnh5zZMDPXABKTErgYAKcl4Iag35CwZ_OYHifOqNQ/viewform).
+Persona input is collected with a Google Form: [Tales Forge: Your input on our player personas](https://docs.google.com/forms/d/e/1FAIpQLSdd8W5SJrnh5zZMDPXABKTErgYAKcl4Iag35CwZ_OYHifOqNQ/viewform). First-pass synthesis: [Persona form notes](persona-form-notes.md).
 
 Also in this folder:
 
@@ -18,8 +18,10 @@ Also in this folder:
 - [Infrastructure assets](infrastructure.md)
 - [Environments and how changes reach production](environments.md)
 - [Design: playtest loop](design-playtest-loop.md): how persona bots play, get scored, and feed fixes and decisions (draft)
+- [Jev persona-affect scoring](jev-scoring.md): TypeSafe Jev for numeric persona-feeling scores (first cut 2026-10-07; not built yet)
 - [Plan: porting character creation from the old app](character-creation-port.md): how the old app's creation works and a proposed port to the Elixir app (draft)
 - [Setting up Resend (email)](resend-setup.md)
 - [Adding API keys and secrets to Fly](fly-secrets.md)
+- [Character creation: persona preferences (hybrid ideas)](character-creation-persona-prefs.md): Hawk/Paul/Lotta/Lars/Ronny on Idea 1 vs Idea 2 (research; complements port plan PR #15)
 
 Worlds and adventure packs (Merovingia, Penny Dreadful, Tin Valley, …) copied from the game repos: [worlds/README.md](../worlds/README.md)
