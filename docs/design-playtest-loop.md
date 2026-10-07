@@ -69,6 +69,8 @@ A test is a persona, a module, a build and a goal. Example: Paul, Merovingia, th
 
 The scenes in [Examples of play](examples-of-play.md) are the first test targets: each one already names a persona, a place and what a good outcome looks like.
 
+Character creation is a scenario of its own; see *Scenario: character creation*.
+
 - **In:** the persona (from [personas](personas.md)), a module, a build, a goal, optionally a starting scene.
 - **Out:** a test definition the bots can run again later.
 - **Stored:** the test definition (see *Data shapes*).
@@ -195,6 +197,69 @@ The monthly real playtests in the roadmap are where this happens first.
 - **In:** playtester sessions and feedback.
 - **Out:** findings, plus corrections to persona bots and scorecards.
 - **Stored:** the same session records and findings as for bots, marked as human.
+
+## Scenario: character creation
+
+Character creation is part of any RPG, and the personas test it too (Fredrik, 2026-10-06). It runs through the same steps as any other test; this section covers what is specific to it.
+
+### Why start here
+
+- **It's short.** A character should take minutes, so bots can make many of them per build for little money.
+- **Everyone goes through it.** Every new game starts with it, and so does the next character after a death. If it's slow or confusing, players leave before the adventure begins. Lotta may not make another character after a death at all, so the second time matters too.
+- **Problems show quickly.** Where a player gets stuck, bored or has to go back is easy to see in a short transcript.
+
+### Where we start from
+
+- **The app has no character creation yet.** In `ex-tales-forge` (`main`, commit `4d78ed7`), every session starts with the same pre-made character, Elara Voss, a human with fixed stats, skills, coins and gear (`lib/ex_tales_forge/game/world.ex`, reused for every adventure by `game/pack.ex`). The home page starts Tin Valley or Crossroads Hamlet; Merovingia isn't loaded in the Elixir app.
+- **The creation rules exist as game data.** The Tin Valley and Crossroads Ledger rules (`rules/core_mechanics.md`) have a 75-point stat buy (3–18 per stat), 20–30 skill points with a starting cap of 5, and background bonuses. Their `rules/economy.md` sets starting wealth by social class, with gear paid for out of that budget.
+- **Merovingia's [`game-system.json`](../worlds/merovingia/game-system.json)** has what a creator would offer: six races (Human, Elf, Dwarf, Gnome, Halfling, Half-Elf) with stat modifiers, skill bonuses and traits; six archetypes (Warrior, Wizard, Thief, Druid, Cleric, Ranger) with suggested skills; 38 skills in five domains; starting wealth by social status, from nobility to underclass; and naming lists by race, region and status. It has no point-buy rules of its own.
+
+So bots can only run this scenario once the app has a creation step. Until then, this section describes what we would test.
+
+### What a persona does
+
+Each persona bot makes a character in its own style, following [personas](personas.md), and stops at the first in-game turn.
+
+| Persona | How it makes a character | What it tests |
+|---|---|---|
+| Hawk | Builds to survive: asks how wounds and combat work, picks a sturdy build. Dice on. | Is enough of the rules shown to make real choices? |
+| Paul | Describes who the character is, in character, and avoids numbers. Dice off. | Can a character come from prose, without stat tables forced on him? |
+| Lotta | Takes her time over name, looks and background; starts as an underdog (her "Ugly Duckling" arc). | Are her details kept, and is a humble start allowed? |
+| Lars | Wants to get to the adventure fast, with a reason to matter in the world. | How soon does he get to play, and does the character have a hook into the world? |
+| Ronny (red team) | Asks for extra points, stats over 18, rare gear or a race that isn't on the list; tries to talk or inject his way past the rules. | Do the rules hold, ideally in-fiction, without granting anything unearned? |
+
+### What gets scored
+
+The same two layers as step 4.
+
+- **Time and turns** from the first prompt to a finished character. Automatic.
+- **Confusion and backtracking:** questions about what something means, choices changed or undone, the same question asked twice, dead ends and errors. Long explanations the persona skips or complains about count as boredom. The judge quotes the turns.
+- **Fit with the world and its rules.** Automatic checks: race, archetype and skills exist in the world's data, stats and skill points stay within the limits, starting money and gear match the social class, and the name fits the naming lists. The judge checks the rest: tone, and a background that doesn't contradict canon.
+- **Would the persona carry on?** The bot ends with one out-of-character line: would it start playing now, and why or why not. The judge checks that answer against the transcript.
+- **AI cost of the step:** the number of calls, tokens and dollars, summed from the `ai_calls` rows for the step. Playtest caps are $1.00 per session and $10.00 per day, so a creation step that eats a large share of the session cap, or hits it, is a finding.
+
+```yaml
+session: s-2026-11-05-0007
+test: t-lotta-create-character
+creation:
+  turns: 9
+  time_s: 140
+  confusion: [turn 3, turn 6]
+  backtracks: 1
+  rules_ok: true
+  world_fit: pass
+  would_continue: true
+  cost: { calls: 7, usd: 0.04 }
+```
+
+### Open questions
+
+- Does character creation happen with the GM in conversation, through a form, or a mix (a form with the GM helping)? Paul and Lotta may want something different here from Lars.
+- Is it scored on its own, or as the first part of a normal session? Does it count against the $1.00 session cap, and how are its `ai_calls` told apart from play, given that they link to a session and a turn number today?
+- Which world comes first: Merovingia, which has the richest race, archetype and naming data but no point buy, or Tin Valley, the starter ([D-008](../decisions/d-008-tin-valley-starter.md)) that the app can load?
+- What is a good target time and turn count for a finished character, and is it the same for every persona?
+- Does a pre-made character stay available for players who want to start right away?
+- After a death, does the player go through the same creation again, or a shorter one?
 
 ## Data shapes (suggestions)
 
@@ -324,3 +389,4 @@ Most important first.
 4. **How many sessions per persona per build.** Enough to see patterns and beat AI randomness, few enough to stay within budget. Maybe a small set on every build and a bigger one nightly.
 5. **Where findings go.** GitHub issues, decision-queue items, or both (bugs to issues, design questions to the queue), and whether reports live only in the playtest admin.
 6. **When real testers join, and how they sign in to playtest.** Ties to the open sign-in question in [environments](environments.md) and to the monthly real playtests in the roadmap.
+7. **The character creation scenario.** Form or conversation, scored alone or as part of a session, and which world first. See its open questions under *Scenario: character creation*.
