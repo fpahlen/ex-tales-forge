@@ -6,7 +6,7 @@ status: draft
 
 # Design: playtest loop
 
-**Status:** draft, 2026-10-07. Agreed in outline with Fredrik 2026-10-06; the details below are proposals. Jev persona-affect scoring decided 2026-10-07 — see [jev-scoring.md](jev-scoring.md); not built yet.
+**Status:** draft, 2026-10-07. Agreed in outline with Fredrik 2026-10-06; the details below are proposals. Jev persona-affect scoring in review — see [jev-scoring.md](jev-scoring.md) (`jev-persona-affect`).
 
 ## Purpose
 
@@ -57,7 +57,7 @@ Checked in `ex-tales-forge` on `main` (commit `bd5af30`):
 | 2 | Per-session and per-day spending caps with a hard stop, set by `AI_CAP_SESSION_USD` and `AI_CAP_DAY_USD` (unset = off; day = since midnight Stockholm time). A capped call sends nothing, is logged and stored as a `capped` row, and the player sees a calm "the Game Master is resting" message | Done: [ex-tales-forge #20](https://github.com/whyse-ab/ex-tales-forge/pull/20). Live on playtest ($1.00 per session, $10.00 per day); off in production |
 | 3 | GM hidden reasoning per turn: a short hidden `gm_notes` field in the GM reply, stored with the raw GM reply as a `gm_reasoning` session event (`player_aware: false`) in the turn's transaction; never shown to the player or fed back into prompts | Done: [ex-tales-forge #22](https://github.com/whyse-ab/ex-tales-forge/pull/22) |
 | 5 | Persona bot runner: `TalesForge.Playtest.Runner.start(persona, module, opts)` plays a new playtest session as a persona from [personas](personas.md), through the same paths a player uses. It sees only what the play page shows, and its moves come from an LLM call recorded in `ai_calls` as `persona`. It stops at module end, death, a spending cap, a timeout or the turn limit (default 15). Each run is stored in `playtest_runs`. Off unless `PLAYTEST_RUNNER_ENABLED=true`; started over `rpc` on playtest, never in production | Done: [ex-tales-forge #23](https://github.com/whyse-ab/ex-tales-forge/pull/23) |
-| 6 | Judge and session report: `TalesForge.Playtest.Scorer.score(run_id)` makes one judge call (`ai_calls` purpose `scorer`) that reads the session record (what the player saw, server rolls, hidden GM notes) and scores it 1–5 per criterion against the persona's scorecard in [personas](personas.md), quoting the turn behind each score. Rubric `v1-<hash of the scorecard>`, so a scorecard edit is a new version. Stored in `playtest_scores`; runs that end finished or stopped are scored automatically, and re-scoring is a button. Admin pages `/admin/playtest` (start a run, list runs) and `/admin/playtest/:id` (turns side by side with what happened behind the screen, cost by purpose, score card). Persona and scorer calls are kept out of the session cap and the game's cost and time; see *Cost controls*. **Jev persona-affect scoring decided 2026-10-07; see [jev-scoring.md](jev-scoring.md); not built yet.** | Done: [ex-tales-forge #24](https://github.com/whyse-ab/ex-tales-forge/pull/24), live since 2026-10-06 |
+| 6 | Judge and session report: `TalesForge.Playtest.Scorer.score(run_id)` makes one judge call (`ai_calls` purpose `scorer`) that reads the session record (what the player saw, server rolls, hidden GM notes) and scores it 1–5 per criterion against the persona's scorecard in [personas](personas.md), quoting the turn behind each score. Rubric `v1-<hash of the scorecard>`, so a scorecard edit is a new version. Stored in `playtest_scores`; runs that end finished or stopped are scored automatically, and re-scoring is a button. Admin pages `/admin/playtest` (start a run, list runs) and `/admin/playtest/:id` (turns side by side with what happened behind the screen, cost by purpose, score card). Persona and scorer calls are kept out of the session cap and the game's cost and time; see *Cost controls*. **Jev persona-affect in review** (`jev-persona-affect`); see [jev-scoring.md](jev-scoring.md). Primary when `TYPESAFE_API_KEY` is set; LLM rubric remains the fallback. | Done: [ex-tales-forge #24](https://github.com/whyse-ab/ex-tales-forge/pull/24), live since 2026-10-06 |
 
 ## The steps
 
@@ -308,7 +308,7 @@ How this is built (ex-tales-forge #20, #24):
 - **Session cap** (`AI_CAP_SESSION_USD`) counts only the game's own calls (`gm`, `intent`, `scene`), so a bot run is capped at what a human session would be.
 - **Persona cap per run** (`AI_CAP_PERSONA_RUN_USD`, $0.50 when unset) counts the persona bot's own calls. Hitting it stops the run with stop reason `persona_cap` and stores a `capped` row.
 - **The scorer** is its own bucket, outside the session cap.
-- **Jev persona-affect scoring** decided 2026-10-07; see [jev-scoring.md](jev-scoring.md); not built yet. When shipped it replaces the numeric judge path (much cheaper per call than the current LLM scorer).
+- **Jev persona-affect scoring** in review (`jev-persona-affect`); see [jev-scoring.md](jev-scoring.md). Primary auto-score when `TYPESAFE_API_KEY` is set; LLM rubric is the fallback when unset.
 - **Day cap** (`AI_CAP_DAY_USD`) is the safety net over everything: game, persona and scorer.
 - **Game cost and time leave the bot out.** Game time is from action submitted to turn done, plus scene time; the persona's thinking time, tokens and cost are stored apart on `playtest_runs` and shown as a separate "Persona (bot)" line. Raw wall clock is only shown labelled as including the bot.
 
