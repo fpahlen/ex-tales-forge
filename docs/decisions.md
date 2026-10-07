@@ -9,6 +9,30 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: Skill rules ported from the old game; signature skills up to 7; growth no longer stalls
+
+- **Decision (from Fredrik, via Case):** player characters get the written skill rules of the old game. Signature skills are Fredrik's call.
+  - **Skill budget 25:** levels 1–3 cost 1 each and levels 4–5 cost 2 each. The normal cap is 5, and a character needs at least 5 skills. The screen suggests a spread build, and the player can change it within the budget.
+  - **Signature skills (Fredrik's call):** one or two skills may go to **7** for solo heroes. Levels 6–7 cost **3 each**, continuing the 1, 1, 1, 2, 2 curve: a 7 bought from scratch costs 13 of the 25 points, a real commitment.
+  - **Free levels:**
+    - the class package gives all three class skills at 3/2/1 (before, the third was dropped);
+    - a **past occupation**, chosen from the existing occupation tables, gives +2 on its core skills and +1 on its secondary ones. It replaces the skill-less "adventurer", and each class suggests one;
+    - race: Human +5 and Half-Elf +3 points, Elf/Dwarf/Gnome/Halfling fixed skill levels from `game-system.json`.
+  - All free levels stack under the same caps, and levels the caps cut off come back as points.
+  - **Untrained floor:** a roll never uses less than `max(stat ÷ 3, stat bonus)`.
+  - **Progression:**
+    - LP thresholds by tier: 5 / 7 / 10 / 15 (Novice, Adept, Expert, Master);
+    - improvement roll modifiers: Expert −3, Master −5;
+    - LP stat bonus: `(stat − 10) ÷ 4`, 0 to +2 per roll;
+    - **one** failure since the last attempt is enough (was three).
+  - Status: open PRs, not merged or deployed. Each waits for Fredrik's approval:
+    - [ex-tales-forge #62](https://github.com/whyse-ab/ex-tales-forge/pull/62): rules engine and untrained floor;
+    - [#63](https://github.com/whyse-ab/ex-tales-forge/pull/63): occupation;
+    - [#64](https://github.com/whyse-ab/ex-tales-forge/pull/64): progression, with the GM rules text and golden fixtures updated on purpose;
+    - [#65](https://github.com/whyse-ab/ex-tales-forge/pull/65): creation screen and persona builds.
+- **Why:** a solo character has no party to cover its gaps, so it must be well rounded from the start. The old cap of 2 class skills left created characters with two skills. After the roll rule ([#56](https://github.com/whyse-ab/ex-tales-forge/pull/56)) fewer actions roll at all, so "5 LP and 3 failures" would have stalled growth.
+- **Details:** [character creation port: skill rules](character-creation-port.md#skill-rules-ported-2026-10-07), including every ambiguity in the old rules and how it was resolved; [persona characters](playtest-persona-characters.md)
+
 ## 2026-10-07: Brenna is a warm, chatty barkeep; a lead by turn 2; GM prose cleanup
 
 - **Decision (Fredrik's call, via Case):** Brenna, the Tin Valley innkeep, becomes a warm, chatty barkeep who genuinely enjoys running the tavern.

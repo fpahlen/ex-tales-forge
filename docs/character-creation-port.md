@@ -6,7 +6,7 @@ status: plan; port on the unified Character from 2026-10-07
 
 # Plan: porting character creation from the old app
 
-**Status:** draft, 2026-10-06, research and a proposal. Update 2026-10-07: PR 1 (#52) and PR 2 (#53) are merged and deployed; see [PRs](#prs).
+**Status:** draft, 2026-10-06, research and a proposal. Update 2026-10-07: PR 1 (#52) and PR 2 (#53) are merged and deployed; see [PRs](#prs). The old game's skill rules are ported in open PRs #62–#65; see [Skill rules](#skill-rules-ported-2026-10-07).
 
 Checked against the old app `fpahlen/tales-forge-new-31993d9d` on `development` (commit `20b791c`) and `whyse-ab/ex-tales-forge` on `main` (commit `0aa49e9`).
 
@@ -241,6 +241,72 @@ Small PRs, each with CI green, the docs updated, and no merge or deploy without 
 | Later | Portraits, a character library across sessions (needs accounts), Merovingia as a playable world | own plans | — | — |
 
 **Order:** 1 → 2 → 3, then 4, 5 and 6 in any order. PR 3 needs only PR 1, so persona runs can start before the screen exists.
+
+The skill point buy and occupation from PR 4 are taken out and done first, as the skill-rules PRs [#62](https://github.com/whyse-ab/ex-tales-forge/pull/62)–[#65](https://github.com/whyse-ab/ex-tales-forge/pull/65) (below). The rest of PR 4 (background, standing, origin, OCEAN and concerns) is still to do.
+
+## Skill rules (ported 2026-10-07)
+
+On Fredrik's instruction, the old game's written skill rules are ported, so a solo character starts well rounded and keeps growing. The sources are the old app on `development`:
+
+- `docs/game-rules/fantasy_rpg_game_mechanics_summary.md`
+- `racial_mechanics_summary.md`
+- `skill_domains.md`
+- `modules/merovingia/game-system.json` (`variants`, `progression`)
+
+The rules live in `priv/characters/creation.json` (`skills`, `occupation`) and `TalesForge.Game.Mechanics`. [Decision 2026-10-07](decisions.md#2026-10-07-skill-rules-ported-from-the-old-game-signature-skills-up-to-7-growth-no-longer-stalls).
+
+| PR | Scope | Size | Base |
+|---|---|---|---|
+| [#62](https://github.com/whyse-ab/ex-tales-forge/pull/62) | Skill budget, costs, cap, signature skills, minimum skills, class package 3/2/1, race bonuses, suggested spread, untrained floor | +512 / −26 | main |
+| [#63](https://github.com/whyse-ab/ex-tales-forge/pull/63) | Past occupation (+2 core, +1 secondary), class defaults | +221 / −46 | #62 |
+| [#64](https://github.com/whyse-ab/ex-tales-forge/pull/64) | Progression: tiered LP 5/7/10/15, Expert −3 / Master −5, LP stat bonus, one failure; GM rules text and golden fixtures | +233 / −97 | main |
+| [#65](https://github.com/whyse-ab/ex-tales-forge/pull/65) | Creation screen (occupation picker, Skills step, inline validation) and persona builds | +388 / −37 | #63 |
+
+### The rules
+
+- **Budget:** 25 points, plus 5 for Human and 3 for Half-Elf. Levels 1–3 cost 1 each, 4–5 cost 2 each, and 6–7 cost 3 each. The normal cap is 5. Up to **2 signature skills** may go to **7**. A character needs at least **5 skills** at level 1 or more.
+- **Free levels** cost nothing and fill the lowest levels first. They come from:
+  - the class package: all three class skills at 3, 2 and 1;
+  - the race: Elf Ranged Combat 3 and Survival 2; Dwarf Melee Combat 3 and Survival 2; Gnome Arcana 3 and Lockpicking 2; Halfling Stealth 3 and Lockpicking 2;
+  - the past occupation: +2 on its core skills and +1 on its secondary ones.
+
+  Free levels stack. A skill above 5 becomes a signature skill. Levels cut off by the caps come back as points at the price of the lost levels, so a dwarf warrior who was a soldier has Melee Combat 3 + 3 + 2 = 8, which is capped at 7 with 3 points back.
+- **Suggested build:** the class, race and occupation skills plus filler skills tied to the highest stats (at least 6 skills), raised lowest first up to 5 until the points run out. The suggestion never buys a signature level; the player does that.
+- **Past occupation:** a player can pick laborer, innkeep, barkeep, merchant, guard, soldier, hunter, miner, priest, scholar, thief or noble. The class suggests one: warrior → soldier, thief → thief, ranger → hunter, cleric → priest, wizard → scholar, druid → hunter, no class → laborer.
+- **Untrained floor:** effective level = `max(skill + (stat − 10) ÷ 2, stat ÷ 3, (stat − 10) ÷ 2)`, rounded down.
+- **Progression:**
+  - The LP needed to try depends on the tier: Novice (0–5) 5, Adept (6–10) 7, Expert (11–15) 10, Master (16+) 15.
+  - At least one failure since the last attempt.
+  - The improvement roll is `1d20 + modifier > level`, with modifier 0 / 0 / −3 / −5 by tier and a trainer lowering the target by 5. A Master still needs a trainer.
+  - Every roll's LP gets `(linked stat − 10) ÷ 4`, from 0 to +2.
+
+### Ambiguities in the old rules, and how they were resolved
+
+1. **Signature skill cost** (no old rule): levels 6–7 cost 3 each, continuing the curve. At 2 per level, a class skill could reach 7 for 4 points.
+2. **Half-Elf skill bonus:** the `.md` says +2 to any two skills, while `game-system.json` says a pool of 3. **The JSON wins** (Fredrik): +3 points.
+3. **Elf, Dwarf, Gnome and Halfling:** the `.md` offers choices ("Ranged or Arcana +3"), while the JSON has fixed skills. **The JSON's fixed values are used.**
+4. **Gnome "Alchemy 3":** the game has no alchemy skill. It maps to **Arcana**, because adding a skill would change the `valid_skills` list in the intent prompt.
+5. **Halfling:** the `.md` says Stealth or Cooking +3 and Persuasion or Trading +2. The JSON's Stealth 3 and Lockpicking 2 are used.
+6. **Skill budget "20–30":** 25, as Fredrik set.
+7. **"Backgrounds grant 3–5 free points":** this became the class package (3+2+1 = 6 free levels) plus the past occupation (Fredrik's list).
+8. **"+1 point per stat > 10 for linked skills" and the "wildcard" points:** **left out.** They weren't in Fredrik's list, they would double-count the stat bonus already added to every roll, and the budget is already generous.
+9. **Minimum "3–5 skills":** 5.
+10. **The untrained rule is "level 0 = Stat / 3"**; Fredrik said "floor: max(stat ÷ 3, stat bonus)". The floor applies to **every** roll, so training never makes a roll worse. Trade-off: at stat 10–12, skill levels 1–3 add nothing to the roll yet, though they still count for growth and the story. **Open question**, below.
+11. **Improvement target at Expert:** `skill_domains.md` says "Roll > Level − 3", which reads as easier; the JSON says `improvement_modifier: −3`, and the rules say high levels get harder. **The JSON wins:** the roll gets −3, and the GM rules text now reads "Roll − 3 > Level".
+12. **LP stat modifier for low stats:** the old rule caps it at +2 but says nothing about negatives. Here it is **0 to +2**: with a penalty, a success would be worth 0 LP or less.
+13. **"At least 3 failures":** relaxed to **1**, as Fredrik allowed ("drop or relax"). "Learning from failure" stays, but growth doesn't stall.
+14. **Occupation and the levers:** the occupation feeds the **skills only**. OCEAN, Maslow and concerns still come from "adventurer", who the character is now. **Open question**, below.
+15. **Which occupations a player can pick:** all except adventurer (no skills) and ruler.
+16. **Bought levels across a race or class change:** the draft keeps the **levels**, not the purchases. A new class that makes a skill free gives its points back, instead of pushing the skill past the cap.
+17. **Domains** (`skill_domains.md`, domain floors and echoes): not ported. Even a `domain` field would need data for skills the game doesn't have, so it waits for the domains work.
+18. **NPCs** (`Defaults.derive`): unchanged. The rules are for player characters, and the golden fixtures stay the same.
+
+### Open questions for Fredrik
+
+- **Half-Elf stat modifiers:** the game uses DEX +1, CHA +1 (`defaults.json`), while the old JSON has CHA +1, INT +1. They are unchanged for now.
+- **Untrained floor on trained skills:** keep it for every roll (current), or apply it only to untrained skills (the literal old rule, where a level-1 skill can roll worse than no skill)?
+- **Should the past occupation also shape the levers** (OCEAN, Maslow, concerns), or show on the character sheet the GM sees ("a former soldier")? Today it does neither.
+- **Pace of growth:** the LP stat bonus (+1 at stat 14) together with one failure makes growth roughly twice as fast for a strong stat. Watch it in the playtests.
 
 ## Proposed port
 
