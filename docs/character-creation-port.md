@@ -1,6 +1,6 @@
 ---
 title: "Plan: porting character creation from the old app"
-updated: 2026-10-06
+updated: 2026-10-07
 status: draft
 ---
 
@@ -136,6 +136,22 @@ After the character call, the server fixes gear prices that are too low and adds
 - **The GM context** has to include who the character is, or the creation step makes no difference to the story.
 - **Spending caps:** creation happens before a session exists, so only the day cap applies, unless creation creates the session first.
 - **Portraits** need a real image pipeline and storage (Tigris).
+
+## Update 2026-10-07: derived defaults and Jev (direction from Fredrik via Case)
+
+Fredrik set a direction (via Case) that changes how a character is generated. It is recorded as a [design direction](decisions.md#2026-10-07-design-direction-derived-character-defaults-and-jev-for-descriptions), with the sketch in [Plan: one Character entity, section 7](plan-unify-character.md#7-defaults-from-class-race-standing-and-occupation-jev-for-descriptions).
+
+- **Defaults come from pure Elixir:** stats, skills, OCEAN, Maslow level and concerns are derived from class, race, social standing and occupation (`TalesForge.Characters.Defaults`). They are not picked by an AI.
+- **The player's description goes to one Jev call** that returns fixed labels with confidence: race, class, standing, occupation, OCEAN levels, Maslow level and concern focuses. The defaults fill every field Jev isn't confident about. The same call drafts NPCs for authors, and notable NPCs are hand-written overrides on top of the defaults.
+
+Effect on the steps below:
+
+- **Step 3 (creation data):** the structured creation file grows into the defaults tables: race, class, occupation and standing rows, plus the race OCEAN modifiers already in `races.md`.
+- **Step 6 (AI generation):** the old `character_sheet` LLM call with a JSON schema is **replaced** by Jev plus derivation, following the [call types](call-types.md) rule (no structured output from an LLM). A prose LLM call for the concept or backstory stays optional, because Jev can't write text. The name is typed by the player or picked by Elixir from the naming lists.
+- **Step 8 (point buy):** derivation keeps a PC inside the starting limits (stat range, skill cap 5, point budget) by construction. The validator stays as the check.
+- **Step 11 (a lasting character record):** the `characters` table exists since ex-tales-forge #48, with `owner_player_id` ready for carry-over. Reads come in phase 2.
+- **The screen (step 5):** after the description, the sheet shows guessed fields marked. Changing a dropdown (race, class, standing, occupation) re-runs the derivation instantly, with no AI call.
+- **Persona bots:** Ronny asking for 20 STR is caught by the limits whatever Jev says. Creation cost shows up as Jev rows, about $0.001 or less per character.
 
 ## Proposed port
 

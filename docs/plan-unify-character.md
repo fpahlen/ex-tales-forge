@@ -164,7 +164,7 @@ A flag is sensible for the read switch, because it changes what the GM sees. The
 - new sessions write characters (the persona runner as `bot`), but nothing reads them;
 - a golden test keeps the GM prompts byte-identical.
 
-Next PR: backfill of existing sessions, dual-write of per-turn changes, and the NPC skill rescale. After that comes phase 2, the read switch behind a flag.
+Next PR: backfill of existing sessions, dual-write of per-turn changes, and the NPC skill rescale, which now comes from the derived defaults ([section 7](#7-defaults-from-class-race-standing-and-occupation-jev-for-descriptions)). After that comes phase 2, the read switch behind a flag.
 
 **Total for phases 0–4:** about +1,800 / −1,350 LOC over 5–7 PRs. The net is small; the value is one shape for PCs and NPCs.
 
@@ -188,8 +188,112 @@ Case suggested answers to the seven open questions. Fredrik confirmed all seven 
 2. **PC levers:** PCs get OCEAN, a Maslow level and concerns, **visible on the character sheet**.
 3. **AFK:** solo play pauses. In parties the GM takes over an absent PC after a timeout, and control goes back when the player returns.
 4. **Companions:** a GM-controlled companion decides by its reaction, concerns and party phase. It does not obey orders by default.
-5. **Skill scale:** NPC skills are **rescaled to the PC scale**. NPCs use the same raw values plus stat bonus and the same roll formula as PCs. The pack values are re-authored on that scale: a master trainer still sits well above a starting PC. The trainer gap rule (`Train`, today raw + 5) is re-checked against the new values.
+5. **Skill scale:** NPC skills are **rescaled to the PC scale**. NPCs use the same raw values plus stat bonus and the same roll formula as PCs. The pack values move to that scale (now by deriving them from occupation tiers, see [section 7](#7-defaults-from-class-race-standing-and-occupation-jev-for-descriptions)): a master trainer still sits well above a starting PC. The trainer gap rule (`Train`, today raw + 5) is re-checked against the new values.
 6. **Memory:** one **shared events table** (what happened, where, who was involved, who could perceive it) plus **per-character memory rows**: each character's personality-filtered view of an event (felt, salience, secret), pointing at the event. The shared table is the existing `session_events`, which already holds world facts and hidden events. It becomes world-scoped if option B lands.
 7. **Controller:** `player | gm | bot`. The persona runner uses `bot`, so playtest characters are easy to tell apart in data and costs.
 
 Effect on the phases: phase 0+1 (setup) adds `owner_player_id`, `controller` with three values, the shared events table and per-character memory rows. Rescaling NPC skills is a separate step after phase 1: it changes who can train whom (`Train`) and the skill values the GM sees, so it gets its own PR with the gap rule re-checked, and phase 1 keeps the GM prompts byte-identical. Nothing switches reads until phase 2.
+
+## 7. Defaults from class, race, standing and occupation; Jev for descriptions
+
+**Direction from Fredrik via Case, 2026-10-07**, recorded as a design direction in [decisions](decisions.md#2026-10-07-design-direction-derived-character-defaults-and-jev-for-descriptions). The sketch below is Case's proposal for how to build it; the details are not yet confirmed.
+
+1. **Defaults are derived in pure Elixir** from class, race, social standing and occupation: stats, skills, OCEAN, Maslow level and concerns. The assumption is that people are reasonably skilled at their job and have a typical personality for their role.
+2. **Notable characters are authored by hand as overrides** on top of the defaults, for example the reluctant king or the sour barkeep.
+3. **A free-text description becomes a Character through one Jev call** (unstructured in, structured out). The same call serves **player character creation**: the player describes their character, Jev returns labels, and the defaults fill the gaps.
+
+### 7.1 The derivation module: `TalesForge.Characters.Defaults`
+
+The module is pure: no database and no AI. `derive(inputs, rules) :: character_attrs` returns the same attrs shape that `Characters.from_npc_instance/3` builds today. Because it is deterministic, it is cheap to test, and every result goes through `Character.changeset/2` and `Levers.validate!/2`.
+
+**Inputs** (all labels from fixed lists):
+
+| Input | Values (examples) | Notes |
+|---|---|---|
+| `race` | the world's races: human, elf, dwarf, gnome, halfling, half_elf | |
+| `class` | the world's archetypes (warrior, thief, ranger, cleric, wizard, druid) or `none` | Most NPCs have no class: a barkeep is an occupation, not a class |
+| `standing` | nobility, gentry, merchant, commoner, underclass | The five social classes from the old app and the `starting_wealth` table |
+| `occupation` | innkeep, guild_steward, miner, prospector, guard, soldier, smith, farmer, merchant, priest, scholar, thief, ruler, … | One fixed list per world, with an `other` entry |
+| `seniority` | apprentice, journeyman, master | Defaults to journeyman: "reasonably skilled at their job" |
+| `seed` | the slug | Drives a small deterministic jitter, so two innkeepers differ but tests stay stable |
+
+**Tables** (pack data, for example `rules/character_defaults.json` per world, loaded and checked fail-fast like `Pack`):
+
+- **Race:** stat modifiers and skill bonuses (from `races.md`), and **OCEAN modifiers**. The race OCEAN table already exists in `worlds/*/rules/races.md`, for example Dwarf O −1, C +2, E −1, A −2, N −1.
+- **Class:** stat emphasis (for example warrior STR +2, CON +1) and class skills.
+- **Occupation:**
+  - core skills (2–3) and secondary skills;
+  - OCEAN offsets for the typical personality (innkeep E +2, A +1; guard C +2; scholar O +2);
+  - a typical Maslow level;
+  - 1–3 concern templates, each a fixed focus label with a text template and a priority;
+  - a kit of inventory or stock.
+- **Standing:**
+  - coins, from `starting_wealth`;
+  - a Maslow shift: underclass leans physiological or safety, nobility esteem;
+  - kit quality, and social-skill adjustments such as etiquette for gentry and above.
+
+**Rules, in order:**
+
+1. **Stats:** start at 10, add the class emphasis, then the race modifiers, and clamp to 3–18.
+2. **Skills:** occupation core skills at the seniority tier, using the world's tiers (Novice 1–5, Adept 6–10, Expert 11–15): apprentice 4, journeyman 8, master 12. Secondary skills get half of that; class skills get 3; then the race bonus.
+   - **PCs** are then held to the starting rules: skills capped at 5, inside the point budget.
+   - **NPCs** keep the professional values. This is how decision 5 (one skill scale) lands without hand re-authoring: a master trainer at 12+ sits more than 5 above any starting PC, which satisfies the `Train` gap rule.
+3. **OCEAN:** start at 5, add the race modifier and the occupation offset, apply a jitter of ±1 from the seed, and clamp to 1–10, as `races.md` specifies.
+4. **Maslow:** the occupation level, shifted by standing. The lower need wins, because a hungry noble is still hungry.
+5. **Concerns:** the occupation templates plus at most one from standing, sorted by priority, at most 3. Each has `since_tick` set at seeding.
+
+**Overrides merge on top.** `derive(inputs) |> Overrides.merge(authored)`, then validate:
+- **Maps merge per key:** `stats.STR`, `skills.persuasion`, `ocean.agreeableness`.
+- **Scalars replace:** name, Maslow level, mood.
+- **Lists replace whole:** concerns and inventory.
+- A skill set to `0` is removed. A missing key keeps the default.
+
+A pack NPC file becomes `{"derive": {...inputs}, ...overrides}`. Today's authored fields simply become overrides, so nothing is lost. The `definition` keeps both parts, and `origin` records `derived_from` and which fields were overridden. Examples:
+
+- **The sour barkeep:** `derive: {race: human, standing: commoner, occupation: innkeep}`, plus `ocean: {agreeableness: 2, neuroticism: 7}`, `mood: "sour"` and her own concerns.
+- **The reluctant king:** `derive: {standing: nobility, occupation: ruler, seniority: master}`, plus `maslow: "belonging"` (against the esteem default), `ocean: {extraversion: 2}` and a concern "Escape the weight of the crown".
+
+### 7.2 Description → Character: one Jev call
+
+Jev's **state** is the free text: the player's description, or an author's NPC blurb. Its **questions** are fixed labels, all in one request, evaluated in parallel:
+
+| Field | Question type | Labels |
+|---|---|---|
+| race, class, standing, occupation | Choice | The world's lists, each with `other` or `none` (a Choice allows up to 255 options) |
+| seniority | Score | apprentice < journeyman < master |
+| OCEAN (5 questions) | Score | 5 levels, very low to very high, mapped to 1, 3, 5, 7, 9 |
+| Maslow level | Choice | the 5 levels |
+| concerns | Choice | About 30 fixed focus labels (money, debt, family, revenge, faith, duty, love, fame, safety, freedom, knowledge, escaping the past, …). Take up to 3 labels whose probability is above a floor |
+| skill emphasis | Choice | The world's skill list ("what is this character best at?"); the top 1–2 get one tier up |
+| unrealistic request | Noul | "Does the description ask for impossible power (maximum stats, godlike)?" Logged only; the limits apply anyway |
+
+**How answers map onto fields:**
+
+1. **Inputs first.** Gate race, class, standing, occupation and seniority on confidence. At or above the threshold (start at 0.6 and tune with playtests), use Jev's label. Below it, use the world default: human, `none`, commoner, `other`, journeyman.
+2. Run `derive/2` on those inputs.
+3. **Levers next.** Confident OCEAN, Maslow, concern and skill-emphasis answers are applied as **overrides**, through the same merge as authored overrides. A field below the threshold keeps its derived default.
+4. **Provenance.** Each field records its source (`jev`, `default` or `player`) and its confidence in `origin`. The sheet can then mark guessed fields, and tests can assert on them.
+5. **If the call fails or confidence is low overall** (an error, a 429, a timeout, or most inputs below the threshold), use the defaults for the inputs that came back confident, or for everything. Creation never blocks on Jev.
+
+**Jev limits that matter:**
+
+- **Fixed labels only, no free text.** Jev answers only Choice (up to 255 options), Score (ordered levels) and Noul (yes or no). It cannot write a name, appearance, backstory or concern sentence, and returns no numbers outside the levels. As a result:
+  - **Name:** the player types it, or Elixir picks one from the world's naming lists. Jev can only pick a name from candidates we supply, such as a roster or a pre-parser; names have no regex.
+  - **Concern text:** the template for the chosen focus. The player's own sentence is kept in `definition` as the description.
+  - **Backstory or appearance prose:** keep the player's text. An LLM call for prose is optional and is the founders' call (port question 1). It must not return structured fields, per [call types](call-types.md).
+- **Questions are independent.** There is no cross-question consistency, so "wizard" plus "miner" can both come back. Elixir reconciles: class and occupation both apply, and derivation handles the mix.
+- **Keep labels closed and described.** Each option's description is sent to Jev, so the descriptions should separate the options. Every list needs `other` or `none`.
+- **Cost and speed are small.** Jev costs about $0.042 per 1M input tokens. A description of about 1k tokens with about 15 questions costs well under $0.001. Today's Jev calls (NPC reactions) take 210–340 ms. The model is pinned at jev-1.13.0.
+
+### 7.3 Which phase
+
+- **Derivation module, tables and the `derive` blocks in pack NPCs:** with the **skill-rescale PR** (the next one, alongside the backfill and dual-write). Deriving NPC skills from occupation tiers *is* the rescale, so the pack values aren't re-authored by hand. GM prompts change there (NPC skills), so that PR updates the golden fixtures on purpose and runs a playtest comparison.
+- **Jev description → Character:**
+  - **For authors:** first as a mix task (`mix characters.from_text`) that drafts an NPC file for an author to review. This can come right after the derivation module.
+  - **For players:** with the [character creation port](character-creation-port.md) after phase 2, once the GM reads from `characters`, so a created character actually shows up in play.
+
+Open for Fredrik:
+- whether label lists are per world or global;
+- the confidence threshold;
+- jitter, yes or no;
+- whether players can edit the derived numbers or only the inputs (race, class, standing, occupation).
