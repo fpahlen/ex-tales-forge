@@ -62,3 +62,40 @@ flowchart LR
 ## Character model
 
 Player characters and NPCs are the same `Character` type: OCEAN personality scores, personality-filtered memory, and a Maslow need level. Only the controller differs: a player or the GM. That also lets the GM play an absent player's character using the same data and the same calls.
+
+## Recording call types and metrics
+
+Every unit of work in a turn is a row in the app's `ai_calls` table ([ex-tales-forge#39](https://github.com/whyse-ab/ex-tales-forge/pull/39)), so the rule above can be checked with numbers.
+
+| Column | Meaning |
+| --- | --- |
+| `call_type` | `llm`, `jev` or `function`, as in the table above |
+| `purpose` | What the call is for: `gm`, `scene`, `intent`, `persona`, `scorer`, `jev_npc`, `gm_notes`, or a turn step `turn.*` |
+| `adventure_id` | The world/module played, e.g. `tin_valley` |
+| `game_system` | The rules system. Today every pack uses `skill_d20` (1d20 roll-under skills) |
+| `conv_id` | The `x-grok-conv-id` an LLM call was sent with |
+| `started_at` | When the call or step began (microseconds) |
+
+- **LLM rows:** one per xAI request, with tokens, cached tokens, cost and latency.
+- **Jev rows:** one per TypeSafe call (the persona-affect scorer today, NPC reactions in the prose prototype), with input tokens, cost and latency.
+- **Function rows:** the timed Elixir steps of a turn, at zero cost. They show whether "exact, free, instant" holds:
+  - `turn.intent`: intent extraction and validation, before the turn job (includes a tier-1 LLM call when one is needed; that call also has its own row)
+  - `turn.rules`: handler resolution, mechanics, rolls, inventory, clock, world sim
+  - `turn.prompt`: GM context and prompt assembly
+  - `turn.gm`: the GM call as Elixir sees it, including retries and decoding
+  - `turn.persist`: the turn transaction, NPC updates and signals
+
+Function rows are not counted as calls in spend figures.
+
+### Derived metrics
+
+- **Cost and latency:** count, total and average cost, cost per session and per turn, and p50/p90 latency, per `call_type` and `purpose`.
+- **Cache hit rate:** cached / input tokens, and the share of calls with more than 128 cached tokens. xAI reports 128 cached tokens even when it reused nothing, so 128 counts as a miss. Shown for GM turns 2+, all GM calls and all game LLM calls.
+- **Idle gap:** for each GM call, the time since the previous xAI call on the same `x-grok-conv-id` ended. This helps tell cache misses caused by long pauses from those caused by routing.
+- **Persona is separate:** the persona and scorer bots have their own sections and are never added to game cost.
+
+### Where to see them
+
+- `/admin/costs`, card "Calls by type · this month (this app)": cache and idle-gap figures, the breakdown table and the most recent sessions. Each environment shows its own; the peer card still shows only spend buckets.
+- Playtest run page (`/admin/playtest/<run>`): the breakdown, a cache and latency strip, and a per-turn table with GM latency, idle gap, tokens, hit/miss, game vs persona cost and step timings.
+- `TalesForge.Playtest.Runner.status/1` over rpc: a compact `metrics` map with the same per-turn figures.
