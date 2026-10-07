@@ -151,6 +151,11 @@ Effect on the steps below:
 - **Step 8 (point buy):** derivation keeps a PC inside the starting limits (stat range, skill cap 5, point budget) by construction. The validator stays as the check.
 - **Step 11 (a lasting character record):** the `characters` table exists since ex-tales-forge #48, with `owner_player_id` ready for carry-over. Reads come in phase 2.
 - **The screen (step 5):** after the description, the sheet shows guessed fields marked. Changing a dropdown (race, class, standing, occupation) re-runs the derivation instantly, with no AI call.
+- **Confirmed by Fredrik, 2026-10-07** ([decision](decisions.md#2026-10-07-character-defaults-the-four-answers)):
+  1. A global base label list that each world pack extends.
+  2. A Jev confidence threshold of 0.6 to start, with every confidence logged and the threshold tuned after playtests.
+  3. Small random variation, seeded per character (session id plus character key), so it's stable on reload.
+  4. **The player can edit everything Jev fills in, within the rules:** stats within the point budget, OCEAN, concerns, background and name. Each section offers "own input" or "AI assist", as in the per-section hybrid already decided. Edited fields keep the player's value when the derivation re-runs.
 - **Persona bots:** Ronny asking for 20 STR is caught by the limits whatever Jev says. Creation cost shows up as Jev rows, about $0.001 or less per character.
 
 ## Proposed port

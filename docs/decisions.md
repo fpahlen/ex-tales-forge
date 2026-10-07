@@ -9,6 +9,20 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: Character defaults: the four answers
+
+- **Decision:** confirmed by Fredrik on 2026-10-07 (via Case).
+  1. **Label lists:** a global base list that each world pack extends.
+  2. **Jev threshold:** confidence 0.6 to start. Every confidence is logged, and the threshold is tuned after playtests.
+  3. **Variation:** small random variation, seeded per character (a hash of the session id plus the character key), so a character is stable on reload.
+  4. **Player edits:** the player can edit everything Jev fills in, within the rules: stats within the point budget, OCEAN, concerns, background and name. This follows the per-section "own input or AI assist" flow.
+- **Why:**
+  - A shared base list keeps labels, tests and Jev questions consistent, while each world can still add its own occupations.
+  - 0.6 is a cautious start that real playtest data can move.
+  - Seeded variation stops two innkeepers from being clones without making a character change between page loads.
+  - Player edits keep Jev as a helper, not a judge: 4 of 5 personas wanted per-section control.
+- **Details:** [Plan: one Character entity, section 7.4](plan-unify-character.md#74-decisions-confirmed-by-fredrik-2026-10-07), [Plan: character creation port](character-creation-port.md#update-2026-10-07-derived-defaults-and-jev-direction-from-fredrik-via-case)
+
 ## 2026-10-07: Design direction: derived character defaults, and Jev for descriptions
 
 - **Direction (from Fredrik, via Case):**

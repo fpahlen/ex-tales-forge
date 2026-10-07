@@ -215,7 +215,7 @@ The module is pure: no database and no AI. `derive(inputs, rules) :: character_a
 | `standing` | nobility, gentry, merchant, commoner, underclass | The five social classes from the old app and the `starting_wealth` table |
 | `occupation` | innkeep, guild_steward, miner, prospector, guard, soldier, smith, farmer, merchant, priest, scholar, thief, ruler, … | One fixed list per world, with an `other` entry |
 | `seniority` | apprentice, journeyman, master | Defaults to journeyman: "reasonably skilled at their job" |
-| `seed` | the slug | Drives a small deterministic jitter, so two innkeepers differ but tests stay stable |
+| `seed` | hash of session id + slug (7.4) | Drives a small deterministic jitter, so two innkeepers differ but a character is stable on reload |
 
 **Tables** (pack data, for example `rules/character_defaults.json` per world, loaded and checked fail-fast like `Pack`):
 
@@ -238,7 +238,7 @@ The module is pure: no database and no AI. `derive(inputs, rules) :: character_a
 2. **Skills:** occupation core skills at the seniority tier, using the world's tiers (Novice 1–5, Adept 6–10, Expert 11–15): apprentice 4, journeyman 8, master 12. Secondary skills get half of that; class skills get 3; then the race bonus.
    - **PCs** are then held to the starting rules: skills capped at 5, inside the point budget.
    - **NPCs** keep the professional values. This is how decision 5 (one skill scale) lands without hand re-authoring: a master trainer at 12+ sits more than 5 above any starting PC, which satisfies the `Train` gap rule.
-3. **OCEAN:** start at 5, add the race modifier and the occupation offset, apply a jitter of ±1 from the seed, and clamp to 1–10, as `races.md` specifies.
+3. **OCEAN:** start at 5, add the race modifier and the occupation offset, apply a jitter of ±1 from the seed (confirmed, 7.4), and clamp to 1–10, as `races.md` specifies.
 4. **Maslow:** the occupation level, shifted by standing. The lower need wins, because a hungry noble is still hungry.
 5. **Concerns:** the occupation templates plus at most one from standing, sorted by priority, at most 3. Each has `since_tick` set at seeding.
 
@@ -269,7 +269,7 @@ Jev's **state** is the free text: the player's description, or an author's NPC b
 
 **How answers map onto fields:**
 
-1. **Inputs first.** Gate race, class, standing, occupation and seniority on confidence. At or above the threshold (start at 0.6 and tune with playtests), use Jev's label. Below it, use the world default: human, `none`, commoner, `other`, journeyman.
+1. **Inputs first.** Gate race, class, standing, occupation and seniority on confidence. At or above the threshold (0.6 to start, confirmed in 7.4; confidence is logged and the threshold tuned after playtests), use Jev's label. Below it, use the world default: human, `none`, commoner, `other`, journeyman.
 2. Run `derive/2` on those inputs.
 3. **Levers next.** Confident OCEAN, Maslow, concern and skill-emphasis answers are applied as **overrides**, through the same merge as authored overrides. A field below the threshold keeps its derived default.
 4. **Provenance.** Each field records its source (`jev`, `default` or `player`) and its confidence in `origin`. The sheet can then mark guessed fields, and tests can assert on them.
@@ -292,8 +292,11 @@ Jev's **state** is the free text: the player's description, or an author's NPC b
   - **For authors:** first as a mix task (`mix characters.from_text`) that drafts an NPC file for an author to review. This can come right after the derivation module.
   - **For players:** with the [character creation port](character-creation-port.md) after phase 2, once the GM reads from `characters`, so a created character actually shows up in play.
 
-Open for Fredrik:
-- whether label lists are per world or global;
-- the confidence threshold;
-- jitter, yes or no;
-- whether players can edit the derived numbers or only the inputs (race, class, standing, occupation).
+### 7.4 Decisions (confirmed by Fredrik, 2026-10-07)
+
+Fredrik confirmed the four open points via Case on 2026-10-07 ([decision](decisions.md#2026-10-07-character-defaults-the-four-answers)):
+
+1. **Label lists:** one **global base list** (races, classes, standings, occupations, concern focuses, skills) that **each world pack extends**. A pack can add labels; it doesn't remove the base ones.
+2. **Jev confidence threshold:** **0.6** to start. Log the confidence of every answer and tune the threshold after playtests.
+3. **Random variation:** yes, small, and **seeded per character**, so it's stable on reload. The seed is a hash of the session id plus the character key (slug). It replaces "the slug" as the seed in 7.1.
+4. **Player edits:** the player can **edit everything Jev fills in, within the rules**: stats within the point budget, OCEAN, concerns, background and name. This follows the per-section "own input or AI assist" flow ([decision](decisions.md#2026-10-06-character-creation)). Changing an input such as race, class, standing or occupation re-runs the derivation. Fields the player has edited keep the player's value, recorded with source `player`.
