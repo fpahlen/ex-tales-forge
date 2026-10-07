@@ -34,10 +34,42 @@ See also [Design: playtest loop](design-playtest-loop.md) (step 6 / Cost control
 
 - Hex [`jev`](https://hex.pm/packages/jev) `~> 0.2`, model pinned to `jev-1.13.0`.
 - `TYPESAFE_API_KEY` set on `tales-forge-playtest` (2026-10-07); not on production yet.
-- Levels live in `TalesForge.Playtest.AffectLevels` (editable copy per persona).
+- Levels live in `TalesForge.Playtest.AffectLevels` (editable copy per persona). Editing a persona's levels changes its rubric hash and so its `rubric_version`; see the stricter top below.
 - Scale stored as **1–5** (`jev_fractional + 1`); confidence and probabilities on the row.
 - `playtest_scores` extended with `source`, `kind`, `turn_number`, `confidence`, `probabilities`.
 - Req was bumped to `~> 0.7` (`override: true`) so Hex jev can resolve beside `jido_action`.
+
+## Stricter top for Paul and Lotta (2026-10-07)
+
+Decision: [A stricter Jev rubric before the next A/B](decisions.md#2026-10-07-a-stricter-jev-rubric-before-the-next-ab-the-personas-stay-as-they-are). PR: [ex-tales-forge #69](https://github.com/whyse-ab/ex-tales-forge/pull/69).
+
+In the 65-run baseline, Paul's most likely turn level was 5 on 124 of 130 turns and Lotta's was 4 on 130 of 130. That ceiling hid any change. The levels in `AffectLevels` now read as follows (the questions and personas are unchanged):
+
+- **Level 3:** also covers *smooth and polite but generic* play (Lotta: *pleasant but interchangeable*).
+- **Level 4:** the world answered something specific to *their* character, not just a polite guest.
+- **Level 5:** all of level 4 plus **concrete evidence of at least two of**: a surprise; a choice of theirs with a consequence; an NPC or the world calling back to earlier play; an NPC acting on their own goals; for Lotta also care when stakes hurt. "A pleasant but uneventful stretch is never this level."
+
+**Rubric versions.** The hash covers the levels, so only Paul's and Lotta's versions change:
+
+| persona | before | after |
+|---|---|---|
+| paul | `jev-affect-v1-dfec71a` | `jev-affect-v1-fd84ebb` |
+| lotta | `jev-affect-v1-4545d3b` | `jev-affect-v1-ce84a1a` |
+| lars / hawk / ronny | `fc771be` / `129f728` / `e8f0786` | unchanged |
+
+**Comparisons.** Never compare scores across rubric versions. For an A/B against the 2026-10-07 baseline, first re-score the baseline's Paul and Lotta runs with the new rubric. The stored transcripts and the same Jev model are enough, and no game calls are needed. Use [`scripts/jev-rescore/rescore.exs`](scripts/jev-rescore/rescore.exs).
+
+**Pilot** (all 26 baseline Paul and Lotta runs, scored with both rubrics, jev-1.13.0; raw rows in [`scripts/jev-rescore/rescore-2026-10-07.json`](scripts/jev-rescore/rescore-2026-10-07.json)):
+
+| | session mean (sd) | turn mean (sd) | turn argmax counts (130 turns) |
+|---|---|---|---|
+| Paul old | 4.67 (0.58) | 4.70 (0.40) | 3: 5, 4: 1, 5: 124 |
+| Paul new | 4.73 (0.36) | 4.36 (0.29) | 2: 1, 4: 75, 5: 54 |
+| Lotta old | 4.41 (0.07) | 4.17 (0.10) | 4: 130 |
+| Lotta new | 4.29 (0.29) | 3.91 (0.31) | 3: 24, 4: 94, 5: 12 |
+
+- **Turn scores** now spread, and Lotta's run-to-run spread grew.
+- **Paul's session score did not drop.** Over 10 turns, Jev still finds two kinds of evidence somewhere, so for Paul the turn means are the more sensitive A/B signal. If the session score must move too, a follow-up could scope level 5 to "most of the session".
 
 ## Closed decisions
 

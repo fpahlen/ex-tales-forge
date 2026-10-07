@@ -45,7 +45,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
   - Brenna's "on the house" generosity default goes. A freebie needs a reason in the story.
   - The stock gesture "tilts her head (toward)" goes, along with the other new tics the baseline found.
   - This refines the prose rules in [Brenna is a warm, chatty barkeep](#2026-10-07-brenna-is-a-warm-chatty-barkeep-a-lead-by-turn-2-gm-prose-cleanup): "no echoing the player's words" stays, and the rare deliberate echo is now the one exception. Brenna stays warm and chatty.
-  - Status: not started; the PR will be linked here when it exists.
+  - Status: PR open, [ex-tales-forge #70](https://github.com/whyse-ab/ex-tales-forge/pull/70), not merged.
+    - Default variant only: "React, do not restate", the deliberate-echo exception, a banned stock-phrase list (now also "wipes her hands", which replaced the old tics in local checks), "a gesture in the recent turns is used up", and NPCs charge their prices.
+    - Brenna's personality: "her gossip is free; her goods are not".
+    - The default golden fixtures were regenerated on purpose. The baseline variant and its fixtures are unchanged.
+    - Local checks (6 small runs, not comparable to Fly): the GM echoed the player's line on 1 of 36 turns, against 22% in the baseline.
+    - It conflicts with #68 in `scene_system.txt` and the fixtures. Whichever merges second needs a rebase.
 - **Why:** the GM opens 22% of turns by repeating the player's own line (Lotta: 52%; Elara runs: 5%). Brenna gives something "on the house" in 77% of runs and "tilts her head toward" in 36 of 65 runs. The cold "eyes narrow" tic has been replaced by a generous one, which is also what confuses Ronny's rubric.
 - **Details:** [Analysis: Jev baseline 2026-10-07, §4 and recommendations 4–5](analysis-jev-baseline-2026-10-07.md)
 
@@ -53,7 +58,11 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 - **Decision (Case's recommendation; Fredrik did not object):** before the next A/B, the Jev rubric gets stricter at the top. The top levels need concrete evidence in the transcript, such as a surprise, a consequence that matters, a callback to earlier play, or an NPC acting on its own, so that a pleasant but uneventful session no longer reaches them. The rubric version or hash is bumped. Any comparison with the 2026-10-07 baseline must re-score the baseline with the new rubric. The personas (Paul, Lotta and the others) do **not** change: they model real players, so the scale has to move, not the players.
   - This refines [Jev persona-affect scoring](#2026-10-07-jev-persona-affect-scoring): same 1–5 scale and same inputs, with harder top levels.
-  - Status: not started; the PR will be linked here when it exists.
+  - Status: PR open, [ex-tales-forge #69](https://github.com/whyse-ab/ex-tales-forge/pull/69), not merged.
+    - Paul is now `jev-affect-v1-fd84ebb` (was `dfec71a`) and Lotta `jev-affect-v1-ce84a1a` (was `4545d3b`). Lars, Hawk and Ronny are unchanged.
+    - Level 3 now covers smooth but generic play. Level 4 needs a reply to their particular character. Level 5 needs evidence of at least two of: a surprise, a consequence, a callback, an NPC acting on its own goals (Lotta: or care when stakes hurt).
+    - Pilot re-score of the 26 baseline runs: Paul's turns went from argmax 5 on 124/130 to 4 on 75 and 5 on 54. Lotta's went from 4 on 130/130 to 3/4/5 on 24/94/12.
+    - Paul's session mean did not drop (4.67 → 4.73), so for Paul use turn means. See [Jev scoring](jev-scoring.md#stricter-top-for-paul-and-lotta-2026-10-07).
 - **Why:** Paul and Lotta sit at the ceiling. Lotta's most likely level is 4 on 130 of 130 turns (session SD 0.07), and Paul's is 5 on 124 of 130. At that point no change to the game can show up in their scores, so they are useless as A/B signals.
 - **Details:** [Analysis: Jev baseline 2026-10-07, §1 and recommendation 6](analysis-jev-baseline-2026-10-07.md), [Jev scoring](jev-scoring.md)
 
