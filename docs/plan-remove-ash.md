@@ -1,10 +1,12 @@
 ---
 title: "Plan: remove Ash (plain Ecto)"
 updated: 2026-10-07
-status: plan (code not started; waiting for go-ahead)
+status: done (ex-tales-forge #47 merged and deployed 2026-10-07)
 ---
 
 # Plan: remove Ash, keep plain Ecto
+
+> **Done, 2026-10-07:** merged as [ex-tales-forge #47](https://github.com/whyse-ab/ex-tales-forge/pull/47) (main `a564e95`) and deployed to production (v44) and playtest (v32). The tables were empty at the recount; the migration dropped them. See the [decision entry](decisions.md#2026-10-07-ash-removal-merged-and-deployed-47).
 
 Decision: [Ash removed for now; plain Ecto](decisions.md#2026-10-07-ash-removed-for-now-plain-ecto-revisit-if-an-in-app-adventure-editor-needs-it) (Fredrik via Case, 2026-10-07). Evidence: the [module audit](module-audit-2026-10-07.md).
 

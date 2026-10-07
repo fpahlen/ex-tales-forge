@@ -9,11 +9,24 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: Ash removal merged and deployed (#47)
+
+- **Decision:** ex-tales-forge PR #47 is merged (main `a564e95`) and deployed: production v44, playtest v32. Ash, ash_postgres, ash_phoenix and igniter are gone, and the admin session and NPC forms use Ecto changesets. The NPC definition pages are read-only views of the pack files; Fredrik can veto this and get a small file-only editor back. The migration dropped the `adventures`, `locations` and `npc_definitions` tables. Approved by Fredrik ("Yes, merge #47 and deploy once the recount shows the tables are empty").
+- **Why:** a recount right before the merge found all three tables empty on both apps. The release shrinks from 99.1 to 88.3 MB, and lib loses about 2,000 lines.
+- **Checked after deploy:**
+  - Both release_command migrations passed.
+  - The three tables no longer exist.
+  - `/` returns 200, and logged-out admin pages redirect to login.
+  - As admin (in-machine request), the session form, NPC form and read-only definition page load.
+  - A playtest Paul run completed 5 turns with costs logged: game $0.057, persona $0.0086 kept separate.
+  - Logs show no app errors. One xAI 429 "at capacity" on a GM call was retried and succeeded.
+- **Details:** [ex-tales-forge PR #47](https://github.com/whyse-ab/ex-tales-forge/pull/47), [Plan: remove Ash](plan-remove-ash.md)
+
 ## 2026-10-07: Ash removed for now; plain Ecto; revisit if an in-app adventure editor needs it
 
 - **Decision:** ex-tales-forge drops Ash (`ash`, `ash_postgres`, `ash_phoenix`) and uses plain Ecto everywhere. The authoring layer (Adventure, Location, NpcDefinition and the pack importer) goes, the two admin edit forms move to Ecto changesets, and the three empty authoring tables are dropped. Revisit Ash if an in-app adventure editor needs it. Decided by Fredrik (via Case). **Supersedes the Ash part of "Elixir is the platform" below**; Phoenix LiveView, Oban and Jido stay.
 - **Why:** only the authoring layer used Ash. Its three tables (`adventures`, `locations`, `npc_definitions`) are empty on prod and playtest, and the game reads its content from the pack files. The admin forms already have Ecto schemas underneath. Removing it cuts about 1,800 lines and about 11 MB of release, and leaves one data-access style for humans and bots to learn.
-- **Details:** [Plan: remove Ash](plan-remove-ash.md), [Module audit](module-audit-2026-10-07.md). Code not started; waiting for the go-ahead.
+- **Details:** [Plan: remove Ash](plan-remove-ash.md), [Module audit](module-audit-2026-10-07.md). Done: merged and deployed as [#47](https://github.com/whyse-ab/ex-tales-forge/pull/47) (entry above).
 
 ## 2026-10-07: Code docs: ExDoc's JavaScript allowed past the admin CSRF check
 
