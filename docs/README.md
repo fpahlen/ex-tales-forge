@@ -23,5 +23,6 @@ Also in this folder:
 - [Setting up Resend (email)](resend-setup.md)
 - [Adding API keys and secrets to Fly](fly-secrets.md)
 - [Character creation: persona preferences (hybrid ideas)](character-creation-persona-prefs.md): Hawk/Paul/Lotta/Lars/Ronny on Idea 1 vs Idea 2 (research; complements port plan PR #15)
+- [Founder survey 2: how we'd play](founder-survey-2.md): play-style questions for the next founder form (draft; first usage indication before beta telemetry)
 
 Worlds and adventure packs (Merovingia, Penny Dreadful, Tin Valley, …) copied from the game repos: [worlds/README.md](../worlds/README.md)
