@@ -9,6 +9,28 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: Design direction: derived character defaults, and Jev for descriptions
+
+- **Direction (from Fredrik, via Case):**
+  - **Defaults:** stats, skills, OCEAN, Maslow level and concerns are derived in pure Elixir from class, race, social standing and occupation. The assumption is that people are reasonably skilled at their job and have a typical personality for the role.
+  - **Notable characters** (the reluctant king, the sour barkeep) are hand-authored overrides on top of the defaults.
+  - **Descriptions:** turning a free-text description into a Character is one Jev call (unstructured in, structured out). The same call serves player character creation: the player describes their character, Jev returns fixed labels with confidence, and the defaults fill the gaps.
+- **Why:**
+  - Most characters come out right with no authoring and no LLM.
+  - Authors spend their time only on the characters that matter.
+  - One skill scale falls out of occupation tiers, which is decision 5 without hand re-authoring.
+  - Creation is fast and cheap (one Jev call, under $0.001) and keeps working when Jev is unsure or down.
+  - It follows the call-types rule: structured answers from Jev and Elixir, not from an LLM.
+- **Not yet decided:**
+  - the label lists (per world or global);
+  - the confidence threshold;
+  - jitter;
+  - what a player may edit;
+  - whether a prose LLM call stays for the backstory.
+
+  The derivation module lands with the skill-rescale PR. Jev for players lands with the character creation port, after phase 2.
+- **Details:** [Plan: one Character entity, section 7](plan-unify-character.md#7-defaults-from-class-race-standing-and-occupation-jev-for-descriptions), [Plan: character creation port](character-creation-port.md#update-2026-10-07-derived-defaults-and-jev-direction-from-fredrik-via-case)
+
 ## 2026-10-07: Characters phase 1 merged and deployed (#48)
 
 - **Decision:** ex-tales-forge PR #48 is merged (main `326c8ae`) and deployed: production v45, playtest v33. Approved by Fredrik ("Yes, merge #48 and deploy").
