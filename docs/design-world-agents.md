@@ -5,7 +5,7 @@ updated: 2026-10-07
 
 # Design sketch: world agents
 
-**Status:** to try, not decided ([decision log](decisions.md#2026-10-07-to-try-world-agents-hold-facts)). Prototype on Tin Valley behind `WORLD_AGENTS=on` in ex-tales-forge (PR linked below once open).
+**Status:** to try, not decided ([decision log](decisions.md#2026-10-07-to-try-world-agents-hold-facts)). Prototype on Tin Valley behind `WORLD_AGENTS=on` (default off): [ex-tales-forge PR #40](https://github.com/whyse-ab/ex-tales-forge/pull/40), not merged.
 
 ## Problem
 
@@ -61,6 +61,14 @@ The Jev NPC reaction prototype is a Person agent's System 1: before the GM call 
 | Validate and write back new facts (`turn.world_writeback`) | function | free, < 5 ms |
 
 The Jev reaction is the only added step on the critical path; everything else is Elixir.
+
+## First prototype results (2026-10-07, 10 local 5-turn runs)
+
+- **Lore:** no drift in the 4 world-agent runs (orcs only, Osric is Guild), against 3 contradictions in the 4 Lotta runs without facts (bandits, "Osric Vane's old nest"). The sample is small.
+- **Prices:** not fixed. The GM still said 2c for stew or bread with 5c / 1c in its facts. Prices are structured data, so next try: Elixir quotes the price (from the handler, into the GM struct) instead of asking the GM to copy it.
+- **Write-back:** the GM almost never fills `new_facts` (1 attempt in 20 turns), and no NPC made a promise, so promise memory is only unit-tested. Next try: Jev or Elixir extracts new facts from the narrative rather than relying on the GM.
+- **Cost and latency:** facts add ~320 uncached GM input tokens per turn (~$0.0004). The Jev reaction adds ~110–190 ms on the critical path; the function steps take ~1 ms. Turns 2+ cache: 13/16 hits, no regression (the prefix is byte-identical by test).
+- **Jev scores** rose, mostly because of the reactions: Lotta off 3.47/3.57 → 4.15/3.81, Paul off 3.79/4.11 → 4.13/4.41.
 
 ## Related
 
