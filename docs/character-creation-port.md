@@ -1,7 +1,7 @@
 ---
 title: "Plan: porting character creation from the old app"
 updated: 2026-10-07
-status: draft
+status: plan; port on the unified Character from 2026-10-07
 ---
 
 # Plan: porting character creation from the old app
@@ -157,6 +157,90 @@ Effect on the steps below:
   3. Small random variation, seeded per character (session id plus character key), so it's stable on reload.
   4. **The player can edit everything Jev fills in, within the rules:** stats within the point budget, OCEAN, concerns, background and name. Each section offers "own input" or "AI assist", as in the per-section hybrid already decided. Edited fields keep the player's value when the derivation re-runs.
 - **Persona bots:** Ronny asking for 20 STR is caught by the limits whatever Jev says. Creation cost shows up as Jev rows, about $0.001 or less per character.
+
+## Plan 2026-10-07: the port on the unified Character
+
+New priority from Fredrik (via Case, 2026-10-07 15:53): port character creation onto the unified Character. This section supersedes the order under *Proposed port* below. That list stays as background.
+
+### The flow
+
+1. **Race and class first.** Each comes from the global label list (`priv/characters/defaults.json`) as extended by the world pack, and each choice shows its description.
+2. **Then one section at a time**, each offering **own input** or **AI assist** (the [per-section hybrid](decisions.md#2026-10-06-character-creation)):
+   - stats (the point buy);
+   - background (free text);
+   - social standing;
+   - origin (home region; only shown if the world has regions);
+   - occupation;
+   - personality (OCEAN) and concerns.
+3. **A free-text description** (in the background section, or at the start for Paul) goes through **one Jev description-to-struct call**. It returns fixed labels with confidence: race, class, standing, occupation, OCEAN levels, Maslow level and concern focuses.
+   - Answers at or above confidence 0.6 are used, and every confidence is logged.
+   - `Characters.Defaults` fills everything else.
+   - Jev can't write text, so an optional prose call can expand the background, as the old sparkle button did.
+4. **The player can edit everything, within the rules** ([decision](decisions.md#2026-10-07-character-defaults-the-four-answers)): stats within the point budget, OCEAN, concerns, background and name.
+   - Changing race, class, standing or occupation re-runs the derivation with no AI call.
+   - Fields the player has edited keep the player's value.
+5. **Begin adventure** calls `GameSessions.create_session/1` with the character, and the GM opens the scene as today. Elara stays as a quick start.
+
+### Fixing the old app's rough edges
+
+- **The 75-point buy is applied.** The base stats (before race) total at most 75, with each stat between 3 and 18. The final stats, after the race modifier, must also be 3–18.
+  - An unspent point is allowed, so a humble start is possible.
+  - A race bonus that would push a stat over 18 is an error the player sees, not a silent clamp.
+  - Later, skills follow the starting rules: 20–30 points, a cap of 5, background bonus points, and the Human +5 pool.
+- **A typed name.** The player types the name (1–40 characters). Elixir can suggest one from the naming lists; the AI never forces one.
+- **Racial bonuses are kept:**
+  - Human "+1 to any two stats" is a player choice;
+  - Elf "+1 INT or WIS" is a player choice;
+  - the fixed modifiers come from `defaults.json`;
+  - skill pools (Human +5, Half-Elf +2 to two skills) come with the skills section.
+- **The backstory reaches the GM.** A character section in the GM prompt carries race, class, standing, background and backstory, plus a short personality line. It is static per session, so it sits in the cached prefix (keeping the #34 prompt order and the prefix-stability test). The golden fixtures are updated on purpose in their own commit.
+
+### The first character is free
+
+- Creation costs are logged in `ai_calls` under their own purposes (`character_from_text`, `character_background`), so they can be told apart from play.
+- They don't count against the session cap; the day cap still applies.
+- When the [time pool](pricing-time-pool.md) billing lands, a player's first character is never charged.
+- The derivation and the point buy cost nothing, because they are pure Elixir. A Jev call costs well under $0.001.
+
+### Testable with the personas
+
+- The creation logic lives in a context module, `TalesForge.CharacterCreation`, not in the LiveView. That way the screen and the persona runner use the same functions.
+- **The persona runner gets a creation scenario:** `Runner.start(persona, module, scenario: "creation")`.
+  - `PlayerView` gets a creation view: each section as a question with options and descriptions, own input or AI assist, and the current sheet.
+  - The persona answers in its usual reply format (`option_id` or text).
+  - Once the character is finished, the run either stops (creation only) or goes on into play.
+- **What gets recorded:**
+  - steps and time to a finished character;
+  - backtracks (changed choices);
+  - rule violations the validator caught (Ronny);
+  - creation cost, logged apart from persona cost.
+- **The run is Jev-scored:** the existing affect scorer runs on the creation transcript, plus the automatic rule checks from [Scenario: character creation](design-playtest-loop.md#scenario-character-creation).
+
+### What blocks it: no unmerged unify phase
+
+- **Phases 0 and 1 are merged and deployed:** #48, #50 and #51. Every session already writes a `characters` row for the PC and keeps it updated each turn.
+- **Phase 2 (the read switch behind `CHARACTERS=on`) is not needed for creation.** Creation writes the PC where the game reads it today, `world_state["character"]` (name, race, stats, skills, coins, inventory, wounds), and `Characters.seed_session/2` writes the `characters` row from the same map. The created character plays through the existing PC path from turn 1.
+- **The minimum needed first** is small and part of PR 1: `seed_session` takes the created character's levers (OCEAN, Maslow, concerns) and origin (`source: created`) instead of the pack file's.
+  - The levers are set only on first insert, so the per-turn mirror never overwrites them.
+  - If the row were ever deleted, a re-run of the backfill would fall back to the pack file's levers. That is a known gap until phase 2.
+- **Who the character is reaches the GM through the existing path:** the extra keys (class, standing, background, backstory) go into `world_state["character"]`, and PR 5 renders them.
+  - Phase 2 must then render the same section from the `characters` row byte-identically. That adds one line to phase 2's golden check, not a dependency.
+
+### PRs
+
+Small PRs, each with CI green, the docs updated, and no merge or deploy without approval. Sizes include tests.
+
+| # | PR | Contents | LOC (rough) | Risk |
+|---|---|---|---|---|
+| 1 | **Race, class and the stat point buy on the unified Character** | `TalesForge.CharacterCreation`: new draft, choose race and class, set stats within the 75-point buy, race stat choices (Human two stats, Elf INT or WIS), typed name, validator with clear errors, `finalize/1` producing a pack-shaped character with levers derived through `Defaults`. `priv/characters/creation.json` (budget, ranges, race choices, class free skill points, starting kit). `create_session(%{character: …})` uses it instead of Elara; `seed_session` takes its levers. No UI and no prompt change | +550 | low (domain only; Elara stays the default) |
+| 2 | **Creation screen** | LiveView `/new/:adventure`: race and class with descriptions, a stat point buy with points left, a typed name, Begin adventure. Home buttons lead there; "Quick start as Elara" stays | +450 | low–medium (UI) |
+| 3 | **Persona runner: creation scenario** | Creation view in `PlayerView`, persona replies drive `CharacterCreation`, then play or stop; steps, time, backtracks, rule violations and cost recorded; Jev-scored creation run. First runs: Paul, Lotta, Ronny | +500 | medium (runner state, scoring) |
+| 4 | **The other sections, own input** | Background text, standing, origin, occupation, OCEAN and concerns, and the skill point buy (20–30, cap 5, Human +5, Half-Elf +2×2, Elf choice); re-derive on input change; edited fields keep the player's value | +550 | medium (many rules) |
+| 5 | **The GM sees who the character is** | A character section in the GM prompt (race, class, standing, background, backstory, personality line) in the cached prefix; a scene-prompt hook so the opening gives the character a reason to be there; golden fixtures updated in their own commit; a Paul comparison before and after | +250 | medium (prompt drift, cache) |
+| 6 | **AI assist** | One Jev description-to-struct call with fixed labels and confidence (0.6, logged); `Defaults` fills the gaps; an optional prose call to expand the background; an "AI assist" button per section; creation `ai_calls` purposes and first-character-free accounting | +450 | medium (label design, Jev limits) |
+| Later | Portraits, a character library across sessions (needs accounts), Merovingia as a playable world | own plans | — | — |
+
+**Order:** 1 → 2 → 3, then 4, 5 and 6 in any order. PR 3 needs only PR 1, so persona runs can start before the screen exists.
 
 ## Proposed port
 

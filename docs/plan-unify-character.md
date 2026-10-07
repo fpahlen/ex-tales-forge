@@ -300,7 +300,7 @@ Jev's **state** is the free text: the player's description, or an author's NPC b
 - **Derivation module, tables and the `derive` blocks in pack NPCs:** with the **skill-rescale PR** (the next one, alongside the backfill and dual-write). Deriving NPC skills from occupation tiers *is* the rescale, so the pack values aren't re-authored by hand. GM prompts change there (NPC skills), so that PR updates the golden fixtures on purpose and runs a playtest comparison.
 - **Jev description → Character:**
   - **For authors:** first as a mix task (`mix characters.from_text`) that drafts an NPC file for an author to review. This can come right after the derivation module.
-  - **For players:** with the [character creation port](character-creation-port.md) after phase 2, once the GM reads from `characters`, so a created character actually shows up in play.
+  - **For players:** with the [character creation port](character-creation-port.md#plan-2026-10-07-the-port-on-the-unified-character), PR 6. Update 2026-10-07: creation does **not** wait for phase 2. It writes `world_state["character"]`, which the game reads today, and the `characters` row through `seed_session`.
 
 ### 7.4 Decisions (confirmed by Fredrik, 2026-10-07)
 
