@@ -9,6 +9,16 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: Skill rules: the open questions answered
+
+- **Decision (Fredrik, via Case):**
+  1. **Half-Elf** keeps the game's DEX +1, CHA +1 (not the old JSON's CHA +1, INT +1). No change.
+  2. **The untrained floor applies only to skills at level 0.** As in the old rule ("an untrained attempt uses stat ÷ 3"), a level-0 skill rolls against `max(stat ÷ 3, stat bonus)`. A trained skill uses level + stat bonus as before, so levels 1–3 always count. The roll note says "untrained: stat ÷ 3". Done in [ex-tales-forge #62](https://github.com/whyse-ab/ex-tales-forge/pull/62).
+  3. **The past occupation feeds the OCEAN, Maslow and concerns defaults** for player characters, as occupations do for NPCs. Fredrik's earlier decision is that defaults come from class, race, social standing and occupation. It replaces "adventurer" there too (now only a fallback). Done in [#63](https://github.com/whyse-ab/ex-tales-forge/pull/63). The occupation goes on the GM's character sheet with the planned "GM sees who the character is" PR (character-creation PR 5). Today that sheet has no race, class or skills either, so adding the occupation alone would be a separate prompt change ahead of the PR that adds the whole character section once.
+  4. **Growth pace stays as it is for now.** Every playtest run now records its skill growth: rolls, LP gained, improvement attempts and improvements per skill, on the run's `growth`. That way the baseline shows how fast characters grow.
+- **Why:** these close the open questions from the skill-rules port before Fredrik merges it.
+- **Details:** [character creation port: skill rules](character-creation-port.md#skill-rules-ported-2026-10-07)
+
 ## 2026-10-07: Skill rules ported from the old game; signature skills up to 7; growth no longer stalls
 
 - **Decision (from Fredrik, via Case):** player characters get the written skill rules of the old game. Signature skills are Fredrik's call.

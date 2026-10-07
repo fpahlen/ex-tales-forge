@@ -301,12 +301,12 @@ The rules live in `priv/characters/creation.json` (`skills`, `occupation`) and `
 17. **Domains** (`skill_domains.md`, domain floors and echoes): not ported. Even a `domain` field would need data for skills the game doesn't have, so it waits for the domains work.
 18. **NPCs** (`Defaults.derive`): unchanged. The rules are for player characters, and the golden fixtures stay the same.
 
-### Open questions for Fredrik
+### Open questions, resolved 2026-10-07 (Fredrik via Case, [decision](decisions.md#2026-10-07-skill-rules-the-open-questions-answered))
 
-- **Half-Elf stat modifiers:** the game uses DEX +1, CHA +1 (`defaults.json`), while the old JSON has CHA +1, INT +1. They are unchanged for now.
-- **Untrained floor on trained skills:** keep it for every roll (current), or apply it only to untrained skills (the literal old rule, where a level-1 skill can roll worse than no skill)?
-- **Should the past occupation also shape the levers** (OCEAN, Maslow, concerns), or show on the character sheet the GM sees ("a former soldier")? Today it does neither.
-- **Pace of growth:** the LP stat bonus (+1 at stat 14) together with one failure makes growth roughly twice as fast for a strong stat. Watch it in the playtests.
+- **Half-Elf stat modifiers:** keep the game's DEX +1, CHA +1. No change.
+- **Untrained floor:** **only for level-0 skills**, which is the literal old rule. A trained skill uses level + stat bonus, so levels 1–3 always count. Changed in #62, which replaces ambiguity 10 above.
+- **Past occupation and the levers:** the occupation now drives the OCEAN, Maslow and concerns defaults, as for NPCs; "adventurer" is only the fallback. Changed in #63, which replaces ambiguity 14 above. **The GM's sheet:** deferred to PR 5 ("The GM sees who the character is"), which adds race, class, background and the occupation in one character section with one golden update.
+- **Pace of growth:** unchanged for now. Playtest runs record per-skill growth (rolls, LP gained, attempts, improvements) on `playtest_runs.growth`, so the baseline shows the pace.
 
 ## Proposed port
 
