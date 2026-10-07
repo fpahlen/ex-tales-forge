@@ -32,7 +32,9 @@ out =
                      :persona_cost_micro_usd])
         # git_sha and flags exist once ex-tales-forge #55 is merged.
         |> Map.put(:git_sha, Map.get(r, :git_sha))
-        |> Map.put(:flags, Map.get(r, :flags) || %{}),
+        |> Map.put(:flags, Map.get(r, :flags) || %{})
+        # growth (skill rolls, LP gained, improvements) exists once ex-tales-forge #66 is merged.
+        |> Map.put(:growth, Map.get(r, :growth) || %{}),
       variant: ws["variant"] || "default",
       character: Map.take(ws["character"] || %{}, ["name", "race", "class", "level"]),
       scores: Enum.map(scores, &Map.take(&1, [:source, :kind, :turn_number, :overall, :confidence,

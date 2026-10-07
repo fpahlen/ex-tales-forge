@@ -40,6 +40,9 @@ BRUSH_OFF = r"eyes narrow|voice (flat|goes flat)|clearly done|that's all i'll sa
 HOOK = r"osric|caldern|steward|\bnest\b|\bshaft\b|bounty|\bjob\b|\bwork\b|pays? (good )?(coin|silver|steel)|lend a hand|drovers?"
 
 
+QUOTED = r'"[^"]*"|\u201c[^\u201d]*\u201d'  # dialogue in straight or curly quotes
+
+
 def words(s): return re.findall(r"[a-z']+", (s or "").lower())
 def ngrams(ws, n=3): return set(tuple(ws[i:i + n]) for i in range(len(ws) - n + 1))
 
@@ -57,6 +60,23 @@ def cohort(x):
     return REFERENCE if name.startswith("Elara") else f"other/{x.get('variant', 'default')}"
 
 
+def _top_skill_lp(turns):
+    """LP of the skill that gained most in the run (from each turn's rules result)."""
+    per = Counter()
+    for t in turns:
+        m = t.get("mech") or {}
+        if m.get("skill"): per[m["skill"]] += float(m.get("lp_awarded") or 0)
+    return max(per.values() or [0])
+
+
+def _rescore(js, s0):
+    """Session score of the latest pass with another rubric (e.g. Hawk/Ronny re-scored after #57), or None."""
+    later = [s for s in js if s["kind"] == "session_affect" and s["rubric_version"] != s0["rubric_version"]]
+    if not later: return None
+    first = sorted(later, key=lambda s: s["inserted_at"])[0]
+    return dict(rubric=first["rubric_version"], overall=first["overall"], confidence=first["confidence"])
+
+
 def build(runs):
     R, T = [], []
     for x in runs:
@@ -69,7 +89,8 @@ def build(runs):
         char = x.get("character") or {}
         first = (char.get("name") or "Elara").split()[0]
         calls = x["calls"]
-        is_jev = lambda k: (k.get("model") or "").startswith("jev")
+        # Jev = the scorer only. npc_reaction calls also run on a jev-* model, but they are part of the game.
+        is_jev = lambda k: k["purpose"] == "scorer"
         usd = lambda keep: sum((k.get("cost_micro_usd") or 0) for k in calls if keep(k)) / 1e6
         R.append(dict(cohort=c, run_id=r["id"], persona=r["persona"], module=r["module"], started_at=r["started_at"],
                       git_sha=(r.get("git_sha") or "")[:7] or None, variant=x.get("variant", "default"),
@@ -79,7 +100,15 @@ def build(runs):
                       session_entropy=entropy(s0["probabilities"]), rubric=s0["rubric_version"],
                       game_usd=usd(lambda k: k["purpose"] != "persona" and not is_jev(k)),
                       persona_usd=usd(lambda k: k["purpose"] == "persona") or (r.get("persona_cost_micro_usd") or 0) / 1e6,
-                      jev_usd=usd(is_jev)))
+                      jev_usd=usd(is_jev), npc_reaction_usd=usd(lambda k: k["purpose"] == "npc_reaction"),
+                      g_lp=(r.get("growth") or {}).get("lp_gained"), g_rolls=(r.get("growth") or {}).get("rolls"),
+                      g_attempts=(r.get("growth") or {}).get("attempts"),
+                      g_skills=json.dumps((r.get("growth") or {}).get("skills") or {}, sort_keys=True),
+                      rolls=sum(1 for t in x["turns"] if ((t.get("mech") or {}).get("outcome") not in (None, "none"))),
+                      lp=sum(float((t.get("mech") or {}).get("lp_awarded") or 0) for t in x["turns"]),
+                      top_skill_lp=_top_skill_lp(x["turns"]),
+                      improvements=(r.get("growth") or {}).get("improvements"),
+                      rescore=_rescore(js, s0)))
         seen = set()
         turns = {t["n"]: t for t in x["turns"]}
         gm_calls = {k["turn_number"]: k for k in calls if k["purpose"] == "gm" and k["turn_number"] is not None}
@@ -94,11 +123,14 @@ def build(runs):
                             echo_trigram=len(ngrams(pw) & g3) / max(1, len(ngrams(pw))),
                             gm_repeat_trigram=len(g3 & prev) / max(1, len(g3)),
                             outcome=mech.get("outcome"), skill=mech.get("skill"), roll=mech.get("roll"),
+                            lp=float(mech.get("lp_awarded") or 0), improved=len([i for i in (mech.get("improvements") or [])
+                                                                                if isinstance(i, dict) and i.get("improved")]),
                             checked=mech.get("outcome") not in (None, "none"),
                             failed=mech.get("outcome") in ("failure", "critical_failure"),
                             brush_off=bool(re.search(BRUSH_OFF, low)),
                             stock=sum(bool(re.search(p, low)) for p in STOCK.values()),
-                            third_person=bool(re.search(rf"\b{re.escape(first.lower())}\b", low)),
+                            # narration only: an NPC saying the character's name in dialogue is not a POV slip
+                            third_person=bool(re.search(rf"\b{re.escape(first.lower())}\b", re.sub(QUOTED, " ", low))),
                             hook=bool(re.search(HOOK, low)),
                             gm_latency_ms=gm_calls.get(n, {}).get("latency_ms"))
             for k, p in STOCK.items(): feats[n]["stock:" + k] = bool(re.search(p, low))
@@ -146,7 +178,7 @@ def report(R, T):
       f"Primary scoring pass only. Ronny is an anti-persona: shown, but kept out of the 'all (no Ronny)' rows.\n")
     w("## 0. Cohorts, builds and rubrics\n")
     w(md(R.groupby(["cohort", "persona"]).agg(runs=("run_id", "size"), turns=("turns_played", "mean"),
-                                               git_sha=("git_sha", lambda s: ", ".join(sorted({x for x in s if x})) or "—"),
+                                               git_sha=("git_sha", lambda s: ", ".join(sorted({x for x in s if isinstance(x, str) and x})) or "—"),
                                                rubric=("rubric", lambda s: ", ".join(sorted(set(s)))),
                                                character=("character", lambda s: ", ".join(sorted({str(x) for x in s}))))))
     w("\nA rubric hash that differs between cohorts (Hawk and Ronny changed in ex-tales-forge #57) means the levels changed: compare those personas with care.\n")
@@ -166,6 +198,8 @@ def report(R, T):
 
     w("\n## 2. By turn index\n")
     w(md(T.pivot_table(index="turn", columns="cohort", values="score", aggfunc="mean")))
+    w("\nPer persona and turn (mean score):\n")
+    w(md(T.pivot_table(index="turn", columns=["cohort", "persona"], values="score", aggfunc="mean")))
     w("\nWithin-run (score minus the run's mean), and confidence by turn:\n")
     w(md(T.pivot_table(index="turn", columns="cohort", values=["dm", "conf"], aggfunc="mean")))
     for c, g in T.groupby("cohort"):
@@ -201,6 +235,11 @@ def report(R, T):
             if t.stock: tally["stock phrase"] += 1
         w("\nCause tally (automatic markers; read the turns before quoting them): " +
           (", ".join(f"{k} {v}" for k, v in tally.most_common()) or "none"))
+        nh = g[g.persona != "hawk"].nsmallest(10, "score")
+        if len(nh) and (g.persona == "hawk").any():
+            w(f"\n\n`{c}`: lowest 10 non-Hawk turns\n")
+            w(md(nh.assign(run=nh.run_id.str[:8], gm_start=nh.gm.fillna("").str[:110])
+                 [["run", "persona", "turn", "score", "conf", "skill", "outcome", "brush_off", "echo_content", "gm_start"]].set_index("run")))
         lc = g[g.conf < LOW_CONF]
         w(f"\n\nConfidence < {LOW_CONF}: {len(lc)} of {len(g)} turns" +
           (" — " + ", ".join(f"{r.run_id[:8]} {r.persona} T{r.turn}" for r in lc.itertuples()) if len(lc) else ""))
@@ -212,14 +251,20 @@ def report(R, T):
         for p in sorted(set(R.persona)) + ["all (no Ronny)"]:
             sel = (lambda d: d[~d.persona.isin(ANTI_PERSONAS)]) if p.startswith("all") else (lambda d, p=p: d[d.persona == p])
             a, b = sel(R[R.cohort == c]).session_score, sel(ref_R).session_score
-            ta, tb = sel(T[(T.cohort == c) & (T.turn <= 5)]).score, sel(ref_T[ref_T.turn <= 5]).score
+            # turns 1-5: one mean per run (turns within a run are not independent), then compare runs
+            ta = sel(T[(T.cohort == c) & (T.turn <= 5)]).groupby("run_id").score.mean()
+            tb = sel(ref_T[ref_T.turn <= 5]).groupby("run_id").score.mean()
             if not len(a) and not len(ta): continue
-            lo, hi = boot_ci(a, b)
+            lo, hi = boot_ci(a, b); tlo, thi = boot_ci(ta, tb)
             rows.append(dict(cohort=c, persona=p, n=len(a), n_ref=len(b), session=a.mean(), session_ref=b.mean(),
                              diff=a.mean() - b.mean(), ci95="—" if np.isnan(lo) else f"{lo:+.2f}…{hi:+.2f}", cliffs=cliffs_delta(a, b),
-                             p_mwu=mwu(a, b), turns1_5=ta.mean(), turns1_5_ref=tb.mean(), p_turns1_5=mwu(ta, tb)))
+                             p_mwu=mwu(a, b), turns1_5=ta.mean(), turns1_5_ref=tb.mean(), diff1_5=ta.mean() - tb.mean(),
+                             ci95_1_5="—" if np.isnan(tlo) else f"{tlo:+.2f}…{thi:+.2f}", p_turns1_5=mwu(ta, tb),
+                             ref_small="yes" if len(b) < 5 else ""))
     w(md(pd.DataFrame(rows).set_index(["cohort", "persona"]) if rows else pd.DataFrame(), 3))
-    w("\n\nThe Elara runs were mostly 5 turns long, so turns 1–5 is the like-for-like window; session scores of 10-turn runs judge a longer story.\n")
+    w("\n\nThe Elara runs were mostly 5 turns long, so turns 1–5 is the like-for-like window; session scores of 10-turn runs judge a longer story. "
+      "`turns1_5` is the mean over runs of each run's turn 1–5 mean; its CI and p are over runs, not turns. "
+      "`ref_small` = fewer than 5 Elara runs: treat that row as anecdote.\n")
 
     w("\n### Game behaviour per cohort\n")
     beh = T.groupby("cohort").agg(turns=("score", "size"), check_rate=("checked", "mean"),
@@ -230,11 +275,56 @@ def report(R, T):
     hook2 = T[T.turn <= 2].groupby(["cohort", "run_id"]).hook.any().groupby("cohort").mean().rename("hook_by_t2")
     eyes = T.groupby(["cohort", "run_id"])["stock:eyes narrow"].any().groupby("cohort").mean().rename("runs_with_eyes_narrow")
     w(md(beh.join(hook2).join(eyes), 3))
+    w("\n\n### Game behaviour per persona\n")
+    bp = T.groupby(["cohort", "persona"]).agg(turns=("score", "size"), check_rate=("checked", "mean"), fail_rate=("failed", "mean"),
+                                              brush_off=("brush_off", "mean"), stock_per_turn=("stock", "mean"),
+                                              third_person=("third_person", "mean"), echo=("echo_content", "mean"),
+                                              gm_words=("gm_words", "mean"))
+    hk = T[T.turn <= 2].groupby(["cohort", "persona", "run_id"]).hook.any().groupby(["cohort", "persona"]).mean().rename("hook_by_t2")
+    w(md(bp.join(hk), 3))
+    w("\n\n### Dice outcomes (turns)\n")
+    w(md(pd.crosstab([T.cohort, T.persona], T.outcome.fillna("missing"))))
+    w("\n\nScore by outcome:\n")
+    w(md(T.pivot_table(index=["cohort", "outcome"], values="score", aggfunc=["count", "mean"])))
     w("\n\n### Cost per run (USD; game, persona bot and Jev kept apart)\n")
-    w(md(R.groupby("cohort").agg(runs=("run_id", "size"), turns=("turns_played", "mean"), game=("game_usd", "mean"),
-                                 persona=("persona_usd", "mean"), jev=("jev_usd", "mean"),
-                                 game_total=("game_usd", "sum"), persona_total=("persona_usd", "sum"),
-                                 jev_total=("jev_usd", "sum")), 4))
+    cost = dict(runs=("run_id", "size"), turns=("turns_played", "mean"), game=("game_usd", "mean"),
+                npc_reaction=("npc_reaction_usd", "mean"), persona=("persona_usd", "mean"), jev=("jev_usd", "mean"),
+                game_total=("game_usd", "sum"), persona_total=("persona_usd", "sum"), jev_total=("jev_usd", "sum"))
+    w(md(R.groupby("cohort").agg(**cost), 4))
+    w("\n`game` includes `npc_reaction` (shown separately; it runs on a jev-* model but is part of the game). `jev` is the scorer only.\n")
+    w(md(R.groupby(["cohort", "persona"]).agg(**cost), 4))
+
+    w("\n\n## 6. Skill growth (LP)\n")
+    w("Rolls and LP per run (`lp_awarded` on each turn's rules result; `growth` on the run once ex-tales-forge #66 is in). "
+      "Tiers after #64: a skill improves at 5/7/10/15 LP, so `turns_to_5lp` is how many turns the busiest skill needs at this pace.\n")
+    g = R.assign(rolls_per_turn=R.rolls / R.turns_played.clip(lower=1), lp_per_turn=R.lp / R.turns_played.clip(lower=1))
+    gs = g.groupby(["cohort", "persona"]).agg(runs=("run_id", "size"), turns=("turns_played", "mean"), rolls=("rolls", "mean"),
+                                              rolls_per_turn=("rolls_per_turn", "mean"), lp=("lp", "mean"),
+                                              lp_per_turn=("lp_per_turn", "mean"), top_skill_lp=("top_skill_lp", "mean"),
+                                              improvements=("improvements", "sum"))
+    gs["turns_to_5lp"] = (5 / (gs.top_skill_lp / gs.turns)).replace([np.inf], np.nan)
+    w(md(gs, 3))
+    gr = R[R.g_lp.notna()]
+    if len(gr):
+        w("\n\nFrom the per-run growth log (`playtest_runs.growth`, ex-tales-forge #66):\n")
+        gg = gr.groupby(["cohort", "persona"]).agg(runs=("run_id", "size"), lp_gained=("g_lp", "mean"), lp_sd=("g_lp", "std"),
+                                                    lp_max=("g_lp", "max"), rolls=("g_rolls", "mean"), attempts=("g_attempts", "mean"),
+                                                    improvements=("improvements", "mean"), improvements_total=("improvements", "sum"),
+                                                    runs_with_any_lp=("g_lp", lambda s: (s > 0).sum()))
+        w(md(gg, 3))
+        sk = Counter()
+        for js_ in gr.g_skills:
+            for k, v in json.loads(js_).items(): sk[k] += float(v.get("lp_gained") or 0)
+        w("\n\nLP by skill (all runs with a growth log): " + (", ".join(f"{k} {v:g}" for k, v in sk.most_common()) or "none"))
+    w("\n\n## 7. Reference runs re-scored with today's rubric\n")
+    rs = R[R.rescore.notna()]
+    if len(rs):
+        rr = pd.DataFrame([dict(cohort=r.cohort, persona=r.persona, run=r.run_id[:8], first_rubric=r.rubric, first=r.session_score,
+                                first_conf=r.session_conf, new_rubric=r.rescore["rubric"], new=r.rescore["overall"],
+                                new_conf=r.rescore["confidence"]) for r in rs.itertuples()]).set_index(["cohort", "persona", "run"])
+        w(md(rr, 2))
+    else:
+        w("_none_")
     return "\n".join(out) + "\n"
 
 
