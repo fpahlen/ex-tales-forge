@@ -20,7 +20,7 @@ What we'll measure in beta:
 - **Device** (phone / tablet / laptop or desktop)
 - **Time between turns** (how long players think and type between GM replies)
 
-The answers also feed the pricing draft in [PR #22: pool of play time](https://github.com/whyse-ab/tales-forge-docs/pull/22) (prepaid play time, only GM response time billed, about $1 per real hour; our target pattern is a 20-minute commute session).
+The answers also feed the pricing draft in [pricing draft: pool of play time](pricing-time-pool.md) (prepaid play time, only GM response time billed, about $1 per real hour; our target pattern is a 20-minute commute session).
 
 Lesson from the first persona form: inventing gameplay examples was hard. So this part only asks about **our own habits**: no made-up scenes needed. Aim: **under 5 minutes** to fill in.
 
