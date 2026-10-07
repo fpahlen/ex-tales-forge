@@ -5,7 +5,7 @@ updated: 2026-10-07
 
 # Design sketch: world agents
 
-**Status:** to try, not decided ([decision log](decisions.md#2026-10-07-to-try-world-agents-hold-facts)). Prototype on Tin Valley behind `WORLD_AGENTS=on` (default off): round 1 in [ex-tales-forge PR #40](https://github.com/whyse-ab/ex-tales-forge/pull/40) (merged 2026-10-07, off in production and playtest), round 2 in [PR #42](https://github.com/whyse-ab/ex-tales-forge/pull/42) (not merged).
+**Status:** to try, not decided ([decision log](decisions.md#2026-10-07-to-try-world-agents-hold-facts)). Prototype on Tin Valley behind `WORLD_AGENTS=on` (default off): round 1 in [ex-tales-forge PR #40](https://github.com/whyse-ab/ex-tales-forge/pull/40) (merged 2026-10-07, off in production and playtest), round 2 in [PR #42](https://github.com/whyse-ab/ex-tales-forge/pull/42) (merged 2026-10-07, still off in production and playtest).
 
 ## Problem
 
