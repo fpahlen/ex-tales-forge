@@ -17,7 +17,7 @@ Applies to [ex-tales-forge](https://github.com/whyse-ab/ex-tales-forge). Tooling
 4. **Credo strict** (`mix credo --strict`), no new issues.
 5. **Formatted** (`mix format --check-formatted`).
 6. **ExDoc**: `mix docs` builds a browsable docs site from the above, and it must build without warnings.
-   Each release also builds it (Docker builder stage) and serves it to admins only at `/admin/code-docs`, behind the same admin login as `/admin/costs`. Live in production and playtest since 2026-10-07 (PR #44). Known issue: the docs sidebar and search don't load yet, because the admin CSRF check blocks ExDoc's JavaScript; a fix is ready and waiting for approval. Locally, `mix docs -f html -o priv/code_docs` makes it show up there.
+   Each release also builds it (Docker builder stage) and serves it to admins only at `/admin/code-docs`, behind the same admin login as `/admin/costs`. Live in production and playtest since 2026-10-07 (PR #44). Locally, `mix docs -f html -o priv/code_docs` makes it show up there.
 7. **Tests for every change.** A bug fix gets a test that fails without the fix. Coverage is tracked with `mix test --cover`, and CI fails below the threshold in `mix.exs`. Raise the threshold as coverage grows; never lower it to make a PR pass.
 8. **CI enforces 1–7** (the Test and Dialyzer jobs). Both must be required checks on `main`, so a failing PR can't merge, and production deploys only after both pass.
 
