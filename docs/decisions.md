@@ -9,6 +9,25 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-07: Characters phase 1 merged and deployed (#48)
+
+- **Decision:** ex-tales-forge PR #48 is merged (main `326c8ae`) and deployed: production v45, playtest v33. Approved by Fredrik ("Yes, merge #48 and deploy").
+  - New tables `characters` and `character_memories`.
+  - New sessions write one character per PC and NPC; nothing reads them yet.
+  - Every pack NPC and PC file has `maslow` and `concerns`, checked at load time.
+  - Elara now lives in the packs.
+- **Why:** this is the setup step of the [Character plan](plan-unify-character.md), and it carries no behaviour change. A golden test keeps the GM prompts byte-identical.
+- **Checked after deploy:**
+  - Both release_command migrations passed, and both tables exist.
+  - `/` returns 200, and logged-out admin pages redirect to login.
+  - Packs and NPC files load with no validation errors.
+  - A playtest Paul run completed 5 turns. It wrote 4 characters: Elara with controller `bot` (ref `paul`), plus 3 NPCs with controller `gm`.
+  - Costs are logged: game $0.040, persona $0.0082 kept separate.
+  - Logs show no app errors. The only health-check failure was during the restart.
+- **Cost:** GM cost was $0.0081 per turn, back to the usual ~$0.008. The previous run's $0.0114 came from prompt-cache misses on turns 3 and 5 (2 of 4 later turns hit; this run 4 of 4). Each miss costs about $0.012 instead of $0.004–0.005. The 429 itself cost nothing: the failed call has no cost. Prompt size is the same in both runs (9,200–9,650 input tokens per GM call), so neither the prompt nor the token count changed.
+- **Not yet:** backfill of older sessions, dual-write of per-turn changes, and the NPC skill rescale. These come in the next PR.
+- **Details:** [ex-tales-forge PR #48](https://github.com/whyse-ab/ex-tales-forge/pull/48), [Plan: one Character entity](plan-unify-character.md)
+
 ## 2026-10-07: One Character entity: the seven design answers
 
 - **Decision:** confirmed by Fredrik on 2026-10-07 (via Case). These are the answers to the open questions in the Character plan:
