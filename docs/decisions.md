@@ -129,7 +129,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 - **Decision (Fredrik, via Case):**
   - Build out the inn and its surroundings so **every player type finds a favourite activity**: talking, trading, exploring, sneaking, fighting, lore, crafts and so on. This is done through **world agents and locations**, not a longer script.
   - Fix the **leave-the-inn bug**: when the player leaves, record the **scene change** (new location and the NPCs present there), so the GM stops describing the inn and stops answering as Brenna after the player has gone.
-  - Status: not started; no PR yet.
+  - Status: merged 2026-10-08: [ex-tales-forge #68](https://github.com/whyse-ab/ex-tales-forge/pull/68) (scene changes) as `7b88dad` and [#72](https://github.com/whyse-ab/ex-tales-forge/pull/72) (inn world) as `9080cb1`; deployed (prod v67 and v69, playtest v56 and v58). `INN_WORLD` is on for playtest only.
 - **Why:** in 62% of runs the player tries to leave the inn, and after 38 of 65 such attempts the GM is still describing the inn or Brenna on the next turn. In Paul's two weakest runs the GM walks him to the Market Square and then answers his speech to Osric as Brenna, back at the bar; neither run registered a scene change. With only the inn to play in, each persona runs out of things it likes (Hawk gets chores, Lars's adventure is deferred).
 - **Details:** [Analysis: Jev baseline 2026-10-07, §4 and recommendation 1](analysis-jev-baseline-2026-10-07.md), [Design: world agents](design-world-agents.md), [PR #68](https://github.com/whyse-ab/ex-tales-forge/pull/68) (scene changes), [PR #72](https://github.com/whyse-ab/ex-tales-forge/pull/72) (inn world, `INN_WORLD`)
 
@@ -137,7 +137,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 - **Decision (Fredrik, via Case):** Hawk gets real conflict. A **minor antagonist** stirs up trouble in or near the village and **acts on their own**, whether or not the player engages. This follows the living-world and factions direction: an agent with a goal and a plan that moves on world time. It is **not a scripted fight**.
   - This builds on [To try: living world](#2026-10-07-to-try-living-world) and makes a small first case of it a decision for Tin Valley.
-  - Status: not started; no PR yet.
+  - Status: merged 2026-10-08: [ex-tales-forge #73](https://github.com/whyse-ab/ex-tales-forge/pull/73) (Tinjacks) as `9e7d447` and [#71](https://github.com/whyse-ab/ex-tales-forge/pull/71) (fights roll) as `8bf10d3`; deployed (prod v70 and v66, playtest v59 and v55). `WORLD_ANTAGONIST` is on for playtest only.
 - **Why:** Hawk almost never meets danger. His turn mean is 1.93, only 4 of 13 runs reach a turn scoring 3 or more (never before turn 8), and his session score is 2.54 without a fight roll against 4.61 with one. Brenna's "lend a hand" hooks have him hauling kegs. A scripted fight would fix the number once; an antagonist who moves on their own gives danger that the player's choices change.
 - **Details:** [Analysis: Jev baseline 2026-10-07, §1, §4 and recommendations 2–3](analysis-jev-baseline-2026-10-07.md), [Design: world agents, living world](design-world-agents.md#living-world-design-to-try), [PR #73](https://github.com/whyse-ab/ex-tales-forge/pull/73) (Tinjacks antagonist, `WORLD_ANTAGONIST`), [PR #71](https://github.com/whyse-ab/ex-tales-forge/pull/71) (fights roll)
 
@@ -148,7 +148,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
   - Roll **d20**. If the result is **equal to or higher than the current skill level**, the skill gains **+1**.
   - More LP means more attempts.
   - This **supersedes** the progression part of [Skill rules ported from the old game](#2026-10-07-skill-rules-ported-from-the-old-game-signature-skills-up-to-7-growth-no-longer-stalls) ([#64](https://github.com/whyse-ab/ex-tales-forge/pull/64)): the 5 / 7 / 10 / 15 LP tier thresholds, the failure requirement, the rest requirement and the tiered thresholds are gone. It also supersedes item 4 ("growth pace stays as it is for now") of [Skill rules: the open questions answered](#2026-10-07-skill-rules-the-open-questions-answered). LP are still earned per roll as before, including the stat bonus.
-  - Status: [ex-tales-forge #67](https://github.com/whyse-ab/ex-tales-forge/pull/67) is open and waits for Fredrik's approval; not merged or deployed. In it: attempts happen at the end of every turn (every whole LP is spent), a trainer gives one free attempt at +5, and the Expert −3 / Master −5 modifiers are removed. The `baseline` variant keeps the #64 rule.
+  - Status: merged 2026-10-08 as `c2f237f` ([ex-tales-forge #67](https://github.com/whyse-ab/ex-tales-forge/pull/67)); deployed (prod v65, playtest v54). In it: attempts happen at the end of every turn (every whole LP is spent), a trainer gives one free attempt at +5, and the Expert −3 / Master −5 modifiers are removed. The `baseline` variant keeps the #64 rule.
 - **Why:** skill growth has stopped. The baseline averages about 1.0 LP per run, and there were **0 improvement attempts in 65 runs**: an attempt needed 5 LP, a failure and a rest of an hour, and almost no run had all three. With one attempt per LP, every LP is a visible chance to grow, and the d20 ≥ level roll slows growth naturally as a skill gets higher (a success chance of (21 − level)/20).
 - **Details:** [Analysis: Jev baseline 2026-10-07, §6 and recommendation 7](analysis-jev-baseline-2026-10-07.md), [character creation port: growth rule replaced](character-creation-port.md#growth-rule-replaced-2026-10-07-1-lp--one-improvement-attempt), [PR #67](https://github.com/whyse-ab/ex-tales-forge/pull/67)
 
@@ -160,7 +160,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
   - Brenna's "on the house" generosity default goes. A freebie needs a reason in the story.
   - The stock gesture "tilts her head (toward)" goes, along with the other new tics the baseline found.
   - This refines the prose rules in [Brenna is a warm, chatty barkeep](#2026-10-07-brenna-is-a-warm-chatty-barkeep-a-lead-by-turn-2-gm-prose-cleanup): "no echoing the player's words" stays, and the rare deliberate echo is now the one exception. Brenna stays warm and chatty.
-  - Status: PR open, [ex-tales-forge #70](https://github.com/whyse-ab/ex-tales-forge/pull/70), not merged.
+  - Status: merged 2026-10-08 as `eb752fa` ([ex-tales-forge #70](https://github.com/whyse-ab/ex-tales-forge/pull/70)); deployed (prod v68, playtest v57).
     - Default variant only: "React, do not restate", the deliberate-echo exception, a banned stock-phrase list (now also "wipes her hands", which replaced the old tics in local checks), "a gesture in the recent turns is used up", and NPCs charge their prices.
     - Brenna's personality: "her gossip is free; her goods are not".
     - The default golden fixtures were regenerated on purpose. The baseline variant and its fixtures are unchanged.
@@ -173,7 +173,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 - **Decision (Case's recommendation; Fredrik did not object):** before the next A/B, the Jev rubric gets stricter at the top. The top levels need concrete evidence in the transcript, such as a surprise, a consequence that matters, a callback to earlier play, or an NPC acting on its own, so that a pleasant but uneventful session no longer reaches them. The rubric version or hash is bumped. Any comparison with the 2026-10-07 baseline must re-score the baseline with the new rubric. The personas (Paul, Lotta and the others) do **not** change: they model real players, so the scale has to move, not the players.
   - This refines [Jev persona-affect scoring](#2026-10-07-jev-persona-affect-scoring): same 1–5 scale and same inputs, with harder top levels.
-  - Status: PR open, [ex-tales-forge #69](https://github.com/whyse-ab/ex-tales-forge/pull/69), not merged.
+  - Status: merged 2026-10-08 as `cb6a5f6` ([ex-tales-forge #69](https://github.com/whyse-ab/ex-tales-forge/pull/69)); deployed (prod v64, playtest v53).
     - Paul is now `jev-affect-v1-fd84ebb` (was `dfec71a`) and Lotta `jev-affect-v1-ce84a1a` (was `4545d3b`). Lars, Hawk and Ronny are unchanged.
     - Level 3 now covers smooth but generic play. Level 4 needs a reply to their particular character. Level 5 needs evidence of at least two of: a surprise, a consequence, a callback, an NPC acting on its own goals (Lotta: or care when stakes hurt).
     - Pilot re-score of the 26 baseline runs: Paul's turns went from argmax 5 on 124/130 to 4 on 75 and 5 on 54. Lotta's went from 4 on 130/130 to 3/4/5 on 24/94/12.
