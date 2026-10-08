@@ -27,7 +27,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
   - Fix the **leave-the-inn bug**: when the player leaves, record the **scene change** (new location and the NPCs present there), so the GM stops describing the inn and stops answering as Brenna after the player has gone.
   - Status: not started; no PR yet.
 - **Why:** in 62% of runs the player tries to leave the inn, and after 38 of 65 such attempts the GM is still describing the inn or Brenna on the next turn. In Paul's two weakest runs the GM walks him to the Market Square and then answers his speech to Osric as Brenna, back at the bar; neither run registered a scene change. With only the inn to play in, each persona runs out of things it likes (Hawk gets chores, Lars's adventure is deferred).
-- **Details:** [Analysis: Jev baseline 2026-10-07, §4 and recommendation 1](analysis-jev-baseline-2026-10-07.md), [Design: world agents](design-world-agents.md)
+- **Details:** [Analysis: Jev baseline 2026-10-07, §4 and recommendation 1](analysis-jev-baseline-2026-10-07.md), [Design: world agents](design-world-agents.md), [PR #68](https://github.com/whyse-ab/ex-tales-forge/pull/68) (scene changes), [PR #72](https://github.com/whyse-ab/ex-tales-forge/pull/72) (inn world, `INN_WORLD`)
 
 ## 2026-10-07: Hawk gets real conflict: a minor antagonist who acts on their own
 
@@ -35,7 +35,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
   - This builds on [To try: living world](#2026-10-07-to-try-living-world) and makes a small first case of it a decision for Tin Valley.
   - Status: not started; no PR yet.
 - **Why:** Hawk almost never meets danger. His turn mean is 1.93, only 4 of 13 runs reach a turn scoring 3 or more (never before turn 8), and his session score is 2.54 without a fight roll against 4.61 with one. Brenna's "lend a hand" hooks have him hauling kegs. A scripted fight would fix the number once; an antagonist who moves on their own gives danger that the player's choices change.
-- **Details:** [Analysis: Jev baseline 2026-10-07, §1, §4 and recommendations 2–3](analysis-jev-baseline-2026-10-07.md), [Design: world agents, living world](design-world-agents.md#living-world-design-to-try)
+- **Details:** [Analysis: Jev baseline 2026-10-07, §1, §4 and recommendations 2–3](analysis-jev-baseline-2026-10-07.md), [Design: world agents, living world](design-world-agents.md#living-world-design-to-try), [PR #73](https://github.com/whyse-ab/ex-tales-forge/pull/73) (Tinjacks antagonist, `WORLD_ANTAGONIST`), [PR #71](https://github.com/whyse-ab/ex-tales-forge/pull/71) (fights roll)
 
 ## 2026-10-07: Skill growth: spend 1 LP for one improvement attempt (supersedes the tiered thresholds)
 

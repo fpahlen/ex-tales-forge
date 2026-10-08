@@ -1,6 +1,6 @@
 ---
 title: "Adding API keys and secrets to Fly"
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Adding API keys and secrets to Fly
@@ -93,8 +93,8 @@ Same names as production, with **separate values** (never copied from prod), exc
 | `TYPESAFE_API_KEY` | TypeSafe Jev (persona-affect scorer, and the NPC reaction when `NPC_REACTIONS=on`). Console key name tales-forge-scorer. **Yes, set 2026-10-07** on playtest only | Yes, since 2026-10-07 |
 | `NPC_REACTIONS` | Yes, `on` since 2026-10-07 (Fredrik's OK, release v25): Brenna and other present NPCs get a Jev reaction before each GM call (`ai_calls` purpose `npc_reaction`). Unset it to turn it off |
 | `WORLD_AGENTS` | Not set (off). The world-agents prototype stays off on playtest for now |
-| `INN_WORLD` | Planned `on`, set in `fly.playtest.toml` `[env]` by ex-tales-forge PR #72 (not a Fly secret). Takes effect once that PR is merged and deployed |
-| `WORLD_ANTAGONIST` | Planned `on`, set in `fly.playtest.toml` `[env]` by ex-tales-forge PR #73 (not a Fly secret). Takes effect once that PR is merged and deployed |
+| `INN_WORLD` | Yes, `on`, set in `fly.playtest.toml` `[env]` by ex-tales-forge PR #72 (not a Fly secret). Live since 2026-10-08 (merge `9080cb1`, playtest release v58); new sessions only |
+| `WORLD_ANTAGONIST` | Yes, `on`, set in `fly.playtest.toml` `[env]` by ex-tales-forge PR #73 (not a Fly secret). Live since 2026-10-08 (merge `9e7d447`, playtest release v59); new sessions only |
 | `TYPESAFE_INTENT_API_KEY` | TypeSafe Jev key for a future intent-gate (separate from the scorer). Console key name tales-forge-intent-playtest. **Staged 2026-10-07** on playtest; takes effect when an intent-gate deploy ships. Not on production | Staged, not Deployed yet |
 
 GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.

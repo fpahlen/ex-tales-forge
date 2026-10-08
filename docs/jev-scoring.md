@@ -1,6 +1,6 @@
 ---
 title: "Jev persona-affect scoring"
-updated: 2026-10-07
+updated: 2026-10-08
 status: in-review
 ---
 
@@ -41,7 +41,7 @@ See also [Design: playtest loop](design-playtest-loop.md) (step 6 / Cost control
 
 ## Stricter top for Paul and Lotta (2026-10-07)
 
-Decision: [A stricter Jev rubric before the next A/B](decisions.md#2026-10-07-a-stricter-jev-rubric-before-the-next-ab-the-personas-stay-as-they-are). PR: [ex-tales-forge #69](https://github.com/whyse-ab/ex-tales-forge/pull/69).
+Decision: [A stricter Jev rubric before the next A/B](decisions.md#2026-10-07-a-stricter-jev-rubric-before-the-next-ab-the-personas-stay-as-they-are). PR: [ex-tales-forge #69](https://github.com/whyse-ab/ex-tales-forge/pull/69), merged 2026-10-08 as `cb6a5f6` (prod v64, playtest v53).
 
 In the 65-run baseline, Paul's most likely turn level was 5 on 124 of 130 turns and Lotta's was 4 on 130 of 130. That ceiling hid any change. The levels in `AffectLevels` now read as follows (the questions and personas are unchanged):
 

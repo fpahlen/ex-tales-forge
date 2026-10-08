@@ -1,16 +1,16 @@
 ---
 title: "Design: the Tin Valley world around the inn, and its antagonist"
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Design: the Tin Valley world around the inn, and its antagonist
 
-**Status:** being built. It follows two decisions from 2026-10-07 ([build out the inn for every player type](decisions.md#2026-10-07-build-out-the-inn-and-its-surroundings-for-every-player-type-record-scene-changes), [Hawk gets an antagonist who acts on their own](decisions.md#2026-10-07-hawk-gets-real-conflict-a-minor-antagonist-who-acts-on-their-own)). The work is split into ex-tales-forge PRs:
+**Status:** built, merged and deployed on 2026-10-08 (prod release v70 and playtest v59 run `9e7d447`, flags on for playtest only). It follows two decisions from 2026-10-07 ([build out the inn for every player type](decisions.md#2026-10-07-build-out-the-inn-and-its-surroundings-for-every-player-type-record-scene-changes), [Hawk gets an antagonist who acts on their own](decisions.md#2026-10-07-hawk-gets-real-conflict-a-minor-antagonist-who-acts-on-their-own)). The work is split into ex-tales-forge PRs:
 
-- **PR A**, [#68](https://github.com/whyse-ab/ex-tales-forge/pull/68): leaving a place is recorded as a scene change, and the prompt says where the character is and who is there. This is a bug fix with no flag.
-- **PR B**, [#72](https://github.com/whyse-ab/ex-tales-forge/pull/72): the new places and people (`INN_WORLD`).
-- **PR C**, [#73](https://github.com/whyse-ab/ex-tales-forge/pull/73), stacked on #72: the antagonist (`WORLD_ANTAGONIST`).
-- **Fight rolls**, [#71](https://github.com/whyse-ab/ex-tales-forge/pull/71): more attack phrasings count as combat, so they roll. This is a bug fix with no flag (the goblin fight with no roll).
+- **PR A**, [#68](https://github.com/whyse-ab/ex-tales-forge/pull/68): leaving a place is recorded as a scene change, and the prompt says where the character is and who is there. This is a bug fix with no flag. Merged 2026-10-08 as `7b88dad`.
+- **PR B**, [#72](https://github.com/whyse-ab/ex-tales-forge/pull/72): the new places and people (`INN_WORLD`). Merged 2026-10-08 as `9080cb1`.
+- **PR C**, [#73](https://github.com/whyse-ab/ex-tales-forge/pull/73), stacked on #72: the antagonist (`WORLD_ANTAGONIST`). Retargeted to `main` after #72 and merged 2026-10-08 as `9e7d447`.
+- **Fight rolls**, [#71](https://github.com/whyse-ab/ex-tales-forge/pull/71): more attack phrasings count as combat, so they roll. This is a bug fix with no flag (the goblin fight with no roll). Merged 2026-10-08 as `8bf10d3`.
 
 This note is meant to be small enough to build now. Everything is pack data plus a few generic front moves, and **no new LLM call type**.
 
@@ -126,8 +126,8 @@ These are env vars, read when a session is created. They are not secrets: they g
 
 | Flag | Default | Production (`tales-forge`) | Playtest (`tales-forge-playtest`) | What it does |
 | --- | --- | --- | --- | --- |
-| `INN_WORLD` | off | off | on (in `fly.playtest.toml` with #72) | Adds the five places and four people above to new Tin Valley sessions |
-| `WORLD_ANTAGONIST` | off | off | on (in `fly.playtest.toml` with #73) | Adds the Tinjacks front and Rusk, Cobb and Pip; it needs `INN_WORLD` (it is ignored without it) |
+| `INN_WORLD` | off | off (checked 2026-10-08) | on (in `fly.playtest.toml` since #72; checked on release v59) | Adds the five places and four people above to new Tin Valley sessions |
+| `WORLD_ANTAGONIST` | off | off (checked 2026-10-08) | on (in `fly.playtest.toml` since #73; checked on release v59) | Adds the Tinjacks front and Rusk, Cobb and Pip; it needs `INN_WORLD` (it is ignored without it) |
 
 Existing flags are unchanged: `WORLD_AGENTS` is off on both apps, and `NPC_REACTIONS` is on on playtest and off on production ([Fly secrets](fly-secrets.md)).
 
