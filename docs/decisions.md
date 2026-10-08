@@ -9,6 +9,13 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Several founder surveys at once, as tabs, from docs JSON with an active flag
+
+- **Decision (Fredrik, via Case):** `/admin/survey` shows one tab per active survey, each with the signed-in founder's status (not started, in progress, done). Surveys are discovered from the `docs/*survey*.json` files in tales-forge-docs, and each file's `"active": true/false` flag decides whether it is a tab. Adding or closing a survey is a docs commit (60 s cache, or "Sync from repo"), with no deploy. Closed and inactive surveys leave the tabs but stay readable in the admin, with results, CSV and Markdown. A new `/admin/surveys` page shows every founder's status per survey. founder-survey-3 keeps its slug, results and answers (`active: true`), and the `priv/surveys` snapshots stay the fallback for both surveys.
+- **Why:** the intent survey and founder survey 3 are open at the same time. Founders need to see both and where they stand on each, and opening or closing a survey shouldn't need a code change.
+- **Status:** [ex-tales-forge #82](https://github.com/whyse-ab/ex-tales-forge/pull/82) is open and not merged. Both survey JSONs already carry `active: true`, which the current build ignores until #82 merges.
+- **Details:** [survey file format](https://github.com/whyse-ab/ex-tales-forge/blob/main/priv/surveys/README.md)
+
 ## 2026-10-08: Founders label vague player inputs in a second survey (tune split only); the answers set labels and the ask band
 
 - **Decision (Fredrik, via Case):** the founders say what ambiguous player inputs mean in a short second survey, [founder survey 4](founder-survey-4-intent.md) (`founder-survey-4-intent`, about 10 minutes, at `/admin/surveys/founder-survey-4-intent`).
@@ -16,7 +23,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
   - **Question format (Fredrik's addendum):** one question per item with 3–4 plain-language readings drawn from the gold label, the `acceptable` alternatives and Jev's readings, deduped and shuffled, never marking which is gold; plus "Unclear, the game should ask the player", "Something else" with a free-text field, and an optional comment. Every reading maps back to structured labels (action, target, now or later, deferred action and target), carried in the survey JSON (`option_labels`) and in `mapping.json`.
   - **Use:** the majority reading becomes gold, a minority reading becomes acceptable, and an Unclear win or no majority marks the item as one the game should ask about. "Something else" answers are reviewed by hand. Per-item founder agreement is reported and feeds the ask-band (`T_act`/`T_ask`) calibration.
 - **Why:** Case's and Fredrik's labels settle most items, but on genuinely two-way inputs the honest gold is what players mean, and where players disagree the game should ask rather than guess. Using the tune split keeps the holdout unseen.
-- **Status:** survey open (docs only; no deploy needed to answer). Showing each option's labels on the results page and in the CSV needs a small ex-tales-forge change (PR, not merged). Answers are applied later, per the plan, after Fredrik reviews the diff.
+- **Status:** the survey file is on docs main (`active: true`) and becomes live as the second tab on `/admin/survey` once [ex-tales-forge #82](https://github.com/whyse-ab/ex-tales-forge/pull/82) merges; that PR also shows each option's labels in the results and the CSV. Until then it is reachable directly at `/admin/surveys/founder-survey-4-intent`, without labels in the results. Answers are applied later, per the plan, after Fredrik reviews the diff.
 - **Details:** [survey](founder-survey-4-intent.md), [how answers become labels](scripts/survey-intent/apply_answers.md), [selection and build scripts](scripts/survey-intent/), [Design: player intent as one Jev call](design-jev-intent.md)
 
 ## 2026-10-08: Player intent go-ahead with the labelled eval set first, and five scope decisions
