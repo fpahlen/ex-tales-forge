@@ -7,7 +7,7 @@ related: character-creation-port.md (PR #15), personas.md
 
 # Character creation: persona preferences (hybrid ideas)
 
-**Status:** research note, 2026-10-07. No game code changed. Complements the port plan in [character-creation-port.md](https://github.com/whyse-ab/tales-forge-docs/pull/15) (open PR #15).
+**Status:** research note, 2026-10-07. No game code changed. Complements the port plan in [character-creation-port.md](character-creation-port.md) (merged in tales-forge-docs PR #15).
 
 ## Why
 

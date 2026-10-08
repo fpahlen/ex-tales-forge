@@ -63,8 +63,6 @@ A walled market town characterized by:
 
 ## Ruler: Baron Garrick Beaumont
 
-![Baron Garrick Beaumont](./images/garrick-beaumont.png)
-
 <!-- TRUTH: ABSOLUTE -->
 **Race**: Human (quarter-elven, carefully hidden)
 **Age**: 30

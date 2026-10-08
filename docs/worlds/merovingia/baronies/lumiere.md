@@ -63,8 +63,6 @@ A gleaming city characterized by:
 
 ## Ruler: Baron Alain de Lumière
 
-![Baron Alain de Lumière](./images/alain-de-lumire.png)
-
 <!-- TRUTH: ABSOLUTE -->
 **Race**: Human
 **Advisors**: Elven scholars in seclusion

@@ -63,8 +63,6 @@ A surface citadel characterized by:
 
 ## Ruler: Baron Thrain Leclerc
 
-![Baron Thrain Leclerc](./images/thrain-leclerc.png)
-
 <!-- TRUTH: ABSOLUTE -->
 **Race**: Human
 **Spouse**: Dwarf (for forge secrets and mining expertise)

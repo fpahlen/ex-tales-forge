@@ -121,5 +121,5 @@ This is **module content** (like the "Current Events" section of a published adv
 
 - [King Clovis IV](./king-clovis-iv.md) - The ineffectual young monarch
 - [Starting State](./starting-state/README.md) - The "New Game" snapshot
-- [Adventure Design Guide](../adventure-design/README.md) - The "And Then..." principle for creating interconnected adventures
-- [Geography Feature Branch Plan](../development/branches/feat-geography.md)
+- [Adventure Design Guide](https://github.com/fpahlen/tales-forge-new-31993d9d/blob/development/docs/adventure-design/README.md) - The "And Then..." principle for creating interconnected adventures (in the tales-forge-new repo, not copied here)
+- [Geography Feature Branch Plan](https://github.com/fpahlen/tales-forge-new-31993d9d/blob/development/docs/development/branches/feat-geography.md) (in the tales-forge-new repo, not copied here)

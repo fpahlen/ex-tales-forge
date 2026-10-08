@@ -63,8 +63,6 @@ A labyrinthine town characterized by:
 
 ## Ruler: Baroness Nyra Beaumont
 
-![Baroness Nyra Beaumont](./images/nyra-beaumont.png)
-
 <!-- TRUTH: ABSOLUTE -->
 **Race**: Human (quarter-elven, carefully hidden)
 **Age**: 29

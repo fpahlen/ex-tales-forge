@@ -63,8 +63,6 @@ A cliffside fortress characterized by:
 
 ## Ruler: Baron Drakon Roux
 
-![Baron Drakon Roux](./images/drakon-roux.png)
-
 <!-- TRUTH: ABSOLUTE -->
 **Race**: Human
 **Advisors**: Dwarf engineers in seclusion

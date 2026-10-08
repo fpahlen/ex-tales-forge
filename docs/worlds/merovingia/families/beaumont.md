@@ -18,8 +18,6 @@ The Beaumonts are unique among Merovingia's ruling families—two cousins who co
 
 ## Lady Marguerite Beaumont - The Grandmother
 
-![Lady Marguerite Beaumont](./images/marguerite-beaumont.png)
-
 <!-- TRUTH: ABSOLUTE -->
 **Race:** Half-elf (carefully hidden)
 **Age:** 78 (appears 55 due to elven blood)

@@ -63,8 +63,6 @@ A bustling harbor town characterized by:
 
 ## Ruler: Baroness Elara Thorne
 
-![Baroness Elara Thorne](./images/elara-thorne.png)
-
 <!-- TRUTH: ABSOLUTE -->
 **Race**: Human
 **Spouse**: Elven (provides prophetic visions)

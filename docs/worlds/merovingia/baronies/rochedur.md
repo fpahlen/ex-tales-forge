@@ -63,8 +63,6 @@ A carved mountain city characterized by:
 
 ## Ruler: Baroness Mira Laurent
 
-![Baroness Mira Laurent](./images/mira-laurent.png)
-
 <!-- TRUTH: ABSOLUTE -->
 **Race**: Human
 **Spouse**: Dwarf (for mining expertise)

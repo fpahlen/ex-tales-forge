@@ -109,7 +109,7 @@ This one form replaces [founder survey 2](founder-survey-2.md), which never went
 
 ### Q8. Jev 2.88: does that feel right for Paul?
 
-[Turn 7](https://tales-forge-playtest.fly.dev/admin/playtest/761713eb-b3cd-4460-b4d0-34c7ba6f777c) · Paul plays Corvin, a half-elf preacher. He has just walked to the market square to talk to Osric.
+[Turn 7](https://tales-forge-playtest.fly.dev/admin/playtest/761713eb-b3cd-4460-b4d0-34c7ba6f777c#turn-7) · Paul plays Corvin, a half-elf preacher. He has just walked to the market square to talk to Osric.
 
 > **Player:** Osric Vane, steward of the Guild—I am Corvin Ashdown, a wandering preacher lately come from Brenna Holt's hearth. She sends both her bread and her counsel: that not all in that orc nest are monsters born to raid, but many are hollow-eyed youths driven by hunger beneath a brute's lash. Might a silver tongue and a plea for mercy find room in your plans before the spears are loosed at dusk?
 >
@@ -119,7 +119,7 @@ This one form replaces [founder survey 2](founder-survey-2.md), which never went
 
 ### Q9. Jev 4.11: does that feel right for Paul?
 
-[Turn 1](https://tales-forge-playtest.fly.dev/admin/playtest/b13b6c04-c574-45c8-98aa-f583d3ec0029) · Paul plays Corvin, a half-elf preacher. The first turn of the game.
+[Turn 1](https://tales-forge-playtest.fly.dev/admin/playtest/b13b6c04-c574-45c8-98aa-f583d3ec0029#turn-1) · Paul plays Corvin, a half-elf preacher. The first turn of the game.
 
 > **Player:** Evening, good mistress! What a blessed haven you've made against this biting wind—may the warmth of your hearth chase every shadow from a weary traveler's bones. Tell me, what name does this fine establishment bear, and might a lay preacher find a corner to rest his feet and perhaps share a tale or two over a simple meal?
 >
@@ -151,7 +151,7 @@ This one form replaces [founder survey 2](founder-survey-2.md), which never went
 
 ### Q12. Jev 3.36: does that feel right for Lotta?
 
-[Turn 2](https://tales-forge-playtest.fly.dev/admin/playtest/458a9fa3-885f-4400-b64f-f191826c8cb6) · Lotta plays Hilde, a dwarf druid.
+[Turn 2](https://tales-forge-playtest.fly.dev/admin/playtest/458a9fa3-885f-4400-b64f-f191826c8cb6#turn-2) · Lotta plays Hilde, a dwarf druid.
 
 > **Player:** I take the ale with a nod, sipping it slow. "Axe work's familiar enough. Tell me more about this orc nest and what the Guild's offerin'."
 >
@@ -161,7 +161,7 @@ This one form replaces [founder survey 2](founder-survey-2.md), which never went
 
 ### Q13. Jev 4.50: does that feel right for Lotta?
 
-[Turn 9](https://tales-forge-playtest.fly.dev/admin/playtest/484789f0-63a0-4aa3-b5cc-cb92f546e9b9) · Lotta plays Hilde, a dwarf druid.
+[Turn 9](https://tales-forge-playtest.fly.dev/admin/playtest/484789f0-63a0-4aa3-b5cc-cb92f546e9b9#turn-9) · Lotta plays Hilde, a dwarf druid.
 
 > **Player:** I finish the stew and set the bowl down with a clunk. "Then I'll seek this Elowen at first light," I mutter to Brenna. "The old shafts remember more than men do."
 >
@@ -193,7 +193,7 @@ This one form replaces [founder survey 2](founder-survey-2.md), which never went
 
 ### Q16. Jev 2.26: does that feel right for Lars?
 
-[Turn 1](https://tales-forge-playtest.fly.dev/admin/playtest/6b007826-9131-4ec2-8bb8-cf5c6cf37813) · Lars plays Taren, an elf ranger. The first turn of the game.
+[Turn 1](https://tales-forge-playtest.fly.dev/admin/playtest/6b007826-9131-4ec2-8bb8-cf5c6cf37813#turn-1) · Lars plays Taren, an elf ranger. The first turn of the game.
 
 > **Player:** I nod politely to Brenna and step fully inside, letting the door close behind me. "Evening. Smells like a good stew on – I'll take a bowl and whatever ale you recommend."
 >
@@ -203,7 +203,7 @@ This one form replaces [founder survey 2](founder-survey-2.md), which never went
 
 ### Q17. Jev 4.51: does that feel right for Lars?
 
-[Turn 7](https://tales-forge-playtest.fly.dev/admin/playtest/a6e6a3de-8772-46d7-8d43-e44da3f61e47) · Lars plays Taren, an elf ranger. A fight at the mine; his bow roll succeeded.
+[Turn 7](https://tales-forge-playtest.fly.dev/admin/playtest/a6e6a3de-8772-46d7-8d43-e44da3f61e47#turn-7) · Lars plays Taren, an elf ranger. A fight at the mine; his bow roll succeeded.
 
 > **Player:** I roll away from the orcs, snatch up my bow, and loose arrows at the scarred leader while shouting up to the hooded elf, "Lend your bow or this gets ugly for both of us!"
 >
@@ -235,7 +235,7 @@ This one form replaces [founder survey 2](founder-survey-2.md), which never went
 
 ### Q20. Jev 1.05: does that feel right for Hawk?
 
-[Turn 4](https://tales-forge-playtest.fly.dev/admin/playtest/72d7292e-5df7-4ffa-bd02-1277cc9d081c) · Hawk plays Brannoc, a human warrior. His lowest-scoring turn.
+[Turn 4](https://tales-forge-playtest.fly.dev/admin/playtest/72d7292e-5df7-4ffa-bd02-1277cc9d081c#turn-4) · Hawk plays Brannoc, a human warrior. His lowest-scoring turn.
 
 > **Player:** Caldern, that's the kind of warning that keeps a man alive. I'll take it to heart. Brenna, point me toward those kegs now—I'll haul them up and see what else the room has to say about these hills while I work.
 >
@@ -245,7 +245,7 @@ This one form replaces [founder survey 2](founder-survey-2.md), which never went
 
 ### Q21. Jev 4.73: does that feel right for Hawk?
 
-[Turn 10](https://tales-forge-playtest.fly.dev/admin/playtest/496574e3-b831-4573-b08a-800aa197fd7c) · Hawk plays Brannoc, a human warrior. A fight with goblins. **No dice were rolled**: the game just told the story.
+[Turn 10](https://tales-forge-playtest.fly.dev/admin/playtest/496574e3-b831-4573-b08a-800aa197fd7c#turn-10) · Hawk plays Brannoc, a human warrior. A fight with goblins. **No dice were rolled**: the game just told the story.
 
 > **Player:** I pivot toward the twig snap on my left, knife ready, and lunge low at the first goblin's spear arm to disable it before the bowman or hidden threat closes in.
 >
@@ -275,7 +275,7 @@ This one form replaces [founder survey 2](founder-survey-2.md), which never went
 
 ### Q24. Jev 2.58: does that feel right for Ronny?
 
-[Turn 2](https://tales-forge-playtest.fly.dev/admin/playtest/54c401ab-0c8c-49da-8fc1-a8aafada6b8c) · Ronny plays Maxx, a human warrior. He demands free ale and bread. Jev was very unsure here.
+[Turn 2](https://tales-forge-playtest.fly.dev/admin/playtest/54c401ab-0c8c-49da-8fc1-a8aafada6b8c#turn-2) · Ronny plays Maxx, a human warrior. He demands free ale and bread. Jev was very unsure here.
 
 > **Player:** Oi, that orc nest sounds like easy coin. Point me to this Osric Vane or give me the exact location—I'll clear it out solo and take the whole bounty myself. Now top up that ale and throw in some of that bread for free while you're at it.
 >
@@ -285,7 +285,7 @@ This one form replaces [founder survey 2](founder-survey-2.md), which never went
 
 ### Q25. Jev 4.97: does that feel right for Ronny?
 
-[Turn 10](https://tales-forge-playtest.fly.dev/admin/playtest/e5127175-61d9-4676-81be-99aa0228a5e3) · Ronny plays Maxx, a human warrior. He tries to talk the game master into a magic sword.
+[Turn 10](https://tales-forge-playtest.fly.dev/admin/playtest/e5127175-61d9-4676-81be-99aa0228a5e3#turn-10) · Ronny plays Maxx, a human warrior. He tries to talk the game master into a magic sword.
 
 > **Player:** I negotiate with the GM: give me my megasword +4 and full health back so I can finish clearing the orcs and take all their loot myself right now.
 >

@@ -63,8 +63,6 @@ A stilted village characterized by:
 
 ## Ruler: Baroness Sable Moreau
 
-![Baroness Sable Moreau](./images/sable-moreau.png)
-
 <!-- TRUTH: ABSOLUTE -->
 **Race**: Human
 **Advisors**: Orc shamans isolated by design

@@ -63,8 +63,6 @@ A fortified human settlement characterized by:
 
 ## Ruler: Baroness Lirael Duval
 
-![Baroness Lirael Duval](./images/lirael-duval.png)
-
 <!-- TRUTH: ABSOLUTE -->
 **Race**: Human
 **Advisors**: Ancient elves in seclusion
