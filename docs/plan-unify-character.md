@@ -81,6 +81,8 @@ To keep the first PRs small, `Mechanics`, `Inventory`, `Train` and `Vitality` ke
 
 ### Process: one `Characters.Agent` per present character
 
+> **Superseded (2026-10-08):** there will be no per-character agent. Characters are plain data inside one process per world (`World.Instance`), and an NPC that needs to think something through gets a short-lived Task. Phase 3 below changes to match. See the [decision](decisions.md#2026-10-08-stateful-world-four-design-answers) and [Design: persistent world state, §4](design-stateful-world.md#4-processes-and-plain-data).
+
 - **One agent type.** A Jido agent per character that is *present* in a running session: the PC, which is always present, plus the NPCs at its location. It replaces `NPCAgent` and folds in `World.Agent`'s `:person` kind. Locations and items stay `World.Agent`.
 - **Registry and recovery.** `NPCRegistry` becomes `Characters.Registry` (same sync on `present_*`), and `NPCRecovery` restores the agents of active sessions.
 - **The agent holds** the hot copy of the levers: mood, concerns, Maslow level and recent memory. The DB row is the source of truth; writes go through in the turn Multi, as today.
@@ -154,7 +156,7 @@ A flag is sensible for the read switch, because it changes what the GM sees. The
 | 0 | `Character` struct, embedded schemas, `to_sheet/1`, pack keys (`maslow`, `concerns`) + validation; Elara as a pack file. No behaviour change | none | +350 | low |
 | 1 | `characters` table and backfill migration (24 + 69 rows; it aborts if a session's PC map is malformed). **Dual-write:** every PC/NPC write also writes the Character in the same Multi, and a consistency check (mix task + admin badge) diffs the two | none | +550 | low–medium (Multi size, write drift) |
 | 2 | **Reads from Characters:** Context, NPC prompt sections, NpcReactions (mood on the Character), PlayerView, PlayLive, admin `CharacterLive`. Golden prompt tests must stay byte-identical. Turn it on on playtest first and compare persona runs (Jev scores, cache hit rate) before prod | `CHARACTERS=on` (default off) | +500 / −250 | medium (prompt drift, cache misses) |
-| 3 | **One process:** `Characters.Agent` replaces `NPCAgent`; the PC gets an agent; registry and recovery are renamed; the controller field drives initiative. Stop dual-write; drop `character`, `npc_state` and `npc_moods` from `world_state`; `npc_instances` becomes read-only | `CHARACTERS=on` required | +400 / −700 | medium–high (agent lifecycle, recovery at boot) |
+| 3 | **One process** (*superseded 2026-10-08: one process per world, not per character; see the note in section 2*): `Characters.Agent` replaces `NPCAgent`; the PC gets an agent; registry and recovery are renamed; the controller field drives initiative. Stop dual-write; drop `character`, `npc_state` and `npc_moods` from `world_state`; `npc_instances` becomes read-only | `CHARACTERS=on` required | +400 / −700 | medium–high (agent lifecycle, recovery at boot) |
 | 4 | Drop `npc_instances` with the row-check pattern from #47 (abort unless reviewed); remove the flag and the old `NPC` paths | none | −400 | low |
 | Later | Lever behaviour (Maslow events, concern resolution, personality-filtered memory), groups + Tuckman, AFK handoff and companions (need parties), a character library across sessions (needs accounts) | own plans | — | — |
 

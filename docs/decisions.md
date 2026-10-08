@@ -11,6 +11,20 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-08: Stateful world: four design answers
+
+- **Decision (Fredrik, via Case):** answers to questions 1–4 of the [stateful world design note](design-stateful-world.md#11-questions). Questions 5–8 (trace fading, world pace, snapshot cadence, shared worlds) wait for measurements.
+  1. **One process per world; entities are plain data.** An NPC that needs to think something through gets a short-lived Task when it matters (Jev calls, answer returned to the world as an event). If a world outgrows one process later, it splits by region, never per entity. This replaces the per-character agent of [Character plan](plan-unify-character.md) phase 3.
+     - *Why:* a turn touches several entities and must commit as one; pure functions over an ordered log replay the same way every time; only the world has a clock of its own; and idle data costs nothing.
+  2. **The GM gets the state snapshot plus the last 1–2 turns.**
+     - *Why:* the snapshot keeps the facts straight, and the recent turns keep the prose continuous in voice and thread. The GM no longer carries the world in its own summary, which is where the drift came from.
+  3. **Commit before the GM call.** The rules and Jev decide what happened, and it is saved first. If the GM call fails, the world has still changed and only the prose is retried. A retry never re-rolls dice or re-asks Jev. The player sees the result in plain words until the narration arrives, with a retry button if the GM keeps failing.
+     - *Why:* the outcome belongs to the rules, not to the narrator. A failed GM call no longer loses the player's action, and a shared world is never held for the length of a GM call.
+  4. **Only the rules (Elixir) and Jev write events.** The GM writes prose only. The GM's `npc_memory_updates` and `World.Extract` become Jev calls or are dropped: memories come from events and the Jev judgements, and promises from a Jev reader with fixed promise kinds. Free-text facts invented in the prose are no longer recorded.
+     - *Why:* the [call-type rule](call-types.md): structured state from an LLM is a smell, and Jev is cheaper (~$0.0001 against ~$0.001 for the extraction call).
+- **Order:** the first code PR (`WORLD_STATE=shadow`) comes after [Jev intent](design-jev-intent.md) PR 2. Each code PR needs Fredrik's OK.
+- **Details:** [Design: persistent world state, updated with the answers](design-stateful-world.md) (§4 processes, §6 commit and event writers, §9 prompt layout, §10 migration)
+
 ## 2026-10-08: Design note: persistent world state at the core of the turn loop
 
 - **Decision (Fredrik, via Case):** write a design note on making persistent world state the core of the turn loop. An "apply consequences" step goes between the rules and the prose. The turn's result becomes events sent to everything it touched (people, the player character, places, factions), each updates its own state in plain Elixir, Jev is used only for judgements, and the GM gets a snapshot of the current state instead of the history. The world keeps moving on world time.
@@ -20,7 +34,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - **First step:** a shadow mode behind `WORLD_STATE=shadow` that changes nothing the GM sees.
   - **Cost:** no new LLM call on the hot path.
 - **Why:** today the state is spread over several copies (mood in four places), places hold no state, nothing moves between turns, and the GM carries the continuity itself, which is where the drift comes from. One state model with recorded causes gives the [living world](design-world-agents.md#living-world-design-to-try) and the Tinjacks something to run on.
-- **Status:** design note written, no code. Its open questions (one process per world or per entity, a short turn window for the GM, commit before or after the GM, which sources may write events) need Fredrik's answers before the first PR.
+- **Status:** design note written, no code. Questions 1–4 were answered on 2026-10-08 ([Stateful world: four design answers](#2026-10-08-stateful-world-four-design-answers)); questions 5–8 wait for measurements. The first PR (`WORLD_STATE=shadow`) comes after Jev intent PR 2.
 - **Details:** [Design: persistent world state at the core of the turn loop](design-stateful-world.md)
 
 ## 2026-10-08: Several founder surveys at once, as tabs, from docs JSON with an active flag
