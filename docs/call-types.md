@@ -76,10 +76,10 @@ Every unit of work in a turn is a row in the app's `ai_calls` table ([ex-tales-f
 | `conv_id` | The `x-grok-conv-id` an LLM call was sent with |
 | `started_at` | When the call or step began (microseconds) |
 
-- **LLM rows:** one per xAI request, with tokens, cached tokens, cost and latency.
-- **Jev rows:** one per TypeSafe call (the persona-affect scorer, the NPC reactions when `NPC_REACTIONS` is on, and, once ex-tales-forge PR #76 deploys, the input safety read before each GM call, purpose `input_safety`, whose label, confidence and quote decision go in `meta`), with input tokens, cost and latency.
+- **LLM rows:** one per xAI request, with tokens, cached tokens, cost and latency. Once ex-tales-forge PR #76 deploys, the intent call's row (purpose `intent`) also carries its input safety read and the GM quote decision in `meta`.
+- **Jev rows:** one per TypeSafe call (the persona-affect scorer, and the NPC reactions when `NPC_REACTIONS` is on), with input tokens, cost and latency.
 - **Function rows:** the timed Elixir steps of a turn, at zero cost. They show whether "exact, free, instant" holds:
-  - `turn.intent`: intent extraction and validation, before the turn job (includes a tier-1 LLM call when one is needed; that call also has its own row)
+  - `turn.intent`: intent extraction and validation, before the turn job (includes a tier-1 LLM call when one is needed; that call also has its own row). Once ex-tales-forge PR #76 deploys, its `meta` holds the turn's GM quote decision, so the quote fallback rate covers every turn
   - `turn.rules`: handler resolution, mechanics, rolls, inventory, clock, world sim
   - `turn.prompt`: GM context and prompt assembly
   - `turn.gm`: the GM call as Elixir sees it, including retries and decoding

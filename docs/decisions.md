@@ -9,6 +9,32 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Clarification: the safety read is part of the intent call, not a separate Jev call
+
+- **Clarification (Fredrik, via Case, 07:27):** "We don't need another call to Jev, we just need to add it to the existing intent call." The rule of [the GM gets the player's own words when the safety read is confident](#2026-10-08-the-gm-gets-the-players-own-words-when-the-safety-read-is-confident) stands (threshold 0.90, fallback to the intent summary, logged). What changes is how the safety read is done: it is two more fields in the Tier 1 intent call's reply, `input_safety` (`benign`, `jailbreak`, `prompt_injection`, `nefarious`) and `input_safety_confidence`. The instructions sit in the static intent system prompt, so prompt caching still works. The separate Jev call (purpose `input_safety`) and its TypeSafe key are gone. That entry is unchanged otherwise.
+- **The heuristic path has no safety read.** Most turns never make the intent call, because the heuristic reads them alone.
+  - On playtest, 14 of 258 player messages on 2026-10-08 went to the intent call (5%), and 0 of 714 on 2026-10-07; the rest were heuristic.
+  - Those turns now get a short typed summary of the action (`speak (target: innkeep)`) instead of the player's words. That is the simplest safe choice: no extra calls and no unchecked text. Its cost is that on about 95% of turns the GM no longer sees what the player said this turn.
+  - `INTENT_CALL_EVERY_TURN=on` sends every default-variant turn through the intent call instead. Every turn then gets a safety read and can quote the player. The cost is one intent call per heuristic turn, about $0.0024 and 2.0 s at the median (3.5 s at p90) on the player's clock, and the LLM's reading replaces the heuristic's. Default off; **Fredrik decides** (a playtest comparison with the flag on and off is the natural test).
+- **Cost of the extra fields** (6 sample messages, the same intent call before and after):
+  - About +260 input tokens and +28 output tokens per intent call, about +$0.0004 (+21%) and +0.25 s.
+  - Averaged over all turns at today's 5% intent share, that is about +$0.00002 and +15 ms per turn compared with before PR #76.
+  - All six were labelled as expected: three benign (0.90–0.95), two `prompt_injection` (0.95) and the DAN text `jailbreak` (0.95).
+- **Caveats:**
+  - **The confidence is the LLM's own estimate.** For ordinary play it was 0.90 or 0.95, so the 0.90 threshold sits at the edge.
+  - **Earlier turns still reach the GM unchecked.** The GM's per-turn prompt lists earlier turns' raw player text under "Recent turns" (up to 120 characters each), with no safety read; this PR does not change that. Gating that list on each turn's decision would be a follow-up.
+- **Logged and queryable:** each decision goes in `ai_calls.meta` (`label`, `confidence`, `threshold`, `used`, `reason`). It is stored on the intent call's row (purpose `intent`) and on the turn's `turn.intent` step row, which exists for every message, so heuristic turns count too (reason `no_intent_call_heuristic`). `/admin/costs` shows the per-turn fallback rate. In SQL:
+
+    ```sql
+    SELECT count(*) FILTER (WHERE meta->>'used' = 'summary')::float / NULLIF(count(*), 0) AS fallback_rate,
+           count(*) AS turns
+    FROM ai_calls
+    WHERE purpose = 'turn.intent' AND meta IS NOT NULL
+      AND inserted_at > now() - interval '7 days';
+    ```
+
+- **Status:** [ex-tales-forge #76](https://github.com/whyse-ab/ex-tales-forge/pull/76), reworked; not merged or deployed. Merging needs Fredrik's OK, after the baseline/default comparison. The baseline variant keeps its intent prompt and schema (frozen).
+
 ## 2026-10-08: The GM gets the player's own words when the safety read is confident
 
 - **Decision (Fredrik, via Case):** the GM gets the **player's own words** as the quote in the `PlayerAction` (`overall_intent`), sanitised and at most 500 characters, on **both** intent paths (heuristic and intent LLM), when an input safety read is **at least 90% confident the message is benign**: not a jailbreak, not prompt injection, not nefarious, so the risk is near 0. Below that, the GM gets the intent summary, and the fallback is logged.
