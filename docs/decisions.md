@@ -9,10 +9,33 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Clarification: nothing syncs from the earlier apps
+
+- **Clarification (Fredrik, via Case):** ex-tales-forge stands on its own. Nothing is synced from text-forge, tales-forge-new or any other earlier app; its rules, prompts, packs and code are maintained in ex-tales-forge. The earlier apps are history only.
+- **Applies to:** [the code docs stand alone](#2026-10-08-clarification-the-code-and-its-docs-stand-alone-where-the-code-came-from-is-recorded-here). Its notes on where the code came from are history, and the old "sync rules and prompts from text-forge" note it mentions does not apply any more. That entry is unchanged otherwise. The Agent Rules say the same ([ex-tales-forge #75](https://github.com/whyse-ab/ex-tales-forge/pull/75)).
+- **Why:** one source of truth for the game's rules and prompts; the golden prompt tests guard them, and nobody has to watch another repo.
+
+## 2026-10-08: Clarification: the GM gets a typed struct plus a short quote of the player's words
+
+- **Clarification (Fredrik, via Case):** the GM gets the validated, typed `PlayerAction` **plus a short, sanitised quote of the player's words**, and that is intended. The quote is the action's `overall_intent`: at most 500 characters, with whitespace collapsed and "ignore previous instructions" phrases removed. When the heuristic reads the turn it is the player's own text; when the intent LLM reads it, it is that call's short summary of the message, sanitised the same way. The full raw message never reaches the GM.
+- **Applies to:** [GM pipeline direction](#2026-10-07-gm-pipeline-direction) ("a typed struct with a short quote of the player's words"). That entry is unchanged. The Agent Rules used to say "raw player text never reaches Tier 2"; they now say this ([ex-tales-forge #75](https://github.com/whyse-ab/ex-tales-forge/pull/75)).
+- **Why:** the quote lets the GM keep the player's tone, while the typed struct and the server's rules decide what happens.
+- **Details:** `TalesForge.Game.Intent` (`sanitize_summary/1`), [Call types: target turn pipeline](call-types.md#target-turn-pipeline)
+
+## 2026-10-08: The prose-only GM prototype is dropped; the GM has one structured reply mode
+
+- **Decision (Fredrik, via Case):** the prose-only GM prototype (`GM_REPLY_MODE=prose`, [ex-tales-forge #38](https://github.com/whyse-ab/ex-tales-forge/pull/38)) is dropped and its PR closed without merging. The GM keeps **one reply mode**, the strict structured JSON schema, and there is no reply-mode flag. This answers the open question "Prose-only GM vs structured reply format" (bottom of this file).
+- **Why:** in the prototype's local runs (Paul, Tin Valley, 5 turns, 2 runs per mode) prose was cheaper and faster: $0.00395 against $0.00567 per turn (−30%), median GM latency 4.0 s against 4.8 s, and first tokens at about 0.8 s when streamed. But it lost what the schema gives:
+  - **NPC memories:** the GM wrote none, so NPCs only had automatic "Overheard player: …" lines and a later turn could contradict an earlier promise or price (one room-price contradiction in a prose run, none in the schema runs);
+  - **lore anchoring:** invented facts were not recorded per turn (both final prose runs turned the orc nest into "harpies"; neither schema run reached the nest, so that sample can't compare the modes), and the summary updated only every 3 turns.
+  - **No clear gain in play:** session scores showed no difference either way (Jev 4.14 prose against 4.01 schema, n = 4 against 5, with lower confidence for prose), and the schema stayed the default.
+  - Since then the schema mode has the useful parts of the prototype: the Jev NPC reaction before the GM call (`NPC_REACTIONS`) and, with `WORLD_AGENTS` on, facts read from the narration after each turn.
+- **Details:** [ex-tales-forge PR #38](https://github.com/whyse-ab/ex-tales-forge/pull/38) (results and trade-offs), [Analysis: Jev scores 2026-10-07](analysis-jev-scores-2026-10-07.md), [Design: world agents](design-world-agents.md)
+
 ## 2026-10-08: Clarification: the code and its docs stand alone; where the code came from is recorded here
 
 - **Clarification (Fredrik, via Case):** ex-tales-forge's code, module docs, comments, README and Agent Rules (`AGENTS.md`, the "Agent Rules" page of `/admin/code-docs`) describe what the code does now. They no longer mention the earlier apps; history and origin notes live in this repo. Nothing about the game changes.
-  - Status: [ex-tales-forge #75](https://github.com/whyse-ab/ex-tales-forge/pull/75) is open and waits for Fredrik's approval; not merged or deployed. It removes 18 such references in 9 files.
+  - Status: [ex-tales-forge #75](https://github.com/whyse-ab/ex-tales-forge/pull/75) is approved by Fredrik (2026-10-08) and is merged after the current playtest series ends; not merged or deployed yet. It removes 18 such references in 9 files.
 - **Where the code came from** (the notes removed from ex-tales-forge, kept here):
   - **text-forge** (FastAPI + Next.js, file-based campaigns with a git commit per campaign turn; repo `text-forge`, still under `fpahlen`, see [Infrastructure](infrastructure.md)). ex-tales-forge started as an Elixir rewrite of it. Its `backend/app/rules/*.md` became `priv/rules/*.md`, its `backend/app/prompts/*.txt` became `priv/prompts/*.txt`, and the Crossroads NPC files `priv/npcs/*.json`, the server-side dice and Learning Points (`Game.Mechanics`) and the play-test skill (`.grok/skills/play-test`) came from it. Its Supabase code was not ported. Turn history moved from git commits to the `Turn` table (same goal, different storage). The old Agent Rules also said "when rules or prompts change in text-forge, sync the corresponding files here"; that note is gone with the rest.
   - **tales-forge-new** (`fpahlen/tales-forge-new-31993d9d`, the React + Supabase app; tales-forge.ai on Netlify, see [Infrastructure: to retire](infrastructure.md#to-retire)). The skill rules in `priv/characters/creation.json` come from its written rules (sources listed in [character creation port: skill rules](character-creation-port.md#skill-rules-ported-2026-10-07)), and the prompt-prefix test (`test/ex_tales_forge/game/prompt_prefix_test.exs`) was ported from its `_shared/__tests__/promptOrdering.test.ts`.
@@ -494,4 +517,4 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 ## Open questions
 
-- **Prose-only GM vs structured reply format.** The prototype ([ex-tales-forge PR #38](https://github.com/whyse-ab/ex-tales-forge/pull/38)) is cheaper and faster but loses per-turn NPC memories and lore anchoring. The structured schema stays the default for now.
+None right now. (Prose-only GM vs structured reply format: decided on 2026-10-08, see [the prose-only GM prototype is dropped](#2026-10-08-the-prose-only-gm-prototype-is-dropped-the-gm-has-one-structured-reply-mode).)

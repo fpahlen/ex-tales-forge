@@ -213,7 +213,7 @@ Also dead without being a module: `lib/ex_tales_forge_web/controllers/page_html/
 
 | Item | State on main | Where | Prod / playtest | Verdict |
 |---|---|---|---|---|
-| `GM_REPLY_MODE` prose (unmerged #38) | **No remnants on main.** No `reply_mode`, `GM_REPLY` or prose mode in `lib/`, `config/` or `test/`. The only "prose" hits are a CSS class and a test string. | none | n/a | Nothing to remove |
+| `GM_REPLY_MODE` prose (#38, closed unmerged on 2026-10-08: dropped, see [decisions](decisions.md)) | **No remnants on main.** No `reply_mode`, `GM_REPLY` or prose mode in `lib/`, `config/` or `test/`. The only "prose" hits are a CSS class and a test string. | none | n/a | Nothing to remove |
 | `WORLD_AGENTS` | `Config.world_agents?/0`; `World`, `World.Agent`, `World.Extract`, `World.Prices` (906 LOC) | TurnProcessor `world_agents/2`, SceneProcessor, Context prompt sections | off / off | Group 4. Keep: the design is current and the decision log says it's being tried |
 | `NPC_REACTIONS` | `Config.npc_reactions?/0`; `Game.NpcReactions` | TurnProcessor `npc_reactions/5`, Context | off / **on** | Group 1 (flag-gated, in use on playtest) |
 | Persona runner | `PLAYTEST_RUNNER_ENABLED` (config/runtime.exs); `Playtest.*` (7 modules), `mix playtest.run`, `/admin/playtest` | Runner, admin pages | 0 runs / **16 runs** | Group 1 (flag-gated, in use on playtest) |

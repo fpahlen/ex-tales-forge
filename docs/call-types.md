@@ -6,7 +6,7 @@ status: draft
 
 # Call types: Elixir function, Jev, or LLM
 
-**Status:** draft, 2026-10-07. Agreed rule for the Tales Forge app ([whyse-ab/ex-tales-forge](https://github.com/whyse-ab/ex-tales-forge), Elixir/Phoenix/Ash/Jido).
+**Status:** draft, 2026-10-07. Agreed rule for the Tales Forge app ([whyse-ab/ex-tales-forge](https://github.com/whyse-ab/ex-tales-forge), Elixir/Phoenix/Jido).
 
 Every piece of work in a turn is one of three call types. Pick by the shape of the input and the output.
 
@@ -77,7 +77,7 @@ Every unit of work in a turn is a row in the app's `ai_calls` table ([ex-tales-f
 | `started_at` | When the call or step began (microseconds) |
 
 - **LLM rows:** one per xAI request, with tokens, cached tokens, cost and latency.
-- **Jev rows:** one per TypeSafe call (the persona-affect scorer today, NPC reactions in the prose prototype), with input tokens, cost and latency.
+- **Jev rows:** one per TypeSafe call (the persona-affect scorer, and the NPC reactions when `NPC_REACTIONS` is on), with input tokens, cost and latency.
 - **Function rows:** the timed Elixir steps of a turn, at zero cost. They show whether "exact, free, instant" holds:
   - `turn.intent`: intent extraction and validation, before the turn job (includes a tier-1 LLM call when one is needed; that call also has its own row)
   - `turn.rules`: handler resolution, mechanics, rolls, inventory, clock, world sim
