@@ -3,6 +3,8 @@
   "id": "founder-survey-3",
   "version": 1,
   "status": "open",
+  "active": true,
+  "tab": "Play style & scores",
   "title": "Founder survey: how we'd play, and do the playtest scores feel right?",
   "estimated_minutes": 20,
   "playtest_base_url": "https://tales-forge-playtest.fly.dev/admin/playtest",

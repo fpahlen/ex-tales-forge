@@ -20,7 +20,7 @@ Files in this folder:
    `closed` in the survey JSON (docs commit), so answers can't move while we label.
 2. Download `/admin/surveys/founder-survey-4-intent/results.csv`. Each item has a column
    `Q<n> intent-<item id>` (the chosen option text) and `…: something-else`, `…: comment`.
-   Once the ex-tales-forge `option_labels` PR is deployed, a `…: labels` column holds the chosen
+   Once ex-tales-forge #82 is deployed, a `…: labels` column holds the chosen
    option's labels as JSON; until then, join the option text to `mapping.json` (exact text match;
    an option reworded after answers were given is matched through the stored survey snapshot of
    that version, so keep `version` honest).
