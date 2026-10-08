@@ -9,6 +9,20 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Paul's level 5 needs a consequence of his own choice or discovery
+
+- **Decision (Fredrik, via Case):** on Paul's 4-vs-5 border, a vivid answer or a new fact is a 4. A 5 requires a consequence of his own choice or discovery, where the world reacts: for example an NPC acts on what he learned, or a door opens because he asked.
+  - Surprise, callback and NPC goals no longer count as level-5 evidence for Paul. Lotta's level 5 is unchanged.
+  - Paul's rubric version: `jev-affect-v1-df3c861`, replacing the first sharp version `7862783` from the entry below. GM prompts and the `baseline` variant are untouched.
+- **Why:** on the first sharp version Jev split about 0.42 / 0.45 between levels 4 and 5 on Paul's unsure turns, which were 72% of his baseline turns. His typical turn is an open question answered with vivid new facts, and that fits both "an answer" (4) and "a surprise" (5).
+- **Result:** the re-score ran on the box from existing transcripts: Paul's 13 baseline and 5 post-rework runs, 18 Jev calls, $0.0062.
+  - **Unsure share** (confidence < 0.7): 33% on the baseline and 48% post-rework, against 51% / 46% on #69 and 72% / 74% on the first sharp version.
+  - **Weighted headline:** 4.41 / 4.27.
+  - **Turn weighted delta:** −0.14 (CI −0.24…−0.03). The session delta is −0.01 (CI −0.09…+0.08).
+  - **Post-rework stays less settled:** its threat-heavy turns, where the world reacts but not to his delight, still split.
+- **Status:** approved, in [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80) (not merged).
+- **Details:** [Analysis: Jev post-rework 2026-10-08, added section](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-pauls-level-5-needs-a-consequence-of-his-own-choice-or-discovery), [Jev scoring: sharper borders](jev-scoring.md#sharper-borders-for-paul-4-vs-5-and-lotta-3-vs-4-2026-10-08), [results](scripts/jev-confidence/results-2026-10-08-paul-consequence.md)
+
 ## 2026-10-08: The headline Jev score is a confidence-weighted average
 
 - **Decision (Fredrik, via Case):** the headline Jev score is the confidence-weighted average, `sum(score × confidence) / sum(confidence)`, on the 1–5 scale. It is shown with the unsure share (confidence < 0.7) next to it, and the high / low / unsure breakdown stays underneath.
