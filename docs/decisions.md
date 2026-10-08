@@ -9,6 +9,18 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Bug fix: the turn hang after an intent call; crashed turns now fail visibly; run flags record the world features
+
+- **Decision (Fredrik, via Case):** merge and deploy the fix for the turn hang found in the post-rework series. Approved 2026-10-08 07:48: merge #79 and deploy once the survey page was live. This is a bug fix, recorded here for the behaviour changes below.
+  - **Cause:** the intent call answers `"parameters": null` for actions that need no roll. The decoder kept that `nil`, and the rules step crashed on it (`BadMapError`) inside the turn job. Oban retried three times and dropped the job without any log line or failed-turn message, so the player or playtest runner waited until its timeout. This hung 3 of 14 intent-call turns: runs `a76294d9`, `0d1b8222` and `1a995c9f`.
+  - **Fix:** the intent decoders treat JSON `null` as missing.
+  - **Crashed turns now fail visibly:** a crash in any turn step is logged with its stacktrace, shown to the player as a failed turn ("crashed: <error>"), marked `error` on that step's `ai_calls` row and retried by Oban. A playtest run then ends as `failed` with the error in its notes, instead of `stopped` / `timeout`.
+  - **Run flags:** `playtest_runs.flags` now record `inn_world` and `world_antagonist` (`on`/`off`). They come from the session's features.
+  - **Misread roll:** "scale" now counts as climbing only as a verb ("scale the wall"). Paul's "silver to the scale" no longer rolls climbing.
+- **Why:** a crash should never look like a slow turn. Run conditions should be readable from the run itself.
+- **Status:** merged as `ccd5379`, deployed to production v75 and playtest v63. Health checks pass and the survey page still redirects to the login when signed out.
+- **Details:** [ex-tales-forge PR #79](https://github.com/whyse-ab/ex-tales-forge/pull/79), [Analysis: Jev post-rework 2026-10-08, §9](analysis-jev-post-rework-2026-10-08.md#9-limitations)
+
 ## 2026-10-08: Founder survey in the app instead of Google Forms
 
 - **Decision (Fredrik, via Case):** the founder survey runs on our own page at `/admin/survey`, behind the GitHub team login, so we know who answered and there's no name question. Approved by Fredrik (2026-10-08 07:45: "You are go for survey", merge and deploy).
