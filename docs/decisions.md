@@ -9,6 +9,27 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Hawk / Tinjacks: the Tinjacks come to the fighter; Brenna points at trouble, not chores
+
+- **Decision (Fredrik, via Case):** the Tinjacks come to the fighter. Their plans run on world time even when he's away, so the toll happens anyway and he hears about the consequences afterwards. Brenna points fighters at the trouble instead of offering chores.
+  - Status: Approved, not built. Sequencing: the hang fix ships first in its own PR, then the survey page, then these; each code PR needs Fredrik's OK; another comparison batch after the survey answers are in.
+- **Why:** in the post-rework batch, only 1 of 5 Hawk runs fought (on the last turn) and he still did chores in 3 of 5; runs without a fight scored better (3.14 vs 2.54) but the confrontation came too late.
+- **Details:** [Analysis: Jev post-rework 2026-10-08](analysis-jev-post-rework-2026-10-08.md)
+
+## 2026-10-08: GM tics: track recent gestures as off-limits; drop phrase-by-phrase bans
+
+- **Decision (Fredrik, via Case):** drop phrase-by-phrase bans. Elixir tracks the gestures used in the last N turns and passes them to the GM as off-limits, and a pattern check on the output catches repeats (log any that slip through).
+  - Status: Approved, not built. Sequencing: the hang fix ships first in its own PR, then the survey page, then these; each code PR needs Fredrik's OK; another comparison batch after the survey answers are in.
+- **Why:** the banned "wipes her hands" still appeared in 57% of runs, and new tics replaced the banned ones ("leans an elbow" 11, "leans a hip" 10, Cobb "shifts his weight" 12).
+- **Details:** [Analysis: Jev post-rework 2026-10-08](analysis-jev-post-rework-2026-10-08.md)
+
+## 2026-10-08: The forge and Maude's cottage pull players in through rumours and hooks
+
+- **Decision (Fredrik, via Case):** the forge and Maude's cottage pull players in through rumours and hooks from Brenna and the regulars, tied to what the world is doing, so the lore actually gets found.
+  - Status: Approved, not built. Sequencing: the hang fix ships first in its own PR, then the survey page, then these; each code PR needs Fredrik's OK; another comparison batch after the survey answers are in.
+- **Why:** the forge, Maude's cottage and the lore were never reached in 23 runs.
+- **Details:** [Analysis: Jev post-rework 2026-10-08](analysis-jev-post-rework-2026-10-08.md)
+
 ## 2026-10-08: Clarification: the safety read is part of the intent call, not a separate Jev call
 
 - **Clarification (Fredrik, via Case, 07:27):** "We don't need another call to Jev, we just need to add it to the existing intent call." The rule of [the GM gets the player's own words when the safety read is confident](#2026-10-08-the-gm-gets-the-players-own-words-when-the-safety-read-is-confident) stands (threshold 0.90, fallback to the intent summary, logged). What changes is how the safety read is done: it is two more fields in the Tier 1 intent call's reply, `input_safety` (`benign`, `jailbreak`, `prompt_injection`, `nefarious`) and `input_safety_confidence`. The instructions sit in the static intent system prompt, so prompt caching still works. The separate Jev call (purpose `input_safety`) and its TypeSafe key are gone. That entry is unchanged otherwise.
