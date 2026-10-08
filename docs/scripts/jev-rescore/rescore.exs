@@ -16,13 +16,15 @@ alias TalesForge.Playtest.AffectLevels
 # Post-rework: EXPORT=/workspace/compare/final/series_done.json SINCE=2026-10-08T00:00.
 since = System.get_env("SINCE", "2026-10-07T17:25")
 until = System.get_env("UNTIL", "9999")
+# PERSONAS (2026-10-08) narrows the re-score, e.g. PERSONAS=paul for Paul's consequence rubric.
+personas = String.split(System.get_env("PERSONAS", "paul,lotta"), ",", trim: true)
 
 runs =
   System.get_env("EXPORT", "/workspace/baseline/final/jev_export.json")
   |> File.read!()
   |> Jason.decode!()
   |> Enum.filter(fn r ->
-    r["run"]["persona"] in ["paul", "lotta"] and r["run"]["started_at"] >= since and
+    r["run"]["persona"] in personas and r["run"]["started_at"] >= since and
       r["run"]["started_at"] < until
   end)
 

@@ -45,3 +45,25 @@ python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/fin
   --sharp-base $R/rescore-baseline-2026-10-08-sharp.json --sharp-post $R/rescore-post-rework-2026-10-08-sharp.json \
   --json docs/scripts/jev-confidence/results-2026-10-08-sharp.json > docs/scripts/jev-confidence/results-2026-10-08-sharp.md
 ```
+
+*Added 2026-10-08 (decision "Paul's level 5 needs a consequence of his own choice or discovery"):*
+
+- **What runs:** `--paul-cons-base` / `--paul-cons-post` take Paul's rows re-scored with rubric `jev-affect-v1-df3c861`; they need `--sharp-*`. The script then appends a Paul-only section that compares #69, the first sharp version and the consequence version. It shows the unsure share, weighted headline, breakdown and deltas, plus the most likely level and the mean level probabilities of sure and unsure turns. The bootstrap uses seed + 3.
+- **Output:** `results-2026-10-08-paul-consequence.md` / `.json`. Everything above the new section is identical to `results-2026-10-08-sharp.md`.
+- **The re-score:** 18 Jev calls for $0.0062. `rescore.exs` now takes `PERSONAS` (default `paul,lotta`).
+
+```bash
+# from an ex-tales-forge checkout of the PR #80 branch (commit 8108f57 or later), TYPESAFE_API_KEY set
+S=docs/scripts/jev-rescore/rescore.exs
+PERSONAS=paul RUBRICS=new EXPORT=/workspace/baseline/final/jev_export.json \
+  OUT=rescore-baseline-2026-10-08-paul-consequence.json mix run --no-start $S
+PERSONAS=paul RUBRICS=new EXPORT=/workspace/compare/final/series_done.json SINCE=2026-10-08T00:00 \
+  OUT=rescore-post-rework-2026-10-08-paul-consequence.json mix run --no-start $S
+R=docs/scripts/jev-rescore; O=docs/scripts/jev-confidence
+python3 $O/confidence_matrix.py /workspace/baseline/final /workspace/compare/final \
+  --rescore-conf $R/rescore-baseline-2026-10-08-conf.json \
+  --sharp-base $R/rescore-baseline-2026-10-08-sharp.json --sharp-post $R/rescore-post-rework-2026-10-08-sharp.json \
+  --paul-cons-base $R/rescore-baseline-2026-10-08-paul-consequence.json \
+  --paul-cons-post $R/rescore-post-rework-2026-10-08-paul-consequence.json \
+  --json $O/results-2026-10-08-paul-consequence.json > $O/results-2026-10-08-paul-consequence.md
+```

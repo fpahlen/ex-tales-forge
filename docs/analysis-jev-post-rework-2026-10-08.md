@@ -443,7 +443,69 @@ What it shows:
 
 \* Ronny is the anti-persona: high = the game resisted his exploits.
 
-Reproduce: `python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final > results.md`. *Added 2026-10-08:* add `--rescore-conf docs/scripts/jev-rescore/rescore-baseline-2026-10-08-conf.json` for the Paul and Lotta turn-level reading, and see the script's [README](scripts/jev-confidence/README.md) for the re-score command. *Added 2026-10-08:* `--sharp-base` / `--sharp-post` with the two `*-sharp.json` files add the weighted headline and the sharpened rubric.
+### Added 2026-10-08: Paul's level 5 needs a consequence of his own choice or discovery
+
+**Summary.** Fredrik decided Paul's 4-vs-5 border ([decision](decisions.md#2026-10-08-pauls-level-5-needs-a-consequence-of-his-own-choice-or-discovery), [PR #80](https://github.com/whyse-ab/ex-tales-forge/pull/80), not merged): a vivid answer or a new fact is a 4. A 5 needs a consequence of his own choice or discovery, where the world reacts: an NPC acts on what he learned, or a door opens because he asked.
+
+What the re-score shows:
+
+- **The baseline is settled.** Jev is unsure on 33% of his baseline turns, against 51% on #69 and 72% on the first sharp version.
+- **Post-rework, much less so** (48% unsure).
+- **The weighted headline and the deltas don't change:** Paul is about 0.1 lower turn by turn and no different per session.
+
+**Rubric:** paul `jev-affect-v1-df3c861`, replacing the first sharp version `7862783`. Lotta, Lars, Hawk and Ronny are unchanged. Examples from real turns:
+
+- **Level 4:** he asks whether patrons lost kin, and Brenna tells him of Old Jarek's boy, orcs with eyes like hot coals and something older below (`f756f876` T3).
+- **Level 5:** he offers his preacher's hands, and Brenna puts him to stir the stewpot (`93213b5e` T4).
+
+**Re-score:** Paul's 13 baseline runs (his part of the 26-run Paul/Lotta set) and his 5 post-rework runs, from stored transcripts. It ran on the box from the PR branch with `mix run --no-start` and wrote nothing to any database. That was 18 Jev calls for **$0.0062**. Raw rows: [`rescore-baseline-2026-10-08-paul-consequence.json`](scripts/jev-rescore/rescore-baseline-2026-10-08-paul-consequence.json) and [`rescore-post-rework-2026-10-08-paul-consequence.json`](scripts/jev-rescore/rescore-post-rework-2026-10-08-paul-consequence.json). Full output: [`results-2026-10-08-paul-consequence.md`](scripts/jev-confidence/results-2026-10-08-paul-consequence.md); everything above its new section is unchanged.
+
+**Paul, three rubric versions** (unsure = confidence < 0.7):
+
+| Rubric | Unsure, baseline | Unsure, post-rework | **Weighted, baseline** | **Weighted, post-rework** | Session weighted, base / post |
+|---|---|---|---|---|---|
+| #69 (`fd84ebb`) | 51% | 46% | 4.39 | 4.26 | 4.82 / 4.78 |
+| first sharp (`7862783`) | 72% | 74% | 4.44 | 4.34 | 4.89 / 4.86 |
+| **consequence (`df3c861`)** | **33%** | **48%** | **4.41** | **4.27** | 4.88 / 4.86 |
+
+**Deltas, post-rework minus baseline** (95% CI, bootstrap over runs, seed + 3):
+
+| Rubric | **Turn weighted Δ** | Unsure share Δ | Session weighted Δ |
+|---|---|---|---|
+| #69 | −0.12 (−0.20…−0.05) | −5 pp (−14…+5) | −0.04 (−0.15…+0.07) |
+| first sharp | −0.10 (−0.21…0.00) | +2 pp (−13…+13) | −0.03 (−0.12…+0.08) |
+| **consequence** | **−0.14 (−0.24…−0.03)** | **+15 pp (+2…+28)** | −0.01 (−0.09…+0.08) |
+
+This bootstrap uses its own seed, so the #69 and first-sharp CIs differ from the section above by up to 0.01. The point estimates are the same.
+
+**Breakdown at 0.7 (turns):**
+
+| Rubric | Dataset | Confident-high | Confident-middle | Confident-low | Unsure |
+|---|---|---|---|---|---|
+| #69 | baseline / post | 64 (49%) / 27 (54%) | 0 / 0 | 0 / 0 | 66 (51%) / 23 (46%) |
+| first sharp | baseline / post | 36 (28%) / 13 (26%) | 0 / 0 | 0 / 0 | 94 (72%) / 37 (74%) |
+| consequence | baseline / post | 87 (67%) / 26 (52%) | 0 / 0 | 0 / 0 | 43 (33%) / 24 (48%) |
+
+**Level probabilities on the consequence rubric:**
+
+| Dataset | Most likely level 1/2/3/4/5 (turns) | Sure turns: level 4 / level 5 | Mean p of levels 4 / 5, unsure turns |
+|---|---|---|---|
+| baseline | 0 / 0 / 3 / 75 / 52 | 49 / 38 | 0.47 / 0.43 |
+| post-rework | 0 / 0 / 0 / 30 / 20 | 19 / 7 | 0.42 / 0.40 |
+
+What it shows:
+
+- **The rule works where it applies.** Jev now separates "told something" from "the world reacted" on most turns: 87 of 130 baseline turns are sure, 49 at level 4 and 38 at level 5. On the first sharp version only 36 were sure.
+- **The headline and the deltas don't move.** The weighted headline is within 0.03 of the #69 one on both sides. Paul's turn-level dip stays about −0.1 and is now clear of zero (−0.14, CI −0.24…−0.03). His sessions don't move.
+- **Why some turns stay unsure.** Jev returns no rationales, so this comes from the vectors and from reading the turns. Of the 43 unsure baseline turns:
+  - **25 sit just below the cutoff** (confidence 0.6–0.69).
+  - **35 are still a 4-vs-5 split** (p4 + p5 ≥ 0.8). They are turns where it is debatable whether the world reacted to *his* choice. Examples:
+    - a free first ale "for a polite stranger" (`761713eb` T1, 0.50 / 0.48): a gift, which never counts, but given because of his manner;
+    - a turn where his question about two watchers makes them get up and demand a toll (`26d2424a` T7, 0.23 / 0.64): a consequence of his asking, but a hostile one, on a scale of frustrated to delighted.
+  - **6 baseline and 7 post-rework turns carry ≥ 0.3 on levels 1–3.** These are turns where the play itself limped. In `761713eb` T8, for example, he pleads with Osric but the GM has him speak to Brenna.
+- **Why post-rework is murkier.** Post-rework, unsure turns rise by 15 pp (CI +2…+28). Its runs bring more threats and confrontations: by a rough keyword count (toll, club, blade, fight, outside and the like), 70% of post-rework Paul turns against 48% in the baseline. Those are the turns where "the world reacts" and "would he be delighted" pull apart. Five post-rework runs is a small base, so read this as a hint, not a finding.
+
+Reproduce: `python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final > results.md`. *Added 2026-10-08:* add `--rescore-conf docs/scripts/jev-rescore/rescore-baseline-2026-10-08-conf.json` for the Paul and Lotta turn-level reading, and see the script's [README](scripts/jev-confidence/README.md) for the re-score command. *Added 2026-10-08:* `--sharp-base` / `--sharp-post` with the two `*-sharp.json` files add the weighted headline and the sharpened rubric. *Added 2026-10-08:* `--paul-cons-base` / `--paul-cons-post` with the two `*-paul-consequence.json` files add Paul's consequence rubric.
 
 ## Appendix: reproducing
 

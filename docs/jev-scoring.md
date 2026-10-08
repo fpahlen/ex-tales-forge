@@ -78,7 +78,7 @@ Decision: [Sharper Jev borders for Paul (4 vs 5) and Lotta (3 vs 4)](decisions.m
 On the stricter rubric above, Jev was unsure (confidence < 0.7) on 51% of Paul's and 75% of Lotta's baseline turns. The splits sat exactly on these borders. Each border now names what to look for in the turn, with an example from a real turn:
 
 - **Paul 4:** the reply answers something specific to him but *only answers him*: information he asked for, a price, a room, a welcome or a gift. Example: he asks what proof Osric wants and Brenna tells him, a carved bone idol (`9e1c1d34` T4).
-- **Paul 5:** at least two kinds of evidence, *each visible in this turn's narration*:
+- **Paul 5** (first sharp version, replaced the same day; see *Paul's level 5 is a consequence* below): at least two kinds of evidence, *each visible in this turn's narration*:
   - a surprise ("a new fact, event or arrival he did not ask about or point to");
   - a consequence ("something changes because of a choice of his; an answer alone is not a consequence");
   - a callback to a specific earlier word or deed;
@@ -88,11 +88,11 @@ On the stricter rubric above, Jev was unsure (confidence < 0.7) on 51% of Paul's
 - **Lotta 3:** the reply "would read the same for any traveller who said her line": her name used, her order served, her question answered, a price, a job offered to anyone. Example: Brenna welcomes "Hilde", names the price and mentions the bounty (`a9585b54` T1).
 - **Lotta 4:** the reply picks up something particular to her character that another traveller would not get: her race, craft or calling, her background or manner, or her earlier deeds. Example: she says she is more at home in the wilds, and Brenna says the job in the wilds might suit her better than swinging a pick (`f33a16a8` T2).
 
-| persona | #69 | sharpened (PR #80) |
-|---|---|---|
-| paul | `jev-affect-v1-fd84ebb` | `jev-affect-v1-7862783` |
-| lotta | `jev-affect-v1-ce84a1a` | `jev-affect-v1-989546a` |
-| lars / hawk / ronny | `fc771be` / `129f728` / `e8f0786` | unchanged |
+| persona | #69 | first sharp | current in PR #80 |
+|---|---|---|---|
+| paul | `jev-affect-v1-fd84ebb` | `jev-affect-v1-7862783` | **`jev-affect-v1-df3c861`** (consequence) |
+| lotta | `jev-affect-v1-ce84a1a` | `jev-affect-v1-989546a` | `jev-affect-v1-989546a` |
+| lars / hawk / ronny | `fc771be` / `129f728` / `e8f0786` | unchanged | unchanged |
 
 **Re-score** of the baseline's and the post-rework series' Paul and Lotta runs from the stored transcripts: 36 Jev calls for $0.012, with raw rows in `scripts/jev-rescore/*-sharp.json`. Unsure share, baseline / post-rework:
 
@@ -105,6 +105,29 @@ On the stricter rubric above, Jev was unsure (confidence < 0.7) on 51% of Paul's
 - **Paul:** it does not. His typical turn is both "an answer to his open question" and "vivid new detail he didn't ask for".
 
 Details: [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-confidence-weighted-headline-and-sharper-paullotta-borders).
+
+**Paul's level 5 is a consequence** (added 2026-10-08, decision [Paul's level 5 needs a consequence of his own choice or discovery](decisions.md#2026-10-08-pauls-level-5-needs-a-consequence-of-his-own-choice-or-discovery), same PR). On the first sharp version Jev split about 0.42 / 0.45 between 4 and 5, because a vivid answer full of new facts fits both "an answer" and "a surprise". Fredrik settled the border:
+
+- **Paul 4:** an NPC answers something specific he said, did or is. A vivid or rich answer is a 4, and so is a new fact, rumour or detail volunteered with it, even one he did not ask about. Example: he asks whether patrons lost kin, and Brenna tells him of Old Jarek's boy, orcs with eyes like hot coals and something older below (`f756f876` T3).
+- **Paul 5:** a consequence of his own choice or discovery, visible in this turn: the world reacts, so the situation changes because of it.
+  - Examples of a reaction: an NPC acts on what he learned or offered (sets out, changes plans, hands him a task or a key, takes a risk for him), or a door opens or a way forward appears because he asked.
+  - A vivid answer, a new fact, a warm reply, a gift or a price is never a consequence by itself.
+  - Surprise, callback and NPC goals no longer count for Paul; Lotta keeps them.
+  - Example: he offers his preacher's hands and Brenna puts him to stir the stewpot (`93213b5e` T4).
+
+Re-score of Paul's 13 baseline and 5 post-rework runs: 18 Jev calls for $0.0062, raw rows in `scripts/jev-rescore/*-paul-consequence.json`.
+
+| Paul | #69 | first sharp | consequence |
+|---|---|---|---|
+| Unsure share, baseline / post-rework | 51% / 46% | 72% / 74% | **33% / 48%** |
+| Weighted headline, baseline / post-rework | 4.39 / 4.26 | 4.44 / 4.34 | 4.41 / 4.27 |
+| Turn weighted Δ (CI) | −0.12 (−0.20…−0.05) | −0.10 (−0.21…0.00) | −0.14 (−0.24…−0.03) |
+
+- **Baseline:** the consequence rule settles most turns (87 of 130 sure: 49 at level 4, 38 at level 5).
+- **Post-rework:** less so. Its threat-heavy turns, where the world reacts but not to his delight, stay split.
+- **Unchanged:** Paul's headline and dip.
+
+Details: [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-pauls-level-5-needs-a-consequence-of-his-own-choice-or-discovery).
 
 **Headline on the playtest pages** (same PR, decision [The headline Jev score is a confidence-weighted average](decisions.md#2026-10-08-the-headline-jev-score-is-a-confidence-weighted-average)):
 

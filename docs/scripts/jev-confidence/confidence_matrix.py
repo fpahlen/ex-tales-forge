@@ -36,6 +36,10 @@ bootstrap CIs over runs. Needs --rescore-conf (the #69 baseline pass with turn c
 
 Usage: python3 confidence_matrix.py BASELINE_DIR COMPARE_DIR [--rescore-conf FILE]
        [--sharp-base FILE --sharp-post FILE] [--json OUT.json] > out.md
+Added 2026-10-08 (decision "Paul's level 5 needs a consequence of his own choice or discovery"): --paul-cons-base FILE
+--paul-cons-post FILE (rescore.exs rows for Paul with rubric df3c861; needs --sharp-*) append a Paul-only section
+comparing #69, the first sharp version and the consequence version: unsure share, weighted headline, breakdown,
+deltas, most likely level and the mean level probabilities of sure and unsure turns. Bootstrap seed SEED + 3.
 """
 import json, sys
 import numpy as np, pandas as pd
@@ -57,6 +61,7 @@ def opt(name):
     if name in args:
         i = args.index(name); v = args[i + 1]; del args[i:i + 2]; return v
 sharp_b, sharp_p = opt("--sharp-base"), opt("--sharp-post")
+cons_b, cons_p = opt("--paul-cons-base"), opt("--paul-cons-post")
 rconf = None
 if "--rescore-conf" in args:
     i = args.index("--rescore-conf"); rconf = args[i + 1]; del args[i:i + 2]
@@ -416,6 +421,82 @@ if sharp_b and sharp_p:
     w(table(rows, ["p", "n", "pl", "wt", "un", "sw"], ["Persona", "Turns", "Plain mean", "**Weighted**", "Unsure", "Session weighted"]))
     cost = sum(r["usage"]["cost"] for f in (sharp_b, sharp_p) for r in json.load(open(f)) if r.get("usage"))
     w(f"Sharpened re-score: {len(ssb)} + {len(ssa)} runs, Jev cost ${cost:.4f} (Jev's own usage figure).\n")
+
+# ---------------------------------------------------------------- added 2026-10-08: Paul's level 5 = a consequence
+def probs_frame(path):
+    """Per-turn probability vectors (levels 1..5) and confidences from rescore.exs rows."""
+    rows = []
+    for r in json.load(open(path)):
+        for cf, pr in zip(r["turn_conf"], r["turn_probs"]):
+            rows.append([cf] + [pr[str(i)] for i in range(5)])
+    return np.array(rows)
+
+
+if cons_b and cons_p:
+    assert sharp_b and sharp_p, "--paul-cons-* needs --sharp-*"
+    rng4 = np.random.default_rng(SEED + 3)
+    ctb, csb = sharp_frames(cons_b, runs_turns)
+    cta, csa = sharp_frames(cons_p, runs_turns)
+    psets = [("#69", tb_all[tb_all.persona == "paul"], ta_all[ta_all.persona == "paul"], rb_all[rb_all.persona == "paul"],
+              ra_all[ra_all.persona == "paul"]),
+             ("sharp", stb[stb.persona == "paul"], sta[sta.persona == "paul"], ssb[ssb.persona == "paul"], ssa[ssa.persona == "paul"]),
+             ("consequence", ctb, cta, csb, csa)]
+    out["paul_consequence"] = {}
+    w("## Added 2026-10-08: Paul's level 5 needs a consequence of his own choice or discovery\n")
+    w("Paul only. '#69' and 'sharp' as in the section above; 'consequence' = rubric df3c861 (a vivid answer or new fact "
+      "is 4; 5 needs the world to react to his own choice or discovery), re-scored on both sides. "
+      f"Unsure = confidence < {MAIN}. Deltas: post-rework minus baseline, bootstrap 95% CI over runs (seed + 3).\n")
+    rows, drows, brows = [], [], []
+    for rub, tb_, ta_, rb_, ra_ in psets:
+        P = out["paul_consequence"][rub] = {}
+        for lab, t, r in (("base", tb_, rb_), ("post", ta_, ra_)):
+            m = matrix(t.score, t.conf, MAIN)
+            P[lab] = dict(n=len(t), plain=float(t.score.mean()), weighted=wmean(t.score, t.conf), unsure=m["unsure_share"],
+                          hi=m["hi"], lo=m["lo"], mid=m["mid"], un=m["unsure"],
+                          session_weighted=wmean(r.session_score, r.session_conf),
+                          session_unsure=float((r.session_conf < MAIN).mean()))
+            brows.append(dict(rub=rub, ds=lab, n=len(t), hi=f"{m['hi']} ({pc(m['hi']/m['n'])})",
+                              lo=f"{m['lo']} ({pc(m['lo']/m['n'])})", mid=f"{m['mid']} ({pc(m['mid']/m['n'])})",
+                              un=f"{m['unsure']} ({pc(m['unsure_share'])})"))
+        A, B = wruns(ta_), wruns(tb_)
+        dw = boot_delta(A, B, wstat, rng4); du = boot_delta(A, B, ustat, rng4)
+        sa = pd.DataFrame(dict(sw=ra_.session_score.values * ra_.session_conf.values, w=ra_.session_conf.values))
+        sb = pd.DataFrame(dict(sw=rb_.session_score.values * rb_.session_conf.values, w=rb_.session_conf.values))
+        ds = boot_delta(sa, sb, wstat, rng4)
+        P["delta"] = dict(weighted=dict(zip(("d", "lo", "hi"), dw[:3])), unsure=dict(zip(("d", "lo", "hi"), du[:3])),
+                          session_weighted=dict(zip(("d", "lo", "hi"), ds[:3])))
+        b, a = P["base"], P["post"]
+        rows.append(dict(rub=rub, ub=pc(b["unsure"]), ua=pc(a["unsure"]), wb=f2(b["weighted"]), wa=f2(a["weighted"]),
+                         pb=f2(b["plain"]), pa=f2(a["plain"]), sb=f2(b["session_weighted"]), sa=f2(a["session_weighted"])))
+        drows.append(dict(rub=rub, dw=f"{sg(dw[0])} ({ci(dw[1], dw[2])})", du=f"{pp(du[0])} pp ({ci(du[1], du[2], True)})",
+                          ds=f"{sg(ds[0])} ({ci(ds[1], ds[2])})"))
+    w("### Per dataset (turns; sessions in the last two columns)\n")
+    w(table(rows, ["rub", "ub", "ua", "wb", "wa", "pb", "pa", "sb", "sa"],
+            ["Rubric", "Unsure base", "Unsure post", "**Weighted base**", "**Weighted post**", "Plain base", "Plain post",
+             "Session weighted base", "Session weighted post"]))
+    w("### Deltas, post-rework minus baseline\n")
+    w(table(drows, ["rub", "dw", "du", "ds"], ["Rubric", "**Turn weighted Δ**", "Unsure share Δ", "Session weighted Δ"]))
+    w(f"### Breakdown at {MAIN} (turns)\n")
+    w(table(brows, ["rub", "ds", "n", "hi", "lo", "mid", "un"],
+            ["Rubric", "Dataset", "Turns", "Confident-high", "Confident-low", "Confident-middle", "Unsure"]))
+    w("### Most likely level and mean level probabilities (Jev's turn vectors, levels 1–5)\n")
+    rows = []
+    for rub, fb, fp in (("sharp", sharp_b, sharp_p), ("consequence", cons_b, cons_p)):
+        for lab, f in (("base", fb), ("post", fp)):
+            X = probs_frame(f)
+            if rub == "sharp":
+                X = np.array([x for x, r in zip(X, [r for r in json.load(open(f)) for _ in r["turn_conf"]]) if r["persona"] == "paul"])
+            am = np.bincount(X[:, 1:].argmax(1), minlength=5)
+            sure, uns = X[X[:, 0] >= MAIN, 1:], X[X[:, 0] < MAIN, 1:]
+            fmt = lambda Y: " / ".join("%.2f" % v for v in Y.mean(0)) if len(Y) else "—"
+            out["paul_consequence"].setdefault("probs", {})[f"{rub}/{lab}"] = dict(
+                argmax=am.tolist(), sure_mean=sure.mean(0).tolist() if len(sure) else None,
+                unsure_mean=uns.mean(0).tolist() if len(uns) else None)
+            rows.append(dict(rub=rub, ds=lab, am=" / ".join(str(v) for v in am), su=fmt(sure), un=fmt(uns)))
+    w(table(rows, ["rub", "ds", "am", "su", "un"],
+            ["Rubric", "Dataset", "Most likely level 1/2/3/4/5 (turns)", "Mean p, sure turns", "Mean p, unsure turns"]))
+    cost = sum(r["usage"]["cost"] for f in (cons_b, cons_p) for r in json.load(open(f)) if r.get("usage"))
+    w(f"Consequence re-score: {len(csb)} + {len(csa)} Paul runs, Jev cost ${cost:.4f} (Jev's own usage figure).\n")
 
 if jout:
     def clean(o):

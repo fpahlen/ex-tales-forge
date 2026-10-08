@@ -353,6 +353,22 @@ Weighted headline for this baseline. Turns use the score set this analysis used;
 - **The sharper border settles Lotta, at level 3:** Jev is now mostly sure the GM's replies would read the same for any traveller. It does not settle Paul (unsure 72%).
 - The re-score cost $0.012 for 36 Jev calls (26 of them for these baseline runs). Details, deltas and the reasons are in the [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-confidence-weighted-headline-and-sharper-paullotta-borders).
 
+**Added 2026-10-08: Paul's level 5 needs a consequence of his own choice or discovery.** Fredrik settled Paul's 4-vs-5 border ([decision](decisions.md#2026-10-08-pauls-level-5-needs-a-consequence-of-his-own-choice-or-discovery), [PR #80](https://github.com/whyse-ab/ex-tales-forge/pull/80), not merged; rubric `jev-affect-v1-df3c861`). A vivid answer or new fact is a 4. A 5 needs the world to react to his own choice or discovery. His 13 baseline runs were re-scored from the stored transcripts:
+
+| Paul, this baseline | Plain mean | **Weighted** | Unsure (< 0.7) | Breakdown high / middle / low / unsure | Session weighted |
+|---|---|---|---|---|---|
+| #69 (`fd84ebb`) | 4.37 | **4.39** | 51% | 64 / 0 / 0 / 66 | 4.82 |
+| first sharp (`7862783`) | 4.37 | **4.44** | 72% | 36 / 0 / 0 / 94 | 4.89 |
+| consequence (`df3c861`) | 4.37 | **4.41** | **33%** | 87 / 0 / 0 / 43 | 4.88 |
+
+On the consequence rubric Jev is sure on 87 of 130 turns: 49 at level 4 and 38 at level 5. His most likely level is 4 on 75 turns and 5 on 52.
+- **The weighted headline barely moves.** The rubric changes how sure Jev is, not where Paul sits.
+- **The post-rework side is less settled** (48% unsure).
+- **Paul's turn dip** stays about −0.1: −0.14, CI −0.24…−0.03.
+- **Cost:** the re-score took 18 Jev calls for $0.0062, 13 of them for these baseline runs.
+
+Details and the reasons some turns stay unsure: [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-pauls-level-5-needs-a-consequence-of-his-own-choice-or-discovery).
+
 Reproduce: `python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final > results.md`. *Added 2026-10-08:* add `--rescore-conf docs/scripts/jev-rescore/rescore-baseline-2026-10-08-conf.json` for the stricter-rubric Paul and Lotta rows, and see the script's [README](scripts/jev-confidence/README.md).
 
 ## Appendix: reproducing
