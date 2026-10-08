@@ -1,7 +1,7 @@
 ---
 title: "Playtest: the character each persona creates"
 updated: 2026-10-07
-status: provisional (until founder survey Q10–Q14)
+status: provisional (until the founder survey archetype grids)
 related: personas.md, character-creation-persona-prefs.md, plan-jev-baseline-and-ab.md
 ---
 
@@ -13,7 +13,7 @@ Until now every playtest bot played the pack's default character, Elara Voss. Wi
 - The seed is fixed per persona, so every run of a persona plays the identical character, including its derived OCEAN, Maslow level, concerns and coins. That keeps runs comparable.
 - The persona's system prompt gets one line saying who it created (name, race, class, concept), because a real player knows that.
 - `Runner.start(..., character: :default)` still plays Elara, for comparison runs.
-- **Provisional:** the picks are derived from [personas](personas.md) and the [creation preferences interviews](character-creation-persona-prefs.md). Revisit them when the founder survey answers to Q10–Q14 (character creation per persona) arrive.
+- **Provisional:** the picks are derived from [personas](personas.md) and the [creation preferences interviews](character-creation-persona-prefs.md). Revisit them when the answers to the archetype grids in the [founder survey](founder-survey-3.md) (Q10, Q14, Q18, Q22, Q26) arrive.
 
 ## The picks and why
 
@@ -58,5 +58,5 @@ With the old game's skill rules ([decision 2026-10-07](decisions.md#2026-10-07-s
 
 ## Open points
 
-- Founder survey Q10–Q14 may change race, class or concept per persona. Update the JSON and this note; the old runs keep the character they played (it is in the session's world state).
+- The founder survey archetype grids may change race, class or concept per persona. Update the JSON and this note; the old runs keep the character they played (it is in the session's world state).
 - Elara (Tin Valley) is a classless human with persuasion 3, insight 2, stealth 2, melee 1 and CHA 14. Paul's new character is stronger at talk (CHA 17), Hawk's and Lars's at fighting, and Lotta's CHA is lower (10). That is part of the comparison with the Elara runs. If a persona's score moves, check whether the character explains it (see [the measurement plan](plan-jev-baseline-and-ab.md)).

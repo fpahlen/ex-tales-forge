@@ -1,10 +1,12 @@
 ---
 title: "Founder survey 2: how we'd play"
 updated: 2026-10-07
-status: draft
+status: merged into founder survey 3 (not sent)
 ---
 
-# Founder survey 2: how we'd play (draft)
+# Founder survey 2: how we'd play (merged, not sent)
+
+> **Merged.** This survey never went out. Its play-style questions and archetype grids are now part of the combined form in [founder survey 3](founder-survey-3.md); edit that file, not this one.
 
 ## Why this survey
 
