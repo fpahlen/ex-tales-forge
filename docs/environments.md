@@ -1,6 +1,6 @@
 ---
 title: Environments and how changes reach production
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Environments and how changes reach production
@@ -9,7 +9,7 @@ Status 2026-10-06: **production** and **playtest** are live. Production deploys 
 
 ## Branches
 
-- `main` is what runs in production. Nobody pushes to it directly; everything goes in through a pull request. `main` is protected: the CI check **`Test`** must pass before anything lands on it.
+- `main` is what runs in production. Nobody pushes to it directly; everything goes in through a pull request. `main` is protected: the required CI checks **`Test`** and **`Dialyzer`** must both pass before anything lands on it.
 - Each change gets a short-lived branch (`feature/...`, `fix/...`), a PR, and is deleted after merge.
 - There is no long-lived `dev` or `staging` branch.
 
@@ -30,7 +30,7 @@ Region is `arn` (Stockholm) for all three. The `tales-forge.ai` domain stays on 
 
 ## How a change gets to production
 
-1. Push a branch and open a PR. GitHub Actions runs the checks: compile with warnings as errors, format check, Credo, tests, and `mix hex.audit`.
+1. Push a branch and open a PR. GitHub Actions runs the two required jobs: **`Test`** (compile with warnings as errors, format check, Credo strict, tests with coverage, the docs build and `mix hex.audit`) and **`Dialyzer`**.
 2. Later (not built yet), a preview app also starts for the PR, with its link posted on the PR.
 3. When the checks are green and the change is reviewed, merge to `main`.
 4. On `main`, Actions (`.github/workflows/ci.yml`) runs the checks again and then deploys to `tales-forge`. Database migrations run first (`/app/bin/migrate`). Only one deploy runs at a time, and a running deploy is never cancelled. This is live.
@@ -100,7 +100,7 @@ GitHub Actions secret: a Fly token that can create and destroy apps, which is br
 
 - Playtest keeps 1 machine always running, and so does its database (~$8/month in total).
 - Previews get their own app and a per-PR database on the playtest cluster, with no AI key, destroyed when the PR closes.
-- `main` is protected with the required check `Test`. Production deploys automatically from `main` through Actions; playtest follows right after.
+- `main` is protected with the required check `Test` (`Dialyzer` has since been added as a second required check; see [Coding standards](coding-standards.md)). Production deploys automatically from `main` through Actions; playtest follows right after.
 
 ## Open decisions
 

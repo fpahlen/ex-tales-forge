@@ -1,6 +1,6 @@
 ---
 title: Infrastructure assets
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Infrastructure assets
@@ -26,7 +26,7 @@ Everything Tales Forge runs on, in one place. "Login held by" says who can get i
 | Endpoint `GET /internal/costs` (both apps) | Gives the other app's costs page this app's aggregated AI spend as JSON: totals per bucket and time window only, no rows, prompts or player data. Production fetches playtest's from `COSTS_PEER_URL` (3 s timeout) | Live since 2026-10-06 ([ex-tales-forge #28](https://github.com/whyse-ab/ex-tales-forge/pull/28)). On (`COSTS_PEER_TOKEN` set on both apps); a wrong token gets 401, and it is off (404) whenever the token is unset | Free | — | Fly secret `COSTS_PEER_TOKEN` (same value on both apps, set 2026-10-06); `COSTS_PEER_URL` is config, not a secret |
 | GitHub docs token | Lets the admin import from `tales-forge-docs` and check `whyse-ab/tales-forge` team membership | Live (fine-grained, contents read + Members read) | Free | Fredrik | Fly secret `GITHUB_DOCS_TOKEN` |
 | GitHub OAuth app *Tales Forge Admin* | "Sign in with GitHub", the only login (every page, from PR #54) | Live since v13 (2026-10-06), registered under `whyse-ab` | Free | Fredrik | Fly secrets `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` |
-| GitHub Actions CI and prod deploy | Tests every PR; deploys `main` to `tales-forge` after the tests pass ([environments](environments.md)). `main` is protected: required check `Test` | Live (`.github/workflows/ci.yml`, merged in PR #16) | Free (public repo) | Fredrik | Actions secret `FLY_API_TOKEN` (deploy token for `tales-forge`, set) |
+| GitHub Actions CI and prod deploy | Tests every PR; deploys `main` to `tales-forge` after the tests pass ([environments](environments.md)). `main` is protected: required checks `Test` and `Dialyzer`; the production deploy runs only after both pass | Live (`.github/workflows/ci.yml`, merged in PR #16) | Free (public repo) | Fredrik | Actions secret `FLY_API_TOKEN` (deploy token for `tales-forge`, set) |
 | Fly app `tales-forge-playtest` | Long-lived playtest for persona bots and, later, invited testers; tracks `main` (deployed right after prod by `.github/workflows/playtest.yml`, ex-tales-forge PR #17) | Live at [tales-forge-playtest.fly.dev](https://tales-forge-playtest.fly.dev) since 2026-10-06: arn, shared-cpu-1x 512 MB plus 512 MB swap, 1 machine (`801e9ef6136178`) always on | ~$3.84/month | Fredrik | Fly secrets on `tales-forge-playtest` (`DATABASE_URL`, `SECRET_KEY_BASE`, `ADMIN_EMAILS`, `ADMIN_GITHUB_TEAM`, `XAI_API_KEY`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `GITHUB_DOCS_TOKEN`); Actions secret `FLY_API_TOKEN_PLAYTEST` (set) |
 | Postgres `tales-forge-playtest-db` | Playtest database; later also holds one database per PR preview | Live: self-run Fly Postgres (postgres-flex 18.1, same type as prod), arn, single node, shared-cpu-1x 512 MB, 1 GB volume, machine `d8d1116b5d1918`, always on, attached to `tales-forge-playtest` | ~$3.99/month ($3.84 machine plus $0.15 volume) | Fredrik | Fly secret `DATABASE_URL` on `tales-forge-playtest`; superuser password not stored |
 | Fly PR preview apps `tales-forge-pr-<n>` | One throwaway app per open PR, with its own database on `tales-forge-playtest-db`, no AI key, destroyed on close | Decided, not built | ~$1.50/month est. | — | Generated per app; Actions secret for a Fly app-creating token (not created) |
@@ -62,7 +62,7 @@ OAuth app settings (GitHub → Settings → Developer settings → OAuth Apps �
 | Device flow | Off |
 | Scopes | `read:org user:email` (requested by the app at sign-in; nothing to tick on the OAuth app) |
 
-Who gets in: only active members of the `ADMIN_GITHUB_TEAM` team, `whyse-ab/tales-forge` (pending invites don't count), and every member gets the admin pages too. `ADMIN_EMAILS` no longer counts. Removing someone from the team ends their access within about 5 minutes. Unsetting `ADMIN_GITHUB_TEAM` locks everyone out at once. Nobody's GitHub token is stored. Signed out, only `/admin/login`, the OAuth routes and the Fly health check `/health` answer; everything else redirects to the login page.
+Who gets in: only active members of the `ADMIN_GITHUB_TEAM` team, `whyse-ab/tales-forge` (pending invites don't count), and every member gets the admin pages too. `ADMIN_EMAILS` no longer counts. Removing someone from the team ends their access within about 5 minutes. Unsetting `ADMIN_GITHUB_TEAM` locks everyone out at once. Nobody's GitHub token is stored. Signed out, only `/admin/login`, the OAuth routes, the Fly health check `/health` and the machine-to-machine `GET /internal/costs` answer. `/internal/costs` needs the bearer token `COSTS_PEER_TOKEN` (401 with a wrong token, 404 while unset) and returns only aggregated spend totals per bucket and time window, no rows, prompts or player data. Everything else redirects to the login page.
 
 Secrets (all required): `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `ADMIN_GITHUB_TEAM`. The team check also needs `GITHUB_DOCS_TOKEN` to read `whyse-ab` members (fine-grained token: organization permission *Members: read*; classic token: `read:org`).
 
