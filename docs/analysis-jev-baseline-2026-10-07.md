@@ -1,6 +1,6 @@
 ---
 title: "Analysis: Jev baseline after the roll and Brenna rework (2026-10-07)"
-updated: 2026-10-07
+updated: 2026-10-08
 status: analysis
 ---
 
@@ -18,6 +18,8 @@ status: analysis
 **Growth is very slow.** 1.0 LP per run, 0.65 rolls per run, and only 34% of runs roll at all. Over 65 runs there were **0 improvement attempts and 0 improvements**. At this pace Paul needs about 43 runs to bring one skill to the first 5-LP threshold.
 
 Chart: [score and confidence by turn per persona](images/jev-baseline-2026-10-07-by-turn.png) (below).
+
+*Update 2026-10-08:* a confidence-aware reading of these scores (only the scores Jev is sure about count) is in [Update 2026-10-08: confidence-aware reading](#update-2026-10-08-confidence-aware-reading).
 
 ---
 
@@ -265,6 +267,60 @@ Session scores and like-for-like turns 1–5 (one mean per run; CIs bootstrap ru
    - score turns without hindsight (state cut at turn N);
    - for an A/B, use Lars and Ronny (about 10 runs per arm for Δ0.5) and Hawk only with many runs (bimodal);
    - run the planned `variant: "baseline"` arm on this same deploy to separate the rework from the character and run-length changes.
+
+## Update 2026-10-08: confidence-aware reading
+
+**Summary.** Jev gives every score a confidence (0–1). From today we count only the scores Jev is sure about (confidence ≥ 0.7) in the headline, and report the share it is unsure about separately ([decision](decisions.md#2026-10-08-jev-scores-are-read-as-a-score-by-confidence-matrix-not-a-plain-average)). Read that way, this baseline tells the same story with one correction. Paul and Lotta are still at the top: Jev is sure on 83% and 92% of their turns, and every sure turn is high. Hawk is still low: almost half his turns are confidently low ("no danger"), and Jev is unsure on the other half. **Outside Hawk, problems show up as uncertainty, not as low scores:** only 1 of 520 non-Hawk turns is confidently low. Ronny's and Lars's plain averages were pulled down by turns Jev wasn't sure about (Ronny 4.44 → 4.80, Lars 3.66 → 3.92 on the sure turns). Jev is unsure on 58% of Ronny's turns (Brenna's freebies) and 55% of Lars's (quiet ale-and-stew, chore and bedtime turns). That share, not the average, is the signal to watch for them.
+
+**Method.** Existing scores only: no new runs and no Jev calls. These are the stored first-pass scores this analysis used, so Paul and Lotta are on the rubric of that day (before #69's stricter top). Their stricter re-score is read in the [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#update-2026-10-08-confidence-aware-reading).
+
+- **High** = score ≥ 3.5 (nearest level 4 or 5: the persona's "works" levels). **Low** = score ≤ 2.5 (nearest level 1 or 2: "broken"). In between is level 3 ("Mixed"; Hawk's "Closing in"), reported as confident-middle. These are the midpoints between levels, since the score is Jev's expected level.
+- **Confident** = confidence ≥ the cutoff: 0.7 for the headline, with 0.6 and 0.8 as a sensitivity check. **Unsure** = below the cutoff, which is the low-confidence share.
+- **Headline** = mean of the confident turns, pooled over the persona's runs. ⚠ marks a cell with fewer than 20 confident turns or 3 runs with one (turns), or fewer than 3 confident sessions.
+- Script: [`scripts/jev-confidence/`](scripts/jev-confidence/) (`confidence_matrix.py`; full output in `results-2026-10-08.md`).
+
+**Turns** (cutoff 0.7 for the matrix columns; shares are of all turns):
+
+| Persona | Turns | Plain mean | Headline ≥ 0.6 | **Headline ≥ 0.7** | Headline ≥ 0.8 | Confident-high | Confident-low | Confident-middle | Unsure (< 0.7) |
+|---|---|---|---|---|---|---|---|---|---|
+| Paul | 130 | 4.70 | 4.80 (n=118) | **4.82** (n=108) | 4.85 (n=86) | 108 (83%) | 0 | 0 | 22 (17%) |
+| Lotta | 130 | 4.16 | 4.16 (n=129) | **4.15** (n=120) | 4.11 (n=70) | 120 (92%) | 0 | 0 | 10 (8%) |
+| Lars | 130 | 3.66 | 3.80 (n=85) | **3.92** (n=59) | 3.97 (n=33) | 56 (43%) | 1 (1%) | 2 (2%) | 71 (55%) |
+| Ronny\* | 130 | 4.44 | 4.75 (n=72) | **4.80** (n=54) | 4.85 (n=35) | 54 (42%) | 0 | 0 | 76 (58%) |
+| Hawk | 156 | 1.93 | 1.85 (n=136) | **1.85** (n=78) | 1.91 (n=37) | 2 (1%) | 73 (47%) | 3 (2%) | 78 (50%) |
+
+Low-confidence share of turns at each cutoff:
+
+| Persona | < 0.6 | **< 0.7** | < 0.8 | Confidence exactly 0 |
+|---|---|---|---|---|
+| Paul | 9% | **17%** | 34% | 1 |
+| Lotta | 1% | **8%** | 46% | 0 |
+| Lars | 35% | **55%** | 75% | 0 |
+| Ronny\* | 45% | **58%** | 73% | 6 |
+| Hawk | 13% | **50%** | 76% | 0 |
+
+**Sessions** (one per run):
+
+| Persona | Sessions | Plain mean | Headline ≥ 0.6 | **Headline ≥ 0.7** | Headline ≥ 0.8 | Unsure (< 0.7) | Confident-high / low / middle |
+|---|---|---|---|---|---|---|---|
+| Paul | 13 | 4.67 | 4.89 (n=11) | **4.89** (n=11) | 4.91 (n=10) | 2 | 11 / 0 / 0 |
+| Lotta | 13 | 4.40 | 4.40 (n=11) | 4.28 (n=2) ⚠ | — (n=0) ⚠ | **11** | 2 / 0 / 0 |
+| Lars | 13 | 4.04 | 4.00 (n=12) | **3.95** (n=7) | 4.10 (n=3) | 6 | 6 / 0 / 1 |
+| Ronny\* | 13 | 4.37 | 4.69 (n=5) | **4.71** (n=4) | — (n=0) ⚠ | **9** | 4 / 0 / 0 |
+| Hawk | 13 | 3.02 | 3.02 (n=13) | **3.05** (n=12) | 3.04 (n=9) | 1 | 4 / 6 / 2 |
+
+\* Ronny is the anti-persona: high = the game resisted his exploits (works), low = it let him (broken).
+
+What the matrix shows:
+
+- **Paul's broken runs are unsure, not low.** 13 of his 22 unsure turns are in the two snap-back runs (`761713eb` 7, `98018f52` 6, §4). Leaving them out lifts his headline from 4.70 to 4.82. A run that goes wrong for Paul makes Jev split between levels rather than score low.
+- **Ronny's low turns are Jev being split.** His six turns at confidence 0 include the four where Jev leaned to level 1 ("Unlocked") but spread the rest over 3–5, so the score landed at 2.24–2.91 (`54c401ab` T2, T8, T9 and `e367a9a0` T2, §4). Those are not verdicts. 9 of his 13 sessions are unsure.
+- **Hawk is the only persona with confident "broken" turns** (73 of 156). His unsure turns are a split between level 1 (no danger) and 2 (foreshadowed), so they are low too (mean 2.00): unsure about how low, not about whether it works.
+- **Lotta's confidence sits just above 0.7.** It passes 0.7 on 92% of her turns but 0.8 on only 54%: Jev is sure she is at level 4, and only roughly so. At session level only 2 of 13 sessions reach 0.7, too few to give a headline at that cutoff.
+- **The cutoff matters little for the turn headlines here:** they move by at most 0.17 between 0.6 and 0.8 (Lars 3.80–3.97), and the order of the personas never changes. At 0.8, Lotta's and Ronny's sessions have none left.
+- The deltas against the post-rework series under this reading are in the [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#update-2026-10-08-confidence-aware-reading). The Elara runs are not re-read here.
+
+Reproduce: `python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final > results.md` (see the script's [README](scripts/jev-confidence/README.md)).
 
 ## Appendix: reproducing
 

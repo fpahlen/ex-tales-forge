@@ -19,6 +19,8 @@ status: analysis
 
 **Cost:** 26 runs (23 done + 3 timed out) cost **$2.74**: game $2.10, persona $0.64, Jev $0.006. Per completed run that is **$0.114** (baseline: $0.093). Game cost per run is up 29%.
 
+*Update 2026-10-08:* a confidence-aware reading of these scores (only the scores Jev is sure about count) is in [Update 2026-10-08: confidence-aware reading](#update-2026-10-08-confidence-aware-reading). It leaves the session deltas unchanged and makes Hawk's turn-level gain clear.
+
 ---
 
 ## Data and method
@@ -247,6 +249,75 @@ Per persona (new): Lars 2.1 LP, 2.0 attempts, 1.5 levels per run; Paul 1.0 / 1.0
    - use recorded scenes, not the leave regex, from now on;
    - for the next A/B, run both arms on one deploy (`variant: "baseline"`), with at least 10 runs per arm for Lars and 15–20 for Hawk, Lotta and Ronny;
    - use Paul's turn means.
+
+## Update 2026-10-08: confidence-aware reading
+
+**Summary.** From today we count only the scores Jev is sure about (confidence ≥ 0.7) in the headline, and report the share it is unsure about separately ([decision](decisions.md#2026-10-08-jev-scores-are-read-as-a-score-by-confidence-matrix-not-a-plain-average)). Read that way, the main conclusion stands: **no persona's session score moved by an amount we can tell from zero.** Two things change. **Hawk's gain gets clearer:** on the turns Jev is sure about he is up +0.32 (95% CI +0.15…+0.47; the plain average said +0.17, CI −0.06…+0.38), at every cutoff. Jev is also unsure far less often about him (27% of turns against 50%). He moved from "confidently no danger" towards "closing in" (level 3), but he still almost never gets a confidently high turn (1 of 60). **Ronny's dip disappears** (session −0.28 becomes +0.01), because it came from sessions Jev wasn't sure about. With only 1 sure session in the new series, that is not a finding either way. Paul's turn dip (−0.12) can't be re-checked like for like: the stricter re-score of the baseline kept no turn confidences. Lotta has too few sure turns on the stricter rubric to read at 0.7.
+
+**Method.** Existing scores only: no new runs and no Jev calls. The score set is the one this analysis used: Paul and Lotta on the stricter #69 rubric on both sides (the baseline re-scored, §Data and method), the others on their unchanged rubrics.
+
+- **High** = score ≥ 3.5 (nearest level 4–5, "works"), **low** = score ≤ 2.5 (nearest level 1–2, "broken"), in between = level 3, reported as confident-middle. **Confident** = confidence ≥ 0.7 (sensitivity: 0.6 and 0.8). **Unsure** = below it: the low-confidence share. Same definitions as the [baseline update](analysis-jev-baseline-2026-10-07.md#update-2026-10-08-confidence-aware-reading).
+- **Headline** = mean of the confident turns (or sessions). **Deltas** are new minus baseline, with bootstrap 95% CIs over runs (5000 resamples; whole runs are resampled and the statistic recomputed). The "old" columns are the plain-average deltas of §1, recomputed by the same script. Their CIs differ from §1 by at most 0.03, which is bootstrap noise.
+- ⚠ = too few to say anything: fewer than 20 confident turns or 3 runs with one on a side (turns), or fewer than 3 confident sessions on a side.
+- **Gap:** the re-score of the baseline's Paul and Lotta runs (`rescore.exs`) stored their session confidence but not their turn confidences. They are not in the playtest database either (the re-score ran from the box, and the database holds only the stored rubric's rows for those runs; checked read-only today). So for Paul and Lotta the turn-level deltas under the new reading are n/a. Their session deltas and the score bands without confidence (below) are like for like.
+- Script: [`scripts/jev-confidence/`](scripts/jev-confidence/) (`confidence_matrix.py`; full output in `results-2026-10-08.md`).
+
+**Persona deltas, old vs new reading** (cutoff 0.7; n = confident sessions or turns, new/base):
+
+| Persona | Session Δ, plain (old) | **Session Δ, confident only** | Turn Δ, plain (old) | **Turn Δ, confident only** | Unsure turns, new vs base |
+|---|---|---|---|---|---|
+| Paul | +0.04 (−0.15…+0.31) | −0.07 (−0.17…+0.03), n=5/12 | **−0.12 (−0.21…−0.03)** | n/a: no baseline turn confidences | 46% vs unknown |
+| Lotta | −0.10 (−0.50…+0.34) | +0.07, n=1/2 ⚠ | −0.07 (−0.28…+0.14) | n/a: no baseline turn confidences | 86% vs unknown |
+| Lars | +0.01 (−0.27…+0.28) | +0.08 (−0.30…+0.48), n=3/7 | +0.04 (−0.22…+0.25) | −0.03 (−0.27…+0.16), n=24/59 | 40% vs 55%: **−15 pp (−27…−2)** |
+| Ronny\* | −0.28 (−0.77…+0.20) | +0.01, n=1/4 ⚠ | −0.11 (−0.55…+0.28) | −0.02 (−0.14…+0.03), n=12/54 ⚠ | 70% vs 58%: +12 pp (−24…+42) |
+| Hawk | +0.32 (−0.38…+1.04) | +0.29 (−0.49…+1.06), n=5/12 | +0.17 (−0.06…+0.38) | **+0.32 (+0.15…+0.47)**, n=44/78 | 27% vs 50%: **−23 pp (−36…−12)** |
+
+\* Ronny is the anti-persona: high = the game resisted his exploits.
+
+**Sensitivity** (the same deltas at 0.6 and 0.8):
+
+| Persona | Session ≥ 0.6 | Session ≥ 0.8 | Turn ≥ 0.6 | Turn ≥ 0.8 |
+|---|---|---|---|---|
+| Paul | −0.07 (−0.17…+0.03), n=5/12 | −0.02 (−0.11…+0.09), n=3/11 | n/a | n/a |
+| Lotta | +0.15 (−0.31…+0.58), n=3/7 | n=1/1 ⚠ | n/a | n/a |
+| Lars | +0.05 (−0.25…+0.32), n=4/12 | n=1/3 ⚠ | +0.06 (−0.22…+0.26), n=28/85 | −0.07 (−0.36…+0.13), n=17/33 ⚠ |
+| Ronny\* | n=1/5 ⚠ | n=0/0 ⚠ | −0.04 (−0.16…+0.02), n=19/72 ⚠ | n=7/35 ⚠ |
+| Hawk | +0.32 (−0.39…+1.03), n=5/13 | n=2/9 ⚠ | **+0.28 (+0.10…+0.45)**, n=57/136 | **+0.32 (+0.07…+0.51)**, n=29/37 |
+
+Low-confidence share of turns (unsure), per dataset:
+
+| Persona | Baseline < 0.6 / **< 0.7** / < 0.8 | New < 0.6 / **< 0.7** / < 0.8 | Turns at confidence 0 (base / new) |
+|---|---|---|---|
+| Paul | unknown on the stricter rubric (old rubric: 9% / 17% / 34%) | 30% / **46%** / 64% | — / 1 |
+| Lotta | unknown on the stricter rubric (old rubric: 1% / 8% / 46%) | 40% / **86%** / 90% | — / 0 |
+| Lars | 35% / **55%** / 75% | 30% / **40%** / 57% | 0 / 0 |
+| Ronny\* | 45% / **58%** / 73% | 52% / **70%** / 82% | 6 / 4 |
+| Hawk | 13% / **50%** / 76% | 5% / **27%** / 52% | 0 / 0 |
+
+The new series as a matrix (turns, cutoff 0.7; sessions in brackets):
+
+| Persona | Turns (sessions) | Plain mean | Headline ≥ 0.6 / **≥ 0.7** / ≥ 0.8 | Confident-high | Confident-low | Confident-middle | Unsure | Session headline ≥ 0.7 |
+|---|---|---|---|---|---|---|---|---|
+| Paul | 50 (5) | 4.24 | 4.29 / **4.29** / 4.23 ⚠ | 27 (54%) | 0 | 0 | 23 (46%) | 4.77 (n=5) |
+| Lotta | 50 (5) | 3.84 | 3.86 / **4.23** ⚠ / 4.52 ⚠ | 6 (12%) | 0 | 1 (2%) | 43 (86%) | 4.85 (n=1) ⚠ |
+| Lars | 40 (4) | 3.70 | 3.85 / **3.89** / 3.90 ⚠ | 23 (57%) | 1 (2%) | 0 | 16 (40%) | 4.03 (n=3) |
+| Ronny\* | 40 (4) | 4.33 | 4.71 ⚠ / **4.78** ⚠ / 4.86 ⚠ | 12 (30%) | 0 | 0 | 28 (70%) | 4.72 (n=1) ⚠ |
+| Hawk | 60 (5) | 2.10 | 2.13 / **2.17** / 2.22 | 1 (2%) | 34 (57%) | 9 (15%) | 16 (27%) | 3.34 (n=5) |
+
+Score bands without confidence (like for like for every persona, including Paul and Lotta): share of turns ≥ 3.5 is Paul 100% vs 99%, Lotta 78% vs 89% (−11 pp, CI −24…+2), Lars 80% vs 72%, Ronny 90% vs 95% and Hawk 2% vs 6%. No persona has a turn share ≤ 2.5 that changed by more than the noise (Hawk 78% vs 87%, −8 pp, CI −18…+3).
+
+What changes and what doesn't:
+
+- **Sessions: no change in the conclusion.** Under either reading no session delta is distinguishable from zero. Paul goes from +0.04 to −0.07 (CI −0.17…+0.03), Lars stays flat, Hawk stays about +0.3 with a wide CI. Lotta (1 vs 2 sure sessions) and Ronny (1 vs 4) have too few sure sessions at 0.7 to say anything. At 0.6, Lotta has 3 vs 7: +0.15 (−0.31…+0.58).
+- **Hawk: the turn-level gain is now clear,** +0.32 (+0.15…+0.47) at 0.7, +0.28 at 0.6, +0.32 at 0.8. In the baseline, his unsure turns sat a little above his sure ones (2.00 vs 1.85), so the plain average hid part of the change. In the new series, Jev is sure "closing in" (level 3) on 9 turns (15%), against 3 of 156 (2%) before. The gain is "less nothing", not "it works": confident-high is still 1 turn in 60.
+- **Ronny: the −0.28 session dip was an unsure dip.** 3 of his 4 new sessions are below 0.7. The turns behind `50a3c41a`'s dip (T3–T6 at 2.54–2.91, §1) all have confidence 0: Jev leaned to "Unlocked" (0.38–0.47) but put most of the rest on levels 4–5. On sure turns he is flat (−0.02), but on 12 sure turns in 4 runs. His unsure share went up (58% → 70%), with a CI from −24 to +42 pp.
+- **Paul: the turn dip can't be confirmed or ruled out this way.** His stricter-rubric baseline has no turn confidences. In the new series 46% of his turns are unsure, mostly a split between level 4 (0.45) and 5 (0.40), the border the stricter rubric added. His sure turns average 4.29 against 4.24 for all turns.
+- **Lotta: the stricter rubric made Jev unsure about her.** 86% of her new turns are below 0.7, mostly a split between level 3 ("pleasant but interchangeable", 0.35) and 4 ("about her", 0.48), the border #69 added. 30 of 50 turns still pass 0.6. So for Lotta on this rubric a 0.7 cutoff leaves too little to read. Her low-confidence share can only be compared with other stricter-rubric runs, not with the old 8%.
+- **Lars: Jev is surer about him** (unsure 55% → 40%, −15 pp, CI −27…−2). He also explored more in the new series (§5); whether that is the reason isn't shown. His sure-turn score is flat.
+
+**Not done here (needs Fredrik's OK):** a like-for-like turn reading for Paul and Lotta needs the baseline re-score to be run again with turn confidences kept (26 Jev calls, about $0.01). Any change to the playtest page or the scorer is a separate PR.
+
+Reproduce: `python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final > results.md` (see the script's [README](scripts/jev-confidence/README.md)).
 
 ## Appendix: reproducing
 
