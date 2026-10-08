@@ -35,7 +35,7 @@ Also in this folder:
 - [Adding API keys and secrets to Fly](fly-secrets.md)
 - [Pricing decision draft: a pool of play time](pricing-time-pool.md): bill GM processing time only, first character free, rough cost per turn and per commute (draft)
 - [Character creation: persona preferences (hybrid ideas)](character-creation-persona-prefs.md): Hawk/Paul/Lotta/Lars/Ronny on Idea 1 vs Idea 2 (research; complements port plan PR #15)
-- [Founder survey: how we'd play, and do the playtest scores feel right?](founder-survey-3.md): one combined form, about 17 minutes. Play style, what the persona key words mean, 10 real baseline turns to rate against Jev, and an archetype grid per persona (draft; not sent until the post-rework comparison is in)
+- [Founder survey: how we'd play, and do the playtest scores feel right?](founder-survey-3.md): one combined form, about 17 minutes. Play style, what the persona key words mean, 10 real baseline turns to rate against Jev, and an archetype grid per persona. Open; answered in the app at `/admin/survey`, generated from [`founder-survey-3.json`](founder-survey-3.json)
 - [Founder survey 2: how we'd play](founder-survey-2.md): merged into the combined survey above, never sent
 
 Worlds and adventure packs (Merovingia, Penny Dreadful, Tin Valley, …) copied from the game repos: [worlds/README.md](../worlds/README.md)
