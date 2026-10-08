@@ -3,6 +3,7 @@
 Longer design notes and plans. Prefer Markdown here; Google Drive is a temporary home until content is migrated or linked.
 
 - [Decision log](decisions.md): what the founders have decided and why, newest first
+- [Future ideas](future-ideas.md): ideas we may pick up later, not decided
 
 Docs copied from the [Google Drive folder](https://drive.google.com/drive/folders/1tlNoL8WZJPgbFQVT4SipKi9odGnQM_PB) (each file's front matter has a `source:` link to its Drive original):
 
