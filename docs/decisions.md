@@ -9,6 +9,18 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Jev scores are read as a score-by-confidence matrix, not a plain average
+
+- **Decision (Fredrik, via Case):** Jev scores are read as a score-by-confidence matrix, not a plain average.
+  - **Headline score:** the mean of the confident scores only, with the cutoff at confidence ≥ 0.7. The same figure at 0.6 and 0.8 is shown next to it as a sensitivity check.
+  - **Low-confidence share:** the share of turns (and sessions) below the cutoff is reported separately as its own metric. A high share is a sign of unclear or flat play. Compare it only within one rubric, because a stricter rubric adds a border Jev can be unsure about.
+  - **Three groups:** confident-high (score ≥ 3.5, works), confident-low (score ≤ 2.5, broken) and unsure (confidence below the cutoff). Confident scores between 2.5 and 3.5 (level 3) are shown as confident-middle.
+  - **Deltas** between series use the confident means, with bootstrap CIs over runs, next to the old plain-average deltas. A cutoff that leaves fewer than 20 turns or 3 runs (or 3 sessions) on a side is flagged as too few to read.
+  - This entry covers the analysis method. Changes to the playtest page or the scorer code would be a separate PR and need Fredrik's OK.
+- **Why:** plain averages mixed confident verdicts with split, unsure ones. For example, Ronny's turns where Jev leaned to level 1 but was split landed at 2.2–2.9 with confidence 0 (baseline `54c401ab` and `e367a9a0`, post-rework `50a3c41a` T3–T6), and several excerpt scores had confidence 0. In the baseline, problems outside Hawk showed up as unsure turns, not low ones: only 1 of 520 non-Hawk turns was confidently low.
+- **Status:** applied to the 2026-10-07 baseline and the 2026-10-08 post-rework comparison, using existing scores only (no new runs, no Jev calls). The session deltas stay indistinguishable from zero. Hawk's turn-level gain becomes clear (+0.32, CI +0.15…+0.47), and Ronny's session dip turns out to come from unsure sessions. Paul's and Lotta's turn deltas can't be read this way yet, because the stricter re-score of their baseline kept no turn confidences. The playtest page and the scorer are unchanged.
+- **Details:** [Analysis: Jev baseline 2026-10-07, update 2026-10-08](analysis-jev-baseline-2026-10-07.md#update-2026-10-08-confidence-aware-reading), [Analysis: Jev post-rework 2026-10-08, update 2026-10-08](analysis-jev-post-rework-2026-10-08.md#update-2026-10-08-confidence-aware-reading), [script](scripts/jev-confidence/README.md)
+
 ## 2026-10-08: Bug fix: the turn hang after an intent call; crashed turns now fail visibly; run flags record the world features
 
 - **Decision (Fredrik, via Case):** merge and deploy the fix for the turn hang found in the post-rework series. Approved 2026-10-08 07:48: merge #79 and deploy once the survey page was live. This is a bug fix, recorded here for the behaviour changes below.
