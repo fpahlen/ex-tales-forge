@@ -20,7 +20,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
   - **Weighted headline:** 4.41 / 4.27.
   - **Turn weighted delta:** −0.14 (CI −0.24…−0.03). The session delta is −0.01 (CI −0.09…+0.08).
   - **Post-rework stays less settled:** its threat-heavy turns, where the world reacts but not to his delight, still split.
-- **Status:** approved, in [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80) (not merged).
+- **Status:** approved; [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80) merged 2026-10-08 09:31 (merge commit `132e732`, Fredrik approved 09:23) and deployed: production v76, playtest v66. New Paul scores use `jev-affect-v1-df3c861`; older scores keep their rubric versions.
 - **Details:** [Analysis: Jev post-rework 2026-10-08, added section](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-pauls-level-5-needs-a-consequence-of-his-own-choice-or-discovery), [Jev scoring: sharper borders](jev-scoring.md#sharper-borders-for-paul-4-vs-5-and-lotta-3-vs-4-2026-10-08), [results](scripts/jev-confidence/results-2026-10-08-paul-consequence.md)
 
 ## 2026-10-08: The headline Jev score is a confidence-weighted average
@@ -30,7 +30,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
   - **The 0.7 cutoff stays** for the unsure share and the breakdown. The rest of that entry (the three groups, bootstrap CIs over runs, comparing unsure shares only within one rubric) still holds.
   - **On the playtest pages** (`/admin/playtest` and `/admin/playtest/:id`), the weighted turn average is the headline as "X/5 · unsure Y%". The breakdown sits under it and the session score is a secondary line.
 - **Why:** the cutoff mean throws scores away. Where Jev is often unsure, too few remain to read: for example only 7 of Lotta's post-rework turns were left on the #69 rubric. The weighted average uses every turn and lets unsure turns count less. In practice it stays within about 0.1 of the plain mean for most personas, and it gives the same deltas: Paul's turn dip is −0.12 (CI −0.20…−0.05), and Hawk's gain stays clear of zero (+0.22, CI +0.01…+0.41).
-- **Status:** approved, PR pending: [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80), not merged or deployed. The analyses report the weighted headline from 2026-10-08.
+- **Status:** approved; [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80) merged 2026-10-08 09:31 (merge commit `132e732`, Fredrik approved 09:23) and deployed: production v76, playtest v66. The playtest pages show the weighted headline "X/5 · unsure Y%" with the breakdown underneath. The analyses report the weighted headline from 2026-10-08.
 - **Details:** [Analysis: Jev post-rework 2026-10-08, added section](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-confidence-weighted-headline-and-sharper-paullotta-borders), [Analysis: Jev baseline 2026-10-07, update](analysis-jev-baseline-2026-10-07.md#update-2026-10-08-confidence-aware-reading), [script](scripts/jev-confidence/README.md)
 
 ## 2026-10-08: Sharper Jev borders for Paul (4 vs 5) and Lotta (3 vs 4)
@@ -46,7 +46,7 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
   - **Lotta: it worked**, from 75% / 86% to 39% / 30%. Jev is now mostly sure she is at level 3, so her weighted headline drops from 3.92 to 3.28 on both sides, delta 0.00 (CI −0.22…+0.30).
   - **Paul: it did not**, from 51% / 46% to 72% / 74%. His typical turn is both an answer to his open question and vivid new detail he didn't ask for, and the wording can't settle which. His turn dip stays about −0.1 (weighted −0.10, CI −0.22…−0.01).
   - **Not done:** a further change to Paul's level 5 (for example requiring a consequence of his choice) would change the level's meaning. It is left open for Fredrik.
-- **Status:** approved, PR pending: [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80), not merged or deployed. Production and playtest still score with the #69 rubric.
+- **Status:** approved; [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80) merged 2026-10-08 09:31 (merge commit `132e732`, Fredrik approved 09:23) and deployed: production v76, playtest v66. New scores use paul `jev-affect-v1-df3c861` (the consequence rule above replaced this entry's Paul level 5) and lotta `jev-affect-v1-989546a`; older scores keep their rubric versions.
 - **Details:** [Analysis: Jev post-rework 2026-10-08, added section](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-confidence-weighted-headline-and-sharper-paullotta-borders), [Jev scoring: sharper borders](jev-scoring.md#sharper-borders-for-paul-4-vs-5-and-lotta-3-vs-4-2026-10-08), [re-score rows](scripts/jev-rescore/rescore-baseline-2026-10-08-sharp.json)
 
 ## 2026-10-08: Jev scores are read as a score-by-confidence matrix, not a plain average
