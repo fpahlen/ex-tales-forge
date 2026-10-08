@@ -9,6 +9,32 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: The headline Jev score is a confidence-weighted average
+
+- **Decision (Fredrik, via Case):** the headline Jev score is the confidence-weighted average, `sum(score × confidence) / sum(confidence)`, on the 1–5 scale. It is shown with the unsure share (confidence < 0.7) next to it, and the high / low / unsure breakdown stays underneath.
+  - **This refines the entry below** ("Jev scores are read as a score-by-confidence matrix"). The weighted average replaces the mean of the scores at confidence ≥ 0.7 as the headline.
+  - **The 0.7 cutoff stays** for the unsure share and the breakdown. The rest of that entry (the three groups, bootstrap CIs over runs, comparing unsure shares only within one rubric) still holds.
+  - **On the playtest pages** (`/admin/playtest` and `/admin/playtest/:id`), the weighted turn average is the headline as "X/5 · unsure Y%". The breakdown sits under it and the session score is a secondary line.
+- **Why:** the cutoff mean throws scores away. Where Jev is often unsure, too few remain to read: for example only 7 of Lotta's post-rework turns were left on the #69 rubric. The weighted average uses every turn and lets unsure turns count less. In practice it stays within about 0.1 of the plain mean for most personas, and it gives the same deltas: Paul's turn dip is −0.12 (CI −0.20…−0.05), and Hawk's gain stays clear of zero (+0.22, CI +0.01…+0.41).
+- **Status:** approved, PR pending: [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80), not merged or deployed. The analyses report the weighted headline from 2026-10-08.
+- **Details:** [Analysis: Jev post-rework 2026-10-08, added section](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-confidence-weighted-headline-and-sharper-paullotta-borders), [Analysis: Jev baseline 2026-10-07, update](analysis-jev-baseline-2026-10-07.md#update-2026-10-08-confidence-aware-reading), [script](scripts/jev-confidence/README.md)
+
+## 2026-10-08: Sharper Jev borders for Paul (4 vs 5) and Lotta (3 vs 4)
+
+- **Decision (Fredrik, via Case):** sharpen the two rubric borders where Jev was most often split, then re-score the existing baseline and post-rework runs. Each border now names what to look for in the turn, with a short example from a real turn.
+  - **Paul 4:** the reply only answers him (information he asked for, a price, a room, a welcome, a gift).
+  - **Paul 5:** at least two kinds of evidence, each visible in this turn's narration: a surprise he did not ask about, a consequence of his choice, a callback to an earlier word or deed, or an NPC acting on their own goals. Asked-for information, warmth, gifts and prices never count.
+  - **Lotta 3:** the reply would read the same for any traveller who said her line.
+  - **Lotta 4:** it picks up something particular to her character (race, craft or calling, background, earlier deeds). Using her name or answering her question is not enough.
+  - **New rubric versions:** paul `jev-affect-v1-7862783` (was `fd84ebb`), lotta `jev-affect-v1-989546a` (was `ce84a1a`). Lars, Hawk and Ronny are unchanged. GM prompts are untouched.
+- **Why:** on the #69 rubric Jev was unsure (confidence < 0.7) on 51% of Paul's and 75% of Lotta's baseline turns, split on exactly these borders.
+- **Result:** the re-score ran on the box from existing transcripts (36 Jev calls, $0.012). Unsure share, baseline / post-rework:
+  - **Lotta: it worked**, from 75% / 86% to 39% / 30%. Jev is now mostly sure she is at level 3, so her weighted headline drops from 3.92 to 3.28 on both sides, delta 0.00 (CI −0.22…+0.30).
+  - **Paul: it did not**, from 51% / 46% to 72% / 74%. His typical turn is both an answer to his open question and vivid new detail he didn't ask for, and the wording can't settle which. His turn dip stays about −0.1 (weighted −0.10, CI −0.22…−0.01).
+  - **Not done:** a further change to Paul's level 5 (for example requiring a consequence of his choice) would change the level's meaning. It is left open for Fredrik.
+- **Status:** approved, PR pending: [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80), not merged or deployed. Production and playtest still score with the #69 rubric.
+- **Details:** [Analysis: Jev post-rework 2026-10-08, added section](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-confidence-weighted-headline-and-sharper-paullotta-borders), [Jev scoring: sharper borders](jev-scoring.md#sharper-borders-for-paul-4-vs-5-and-lotta-3-vs-4-2026-10-08), [re-score rows](scripts/jev-rescore/rescore-baseline-2026-10-08-sharp.json)
+
 ## 2026-10-08: Jev scores are read as a score-by-confidence matrix, not a plain average
 
 - **Decision (Fredrik, via Case):** Jev scores are read as a score-by-confidence matrix, not a plain average.
