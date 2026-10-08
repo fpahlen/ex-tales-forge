@@ -9,6 +9,16 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Founders label vague player inputs in a second survey (tune split only); the answers set labels and the ask band
+
+- **Decision (Fredrik, via Case):** the founders say what ambiguous player inputs mean in a short second survey, [founder survey 4](founder-survey-4-intent.md) (`founder-survey-4-intent`, about 10 minutes, at `/admin/surveys/founder-survey-4-intent`).
+  - **Items:** 12 genuinely ambiguous items from the intent eval set's **tune split only**; holdout items are never used (the selection script fails on any). No attack or safety items.
+  - **Question format (Fredrik's addendum):** one question per item with 3–4 plain-language readings drawn from the gold label, the `acceptable` alternatives and Jev's readings, deduped and shuffled, never marking which is gold; plus "Unclear, the game should ask the player", "Something else" with a free-text field, and an optional comment. Every reading maps back to structured labels (action, target, now or later, deferred action and target), carried in the survey JSON (`option_labels`) and in `mapping.json`.
+  - **Use:** the majority reading becomes gold, a minority reading becomes acceptable, and an Unclear win or no majority marks the item as one the game should ask about. "Something else" answers are reviewed by hand. Per-item founder agreement is reported and feeds the ask-band (`T_act`/`T_ask`) calibration.
+- **Why:** Case's and Fredrik's labels settle most items, but on genuinely two-way inputs the honest gold is what players mean, and where players disagree the game should ask rather than guess. Using the tune split keeps the holdout unseen.
+- **Status:** survey open (docs only; no deploy needed to answer). Showing each option's labels on the results page and in the CSV needs a small ex-tales-forge change (PR, not merged). Answers are applied later, per the plan, after Fredrik reviews the diff.
+- **Details:** [survey](founder-survey-4-intent.md), [how answers become labels](scripts/survey-intent/apply_answers.md), [selection and build scripts](scripts/survey-intent/), [Design: player intent as one Jev call](design-jev-intent.md)
+
 ## 2026-10-08: Player intent go-ahead with the labelled eval set first, and five scope decisions
 
 - **Decision (Fredrik, via Case):** go ahead with the [Jev intent plan](design-jev-intent.md) and the labelled-evaluation-set-first approach, with five scope answers. This builds on (does not replace) the entry below.
