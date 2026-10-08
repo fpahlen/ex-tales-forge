@@ -1,0 +1,1630 @@
+{
+  "survey_id": "founder-survey-4-intent",
+  "survey_version": 1,
+  "fixture": "ex-tales-forge PR #81 test/fixtures/intent_eval/items.jsonl @ b5af018",
+  "label_keys": [
+    "reading",
+    "action",
+    "target",
+    "when",
+    "later",
+    "later_target"
+  ],
+  "unclear_option": "Unclear, the game should ask the player",
+  "something_else_option": "Something else (tell us below)",
+  "items": [
+    {
+      "question_id": "intent-r108",
+      "item_id": "r108",
+      "category": "real_turn",
+      "why_ambiguous": "Quote vs narration: 'I'll head up to the market square' is only said to Brenna, so is the walk this turn or a plan?",
+      "choices": [
+        {
+          "option": "Thanks Brenna and stays at the inn for now. Going to the square to see Osric is a plan for a later turn.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": "innkeep",
+            "when": "now, then later",
+            "later": "move",
+            "later_target": "market_square"
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        },
+        {
+          "option": "Thanks Brenna and walks up to the market square now.",
+          "labels": {
+            "reading": "choice",
+            "action": "move",
+            "target": "market_square",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Just finishes the ale and thanks Brenna. The square is only talk; nothing to remember.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": "innkeep",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable"
+            ]
+          },
+          "is_gold_now": false
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "speak",
+        "target": "guild_steward",
+        "later": "move",
+        "later_target": "guild_steward",
+        "confidence": 0.44
+      },
+      "jev_reading_is_choice": null,
+      "gold_now": {
+        "action": "speak",
+        "target": "innkeep",
+        "later": "move",
+        "later_target": "market_square"
+      }
+    },
+    {
+      "question_id": "intent-r088",
+      "item_id": "r088",
+      "category": "real_turn",
+      "why_ambiguous": "'Wrap the bread, then. I'll head up before dusk': buy the bread now and leave later, just talk, or set off now?",
+      "choices": [
+        {
+          "option": "Buys the bread now, and later heads to the old adit.",
+          "labels": {
+            "reading": "choice",
+            "action": "buy",
+            "target": "innkeep",
+            "when": "now, then later",
+            "later": "move",
+            "later_target": "old_adit"
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Buys the bread. \"I'll head up before dusk\" is just talk; nothing to remember.",
+          "labels": {
+            "reading": "choice",
+            "action": "buy",
+            "target": "innkeep",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Buys the bread from Brenna now. Heading up the slope is for a later turn.",
+          "labels": {
+            "reading": "choice",
+            "action": "buy",
+            "target": "innkeep",
+            "when": "now, then later",
+            "later": "move",
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "buy",
+        "target": "innkeep",
+        "later": "move",
+        "later_target": "old_adit",
+        "confidence": 0.59
+      },
+      "jev_reading_is_choice": "Buys the bread now, and later heads to the old adit.",
+      "gold_now": {
+        "action": "buy",
+        "target": "innkeep",
+        "later": "move",
+        "later_target": null
+      }
+    },
+    {
+      "question_id": "intent-r109",
+      "item_id": "r109",
+      "category": "real_turn",
+      "why_ambiguous": "'At first light': set off now, or wait for morning first? Also which spot (west road, the cut, the nest).",
+      "choices": [
+        {
+          "option": "Sets off now, sneaking out along the west road toward the watchpost.",
+          "labels": {
+            "reading": "choice",
+            "action": "move",
+            "target": "west_road",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        },
+        {
+          "option": "Sneaks straight up to the orc nest this turn to scout it.",
+          "labels": {
+            "reading": "choice",
+            "action": "move",
+            "target": "orc_nest",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Heads for the cut above the nest (past the watchpost) this turn.",
+          "labels": {
+            "reading": "choice",
+            "action": "move",
+            "target": "orc_approach",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Waits for first light first; setting off down the west road comes after.",
+          "labels": {
+            "reading": "choice",
+            "action": "wait",
+            "target": null,
+            "when": "now, then later",
+            "later": "move",
+            "later_target": "west_road"
+          },
+          "backed_by": {
+            "action": [
+              "acceptable"
+            ],
+            "target": [
+              "acceptable"
+            ],
+            "later": [
+              "acceptable",
+              "jev"
+            ],
+            "later_target": [
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "move",
+        "target": "west_road",
+        "later": null,
+        "later_target": null,
+        "confidence": 0.48
+      },
+      "jev_reading_is_choice": "Sets off now, sneaking out along the west road toward the watchpost.",
+      "gold_now": {
+        "action": "move",
+        "target": "west_road",
+        "later": null,
+        "later_target": null
+      }
+    },
+    {
+      "question_id": "intent-r135",
+      "item_id": "r135",
+      "category": "real_turn",
+      "why_ambiguous": "Sneak up beside Caldern now and fight next, or attack the scouts this turn?",
+      "choices": [
+        {
+          "option": "Whispers the plan to Caldern and stays put; the attack comes later.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": "prospector",
+            "when": "now, then later",
+            "later": "combat",
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Attacks the scouts right now.",
+          "labels": {
+            "reading": "choice",
+            "action": "combat",
+            "target": null,
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Draws the knife and sneaks up beside Caldern now. Attacking the scouts is the next step.",
+          "labels": {
+            "reading": "choice",
+            "action": "move",
+            "target": "orc_approach",
+            "when": "now, then later",
+            "later": "combat",
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "combat",
+        "target": "orc_nest",
+        "later": null,
+        "later_target": null,
+        "confidence": 0.31
+      },
+      "jev_reading_is_choice": null,
+      "gold_now": {
+        "action": "move",
+        "target": "orc_approach",
+        "later": "combat",
+        "later_target": null
+      }
+    },
+    {
+      "question_id": "intent-r093",
+      "item_id": "r093",
+      "category": "real_turn",
+      "why_ambiguous": "Disarmed mid-fight: grabbing the knife and backing to the door could be a fight move, a retreat, or a flight to the yard.",
+      "choices": [
+        {
+          "option": "Grabs the knife and retreats out into the inn yard this turn.",
+          "labels": {
+            "reading": "choice",
+            "action": "move",
+            "target": "inn_yard",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Just gets the knife back; no attack and no leaving yet.",
+          "labels": {
+            "reading": "choice",
+            "action": "pickup",
+            "target": "hunting_knife",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "jev"
+            ],
+            "target": [
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "A fighting move: grabs the knife and keeps Cobb at bay, dodging his club.",
+          "labels": {
+            "reading": "choice",
+            "action": "combat",
+            "target": "cobb",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "pickup",
+        "target": "inn_yard",
+        "later": null,
+        "later_target": null,
+        "confidence": 0.39
+      },
+      "jev_reading_is_choice": null,
+      "gold_now": {
+        "action": "combat",
+        "target": "cobb",
+        "later": null,
+        "later_target": null
+      }
+    },
+    {
+      "question_id": "intent-h-q11",
+      "item_id": "h-q11",
+      "category": "quoted_vs_narration",
+      "why_ambiguous": "'What would you want for that short sword?': asking a price, or a purchase?",
+      "choices": [
+        {
+          "option": "Asks Hilde the price. No buying yet.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": "smith",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        },
+        {
+          "option": "Asks the price now, meaning to buy it next.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": "smith",
+            "when": "now, then later",
+            "later": "buy",
+            "later_target": "short_sword"
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "jev"
+            ],
+            "later_target": [
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Buys the short sword.",
+          "labels": {
+            "reading": "choice",
+            "action": "buy",
+            "target": "short_sword",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "speak",
+        "target": "short_sword",
+        "later": null,
+        "later_target": null,
+        "confidence": 0.75
+      },
+      "jev_reading_is_choice": null,
+      "gold_now": {
+        "action": "speak",
+        "target": "smith",
+        "later": null,
+        "later_target": null
+      }
+    },
+    {
+      "question_id": "intent-h-m14",
+      "item_id": "h-m14",
+      "category": "multi_action",
+      "why_ambiguous": "'A round for the miners': buy ale (from Brenna) or talk to the miners; who is the target?",
+      "choices": [
+        {
+          "option": "Buys a round for the men at the bar, Rusk and Cobb, and asks them.",
+          "labels": {
+            "reading": "choice",
+            "action": "buy",
+            "target": "cobb",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Mainly asks about the lights; the round is just a friendly gesture.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": null,
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Buys a round of ale from Brenna, then asks about the lights.",
+          "labels": {
+            "reading": "choice",
+            "action": "buy",
+            "target": "ale_mug",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "buy",
+        "target": "cobb",
+        "later": null,
+        "later_target": null,
+        "confidence": 0.24
+      },
+      "jev_reading_is_choice": "Buys a round for the men at the bar, Rusk and Cobb, and asks them.",
+      "gold_now": {
+        "action": "buy",
+        "target": "ale_mug",
+        "later": null,
+        "later_target": null
+      }
+    },
+    {
+      "question_id": "intent-h-p12",
+      "item_id": "h-p12",
+      "category": "plan_vs_action",
+      "why_ambiguous": "'Rope from the stall': nobody present sells rope; buy from the stalls, ask Osric, then head for the cut later?",
+      "choices": [
+        {
+          "option": "Asks Osric where to get rope, then heads for the cut later.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": "guild_steward",
+            "when": "now, then later",
+            "later": "move",
+            "later_target": "orc_approach"
+          },
+          "backed_by": {
+            "action": [
+              "acceptable"
+            ],
+            "target": [
+              "acceptable"
+            ],
+            "later": [
+              "acceptable",
+              "gold"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Buys rope at a stall now. Heading up to the cut is for a later turn.",
+          "labels": {
+            "reading": "choice",
+            "action": "buy",
+            "target": null,
+            "when": "now, then later",
+            "later": "move",
+            "later_target": "orc_approach"
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold"
+            ],
+            "later": [
+              "acceptable",
+              "gold"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        },
+        {
+          "option": "Buys rope at a stall now, planning to fight at the cut next.",
+          "labels": {
+            "reading": "choice",
+            "action": "buy",
+            "target": "stalls",
+            "when": "now, then later",
+            "later": "combat",
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "jev"
+            ],
+            "later": [
+              "jev"
+            ],
+            "later_target": [
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Buys rope at a stall now; \"then the cut\" is just talk.",
+          "labels": {
+            "reading": "choice",
+            "action": "buy",
+            "target": null,
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold"
+            ],
+            "later": [
+              "acceptable",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "buy",
+        "target": "stalls",
+        "later": "combat",
+        "later_target": null,
+        "confidence": 0.94
+      },
+      "jev_reading_is_choice": "Buys rope at a stall now, planning to fight at the cut next.",
+      "gold_now": {
+        "action": "buy",
+        "target": null,
+        "later": "move",
+        "later_target": "orc_approach"
+      }
+    },
+    {
+      "question_id": "intent-r197",
+      "item_id": "r197",
+      "category": "real_turn",
+      "why_ambiguous": "Creeping toward a scrape in the mine 'to ambush the orc': scout, move deeper, or attack?",
+      "choices": [
+        {
+          "option": "Creeps and scouts now; the ambush is the next turn.",
+          "labels": {
+            "reading": "choice",
+            "action": "observe",
+            "target": null,
+            "when": "now, then later",
+            "later": "combat",
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "jev"
+            ],
+            "later_target": [
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Sneaks on toward the orc nest itself.",
+          "labels": {
+            "reading": "choice",
+            "action": "move",
+            "target": "orc_nest",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Ambushes the orc now.",
+          "labels": {
+            "reading": "choice",
+            "action": "combat",
+            "target": null,
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Creeps forward quietly, looking for whatever is scraping. No attack yet.",
+          "labels": {
+            "reading": "choice",
+            "action": "observe",
+            "target": null,
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "observe",
+        "target": "orc_nest",
+        "later": null,
+        "later_target": null,
+        "confidence": 0.54
+      },
+      "jev_reading_is_choice": null,
+      "gold_now": {
+        "action": "observe",
+        "target": null,
+        "later": null,
+        "later_target": null
+      }
+    },
+    {
+      "question_id": "intent-h-q15",
+      "item_id": "h-q15",
+      "category": "quoted_vs_narration",
+      "why_ambiguous": "Mutters 'pay the toll' but keeps the coin: refuse, pay, or say it to Rusk?",
+      "choices": [
+        {
+          "option": "Doesn't pay yet, but means to pay Rusk later.",
+          "labels": {
+            "reading": "choice",
+            "action": "other",
+            "target": null,
+            "when": "now, then later",
+            "later": "spend",
+            "later_target": "rusk"
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "jev"
+            ],
+            "later_target": [
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Says it to Rusk's face, mocking him and refusing to pay.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": "rusk",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Grumbles under their breath and doesn't pay. Just flavour.",
+          "labels": {
+            "reading": "choice",
+            "action": "other",
+            "target": null,
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        },
+        {
+          "option": "Pays Rusk the toll.",
+          "labels": {
+            "reading": "choice",
+            "action": "spend",
+            "target": "rusk",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "speak",
+        "target": "rusk",
+        "later": null,
+        "later_target": null,
+        "confidence": 0.46
+      },
+      "jev_reading_is_choice": "Says it to Rusk's face, mocking him and refusing to pay.",
+      "gold_now": {
+        "action": "other",
+        "target": null,
+        "later": null,
+        "later_target": null
+      }
+    },
+    {
+      "question_id": "intent-r074",
+      "item_id": "r074",
+      "category": "real_turn",
+      "why_ambiguous": "'I'll work the bellows tonight to get the bow': strike a deal now, start working now, or ask about Rusk?",
+      "choices": [
+        {
+          "option": "Strikes the trade now: bellows work for the bow at eight silver.",
+          "labels": {
+            "reading": "choice",
+            "action": "trade",
+            "target": "smith",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Buys the bow for eight silver now.",
+          "labels": {
+            "reading": "choice",
+            "action": "buy",
+            "target": "smith",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Asks where Rusk is now, then goes after him.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": "smith",
+            "when": "now, then later",
+            "later": "move",
+            "later_target": "rusk"
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "jev"
+            ],
+            "later_target": [
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Agrees to the bellows deal and asks about Rusk. Just talk; nothing changes hands yet.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": "smith",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "speak",
+        "target": "smith",
+        "later": null,
+        "later_target": null,
+        "confidence": 0.74
+      },
+      "jev_reading_is_choice": "Agrees to the bellows deal and asks about Rusk. Just talk; nothing changes hands yet.",
+      "gold_now": {
+        "action": "speak",
+        "target": "smith",
+        "later": null,
+        "later_target": null
+      }
+    },
+    {
+      "question_id": "intent-r204",
+      "item_id": "r204",
+      "category": "real_turn",
+      "why_ambiguous": "'I step into the square and call out to Osric', sent while still at the inn door: travel there now, or talk to someone who isn't here?",
+      "choices": [
+        {
+          "option": "Calls out to Osric as if he were already in earshot.",
+          "labels": {
+            "reading": "choice",
+            "action": "speak",
+            "target": "guild_steward",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "jev"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        },
+        {
+          "option": "Walks into the market square now and calls out the warning to Osric on arrival.",
+          "labels": {
+            "reading": "choice",
+            "action": "move",
+            "target": "market_square",
+            "when": "now",
+            "later": null,
+            "later_target": null
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold"
+            ],
+            "later": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "later_target": [
+              "acceptable",
+              "gold",
+              "jev"
+            ]
+          },
+          "is_gold_now": true
+        },
+        {
+          "option": "Walks to the square now; the warning to Osric is the next turn.",
+          "labels": {
+            "reading": "choice",
+            "action": "move",
+            "target": "market_square",
+            "when": "now, then later",
+            "later": "speak",
+            "later_target": "guild_steward"
+          },
+          "backed_by": {
+            "action": [
+              "acceptable",
+              "gold",
+              "jev"
+            ],
+            "target": [
+              "acceptable",
+              "gold"
+            ],
+            "later": [
+              "jev"
+            ],
+            "later_target": [
+              "jev"
+            ]
+          },
+          "is_gold_now": false
+        }
+      ],
+      "special": {
+        "Unclear, the game should ask the player": "should_ask",
+        "Something else (tell us below)": "something_else: review by hand"
+      },
+      "jev_reading": {
+        "action": "speak",
+        "target": "guild_steward",
+        "later": null,
+        "later_target": null,
+        "confidence": 0.87
+      },
+      "jev_reading_is_choice": "Calls out to Osric as if he were already in earshot.",
+      "gold_now": {
+        "action": "move",
+        "target": "market_square",
+        "later": null,
+        "later_target": null
+      }
+    }
+  ]
+}

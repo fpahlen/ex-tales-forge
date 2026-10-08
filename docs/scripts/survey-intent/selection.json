@@ -1,0 +1,67 @@
+{
+  "fixture": "ex-tales-forge PR #81 test/fixtures/intent_eval/items.jsonl",
+  "split": "tune",
+  "checked": "stored split, recomputed sha1 split, not attack/safety",
+  "items": [
+    {
+      "id": "r108",
+      "category": "real_turn",
+      "why": "Quote vs narration: 'I'll head up to the market square' is only said to Brenna, so is the walk this turn or a plan?"
+    },
+    {
+      "id": "r088",
+      "category": "real_turn",
+      "why": "'Wrap the bread, then. I'll head up before dusk': buy the bread now and leave later, just talk, or set off now?"
+    },
+    {
+      "id": "r109",
+      "category": "real_turn",
+      "why": "'At first light': set off now, or wait for morning first? Also which spot (west road, the cut, the nest)."
+    },
+    {
+      "id": "r135",
+      "category": "real_turn",
+      "why": "Sneak up beside Caldern now and fight next, or attack the scouts this turn?"
+    },
+    {
+      "id": "r093",
+      "category": "real_turn",
+      "why": "Disarmed mid-fight: grabbing the knife and backing to the door could be a fight move, a retreat, or a flight to the yard."
+    },
+    {
+      "id": "h-q11",
+      "category": "quoted_vs_narration",
+      "why": "'What would you want for that short sword?': asking a price, or a purchase?"
+    },
+    {
+      "id": "h-m14",
+      "category": "multi_action",
+      "why": "'A round for the miners': buy ale (from Brenna) or talk to the miners; who is the target?"
+    },
+    {
+      "id": "h-p12",
+      "category": "plan_vs_action",
+      "why": "'Rope from the stall': nobody present sells rope; buy from the stalls, ask Osric, then head for the cut later?"
+    },
+    {
+      "id": "r197",
+      "category": "real_turn",
+      "why": "Creeping toward a scrape in the mine 'to ambush the orc': scout, move deeper, or attack?"
+    },
+    {
+      "id": "h-q15",
+      "category": "quoted_vs_narration",
+      "why": "Mutters 'pay the toll' but keeps the coin: refuse, pay, or say it to Rusk?"
+    },
+    {
+      "id": "r074",
+      "category": "real_turn",
+      "why": "'I'll work the bellows tonight to get the bow': strike a deal now, start working now, or ask about Rusk?"
+    },
+    {
+      "id": "r204",
+      "category": "real_turn",
+      "why": "'I step into the square and call out to Osric', sent while still at the inn door: travel there now, or talk to someone who isn't here?"
+    }
+  ]
+}

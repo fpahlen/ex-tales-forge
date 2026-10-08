@@ -32,10 +32,12 @@ def follow_ups(q):
 
 def render(s):
     lists = s.get('lists', {})
+    # founder-survey-3 is the app's current survey (/admin/survey); others live at /admin/surveys/<id>.
+    page = '/admin/survey' if s['id'] == 'founder-survey-3' else f"/admin/surveys/{s['id']}"
     out = ['---', f'title: "{s["title"]}"', f'status: {s["status"]}', f'survey_id: {s["id"]}',
            f'survey_version: {s["version"]}', '---', '',
            f'# {s["title"]} ({s["status"]})', '',
-           f'> **Generated from [`{s["id"]}.json`]({s["id"]}.json)**, the survey the app shows at `/admin/survey`. '
+           f'> **Generated from [`{s["id"]}.json`]({s["id"]}.json)**, the survey the app shows at `{page}`. '
            'Edit the JSON, then run `python3 docs/scripts/survey/render_md.py '
            f'docs/{s["id"]}.json > docs/{s["id"]}.md`.', '']
     if s['status'] == 'draft':
@@ -48,8 +50,11 @@ def render(s):
     if s.get('notes'):
         out += ['## Notes for Fredrik (not shown in the survey)', '']
         out += [f'- {rel(n)}' for n in s['notes']]
-        out += [f'- **Rating scale** (every excerpt): {" · ".join(lists.get("rating", []))}, plus "Why?" (optional).',
-                f'- **Archetype rows** (every grid): {" · ".join(lists.get("archetypes", []))}.', '']
+        if lists.get('rating'):
+            out += [f'- **Rating scale** (every excerpt): {" · ".join(lists["rating"])}, plus "Why?" (optional).']
+        if lists.get('archetypes'):
+            out += [f'- **Archetype rows** (every grid): {" · ".join(lists["archetypes"])}.']
+        out += ['']
     out += ['## Intro', '', *[f'> {l}' if l else '>' for l in rel(s.get('intro', '')).split('\n')], '']
     f = s.get('latest_findings')
     if f:

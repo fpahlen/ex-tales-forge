@@ -38,6 +38,7 @@ Also in this folder:
 - [Pricing decision draft: a pool of play time](pricing-time-pool.md): bill GM processing time only, first character free, rough cost per turn and per commute (draft)
 - [Character creation: persona preferences (hybrid ideas)](character-creation-persona-prefs.md): Hawk/Paul/Lotta/Lars/Ronny on Idea 1 vs Idea 2 (research; complements port plan PR #15)
 - [Founder survey: how we'd play, and do the playtest scores feel right?](founder-survey-3.md): one combined form, about 17 minutes. Play style, what the persona key words mean, 10 real baseline turns to rate against Jev, and an archetype grid per persona. Open; answered in the app at `/admin/survey`, generated from [`founder-survey-3.json`](founder-survey-3.json)
+- [Founder survey 4: what did the player mean?](founder-survey-4-intent.md): 12 vague player lines from the intent eval set (tune split only); founders pick the reading, or say the game should ask. About 10 minutes. Open; answered in the app at `/admin/surveys/founder-survey-4-intent`, generated from [`founder-survey-4-intent.json`](founder-survey-4-intent.json); how answers become labels: [apply_answers](scripts/survey-intent/apply_answers.md)
 - [Founder survey 2: how we'd play](founder-survey-2.md): merged into the combined survey above, never sent
 
 Worlds and adventure packs (Merovingia, Penny Dreadful, Tin Valley, …) copied from the game repos: [worlds/README.md](../worlds/README.md)
