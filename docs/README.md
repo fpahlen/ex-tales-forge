@@ -28,6 +28,7 @@ Also in this folder:
 - [Design: playtest loop](design-playtest-loop.md): how persona bots play, get scored, and feed fixes and decisions (draft)
 - [Jev persona-affect scoring](jev-scoring.md): TypeSafe Jev for numeric persona-feeling scores (first cut 2026-10-07; not built yet)
 - [Analysis: Jev scores from the playtests (2026-10-07)](analysis-jev-scores-2026-10-07.md): per persona, by turn, correlations (dice failures and NPC brush-offs drive low scores), Hawk's low confidence, recommendations
+- [Analysis: Jev after the inn-world, scene-change and Brenna rework (2026-10-08)](analysis-jev-post-rework-2026-10-08.md): 23-run post-rework series vs the 2026-10-07 baseline (new rubric for Paul and Lotta): leaving the inn, echo and tics, the Tinjacks, growth, cost, a turn hang
 - [Call types: Elixir function, Jev, or LLM](call-types.md): which call type to use for each piece of work, and the target turn pipeline (draft)
 - [Plan: porting character creation from the old app](character-creation-port.md): how the old app's creation works and a proposed port to the Elixir app (draft)
 - [Setting up Resend (email)](resend-setup.md)

@@ -13,7 +13,15 @@ Cohorts:
 
 Usage:
   python3 compare.py raw_export.json jev_export.json [--out report.md] [--csv DIR]
+                     [--reference COHORT] [--rescore rescore.json]
   (several export files may be given; runs are de-duplicated by id)
+
+  --reference: the cohort the others are compared with (default: elara), e.g.
+    "baseline-2026-10-07/default" for the post-rework comparison.
+  --rescore: rows from docs/scripts/jev-rescore/rescore.exs; for every run in it, the
+    session and turn scores of the "new" rubric replace the stored first pass, so a
+    reference cohort scored with an older rubric can be compared like for like (the
+    turn confidences of re-scored runs are unknown and left empty).
 
 Read-only: it reads export JSON files and writes a Markdown report and CSVs.
 Needs pandas, numpy and scipy.
@@ -23,7 +31,8 @@ from collections import Counter
 import numpy as np, pandas as pd
 from scipy import stats
 
-REFERENCE = "elara"
+REFERENCE = "elara"         # --reference changes the comparison cohort; Elara runs stay "elara"
+ELARA = "elara"
 ANTI_PERSONAS = {"ronny"}  # scored for exploit coverage, kept out of delight averages
 LOW_CONF = 0.3             # below this a score counts as "unscored" (analysis rec. 12)
 STOP = set("the a an and or of to in on at for with your you his her their it its is was are be as by "
@@ -57,7 +66,7 @@ def cohort(x):
     m = re.search(r"series=(\S+) variant=(\S+)", notes)
     if m: return f"{m.group(1)}/{m.group(2)}"
     name = (x.get("character") or {}).get("name") or "Elara Voss"
-    return REFERENCE if name.startswith("Elara") else f"other/{x.get('variant', 'default')}"
+    return ELARA if name.startswith("Elara") else f"other/{x.get('variant', 'default')}"
 
 
 def _top_skill_lp(turns):
@@ -77,7 +86,8 @@ def _rescore(js, s0):
     return dict(rubric=first["rubric_version"], overall=first["overall"], confidence=first["confidence"])
 
 
-def build(runs):
+def build(runs, rescore=None):
+    rescore = rescore or {}
     R, T = [], []
     for x in runs:
         r = x["run"]
@@ -109,6 +119,10 @@ def build(runs):
                       top_skill_lp=_top_skill_lp(x["turns"]),
                       improvements=(r.get("growth") or {}).get("improvements"),
                       rescore=_rescore(js, s0)))
+        new = rescore.get(r["id"])
+        if new:  # stored first pass replaced by the re-scored new rubric (like-for-like comparison)
+            R[-1].update(session_score=new["session"], session_conf=new.get("session_conf"), session_entropy=np.nan,
+                         rubric=new.get("rubric_label", "new rubric (re-scored)"))
         seen = set()
         turns = {t["n"]: t for t in x["turns"]}
         gm_calls = {k["turn_number"]: k for k in calls if k["purpose"] == "gm" and k["turn_number"] is not None}
@@ -135,6 +149,12 @@ def build(runs):
                             gm_latency_ms=gm_calls.get(n, {}).get("latency_ms"))
             for k, p in STOCK.items(): feats[n]["stock:" + k] = bool(re.search(p, low))
             prev |= g3
+        if new:
+            ns = sorted(turns)
+            for n, sc in zip(ns, new["turns"]):
+                T.append(dict(cohort=c, run_id=r["id"], persona=r["persona"], turn=n, score=sc, conf=np.nan, entropy=np.nan,
+                              probs="", turns_in_run=len(x["turns"]), is_last_turn=n == len(x["turns"]), **feats.get(n, {})))
+            continue
         for s in sorted([s for s in js if s["kind"] == "turn_affect"], key=lambda s: (s["turn_number"], s["inserted_at"])):
             n = s["turn_number"]
             if n in seen: continue  # primary pass only
@@ -244,7 +264,7 @@ def report(R, T):
         w(f"\n\nConfidence < {LOW_CONF}: {len(lc)} of {len(g)} turns" +
           (" — " + ", ".join(f"{r.run_id[:8]} {r.persona} T{r.turn}" for r in lc.itertuples()) if len(lc) else ""))
 
-    w("\n\n## 5. Versus the Elara runs\n")
+    w(f"\n\n## 5. Versus the reference (`{REFERENCE}`)\n")
     ref_R, ref_T = R[R.cohort == REFERENCE], T[T.cohort == REFERENCE]
     rows = []
     for c in sorted(set(R.cohort) - {REFERENCE}):
@@ -331,11 +351,16 @@ def report(R, T):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("exports", nargs="+"); ap.add_argument("--out"); ap.add_argument("--csv")
+    ap.add_argument("--reference", default=REFERENCE); ap.add_argument("--rescore")
     a = ap.parse_args()
+    globals()["REFERENCE"] = a.reference
+    rescore = {}
+    if a.rescore:
+        rescore = {row["run"]: row for row in json.load(open(a.rescore)) if row.get("rubric") == "new"}
     runs = {}
     for f in a.exports:
         for x in json.load(open(f)): runs[x["run"]["id"]] = x
-    R, T = build(list(runs.values()))
+    R, T = build(list(runs.values()), rescore)
     text = report(R, T)
     if a.out: open(a.out, "w").write(text)
     else: sys.stdout.write(text)

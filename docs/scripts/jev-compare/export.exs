@@ -4,7 +4,7 @@
 # Writes /tmp/jev_export.json. No writes to the database, no AI calls.
 import Ecto.Query
 alias TalesForge.Repo
-alias TalesForge.Schemas.{AICall, GameSession, PlaytestRun, PlaytestScore, Turn}
+alias TalesForge.Schemas.{AICall, FrontInstance, GameSession, PlaytestRun, PlaytestScore, Scene, SessionEvent, Turn}
 
 runs = Repo.all(from r in PlaytestRun, order_by: r.started_at)
 
@@ -23,6 +23,16 @@ out =
     turns = Repo.all(from t in Turn, where: t.game_session_id == ^gs, order_by: t.turn_number)
     calls = Repo.all(from c in AICall, where: c.game_session_id == ^gs, order_by: c.inserted_at)
     opening = TalesForge.GameSessions.opening_scene(gs)
+    # Scenes, world events and fronts (ex-tales-forge #68, #72, #73): where the character went and
+    # what the Tinjacks did. gm_reasoning payloads are left out (large, not needed).
+    scenes = Repo.all(from s in Scene, where: s.game_session_id == ^gs, order_by: s.inserted_at,
+                                        select: %{location_id: s.location_id, location_name: s.location_name, at: s.inserted_at})
+    events =
+      Repo.all(from e in SessionEvent, where: e.game_session_id == ^gs, order_by: e.inserted_at)
+      |> Enum.map(&%{kind: &1.kind, actor: &1.actor, tick: &1.tick, location_id: &1.location_id,
+                     payload: if(&1.kind == "gm_reasoning", do: %{}, else: &1.payload), at: &1.inserted_at})
+    fronts = Repo.all(from f in FrontInstance, where: f.game_session_id == ^gs,
+                                                select: %{front_id: f.front_id, status: f.status, runtime_state: f.runtime_state})
 
     %{
       run:
@@ -44,7 +54,12 @@ out =
       calls: Enum.map(calls, &Map.take(&1, [:turn_number, :purpose, :model, :status, :latency_ms,
                                             :input_tokens, :output_tokens, :cached_tokens,
                                             :cost_micro_usd, :inserted_at])),
-      opening: opening && opening.narrative
+      opening: opening && opening.narrative,
+      features: ws["features"] || [],
+      location_id: ws["location_id"],
+      scenes: scenes,
+      events: events,
+      fronts: fronts
     }
   end)
 
