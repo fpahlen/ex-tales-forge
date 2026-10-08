@@ -17,3 +17,16 @@ Ideas we may pick up later. They are not decisions and nobody is building them y
   - Speculative calls are capped per turn, so a slow typist can't run up cost.
 - **When:** after the Jev intent path is live (PR 2 of the intent plan).
 - **Related:** [Design: player intent as one Jev call](design-jev-intent.md), [Design: persistent world state](design-stateful-world.md#8-cost-and-latency) (the turn's cost and latency).
+
+## Memory consolidation and attitude drift
+
+*Fredrik, 2026-10-08. A later layer on top of the [stateful world](design-stateful-world.md).*
+
+- **Consolidation on the world clock.** On a world-clock tick (about hourly in game time), memories nobody has touched since the last tick merge into a gist and lose detail. The merge is plain Elixir or a Jev call, never an LLM.
+- **Strong moments stay sharp.** Memories with strong emotion keep their detail longer.
+- **Personality sets the pace.** OCEAN traits decide how fast things fade: high neuroticism holds on to slights, and high agreeableness forgives sooner.
+- **Meeting again refreshes.** Seeing someone again refreshes the gist and starts a new detailed layer on top of it.
+- **Attitudes drift toward neutral.** Feelings slowly drift back toward neutral over world time, and grudges fade more slowly than warmth.
+- **NPCs and PCs alike.** The same rules apply to both, since they share the unified character type.
+
+Fits the per-world process: consolidation and drift are pure functions run on world ticks, stored as data, so restarts and replays give the same result.

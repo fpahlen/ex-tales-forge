@@ -254,4 +254,4 @@ The flag is `WORLD_STATE=off|shadow|on`. Like `INN_WORLD`, it is read when a ses
 - [Design: player intent as one Jev call](design-jev-intent.md)
 - [Plan: one Character entity](plan-unify-character.md)
 - [Call types](call-types.md)
-- [Future ideas](future-ideas.md)
+- [Future ideas](future-ideas.md), including [memory consolidation and attitude drift](future-ideas.md#memory-consolidation-and-attitude-drift), a later layer on top of this design
