@@ -26,3 +26,22 @@ python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/fin
   --rescore-conf docs/scripts/jev-rescore/rescore-baseline-2026-10-08-conf.json \
   --json docs/scripts/jev-confidence/results-2026-10-08-conf.json > docs/scripts/jev-confidence/results-2026-10-08-conf.md
 ```
+
+*Added 2026-10-08:* there are two follow-ups (decisions "The headline Jev score is a confidence-weighted average" and "Sharper Jev borders for Paul (4 vs 5) and Lotta (3 vs 4)").
+
+- **What runs:** `--sharp-base` / `--sharp-post` take the rows re-scored with the sharpened rubric (`jev-affect-v1-7862783` / `-989546a`). The script then appends the weighted headline, `sum(score × confidence) / sum(confidence)`, for every persona. For Paul and Lotta it also adds their unsure share, breakdown and deltas on the #69 rubric against the sharpened one.
+- **Output:** `results-2026-10-08-sharp.md` / `.json`. The earlier sections in it are unchanged.
+- **The re-score:** run from the ex-tales-forge PR #80 branch. It was 36 Jev calls for $0.0120.
+
+```bash
+# from an ex-tales-forge checkout of the PR #80 branch (jev-weighted-headline), TYPESAFE_API_KEY set
+S=docs/scripts/jev-rescore/rescore.exs
+RUBRICS=new EXPORT=/workspace/baseline/final/jev_export.json OUT=rescore-baseline-2026-10-08-sharp.json mix run --no-start $S
+RUBRICS=new EXPORT=/workspace/compare/final/series_done.json SINCE=2026-10-08T00:00 \
+  OUT=rescore-post-rework-2026-10-08-sharp.json mix run --no-start $S
+R=docs/scripts/jev-rescore
+python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final \
+  --rescore-conf $R/rescore-baseline-2026-10-08-conf.json \
+  --sharp-base $R/rescore-baseline-2026-10-08-sharp.json --sharp-post $R/rescore-post-rework-2026-10-08-sharp.json \
+  --json docs/scripts/jev-confidence/results-2026-10-08-sharp.json > docs/scripts/jev-confidence/results-2026-10-08-sharp.md
+```

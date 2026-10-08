@@ -364,7 +364,86 @@ What it shows:
 - **Paul's and Lotta's high unsure shares come from the rubric, not the rework.** On the stricter rubric Jev was already unsure on 51% of Paul's and 75% of Lotta's baseline turns (old rubric: 17% and 8%). The splits sit on the borders #69 added: Paul's unsure turns split between level 4 (0.46) and 5 (0.47), Lotta's mostly between 3 (0.28) and 4 (0.51). The new series is about the same (46% and 86%), and neither change can be told from zero.
 - **The verdict doesn't change.** Sessions show no change, Hawk's turn gain is clear, Ronny's dip came from unsure scores, Paul is perhaps 0.1 lower turn by turn, and Lotta can't be read at 0.7.
 
-Reproduce: `python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final > results.md`. *Added 2026-10-08:* add `--rescore-conf docs/scripts/jev-rescore/rescore-baseline-2026-10-08-conf.json` for the Paul and Lotta turn-level reading, and see the script's [README](scripts/jev-confidence/README.md) for the re-score command.
+### Added 2026-10-08: confidence-weighted headline and sharper Paul/Lotta borders
+
+**Summary.** Fredrik approved two follow-ups.
+
+1. **New headline.** The headline Jev score is now the confidence-weighted average: every turn counts, and unsure turns count less. The share of unsure turns (confidence < 0.7) is shown next to it.
+2. **Sharper borders.** Paul's border between level 4 and 5 and Lotta's between 3 and 4 were sharpened so Jev would stop wavering there.
+
+What the re-score shows:
+
+- **Lotta: it worked.** Jev is unsure on 39% of her baseline turns and 30% of her post-rework turns, against 75% and 86% before. It is now mostly sure she is at level 3, "pleasant but interchangeable", so her scores drop by about 0.6.
+- **Paul: it didn't work.** Jev is now unsure on about 73% of his turns, against about 50%. In his typical turn the NPC answers an open question with vivid new detail, and Jev still can't decide whether that is "an answer" (level 4) or "a surprise" (level 5).
+- **The persona deltas tell the same story under either rubric and either headline.** Paul is about 0.1 lower turn by turn (weighted −0.10, CI −0.22…−0.01). Lotta is flat. No session moved.
+
+**What changed** (ex-tales-forge [PR #80](https://github.com/whyse-ab/ex-tales-forge/pull/80), not merged; [decisions](decisions.md#2026-10-08-the-headline-jev-score-is-a-confidence-weighted-average)):
+
+- **Headline** = `sum(score × confidence) / sum(confidence)` over a persona's (or a run's) turns, on the 1–5 scale. The unsure share (confidence < 0.7) sits next to it, and the high / low / unsure breakdown at 0.7 underneath. This refines the cutoff headline above: the 0.7 cutoff now only marks a score as unsure.
+- **Paul 4 vs 5:** 4 = the reply *only answers him* (information he asked for, a price, a room, a welcome, a gift). 5 = at least two kinds of evidence, *each visible in this turn's narration*. A surprise is "a new fact, event or arrival he did not ask about"; a consequence is "something changes because of a choice of his; an answer alone is not a consequence". Asked-for information, warmth, gifts and prices never count. Examples:
+  - level 4: he asks what proof Osric wants and Brenna tells him (`9e1c1d34` T4);
+  - level 5: he offers to help and Brenna puts him to stir the stewpot, then volunteers a black iron door seen in the cut (`93213b5e` T4).
+- **Lotta 3 vs 4:** 3 = the reply *would read the same for any traveller who said her line*: her name used, her order served, her question answered, a job offered to anyone. 4 = it picks up something particular to her character that another traveller would not get. Examples:
+  - level 3: Brenna welcomes "Hilde", names the price and mentions the bounty (`a9585b54` T1);
+  - level 4: she says she is more at home in the wilds, and Brenna says the job in the wilds might suit her better than swinging a pick (`f33a16a8` T2).
+- **Rubric versions:** paul `jev-affect-v1-7862783` (was `fd84ebb`), lotta `jev-affect-v1-989546a` (was `ce84a1a`).
+- **Re-score:** the baseline's 26 Paul and Lotta runs and the 10 post-rework ones, from the stored transcripts. It ran on the box from the PR branch with `mix run --no-start`, so nothing was written to any database. That was 36 Jev calls for **$0.0120** (Jev's own usage figure; 285,629 input tokens), with no game or persona-bot calls. Raw rows: [`rescore-baseline-2026-10-08-sharp.json`](scripts/jev-rescore/rescore-baseline-2026-10-08-sharp.json) and [`rescore-post-rework-2026-10-08-sharp.json`](scripts/jev-rescore/rescore-post-rework-2026-10-08-sharp.json). Full output: [`results-2026-10-08-sharp.md`](scripts/jev-confidence/results-2026-10-08-sharp.md).
+
+"#69" below is the rubric this analysis used: for the baseline, the second re-score with turn confidences; for post-rework, the stored scores. "Sharp" is the new rubric, re-scored on both sides.
+
+**Unsure share (confidence < 0.7) and weighted headline, per dataset:**
+
+| Persona | Rubric | Unsure, baseline | Unsure, post-rework | **Weighted, baseline** | **Weighted, post-rework** | Plain mean, base / post |
+|---|---|---|---|---|---|---|
+| Paul | #69 | 51% | 46% | 4.39 | 4.26 | 4.37 / 4.24 |
+| Paul | sharp | **72%** | **74%** | 4.44 | 4.34 | 4.37 / 4.21 |
+| Lotta | #69 | 75% | 86% | 3.92 | 3.86 | 3.91 / 3.84 |
+| Lotta | sharp | **39%** | **30%** | 3.28 | 3.28 | 3.33 / 3.34 |
+| Lars | unchanged | 55% | 40% | 3.73 | 3.76 | 3.66 / 3.70 |
+| Ronny\* | unchanged | 58% | 70% | 4.62 | 4.58 | 4.44 / 4.33 |
+| Hawk | unchanged | 50% | 27% | 1.90 | 2.12 | 1.93 / 2.10 |
+
+**Deltas, post-rework minus baseline** (95% CI, bootstrap over runs):
+
+| Persona | Rubric | Turn plain mean Δ | **Turn weighted Δ** | Unsure share Δ | Session weighted Δ |
+|---|---|---|---|---|---|
+| Paul | #69 | −0.13 (−0.21…−0.04) | **−0.12 (−0.20…−0.05)** | −5 pp (−14…+4) | −0.04 (−0.15…+0.08) |
+| Paul | sharp | −0.16 (−0.30…−0.01) | **−0.10 (−0.22…−0.01)** | +2 pp (−12…+13) | −0.03 (−0.13…+0.09) |
+| Lotta | #69 | −0.07 (−0.28…+0.13) | **−0.06 (−0.29…+0.18)** | +11 pp (−11…+31) | −0.05 (−0.52…+0.38) |
+| Lotta | sharp | +0.01 (−0.25…+0.30) | **0.00 (−0.22…+0.30)** | −9 pp (−36…+19) | −0.08 (−0.74…+0.77) |
+| Lars | unchanged | +0.04 (−0.22…+0.25) | +0.03 (−0.22…+0.23) | −15 pp (−26…−2) | +0.02 (−0.26…+0.28) |
+| Ronny\* | unchanged | −0.11 (−0.54…+0.28) | −0.04 (−0.22…+0.14) | +12 pp (−23…+42) | −0.17 (−0.68…+0.19) |
+| Hawk | unchanged | +0.17 (−0.06…+0.39) | **+0.22 (+0.01…+0.41)** | −23 pp (−35…−12) | +0.34 (−0.42…+1.05) |
+
+**Breakdown at 0.7, Paul and Lotta (turns):**
+
+| Persona | Rubric | Dataset | Confident-high | Confident-middle | Confident-low | Unsure |
+|---|---|---|---|---|---|---|
+| Paul | #69 | baseline / post | 64 (49%) / 27 (54%) | 0 / 0 | 0 / 0 | 66 (51%) / 23 (46%) |
+| Paul | sharp | baseline / post | 36 (28%) / 13 (26%) | 0 / 0 | 0 / 0 | 94 (72%) / 37 (74%) |
+| Lotta | #69 | baseline / post | 28 (22%) / 6 (12%) | 5 (4%) / 1 (2%) | 0 / 0 | 97 (75%) / 43 (86%) |
+| Lotta | sharp | baseline / post | 5 (4%) / 3 (6%) | 74 (57%) / 32 (64%) | 0 / 0 | 51 (39%) / 15 (30%) |
+
+What it shows:
+
+- **Lotta: the border works, and it moves her down a level.** On the sharpened rubric her most likely level is 3 on 115 of 130 baseline turns and 43 of 50 post-rework turns. Her sure turns sit firmly at 3 (mean probabilities .01 / .81 / .14 for levels 2 / 3 / 4). In plain words, Jev now says the GM rarely answers *Hilde* in particular: replies use her name, serve her order and answer her question, but seldom pick up her dwarf or druid side or her earlier deeds. Her weighted headline drops from 3.92 to 3.28. That is a change of yardstick, not of the game, and both sides moved alike (delta 0.00).
+- **Paul: the border still doesn't separate his turns.** His unsure turns are an even split between level 4 (0.42) and 5 (0.45), and his most likely level moved towards 5 (71 of 130 baseline turns, against 56 on the #69 rubric).
+  - **Why.** Jev returns no rationales (the API gives only scores, confidences and probabilities), so this comes from the vectors and from reading the turns. Paul asks broad questions ("have any of your patrons lost kin?"), and the NPCs answer with vivid facts he could not have known: Old Jarek's boy, eyes like hot coals, a miner joining in unasked (`f756f876` T3, T5 and T6, confidence 0.49–0.57). Whether that is "information he asked for" (4) or "a surprise" and "an NPC acting on their own goals" (5) is a judgment the wording can't settle. Most of his turns are both.
+  - **Hindsight adds to it.** Jev sees the whole transcript when it scores a turn, so evidence from nearby turns can leak in.
+  - **Options for Fredrik, not done here:**
+    - make level 5 require one particular kind of evidence (for example a consequence of his choice);
+    - score turns without hindsight;
+    - or leave Paul's border as it is and rely on the weighted headline.
+- **The deltas don't change:**
+  - **Paul:** about −0.1 turn by turn under every rubric and headline (weighted −0.10, CI −0.22…−0.01 sharpened; −0.12, CI −0.20…−0.05 on #69).
+  - **Lotta:** flat.
+  - **Hawk:** the weighted headline keeps his turn gain clear of zero (+0.22, CI +0.01…+0.41), smaller than the cutoff reading's +0.32.
+  - **Sessions:** none moved.
+- **Weighted vs cutoff headline:** the weighted headline stays close to the plain mean, because unsure turns still count: within about 0.1 for most personas, and up to 0.25 higher for Ronny, whose unsure turns are his low ones. It never runs out of turns, unlike Lotta's 7 at the cutoff.
+
+\* Ronny is the anti-persona: high = the game resisted his exploits.
+
+Reproduce: `python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final > results.md`. *Added 2026-10-08:* add `--rescore-conf docs/scripts/jev-rescore/rescore-baseline-2026-10-08-conf.json` for the Paul and Lotta turn-level reading, and see the script's [README](scripts/jev-confidence/README.md) for the re-score command. *Added 2026-10-08:* `--sharp-base` / `--sharp-post` with the two `*-sharp.json` files add the weighted headline and the sharpened rubric.
 
 ## Appendix: reproducing
 

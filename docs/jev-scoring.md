@@ -71,6 +71,48 @@ In the 65-run baseline, Paul's most likely turn level was 5 on 124 of 130 turns 
 - **Turn scores** now spread, and Lotta's run-to-run spread grew.
 - **Paul's session score did not drop.** Over 10 turns, Jev still finds two kinds of evidence somewhere, so for Paul the turn means are the more sensitive A/B signal. If the session score must move too, a follow-up could scope level 5 to "most of the session".
 
+## Sharper borders for Paul (4 vs 5) and Lotta (3 vs 4) (2026-10-08)
+
+Decision: [Sharper Jev borders for Paul (4 vs 5) and Lotta (3 vs 4)](decisions.md#2026-10-08-sharper-jev-borders-for-paul-4-vs-5-and-lotta-3-vs-4). PR: [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80), **not merged**: production and playtest still score with `fd84ebb` / `ce84a1a`. The source text lives in `TalesForge.Playtest.AffectLevels`, not in `personas.md`.
+
+On the stricter rubric above, Jev was unsure (confidence < 0.7) on 51% of Paul's and 75% of Lotta's baseline turns. The splits sat exactly on these borders. Each border now names what to look for in the turn, with an example from a real turn:
+
+- **Paul 4:** the reply answers something specific to him but *only answers him*: information he asked for, a price, a room, a welcome or a gift. Example: he asks what proof Osric wants and Brenna tells him, a carved bone idol (`9e1c1d34` T4).
+- **Paul 5:** at least two kinds of evidence, *each visible in this turn's narration*:
+  - a surprise ("a new fact, event or arrival he did not ask about or point to");
+  - a consequence ("something changes because of a choice of his; an answer alone is not a consequence");
+  - a callback to a specific earlier word or deed;
+  - an NPC acting on their own goals in a way that changes the scene.
+
+  Asked-for information, warmth, gifts and prices never count. Example: he offers to help, Brenna puts him to stir the stewpot and volunteers a black iron door seen in the cut (`93213b5e` T4).
+- **Lotta 3:** the reply "would read the same for any traveller who said her line": her name used, her order served, her question answered, a price, a job offered to anyone. Example: Brenna welcomes "Hilde", names the price and mentions the bounty (`a9585b54` T1).
+- **Lotta 4:** the reply picks up something particular to her character that another traveller would not get: her race, craft or calling, her background or manner, or her earlier deeds. Example: she says she is more at home in the wilds, and Brenna says the job in the wilds might suit her better than swinging a pick (`f33a16a8` T2).
+
+| persona | #69 | sharpened (PR #80) |
+|---|---|---|
+| paul | `jev-affect-v1-fd84ebb` | `jev-affect-v1-7862783` |
+| lotta | `jev-affect-v1-ce84a1a` | `jev-affect-v1-989546a` |
+| lars / hawk / ronny | `fc771be` / `129f728` / `e8f0786` | unchanged |
+
+**Re-score** of the baseline's and the post-rework series' Paul and Lotta runs from the stored transcripts: 36 Jev calls for $0.012, with raw rows in `scripts/jev-rescore/*-sharp.json`. Unsure share, baseline / post-rework:
+
+| | before | after |
+|---|---|---|
+| Lotta | 75% / 86% | **39% / 30%** |
+| Paul | 51% / 46% | 72% / 74% |
+
+- **Lotta:** the border works. Jev is now mostly sure she is at level 3.
+- **Paul:** it does not. His typical turn is both "an answer to his open question" and "vivid new detail he didn't ask for".
+
+Details: [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-confidence-weighted-headline-and-sharper-paullotta-borders).
+
+**Headline on the playtest pages** (same PR, decision [The headline Jev score is a confidence-weighted average](decisions.md#2026-10-08-the-headline-jev-score-is-a-confidence-weighted-average)):
+
+- The confidence-weighted turn average, `sum(score × confidence) / sum(confidence)`.
+- The unsure share (confidence < 0.7) next to it.
+- The high / low / middle / unsure breakdown underneath.
+- The session score as a secondary line.
+
 ## Closed decisions
 
 1. Score shape: session + per-turn in one Jev call — confirmed.

@@ -28,7 +28,14 @@ their turn-level reading is like for like. The "old" plain-average deltas stay o
 (the earlier re-score); the plain delta on the new pass is shown next to them to separate Jev's run-to-run noise
 from the change of reading.
 
-Usage: python3 confidence_matrix.py BASELINE_DIR COMPARE_DIR [--rescore-conf FILE] [--json OUT.json] > out.md
+Added 2026-10-08 (decision "confidence-weighted headline"): --sharp-base FILE --sharp-post FILE (rescore.exs rows
+with the sharpened Paul/Lotta borders, rubric 7862783 / 989546a) append a section with the confidence-weighted
+headline, sum(score x confidence) / sum(confidence), for every persona, and Paul and Lotta on the #69 rubric vs
+the sharpened one: unsure share (< 0.7), weighted headline, breakdown and post-rework-minus-baseline deltas with
+bootstrap CIs over runs. Needs --rescore-conf (the #69 baseline pass with turn confidences). Own random stream.
+
+Usage: python3 confidence_matrix.py BASELINE_DIR COMPARE_DIR [--rescore-conf FILE]
+       [--sharp-base FILE --sharp-post FILE] [--json OUT.json] > out.md
 """
 import json, sys
 import numpy as np, pandas as pd
@@ -46,6 +53,10 @@ args = [a for a in sys.argv[1:]]
 jout = None
 if "--json" in args:
     i = args.index("--json"); jout = args[i + 1]; del args[i:i + 2]
+def opt(name):
+    if name in args:
+        i = args.index(name); v = args[i + 1]; del args[i:i + 2]; return v
+sharp_b, sharp_p = opt("--sharp-base"), opt("--sharp-post")
 rconf = None
 if "--rescore-conf" in args:
     i = args.index("--rescore-conf"); rconf = args[i + 1]; del args[i:i + 2]
@@ -308,6 +319,103 @@ w("### Low-confidence share of turns (new vs base, Δ in percentage points)\n")
 w(table(lrows, ["p", "c6", "c7", "c8"], ["Persona", "< 0.6", "**< 0.7**", "< 0.8"]))
 w("### Score bands without confidence (share of turns ≥ 3.5 and ≤ 2.5; available for every persona)\n")
 w(table(brows, ["p", "high", "low"], ["Persona", "High (≥ 3.5)", "Low (≤ 2.5)"]))
+
+# ---------------------------------------------------------------- added 2026-10-08: weighted headline, sharper borders
+def wmean(sc, cf):
+    sc, cf = np.asarray(sc, float), np.asarray(cf, float)
+    return float((sc * cf).sum() / cf.sum()) if cf.sum() > 0 else np.nan
+
+
+def wruns(t):
+    a = t.assign(sw=t.score * t.conf).groupby("run_id").agg(sw=("sw", "sum"), w=("conf", "sum"), n=("score", "size"),
+                                                             un=("conf", lambda c: (c < MAIN).sum()))
+    return a
+
+
+def wstat(a): return a.sw.sum() / a.w.sum() if a.w.sum() > 0 else np.nan
+def ustat(a): return a.un.sum() / a.n.sum()
+
+
+def sharp_frames(path, cohort_runs):
+    """Turn and session frames from rescore.exs rows, keyed like turns.csv."""
+    tr, sr = [], []
+    for r in json.load(open(path)):
+        ns = sorted(cohort_runs[r["run"]])
+        assert len(ns) == len(r["turns"]), r["run"]
+        for n, sc, cf in zip(ns, r["turns"], r["turn_conf"]):
+            tr.append(dict(run_id=r["run"], persona=r["persona"], turn=n, score=sc, conf=cf))
+        sr.append(dict(run_id=r["run"], persona=r["persona"], session_score=r["session"], session_conf=r["session_conf"]))
+    return pd.DataFrame(tr), pd.DataFrame(sr)
+
+
+if sharp_b and sharp_p:
+    assert REPLACED, "--sharp-* needs --rescore-conf"
+    rng3 = np.random.default_rng(SEED + 2)
+    tb_all = TC[TC.cohort.str.startswith(BASE)]; ta_all = TC[TC.cohort.str.startswith(NEW)]
+    rb_all = RC[RC.cohort.str.startswith(BASE)]; ra_all = RC[RC.cohort.str.startswith(NEW)]
+    runs_turns = {k: list(v) for k, v in TC.groupby("run_id").turn}
+    stb, ssb = sharp_frames(sharp_b, runs_turns)
+    sta, ssa = sharp_frames(sharp_p, runs_turns)
+    out["weighted"] = {}
+    w("## Added 2026-10-08: confidence-weighted headline and sharper Paul/Lotta borders\n")
+    w("Weighted headline = sum(score × confidence) / sum(confidence) over a persona's turns (sessions: over its sessions). "
+      f"Unsure = confidence < {MAIN}. Paul and Lotta: '#69' = the stricter rubric (baseline: second pass with turn "
+      "confidences; post-rework: stored scores), 'sharp' = the sharpened borders (rubric 7862783 / 989546a), "
+      "re-scored on both sides. Deltas: post-rework minus baseline, bootstrap 95% CI over runs.\n")
+    sets = []
+    for p in PERS:
+        sets.append((p, "#69" if p in ("paul", "lotta") else "stored", tb_all[tb_all.persona == p], ta_all[ta_all.persona == p],
+                     rb_all[rb_all.persona == p], ra_all[ra_all.persona == p]))
+        if p in ("paul", "lotta"):
+            sets.append((p, "sharp", stb[stb.persona == p], sta[sta.persona == p], ssb[ssb.persona == p], ssa[ssa.persona == p]))
+    rows, drows, brows = [], [], []
+    for p, rub, tb_, ta_, rb_, ra_ in sets:
+        key = f"{p}/{rub}"; W = out["weighted"][key] = {}
+        for lab, t, r in (("base", tb_, rb_), ("post", ta_, ra_)):
+            m = matrix(t.score, t.conf, MAIN)
+            W[lab] = dict(n=len(t), plain=float(t.score.mean()), weighted=wmean(t.score, t.conf), unsure=m["unsure_share"],
+                          hi=m["hi"], lo=m["lo"], mid=m["mid"], un=m["unsure"],
+                          session_weighted=wmean(r.session_score, r.session_conf),
+                          session_unsure=float((r.session_conf < MAIN).mean()))
+            brows.append(dict(p=NAME[p], rub=rub, ds=lab, n=len(t), hi=f"{m['hi']} ({pc(m['hi']/m['n'])})",
+                              lo=f"{m['lo']} ({pc(m['lo']/m['n'])})", mid=f"{m['mid']} ({pc(m['mid']/m['n'])})",
+                              un=f"{m['unsure']} ({pc(m['unsure_share'])})"))
+        A, B = wruns(ta_), wruns(tb_)
+        dw = boot_delta(A, B, wstat, rng3); du = boot_delta(A, B, ustat, rng3)
+        sa = pd.DataFrame(dict(sw=ra_.session_score.values * ra_.session_conf.values, w=ra_.session_conf.values))
+        sb = pd.DataFrame(dict(sw=rb_.session_score.values * rb_.session_conf.values, w=rb_.session_conf.values))
+        ds = boot_delta(sa, sb, wstat, rng3)
+        A0, B0 = runs_arrays(ta_, MAIN), runs_arrays(tb_, MAIN)
+        dp = boot_delta(A0, B0, run_mean_mean, rng3)
+        W["delta"] = dict(weighted=dict(zip(("d", "lo", "hi"), dw[:3])), unsure=dict(zip(("d", "lo", "hi"), du[:3])),
+                          session_weighted=dict(zip(("d", "lo", "hi"), ds[:3])), plain=dict(zip(("d", "lo", "hi"), dp[:3])))
+        b, a = W["base"], W["post"]
+        rows.append(dict(p=NAME[p], rub=rub, ub=pc(b["unsure"]), ua=pc(a["unsure"]), wb=f2(b["weighted"]), wa=f2(a["weighted"]),
+                         pb=f2(b["plain"]), pa=f2(a["plain"]), sb=f2(b["session_weighted"]), sa=f2(a["session_weighted"])))
+        drows.append(dict(p=NAME[p], rub=rub, dp=f"{sg(dp[0])} ({ci(dp[1], dp[2])})", dw=f"{sg(dw[0])} ({ci(dw[1], dw[2])})",
+                          du=f"{pp(du[0])} pp ({ci(du[1], du[2], True)})", ds=f"{sg(ds[0])} ({ci(ds[1], ds[2])})"))
+    w("### Per persona and dataset (turns; sessions in the last two columns)\n")
+    w(table(rows, ["p", "rub", "ub", "ua", "wb", "wa", "pb", "pa", "sb", "sa"],
+            ["Persona", "Rubric", "Unsure base", "Unsure post", "**Weighted base**", "**Weighted post**", "Plain base", "Plain post",
+             "Session weighted base", "Session weighted post"]))
+    w("### Deltas, post-rework minus baseline\n")
+    w(table(drows, ["p", "rub", "dp", "dw", "du", "ds"],
+            ["Persona", "Rubric", "Turn plain mean Δ (one mean per run)", "**Turn weighted Δ**", "Unsure share Δ", "Session weighted Δ"]))
+    w(f"### Breakdown at {MAIN} (turns)\n")
+    w(table(brows, ["p", "rub", "ds", "n", "hi", "lo", "mid", "un"],
+            ["Persona", "Rubric", "Dataset", "Turns", "Confident-high", "Confident-low", "Confident-middle", "Unsure"]))
+    w("### Baseline analysis score set (stored first pass; Paul and Lotta on the pre-#69 rubric)\n")
+    rows = []
+    for p in PERS:
+        t, r = TB[TB.persona == p], RB[RB.persona == p]
+        m = matrix(t.score, t.conf, MAIN)
+        out["weighted"][f"{p}/stored-baseline"] = dict(weighted=wmean(t.score, t.conf), unsure=m["unsure_share"],
+                                                       session_weighted=wmean(r.session_score, r.session_conf))
+        rows.append(dict(p=NAME[p], n=len(t), pl=f2(t.score.mean()), wt=f2(wmean(t.score, t.conf)), un=pc(m["unsure_share"]),
+                         sw=f2(wmean(r.session_score, r.session_conf))))
+    w(table(rows, ["p", "n", "pl", "wt", "un", "sw"], ["Persona", "Turns", "Plain mean", "**Weighted**", "Unsure", "Session weighted"]))
+    cost = sum(r["usage"]["cost"] for f in (sharp_b, sharp_p) for r in json.load(open(f)) if r.get("usage"))
+    w(f"Sharpened re-score: {len(ssb)} + {len(ssa)} runs, Jev cost ${cost:.4f} (Jev's own usage figure).\n")
 
 if jout:
     def clean(o):

@@ -333,6 +333,26 @@ What the matrix shows:
 - So a low-confidence share is only comparable within one rubric.
 - Sessions on the stricter rubric: Paul 4.84 at ≥ 0.7 (12 of 13 sure). Lotta has 2 of 13 sure sessions, too few to read.
 
+**Added 2026-10-08: confidence-weighted headline and sharper Paul/Lotta borders.** The headline Jev score is now the confidence-weighted average, `sum(score × confidence) / sum(confidence)`, with the unsure share (confidence < 0.7) next to it ([decision](decisions.md#2026-10-08-the-headline-jev-score-is-a-confidence-weighted-average)). Paul's 4/5 and Lotta's 3/4 borders were sharpened ([decision](decisions.md#2026-10-08-sharper-jev-borders-for-paul-4-vs-5-and-lotta-3-vs-4), [PR #80](https://github.com/whyse-ab/ex-tales-forge/pull/80), not merged).
+
+Weighted headline for this baseline. Turns use the score set this analysis used; Paul and Lotta are also shown on the #69 rubric and on the sharpened one:
+
+| Persona | Rubric | Plain mean | **Weighted** | Unsure (< 0.7) | Session weighted |
+|---|---|---|---|---|---|
+| Paul | pre-#69 (this analysis) | 4.70 | **4.77** | 17% | 4.81 |
+| Paul | #69 | 4.37 | **4.39** | 51% | 4.82 |
+| Paul | sharpened | 4.37 | **4.44** | 72% | 4.89 |
+| Lotta | pre-#69 (this analysis) | 4.16 | **4.16** | 8% | 4.40 |
+| Lotta | #69 | 3.91 | **3.92** | 75% | 4.32 |
+| Lotta | sharpened | 3.33 | **3.28** | 39% | 3.73 |
+| Lars | unchanged | 3.66 | **3.73** | 55% | 4.04 |
+| Ronny\* | unchanged | 4.44 | **4.62** | 58% | 4.46 |
+| Hawk | unchanged | 1.93 | **1.90** | 50% | 3.00 |
+
+- **The weighted headline tells the same story as the plain mean,** within 0.1 except Ronny (+0.18), whose unsure turns are the low ones.
+- **The sharper border settles Lotta, at level 3:** Jev is now mostly sure the GM's replies would read the same for any traveller. It does not settle Paul (unsure 72%).
+- The re-score cost $0.012 for 36 Jev calls (26 of them for these baseline runs). Details, deltas and the reasons are in the [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-confidence-weighted-headline-and-sharper-paullotta-borders).
+
 Reproduce: `python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final > results.md`. *Added 2026-10-08:* add `--rescore-conf docs/scripts/jev-rescore/rescore-baseline-2026-10-08-conf.json` for the stricter-rubric Paul and Lotta rows, and see the script's [README](scripts/jev-confidence/README.md).
 
 ## Appendix: reproducing
