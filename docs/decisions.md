@@ -11,6 +11,18 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-08: Design note: persistent world state at the core of the turn loop
+
+- **Decision (Fredrik, via Case):** write a design note on making persistent world state the core of the turn loop. An "apply consequences" step goes between the rules and the prose. The turn's result becomes events sent to everything it touched (people, the player character, places, factions), each updates its own state in plain Elixir, Jev is used only for judgements, and the GM gets a snapshot of the current state instead of the history. The world keeps moving on world time.
+- **What the note recommends:**
+  - **Processes:** one `World.Instance` process per world; people, places, items and factions are plain data inside it.
+  - **Persistence:** an event log (extending `session_events`) plus snapshots every 25 events.
+  - **First step:** a shadow mode behind `WORLD_STATE=shadow` that changes nothing the GM sees.
+  - **Cost:** no new LLM call on the hot path.
+- **Why:** today the state is spread over several copies (mood in four places), places hold no state, nothing moves between turns, and the GM carries the continuity itself, which is where the drift comes from. One state model with recorded causes gives the [living world](design-world-agents.md#living-world-design-to-try) and the Tinjacks something to run on.
+- **Status:** design note written, no code. Its open questions (one process per world or per entity, a short turn window for the GM, commit before or after the GM, which sources may write events) need Fredrik's answers before the first PR.
+- **Details:** [Design: persistent world state at the core of the turn loop](design-stateful-world.md)
+
 ## 2026-10-08: Several founder surveys at once, as tabs, from docs JSON with an active flag
 
 - **Decision (Fredrik, via Case):** `/admin/survey` shows one tab per active survey, each with the signed-in founder's status (not started, in progress, done). Surveys are discovered from the `docs/*survey*.json` files in tales-forge-docs, and each file's `"active": true/false` flag decides whether it is a tab. Adding or closing a survey is a docs commit (60 s cache, or "Sync from repo"), with no deploy. Closed and inactive surveys leave the tabs but stay readable in the admin, with results, CSV and Markdown. A new `/admin/surveys` page shows every founder's status per survey. founder-survey-3 keeps its slug, results and answers (`active: true`), and the `priv/surveys` snapshots stay the fallback for both surveys.

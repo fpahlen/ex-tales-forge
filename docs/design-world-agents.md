@@ -224,4 +224,5 @@ A world nobody visits costs well under $0.001 per world-day. A played world adds
 ## Related
 
 - [Call types](call-types.md): the call-type rule and the Character model this builds on.
+- [Design: persistent world state at the core of the turn loop](design-stateful-world.md) (2026-10-08): how these agents, the NPC agents and the living world could become one world instance with an event log.
 - [Jev as player-intent gate (tales-forge-docs #24, draft)](https://github.com/whyse-ab/tales-forge-docs/pull/24): the gate validates the player's intent before the turn; with world agents it can ask them, as plain function calls, whether a target exists here or what something costs, instead of trusting the GM.

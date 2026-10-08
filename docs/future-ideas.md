@@ -16,4 +16,4 @@ Ideas we may pick up later. They are not decisions and nobody is building them y
   - The turn always uses the exact text the player sent, never a stale draft. Anything computed from a draft is thrown away unless the sent text matches it exactly.
   - Speculative calls are capped per turn, so a slow typist can't run up cost.
 - **When:** after the Jev intent path is live (PR 2 of the intent plan).
-- **Related:** [Design: player intent as one Jev call](design-jev-intent.md).
+- **Related:** [Design: player intent as one Jev call](design-jev-intent.md), [Design: persistent world state](design-stateful-world.md#8-cost-and-latency) (the turn's cost and latency).
