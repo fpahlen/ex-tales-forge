@@ -9,6 +9,16 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Founder survey in the app instead of Google Forms
+
+- **Decision (Fredrik, via Case):** the founder survey runs on our own page at `/admin/survey`, behind the GitHub team login, so we know who answered and there's no name question. Approved by Fredrik (2026-10-08 07:45: "You are go for survey", merge and deploy).
+  - The questions come from [`founder-survey-3.json`](founder-survey-3.json) on this repo's main, read through GitHub with the server's `GITHUB_DOCS_TOKEN` and cached for 60 s. A snapshot in the release is the fallback. A wording change, opening or closing (`status`) is a docs commit, with no deploy. The `.md` is generated from the JSON (`scripts/survey/render_md.py`).
+  - Answers autosave per section, one response per founder, editable until `status` is `closed`. Each answer records the survey `version` it was given under, and every survey file answered under is stored verbatim.
+  - Results at `/admin/surveys/founder-survey-3/results`: per-question aggregates by persona, per-founder answers, a CSV export and a Markdown summary for personas.md.
+- **Why:** survey 2 never went out, and Google Forms can't link the excerpts to the playtest runs or keep answers tied to the exact question wording.
+- **Status:** merged as `944ad1a`, deployed to production v74 and playtest v62. On both apps the release loads the survey from tales-forge-docs main (27 questions, status open, no problems). The page redirects to the login when signed out. The first prod deploy attempt (v73) failed on a transient database connection timeout in the migration step and passed on re-run.
+- **Details:** [ex-tales-forge PR #78](https://github.com/whyse-ab/ex-tales-forge/pull/78), [founder survey](founder-survey-3.md)
+
 ## 2026-10-08: Broken links fixed in the admin docs viewer and the code docs; CI checks the links
 
 - **Decision:** links in the admin docs viewer (`/admin/docs`, decision pages) and in the code docs (`/admin/code-docs`) resolve, and CI fails when one breaks. Approved by Fredrik (2026-10-08 07:40: merge, deploy and sync the docs on both apps).
