@@ -59,7 +59,16 @@ out =
       location_id: ws["location_id"],
       scenes: scenes,
       events: events,
-      fronts: fronts
+      fronts: fronts,
+      # Per-run character-change numbers (memories added, NPCs changed, NPC attitude toward the
+      # player character), once TalesForge.Playtest.CharacterChanges is deployed (read-only).
+      character_changes:
+        if Code.ensure_loaded?(TalesForge.Playtest.CharacterChanges) do
+          gs
+          |> TalesForge.Playtest.CharacterChanges.for_session()
+          |> TalesForge.Playtest.CharacterChanges.run_metrics()
+          |> Map.from_struct()
+        end
     }
   end)
 

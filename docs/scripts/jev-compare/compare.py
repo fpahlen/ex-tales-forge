@@ -86,6 +86,17 @@ def _rescore(js, s0):
     return dict(rubric=first["rubric_version"], overall=first["overall"], confidence=first["confidence"])
 
 
+def _character_changes(x):
+    """Per-run character-change numbers from export.exs (TalesForge.Playtest.CharacterChanges.run_metrics/1)."""
+    cc = x.get("character_changes")
+    if not cc:
+        return dict(cc_memories=np.nan, cc_npcs_changed=np.nan, cc_npcs_attitude=np.nan, cc_attitude=np.nan,
+                    cc_stance=np.nan, cc_relationship=np.nan)
+    return dict(cc_memories=cc.get("memories_added"), cc_npcs_changed=cc.get("npcs_changed"),
+                cc_npcs_attitude=cc.get("npcs_attitude_changed"), cc_attitude=float(bool(cc.get("attitude_changed?"))),
+                cc_stance=float(bool(cc.get("stance_changed?"))), cc_relationship=float(bool(cc.get("relationship_changed?"))))
+
+
 def build(runs, rescore=None):
     rescore = rescore or {}
     R, T = [], []
@@ -118,6 +129,7 @@ def build(runs, rescore=None):
                       lp=sum(float((t.get("mech") or {}).get("lp_awarded") or 0) for t in x["turns"]),
                       top_skill_lp=_top_skill_lp(x["turns"]),
                       improvements=(r.get("growth") or {}).get("improvements"),
+                      **_character_changes(x),
                       rescore=_rescore(js, s0)))
         new = rescore.get(r["id"])
         if new:  # stored first pass replaced by the re-scored new rubric (like-for-like comparison)
@@ -345,6 +357,21 @@ def report(R, T):
         w(md(rr, 2))
     else:
         w("_none_")
+    w("\n\n## 8. Character changes (player character and NPCs)\n")
+    w("Per run, from `TalesForge.Playtest.CharacterChanges.run_metrics/1` (ex-tales-forge, export field `character_changes`). "
+      "`attitude_share`: share of runs where some NPC's latest Jev stance toward the player character is not neutral, "
+      "or its relationship score moved off 0; `npcs_attitude`: NPCs per run whose attitude changed; `memories`: memories "
+      "NPCs gained per run; `npcs_changed`: NPCs with any stored change per run. Median and mean.\n")
+    cc = R[R.cc_memories.notna()] if "cc_memories" in R else R.iloc[0:0]
+    if len(cc):
+        ct = cc.groupby("cohort").agg(runs=("run_id", "size"), attitude_share=("cc_attitude", "mean"),
+                                      stance_share=("cc_stance", "mean"), relationship_share=("cc_relationship", "mean"),
+                                      npcs_attitude_median=("cc_npcs_attitude", "median"), npcs_attitude_mean=("cc_npcs_attitude", "mean"),
+                                      memories_median=("cc_memories", "median"), memories_mean=("cc_memories", "mean"),
+                                      npcs_changed_median=("cc_npcs_changed", "median"), npcs_changed_mean=("cc_npcs_changed", "mean"))
+        w(md(ct, 2))
+    else:
+        w("_No export carries `character_changes` yet (needs the CharacterChanges module on the playtest app)._")
     return "\n".join(out) + "\n"
 
 

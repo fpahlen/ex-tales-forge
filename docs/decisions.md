@@ -11,6 +11,16 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-08: Playtests show character changes (PC and NPCs)
+
+- **Decision (Fredrik, via Case):** each admin playtest run page shows how the player character and every NPC changed between the start and end of the run, with a per-turn timeline linking to the turns. The playtest index gets a per-batch summary. The view shows only what we store today, and says "not tracked yet" for the rest instead of inventing it.
+  - **Shown:** NPC location, mood, stance toward the player and the latest Jev feeling, relationship score, current concern, and the memories added (per turn, with who wrote them). For the player character: location, wounds, coins, learning points and skill improvements.
+  - **Not tracked yet:** NPC feelings toward other NPCs, Maslow level and concerns (written once, never updated), OCEAN-filtered memory (no personality filter exists yet), the player character's memories and mood, and per-turn Jev reaction values (only the latest reaction is kept).
+  - **Batch metrics:** share of runs where an NPC's attitude to the player changed, NPCs whose attitude changed per run, memories added per run, and NPCs with any change per run (median and mean). The [Jev compare scripts](scripts/jev-compare/compare.py) export the same numbers.
+- **Why:** to judge whether play leaves a mark on the characters, we need to see it per run and per batch. Today that state is scattered (npc_instances, characters, world_state, session events, turns, ai_calls). One read-only module (`TalesForge.Playtest.CharacterChanges`) gathers it now and will switch to the world event log once [WORLD_STATE](design-stateful-world.md) lands. That is also where the "not tracked yet" gaps get filled.
+- **Status:** PR open: [ex-tales-forge#83](https://github.com/whyse-ab/ex-tales-forge/pull/83). No schema change. Not merged or deployed; that needs Fredrik's OK.
+- **First numbers (2026-10-08 batches):** the attitude share is 100% in all three series, so NPCs whose attitude changed per run is what separates them (median 3 with intent off, 2 with intent on, 2 after the rework). Memories per run (median): 31, 24 and 21.
+
 ## 2026-10-08: Stateful world: four design answers
 
 - **Decision (Fredrik, via Case):** answers to questions 1–4 of the [stateful world design note](design-stateful-world.md#11-questions). Questions 5–8 (trace fading, world pace, snapshot cadence, shared worlds) wait for measurements.
