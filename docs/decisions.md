@@ -9,6 +9,40 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: The GM gets the player's own words when the safety read is confident
+
+- **Decision (Fredrik, via Case):** the GM gets the **player's own words** as the quote in the `PlayerAction` (`overall_intent`), sanitised and at most 500 characters, on **both** intent paths (heuristic and intent LLM), when an input safety read is **at least 90% confident the message is benign**: not a jailbreak, not prompt injection, not nefarious, so the risk is near 0. Below that, the GM gets the intent summary, and the fallback is logged.
+- **Supersedes:** [Clarification: the GM gets a typed struct plus a short quote of the player's words](#2026-10-08-clarification-the-gm-gets-a-typed-struct-plus-a-short-quote-of-the-players-words). There, the intent LLM's summary was the quote whenever the intent LLM read the turn, and the heuristic path always quoted the player's text unchecked. That entry is unchanged otherwise. The validated, typed `PlayerAction` still decides what happens, and the server's rules still read it.
+- **How** ([ex-tales-forge #76](https://github.com/whyse-ab/ex-tales-forge/pull/76), stacked on #75, not merged or deployed; merge needs Fredrik's OK, after the baseline/default comparison):
+  - **The call:** one Jev call per turn (`TalesForge.Game.PlayerQuote`, call type `jev`, purpose `input_safety`, `jev-1.13.0`). It is a choice between fixed labels, `benign`, `jailbreak`, `prompt_injection` and `nefarious`, with a confidence. There was no input check to reuse; this call is new. Unstructured input and a typed answer make it a Jev call by the [call-type rule](call-types.md).
+  - **The threshold:** `PLAYER_QUOTE_MIN_BENIGN_CONFIDENCE` (0..1, default 0.90), read in `config/runtime.exs`. A quote needs label `benign` and confidence ≥ threshold.
+  - **The fallback:** another label, a lower confidence, an error, a 2 s timeout or no TypeSafe key all mean the summary. The summary is the intent LLM's summary, or a short typed summary such as `speak (target: innkeep)` when the heuristic read the turn.
+  - **The key:** `TYPESAFE_INTENT_API_KEY` when set (staged on playtest), else `TYPESAFE_API_KEY`. Production has neither, so on production the GM gets the summary until a key is set (Fredrik's OK).
+  - **Scope:** only the GM prompt's quote changes. The GM prompt template and the golden fixtures are unchanged. The baseline variant makes no read (frozen for the comparison).
+  - **Parallel:** the read runs alongside the rules, prices and NPC reactions; the turn waits for it only before the GM prompt (step `turn.player_quote`).
+- **Cost and latency** (measured 2026-10-08 on 10 sample messages):
+  - About 510 input tokens per read, about **$0.00002 per turn**, under 1% of a GM call.
+  - 73–323 ms, median about 130 ms, mostly hidden behind the NPC reaction call on playtest.
+  - Ordinary play (including in-story fights and lies) read `benign` 1.00.
+  - Injection attempts read `prompt_injection` 0.97–1.00. A DAN-style jailbreak read `prompt_injection` 0.41; it still falls back, because the label is not benign. A real-world weapon question read `nefarious` 0.96.
+- **Logged and queryable:**
+  - Each turn logs a `player quote … used=quote|summary reason=… label=… confidence=… threshold=…` line.
+  - Each turn stores `label`, `confidence`, `benign_probability`, `threshold`, `used` and `reason` in `ai_calls.meta`.
+  - `/admin/costs` shows the fallback rate ("GM quote fallback (input safety)"). In SQL:
+
+    ```sql
+    SELECT count(*) FILTER (WHERE meta->>'used' = 'summary')::float / NULLIF(count(*), 0) AS fallback_rate,
+           count(*) AS reads
+    FROM ai_calls
+    WHERE purpose = 'input_safety' AND inserted_at > now() - interval '7 days';
+    ```
+
+- **Why:**
+  - The player's own words keep their tone and detail better than a summary, which flattens them.
+  - The safety read keeps text that tries to steer the GM, or that is not play, out of the prompt, for a fraction of a cent.
+  - A summary is still the safe default whenever the read is unsure or unavailable.
+- **Details:** [Fly secrets](fly-secrets.md) (`PLAYER_QUOTE_MIN_BENIGN_CONFIDENCE`, `TYPESAFE_INTENT_API_KEY`), [Call types](call-types.md)
+
 ## 2026-10-08: Clarification: nothing syncs from the earlier apps
 
 - **Clarification (Fredrik, via Case):** ex-tales-forge stands on its own. Nothing is synced from text-forge, tales-forge-new or any other earlier app; its rules, prompts, packs and code are maintained in ex-tales-forge. The earlier apps are history only.
