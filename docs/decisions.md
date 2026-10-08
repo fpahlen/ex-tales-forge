@@ -9,6 +9,16 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Broken links fixed in the admin docs viewer and the code docs; CI checks the links
+
+- **Decision:** links in the admin docs viewer (`/admin/docs`, decision pages) and in the code docs (`/admin/code-docs`) resolve, and CI fails when one breaks. Approved by Fredrik (2026-10-08 07:40: merge, deploy and sync the docs on both apps).
+  - Docs viewer: relative `.md` links go to the doc's own page (`/admin/docs/<path>`) or the decision page, images under `docs/` are served at `/admin/docs-files/<path>`, other repo files go to their GitHub URL in this repo, and headings get ids so `#anchor` links work.
+  - Code docs: the missing `docs_config.js` is shipped, PRODUCT, architecture and DEPLOY-FLY are included as pages, links to files ExDoc doesn't ship go to GitHub, and "View source" points at the deployed commit (`GIT_SHA`).
+  - CI: `mix docs.check_links doc` checks every internal link in the ExDoc output, and a crawl test signs in and checks that every internal link on the app's pages returns 200.
+- **Why:** Fredrik found broken links on the admin docs pages and in the code docs.
+- **Status:** merged as `b8b41cc`, deployed to production v72 and playtest v61; docs synced on both apps (32 docs, 12 decisions each; before: production 13 docs, playtest 12). An in-app check of all 44 doc and decision pages found no broken internal link or anchor on either app.
+- **Details:** [ex-tales-forge PR #77](https://github.com/whyse-ab/ex-tales-forge/pull/77)
+
 ## 2026-10-08: Hawk / Tinjacks: the Tinjacks come to the fighter; Brenna points at trouble, not chores
 
 - **Decision (Fredrik, via Case):** the Tinjacks come to the fighter. Their plans run on world time even when he's away, so the toll happens anyway and he hears about the consequences afterwards. Brenna points fighters at the trouble instead of offering chores.
