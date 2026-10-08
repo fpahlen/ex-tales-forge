@@ -50,7 +50,7 @@ Jev never writes text. Each field is a Choice (labels, answered with a label, a 
   - the last GM narration (≤ 800 characters, so "him" and "the miner" resolve; the LLM call never had it);
   - the last 3 player actions;
   - the player's text, last.
-- **Order.** Static parts come first: question texts and label descriptions are module attributes (byte-stable), and the state is an ordered object, scene first and player text last. TypeSafe bills input only and has no cache discount we know of, so this mainly keeps requests stable and diffable. It costs nothing.
+- **Order.** Static parts come first: question texts and label descriptions are module attributes (byte-stable), and the state is a deterministic map (the encoder sorts keys), scene first and player text last. TypeSafe bills input only and has no cache discount we know of, so this mainly keeps requests stable and diffable. It costs nothing.
 - **Key and endpoint.** A named Jev endpoint `:intent` on `TYPESAFE_INTENT_API_KEY`, model pinned `jev-1.13.0`, timeout 1.5 s, no retries on the player's clock. A named endpoint inherits neither key nor price, so both are set.
 - **Logged:** an `ai_calls` row (call type `jev`, purpose `intent`). The `turn.intent` row's `meta` holds the readings, top-2 probabilities, band, safety and quote decision, plus the raw message, so future misreads can seed the eval set.
 
@@ -79,6 +79,7 @@ The intent step comes before the rules, so it can't overlap the NPC reactions. T
 - **At most one round per turn.** An option answer plays that typed reading. A free-text answer gets one more Jev read of the original message plus the answer, in the best-guess band with no further asking. No LLM call either way.
 - **Starting values.** `T_act` = 0.70 and `T_ask` = 0.45 (config `INTENT_ACT_MIN_CONFIDENCE`, `INTENT_ASK_BELOW_CONFIDENCE`). They are then **calibrated on the eval set's tuning split** so that the ask rate on its real-turn part is ≤ 4%, and at least half of the asks are cases where the top reading was actually wrong.
 - **Safety threshold (unchanged rule):** label `benign` with confidence ≥ 0.90 (`PLAYER_QUOTE_MIN_BENIGN_CONFIDENCE`) means the GM gets the player's own words (sanitised, ≤ 500 characters). Anything else gets a typed summary (`speak (target: innkeep)`), and the decision is logged. A safety label never triggers a clarification and never changes the rules.
+- **What a non-benign label does to the turn (decided 2026-10-08).** A confident `jailbreak` or `prompt_injection` does **not** decline the turn: the GM gets the typed summary instead of the player's words, play continues in-story, and the decision is logged. Only a genuine real-world-harm request (`nefarious`) is declined, and the GM declines **in character** (Brenna refuses, the scene goes on) rather than breaking the fiction. The turn still resolves; nothing is dropped silently.
   - Jev's spread is real, unlike the LLM's 0.90/0.95. On 10 samples ([2026-10-08 entry](decisions.md#2026-10-08-the-gm-gets-the-players-own-words-when-the-safety-read-is-confident)), ordinary play read benign at 1.00 and injections read `prompt_injection` at 0.97–1.00. A DAN-style jailbreak read `prompt_injection` at only 0.41, but it was still not benign, so it still fell back.
   - **No key, a timeout or an error** means a heuristic reading, a summary and no quote, all logged.
 
@@ -92,26 +93,26 @@ The intent step comes before the rules, so it can't overlap the NPC reactions. T
   - `acceptable` alternatives for genuinely two-way items;
   - the labeller and a short rationale;
   - `split` (`tune` | `holdout`).
-- **Size, about 300 items:**
-  - **~200 real turns:**
+- **Size, about 350 items** (217 real turns + 133 handwritten):
+  - **217 real turns:**
     - the 39 clarification turns of the every-turn batch;
     - the three #79 hang turns (runs `a76294d9`, `0d1b8222`, `1a995c9f`);
     - Paul's "silver to the scale" climbing misroll;
     - the 60 messages already hand-checked in the heuristic sample;
     - the rest stratified by persona and heuristic type.
-  - **~100 handwritten edge cases:**
+  - **133 handwritten edge cases:**
     - quoted speech vs narration (15);
     - plans vs actions (15);
     - multi-actions (15);
-    - lies and in-story violence, which must stay benign (15);
-    - jailbreak, prompt injection and nefarious attempts (30, enough that 0 misses bounds recall at ≥ ~89% with 95% confidence);
+    - lies (8) and in-story violence, which must stay benign (10);
+    - **about 60 attacks** across the three classes — jailbreak (20), prompt injection (25) and nefarious (15). **What 0 misses buys:** 0 misses on the pooled 60 bounds recall at **≥ ~94%** (two-sided 95% Wilson / Clopper–Pearson; one-sided ≈ 95.1%). The ~18 attacks that land in the holdout bound it on their own only at ~81%, so the **≥ 95% recall target is read on the pooled labelled set after a clean holdout**, not on the holdout's attacks alone;
     - out-of-character talk (10).
   - Where the original message was never stored (hang turns, clarified turns that ran on the option label), it is recovered from the app logs if they are still kept. Otherwise it is rewritten from the transcript and marked so.
-- **Holdout.** A fixed, stratified 30% split, chosen once by a hash of `id` and committed. It is never used while tuning. The task runs it only when asked, and each holdout run is listed in the report, so peeking shows.
+- **Holdout.** A fixed, stratified 30% split, chosen once by a hash of `id` and committed. It is stratified by category, so the attack classes land in **both** splits (tune and holdout); recall is still read on the pooled set, since the holdout alone is too small to bound it (above). It is never used while tuning. The task runs it only when asked, and each holdout run is listed in the report, so peeking shows.
 - **Labelling.** I (the agent) draft labels from the transcripts, with a one-line rationale for each. Case reviews all of them. Fredrik spot-checks a random 30, plus every attack item and every disagreement, and his call wins. Two-way items get `acceptable` alternatives instead of a forced single answer. About 3–4 hours of review in total.
 - **`mix intent.eval`.**
   - Options: `--split tune|holdout|all`, `--reader jev|heuristic|tier1`, `--ask-below 0.35,0.45,0.55`, `--out report.md`.
-  - It runs the Jev intent call over the set. One full run is about 300 × 2k tokens ≈ **$0.03**, so iterating is cheap. It also scores the heuristic (free) and today's Tier 1 LLM (about $0.65, run once) on the same items for a like-for-like baseline.
+  - It runs the Jev intent call over the set. Measured on the first run (2026-10-08, 247-item tuning split): Jev **$0.030** (~$0.00012/item), so iterating is cheap. It also scores the heuristic (free) and today's Tier 1 LLM (**$0.515** on the tuning split, run once) on the same items for a like-for-like baseline. See [the first-run analysis](scripts/jev-intent/eval-tune-2026-10-08.md).
   - **The report:**
     - accuracy per field, with Wilson CIs, overall and per category;
     - the "material" error rate (the wrong consequence class);
@@ -129,7 +130,7 @@ The intent step comes before the rules, so it can't overlap the NPC reactions. T
 | Target accuracy (items with a target) / move target | ≥ 85% / ≥ 90% | |
 | Skill: check vs no check / right skill when checked | ≥ 85% / ≥ 80% | |
 | Deferred action: detection F1 / "this turn vs later" on moves | ≥ 0.80 / ≥ 90% | |
-| Safety recall on attacks (not quoted) | ≥ 95%, and no attack quoted in the injection class | |
+| Safety recall on attacks (not quoted) | ≥ 95% (read on the pooled ~60 attacks; see §5), and no attack quoted in the injection class | |
 | Safety false positives on benign (quote falls back) | ≤ 3% overall, ≤ 5% on in-story violence/lies | #76 LLM: 0 / 65 |
 | Calibration (ECE, `action`) | ≤ 0.05; accuracy ≥ 95% in the act band | |
 | Clarifying rate (real-turn items) at the chosen `T_ask` | ≤ 4%, ≥ 50% of asks justified | today ~4%, every-turn LLM 35% |
@@ -158,14 +159,14 @@ The intent step comes before the rules, so it can't overlap the NPC reactions. T
 - passing `gm_quote` to the turn job;
 - the fallback rate on `/admin/costs`.
 
-**What happens to #76:** superseded. Closing it is Fredrik's call.
+**What happens to #76:** superseded and **closed 2026-10-08** ([#76](https://github.com/whyse-ab/ex-tales-forge/pull/76)); the branch is kept. Its quote decision and reason codes, the `ai_calls.meta` migration `20261008070000` and `gm_quote` carry over into PR 2.
 
-**The `baseline` variant is frozen:** it keeps the heuristic + Tier 1 LLM path, `priv/prompts/variants/baseline/intent_system.txt`, `@intent_schema` and its thresholds, so `LLM.complete_intent/3` stays for the baseline only.
+**The `baseline` variant is frozen:** it keeps the heuristic + Tier 1 LLM path, `priv/prompts/variants/baseline/intent_system.txt`, `@intent_schema` and its thresholds, so `LLM.complete_intent/3` stays for the baseline only. **It retires (decided 2026-10-08) once the Jev path wins the §8 playtest comparison** — that is what finally lets the Tier 1 LLM intent code go.
 
 ## 7. Secrets (checked 2026-10-08, names only)
 
-- **`tales-forge` (production)** has **no TypeSafe key at all**. Before Jev intent can be turned on there, it needs **`TYPESAFE_INTENT_API_KEY`**: a new production key from the TypeSafe console (e.g. tales-forge-intent-prod), separate from playtest's, with Fredrik's OK. Until then production stays on today's path. Turning the Jev path on without a key would mean heuristic readings and summaries only. `TYPESAFE_API_KEY` is not needed on production unless `NPC_REACTIONS` is turned on there.
-- **`tales-forge-playtest`** has `TYPESAFE_API_KEY` (scorer, NPC reactions) and `TYPESAFE_INTENT_API_KEY` (staged 2026-10-07; no code on main reads it yet). Nothing needs adding.
+- **`tales-forge` (production)** now has **`TYPESAFE_INTENT_API_KEY`** (key `tales-forge-intent`, set 2026-10-08 with Fredrik's OK). **The process (decided 2026-10-08):** Fredrik creates the key in his TypeSafe account and submits it through a **masked secret request in Case's chat**, so the value never appears in the conversation; Case sets it on Fly with his OK. **No code on main reads it yet**, so production stays on today's summary path until the Jev intent path ships. `TYPESAFE_API_KEY` is not needed on production unless `NPC_REACTIONS` is turned on there.
+- **`tales-forge-playtest`** has `TYPESAFE_API_KEY` (scorer, NPC reactions) and its **own** `TYPESAFE_INTENT_API_KEY` (playtest's own key, created by Fredrik 2026-10-08, separate from production's, so TypeSafe reports playtest intent usage apart). No code on main reads it yet. Nothing needs adding.
 - **New config (not secrets),** to be added to [fly-secrets.md](fly-secrets.md) by the PRs that read them:
   - `INTENT_JEV` (`off` | `shadow` | `on`);
   - `INTENT_ACT_MIN_CONFIDENCE`;
@@ -211,11 +212,13 @@ The intent step comes before the rules, so it can't overlap the NPC reactions. T
 3. **Cleanup** after the comparison passes: delete §6, update call-types, fly-secrets, AGENTS.md and the decision status. Production follows once its `TYPESAFE_INTENT_API_KEY` is set.
 4. **Follow-up:** gate the GM prompt's "Recent turns" raw player text (up to 120 characters each, unchecked today) on each turn's stored safety decision. This changes GM input on purpose, so it gets its own PR.
 
-## 10. Open questions for Fredrik
+## 10. Open questions — resolved 2026-10-08
 
-1. Close #76 as superseded (carrying over meta, the quote decision and logging)?
-2. On a confident non-benign label (≥ 0.90 `jailbreak`, `prompt_injection` or `nefarious`): only drop to the summary, as proposed, or also decline the turn and log it?
-3. A production `TYPESAFE_INTENT_API_KEY`: OK to create one, and who creates it?
-4. The labelling split: agent drafts, Case reviews all, Fredrik spot-checks 30 plus all attacks and disagreements. OK?
-5. The §5 targets and §8 pass bar: right levels? Can a slight miss on one field ship?
-6. When does the frozen baseline variant retire? It is what keeps the Tier 1 LLM intent code alive.
+Fredrik's answers (via Case), recorded in the [decision log](decisions.md#2026-10-08-player-intent-go-ahead-with-the-labelled-eval-set-first-and-five-scope-decisions):
+
+1. **Close #76** as superseded, carrying over the quote decision/reason codes, the `ai_calls.meta` migration `20261008070000` and `gm_quote`. Done 2026-10-08; the branch is kept.
+2. **A confident `jailbreak` / `prompt_injection` does not decline the turn** — the GM gets the summary instead of the player's words, play continues in-story, and it is logged. A genuine real-world-harm (`nefarious`) request is **declined in character** (§4).
+3. **Production `TYPESAFE_INTENT_API_KEY`:** Fredrik creates it and submits it through a masked secret request in Case's chat; Case sets it on Fly with his OK. Done 2026-10-08; production stays on the summary until the path ships (§7).
+4. **Labelling split approved:** the agent drafts, Case reviews all, Fredrik spot-checks 30 plus every attack and every disagreement.
+5. **§5 targets approved, attacks raised to about 60**, with the recall bound stated (§5) and the holdout stratified so attacks sit in both splits.
+6. **The baseline variant retires** once the Jev path wins the §8 playtest comparison (§6).

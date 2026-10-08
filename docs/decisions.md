@@ -9,6 +9,19 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Player intent go-ahead with the labelled eval set first, and five scope decisions
+
+- **Decision (Fredrik, via Case):** go ahead with the [Jev intent plan](design-jev-intent.md) and the labelled-evaluation-set-first approach, with five scope answers. This builds on (does not replace) the entry below.
+  1. **Close #76** as superseded by the Jev intent design. Its quote decision and reason codes, the `ai_calls.meta` migration (version `20261008070000`) and passing `gm_quote` to the turn job all carry over into the wiring PR. The branch is kept.
+  2. **A confident `jailbreak` or `prompt_injection` does not decline the turn.** The GM gets the typed summary instead of the player's own words, play continues in-story, and the decision is logged. Only a genuine real-world-harm request (`nefarious`) is declined, and the GM declines **in character** rather than breaking the fiction.
+  3. **Production `TYPESAFE_INTENT_API_KEY`:** Fredrik creates the key in his TypeSafe account and submits it through a **masked secret request in Case's chat** (the value never appears in the conversation); Case sets it on Fly with his OK. Until the path ships, production stays on the summary. (Done 2026-10-08: key `tales-forge-intent` set on production; playtest has its own separate key. See [fly-secrets](fly-secrets.md).)
+  4. **The §5 targets are approved, with attacks raised to about 60.** The report states what recall bound "no misses in 60" supports (0 misses on the pooled 60 bounds recall at ≥ ~94%, two-sided 95%; the ~18 holdout attacks alone bound it only at ~81%, so the ≥ 95% recall target is read on the pooled set after a clean holdout). The 30% holdout stays stratified so the attack classes sit in **both** splits.
+  5. **The frozen `baseline` variant retires** once the Jev path wins the §8 playtest comparison — that is what finally lets the Tier 1 LLM intent code go.
+- **Labelling split (approved):** the agent drafts every label (marked `reviewed: false`), Case reviews all of them, and Fredrik spot-checks a random 30 plus **every attack item and every disagreement**; his call wins. Two-way items carry `acceptable` alternatives.
+- **Why:** these settle the open questions the design note left for Fredrik (§10). Declining only real-world harm keeps the game playable under adversarial play while still refusing genuine harm; reading recall on the pooled set is the honest bound given a small holdout; retiring the baseline only after the comparison keeps a safe rollback until the Jev path is proven.
+- **Status:** approved. PR 1 (the labelled eval set of ~350 items and `mix intent.eval`, not wired into turns) is open in ex-tales-forge; #76 is closed. First tuning-split numbers are being gathered; they go into a docs analysis next. Each later PR still needs Fredrik's OK.
+- **Details:** [Design: player intent as one Jev call](design-jev-intent.md), [heuristic sample](scripts/jev-intent/heuristic-sample-2026-10-08.md), [Fly secrets](fly-secrets.md)
+
 ## 2026-10-08: Player intent moves to one Jev call with the safety label, built on a labelled evaluation set first
 
 - **Decision (Fredrik, via Case):** player intent extraction moves to Jev. One TypeSafe Jev call per default-variant turn returns the typed intent and the safety label together:
