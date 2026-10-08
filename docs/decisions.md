@@ -1,6 +1,6 @@
 ---
 title: Decision log
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Decision log
@@ -8,6 +8,17 @@ updated: 2026-10-07
 Decisions made by the founders. Newest at the top. Each entry: date, decision, why, link to details. Changing a decision means adding a new entry that supersedes the old one.
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
+
+## 2026-10-08: Clarification: the code and its docs stand alone; where the code came from is recorded here
+
+- **Clarification (Fredrik, via Case):** ex-tales-forge's code, module docs, comments, README and Agent Rules (`AGENTS.md`, the "Agent Rules" page of `/admin/code-docs`) describe what the code does now. They no longer mention the earlier apps; history and origin notes live in this repo. Nothing about the game changes.
+  - Status: [ex-tales-forge #75](https://github.com/whyse-ab/ex-tales-forge/pull/75) is open and waits for Fredrik's approval; not merged or deployed. It removes 18 such references in 9 files.
+- **Where the code came from** (the notes removed from ex-tales-forge, kept here):
+  - **text-forge** (FastAPI + Next.js, file-based campaigns with a git commit per campaign turn; repo `text-forge`, still under `fpahlen`, see [Infrastructure](infrastructure.md)). ex-tales-forge started as an Elixir rewrite of it. Its `backend/app/rules/*.md` became `priv/rules/*.md`, its `backend/app/prompts/*.txt` became `priv/prompts/*.txt`, and the Crossroads NPC files `priv/npcs/*.json`, the server-side dice and Learning Points (`Game.Mechanics`) and the play-test skill (`.grok/skills/play-test`) came from it. Its Supabase code was not ported. Turn history moved from git commits to the `Turn` table (same goal, different storage). The old Agent Rules also said "when rules or prompts change in text-forge, sync the corresponding files here"; that note is gone with the rest.
+  - **tales-forge-new** (`fpahlen/tales-forge-new-31993d9d`, the React + Supabase app; tales-forge.ai on Netlify, see [Infrastructure: to retire](infrastructure.md#to-retire)). The skill rules in `priv/characters/creation.json` come from its written rules (sources listed in [character creation port: skill rules](character-creation-port.md#skill-rules-ported-2026-10-07)), and the prompt-prefix test (`test/ex_tales_forge/game/prompt_prefix_test.exs`) was ported from its `_shared/__tests__/promptOrdering.test.ts`.
+  - Left in the code on purpose: the "Starting Wealth (Legacy Fallback)" / `STARTING_WEALTH` text in `priv/rules/economy.md` and its pack copies. It is part of the GM's rules text and the golden prompt fixtures, which must not change by accident.
+- **Why:** humans and coding bots read the module docs to learn what the code does. Notes about another app's files send them to code they don't have and make the docs go stale; one place for history keeps both clear.
+- **Details:** [ex-tales-forge PR #75](https://github.com/whyse-ab/ex-tales-forge/pull/75), [Coding standards](coding-standards.md), [character creation port](character-creation-port.md)
 
 ## 2026-10-07: Build out the inn and its surroundings for every player type; record scene changes
 
