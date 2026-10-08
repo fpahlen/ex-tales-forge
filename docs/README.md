@@ -30,6 +30,7 @@ Also in this folder:
 - [Analysis: Jev scores from the playtests (2026-10-07)](analysis-jev-scores-2026-10-07.md): per persona, by turn, correlations (dice failures and NPC brush-offs drive low scores), Hawk's low confidence, recommendations
 - [Analysis: Jev after the inn-world, scene-change and Brenna rework (2026-10-08)](analysis-jev-post-rework-2026-10-08.md): 23-run post-rework series vs the 2026-10-07 baseline (new rubric for Paul and Lotta): leaving the inn, echo and tics, the Tinjacks, growth, cost, a turn hang
 - [Analysis: INTENT_CALL_EVERY_TURN off vs on (2026-10-08)](analysis-intent-every-turn-2026-10-08.md): 20-run playtest batch on ex-tales-forge #76 with the flag off and on: quote rate, clarification loops, Jev, safety labels, cost (game vs persona), latency, hangs
+- [Design: player intent as one Jev call](design-jev-intent.md): one TypeSafe Jev call per turn for the typed intent and the safety label; labelled evaluation set and `mix intent.eval` first, thresholds and clarification bands, what goes away, secrets, playtest comparison, PR sequence (design, no code yet)
 - [Call types: Elixir function, Jev, or LLM](call-types.md): which call type to use for each piece of work, and the target turn pipeline (draft)
 - [Plan: porting character creation from the old app](character-creation-port.md): how the old app's creation works and a proposed port to the Elixir app (draft)
 - [Setting up Resend (email)](resend-setup.md)

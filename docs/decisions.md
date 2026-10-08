@@ -9,6 +9,31 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
+## 2026-10-08: Player intent moves to one Jev call with the safety label, built on a labelled evaluation set first
+
+- **Decision (Fredrik, via Case):** player intent extraction moves to Jev. One TypeSafe Jev call per default-variant turn returns the typed intent and the safety label together:
+  - **Intent:** action type, target, skill, deferred action, confidence.
+  - **Safety label:** `benign`, `jailbreak`, `prompt_injection` or `nefarious`, with its confidence.
+  - **What it replaces:** the Tier 1 LLM intent call and the separate safety read of ex-tales-forge #76.
+  - **The regex heuristic** stays only as a fast path or a fallback, and only if it still earns its place. The design note proposes fallback only.
+  - **Low Jev confidence** leads to a clarifying question, not another LLM call. The clarifying rate must stay near today's ~4%.
+  - **Proof:** a playtest comparison against the current path (Jev score, clarifying rate, latency, cost).
+  - The player-quote rule is unchanged (benign at ≥ 0.90 means the GM gets the player's own words, otherwise the summary; logged). The `baseline` variant is frozen and keeps the old path. GM prompts stay byte-identical.
+- **Addendum (Fredrik, via Case, same day): a labelled evaluation set comes first.** Intent is a vital part of the game, and it's fine to spend considerable effort tuning it.
+  - **The set:** player inputs with known correct intent (action type, target, skill, deferred action, safety label), kept as a fixture in ex-tales-forge.
+  - **Seeds:** real playtest turns (the 39 clarification turns of the every-turn batch, the three #79 hang turns, Paul's "scale" misroll) plus handwritten edge cases: quoted speech vs narration, plans vs actions, multi-actions, lies and in-story violence (Ronny's threats are benign), jailbreak and injection attempts.
+  - **The mix task:** it runs the Jev call over the set and reports accuracy per field, safety precision and recall, calibration (reliability bins, ECE) and the clarifying rate at candidate thresholds.
+  - **Holdout:** a fixed ~30% split, never used while tuning.
+  - The Jev input is iterated until the proposed targets are met. The eval set and the mix task are the **first PR**, before the call itself.
+- **Supersedes:** [Clarification: the safety read is part of the intent call, not a separate Jev call](#2026-10-08-clarification-the-safety-read-is-part-of-the-intent-call-not-a-separate-jev-call). The safety read is still part of the intent call, but that call is now Jev, not the Tier 1 LLM. `INTENT_CALL_EVERY_TURN` is no longer needed. That entry is unchanged otherwise.
+- **Why:**
+  - **The call-type rule** ([call types](call-types.md)): unstructured in, structured out is a Jev call, and structured output from the LLM is a smell.
+  - **The every-turn batch** ([analysis](analysis-intent-every-turn-2026-10-08.md)): putting the LLM intent call on every turn raised clarifications to 35% of turns (4% before; Paul 65%, up to 5 rounds). It added about $0.0029 per turn (~30% of game cost), 1.7 s median / 4.3 s p90 on the intent step, and +63% persona cost. Its LLM safety confidence only ever took the values 0.90 and 0.95.
+  - **Jev on playtest** costs ~$0.00004 per call at 0.23 s median for the NPC reactions. An intent call is estimated at ~$0.0001 and ~0.3 s.
+  - **The heuristic** gave the wrong action type on 22 of 60 random playtest messages (37%), all at confidence ≥ 0.85, so it is not a safe fast path.
+- **Status:** approved, design note written, no code yet. The first PR is the eval set and `mix intent.eval`. Each PR needs Fredrik's OK. #76 is likely superseded; closing it is Fredrik's call. Production has no TypeSafe key; it needs a `TYPESAFE_INTENT_API_KEY` before this path is turned on there.
+- **Details:** [Design: player intent as one Jev call](design-jev-intent.md), [heuristic sample](scripts/jev-intent/heuristic-sample-2026-10-08.md), [Fly secrets](fly-secrets.md)
+
 ## 2026-10-08: Paul's level 5 needs a consequence of his own choice or discovery
 
 - **Decision (Fredrik, via Case):** on Paul's 4-vs-5 border, a vivid answer or a new fact is a 4. A 5 requires a consequence of his own choice or discovery, where the world reacts: for example an NPC acts on what he learned, or a door opens because he asked.
