@@ -77,6 +77,7 @@ def render_q(q, lists):
         o += [f'[Turn {turn}](https://tales-forge-playtest.fly.dev/admin/playtest/{run}#turn-{turn}) · '
               f'{q.get("character", "")}{ctx} Jev **{q["jev_score"]:.2f}** of 5{scale}.', '',
               f'> **Player:** {q["player"]}', '>', f'> **Game:** {q["game"]}', '',
+              *([f'{rel(q["text"])}', ''] if q.get('text') else []),
               '- **Answer:** the rating scale, required; "Why?" optional'
               + (f' ({q["why_hint"]})' if q.get('why_hint') else '') + '.']
     else:

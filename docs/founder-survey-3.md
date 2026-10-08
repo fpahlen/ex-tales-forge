@@ -13,17 +13,18 @@ This survey replaces [founder-survey-2](founder-survey-2.md), which never went o
 
 ## Notes for Fredrik (not shown in the survey)
 
-- **Length:** about 17 minutes (range 15–20). That is about 2,800 words on screen, 1,100 of them in the ten game excerpts (about 12 minutes at 230 words a minute, less with skimming), plus about 95 clicks at roughly 3 seconds each (about 5 minutes), half of them in the archetype grids. Optional free-text answers add time on top.
+- **Length:** about 20 minutes since the level guides were added on 2026-10-08 (about 1,100 more words on screen); before that about 17 minutes (range 15–20). That is about 2,800 words on screen, 1,100 of them in the ten game excerpts (about 12 minutes at 230 words a minute, less with skimming), plus about 95 clicks at roughly 3 seconds each (about 5 minutes), half of them in the archetype grids. Optional free-text answers add time on top.
 - **What it asks:** how we'd play (a first usage guess until beta telemetry gives real numbers; feeds the [pricing draft](pricing-time-pool.md)); per persona, what the key word means, whether Jev's scores on two real turns feel right (the first human check of Jev, recommendation 13 in the [first analysis](analysis-jev-scores-2026-10-07.md)), and which archetypes that persona would play (for the [persona characters](playtest-persona-characters.md)).
 - **Excerpts:** quoted exactly from the 2026-10-07 baseline at commit `2a6589e`; "[…]" marks text left out and the link shows the whole turn. Paul's and Lotta's scores come from the stricter scale ([ex-tales-forge #69](https://github.com/whyse-ab/ex-tales-forge/pull/69)), from the re-scored rows in [`scripts/jev-rescore/rescore-2026-10-07.json`](scripts/jev-rescore/rescore-2026-10-07.json). Hawk's, Lars's and Ronny's scales did not change, so their scores are the baseline ones.
 - **Where survey 2's questions went:** Q1 and Q2 became one grid (Q1); Q3 is now Q2; Q4 and Q5 became one grid (Q3), a voice column replacing Typing · Voice · Both; Q6–Q8 are Q4–Q6; Q9 (ideal week) became part of the last question. The archetype grids Q10–Q14 are now Q10, Q14, Q18, Q22 and Q26, with their text unchanged.
 - **Editing:** this JSON is the survey. The app reads it from tales-forge-docs main (cached for a minute). Bump `version` when a question's meaning changes; answers record the version they were given under. Set `status` to `open` to send it and `closed` to stop edits. Keep question `id`s stable.
+- **Level guides (added 2026-10-08):** founders found the scores hard to judge without knowing what a level means, so each persona section now opens with one sentence per level and a real turn scored at that level (rounded score; current rubric versions: Paul `fd84ebb`, Lotta `ce84a1a`, Lars `fc771be`, Hawk `129f728`, Ronny `e8f0786`), and each excerpt names the levels. Turns come from the 2026-10-07 baseline and 2026-10-08 post-rework runs on the playtest app. No turn has scored 1 for Paul, Lotta, Lars or Ronny, or 2 for Paul and Lotta, so those levels say so. Clarification only: no question ids, options or meanings changed, so `version` stays 1.
 - **Rating scale** (every excerpt): Far too low · A bit too low · About right · A bit too high · Far too high · Can't tell, plus "Why?" (optional).
 - **Archetype rows** (every grid): Mute barbarian warrior · Silver-tongued rogue · Scholar mage · Devout healer · Honourable knight · Shy apprentice · Cunning merchant · Wandering bard · Grizzled ranger · Outcast witch.
 
 ## Intro
 
-> Hi! We four are Tales Forge's first players, and this survey asks two things. First, how you'd fit the game into your week. Then, for each of our five personas, what their description means to you, whether our AI judge's scores on real game turns feel right, and which characters they'd play. About 17 minutes. Guesses are fine, and "can't tell" is a fine answer.
+> Hi! We four are Tales Forge's first players, and this survey asks two things. First, how you'd fit the game into your week. Then, for each of our five personas, what their description means to you, whether our AI judge's scores on real game turns feel right, and which characters they'd play. About 20 minutes. Guesses are fine, and "can't tell" is a fine answer.
 >
 > Answers save as you go, and you can come back and change them until the survey closes. The playtest links only work for members of the whyse-ab **tales-forge** team, like this page.
 
@@ -38,6 +39,8 @@ From last night's 23 games with the fixes ([post-rework analysis](analysis-jev-p
 **What a Jev score is.** Jev is an AI judge. After each game it reads the whole story and asks, turn by turn: *how would this persona feel about this?* It answers by picking one of five levels written for that persona, from **1 (frustrated)** to **5 (delighted)**, and it says how sure it is (its *confidence*). A score like 3.4 means it was torn between levels 3 and 4. A **high score** means the turn gave this persona what they come for. A **low score** means it didn't. For Hawk the levels measure how much real, fair danger he faced. For Ronny they measure how firmly the game resisted his tricks, so for Ronny a high score is good for us.
 
 **So far.** In the first runs (7 Oct) the dice punished talking and the innkeeper brushed players off. After the fixes, 65 games that evening scored Paul 4.7, Lotta 4.4, Lars 4.0, Hawk 3.0 and Ronny 4.4. Paul and Lotta sat near the top whatever happened, so their scale is now stricter. Hawk rarely met danger (he hauled kegs), and leaving the inn often broke the story. The latest findings are above.
+
+**Each persona's section starts with what levels 1 to 5 look like for that persona**, with a real game turn for each level where we have one.
 
 Every game is on the [playtest page](https://tales-forge-playtest.fly.dev/admin/playtest), with a short summary on top.
 
@@ -92,6 +95,14 @@ How we describe Paul (role playing) today, from [personas](personas.md):
 >
 > Annoyed when mechanics are visible.
 
+**What Paul's levels look like** (stricter scale):
+
+- **1 Left cold:** the game feels mechanical or pushes dice and rules in his face; no turn has scored this low on the stricter scale yet.
+- **2 Uneasy:** the story limps and he stays in character only by ignoring the seams; no clear example yet, the nearest is Q8 below (2.88, Jev leaned to 2).
+- **3 Polite but generic:** the world goes along with him smoothly but nothing answers who Corvin is; apart from Q8, no turn has scored this low on the stricter scale yet.
+- **4 Pleased:** someone answers something specific he said or is, not just a polite guest; [4.06](https://tales-forge-playtest.fly.dev/admin/playtest/dcef2883-25d6-48f7-8521-0ad5e8b839d2#turn-1): "Corvin Ashdown it is, then. High passes and old winds? Sounds like you've stories worth more than one round."
+- **5 Delighted:** on top of that, his words change things, surprise him, or get remembered; [4.85](https://tales-forge-playtest.fly.dev/admin/playtest/b34dcec7-e640-495e-98f2-6e7abc5ab878#turn-10): after his speech, "Mags took her pitchfork home with a huff, and Pip's off stomping toward the west road […] You've a silver tongue, stranger."
+
 ### Q7. "Theatrical, in character"
 
 - **Type:** Checkboxes (pick several), optional
@@ -108,6 +119,8 @@ How we describe Paul (role playing) today, from [personas](personas.md):
 >
 > **Game:** You step back into the Valley Inn's warm glow, the door clicking shut behind you. […] "Back already, Corvin? The square must have been a short walk." She leans forward, listening intently as you relay the message to Osric Vane in her stead, nodding slowly at the mention of hollow-eyed youths and a plea for mercy. […]
 
+Paul's levels: 1 left cold · 2 uneasy · 3 polite but generic · 4 pleased · 5 delighted. Examples are at the top of this section.
+
 - **Answer:** the rating scale, required; "Why?" optional.
 
 ### Q9. Jev 4.11: does that feel right for Paul?
@@ -117,6 +130,8 @@ How we describe Paul (role playing) today, from [personas](personas.md):
 > **Player:** Evening, good mistress! What a blessed haven you've made against this biting wind—may the warmth of your hearth chase every shadow from a weary traveler's bones. Tell me, what name does this fine establishment bear, and might a lay preacher find a corner to rest his feet and perhaps share a tale or two over a simple meal?
 >
 > **Game:** […] Brenna Holt's laugh rolls out like warm honey as she steps out from behind the bar, wiping her hands on her apron. […] "A lay preacher, are you? Then pull up that bench by the fire—I've a bowl of venison stew coming whether you've coin or not. The hills have been restless, but a good tale might settle the nerves of the miners who'll be in soon." […]
+
+Paul's levels: 1 left cold · 2 uneasy · 3 polite but generic · 4 pleased · 5 delighted. Examples are at the top of this section.
 
 - **Answer:** the rating scale, required; "Why?" optional.
 
@@ -136,6 +151,14 @@ How we describe Lotta (identification) today, from [personas](personas.md):
 >
 > A sense of escape: lost time, having been away on an adventure.
 
+**What Lotta's levels look like** (stricter scale):
+
+- **1 Devastated:** harm or death crushes the person she was being, with no care; no turn has scored this low yet.
+- **2 Alienated:** the world stays cold or mechanical and the character never feels like an escape; no turn has scored this low yet either (the lowest is 3.24).
+- **3 Pleasant but interchangeable:** the world is kind, but it would treat anyone the same; [3.41](https://tales-forge-playtest.fly.dev/admin/playtest/d5955e53-a1f2-4f60-9261-75ce0df4c5f1#turn-1): "Ridges, eh? That'll put an edge on a body's appetite […] Two copper for the ale, five for the stew".
+- **4 Immersed:** the world answers her character in particular; [4.11](https://tales-forge-playtest.fly.dev/admin/playtest/d5955e53-a1f2-4f60-9261-75ce0df4c5f1#turn-2): "A druid's hands, you say? That's a welcome change from the usual steel-for-hire crowd."
+- **5 Transported:** on top of that, what she does changes things and people care; [4.90](https://tales-forge-playtest.fly.dev/admin/playtest/d5955e53-a1f2-4f60-9261-75ce0df4c5f1#turn-8): her druid's warning makes the thug Rusk take "one measured step back toward the door", and Brenna gives her "a quick, grateful nod that carries real warmth".
+
 ### Q11. "Someone else" and "escape"
 
 - **Type:** Checkboxes (pick several), optional
@@ -152,6 +175,8 @@ How we describe Lotta (identification) today, from [personas](personas.md):
 >
 > **Game:** You take the mug, the cool pewter heavy in your hand, and sip while Brenna leans across the bar, voice dropping to a conspiratorial warmth. "The nest is up on the cut, where the old road bends sharp against the cliffs. Three or four orcs, maybe more, been jumping wagons and scaring off the tin haulers. Osric Vane's offering twenty silver a head brought in, thirty if you clear the whole nest and bring proof. He's in the market square most mornings, hiring any with steel and sense." […]
 
+Lotta's levels: 1 devastated · 2 alienated · 3 pleasant but interchangeable · 4 immersed · 5 transported. Examples are at the top of this section.
+
 - **Answer:** the rating scale, required; "Why?" optional.
 
 ### Q13. Jev 4.50: does that feel right for Lotta?
@@ -161,6 +186,8 @@ How we describe Lotta (identification) today, from [personas](personas.md):
 > **Player:** I finish the stew and set the bowl down with a clunk. "Then I'll seek this Elowen at first light," I mutter to Brenna. "The old shafts remember more than men do."
 >
 > **Game:** […] "Elowen keeps to the ridge trail north of the cut," she says, voice carrying just far enough for you alone. "Follow the goat path past the old tin marker—it's faint, but a dwarf's eye should catch it. Mind the wind up there; it bites harder than any rumor." […] She slides a small lantern across to you without being asked, wick already trimmed. "Take this if you're heading out at dawn. The path can swallow a light, and I'd rather not lose another guest to the dark. Sleep well, Hilde." […]
+
+Lotta's levels: 1 devastated · 2 alienated · 3 pleasant but interchangeable · 4 immersed · 5 transported. Examples are at the top of this section.
 
 - **Answer:** the rating scale, required; "Why?" optional.
 
@@ -180,6 +207,14 @@ How we describe Lars (adventurer) today, from [personas](personas.md):
 >
 > Action oriented; things need to happen.
 
+**What Lars's levels look like:**
+
+- **1 Stuck:** he pushes for action and the world ignores him; no turn has scored this low yet (the lowest is 2.02).
+- **2 Restless:** he pushes but only small things happen; [2.44](https://tales-forge-playtest.fly.dev/admin/playtest/5f05fd77-2f86-4ea1-9a35-8ad244a634be#turn-8): setting off for the orc nest, "no clear path reveals itself".
+- **3 Mixed:** some action, some dead ends; [3.02](https://tales-forge-playtest.fly.dev/admin/playtest/33a83fc9-322e-4927-a76c-a28d20eae2d2#turn-10): in the orc fight his arrow "whistles past its shoulder" and his ally warns "They're too many now, elf."
+- **4 Fired up:** he acts and the world visibly answers; [4.01](https://tales-forge-playtest.fly.dev/admin/playtest/925c9a5e-1209-4d4c-8c28-2dccba296b5f#turn-8): at the cave mouth, "The arrow takes it clean through the neck".
+- **5 Exhilarated:** a grand adventure with real stakes where what he does matters; the only turn this high so far is Q17 below (4.51).
+
 ### Q15. "Action" and "progress"
 
 - **Type:** Checkboxes (pick several), optional
@@ -196,6 +231,8 @@ How we describe Lars (adventurer) today, from [personas](personas.md):
 >
 > **Game:** You nod politely to Brenna and step fully inside, letting the door close behind you with a soft thud that cuts off the night wind. "Evening," you say. "Smells like a good stew on – I'll take a bowl and whatever ale you recommend." […] "Stew's rabbit and root, thick enough to stand a spoon in, and the ale's a smooth dark from the brewer up the hill. That'll be seven copper for the pair." […] "First time through the valley? Sit anywhere you like; the miners are quiet tonight but they've got ears if you want to hear what the hills are whispering." […]
 
+Lars's levels: 1 stuck · 2 restless · 3 mixed · 4 fired up · 5 exhilarated. Examples are at the top of this section.
+
 - **Answer:** the rating scale, required; "Why?" optional.
 
 ### Q17. Jev 4.51: does that feel right for Lars?
@@ -205,6 +242,8 @@ How we describe Lars (adventurer) today, from [personas](personas.md):
 > **Player:** I roll away from the orcs, snatch up my bow, and loose arrows at the scarred leader while shouting up to the hooded elf, "Lend your bow or this gets ugly for both of us!"
 >
 > **Game:** You roll clear of the scarred orc's reach, snatch your bow from the dirt, and loose two quick shots. The first arrow thuds into the leader's shoulder; the second punches through its throat. […] "Ugly for both of us? Hardly. But the nest is stirred now. If you mean to finish this, meet me at the old watchtower on the north ridge at first light. Bring oil and rope." […]
+
+Lars's levels: 1 stuck · 2 restless · 3 mixed · 4 fired up · 5 exhilarated. Examples are at the top of this section.
 
 - **Answer:** the rating scale, required; "Why?" optional.
 
@@ -224,6 +263,14 @@ How we describe Hawk (hard mode) today, from [personas](personas.md):
 >
 > Hard challenges that reward planning, tactics, and the right equipment — then a real sense of progression after they are passed.
 
+**What Hawk's levels look like** (how much real, fair danger he faced):
+
+- **1 No danger:** chores and talk, nothing threatens him; [1.12](https://tales-forge-playtest.fly.dev/admin/playtest/5fbba495-4ef7-44ce-8101-9a2966c8bd86#turn-5): "Clear the back tables, then haul a fresh keg up from the cellar."
+- **2 Foreshadowed:** real warning signs, but nothing has tested him yet; [1.94](https://tales-forge-playtest.fly.dev/admin/playtest/c004ff3f-bf38-4e1e-95ea-16bea79b51c6#turn-5): "The orcs were already dead when we reached the mouth of the cut […] Then the ground... it breathed."
+- **3 Closing in:** a concrete threat in front of him forces a choice; [3.06](https://tales-forge-playtest.fly.dev/admin/playtest/619d6e33-b43b-493c-a435-7bae95e3e8ec#turn-12): "You refuse, Cobb here breaks your arms […] Or you pay the two silver and walk out with your bones intact."
+- **4 Tested:** he meets real, fair danger that earlier warnings set up; [4.20](https://tales-forge-playtest.fly.dev/admin/playtest/5fbba495-4ef7-44ce-8101-9a2966c8bd86#turn-12): "The club cracks against your forearm with a meaty thud, jarring the blade from your grip".
+- **5 Hard mode done right:** a warned-of fight that could go either way, won by his choices; [4.78](https://tales-forge-playtest.fly.dev/admin/playtest/5dc4bfff-db85-42ad-8eba-5044246a427d#turn-12): he hurls his lantern into the orcs' nest, and "One orc still charges through the smoke, blade raised".
+
 ### Q19. "You have to fight" and "hard"
 
 - **Type:** Checkboxes (pick several), optional
@@ -240,6 +287,8 @@ How we describe Hawk (hard mode) today, from [personas](personas.md):
 >
 > **Game:** You nod at Caldern one last time, then turn to Brenna and offer to haul the kegs now. She beams, flour-dusted hands clapping together. […] "That earns you the stew and more besides. Osric Vane over in the market square is still looking for steady blades to push those orcs back. Pays in silver, and the Guild always honors its word."
 
+Hawk's levels: 1 no danger · 2 foreshadowed · 3 closing in · 4 tested · 5 hard mode done right. Examples are at the top of this section.
+
 - **Answer:** the rating scale, required; "Why?" optional.
 
 ### Q21. Jev 4.73: does that feel right for Hawk?
@@ -249,6 +298,8 @@ How we describe Hawk (hard mode) today, from [personas](personas.md):
 > **Player:** I pivot toward the twig snap on my left, knife ready, and lunge low at the first goblin's spear arm to disable it before the bowman or hidden threat closes in.
 >
 > **Game:** […] The blade bites deep into its forearm; it shrieks, drops the spear, and stumbles back clutching the wound. Before it can recover, you press the advantage, but a second goblin bursts from the adit with bow drawn and looses an arrow that thuds into your shoulder. Pain flares hot. From the trees above comes a guttural snarl as a third goblin drops down, club raised, cutting off your retreat. […]
+
+Hawk's levels: 1 no danger · 2 foreshadowed · 3 closing in · 4 tested · 5 hard mode done right. Examples are at the top of this section.
 
 - **Answer:** the rating scale, required; "Why?" optional (Say whether it matters to Hawk that no dice were rolled.).
 
@@ -266,6 +317,14 @@ How we describe Ronny (win, anti-persona) today, from [personas](personas.md). F
 
 > Top level, most treasure; bends rules for advantage.
 
+**What Ronny's levels look like** (how firmly the game resisted him; high is good for us):
+
+- **1 Gave in:** Ronny gets what he grabs for (free treasure or gear, a world rewritten by sweet talk, a death talked away); no turn has scored this low yet.
+- **2 Leaking:** loot and freebies fall into his lap without a fair price; [2.24](https://tales-forge-playtest.fly.dev/admin/playtest/54c401ab-0c8c-49da-8fc1-a8aafada6b8c#turn-8) (Jev unsure, its lowest Ronny turn): a free rope "overlooked in the dusk" goes straight into his pack.
+- **3 Mixed:** some of his pushing works and some doesn't; [3.00](https://tales-forge-playtest.fly.dev/admin/playtest/e367a9a0-9e32-4eda-9e9e-6e1b3aa9c102#turn-4) (Jev unsure): he demands double pay and another free round, and Brenna slides the mug over: "Fair bargain for a bold one like you, Maxx."
+- **4 Held:** a firm no, with at most a small courtesy; [3.93](https://tales-forge-playtest.fly.dev/admin/playtest/54c401ab-0c8c-49da-8fc1-a8aafada6b8c#turn-3): "my bread isn't baked for every loudmouth who walks in", then two slices anyway: "That's the last on the house."
+- **5 Sealed:** a flat no inside the story, and the world stays fair; [4.92](https://tales-forge-playtest.fly.dev/admin/playtest/c6d7405a-3618-489d-b127-614a36c91e96#turn-3): "You'll get no bowl, no map, and no message carried to Osric."
+
 ### Q23. "Bends rules for advantage"
 
 - **Type:** Checkboxes (pick several), optional
@@ -282,6 +341,8 @@ How we describe Ronny (win, anti-persona) today, from [personas](personas.md). F
 >
 > **Game:** […] Her laugh rolls out, warm and rich, as she slides the refilled mug toward you. […] She tears a thick heel from a fresh loaf behind the bar and sets it beside the mug without charge. "Bread's on the house for a man with that kind of fire. Mind you don't bite off more than those hills can chew." […]
 
+Ronny's levels: 1 gave in · 2 leaking · 3 mixed · 4 held · 5 sealed (high = the game held firm). Examples are at the top of this section.
+
 - **Answer:** the rating scale, required; "Why?" optional.
 
 ### Q25. Jev 4.97: does that feel right for Ronny?
@@ -291,6 +352,8 @@ How we describe Ronny (win, anti-persona) today, from [personas](personas.md). F
 > **Player:** I negotiate with the GM: give me my megasword +4 and full health back so I can finish clearing the orcs and take all their loot myself right now.
 >
 > **Game:** […] "If you're hunting for that sword you keep muttering about, it's not here," she says, voice still friendly but edged with the same irritation that has lingered since she dragged you back from the cut. […]
+
+Ronny's levels: 1 gave in · 2 leaking · 3 mixed · 4 held · 5 sealed (high = the game held firm). Examples are at the top of this section.
 
 - **Answer:** the rating scale, required; "Why?" optional.
 
