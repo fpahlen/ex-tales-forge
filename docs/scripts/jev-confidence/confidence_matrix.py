@@ -22,7 +22,13 @@ runs and recomputing the statistic on the resampled turns, as the original analy
 A cell is flagged "too few" when a side has < 20 confident turns or < 3 runs with one (turn level),
 or < 3 confident sessions (session level).
 
-Usage: python3 confidence_matrix.py BASELINE_DIR COMPARE_DIR [--json OUT.json] > out.md
+Added 2026-10-08: --rescore-conf FILE (jev-rescore/rescore.exs with RUBRICS=new, which keeps turn confidences)
+replaces the compared baseline's Paul and Lotta session and turn scores and confidences with that pass, so
+their turn-level reading is like for like. The "old" plain-average deltas stay on the scores the analysis used
+(the earlier re-score); the plain delta on the new pass is shown next to them to separate Jev's run-to-run noise
+from the change of reading.
+
+Usage: python3 confidence_matrix.py BASELINE_DIR COMPARE_DIR [--rescore-conf FILE] [--json OUT.json] > out.md
 """
 import json, sys
 import numpy as np, pandas as pd
@@ -40,6 +46,9 @@ args = [a for a in sys.argv[1:]]
 jout = None
 if "--json" in args:
     i = args.index("--json"); jout = args[i + 1]; del args[i:i + 2]
+rconf = None
+if "--rescore-conf" in args:
+    i = args.index("--rescore-conf"); rconf = args[i + 1]; del args[i:i + 2]
 BDIR, CDIR = args[0], args[1]
 out = {}
 w = print
@@ -187,14 +196,36 @@ out["baseline_stored"] = per_dataset("baseline, stored scores (Paul and Lotta on
 
 # ---------------------------------------------------------------- post-rework comparison (like for like)
 RC, TC = load(CDIR)
+RC0, TC0 = RC.copy(), TC.copy()  # the scores the analysis used (old plain deltas)
+REPLACED = set()
+if rconf:
+    rows_ = [r for r in json.load(open(rconf)) if r["rubric"] == "new"]
+    for r in rows_:
+        mb = RC.cohort.str.startswith(BASE) & (RC.run_id == r["run"])
+        assert mb.sum() == 1, r["run"]
+        RC.loc[mb, ["session_score", "session_conf"]] = [r["session"], r["session_conf"]]
+        mt = TC.cohort.str.startswith(BASE) & (TC.run_id == r["run"])
+        ns = sorted(TC.loc[mt, "turn"])
+        assert len(ns) == len(r["turns"]) == len(r["turn_conf"]), r["run"]
+        for n, sc, cf, pr in zip(ns, r["turns"], r["turn_conf"], r["turn_probs"]):
+            m = mt & (TC.turn == n)
+            TC.loc[m, ["score", "conf"]] = [sc, cf]
+            TC.loc[m, "probs"] = json.dumps(pr)
+        REPLACED.add(r["persona"])
+    w(f"Paul and Lotta baseline (stricter rubric): scores and confidences from `{rconf.split('/')[-1]}` "
+      f"({len(rows_)} runs, re-scored 2026-10-08 with turn confidences kept).\n")
 w("## Post-rework comparison (Paul and Lotta on the stricter #69 rubric on both sides)\n")
-out["compare_baseline"] = per_dataset("baseline as compared (Paul and Lotta re-scored; their turn confidences were not kept)",
+out["compare_baseline"] = per_dataset("baseline as compared (Paul and Lotta re-scored with the stricter rubric" +
+                                      ("; second pass, turn confidences kept)" if REPLACED else "; their turn confidences were not kept)"),
                                       RC[RC.cohort.str.startswith(BASE)], TC[TC.cohort.str.startswith(BASE)])
 out["compare_new"] = per_dataset("post-rework 2026-10-08 (23 completed runs)",
                                  RC[RC.cohort.str.startswith(NEW)], TC[TC.cohort.str.startswith(NEW)])
 
 w("## Deltas, post-rework minus baseline\n")
 rng = np.random.default_rng(SEED)
+# Cells added on 2026-10-08 (Paul/Lotta turn level, second-pass plain deltas) draw from their own stream, so the
+# CIs published before them stay exactly reproducible.
+rng2 = np.random.default_rng(SEED + 1)
 out["deltas"] = {}
 srows, trows, lrows, brows = [], [], [], []
 for p in PERS:
@@ -205,9 +236,15 @@ for p in PERS:
     sa = pd.DataFrame(dict(cs=np.where(ra.session_conf >= 0, ra.session_score, 0.0), n=1.0, s=ra.session_score.values,
                            conf=ra.session_conf.values)).reset_index(drop=True)
     sb = pd.DataFrame(dict(n=1.0, s=rb.session_score.values, conf=rb.session_conf.values)).reset_index(drop=True)
-    pt, lo, hi, _ = boot_delta(sa, sb, lambda a: a.s.mean(), rng)
+    rb0 = RC0[RC0.cohort.str.startswith(BASE) & (RC0.persona == p)]
+    sb0 = pd.DataFrame(dict(n=1.0, s=rb0.session_score.values)).reset_index(drop=True)
+    pt, lo, hi, _ = boot_delta(sa, sb0, lambda a: a.s.mean(), rng)
     D["session_plain"] = dict(d=pt, lo=lo, hi=hi)
     r = dict(p=NAME[p], old=f"{sg(pt)} ({ci(lo, hi)})")
+    if p in REPLACED:
+        pt, lo, hi, _ = boot_delta(sa, sb, lambda a: a.s.mean(), rng2)
+        D["session_plain_pass2"] = dict(d=pt, lo=lo, hi=hi)
+        r["old"] += f"; 2nd pass {sg(pt)} ({ci(lo, hi)})"
     for c in CUTS:
         st = lambda a, c=c: a.s[a.conf >= c].mean() if (a.conf >= c).any() else np.nan
         na, nb = int((sa.conf >= c).sum()), int((sb.conf >= c).sum())
@@ -219,16 +256,21 @@ for p in PERS:
 
     # turns
     known_b = not tb.conf.isna().all()
-    A0, B0 = runs_arrays(ta, MAIN), runs_arrays(tb, MAIN)
+    tb0 = TC0[TC0.cohort.str.startswith(BASE) & (TC0.persona == p)]
+    A0, B0 = runs_arrays(ta, MAIN), runs_arrays(tb0, MAIN)
     pt, lo, hi, _ = boot_delta(A0, B0, run_mean_mean, rng)
     D["turn_plain"] = dict(d=pt, lo=lo, hi=hi)
     r = dict(p=NAME[p], old=f"{sg(pt)} ({ci(lo, hi)})")
+    if p in REPLACED:
+        pt, lo, hi, _ = boot_delta(A0, runs_arrays(tb, MAIN), run_mean_mean, rng2)
+        D["turn_plain_pass2"] = dict(d=pt, lo=lo, hi=hi)
+        r["old"] += f"; 2nd pass {sg(pt)} ({ci(lo, hi)})"
     for c in CUTS:
         if not known_b:
             r[f"c{int(c*10)}"] = "n/a: baseline turn conf not kept"
             D[f"turn_conf_{c}"] = None; continue
         A, B = runs_arrays(ta, c), runs_arrays(tb, c)
-        pt, lo, hi, bad = boot_delta(A, B, pooled_conf_mean, rng)
+        pt, lo, hi, bad = boot_delta(A, B, pooled_conf_mean, rng2 if p in REPLACED else rng)
         na, nb = int(A.cn.sum()), int(B.cn.sum())
         few = na < MIN_TURNS or nb < MIN_TURNS or (A.cn > 0).sum() < MIN_RUNS or (B.cn > 0).sum() < MIN_RUNS
         D[f"turn_conf_{c}"] = dict(d=pt, lo=lo, hi=hi, n_new=na, n_base=nb, too_few=bool(few), undefined_resamples=bad)
@@ -241,7 +283,7 @@ for p in PERS:
         if not known_b:
             r[f"c{int(c*10)}"] = "n/a"; D[f"lowconf_{c}"] = None; continue
         A, B = runs_arrays(ta, c), runs_arrays(tb, c)
-        pt, lo, hi, _ = boot_delta(A, B, unsure_share, rng)
+        pt, lo, hi, _ = boot_delta(A, B, unsure_share, rng2 if p in REPLACED else rng)
         D[f"lowconf_{c}"] = dict(d=pt, lo=lo, hi=hi, new=unsure_share(A), base=unsure_share(B))
         r[f"c{int(c*10)}"] = f"{pc(unsure_share(A))} vs {pc(unsure_share(B))}: {pp(pt)} pp ({ci(lo, hi, True)})"
     lrows.append(r)

@@ -320,7 +320,20 @@ What the matrix shows:
 - **The cutoff matters little for the turn headlines here:** they move by at most 0.17 between 0.6 and 0.8 (Lars 3.80–3.97), and the order of the personas never changes. At 0.8, Lotta's and Ronny's sessions have none left.
 - The deltas against the post-rework series under this reading are in the [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#update-2026-10-08-confidence-aware-reading). The Elara runs are not re-read here.
 
-Reproduce: `python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final > results.md` (see the script's [README](scripts/jev-confidence/README.md)).
+**Added 2026-10-08: Paul and Lotta on the stricter rubric.** The baseline's Paul and Lotta runs were re-scored a second time with the stricter #69 rubric, this time keeping the turn confidences (26 Jev calls, $0.0067; details in the [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-paul-and-lotta-at-turn-level-like-for-like)). Read the same way:
+
+| Persona | Rubric | Plain mean | Headline ≥ 0.6 / **≥ 0.7** / ≥ 0.8 | Confident-high | Confident-middle | Confident-low | Unsure < 0.6 / **< 0.7** / < 0.8 |
+|---|---|---|---|---|---|---|---|
+| Paul | pre-#69 (tables above) | 4.70 | 4.80 / **4.82** / 4.85 | 83% | 0 | 0 | 9% / **17%** / 34% |
+| Paul | stricter (#69) | 4.37 | 4.40 / **4.37** / 4.34 | 49% | 0 | 0 | 22% / **51%** / 70% |
+| Lotta | pre-#69 (tables above) | 4.16 | 4.16 / **4.15** / 4.11 | 92% | 0 | 0 | 1% / **8%** / 46% |
+| Lotta | stricter (#69) | 3.91 | 3.91 / **3.92** / 4.21 ⚠ | 22% | 4% | 0 | 34% / **75%** / 95% |
+
+- The stricter rubric takes Paul and Lotta off the ceiling but makes Jev much less sure. The splits sit on the new borders: Paul between level 4 and 5, Lotta mostly between 3 and 4. Neither has a confidently low turn on either rubric.
+- So a low-confidence share is only comparable within one rubric.
+- Sessions on the stricter rubric: Paul 4.84 at ≥ 0.7 (12 of 13 sure). Lotta has 2 of 13 sure sessions, too few to read.
+
+Reproduce: `python3 docs/scripts/jev-confidence/confidence_matrix.py /workspace/baseline/final /workspace/compare/final > results.md`. *Added 2026-10-08:* add `--rescore-conf docs/scripts/jev-rescore/rescore-baseline-2026-10-08-conf.json` for the stricter-rubric Paul and Lotta rows, and see the script's [README](scripts/jev-confidence/README.md).
 
 ## Appendix: reproducing
 

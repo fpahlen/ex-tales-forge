@@ -4,6 +4,9 @@
 # after it merges) with TYPESAFE_API_KEY set:
 #   EXPORT=jev_export.json OUT=rescore.json mix run path/to/rescore.exs
 # Jev only; no game calls. About 52 Jev calls for 26 runs.
+# RUBRICS=new runs only the current (stricter) rubric: 26 Jev calls. Since 2026-10-08 each row also keeps
+# the turn confidences, the turn and session probabilities and the rubric hash, which the
+# confidence-aware reading (docs/scripts/jev-confidence/) needs.
 Code.require_file(Path.join(__DIR__, "old_affect_levels.exs"))
 {:ok, _} = Application.ensure_all_started(:jev)
 
@@ -38,8 +41,16 @@ questions = fn mod, persona, name, ns ->
   |> Map.put(:persona_session_affect, {mod.session_question(persona, name), levels})
 end
 
+rubrics =
+  System.get_env("RUBRICS", "old,new")
+  |> String.split(",", trim: true)
+  |> Enum.map(fn
+    "old" -> {"old", OldAffectLevels}
+    "new" -> {"new", AffectLevels}
+  end)
+
 rows =
-  for r <- runs, {label, mod} <- [{"old", OldAffectLevels}, {"new", AffectLevels}] do
+  for r <- runs, {label, mod} <- rubrics do
     persona = r["run"]["persona"]
     name = String.capitalize(persona)
     ns = r["turns"] |> Enum.map(& &1["n"]) |> Enum.sort()
@@ -64,7 +75,12 @@ rows =
           "session" => reply[:persona_session_affect] && Float.round(reply[:persona_session_affect] + 1.0, 2),
           "session_conf" => get_in(reply, [:confidence, :persona_session_affect]),
           "turns" => Enum.map(turn_keys, &(reply[&1] && Float.round(reply[&1] + 1.0, 2))),
-          "turn_argmax" => Enum.map(turn_keys, argmax)
+          "turn_argmax" => Enum.map(turn_keys, argmax),
+          "turn_conf" => Enum.map(turn_keys, &get_in(reply, [:confidence, &1])),
+          "turn_probs" => Enum.map(turn_keys, &probs[&1]),
+          "session_probs" => probs[:persona_session_affect],
+          "rubric_hash" => if(label == "new", do: AffectLevels.rubric_hash(persona)),
+          "usage" => Map.get(reply, :usage)
         }
 
         IO.puts(Jason.encode!(row))
