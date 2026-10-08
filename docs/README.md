@@ -35,5 +35,6 @@ Also in this folder:
 - [Pricing decision draft: a pool of play time](pricing-time-pool.md): bill GM processing time only, first character free, rough cost per turn and per commute (draft)
 - [Character creation: persona preferences (hybrid ideas)](character-creation-persona-prefs.md): Hawk/Paul/Lotta/Lars/Ronny on Idea 1 vs Idea 2 (research; complements port plan PR #15)
 - [Founder survey 2: how we'd play](founder-survey-2.md): play-style questions for the next founder form (draft; first usage indication before beta telemetry)
+- [Founder survey 3: do the playtest scores feel right?](founder-survey-3.md): key words in the persona descriptions, 11 real baseline turns to rate against Jev, and the archetype grids Q10–Q14 (draft, not sent)
 
 Worlds and adventure packs (Merovingia, Penny Dreadful, Tin Valley, …) copied from the game repos: [worlds/README.md](../worlds/README.md)
