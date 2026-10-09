@@ -50,6 +50,7 @@ Suggested layout: one long page with a sticky section nav (Team · How we work �
 - Shape what we build: ideas, surveys and playing the game.
 - Make the decisions, written down in one shared log.
 - Approve merges and deploys. **Today Fredrik holds the approval key; soon every founder will.**
+- Who we are (from `team.members[0].people`): "We're five: Fredrik, Thobias, Håkan, Jeanette and Max." Then, warmly: "Max, our vibe-coding founder and RPG apprentice, has never played a tabletop RPG. Welcome to the table, Max!" (Max is a founder; "apprentice" only means he's new to RPGs.)
 - Badge: "The approval key: Fredrik today, every founder soon" (from `team.members[0].approval_key`)
 
 **Case**, point of contact and architect *(bot)*
@@ -433,7 +434,7 @@ From `gentry_findings`:
   - *Personas:* the same style, a small token each. Hawk with a sword, Paul with a theatre mask, Lotta with a hand mirror, Lars with a quest map, Ronny with a sack of gold (greyed).
 - **Architecture diagram:** clean SVG, three call-type colours, small icons (a person, a lightning bolt for LiveView, a sieve or lens for Jev, gears for Elixir, a quill for the GM, a scroll for prose).
 - **Flow animation:** a d20 token rolling along a path through 11 stations. The two "A founder's OK" stations are wax seals with the founders' shared crest.
-- **Hero art (optional):** one round tavern table where the founders (illustrated, no real likenesses) and the three bots lean over a map of Tin Valley together, with an empty chair or two left open as an invitation. A round table means no head of the table.
+- **Hero art (optional):** one round tavern table where the five founders (illustrated, no real likenesses; Max, our vibe-coding founder and RPG apprentice, among them) and the three bots lean over a map of Tin Valley together, with an empty chair or two left open as an invitation. A round table means no head of the table.
 
 ## Build notes for Bobby
 

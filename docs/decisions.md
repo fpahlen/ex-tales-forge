@@ -11,6 +11,15 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: Max is a founder: our vibe-coding founder and RPG apprentice
+
+- **Decision (Fredrik, ~16:23):** Max is one of the founders, our **vibe-coding founder**. He is also an **RPG apprentice**, in the sense that he has never played a tabletop RPG. The team page stops calling him "Max the apprentice" next to "the four founders": we are five founders (Fredrik, Thobias, Håkan, Jeanette and Max).
+  - Copy: "We're five: Fredrik, Thobias, Håkan, Jeanette and Max. Max, our vibe-coding founder and RPG apprentice, has never played a tabletop RPG. Welcome to the table, Max!"
+  - Data: `team.members[0].people` (count 5, names) in [`team-page/data.json`](team-page/data.json). `founders_github_team_members` (3) counts members of the GitHub team, not founders.
+- **Why:** Max is part of the crew that owns the game, not a junior. Being new to RPGs is a strength we want to name warmly: he plays the way a first-time player will.
+- **Status:** copy and data updated here; the page change is [ex-tales-forge PR #106](https://github.com/whyse-ab/ex-tales-forge/pull/106) (open, not merged).
+- **Details:** [`team-page/content.md`](team-page/content.md) section 1, "The founders".
+
 ## 2026-10-09: Physical skills improve right away; everything else waits for sleep
 
 - **Decision (Fredrik, ~16:04, via Case):** of the exceptions listed in [#100](https://github.com/whyse-ab/ex-tales-forge/pull/100), the physical skills (melee_combat, ranged_combat, unarmed_combat, dodge, climbing, lockpicking) improve right away after a failure. All other skills keep waiting for sleep. This refines the 2026-10-09 "Skill growth comes only from failure" entry; default variant only.
