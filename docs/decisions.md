@@ -11,6 +11,18 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: Hover cards on the call-type rule; replay buttons always visible (first fast-lane deploy)
+
+- **Decision (Fredrik, OK via Case, ~19:56 and ~20:01; admin-only, fast lane):** on `/team/presentation`, each of the three call types in "The call-type rule: one turn, three call types" gets a hover card (tap to open on phones):
+  - **Elixir:** a short, simplified version of the real roll-under check (`Game.Mechanics`: effective level, d20, success / partial success / failure), highlighted on the server.
+  - **Jev:** the player's words plus a little context (where they are, who is nearby) in; the typed intent out as JSON (`speak`, `brenna`, `persuasion`, `now`, 0.92, `benign`).
+  - **GM (LLM):** the typed turn result in, prose out.
+  - The cards are keyboard-accessible (focus opens a card, Esc closes it, `aria-expanded` and `aria-describedby`), simply appear with reduced motion, and fit a 390 px phone.
+  - The Replay button on every animation (change flow, three lanes, mock board) is now always visible, including with reduced motion, and has an `aria-label`. With reduced motion it shows the whole, static diagram.
+- **Why:** founders who don't code can see what each call type actually takes in and gives back. The Replay button was hidden until an animation had played and never showed with reduced motion.
+- **Status:** merged 2026-10-09 ([#109](https://github.com/whyse-ab/ex-tales-forge/pull/109), main `3cebbab`). This was the first merge on the admin fast lane ([decision above](#2026-10-09-a-fast-deploy-lane-for-admin-work)): the Deploy lane job said **admin** (6 files, all on the admin list, both in this merge and since production), and the merge deployed to playtest (release v96) and production (release v92) with no manual step. Both run `3cebbab` and pass their health check; `deployed/production` moved to `3cebbab`. Only changes to files on `.github/deploy-lanes.txt` `[admin]`; styles are Tailwind classes in the team components, with no shared CSS or JS.
+- **Details:** [ex-tales-forge PR #109](https://github.com/whyse-ab/ex-tales-forge/pull/109) (`TalesForgeWeb.TeamPeek`).
+
 ## 2026-10-09: One source for the team page's pace numbers: live from GitHub, data.json only as a fallback
 
 - **Decision (Fredrik, OK relayed by Case, ~17:55):** the pace numbers on `/team/presentation` come from one place. That covers pull requests (total, merged, open, closed unmerged), PRs per day, and the commits on main (total and per day).
