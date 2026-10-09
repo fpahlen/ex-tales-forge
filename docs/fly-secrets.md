@@ -1,6 +1,6 @@
 ---
 title: "Adding API keys and secrets to Fly"
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Adding API keys and secrets to Fly
@@ -53,7 +53,7 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `AI_CAP_PERSONA_RUN_USD` | Optional cap in USD on the persona bot's own AI calls per playtest run; hitting it stops the run (`persona_cap`). **Defaults to $0.50 when not set** (ex-tales-forge PR #24). Not secret, but set the same way | No (the runner never runs in production) |
 | `PLAYTEST_RUNNER_ENABLED` | Turns on the persona bot runner (ex-tales-forge PR #23) when set to `true`. Not secret, but set the same way | **Never** set in production |
 | `COSTS_PEER_TOKEN` | Shared bearer token for the admin costs page (ex-tales-forge PR #28). It turns on this app's `GET /internal/costs` (off with a 404 while unset) and lets this app read the other app's numbers. **Same value on both apps**: generate it once (e.g. `openssl rand -hex 32`) and set it on `tales-forge` and `tales-forge-playtest` | Yes, since 2026-10-06 (same value as playtest) |
-| `COSTS_PEER_URL` | Base URL of the other app for the costs page: `https://tales-forge-playtest.fly.dev` on production. Config, not a secret, but set the same way. Without it (or without the token) the page says "not configured" | Yes, since 2026-10-06: `https://tales-forge-playtest.fly.dev` |
+| `COSTS_PEER_URL` | Base URL of the other app for the costs page: `https://tales-forge-playtest.fly.dev` on production. Config, not a secret, but set the same way. Without it (or without the token) the page says "not configured". **No longer read once ex-tales-forge [#90](https://github.com/whyse-ab/ex-tales-forge/pull/90) is deployed** (playtest's URL then comes from config); can be unset after that | Yes, since 2026-10-06: `https://tales-forge-playtest.fly.dev` |
 | `TYPESAFE_API_KEY` | TypeSafe Jev API key for persona-affect scoring. **Do not set on production yet** (playtest only) | No, not yet |
 | `TYPESAFE_INTENT_API_KEY` | TypeSafe Jev key for the Jev intent call (intent + safety label in one call, [design](design-jev-intent.md)). **Set 2026-10-08 with Fredrik's OK**: the key Fredrik created as tales-forge-intent (production only; playtest got its own key the same day, so intent usage is split per app at TypeSafe). Read by ex-tales-forge PR [#84](https://github.com/whyse-ab/ex-tales-forge/pull/84) (merged 2026-10-08) as the named Jev endpoint `:intent`. Nothing calls it while `INTENT_JEV` is off, so production keeps today's path until that flag is turned on | Yes, since 2026-10-08 (unused while `INTENT_JEV` is off) |
 | `PLAYER_QUOTE_MIN_BENIGN_CONFIDENCE` | Minimum confidence (0..1, default `0.90`) that the intent call's safety read must give `benign` for the GM to get the player's own words; below it the GM gets the intent summary ([decision 2026-10-08](decisions.md#2026-10-08-clarification-the-safety-read-is-part-of-the-intent-call-not-a-separate-jev-call); the rule carries over from ex-tales-forge PR #76, **closed 2026-10-08, superseded by the [Jev intent design](design-jev-intent.md)**). Config, not a secret; set the same way | No, not set = 0.90 |
@@ -95,7 +95,7 @@ Same names as production, with **separate values** (never copied from prod), exc
 | `AI_CAP_PERSONA_RUN_USD` | Not set, so the $0.50 per run default applies (from ex-tales-forge PR #24). Set it like the other caps (`fly secrets set AI_CAP_PERSONA_RUN_USD=... -a tales-forge-playtest`) only to change that; changing it needs Fredrik's OK |
 | `PLAYTEST_RUNNER_ENABLED` | Yes, `true`: staged 2026-10-06 with the deploy of ex-tales-forge PR #23 |
 | `COSTS_PEER_TOKEN` | Set 2026-10-06. The **same value** as on production; it turns on playtest's `GET /internal/costs`, which production's costs page reads |
-| `COSTS_PEER_URL` | Set 2026-10-06: `https://tales-forge.fly.dev`, so playtest's costs page shows production too. Config, not a secret |
+| `COSTS_PEER_URL` | Set 2026-10-06: `https://tales-forge.fly.dev`, so playtest's costs page shows production too. Config, not a secret. **No longer read once ex-tales-forge [#90](https://github.com/whyse-ab/ex-tales-forge/pull/90) is deployed** (playtest's page then shows only playtest runs); can be unset after that |
 | `TYPESAFE_API_KEY` | TypeSafe Jev (persona-affect scorer, and the NPC reaction when `NPC_REACTIONS=on`). Console key name tales-forge-scorer. **Yes, set 2026-10-07** on playtest only | Yes, since 2026-10-07 |
 | `NPC_REACTIONS` | Yes, `on` since 2026-10-07 (Fredrik's OK, release v25): Brenna and other present NPCs get a Jev reaction before each GM call (`ai_calls` purpose `npc_reaction`). Unset it to turn it off |
 | `WORLD_AGENTS` | Not set (off). The world-agents prototype stays off on playtest for now |

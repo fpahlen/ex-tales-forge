@@ -11,6 +11,28 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: Costs pages: playtest shows only playtest-run costs, production shows all costs
+
+- **Decision (Fredrik):** fix the `/admin/costs` pages so each app shows the right costs. For now they cover AI calls only (Grok, Jev and TypeSafe); Fly hosting may be added later.
+  - **Playtest app:** shows only the cost of playtest runs: the persona bot, the GM, Jev scoring and Jev intent on playtest-run sessions. Other calls on playtest, such as manual play, get their own line and stay out of the runs' total.
+  - **Production app:** shows all costs. It has its own numbers, plus a separate Playtest section read live from the playtest app through a small authenticated internal endpoint. No data is copied. One grand total goes on top. If playtest is down, the section says "playtest unavailable" and production's numbers still show.
+  - Persona bot cost is always shown apart from game cost.
+  - **Auth:** the endpoint (`GET /internal/costs`) answers only on playtest and reuses the existing shared secret `COSTS_PEER_TOKEN`, which is already set on both apps. No new secret. Production reads playtest's URL from config, so `COSTS_PEER_URL` is no longer read once the PR is deployed. The read has a 2 s timeout.
+- **Why:** each thing lives in one place (playtest-run costs live on playtest and are read from there), and production gives full cost visibility on one page.
+- **Status:** PR open: [ex-tales-forge #90](https://github.com/whyse-ab/ex-tales-forge/pull/90). Both apps need the new build. Until playtest has it, production's Playtest section says "unexpected response".
+
+## 2026-10-09: Jev intent fallback and per-session latency probes
+
+- **Decision (Fredrik):** the Jev intent call gets a fallback model from a different provider. Provider latency is checked once when a session starts, not with continuous pings.
+  - Each provider in use (TypeSafe/Jev, the GM model and the fallback) gets a tiny probe call, and the game routes on those timings.
+  - If Jev is slow, the session uses the fallback directly.
+  - If the GM is slow, the game shows an in-fiction line (e.g. "The GM is a bit tired today...") instead of a spinner.
+  - The per-turn timeouts stay as the safety net.
+  - Probe timings are recorded so they can appear on the costs/status page later.
+- **Why:** resilience and latency. One slow provider shouldn't stall a turn, and the player should see the game's voice, not a spinner.
+- **Status:** planned. The spike waits for provider accounts (Groq, Anthropic, Google). It builds on the Jev wrapper and provider config refactors (steps 1 and 2 in the [architecture baseline](architecture-baseline-2026-10-09.md#5-suggested-order-for-refactor-prs)).
+- **Details:** [Architecture baseline: ex-tales-forge main at 2f27ff1](architecture-baseline-2026-10-09.md)
+
 ## 2026-10-09: Pragmatic Programmer architecture review on every merge to ex-tales-forge main
 
 - **Decision (Fredrik):** every merge to `main` in ex-tales-forge gets an architecture review in the spirit of *The Pragmatic Programmer*: DRY, orthogonality, broken windows, reversibility, and our own rules (call types, state written only by Elixir rules and Jev, each thing lives in one place, docs, specs and tests for every module). The starting point is the baseline review of `main` at `2f27ff1`. The refactors it found are queued in its suggested order, as separate PRs: (1) one Jev client plus correct cost source, (2) LLM provider config, (3) an intent reader behaviour and pipeline out of `GameSessions`, (4) error-handling cleanup, (5) a typed turn/intent context and no Repo in `Game.*`, (6) splitting `Inventory`, (7) Crossroads as a full pack, (8) GM memory and summary writes moved to Jev or Elixir, then ongoing cleanup.
