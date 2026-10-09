@@ -8,18 +8,24 @@
   },
   "team": {
     "as_of": "2026-10-09",
-    "source": "Fredrik's brief for this page (roles); Gentry findings from ex-tales-forge PR #89 body",
+    "source": "Brief for this page (roles, revised 2026-10-09 for a shared, crew framing); Gentry findings from ex-tales-forge PR #89 body",
     "members": [
       {
-        "id": "fredrik",
-        "name": "Fredrik",
-        "kind": "human",
-        "role": "Founder and funder",
+        "id": "founders",
+        "name": "The founders",
+        "kind": "humans",
+        "role": "The people Tales Forge is built by and for",
         "does": [
-          "Decides",
-          "Approves every code merge and every deploy"
+          "Shape what we build: ideas, surveys, playtesting",
+          "Make the decisions, written down in one shared log",
+          "Approve merges and deploys (today Fredrik holds the approval key; soon every founder)"
         ],
-        "schedule": null
+        "schedule": null,
+        "approval_key": {
+          "holder_today": "Fredrik",
+          "later": "every founder",
+          "note": "A current-setup detail, not a hierarchy."
+        }
       },
       {
         "id": "case",
@@ -43,7 +49,7 @@
         "does": [
           "Writes code as pull requests",
           "Runs playtests and evals",
-          "Deploys on Fly only with Fredrik's OK",
+          "Deploys on Fly only with a founder's OK (today Fredrik's)",
           "Hourly Fly log check"
         ],
         "schedule": "hourly Fly log check"
@@ -61,20 +67,21 @@
         "schedule": "weekdays 07:13 CEST and after each playtest deploy"
       }
     ],
-    "other_bots_note": "Fredrik also runs separate bots for company admin (bookkeeping, invoices, mail). Not part of the Tales Forge build team. Names/roles not confirmed for this page.",
+    "other_bots_note": "There are also separate helper bots for company admin (bookkeeping, invoices, mail). They don't work on the game. Names/roles not confirmed for this page.",
     "founders_github_team_members": {
       "value": 3,
       "source": "gh api orgs/whyse-ab/teams/tales-forge/members (count only)"
-    }
+    },
+    "framing": "Current setup, a starting point. Founders and bots are one crew. Later every founder can approve merges and deploys, steer the bots and make decisions; today Fredrik holds the approval key."
   },
   "change_flow": {
     "as_of": "2026-10-09",
-    "source": "Fredrik's brief; docs/environments.md (CI checks Test + Dialyzer)",
+    "source": "Founders' current process; deploy order decided by Fredrik 2026-10-09 (playtest first); docs/environments.md (CI checks Test + Dialyzer)",
     "steps": [
       {
         "id": "idea",
         "label": "Idea",
-        "who": "Fredrik or a founder"
+        "who": "any founder"
       },
       {
         "id": "case",
@@ -92,14 +99,15 @@
         "who": "GitHub Actions"
       },
       {
-        "id": "ok",
-        "label": "Fredrik's OK",
-        "who": "fredrik"
+        "id": "ok_merge",
+        "label": "A founder's OK to merge",
+        "who": "a founder (today Fredrik)",
+        "approval": true
       },
       {
         "id": "merge",
         "label": "Merge to main",
-        "who": "fredrik"
+        "who": "bobby"
       },
       {
         "id": "review",
@@ -112,22 +120,23 @@
         "who": "bobby"
       },
       {
-        "id": "gentry",
-        "label": "Gentry attacks it",
-        "who": "gentry"
+        "id": "check",
+        "label": "Gentry + persona playtest batch",
+        "who": "gentry, bobby"
       },
       {
-        "id": "batch",
-        "label": "Persona playtest batch",
-        "who": "bobby"
+        "id": "ok_prod",
+        "label": "A founder's OK to ship",
+        "who": "a founder (today Fredrik)",
+        "approval": true
       },
       {
         "id": "prod",
         "label": "Production",
-        "who": "bobby (with Fredrik's OK)"
+        "who": "bobby"
       }
     ],
-    "note": "docs/environments.md (updated 2026-10-08) still describes main auto-deploying to production first and playtest right after. Reconcile wording with Fredrik before presenting."
+    "note": "Approval steps are held by Fredrik today; later any founder can give them. Deploy order playtest-first decided 2026-10-09; docs/environments.md (2026-10-08) still describes prod-first and needs updating."
   },
   "decisions": {
     "as_of": "2026-10-09",
@@ -723,8 +732,8 @@
     "Gentry hostile-play results (injections, fake GM notes) not recorded yet; only the phone/a11y findings in PR #89",
     "Holdout eval results: not run yet",
     "Production AI spend and bot (Case/Bobby/Gentry) running costs: not in docs",
-    "Names/roles of Fredrik's company-admin bots: not confirmed",
-    "Change-flow order vs docs/environments.md (prod deploy on merge) needs reconciling",
+    "Names/roles of the company-admin helper bots: not confirmed",
+    "docs/environments.md still describes prod-first deploys; update it to the playtest-first order decided 2026-10-09",
     "Today's INTENT_JEV on/off persona comparison: no results yet"
   ]
 }

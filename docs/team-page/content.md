@@ -9,13 +9,15 @@ status: brief for Bobby
 **What this is:** the copy, chart specs and image ideas for a founders' presentation page at `/team` in the production app (`tales-forge`), behind the existing GitHub team sign-in. Bobby builds it as a LiveView page; this file and [`data.json`](data.json) are the content and numbers only, no app code.
 
 - **Audience:** the Tales Forge founders (the `whyse-ab/tales-forge` GitHub team). Most aren't deep in the setup. Fredrik presents from it.
-- **Tone:** plain, warm, a little proud. Any technical term gets a one-line explanation the first time it shows up.
+- **Tone:** plain, warm, a little proud, and inviting: *together we can create something awesome.* Founders and bots are one crew. Any technical term gets a one-line explanation the first time it shows up.
+- **Framing:** this page shows the **current setup, a starting point**, not a finished org chart. Today Fredrik holds the approval key; later every founder will approve, steer the bots and make decisions. Keep that visible near the top and wherever approvals appear.
+- **Avoid:** "Fredrik's team" or "Fredrik's bots", any picture with one person on top, and any "the funder decides" framing. (The decision log keeps its own wording; that's fine.)
 - **Money:** USD everywhere.
 - **Never on the page:** secret values, keys or tokens. Saying *where* a secret is kept is fine; showing the value is not.
 - **Numbers:** every number comes from `data.json` (given here as `key.path`). Where we don't have a number, the page says "not measured yet" rather than guessing.
 - **As of:** 2026-10-09 (Stockholm time). Show "Numbers as of 9 Oct 2026" in the footer, read from `_about.as_of`.
 
-Suggested layout: one long page with a sticky section nav (Team · How we work · Infrastructure · Playtests · Pace and cost). It should work on a phone at 320 px wide, since Gentry checks exactly that.
+Suggested layout: one long page with a sticky section nav (Team · How we work · Infrastructure · Playtests · Pace and cost · Together). It should work on a phone at 320 px wide, since Gentry checks exactly that.
 
 ---
 
@@ -23,7 +25,10 @@ Suggested layout: one long page with a sticky section nav (Team · How we work �
 
 **Headline:** How Tales Forge gets built
 
-**Subhead:** One founder, three bots, and a lot of small, careful steps. Here's who does what, how a change gets from an idea to the game, and what we've learned from letting bots play it.
+**Subhead:** The founders and three bots, one crew, taking a lot of small, careful steps. Here's who does what, how a change gets from an idea to the game, and what we've learned from letting bots play it.
+
+**"Starting point" banner** (a soft, friendly callout right under the subhead):
+> **This is how we work today, and it's a starting point.** Right now Fredrik holds the approval key for merges and deploys. That's where we began, not where we stop. Soon every founder will be able to do the same: approve changes, steer the bots and make decisions. This page is an invitation to shape it with us.
 
 **Three stat tiles** (big number with a small label):
 - `pace.prs_merged` pull requests merged *(a pull request, or PR, is one proposed change to the code that someone reviews before it goes in)*
@@ -35,17 +40,20 @@ Suggested layout: one long page with a sticky section nav (Team · How we work �
 ## 1. The team
 
 **Intro copy:**
-> Tales Forge has one human and three bots on the build team. The bots do a lot of the work, but nothing reaches the game without a human yes.
+> Tales Forge is built by one crew: the founders and three bots. The bots do a lot of the hands-on work, and nothing reaches the game without a founder's yes. Today that yes comes from Fredrik, and soon it can come from any of us.
 
-**Cards** (one per member, from `team.members`; avatar, name, role, 3–4 bullets, a schedule badge where there is one):
+**Layout:** one row, no hierarchy. The founders' card comes first and is the same size as the bot cards. No org-chart lines, nobody drawn above anyone else.
 
-**Fredrik**, founder and funder *(human)*
-- Decides what we build and why.
-- Approves every code merge and every deploy. No exceptions.
-- Presents this page.
+**Cards** (from `team.members`; avatar, name, role, 3–4 bullets, a schedule badge where there is one):
+
+**The founders** *(humans)*
+- Shape what we build: ideas, surveys and playing the game.
+- Make the decisions, written down in one shared log.
+- Approve merges and deploys. **Today Fredrik holds the approval key; soon every founder will.**
+- Badge: "The approval key: Fredrik today, every founder soon" (from `team.members[0].approval_key`)
 
 **Case**, point of contact and architect *(bot)*
-- The one Fredrik talks to. Turns ideas into plans and hands the work to Bobby.
+- The crew's go-to bot. Turns ideas into plans and hands the work to Bobby.
 - Reviews the architecture on every merge, in the spirit of *The Pragmatic Programmer* (a classic book on keeping code simple: don't repeat yourself, fix broken windows early, keep decisions reversible).
 - Posts an hourly status, cleans up old branches every day, and does the research and analyses behind our decisions.
 - Badge: "Hourly status · daily cleanup"
@@ -53,7 +61,7 @@ Suggested layout: one long page with a sticky section nav (Team · How we work �
 **Bobby**, Elixir developer and devops *(bot)*
 - Writes all the code, always as pull requests.
 - Runs the persona playtests and the evals *(an eval is a fixed test set we score the AI against, so we can tell if a change made it better or worse)*.
-- Deploys to Fly *(our hosting)* only with Fredrik's OK.
+- Deploys to Fly *(our hosting)* only with a founder's OK (today Fredrik's).
 - Checks the Fly logs every hour.
 - Badge: "Hourly log check"
 
@@ -65,48 +73,46 @@ Suggested layout: one long page with a sticky section nav (Team · How we work �
 - Badge: "Weekdays 07:13 · after every playtest deploy"
 
 **Small strip under the cards** (from `team.other_bots_note`):
-> Fredrik also has other bots for company admin, like bookkeeping, invoices and mail. They don't work on the game.
+> There are also a few helper bots for company admin, like bookkeeping, invoices and mail. They don't work on the game.
 
 ### How a change flows
 
 **Copy:**
-> Every change takes the same path. It looks like a lot of steps, but most take minutes, and the median PR went from opened to merged in about 15 minutes in October.
+> Every change takes the same path. It looks like a lot of steps, but most take minutes, and the median PR went from opened to merged in about 15 minutes in October. A change goes to playtest first; only once Gentry and the persona bots have had a go does it reach players.
 
 Steps (from `change_flow.steps`):
-1. **Idea.** From Fredrik or any founder.
+1. **Idea.** From any founder.
 2. **Case** plans it and writes the brief.
 3. **Bobby** builds it as a pull request.
 4. **CI** runs. *(CI, continuous integration: robots that run every test and check on every PR. If anything fails, the PR can't merge.)*
-5. **Fredrik's OK.**
-6. **Merge** into `main`, the version that runs the game.
+5. **A founder's OK to merge.** *Today that's Fredrik; soon any founder.*
+6. **Merge** into `main`, the shared version of the code.
 7. **Case's architecture review** of what just landed.
 8. **Deploy to playtest**, our separate copy of the game for testing.
-9. **Gentry** attacks it.
-10. **Playtest batch**: the five persona bots play it, and Jev scores how each would have felt.
+9. **Gentry + the persona playtest batch** check it: Gentry attacks it, and the five persona bots play it while Jev scores how each would have felt.
+10. **A founder's OK to ship.** *Today that's Fredrik; soon any founder.*
 11. **Production**, where players are.
 
-Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min).
-
-> **Note for Fredrik (not page copy):** `docs/environments.md` (2026-10-08) still says a merge to `main` deploys to production automatically and then to playtest. The flow above is the one in your brief. Pick one before presenting, and update the other.
+Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy order (playtest first, then production) as decided on 9 Oct 2026.
 
 **Animation spec: "flow"**
-- **Type:** a horizontal step animation (vertical on phones). A small glowing token (a d20 die fits the game) travels through the 11 steps. Each step lights up with its owner's avatar.
-- **Data:** `change_flow.steps[].label` and `.who`.
-- **Behaviour:** it plays once when scrolled into view, with a "replay" button, and respects `prefers-reduced-motion` (show the static diagram then). At the "Fredrik's OK" step the token pauses with a small ✓ stamp, because that's the point to make.
+- **Type:** a horizontal step animation (vertical on phones). A small glowing token (a d20 die fits the game) travels through the 11 steps. Each step lights up with its owner's avatar; the two approval steps show the shared founders' avatar, not one person.
+- **Data:** `change_flow.steps[].label`, `.who` and `.approval`.
+- **Behaviour:** it plays once when scrolled into view, with a "replay" button, and respects `prefers-reduced-motion` (show the static diagram then). At each **"A founder's OK"** step the token pauses on a wax seal stamped with the founders' crest. A small caption under the seal reads: "Today: Fredrik · Soon: any founder."
 
 ---
 
 ## 2. How we work
 
 **Intro copy:**
-> A few simple rules keep three bots and one human pulling in the same direction.
+> A few simple rules keep the whole crew, founders and bots, pulling in the same direction.
 
 **Rule cards:**
 
 1. **Decisions are written down.** Every decision goes into one log, `docs/decisions.md` in `tales-forge-docs`, with the date, the decision, why, and a link to the details. Changing a decision means adding a new entry, never editing history.
    - Stat: **`decisions.total` decisions in five days** (5–9 Oct).
    - Plus a decision queue of `decisions.queue.total` bigger questions (`decisions.queue.open` still open), and a future-ideas list (`decisions.future_ideas.count` ideas so far: *speculative intent while typing* and *memory consolidation and attitude drift*).
-2. **Docs go straight to main; code goes through PRs.** Writing things down should be fast, so docs need no review step. Code always gets a PR, CI and Fredrik's OK.
+2. **Docs go straight to main; code goes through PRs.** Writing things down should be fast, so docs need no review step. Code always gets a PR, CI and a founder's OK (today Fredrik's, soon anyone's in the founders' team).
 3. **The call-type rule.** Each piece of work in a turn uses the cheapest tool that can do it:
 
    | What goes in | What comes out | We use | Why |
@@ -275,22 +281,35 @@ From `gentry_findings`:
 - **Data:** `ai_spend.documented_items_usd[]`.
 - **Gap line under the chart:** "Not shown: production AI spend (see /admin/costs) and the bots' own running costs; neither is in the docs yet." (`ai_spend.gaps`)
 
+---
+
+## 6. Where we go from here, together
+
+**Intro copy:**
+> What you've seen is where we started. The best part is still ahead, and it gets better with every founder who jumps in. Together we can make something awesome.
+
+**Ways to get involved** (four friendly cards, each with an icon and a link):
+1. **Answer the surveys.** Founder surveys are on production at `/admin/survey`. Your answers set how the game reads players and what we test for.
+2. **Play the playtest.** Sign in at [tales-forge-playtest.fly.dev](https://tales-forge-playtest.fly.dev) with GitHub and play a few turns. Your sessions show up next to the persona bots'.
+3. **Suggest ideas.** Anything you'd love to see goes in [`docs/future-ideas.md`](../future-ideas.md). Tell Case, or add it yourself, since docs go straight to main.
+4. **Soon: hold the approval key yourself.** Approve merges and deploys, steer the bots and make decisions, just like Fredrik does today. We'll set that up together.
+
 **Closing line:**
-> One human yes on every change, three bots that never get tired, and a paper trail for every decision. That's how Tales Forge gets built.
+> A founder's yes on every change, three bots that never get tired, a paper trail for every decision, and room at the table for all of us. Let's build it together.
 
 ---
 
 ## Image ideas
 
-- **Bot avatars (illustrated):** a consistent set in a warm, slightly painterly fantasy-tavern style, head and shoulders, round crop.
-  - *Fredrik:* a human figure at a big oak table with a seal or stamp (the one who approves).
+- **Crew avatars (illustrated):** a consistent set in a warm, slightly painterly fantasy-tavern style, head and shoulders, round crop, all the same size.
+  - *The founders:* one group illustration of the founders together, as generic adventurers around a table (no real likenesses, no one in front or above), sharing a single wax-seal stamp. Use it for the founders' card and the approval steps.
   - *Case:* a calm planner with a map and compass and blueprint lines in the background.
   - *Bobby:* a tinkerer-smith at a small forge with a laptop, sparks shaped like `|>` (Elixir's pipe).
   - *Gentry:* a sharp-eyed inspector with a magnifying glass and a mischievous grin, maybe a red quill for marking faults.
   - *Personas:* the same style, a small token each. Hawk with a sword, Paul with a theatre mask, Lotta with a hand mirror, Lars with a quest map, Ronny with a sack of gold (greyed).
 - **Architecture diagram:** clean SVG, three call-type colours, small icons (a person, a lightning bolt for LiveView, a sieve or lens for Jev, gears for Elixir, a quill for the GM, a scroll for prose).
-- **Flow animation:** a d20 token rolling along a path through 11 stations, with the "Fredrik's OK" station drawn as a wax seal.
-- **Hero art (optional):** a tavern table where three small bots and a human lean over a map of Tin Valley.
+- **Flow animation:** a d20 token rolling along a path through 11 stations. The two "A founder's OK" stations are wax seals with the founders' shared crest.
+- **Hero art (optional):** one round tavern table where the founders (illustrated, no real likenesses) and the three bots lean over a map of Tin Valley together, with an empty chair or two left open as an invitation. A round table means no head of the table.
 
 ## Build notes for Bobby
 
