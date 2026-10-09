@@ -247,7 +247,7 @@
     "smell": "Asking the LLM for structured output is a smell: move that work to Jev or Elixir.",
     "walkthrough": {
       "illustrative": true,
-      "note": "Illustrative turn. Mechanics follow ex-tales-forge main (Game.Mechanics: 1d20 roll-under vs skill + (stat-10) div 2; LP = 0.5 on success + (stat-10) div 4). Room price from priv/adventures/tin_valley/world_agents.json. Jev intent is on in playtest and prod since 2026-10-09 (decisions.md); no haggling-discount rule yet; NPC memories still come from GM bookkeeping fields (queued to move).",
+      "note": "Illustrative turn. Mechanics follow ex-tales-forge main (Game.Mechanics: 1d20 roll-under vs skill + (stat-10) div 2) Learning rule per decision 2026-10-09 (Fredrik): learn only from failure, only in the failed skill, improvement after sleeping; being rolled out, so a success earns nothing.. Room price from priv/adventures/tin_valley/world_agents.json. Jev intent is on in playtest and prod since 2026-10-09 (decisions.md); no haggling-discount rule yet; NPC memories still come from GM bookkeeping fields (queued to move).",
       "player_text": "I lean on the bar and try to talk Brenna down on the price of the room.",
       "steps": [
         {
@@ -274,8 +274,8 @@
             "target": 7,
             "die": 6,
             "outcome": "success",
-            "lp_earned": 1.5,
-            "room_price": "3 silver (price list)"
+            "room_price": "3 silver (price list)",
+            "learning": "none (successes teach nothing; learn from failure, sinks in after sleep)"
           }
         },
         {
@@ -290,7 +290,7 @@
     },
     "examples": {
       "elixir": [
-        "Dice rolls and learning points (Game.Mechanics, Game.Progression)",
+        "Dice rolls and learning from failure, improving after sleep (Game.Mechanics, Game.Progression; rolling out)",
         "Prices and coins (World.Prices, Game.Inventory)",
         "False-claim check against session state (Game.PremiseCheck)",
         "World clock and fronts (Game.WorldClock, Tinjacks trouble clock)",

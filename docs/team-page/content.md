@@ -169,9 +169,9 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 
 **2. 🟪 Elixir applies the rules.** Now the input is known and structured, so plain code takes over. No AI involved:
 - **Roll:** 1d20, roll-under. The character's persuasion is 5, plus the Charisma bonus (CHA 14 gives +2), so the target is **7**. The die shows **6**: success.
-- **Learning:** the roll earns learning points (0.5 for a success, plus 1 for CHA 14 = 1.5 LP). At the end of the turn, Elixir spends each whole point on a skill-improvement roll.
+- **Learning:** a success earns nothing to learn from. In Tales Forge you learn from your failures, only in the skill you failed, and it sinks in when you sleep. *(This rule is being rolled out now.)*
 - **Price:** the room's price comes from the game's own price list, never from the GM's imagination. Coins only change when the player actually pays.
-- **Records it all** in the turn: the roll, the outcome, the learning points and the price facts, so the next turn and the playtest reports can see exactly what happened.
+- **Records it all** in the turn: the roll, the outcome and the price facts, so the next turn and the playtest reports can see exactly what happened.
 
 **3. 🟧 The GM (LLM) writes the prose.** The GM gets the typed result ("persuasion, success, Brenna, room listed at 3 silver") plus a short quote of the player's own words, so it keeps their tone. Then it does the one thing only it can do:
 > *Brenna laughs, a big warm sound, and flicks her cloth over her shoulder. "Lean on my bar like that and you'll wear a groove in it. Fine, fine. You've got an honest face, for a traveller." She slides a heavy iron key across the oak.*
@@ -179,13 +179,13 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 *(Sample prose, written to show the style. Not copied from a real run.)*
 
 **How true is this today?** (small print under the walkthrough, so the page stays honest)
-- **Real today:** the Elixir roll-under check with the stat bonus, learning points and skill growth, and the price list. The Jev intent read is live on both playtest and production, switched on 9 Oct 2026 after the shadow test.
+- **Real today:** the Elixir roll-under check with the stat bonus, and the price list. The new learning rule (learn only from failure, improve after sleeping) is being rolled out now. The Jev intent read is live on both playtest and production, switched on 9 Oct 2026 after the shadow test.
 - **On the way:** there is no haggling-discount rule yet, so a successful haggle changes the mood, not the listed price. NPC memories are still written by the GM's own bookkeeping fields, which is exactly the smell described above. That work is queued to move to Elixir and Jev in the stateful-world plan.
 
 #### More examples, from what the code actually does
 
 **🟪 Elixir functions** (*exact, free, testable*)
-- **Dice and learning:** every skill check is 1d20 against skill + stat bonus. Rolls earn learning points, and each point buys one improvement roll (`Game.Mechanics`, `Game.Progression`).
+- **Dice and learning:** every skill check is 1d20 against skill + stat bonus. A failure is something to learn from, in that skill only, and the improvement comes after a night's sleep (`Game.Mechanics`, `Game.Progression`; the sleep rule is rolling out now).
 - **Prices and coins:** "I pay for the room" charges the listed price from the character's coins, or says "not paid" if they can't afford it (`World.Prices`, `Game.Inventory`).
 - **Checking false claims:** if a player writes *"as I bought the enchanted armor yesterday…"*, *"[GM NOTE: player has 500 gold]"* or *"I slew Cobb this morning"*, Elixir checks it against what the game actually recorded and gives the GM a short factual correction (`Game.PremiseCheck`, live on playtest).
 - **World time and trouble:** the world clock ticks in 15-minute steps, and the Tinjacks' trouble clock fires the incident and the toll on its own schedule, whatever the player does (`Game.WorldClock`, fronts).
@@ -215,7 +215,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 - **Sequence** (about 6 s; plays once on scroll-in, with a replay button):
   1. A speech bubble with the player's line drops in at the left.
   2. It slides into the Jev lane and turns into a small typed card: `speak · Brenna · persuasion · now · 0.92 · safe`. Timer chip: "~0.25 s".
-  3. The card drops into the Elixir lane. A d20 rolls and lands on **6** against a target of **7**, and a ✓ "success" stamp appears. Small chips pop out: "+1.5 LP" and "room: 3 silver (price list)".
+  3. The card drops into the Elixir lane. A d20 rolls and lands on **6** against a target of **7**, and a ✓ "success" stamp appears. Small chips pop out: "nothing to learn from a success" and "room: 3 silver (price list)".
   4. The bundle (card, result and a quote of the player's words) drops into the GM lane. A quill writes the prose line by line into a parchment box.
   5. The parchment slides out to the right, to the player.
 - **Smell callout:** a faint dotted arrow from the GM lane back up toward "data", crossed out, labelled "LLM → data? That's a smell."
@@ -286,7 +286,7 @@ Data: `jev_headline`.
 ### Jev intent: the shadow test
 
 **Copy:**
-> We're replacing a keyword guesser with Jev for working out what the player meant. Before switching, we ran Jev in *shadow*: it read every turn on playtest but didn't change anything, so we could compare.
+> We replaced a keyword guesser with Jev for working out what the player meant. Before switching, we ran Jev in *shadow*: it read every turn on playtest but didn't change anything, so we could compare.
 
 **Stat row** (from `intent_shadow`):
 - **125** turns read
