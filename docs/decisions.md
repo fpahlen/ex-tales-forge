@@ -11,6 +11,28 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: Skill growth comes only from failure, only in the failed skill, and is banked until sleep
+
+- **Decision (Fredrik):** you learn only from failure, and only in the skill you failed. This supersedes the 2026-10-07 rule that spent LP at the end of every turn. Default variant only; the baseline variant keeps the #64 rule.
+  - A success earns nothing. A failure or partial success banks one improvement chance (1 LP) for that exact skill, and nothing spills to other skills. The linked stat no longer adds LP.
+  - Most skills improve only after the character has slept. Banked chances are resolved on a long rest (sleep, or a wait of 6 hours or more), not at the end of each turn. The GM gets a short per-turn note ("Rest: what sank in", no numbers) so it can narrate "you wake and feel surer with the blade".
+  - An improvement attempt needs a d20 of at least 11 and at least the skill's level. Level 0–1 is no longer a sure thing: the chance is at most 50%, then 45% at 12 and 5% at 20.
+  - Skills that might improve right away instead (combat and dodge, climbing, lockpicking) are listed in the PR for Fredrik to decide. Every skill waits for sleep until he does. Whether to cap attempts per skill per sleep is also left to him.
+  - This is the first step toward consolidation over world time ([Future ideas: Memory consolidation and attitude drift](future-ideas.md#memory-consolidation-and-attitude-drift)): skills settle during sleep the way memories would settle on world ticks.
+- **Why:** in the [full batch of 2026-10-09](analysis-full-batch-2026-10-09.md), levels gained went from 13 to 112, and Paul gained 39 levels in five 10-turn sessions. Growth was much faster than "you learn by failing, slowly".
+- **Status:** PR #100 open ([ex-tales-forge #100](https://github.com/whyse-ab/ex-tales-forge/pull/100)), not merged.
+- **Details:** [ex-tales-forge PR #100](https://github.com/whyse-ab/ex-tales-forge/pull/100) (`TalesForge.Game.Progression`, `TalesForge.Game.Mechanics`).
+
+## 2026-10-09: Plain talk doesn't roll (re-enforcing 2026-10-07)
+
+- **Decision (Fredrik):** this re-enforces the 2026-10-07 roll rule. The Jev intent read names persuasion, deception or intimidation only when the player is actually trying to change someone's mind against their interest: haggling, getting past a guard, talking down a fight, a bluff or a threat. Asking for an ale, asking Brenna where Osric is, thanks, compliments and flowery questions roll nothing.
+  - The Jev skill question and the social and etiquette labels now say this. 18 tune-only eval cases (`plain_talk_vs_social`, h-pt01–18) cover it.
+  - On the tune split, plain talk read as a social skill fell from 20/76 (26.3%) to 4/76 (5.3%). Real social checks are still read as social in 45/48. Skill accuracy went from 86.5% to 96.1%, and calibration is unchanged (ECE 0.040).
+  - No Elixir "resisting target" guard was added: on the eval it would have dropped 7 correct social reads to stop 1 false one.
+- **Why:** with `INTENT_JEV=on`, Paul rolled persuasion on 51 of 62 turns in the [full batch of 2026-10-09](analysis-full-batch-2026-10-09.md), mostly on ordinary talk, and it fed the fast growth.
+- **Status:** PR #100 open ([ex-tales-forge #100](https://github.com/whyse-ab/ex-tales-forge/pull/100)), not merged. Not in this PR: moves never roll, NPCs never roll in fights, and nine skills were never rolled in the batch.
+- **Details:** [ex-tales-forge PR #100](https://github.com/whyse-ab/ex-tales-forge/pull/100), [Design: player intent as one Jev call](design-jev-intent.md).
+
 ## 2026-10-09: False-premise claims are checked against session state in Elixir, not by Jev
 
 - **Decision (Fredrik):** false-premise claims, meaning items, coins, purchases and kills the player claims but doesn't have or didn't do ("as I did yesterday when I bought the enchanted armor, I put it on", "I killed the orc chief"), are checked against the session state by Elixir rules (`TalesForge.Game.PremiseCheck`), not by Jev. Jev is not tuned for false premises.
