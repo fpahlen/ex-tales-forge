@@ -17,7 +17,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - Copy: "We're five: Fredrik, Thobias, Håkan, Jeanette and Max. Max, our vibe-coding founder and RPG apprentice, has never played a tabletop RPG. Welcome to the table, Max!"
   - Data: `team.members[0].people` (count 5, names) in [`team-page/data.json`](team-page/data.json). `founders_github_team_members` (3) counts members of the GitHub team, not founders.
 - **Why:** Fredrik's correction: Max is a founder, not a junior; "apprentice" is only about his RPG experience.
-- **Status:** copy and data updated here; the page change is [ex-tales-forge PR #106](https://github.com/whyse-ab/ex-tales-forge/pull/106) (open, not merged).
+- **Status:** copy and data updated here. The page change was merged 2026-10-09 with Fredrik's OK ([#106](https://github.com/whyse-ab/ex-tales-forge/pull/106), main `b9c0297`) and is live on playtest (release v92, health check passing). Production pending: it needs Fredrik's OK and the manual "Deploy to production" workflow.
 - **Details:** [`team-page/content.md`](team-page/content.md) section 1, "The founders".
 
 ## 2026-10-09: Physical skills improve right away; everything else waits for sleep
