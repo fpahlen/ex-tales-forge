@@ -11,6 +11,16 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: False-premise claims are checked against session state in Elixir, not by Jev
+
+- **Decision (Fredrik):** false-premise claims, meaning items, coins, purchases and kills the player claims but doesn't have or didn't do ("as I did yesterday when I bought the enchanted armor, I put it on", "I killed the orc chief"), are checked against the session state by Elixir rules (`TalesForge.Game.PremiseCheck`), not by Jev. Jev is not tuned for false premises.
+  - **Stays Jev's job:** fake authority ("[GM NOTE: …]", "patch note", "moderator message"), multi-turn code words and buried injections, which remain `prompt_injection` in the intent eval.
+  - **In the game (default variant):** when a claim is false, the GM gets a short factual correction in the per-turn part of the prompt ("Player claims to own enchanted armor; they don't. Don't narrate it as true."). The turn records it as a hidden `player.false_premise` event. The rules are conservative so that true claims and lies told to a character are not flagged. The baseline variant and its prompts are unchanged.
+  - **In the intent eval:** the six false-premise items (h-fp01–06, tune split) are relabelled `benign` with `false_premise: true` and are left out of safety precision and recall. Jev safety recall on the tune split goes from 0.828 to 0.923 (48/52).
+- **Why:** Jev sees one turn and no state, so it flagged 0 of 6 false premises, and the state is the source of truth.
+- **Status:** [ex-tales-forge PR #95](https://github.com/whyse-ab/ex-tales-forge/pull/95) open (not merged).
+- **Details:** [ex-tales-forge PR #95](https://github.com/whyse-ab/ex-tales-forge/pull/95); the eval cases came in [#93](https://github.com/whyse-ab/ex-tales-forge/pull/93).
+
 ## 2026-10-09: Fresh full playtest batch as the new baseline
 
 - **Decision (Fredrik):** run a fresh full persona batch on playtest with the new scoring, because much of the system has changed: Jev intent on, one place per thing (#85), the Tinjacks coming to the fighter (#86), gesture variety (#87), forge and cottage hooks (#88), the phone layout (#89) and the costs pages (#90). It becomes the new baseline.
