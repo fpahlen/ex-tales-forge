@@ -42,7 +42,8 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 
 - **Decision (Fredrik):** a merge to `main` deploys to playtest first. Gentry (the QA bot) and the playtest batch check it there, and only then does it go to production. Production still needs Fredrik's OK.
 - **Why:** today `main` deploys to production first and playtest after, so production meets a change before anything has tested it.
-- **Status:** decided; the workflow change PR follows, and [environments](environments.md) is updated with it. Until then `main` still deploys production first.
+- **Status:** decided; workflow change [ex-tales-forge PR #91](https://github.com/whyse-ab/ex-tales-forge/pull/91) open (not merged). [Environments](environments.md) describes the new flow; until #91 merges, `main` still deploys production first.
+- **Details:** [Environments: how a change gets to production](environments.md#how-a-change-gets-to-production)
 
 ## 2026-10-09: Costs pages: playtest shows only playtest-run costs, production shows all costs
 

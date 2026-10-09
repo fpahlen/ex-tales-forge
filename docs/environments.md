@@ -1,15 +1,15 @@
 ---
 title: Environments and how changes reach production
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Environments and how changes reach production
 
-Status 2026-10-06: **production** and **playtest** are live. Production deploys automatically from `main` through GitHub Actions. PR previews are decided but not built yet.
+Status 2026-10-09: **production** and **playtest** are live. A merge to `main` deploys to **playtest first**, automatically; **production** is a separate, manual step after the build has been checked on playtest and Fredrik has OK'd it ([decision 2026-10-09](decisions.md#2026-10-09-deploy-order-playtest-first-then-production), [ex-tales-forge #91](https://github.com/whyse-ab/ex-tales-forge/pull/91), open; until it merges, `main` still deploys production first). PR previews are decided but not built yet.
 
 ## Branches
 
-- `main` is what runs in production. Nobody pushes to it directly; everything goes in through a pull request. `main` is protected: the required CI checks **`Test`** and **`Dialyzer`** must both pass before anything lands on it.
+- `main` is what runs on playtest, and production runs a commit of `main` that was checked on playtest first. Nobody pushes to it directly; everything goes in through a pull request. `main` is protected: the required CI checks **`Test`** and **`Dialyzer`** must both pass before anything lands on it.
 - Each change gets a short-lived branch (`feature/...`, `fix/...`), a PR, and is deleted after merge.
 - There is no long-lived `dev` or `staging` branch.
 
@@ -20,7 +20,7 @@ Status 2026-10-06: **production** and **playtest** are live. Production deploys 
 | Fly app | `tales-forge` | `tales-forge-playtest` ([tales-forge-playtest.fly.dev](https://tales-forge-playtest.fly.dev)) | `tales-forge-pr-<number>` (its own app) |
 | App machine | shared-cpu-1x, 1 GB, 1 machine always on | shared-cpu-1x, 512 MB plus 512 MB swap, 1 machine always on | Small, created per PR |
 | Database | `tales-forge-db` (own Fly Postgres) | `tales-forge-playtest-db`: own Fly Postgres (postgres-flex 18), single node, shared-cpu-1x 512 MB, 1 GB volume, always on | A database per PR **on the playtest cluster** `tales-forge-playtest-db`, dropped with the app |
-| Runs | `main` | `main`, deployed automatically right after production (or by hand) | The PR's branch |
+| Runs | A commit of `main` already checked on playtest, deployed by hand ("Deploy to production" workflow) | `main`, deployed automatically after every green CI run (or by hand) | The PR's branch |
 | Who uses it | Players, admins | Persona bots (self-play) and a few invited testers | Whoever reviews the PR |
 | Admin data that lives only here | Founder surveys (`/admin/survey`, `/admin/surveys/*`) | Playtest runs (`/admin/playtest/*`) | Not built; its app name has no "playtest", so it would act as production (revisit when previews are built) |
 | Lifetime | Always on | Long-lived, always on | Created when the PR opens, destroyed when it closes |
@@ -31,17 +31,30 @@ Region is `arn` (Stockholm) for all three. The `tales-forge.ai` domain stays on 
 
 ## How a change gets to production
 
+Playtest first, then production (decision 2026-10-09, [ex-tales-forge #91](https://github.com/whyse-ab/ex-tales-forge/pull/91)):
+
 1. Push a branch and open a PR. GitHub Actions runs the two required jobs: **`Test`** (compile with warnings as errors, format check, Credo strict, tests with coverage, the docs build and `mix hex.audit`) and **`Dialyzer`**.
 2. Later (not built yet), a preview app also starts for the PR, with its link posted on the PR.
-3. When the checks are green and the change is reviewed, merge to `main`.
-4. On `main`, Actions (`.github/workflows/ci.yml`) runs the checks again and then deploys to `tales-forge`. Database migrations run first (`/app/bin/migrate`). Only one deploy runs at a time, and a running deploy is never cancelled. This is live.
-5. Playtest then gets the same commit: `.github/workflows/playtest.yml` runs after every green CI run on `main` and deploys to `tales-forge-playtest`. It can also be started by hand (Actions → "Deploy to playtest"). It is a separate workflow, so a failed playtest deploy never fails or blocks production. (Workflow in ex-tales-forge PR #17; it needs the Actions secret `FLY_API_TOKEN_PLAYTEST`.)
+3. When the checks are green and the change is reviewed, merge to `main` (Fredrik's OK).
+4. On `main`, Actions (`.github/workflows/ci.yml`) runs `Test` and `Dialyzer` again. CI itself deploys nothing.
+5. **Playtest, automatically.** After every green CI run on `main`, `.github/workflows/playtest.yml` ("Deploy to playtest") deploys exactly that commit to `tales-forge-playtest`. Migrations run first (`/app/bin/migrate`), and only one playtest deploy runs at a time. It can also be started by hand (Actions → "Deploy to playtest", optionally with a `sha`). It needs the Actions secret `FLY_API_TOKEN_PLAYTEST`.
+6. **Check on playtest.** Gentry (the QA bot) and the playtest batch check the build there, and Fredrik decides.
+7. **Production, by hand, after Fredrik's OK.** The "Deploy to production" workflow (`.github/workflows/deploy-production.yml`) is started for the commit that was checked:
+
+   ```bash
+   gh workflow run deploy-production.yml -R whyse-ab/ex-tales-forge -f sha=<full 40-character sha>
+   ```
+
+   A first job refuses the run unless the sha is on `main` and its `Test` and `Dialyzer` checks passed, and warns when no successful playtest deploy of that sha is found. The deploy job then runs in the GitHub environment **`production`** and deploys exactly that commit to `tales-forge`, with migrations first (`/app/bin/migrate`). Only one prod deploy runs at a time, and a running deploy is never cancelled. It uses the Actions secret `FLY_API_TOKEN`. A bot starts this workflow only on Fredrik's explicit OK for that sha. Once a required reviewer (Fredrik) is set on the `production` environment (repo Settings → Environments), the job also waits for that approval; until then the manual start is the gate.
+
+Until #91 merges, the old order still applies: CI's "Deploy to production" job deploys `main` to production after `Test` and `Dialyzer`, and playtest follows.
 
 A manual `fly deploy` is the fallback when Actions is down. It is the same command CI runs; see `docs/DEPLOY-FLY.md` in ex-tales-forge. For playtest: `fly deploy --remote-only --depot=false -c fly.playtest.toml -a tales-forge-playtest --ha=false`.
 
 ## What needs Fredrik's OK
 
-- Merging anything to `main`, because a merge deploys to production.
+- Merging anything to `main`, because a merge deploys to playtest (and, before #91 merges, to production).
+- Every production deploy: starting "Deploy to production" for a sha, after the build has been checked on playtest.
 - Creating or deleting Fly apps, databases, volumes, deploy tokens and GitHub secrets.
 - Anything that adds cost, such as a bigger machine, an always-on playtest, or Managed Postgres.
 - Inviting playtesters and giving out admin access (`ADMIN_EMAILS`, `ADMIN_GITHUB_TEAM`).
@@ -101,7 +114,7 @@ GitHub Actions secret: a Fly token that can create and destroy apps, which is br
 
 - Playtest keeps 1 machine always running, and so does its database (~$8/month in total).
 - Previews get their own app and a per-PR database on the playtest cluster, with no AI key, destroyed when the PR closes.
-- `main` is protected with the required check `Test` (`Dialyzer` has since been added as a second required check; see [Coding standards](coding-standards.md)). Production deploys automatically from `main` through Actions; playtest follows right after.
+- `main` is protected with the required check `Test` (`Dialyzer` has since been added as a second required check; see [Coding standards](coding-standards.md)). Production deploys automatically from `main` through Actions; playtest follows right after. (Superseded 2026-10-09: playtest first, production by hand; see above.)
 
 ## Open decisions
 
