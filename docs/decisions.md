@@ -47,7 +47,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - Skills that might improve right away instead (combat and dodge, climbing, lockpicking) are listed in the PR for Fredrik to decide. Every skill waits for sleep until he does.
   - This is the first step toward consolidation over world time ([Future ideas: Memory consolidation and attitude drift](future-ideas.md#memory-consolidation-and-attitude-drift)): skills settle during sleep the way memories would settle on world ticks.
 - **Why:** in the [full batch of 2026-10-09](analysis-full-batch-2026-10-09.md), levels gained went from 13 to 112, and Paul gained 39 levels in five 10-turn sessions. Growth was much faster than "you learn by failing, slowly".
-- **Status:** PR #100 open ([ex-tales-forge #100](https://github.com/whyse-ab/ex-tales-forge/pull/100)), not merged.
+- **Status:** merged 2026-10-09 with Fredrik's OK ([#100](https://github.com/whyse-ab/ex-tales-forge/pull/100), main `e11fbf8`); live on playtest (release v88, health check passing). Production pending: it needs Fredrik's OK and the manual "Deploy to production" workflow.
 - **Details:** [ex-tales-forge PR #100](https://github.com/whyse-ab/ex-tales-forge/pull/100) (`TalesForge.Game.Progression`, `TalesForge.Game.Mechanics`).
 
 ## 2026-10-09: Plain talk doesn't roll (re-enforcing 2026-10-07)
@@ -57,7 +57,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - On the tune split, plain talk read as a social skill fell from 20/76 (26.3%) to 4/76 (5.3%). Real social checks are still read as social in 45/48. Skill accuracy went from 86.5% to 96.1%, and calibration is unchanged (ECE 0.040).
   - No Elixir "resisting target" guard was added: on the eval it would have dropped 7 correct social reads to stop 1 false one.
 - **Why:** with `INTENT_JEV=on`, Paul rolled persuasion on 51 of 62 turns in the [full batch of 2026-10-09](analysis-full-batch-2026-10-09.md), mostly on ordinary talk, and it fed the fast growth.
-- **Status:** PR #100 open ([ex-tales-forge #100](https://github.com/whyse-ab/ex-tales-forge/pull/100)), not merged. Not in this PR: moves never roll, NPCs never roll in fights, and nine skills were never rolled in the batch.
+- **Status:** merged 2026-10-09 with Fredrik's OK ([#100](https://github.com/whyse-ab/ex-tales-forge/pull/100), main `e11fbf8`); live on playtest (release v88, health check passing). Production pending: it needs Fredrik's OK and the manual "Deploy to production" workflow. Not in this PR: moves never roll, NPCs never roll in fights, and nine skills were never rolled in the batch.
 - **Details:** [ex-tales-forge PR #100](https://github.com/whyse-ab/ex-tales-forge/pull/100), [Design: player intent as one Jev call](design-jev-intent.md).
 
 ## 2026-10-09: False-premise claims are checked against session state in Elixir, not by Jev
