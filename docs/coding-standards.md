@@ -1,6 +1,6 @@
 ---
 title: Coding standards
-updated: 2026-10-07
+updated: 2026-10-09
 ---
 
 # Coding standards
@@ -26,6 +26,7 @@ Applies to [ex-tales-forge](https://github.com/whyse-ab/ex-tales-forge). Tooling
 - The rules apply in full to new modules and to every function a PR touches.
 - Older modules are backfilled module by module, starting with the core: the GM turn (`Game.TurnProcessor`, `Game.Context`, `Game.Prompts`), `LLM`, the Character/Person side (`Game.NpcReactions`, the NPC agents) and the world agents (`World`, `World.*`).
 - Enforcement follows the backfill: once a module has `@doc` and `@spec` on every public function, add it to the `Readability.Specs` file list in `.credo.exs` and to `test/ex_tales_forge/coding_standards_test.exs`. Modules not on those lists are the legacy baseline.
+- **Admin code gets lighter gates** (decision 2026-10-09 "A fast deploy lane for admin work", [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107), open): files on the `[admin]` list in `.github/deploy-lanes.txt` (surveys, costs, playtest admin pages, `/team`) need formatting and tests only. Credo skips them, and they are not on the `@spec`/`@doc` lists. Game and shared code keep every rule above. Game and shared code must never depend on admin modules (`mix deploy.check_boundaries` in CI).
 - Dialyzer runs on the whole app. A warning we accept goes in `.dialyzer_ignore.exs` with a reason; the file is empty today.
 
 ## Commands

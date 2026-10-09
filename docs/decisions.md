@@ -11,6 +11,18 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: A fast deploy lane for admin work
+
+- **Decision (Fredrik, via Case):** admin work gets a fast deploy lane. A merge whose changed files are **all** on an explicit admin list (the survey, costs, playtest admin and `/team` pages: modules, templates, `priv` data and tests) deploys to **playtest and production automatically**, without the Gentry/batch gate and without a prod OK. Production still goes through the same "Verify commit" job (sha on `main`, `Test` and `Dialyzer` green) and the tip-of-main guard. Anything that touches game engine code (`Game.*`, intent, world, NPCs, rules, packs) or shared parts (sign-in, Repo and migrations, config, `AICalls`, `mix.exs`/deps, CI) keeps the normal flow: playtest only, production by hand after Fredrik's OK. A mixed PR counts as a game change, and anything not on the admin list defaults to the normal lane. This refines "Deploy order: playtest first, then production" below.
+  - **One list:** `.github/deploy-lanes.txt` in ex-tales-forge (`[admin]`). The router, the shared `app.css`/`app.js`, config, migrations, CI and the list itself are not on it, so a `/team` PR that also adds a route or shared CSS is normal (as #105 and #101 would have been; #106 and #99 would have been admin).
+  - **Production must not get unapproved game code:** the lane is admin only when the merge **and** every file changed since the commit production runs (tag `deployed/production`, moved by every production deploy) are on the list.
+  - The lane, and the files that decided it, are written to the "Deploy to playtest" run summary.
+  - **Boundary:** game code (and other shared code, except the router and the application that mount admin modules) must never depend on admin modules; CI checks it (`mix deploy.check_boundaries`).
+  - **Gates:** admin code gets lighter gates: format and tests, no Credo, so no `@spec`/`@doc` demands. Game and shared code keep full rigor (Credo strict, specs, Dialyzer). `Test` and `Dialyzer` stay the required checks.
+- **Why:** admin pages (surveys, costs, playtest reports, the founders' pages) don't touch the game. Waiting for Gentry, a playtest batch and a prod OK slows down work that can't change how the game plays, while game changes keep the full check.
+- **Status:** built in [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107), **open, not merged**: it needs Fredrik's explicit OK. Until it merges, every merge follows the normal flow. After it merges, every merge stays normal until the next production deploy through the workflow sets the `deployed/production` tag.
+- **Details:** [Environments](environments.md#deploy-lanes-admin-work-goes-straight-to-production), ex-tales-forge `docs/DEPLOY-FLY.md`, [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107).
+
 ## 2026-10-09: Max is a founder: our vibe-coding founder and RPG apprentice
 
 - **Decision (Fredrik, ~16:23):** Max is one of the founders, our **vibe-coding founder**. He is also an **RPG apprentice**, in the sense that he has never played a tabletop RPG. The team page stops calling him "Max the apprentice" next to "the four founders": we are five founders (Fredrik, Thobias, Håkan, Jeanette and Max).

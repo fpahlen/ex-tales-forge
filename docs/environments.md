@@ -5,7 +5,7 @@ updated: 2026-10-09
 
 # Environments and how changes reach production
 
-Status 2026-10-09: **production** and **playtest** are live. A merge to `main` deploys to **playtest first**, automatically; **production** is a separate, manual step after the build has been checked on playtest and Fredrik has OK'd it ([decision 2026-10-09](decisions.md#2026-10-09-deploy-order-playtest-first-then-production), [ex-tales-forge #91](https://github.com/whyse-ab/ex-tales-forge/pull/91), open; until it merges, `main` still deploys production first). PR previews are decided but not built yet.
+Status 2026-10-09: **production** and **playtest** are live. A merge to `main` deploys to **playtest first**, automatically; **production** is a separate, manual step after the build has been checked on playtest and Fredrik has OK'd it ([decision 2026-10-09](decisions.md#2026-10-09-deploy-order-playtest-first-then-production), [ex-tales-forge #91](https://github.com/whyse-ab/ex-tales-forge/pull/91), merged). Admin-only merges are to get a fast lane straight to production ([decision 2026-10-09](decisions.md#2026-10-09-a-fast-deploy-lane-for-admin-work), [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107), open, not merged; see [Deploy lanes](#deploy-lanes-admin-work-goes-straight-to-production)). PR previews are decided but not built yet.
 
 ## Branches
 
@@ -47,14 +47,28 @@ Playtest first, then production (decision 2026-10-09, [ex-tales-forge #91](https
 
    A first job refuses the run unless the sha is on `main` and its `Test` and `Dialyzer` checks passed, and warns when no successful playtest deploy of that sha is found. The deploy job then runs in the GitHub environment **`production`** and deploys exactly that commit to `tales-forge`, with migrations first (`/app/bin/migrate`). Only one prod deploy runs at a time, and a running deploy is never cancelled. It uses the Actions secret `FLY_API_TOKEN`. A bot starts this workflow only on Fredrik's explicit OK for that sha. Once a required reviewer (Fredrik) is set on the `production` environment (repo Settings → Environments), the job also waits for that approval; until then the manual start is the gate.
 
-Until #91 merges, the old order still applies: CI's "Deploy to production" job deploys `main` to production after `Test` and `Dialyzer`, and playtest follows.
-
 A manual `fly deploy` is the fallback when Actions is down. It is the same command CI runs; see `docs/DEPLOY-FLY.md` in ex-tales-forge. For playtest: `fly deploy --remote-only --depot=false -c fly.playtest.toml -a tales-forge-playtest --ha=false`.
+
+## Deploy lanes: admin work goes straight to production
+
+Decision 2026-10-09 ([decision log](decisions.md#2026-10-09-a-fast-deploy-lane-for-admin-work)), built in [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107): **open, not merged, needs Fredrik's OK.** Until it merges, every merge follows steps 5 to 7 above.
+
+| Lane | When | Playtest | Production |
+|---|---|---|---|
+| **Admin** | Every file the merge changed **and** every file changed since the commit production runs is on the `[admin]` list in ex-tales-forge `.github/deploy-lanes.txt` | Automatic | Automatic, right after playtest: no Gentry/batch gate, no prod OK |
+| **Normal** | Anything else: game engine code (`Game.*`, intent, world, NPCs, rules, packs), shared code (sign-in, Repo and migrations, config, `AICalls`, `mix.exs`/deps, the router, shared CSS/JS, CI), docs, unknown files, a mixed merge | Automatic | By hand after Gentry, the playtest batch and Fredrik's OK (step 7) |
+
+- **The admin list** (one place, `.github/deploy-lanes.txt`): the founder survey (`Surveys`, `Survey.*`, the survey admin LiveViews, components and CSV export, `priv/surveys/`), the costs page (`Costs`, `Costs.*`, `CostsLive`; not the signed-out `GET /internal/costs` controller), the playtest admin pages (`PlaytestLive`, `Playtest.Summary`, `Playtest.CharacterChanges` and its components, `priv/playtest/summary/`; not the persona runner, scorers or personas), and the founders' pages (`TeamPage`, `TeamLive`, `TeamPresentationLive`, the `team_*` components, `team_hooks.js`, `priv/team/`, `priv/static/images/team/`), each with its tests.
+- **How the lane is picked:** after the playtest deploy, "Deploy to playtest" diffs the merge against its parent and against the tag **`deployed/production`** (the commit production runs; every production deploy moves it). Both must be admin-only. So an admin merge never carries an earlier game merge that is still waiting for Fredrik's OK. With no tag yet, a rollback, or a run started by hand, the lane is normal. The lane and the files that decided it are in the run summary.
+- **The admin lane's production deploy** is the "Deploy to production" workflow called from playtest: the same "Verify commit" job (sha on `main`, `Test` and `Dialyzer` green), then, one deploy at a time, it deploys only if the commit is **still the tip of `main`** (the same guard playtest has) and production hasn't moved since the lane was picked. Otherwise it skips with a notice.
+- **Boundary:** game code, and shared code other than the router and the application, must never depend on admin modules. CI's `Test` job checks it (`mix deploy.check_boundaries`).
+- **Gates:** admin files get format and tests only (no Credo, so no `@spec`/`@doc` demands); game and shared code keep Credo strict, specs and Dialyzer. `Test` and `Dialyzer` stay the required checks ([Coding standards](coding-standards.md)).
+- Keep admin work in admin-only PRs: a `/team` PR that also adds a route or touches the shared CSS is normal.
 
 ## What needs Fredrik's OK
 
-- Merging anything to `main`, because a merge deploys to playtest (and, before #91 merges, to production).
-- Every production deploy: starting "Deploy to production" for a sha, after the build has been checked on playtest.
+- Merging anything to `main`, because a merge deploys to playtest (and, once [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107) merges, an admin-only merge also goes to production).
+- Every normal-lane production deploy: starting "Deploy to production" for a sha, after the build has been checked on playtest.
 - Creating or deleting Fly apps, databases, volumes, deploy tokens and GitHub secrets.
 - Anything that adds cost, such as a bigger machine, an always-on playtest, or Managed Postgres.
 - Inviting playtesters and giving out admin access (`ADMIN_EMAILS`, `ADMIN_GITHUB_TEAM`).
