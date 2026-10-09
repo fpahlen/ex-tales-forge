@@ -5,7 +5,7 @@ updated: 2026-10-09
 
 # Environments and how changes reach production
 
-Status 2026-10-09: **production** and **playtest** are live. A merge to `main` deploys to **playtest first**, automatically; **production** is a separate, manual step after the build has been checked on playtest and Fredrik has OK'd it ([decision 2026-10-09](decisions.md#2026-10-09-deploy-order-playtest-first-then-production), [ex-tales-forge #91](https://github.com/whyse-ab/ex-tales-forge/pull/91), merged). Admin-only merges are to get a fast lane straight to production ([decision 2026-10-09](decisions.md#2026-10-09-a-fast-deploy-lane-for-admin-work), [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107), open, not merged; see [Deploy lanes](#deploy-lanes-admin-work-goes-straight-to-production)). PR previews are decided but not built yet.
+Status 2026-10-09: **production** and **playtest** are live. A merge to `main` deploys to **playtest first**, automatically; **production** is a separate, manual step after the build has been checked on playtest and Fredrik has OK'd it ([decision 2026-10-09](decisions.md#2026-10-09-deploy-order-playtest-first-then-production), [ex-tales-forge #91](https://github.com/whyse-ab/ex-tales-forge/pull/91), merged). Admin-only merges get a fast lane straight to production ([decision 2026-10-09](decisions.md#2026-10-09-a-fast-deploy-lane-for-admin-work), [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107), merged; see [Deploy lanes](#deploy-lanes-admin-work-goes-straight-to-production)). PR previews are decided but not built yet.
 
 ## Branches
 
@@ -51,7 +51,7 @@ A manual `fly deploy` is the fallback when Actions is down. It is the same comma
 
 ## Deploy lanes: admin work goes straight to production
 
-Decision 2026-10-09 ([decision log](decisions.md#2026-10-09-a-fast-deploy-lane-for-admin-work)), built in [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107): **open, not merged, needs Fredrik's OK.** Until it merges, every merge follows steps 5 to 7 above.
+Decision 2026-10-09 ([decision log](decisions.md#2026-10-09-a-fast-deploy-lane-for-admin-work)), built in [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107), merged 2026-10-09 (main `2f1c909`). Until the next production deploy through the workflow sets the `deployed/production` tag, every merge takes the normal lane.
 
 | Lane | When | Playtest | Production |
 |---|---|---|---|
@@ -67,7 +67,7 @@ Decision 2026-10-09 ([decision log](decisions.md#2026-10-09-a-fast-deploy-lane-f
 
 ## What needs Fredrik's OK
 
-- Merging anything to `main`, because a merge deploys to playtest (and, once [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107) merges, an admin-only merge also goes to production).
+- Merging anything to `main`, because a merge deploys to playtest (and an admin-only merge also goes to production, [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107)).
 - Every normal-lane production deploy: starting "Deploy to production" for a sha, after the build has been checked on playtest.
 - Creating or deleting Fly apps, databases, volumes, deploy tokens and GitHub secrets.
 - Anything that adds cost, such as a bigger machine, an always-on playtest, or Managed Postgres.

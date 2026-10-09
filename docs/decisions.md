@@ -29,7 +29,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - **Boundary:** game code (and other shared code, except the router and the application that mount admin modules) must never depend on admin modules; CI checks it (`mix deploy.check_boundaries`).
   - **Gates:** admin code gets lighter gates: format and tests, no Credo, so no `@spec`/`@doc` demands. Game and shared code keep full rigor (Credo strict, specs, Dialyzer). `Test` and `Dialyzer` stay the required checks.
 - **Why:** admin pages (surveys, costs, playtest reports, the founders' pages) don't touch the game. Waiting for Gentry, a playtest batch and a prod OK slows down work that can't change how the game plays, while game changes keep the full check.
-- **Status:** built in [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107), **open, not merged**: it needs Fredrik's explicit OK. Until it merges, every merge follows the normal flow. After it merges, every merge stays normal until the next production deploy through the workflow sets the `deployed/production` tag.
+- **Status:** merged 2026-10-09 with Fredrik's OK ([#107](https://github.com/whyse-ab/ex-tales-forge/pull/107), main `2f1c909`); live on playtest (release v94, health check passing). #107 itself took the normal lane (CI and shared files), so production was not deployed. Every merge stays normal until the next production deploy through the workflow sets the `deployed/production` tag; that deploy needs Fredrik's OK.
 - **Details:** [Environments](environments.md#deploy-lanes-admin-work-goes-straight-to-production), ex-tales-forge `docs/DEPLOY-FLY.md`, [#107](https://github.com/whyse-ab/ex-tales-forge/pull/107).
 
 ## 2026-10-09: Max is a founder: our vibe-coding founder and RPG apprentice
