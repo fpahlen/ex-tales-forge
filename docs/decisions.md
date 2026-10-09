@@ -18,7 +18,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - **Scoring:** the current Jev scorer, the sharpened rubrics and the confidence-weighted headline.
   - **Budget:** abort above $8 (the playtest day cap is $25). Persona bot cost is reported apart from game cost.
 - **Why:** with this many changes, comparing against older batches piece by piece would mislead; one fresh batch gives a clean reference for the persona rework.
-- **Status:** running (started 2026-10-09 11:10). The analysis goes in [Analysis: full batch 2026-10-09](analysis-full-batch-2026-10-09.md).
+- **Status:** done 2026-10-09 12:28 (25 runs). Persona-balanced session score +0.13 (CI −0.13..+0.40) and weighted turn +0.09 (CI −0.02..+0.20); only Paul's gain is clear (+0.10 session, +0.27 turn). Jev intent median 232 ms, p95 275 ms. Rolls per run 0.7 to 4.7 (Paul 8.4). Hawk still fights in only 1/5 runs. Cost $2.99 (game $2.34, persona bot $0.65, scorer $0.007). The analysis goes in [Analysis: full batch 2026-10-09](analysis-full-batch-2026-10-09.md).
 
 ## 2026-10-09: Jev intent on for playtest and production
 
