@@ -11,6 +11,15 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: Live PR feed on the /team landing page
+
+- **Decision (Fredrik, OK 16:51):** merge ex-tales-forge [#102](https://github.com/whyse-ab/ex-tales-forge/pull/102), the live "what we're shipping" feed: the latest pull requests in the game's repo, CI while open, and whether each merge is on playtest or in production, polled from GitHub by the server every 60 s (browsers never call GitHub).
+  - Since #105 split `/team`, the feed sits on the landing page right after the crew cards (section `#live`, "Live" in the page nav), in the slot left for it; the full presentation at `/team/presentation` is unchanged.
+  - Needs `GITHUB_FEED_TOKEN` (read-only, only `whyse-ab/ex-tales-forge`); set on both apps with the same value, checked by name and digest only ([Fly secrets](fly-secrets.md)). Without it the section says "Live feed unavailable" and the rest of the page works.
+- **Why:** founders see what the bots are shipping without opening GitHub.
+- **Status:** merged 2026-10-09 ([#102](https://github.com/whyse-ab/ex-tales-forge/pull/102), main `eec7ddf`), live on playtest (release v93, health check passing, feed status ok with 15 pull requests, no GitHub errors in the logs). "On prod" reads "unknown" until production runs a release with #102 (it answers the feed's `GET /internal/version`). Production pending: it needs Fredrik's OK and the manual "Deploy to production" workflow.
+- **Details:** [ex-tales-forge PR #102](https://github.com/whyse-ab/ex-tales-forge/pull/102) (`TalesForge.PrFeed`, `TalesForgeWeb.TeamPrFeedLive`).
+
 ## 2026-10-09: A fast deploy lane for admin work
 
 - **Decision (Fredrik, via Case):** admin work gets a fast deploy lane. A merge whose changed files are **all** on an explicit admin list (the survey, costs, playtest admin and `/team` pages: modules, templates, `priv` data and tests) deploys to **playtest and production automatically**, without the Gentry/batch gate and without a prod OK. Production still goes through the same "Verify commit" job (sha on `main`, `Test` and `Dialyzer` green) and the tip-of-main guard. Anything that touches game engine code (`Game.*`, intent, world, NPCs, rules, packs) or shared parts (sign-in, Repo and migrations, config, `AICalls`, `mix.exs`/deps, CI) keeps the normal flow: playtest only, production by hand after Fredrik's OK. A mixed PR counts as a game change, and anything not on the admin list defaults to the normal lane. This refines "Deploy order: playtest first, then production" below.
