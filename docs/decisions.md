@@ -11,6 +11,16 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: Prices are anchors with bounded situational modifiers; practice hours are narrative bands
+
+- **Decision (Fredrik):** the formulas in [Design: one rule for skills and the economy](design-skills-economy.md) give **anchor prices**, not price tags, and practice hours are **narrative bands**, not ledgers. This refines the 2026-10-09 design note entry below.
+  - **Prices:** actual price = anchor × situational modifiers (scarcity, demand, danger, leverage, relationship, haggling), each with its own proposed band, and the product clamped to 0.5× to 3× the anchor. Elixir computes the anchor and the range; Jev (or the GM, through a typed field) reads the situation and picks within it; Elixir clamps and records the anchor, modifiers, reasons and final price. Worked example: the last two melee-8 guards for a dangerous five-day pass, anchor 47c a guard-day, go for 122c after a successful haggle (2.59×), and would hit the 3× clamp (141c) on a failed one ([§3.6](design-skills-economy.md#36-situational-modifiers-the-actual-price)).
+  - **Hours and levels:** the hours formula stays as the anchor, but the GM and player see five bands with rough hours and story flavour: Novice 0-3, Apprentice 4-7, Journeyman 8-11, Expert 12-15, Master 16-20 ([§2.1](design-skills-economy.md#21-narrative-bands-what-the-gm-and-the-player-see)). Levels stay exact only where dice need them.
+  - The call-type section and open questions in the note were updated to match (13 open questions; the trainer-scarcity and hours-precision questions are answered).
+- **Why:** Fredrik's guidance (2026-10-09): "the formulas are an anchor so prices stay consistent, not exact price tags. Like real life, supply and demand apply." Hiring the last available guards for a dangerous journey gives those guards pricing power. Levels and hours likewise give the GM something to build a story from, not exact numbers.
+- **Status:** design note revised 2026-10-09; docs only, no code changed. Bounds and the other open questions wait for Fredrik.
+- **Details:** [Design: one rule for skills and the economy](design-skills-economy.md)
+
 ## 2026-10-09: Write one design note for skills and the economy (docs only)
 
 - **Decision (Fredrik):** write one design note that ties skills and the economy together: [Design: one rule for skills and the economy](design-skills-economy.md). Docs only, no code yet; each follow-up code PR needs Fredrik's OK.
