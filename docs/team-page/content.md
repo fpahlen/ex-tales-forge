@@ -111,7 +111,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 
 1. **Decisions are written down.** Every decision goes into one log, `docs/decisions.md` in `tales-forge-docs`, with the date, the decision, why, and a link to the details. Changing a decision means adding a new entry, never editing history.
    - Stat: **`decisions.total` decisions in five days** (5–9 Oct).
-   - Plus a decision queue of `decisions.queue.total` bigger questions (`decisions.queue.open` still open), and a future-ideas list (`decisions.future_ideas.count` ideas so far: *speculative intent while typing* and *memory consolidation and attitude drift*).
+   - Plus a decision queue of `decisions.queue.total` bigger questions (`decisions.queue.open` still open), and a future-ideas list (`decisions.future_ideas.count` ideas so far: *speculative intent while typing*, *memory consolidation and attitude drift* and *a founder kanban on /team*).
 2. **Docs go straight to main; code goes through PRs.** Writing things down should be fast, so docs need no review step. Code always gets a PR, CI and a founder's OK (today Fredrik's, soon anyone's in the founders' team).
 3. **The call-type rule.** Each piece of work in a turn uses the cheapest tool that can do it:
 

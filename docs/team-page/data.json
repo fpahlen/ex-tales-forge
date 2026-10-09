@@ -171,12 +171,14 @@
       "source": "tales-forge-docs decisions/d-001..d-012 front matter 'status'"
     },
     "future_ideas": {
-      "count": 2,
+      "count": 3,
       "items": [
         "Speculative intent while typing",
-        "Memory consolidation and attitude drift"
+        "Memory consolidation and attitude drift",
+        "Founder kanban on /team"
       ],
-      "source": "docs/future-ideas.md '## ' headings"
+      "source": "docs/future-ideas.md '## ' headings",
+      "as_of": "2026-10-09"
     }
   },
   "call_types": {
