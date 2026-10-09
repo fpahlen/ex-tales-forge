@@ -11,6 +11,17 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: Physical skills improve right away; everything else waits for sleep
+
+- **Decision (Fredrik, ~16:04, via Case):** of the exceptions listed in [#100](https://github.com/whyse-ab/ex-tales-forge/pull/100), the physical skills (melee_combat, ranged_combat, unarmed_combat, dodge, climbing, lockpicking) improve right away after a failure. All other skills keep waiting for sleep. This refines the growth entry below; default variant only.
+  - "Right away" means the banked LP of a physical skill are resolved at the end of the turn of the failure, with the same LP-per-roll cost (ceil(level / 3)), the same roll (d20 ≥ 11 and ≥ level) and the same reflection gate from level 10.
+  - **Cap:** at most +1 per physical skill per long-rest cycle. Once one improves, any LP it banks are dropped until the next long rest, so a fight can't be farmed for several levels in a day. A failed roll spends its LP; a remainder too small for a roll waits within the cycle, and the long rest clears it.
+  - The GM gets "They are a little surer at: climbing" in the per-turn prompt on the turn itself.
+  - Simulation (melee from 3): the pace over many nights is unchanged (10 rolls a day reaches level 10 in a median of 10 nights, against 9 under the sleep rule); the +1 just lands on the turn, after a median of 2 rolls on day one.
+- **Why:** a missed handhold or a parry that came too late teaches on the spot; knowledge and social skills sink in overnight.
+- **Status:** PR #104 open ([ex-tales-forge #104](https://github.com/whyse-ab/ex-tales-forge/pull/104)), not merged.
+- **Details:** [ex-tales-forge PR #104](https://github.com/whyse-ab/ex-tales-forge/pull/104) (`TalesForge.Game.Progression.resolve_turn/3`).
+
 ## 2026-10-09: Prices are anchors with bounded situational modifiers; practice hours are narrative bands
 
 - **Decision (Fredrik):** the formulas in [Design: one rule for skills and the economy](design-skills-economy.md) give **anchor prices**, not price tags, and practice hours are **narrative bands**, not ledgers. This refines the 2026-10-09 design note entry below.
