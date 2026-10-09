@@ -13,7 +13,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 
 ## 2026-10-09: Physical skills improve right away; everything else waits for sleep
 
-- **Decision (Fredrik, ~16:04, via Case):** of the exceptions listed in [#100](https://github.com/whyse-ab/ex-tales-forge/pull/100), the physical skills (melee_combat, ranged_combat, unarmed_combat, dodge, climbing, lockpicking) improve right away after a failure. All other skills keep waiting for sleep. This refines the growth entry below; default variant only.
+- **Decision (Fredrik, ~16:04, via Case):** of the exceptions listed in [#100](https://github.com/whyse-ab/ex-tales-forge/pull/100), the physical skills (melee_combat, ranged_combat, unarmed_combat, dodge, climbing, lockpicking) improve right away after a failure. All other skills keep waiting for sleep. This refines the 2026-10-09 "Skill growth comes only from failure" entry; default variant only.
   - "Right away" means the banked LP of a physical skill are resolved at the end of the turn of the failure, with the same LP-per-roll cost (ceil(level / 3)), the same roll (d20 ≥ 11 and ≥ level) and the same reflection gate from level 10.
   - **Cap:** at most +1 per physical skill per long-rest cycle. Once one improves, any LP it banks are dropped until the next long rest, so a fight can't be farmed for several levels in a day. A failed roll spends its LP; a remainder too small for a roll waits within the cycle, and the long rest clears it.
   - The GM gets "They are a little surer at: climbing" in the per-turn prompt on the turn itself.
