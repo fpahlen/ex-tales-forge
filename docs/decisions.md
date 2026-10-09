@@ -11,6 +11,39 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: Fresh full playtest batch as the new baseline
+
+- **Decision (Fredrik):** run a fresh full persona batch on playtest with the new scoring, because much of the system has changed: Jev intent on, one place per thing (#85), the Tinjacks coming to the fighter (#86), gesture variety (#87), forge and cottage hooks (#88), the phone layout (#89) and the costs pages (#90). It becomes the new baseline.
+  - **Setup:** the same shape as the previous full batch (`post-rework-2026-10-08`): Paul, Hawk, Lotta, Lars and Ronny, 5 runs each, round-robin, 10 turns (Hawk 12), variant default, series `full-2026-10-09`. Sessions run with `INTENT_JEV=on`.
+  - **Scoring:** the current Jev scorer, the sharpened rubrics and the confidence-weighted headline.
+  - **Budget:** abort above $8 (the playtest day cap is $25). Persona bot cost is reported apart from game cost.
+- **Why:** with this many changes, comparing against older batches piece by piece would mislead; one fresh batch gives a clean reference for the persona rework.
+- **Status:** running (started 2026-10-09 11:10). The analysis goes in [Analysis: full batch 2026-10-09](analysis-full-batch-2026-10-09.md).
+
+## 2026-10-09: Jev intent on for playtest and production
+
+- **Decision (Fredrik):** turn the Jev intent read on (`INTENT_JEV=on`). The [persona comparison](analysis-intent-compare-2026-10-09.md) gave a quality tie (Jev session score 3.98 with intent on against 3.96 off; the confidence interval includes 0) and a clear latency win (intent p95 1641 ms down to 308 ms, 100% of reads within 1.5 s). That is good enough: we can't refine further until the personas are refined.
+  - **Playtest:** switched 2026-10-09 (release v76).
+  - **Production:** first held for Fredrik's explicit OK; he gave it the same day (2026-10-09 11:00) and production was switched (release v85).
+  - Calibration tightening (the generous lifts and zero clarifying questions in the comparison) follows as a separate PR; it does not block this.
+  - The baseline code (Tier 1 LLM intent) is kept until after the persona rework and the new full batch.
+- **Why:** same quality, much faster turns, cost-neutral, and refining further needs better personas first.
+- **Status:** live on both apps since 2026-10-09 (playtest v76, prod v85). New default-variant sessions pin `on`; older sessions keep their mode. See [Fly secrets](fly-secrets.md).
+- **Details:** [Intent comparison: INTENT_JEV on vs off (2026-10-09)](analysis-intent-compare-2026-10-09.md), [Design: player intent as one Jev call](design-jev-intent.md)
+
+## 2026-10-09: The /team founders' presentation page copy is approved
+
+- **Decision (Fredrik):** the copy for the `/team` founders' presentation page in [docs/team-page/content.md](team-page/content.md) (commit `0069849`) is approved. Build the page from it.
+- **Why:** the content brief has been through its tone revision (one crew, the current setup as a starting point, a founder's OK, the playtest-first flow, a closing "together" section).
+- **Status:** approved; a PR to build the page follows (needs Fredrik's OK like any code change).
+- **Details:** [Team page content](team-page/content.md)
+
+## 2026-10-09: Deploy order: playtest first, then production
+
+- **Decision (Fredrik):** a merge to `main` deploys to playtest first. Gentry (the QA bot) and the playtest batch check it there, and only then does it go to production. Production still needs Fredrik's OK.
+- **Why:** today `main` deploys to production first and playtest after, so production meets a change before anything has tested it.
+- **Status:** decided; the workflow change PR follows, and [environments](environments.md) is updated with it. Until then `main` still deploys production first.
+
 ## 2026-10-09: Costs pages: playtest shows only playtest-run costs, production shows all costs
 
 - **Decision (Fredrik):** fix the `/admin/costs` pages so each app shows the right costs. For now they cover AI calls only (Grok, Jev and TypeSafe); Fly hosting may be added later.
@@ -19,7 +52,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - Persona bot cost is always shown apart from game cost.
   - **Auth:** the endpoint (`GET /internal/costs`) answers only on playtest and reuses the existing shared secret `COSTS_PEER_TOKEN`, which is already set on both apps. No new secret. Production reads playtest's URL from config, so `COSTS_PEER_URL` is no longer read once the PR is deployed. The read has a 2 s timeout.
 - **Why:** each thing lives in one place (playtest-run costs live on playtest and are read from there), and production gives full cost visibility on one page.
-- **Status:** PR open: [ex-tales-forge #90](https://github.com/whyse-ab/ex-tales-forge/pull/90). Both apps need the new build. Until playtest has it, production's Playtest section says "unexpected response".
+- **Status:** live. [ex-tales-forge #90](https://github.com/whyse-ab/ex-tales-forge/pull/90) merged 2026-10-09 with Fredrik's OK (`dd5dc7e`, final main after #86–#90; prod v84, playtest v75). Checked: playtest `GET /internal/costs` answers 401 without a token, production's `/internal/costs` is 404, and production's `/admin/costs` goes to sign-in without a session.
 
 ## 2026-10-09: Jev intent fallback and per-session latency probes
 
@@ -224,21 +257,21 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 ## 2026-10-08: Hawk / Tinjacks: the Tinjacks come to the fighter; Brenna points at trouble, not chores
 
 - **Decision (Fredrik, via Case):** the Tinjacks come to the fighter. Their plans run on world time even when he's away, so the toll happens anyway and he hears about the consequences afterwards. Brenna points fighters at the trouble instead of offering chores.
-  - Status: Approved, not built. Sequencing: the hang fix ships first in its own PR, then the survey page, then these; each code PR needs Fredrik's OK; another comparison batch after the survey answers are in.
+  - Status: live. [ex-tales-forge #86](https://github.com/whyse-ab/ex-tales-forge/pull/86) merged 2026-10-09 with Fredrik's OK (`169a743`); deployed with final main `dd5dc7e` (prod v84, playtest v75). Measured in the [full batch 2026-10-09](#2026-10-09-fresh-full-playtest-batch-as-the-new-baseline).
 - **Why:** in the post-rework batch, only 1 of 5 Hawk runs fought (on the last turn) and he still did chores in 3 of 5; runs without a fight scored better (3.14 vs 2.54) but the confrontation came too late.
 - **Details:** [Analysis: Jev post-rework 2026-10-08](analysis-jev-post-rework-2026-10-08.md)
 
 ## 2026-10-08: GM tics: track recent gestures as off-limits; drop phrase-by-phrase bans
 
 - **Decision (Fredrik, via Case):** drop phrase-by-phrase bans. Elixir tracks the gestures used in the last N turns and passes them to the GM as off-limits, and a pattern check on the output catches repeats (log any that slip through).
-  - Status: Approved, not built. Sequencing: the hang fix ships first in its own PR, then the survey page, then these; each code PR needs Fredrik's OK; another comparison batch after the survey answers are in.
+  - Status: live. [ex-tales-forge #87](https://github.com/whyse-ab/ex-tales-forge/pull/87) merged 2026-10-09 with Fredrik's OK (`bda5e9e`); deployed with final main `dd5dc7e` (prod v84, playtest v75). Measured in the [full batch 2026-10-09](#2026-10-09-fresh-full-playtest-batch-as-the-new-baseline).
 - **Why:** the banned "wipes her hands" still appeared in 57% of runs, and new tics replaced the banned ones ("leans an elbow" 11, "leans a hip" 10, Cobb "shifts his weight" 12).
 - **Details:** [Analysis: Jev post-rework 2026-10-08](analysis-jev-post-rework-2026-10-08.md)
 
 ## 2026-10-08: The forge and Maude's cottage pull players in through rumours and hooks
 
 - **Decision (Fredrik, via Case):** the forge and Maude's cottage pull players in through rumours and hooks from Brenna and the regulars, tied to what the world is doing, so the lore actually gets found.
-  - Status: Approved, not built. Sequencing: the hang fix ships first in its own PR, then the survey page, then these; each code PR needs Fredrik's OK; another comparison batch after the survey answers are in.
+  - Status: live. [ex-tales-forge #88](https://github.com/whyse-ab/ex-tales-forge/pull/88) merged 2026-10-09 with Fredrik's OK (`77ba4e2`); deployed with final main `dd5dc7e` (prod v84, playtest v75). Measured in the [full batch 2026-10-09](#2026-10-09-fresh-full-playtest-batch-as-the-new-baseline).
 - **Why:** the forge, Maude's cottage and the lore were never reached in 23 runs.
 - **Details:** [Analysis: Jev post-rework 2026-10-08](analysis-jev-post-rework-2026-10-08.md)
 
