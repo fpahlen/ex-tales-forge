@@ -11,6 +11,13 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: Pragmatic Programmer architecture review on every merge to ex-tales-forge main
+
+- **Decision (Fredrik):** every merge to `main` in ex-tales-forge gets an architecture review in the spirit of *The Pragmatic Programmer*: DRY, orthogonality, broken windows, reversibility, and our own rules (call types, state written only by Elixir rules and Jev, each thing lives in one place, docs, specs and tests for every module). The starting point is the baseline review of `main` at `2f27ff1`. The refactors it found are queued in its suggested order, as separate PRs: (1) one Jev client plus correct cost source, (2) LLM provider config, (3) an intent reader behaviour and pipeline out of `GameSessions`, (4) error-handling cleanup, (5) a typed turn/intent context and no Repo in `Game.*`, (6) splitting `Inventory`, (7) Crossroads as a full pack, (8) GM memory and summary writes moved to Jev or Elixir, then ongoing cleanup.
+- **Why:** the intent pipeline and the AI-call plumbing grew by copy-paste and flags, so the next changes (a fallback intent provider, per-session latency probes) would touch many places. Reviewing each merge against a baseline keeps that from coming back.
+- **Status:** baseline written; no refactor started. Each refactor PR needs Fredrik's OK like any code change.
+- **Details:** [Architecture baseline: ex-tales-forge main at 2f27ff1](architecture-baseline-2026-10-09.md)
+
 ## 2026-10-08: Each thing lives in one place: surveys on production, playtest runs on playtest
 
 - **Decision (Fredrik, via Case):** each thing lives in one place. Founder surveys live only on production (`/admin/survey`, `/admin/surveys/*`), and playtest runs live only on playtest (`/admin/playtest/*`). Each app redirects those pages to the other app, and its admin nav links there. No survey answers are stored on playtest and no playtest data on production: saving a survey on playtest is refused, and the persona runner, series and scorer refuse to start on production. The app knows which one it is from `FLY_APP_NAME`; the two base URLs are in config, so there are no new secrets.
