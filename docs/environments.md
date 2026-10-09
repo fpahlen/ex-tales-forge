@@ -22,6 +22,7 @@ Status 2026-10-06: **production** and **playtest** are live. Production deploys 
 | Database | `tales-forge-db` (own Fly Postgres) | `tales-forge-playtest-db`: own Fly Postgres (postgres-flex 18), single node, shared-cpu-1x 512 MB, 1 GB volume, always on | A database per PR **on the playtest cluster** `tales-forge-playtest-db`, dropped with the app |
 | Runs | `main` | `main`, deployed automatically right after production (or by hand) | The PR's branch |
 | Who uses it | Players, admins | Persona bots (self-play) and a few invited testers | Whoever reviews the PR |
+| Admin data that lives only here | Founder surveys (`/admin/survey`, `/admin/surveys/*`) | Playtest runs (`/admin/playtest/*`) | Not built; its app name has no "playtest", so it would act as production (revisit when previews are built) |
 | Lifetime | Always on | Long-lived, always on | Created when the PR opens, destroyed when it closes |
 | AI key | Production `XAI_API_KEY` | Its own `XAI_API_KEY`, so bot cost is counted separately | None: mock narration |
 | Status | Live | Live since 2026-10-06 | Decided, not built |

@@ -1,6 +1,6 @@
 ---
 title: Decision log
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Decision log
@@ -10,6 +10,12 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
+
+## 2026-10-08: Each thing lives in one place: surveys on production, playtest runs on playtest
+
+- **Decision (Fredrik, via Case):** each thing lives in one place. Founder surveys live only on production (`/admin/survey`, `/admin/surveys/*`), and playtest runs live only on playtest (`/admin/playtest/*`). Each app redirects those pages to the other app, and its admin nav links there. No survey answers are stored on playtest and no playtest data on production: saving a survey on playtest is refused, and the persona runner, series and scorer refuse to start on production. The app knows which one it is from `FLY_APP_NAME`; the two base URLs are in config, so there are no new secrets.
+- **Why:** looking at playtest, Fredrik thought his survey answers had vanished. It was a false alarm: they were on production. With one source for each thing, that confusion can't happen and the data isn't split between two databases.
+- **Status:** PR open, not merged: [ex-tales-forge #85](https://github.com/whyse-ab/ex-tales-forge/pull/85). Merging and deploying need Fredrik's OK.
 
 ## 2026-10-08: Playtests show character changes (PC and NPCs)
 
