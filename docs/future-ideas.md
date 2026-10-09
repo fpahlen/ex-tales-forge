@@ -1,6 +1,6 @@
 ---
 title: Future ideas
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Future ideas
@@ -30,3 +30,18 @@ Ideas we may pick up later. They are not decisions and nobody is building them y
 - **NPCs and PCs alike.** The same rules apply to both, since they share the unified character type.
 
 Fits the per-world process: consolidation and drift are pure functions run on world ticks, stored as data, so restarts and replays give the same result.
+
+## Founder kanban on /team
+
+- **From:** Fredrik, 2026-10-09 (via Case).
+- **Idea:** turn `/team` into the shared workspace for founders and bots: a kanban board with the columns Ideas → Refining (Case) → Founder check → Building (Bobby) → Done.
+  - Founders add a feature card or move one into the queue.
+  - Case refines it: details, open questions and a rough cost.
+  - Founders check it's what they meant, comment, and drag it to Building.
+  - Bobby builds it, with the PR and playtest links on the card. Then it moves to Done.
+- **No polling:** moving a card pings the right bot (Refining → Case, Building → Bobby).
+- **One place for each thing:** an approved card writes its own entry in [decisions.md](decisions.md).
+- **Approval:** dragging a card to Building is the founder OK, a step toward every founder holding the approval key.
+- **Builds on:** the existing Collab decision queue in ex-tales-forge (`TalesForge.Collab`, `/admin/decisions`: decisions imported from this repo, with comments, interest and rank in Postgres; exporting decided outcomes back to Markdown is still a TODO). The board would extend that into an idea-to-done flow, not start from scratch.
+- **When:** after the `/team` page is live; needs a design note and Fredrik's OK before any code.
+- **Related:** [team page brief](team-page/content.md#6-how-well-work-together-one-shared-board), [design: decision queue and docs](design-decision-queue-and-docs.md).

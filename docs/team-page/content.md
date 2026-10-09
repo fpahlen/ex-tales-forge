@@ -17,7 +17,7 @@ status: brief for Bobby
 - **Numbers:** every number comes from `data.json` (given here as `key.path`). Where we don't have a number, the page says "not measured yet" rather than guessing.
 - **As of:** 2026-10-09 (Stockholm time). Show "Numbers as of 9 Oct 2026" in the footer, read from `_about.as_of`.
 
-Suggested layout: one long page with a sticky section nav (Team · How we work · Infrastructure · Playtests · Pace and cost · Together). It should work on a phone at 320 px wide, since Gentry checks exactly that.
+Suggested layout: one long page with a sticky section nav (Team · How we work · Infrastructure · Playtests · Pace and cost · One shared board · Together). It should work on a phone at 320 px wide, since Gentry checks exactly that.
 
 ---
 
@@ -369,7 +369,44 @@ From `gentry_findings`:
 
 ---
 
-## 6. Where we go from here, together
+## 6. How we'll work together: one shared board
+
+**Badge:** "Coming soon. Not built yet."
+
+**Intro copy:**
+> Soon this page becomes more than a presentation. It becomes the place where founders and bots work side by side: one shared board where every feature lives, from a first idea to a shipped change. You add an idea, the bots do the legwork, and you decide what gets built.
+
+**How a card travels** (five columns, from `shared_board.columns`):
+1. **Ideas.** Any founder adds a feature card, or drags an existing one into the queue. A sentence is enough.
+2. **Refining (Case).** Case picks it up and fills in the card: the details, the open questions and a rough cost.
+3. **Founder check.** Founders read it, check it's what they meant, and comment. When it's right, a founder drags it to **Building**. *That drag is the founder's OK.*
+4. **Building (Bobby).** Bobby builds it. The PR link and the playtest link appear right on the card, so you can follow along and try it.
+5. **Done.** Shipped, and the card keeps the whole story.
+
+**Three things that make it work** (small cards with icons):
+- **Moving a card pings the right bot.** A card in Refining wakes Case, and a card in Building wakes Bobby. Nobody has to keep checking, bots or people.
+- **One place for each thing.** When a card is approved, it writes its own entry in the decision log (`docs/decisions.md`), so the board and the log never disagree.
+- **Everyone holds the key.** Dragging a card to Building is the founder OK. That makes the board a real step toward every founder holding the approval key, not just Fredrik as today.
+
+**Small print:** it grows out of what's already there. The app has a founders' decision queue (`/admin/decisions`) with comments, interest and ranking; the board extends that into a full idea-to-done flow. Listed in [`docs/future-ideas.md`](../future-ideas.md) as "Founder kanban on /team".
+
+**Animation spec: "mock board"**
+- **Type:** a small animated mock of the board, about 8 s, playing once on scroll-in with a replay button. It's a picture of the idea, not a working board.
+- **Columns:** Ideas → Refining (Case) → Founder check → Building (Bobby) → Done. On phones, show the columns as a horizontal swipe strip or a vertical stack. Column headers carry the owner's chip: Case's avatar on Refining, the shared founders' avatar on Founder check, Bobby's on Building.
+- **Data:** `shared_board.columns[]` (`id`, `label`, `owner`, `on_enter`) and `shared_board.sample_card`.
+- **Sequence:**
+  1. A founder's hand-drawn-style cursor drops a card into **Ideas**: *"Brenna remembers regulars"*.
+  2. The card slides to **Refining**. A Case chip appears with a small "pinged" pulse, and the card grows three lines: details, 2 questions and "rough cost: small".
+  3. The card moves to **Founder check**. Two or three founder avatars (the same illustrated, no-real-likeness style as the crew art) pop up comment bubbles: "Yes, exactly!", "Only after the second visit?" and a 👍.
+  4. A founder drags it to **Building**. A wax-seal "Founder OK" stamp appears (the same crest as the change-flow animation), a small "decision logged" chip flies off toward a scroll icon, and a Bobby chip pulses "pinged".
+  5. On the card, a PR chip and then a playtest chip appear. A Gentry chip briefly flashes a ✓.
+  6. The card lands in **Done** with a soft confetti of d20s.
+- **Style:** the same palette and card styling as the rest of the page. Bot chips use the crew avatars, and founders appear as a group, never one person above the others. Respect `prefers-reduced-motion` with a static board showing one card in each column, labelled.
+- **Caption:** "Coming soon: one board, the whole crew, from idea to done."
+
+---
+
+## 7. Where we go from here, together
 
 **Intro copy:**
 > What you've seen is where we started. The best part is still ahead, and it gets better with every founder who jumps in. Together we can make something awesome.
@@ -379,6 +416,7 @@ From `gentry_findings`:
 2. **Play the playtest.** Sign in at [tales-forge-playtest.fly.dev](https://tales-forge-playtest.fly.dev) with GitHub and play a few turns. Your sessions show up next to the persona bots'.
 3. **Suggest ideas.** Anything you'd love to see goes in [`docs/future-ideas.md`](../future-ideas.md). Tell Case, or add it yourself, since docs go straight to main.
 4. **Soon: hold the approval key yourself.** Approve merges and deploys, steer the bots and make decisions, just like Fredrik does today. We'll set that up together.
+5. **Soon: put your ideas on the board.** Once the shared board is live, drop a card in Ideas and watch the crew pick it up.
 
 **Closing line:**
 > A founder's yes on every change, three bots that never get tired, a paper trail for every decision, and room at the table for all of us. Let's build it together.
