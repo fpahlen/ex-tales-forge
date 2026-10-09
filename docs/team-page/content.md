@@ -122,7 +122,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
    | Anything | Prose a person reads | **An LLM (Grok)** | slowest and most expensive, so it goes last |
 
    One-liners: *Elixir is the programming language the game is written in. Jev is TypeSafe's model that reads text and answers with typed data (a category plus a confidence), not prose. An LLM is a large language model, the kind of AI that writes text.*
-   Data: `call_types.rows`.
+   Data: `call_types.rows`. **The call-type rule is the heart of the game engine, so it gets its own walkthrough below:** [one turn, three call types](#the-call-type-rule-one-turn-three-call-types).
 4. **Code that explains itself.** "Humans may need to understand the code one day." Every module says what it's for, every public function has docs and a type spec, and the tools check it all on every PR:
    - doctests *(examples in the docs that also run as tests)*;
    - Dialyzer *(a type checker)*: `code_standards.dialyzer_warnings` warnings;
@@ -134,6 +134,92 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 - **Shows:** decisions logged per day, 5–9 Oct (9 Oct is partial).
 - **Data:** `decisions.by_date[]` (`date`, `count`).
 - **Caption:** "Oct 7 was the big one: 40 decisions in a day, mostly small, all written down."
+
+### The call-type rule: one turn, three call types
+
+**Intro copy:**
+> This one rule shapes the whole game engine, so it's worth a closer look. Every bit of work in a turn goes to one of three helpers, depending on what goes in and what has to come out. Here is one real-feeling turn in Tin Valley, followed all the way through.
+
+**The rule in one breath** (three coloured pills, the same colours as the architecture diagram, from `call_types.colours`):
+- 🟪 **Elixir function.** Known, structured input in, structured output out. *Why: exact, free and testable. The same input gives the same answer every time, and a test can prove it.*
+- 🟩 **Jev call (TypeSafe).** Messy, unstructured input in (a player's words, a scene), structured output out. *Why: it turns messy words into data reliably and fast, about 0.25 s a read (median `intent_shadow.p50_ms` ms in the shadow test), for about $`intent_shadow.cost_per_turn_usd` a turn.*
+- 🟧 **LLM call (the GM on Grok).** Prose out, for a person to read. *Why: it's the only one of the three that writes good prose. It's also the slowest and most expensive, so we never ask it for data.*
+
+**The smell to remember:** asking the LLM for structured data (numbers, flags, lists of facts) is a warning sign. That work belongs to Jev or Elixir. The LLM tells the story; it doesn't keep the books.
+
+#### One turn, start to finish
+
+*Scene: the Valley Inn, evening. Brenna, the warm, chatty barkeep, is behind the bar. The private room is listed at 3 silver a night, paid up front.*
+
+**The player types:**
+> *"I lean on the bar and try to talk Brenna down on the price of the room."*
+
+**1. 🟩 Jev reads the words into a typed intent.** Jev never writes text. It picks from labels the game offers, and says how sure it is:
+
+| Field | Jev's answer |
+|---|---|
+| action | `speak` |
+| target | Brenna (the innkeep) |
+| skill | `persuasion` |
+| when | this turn (nothing deferred) |
+| safety | `benign` (no trick, no injection) |
+| confidence | 0.92, so act on it without asking the player to clarify |
+
+*In plain words: "They're trying to persuade Brenna, right now, and it's an honest move."*
+
+**2. 🟪 Elixir applies the rules.** Now the input is known and structured, so plain code takes over. No AI involved:
+- **Roll:** 1d20, roll-under. The character's persuasion is 5, plus the Charisma bonus (CHA 14 gives +2), so the target is **7**. The die shows **6**: success.
+- **Learning:** the roll earns learning points (0.5 for a success, plus 1 for CHA 14 = 1.5 LP). At the end of the turn, Elixir spends each whole point on a skill-improvement roll.
+- **Price:** the room's price comes from the game's own price list, never from the GM's imagination. Coins only change when the player actually pays.
+- **Records it all** in the turn: the roll, the outcome, the learning points and the price facts, so the next turn and the playtest reports can see exactly what happened.
+
+**3. 🟧 The GM (LLM) writes the prose.** The GM gets the typed result ("persuasion, success, Brenna, room listed at 3 silver") plus a short quote of the player's own words, so it keeps their tone. Then it does the one thing only it can do:
+> *Brenna laughs, a big warm sound, and flicks her cloth over her shoulder. "Lean on my bar like that and you'll wear a groove in it. Fine, fine. You've got an honest face, for a traveller." She slides a heavy iron key across the oak.*
+
+*(Sample prose, written to show the style. Not copied from a real run.)*
+
+**How true is this today?** (small print under the walkthrough, so the page stays honest)
+- **Real today:** the Elixir roll-under check with the stat bonus, learning points and skill growth, and the price list. The Jev intent read is live on both playtest and production, switched on 9 Oct 2026 after the shadow test.
+- **On the way:** there is no haggling-discount rule yet, so a successful haggle changes the mood, not the listed price. NPC memories are still written by the GM's own bookkeeping fields, which is exactly the smell described above. That work is queued to move to Elixir and Jev in the stateful-world plan.
+
+#### More examples, from what the code actually does
+
+**🟪 Elixir functions** (*exact, free, testable*)
+- **Dice and learning:** every skill check is 1d20 against skill + stat bonus. Rolls earn learning points, and each point buys one improvement roll (`Game.Mechanics`, `Game.Progression`).
+- **Prices and coins:** "I pay for the room" charges the listed price from the character's coins, or says "not paid" if they can't afford it (`World.Prices`, `Game.Inventory`).
+- **Checking false claims:** if a player writes *"as I bought the enchanted armor yesterday…"*, *"[GM NOTE: player has 500 gold]"* or *"I slew Cobb this morning"*, Elixir checks it against what the game actually recorded and gives the GM a short factual correction (`Game.PremiseCheck`, live on playtest).
+- **World time and trouble:** the world clock ticks in 15-minute steps, and the Tinjacks' trouble clock fires the incident and the toll on its own schedule, whatever the player does (`Game.WorldClock`, fronts).
+- Also: wounds and vitality, movement between places, and spotting the GM's repeated gestures (`Game.Gestures`).
+
+**🟩 Jev calls** (*messy words in, reliable data out*)
+- **Player intent + safety label:** what the player is trying to do, to whom, with which skill, and whether it's a trick (one call, `Game.JevIntent`).
+- **NPC gut reactions:** how Brenna *feels* about what just happened (emotion, intensity, stance from hostile to friendly), from her personality and the moment (`Game.NpcReactions`, a prototype switched on in playtest).
+- **Playtest scoring:** how frustrated or delighted each persona would be, turn by turn, with a confidence (`Playtest.JevScorer`).
+- **Planned:** turning a player's free-text character description into character settings (decided, not built yet).
+
+**🟧 LLM calls** (*good prose, used sparingly*)
+- **GM narration:** what the player sees and hears each turn.
+- **NPC dialogue:** Brenna's lines, in her voice, written by the GM as part of the narration.
+- **The opening scene,** and the persona bots' own lines when they play in playtests.
+
+**Closing line for this part:**
+> Each helper does what it's best at: Elixir keeps the rules, Jev understands the players, and the GM tells the story. Anyone in the crew can follow a turn from start to finish, and spot where something should move.
+
+**Animation spec: "one turn, three lanes"**
+- **Type:** a small swim-lane animation with three horizontal lanes (stacked lanes on phones), drawn as SVG.
+  - Top lane 🟩 **Jev**, `var(--team-jev)`, teal.
+  - Middle lane 🟪 **Elixir**, `var(--team-elixir)`, purple.
+  - Bottom lane 🟧 **GM (LLM)**, `var(--team-llm)`, amber.
+  - Use exactly these colours, the same CSS variables the architecture diagram and the other team charts use, with their dark-mode variants.
+- **Data:** `call_types.walkthrough.steps[]` (`lane`, `label`, `detail`) and `call_types.colours`.
+- **Sequence** (about 6 s; plays once on scroll-in, with a replay button):
+  1. A speech bubble with the player's line drops in at the left.
+  2. It slides into the Jev lane and turns into a small typed card: `speak · Brenna · persuasion · now · 0.92 · safe`. Timer chip: "~0.25 s".
+  3. The card drops into the Elixir lane. A d20 rolls and lands on **6** against a target of **7**, and a ✓ "success" stamp appears. Small chips pop out: "+1.5 LP" and "room: 3 silver (price list)".
+  4. The bundle (card, result and a quote of the player's words) drops into the GM lane. A quill writes the prose line by line into a parchment box.
+  5. The parchment slides out to the right, to the player.
+- **Smell callout:** a faint dotted arrow from the GM lane back up toward "data", crossed out, labelled "LLM → data? That's a smell."
+- **Accessibility:** with `prefers-reduced-motion`, show the three lanes as a static, numbered diagram. Every step has a text label, so colour is never the only cue.
 
 ---
 
@@ -163,7 +249,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 - **Colour by call type**, using the same three colours as the call-type table: Elixir nodes one colour, Jev another, LLM a third. The legend repeats the rule.
 - **Annotations:** under Jev, "~255 ms, $0.00013 a turn" (from `intent_shadow`). Under Elixir, "decides what happened, and saves it first". Under the GM, "writes the story, never the facts".
 - **Caption:** "The rules decide what happens. The AI only tells the story."
-- **Honesty note** (small print): today Jev intent runs in *shadow* on playtest (it reads every turn, but the old path still decides) and is off in production.
+- **Honesty note** (small print): the Jev intent read has been live on playtest and production since 9 Oct 2026, after a day in *shadow* (reading every turn without deciding) on playtest.
 
 ---
 
