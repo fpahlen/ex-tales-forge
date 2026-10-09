@@ -11,6 +11,17 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: Write one design note for skills and the economy (docs only)
+
+- **Decision (Fredrik):** write one design note that ties skills and the economy together: [Design: one rule for skills and the economy](design-skills-economy.md). Docs only, no code yet; each follow-up code PR needs Fredrik's OK.
+  - **The one rule it proposes:** a day rate that grows with skill level through practice hours (`hours = 10,000 × (level / 20)³`, the formula rather than the rounded table; `day_rate = 10c + 30c × (level / 10)^1.5`, so unskilled 10c, skilled at level 10 40c, a skilled month 1,000c = 2g = 1 oz). NPC wages, hirelings and thugs, trainer fees, expert services and the labour part of item prices all derive from it.
+  - Skill growth stays PR #100's LP model. Practice hours are a derived scale, not a counter; downtime practice could feed growth as Elixir-simulated rolls whose failures bank LP.
+  - Price and wage math is Elixir, reading a hire or job offer is Jev, narration is the LLM ([call-type rule](call-types.md)).
+  - The note lists the drift to fix and 12 open questions for Fredrik.
+- **Why:** the game took two earlier designs from tales-forge-new ("Skill Progression and Convergence" and "Labor-Anchored Economy") and then drifted from both. The smith's short sword (60c) is 8× under the doc's 1g sword, starting coins come from the old table instead of the budget model, trainer fees are typed in by hand (three level-9 trainers charge 20c, 50c and 80c), the economy doc gives three different unskilled wages, and `priv/rules/skills.md` mixes two growth models.
+- **Status:** note written 2026-10-09; open questions wait for Fredrik. No code changed.
+- **Details:** [Design: one rule for skills and the economy](design-skills-economy.md)
+
 ## 2026-10-09: Skill growth comes only from failure, only in the failed skill, and is banked until sleep
 
 - **Decision (Fredrik):** you learn only from failure, and only in the skill you failed. This supersedes the 2026-10-07 rule that spent LP at the end of every turn. Default variant only; the baseline variant keeps the #64 rule.

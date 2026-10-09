@@ -33,6 +33,7 @@ Also in this folder:
 - [Analysis: INTENT_CALL_EVERY_TURN off vs on (2026-10-08)](analysis-intent-every-turn-2026-10-08.md): 20-run playtest batch on ex-tales-forge #76 with the flag off and on: quote rate, clarification loops, Jev, safety labels, cost (game vs persona), latency, hangs
 - [Design: persistent world state at the core of the turn loop](design-stateful-world.md): an apply-consequences step between rules and prose, one process per world with entities as plain data, an event log plus snapshots, the GM gets a state snapshot; migration in small flagged PRs (design, no code)
 - [Design: player intent as one Jev call](design-jev-intent.md): one TypeSafe Jev call per turn for the typed intent and the safety label; labelled evaluation set and `mix intent.eval` first, thresholds and clarification bands, what goes away, secrets, playtest comparison, PR sequence (design, no code yet)
+- [Design: one rule for skills and the economy](design-skills-economy.md): a day rate by skill level through practice hours drives wages, hirelings, trainer fees, services and item prices; growth stays PR #100's LP model; the drift to fix and open questions (design, no code)
 - [Call types: Elixir function, Jev, or LLM](call-types.md): which call type to use for each piece of work, and the target turn pipeline (draft)
 - [Plan: porting character creation from the old app](character-creation-port.md): how the old app's creation works and a proposed port to the Elixir app (draft)
 - [Setting up Resend (email)](resend-setup.md)
