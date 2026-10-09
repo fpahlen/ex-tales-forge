@@ -15,7 +15,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 
 - **Decision (Fredrik, via Case):** each thing lives in one place. Founder surveys live only on production (`/admin/survey`, `/admin/surveys/*`), and playtest runs live only on playtest (`/admin/playtest/*`). Each app redirects those pages to the other app, and its admin nav links there. No survey answers are stored on playtest and no playtest data on production: saving a survey on playtest is refused, and the persona runner, series and scorer refuse to start on production. The app knows which one it is from `FLY_APP_NAME`; the two base URLs are in config, so there are no new secrets.
 - **Why:** looking at playtest, Fredrik thought his survey answers had vanished. It was a false alarm: they were on production. With one source for each thing, that confusion can't happen and the data isn't split between two databases.
-- **Status:** PR open, not merged: [ex-tales-forge #85](https://github.com/whyse-ab/ex-tales-forge/pull/85). Merging and deploying need Fredrik's OK.
+- **Status:** live. [ex-tales-forge #85](https://github.com/whyse-ab/ex-tales-forge/pull/85) merged 2026-10-09 with Fredrik's OK (main `2f27ff1`, prod v82, playtest v73). Checked with curl: on playtest, `/admin/survey` and `/admin/surveys/*` redirect to production; on production, `/admin/playtest/*` redirects to playtest, and `/admin/survey` stays put (it goes to sign-in). PR preview apps, which aren't built yet, would count as production by name; revisit that when they're built.
 
 ## 2026-10-08: Playtests show character changes (PC and NPCs)
 
