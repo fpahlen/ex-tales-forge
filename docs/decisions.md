@@ -16,7 +16,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 - **Decision (Fredrik, ~16:23):** Max is one of the founders, our **vibe-coding founder**. He is also an **RPG apprentice**, in the sense that he has never played a tabletop RPG. The team page stops calling him "Max the apprentice" next to "the four founders": we are five founders (Fredrik, Thobias, Håkan, Jeanette and Max).
   - Copy: "We're five: Fredrik, Thobias, Håkan, Jeanette and Max. Max, our vibe-coding founder and RPG apprentice, has never played a tabletop RPG. Welcome to the table, Max!"
   - Data: `team.members[0].people` (count 5, names) in [`team-page/data.json`](team-page/data.json). `founders_github_team_members` (3) counts members of the GitHub team, not founders.
-- **Why:** Max is part of the crew that owns the game, not a junior. Being new to RPGs is a strength we want to name warmly: he plays the way a first-time player will.
+- **Why:** Fredrik's correction: Max is a founder, not a junior; "apprentice" is only about his RPG experience.
 - **Status:** copy and data updated here; the page change is [ex-tales-forge PR #106](https://github.com/whyse-ab/ex-tales-forge/pull/106) (open, not merged).
 - **Details:** [`team-page/content.md`](team-page/content.md) section 1, "The founders".
 
