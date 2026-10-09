@@ -11,6 +11,17 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-09: One source for the team page's pace numbers: live from GitHub, data.json only as a fallback
+
+- **Decision (Fredrik, OK relayed by Case, ~17:55):** the pace numbers on `/team/presentation` come from one place. That covers pull requests (total, merged, open, closed unmerged), PRs per day, and the commits on main (total and per day).
+  - The headline stats and section 5 ("Pace and cost") both call the same function, `TalesForge.TeamPace.current/0`, so they can't disagree. The `/team` landing page shows none of these numbers.
+  - **Live:** the live PR feed now reads GitHub's full lists (every pull request, every commit on main, page by page with ETags) and counts them. The page updates on every feed poll, about once a minute.
+  - **Fallback:** [`team-page/data.json`](team-page/data.json)'s `pace` block, used only when the feed has no full count (no token, GitHub down, not polled yet, a list cut short). The page then labels the numbers "as of <date>"; live numbers read "live from GitHub". Live or fallback is decided for all of these numbers together, never per number.
+  - Every other number on the page (tests, decisions, costs, playtests) still comes from `data.json`.
+- **Why:** the headline and section 5 showed different numbers. One source of truth, live where possible, with an honest date when it isn't.
+- **Status:** merged 2026-10-09 ([#108](https://github.com/whyse-ab/ex-tales-forge/pull/108), main `8a61175`), live on playtest (release v95, health check passing). There the numbers read live: 108 PRs, 106 merged, 0 open, 2 closed unmerged, 271 commits on main. The deploy lane was normal (the PR also edits `.github/deploy-lanes.txt` to add `team_pace.ex` to `[admin]`), so production was not deployed; it needs Fredrik's OK and the manual "Deploy to production" workflow.
+- **Details:** [ex-tales-forge PR #108](https://github.com/whyse-ab/ex-tales-forge/pull/108) (`TalesForge.TeamPace`, `TalesForge.PrFeed.Pace`).
+
 ## 2026-10-09: Live PR feed on the /team landing page
 
 - **Decision (Fredrik, OK 16:51):** merge ex-tales-forge [#102](https://github.com/whyse-ab/ex-tales-forge/pull/102), the live "what we're shipping" feed: the latest pull requests in the game's repo, CI while open, and whether each merge is on playtest or in production, polled from GitHub by the server every 60 s (browsers never call GitHub).
