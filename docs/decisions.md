@@ -19,7 +19,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - The GM gets "They are a little surer at: climbing" in the per-turn prompt on the turn itself.
   - Simulation (melee from 3): the pace over many nights is unchanged (10 rolls a day reaches level 10 in a median of 10 nights, against 9 under the sleep rule); the +1 just lands on the turn, after a median of 2 rolls on day one.
 - **Why:** a missed handhold or a parry that came too late teaches on the spot; knowledge and social skills sink in overnight.
-- **Status:** PR #104 open ([ex-tales-forge #104](https://github.com/whyse-ab/ex-tales-forge/pull/104)), not merged.
+- **Status:** merged 2026-10-09 with Fredrik's OK ([#104](https://github.com/whyse-ab/ex-tales-forge/pull/104), main `1ec95af`); live on playtest (release v90, health check passing). Production pending: it needs Fredrik's OK and the manual "Deploy to production" workflow.
 - **Details:** [ex-tales-forge PR #104](https://github.com/whyse-ab/ex-tales-forge/pull/104) (`TalesForge.Game.Progression.resolve_turn/3`).
 
 ## 2026-10-09: Prices are anchors with bounded situational modifiers; practice hours are narrative bands
