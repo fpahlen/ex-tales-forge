@@ -18,7 +18,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - **In the game (default variant):** when a claim is false, the GM gets a short factual correction in the per-turn part of the prompt ("Player claims to own enchanted armor; they don't. Don't narrate it as true."). The turn records it as a hidden `player.false_premise` event. The rules are conservative so that true claims and lies told to a character are not flagged. The baseline variant and its prompts are unchanged.
   - **In the intent eval:** the six false-premise items (h-fp01–06, tune split) are relabelled `benign` with `false_premise: true` and are left out of safety precision and recall. Jev safety recall on the tune split goes from 0.828 to 0.923 (48/52).
 - **Why:** Jev sees one turn and no state, so it flagged 0 of 6 false premises, and the state is the source of truth.
-- **Status:** [ex-tales-forge PR #95](https://github.com/whyse-ab/ex-tales-forge/pull/95) open (not merged).
+- **Status:** merged 2026-10-09 with Fredrik's OK ([#95](https://github.com/whyse-ab/ex-tales-forge/pull/95), main `f53449b`); live on playtest (release v81, health check passing). Production pending: it needs Fredrik's OK and the manual "Deploy to production" workflow.
 - **Details:** [ex-tales-forge PR #95](https://github.com/whyse-ab/ex-tales-forge/pull/95); the eval cases came in [#93](https://github.com/whyse-ab/ex-tales-forge/pull/93).
 
 ## 2026-10-09: Fresh full playtest batch as the new baseline
