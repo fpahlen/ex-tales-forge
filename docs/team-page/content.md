@@ -33,7 +33,7 @@ The landing page `/team` is the shared workspace. It does not show the hero belo
 - **Ideas waiting for votes:** the cards in the Ideas column. Links to the Ideas column.
 - **Founder check cards for you:** the cards in Founder check that you did not vote on yet, or that have an open question with no answer. A deferred question counts as answered. Links to the Founder check column.
 - **PRs waiting for approval:** the Building cards with a PR that waits for an Approve. Links to the Building column.
-- **Pings for you:** your unread pings, the same number the board shows. Links to your pings.
+- **Pings for you:** your unread pings, the same number the board shows. Links to your pings. At 0 the stat is plain text, because the board shows no pings list.
 
 Rules: the copy names no role, because every founder can approve. The stats show in two columns on a phone and in four columns on a wide screen. The stats update live when the board changes.
 
