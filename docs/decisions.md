@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Sorting button for Ideas
+
+- **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Sorting button for Ideas. Possibility to filter on Ideas a specific user has written, for example Fredrik, Håkan, Filter on Ideas I'm mentioned in, in the comment section. Sort on newest or oldest.
+- **Why:** Good idea, and it fits the board well. A small sort-and-filter bar above the Ideas column, with three controls: (1) Sort: Most support (today's order, net votes then total votes, stays the default), Newest, Oldest. (2) Written by: a founder picker (Fredrik, Jeanette, Thobias, Håkan, Max). (3) Mentioning me: shows only cards where someone @mentioned you in a comment. The board already stores each card's author, its created time and the @mentions in comments, so we need no new data. Everything stays in the board's one place for ranking (TalesForge.Board), and the choices go in the page URL so a filtered view can be shared as a link. Built with daisyUI like the rest of the board, with tests for each sort and filter. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-b18fc8dc-97bb-4fda-a7fa-d90e47e94480)
+
+<!-- board:idea:b18fc8dc-97bb-4fda-a7fa-d90e47e94480 -->
+
 ## 2026-10-10: In game, scroll so the last text is visible
 
 - **Decision (hawkan.fredriksson@gmail.com, 2026-10-10, on the idea board):** build it. When I play the game now, I write what I want to do, and GM answer but I need to scroll manually to read the text. It should always scroll automatically and show the latest text. If I want to read older text I have to scroll back manually instead. Autoscroll forward when a new text appear.
