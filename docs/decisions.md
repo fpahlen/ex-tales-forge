@@ -50,7 +50,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 
 - **Decision (Fredrik, via Case, 14:37):** the full card shows each open question from Case's refinement with its own answer box and a Defer toggle, in every column. The board keeps each answer with who and when. A founder can change their own answer. Founder check → Building needs every question answered or deferred, and needs no comment. Each answer or deferral goes in the move log and wakes Case (`question.answered`) when the card is in Refining.
 - **Why:** one comment for all questions was hard to read and hard to check. One answer for each question makes the gate clear, and Case gets the answers while refining.
-- **Built (2026-10-10):** [ex-tales-forge #140](https://github.com/whyse-ab/ex-tales-forge/pull/140), normal lane (new table `board_answers`). Details: [design-board-states.md](design-board-states.md#open-questions).
+- **Built (2026-10-10):** [ex-tales-forge #140](https://github.com/whyse-ab/ex-tales-forge/pull/140), b0c52ca, normal lane (new table `board_answers`). Production v123 and playtest v126 run b0c52ca. Details: [design-board-states.md](design-board-states.md#open-questions).
 
 ## 2026-10-10: The board moves cards to Done automatically
 
