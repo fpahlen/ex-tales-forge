@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Chatt/Comment ping others
+
+- **Decision (hawkan.fredriksson@gmail.com, 2026-10-10, on the idea board):** build it. To be able to ping somebody and have a discussion in a card.
+- **Why:** Today a comment can wake the bots with @case, @bobby or @gentry. This idea makes the same work for founders: write @fredrik, @jeanette, @thobias, @hakan or @max in a card comment and that person gets a ping. The comment box suggests names as you type, the name shows highlighted in the comment, and the person sees a small badge on /team with the cards that ping them until they open the card. It builds on the mention code we already have (one place for mentions, so bots and founders share it), plus a small table of unread pings. Verdict why: the bot mentions already work, so we extend them to founders. Verdict: feasible. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-3acb46bc-742a-48bc-b54b-1fc9477ddb9e)
+
+<!-- board:idea:3acb46bc-742a-48bc-b54b-1fc9477ddb9e -->
+
 ## 2026-10-10: Admin split: one home for each page, production or playtest
 
 - **Decision (Fredrik, via Case, 11:36):** the admin plan in `/workspace/admin-split/plan.md` (Case's analysis) is approved. Each page has one home:
