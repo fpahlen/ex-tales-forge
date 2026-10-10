@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Merge approvals move onto the idea board
+
+- **Decision (Fredrik, 2026-10-10, via Case):** a normal-lane PR waits for a founder's OK on its board card, not in chat. Bobby posts the PR to the card (`POST /internal/board/prs`: PR link, head sha, one line on what changes for players); the card goes to Founder check; a founder presses Approve or Request changes (with a comment). The board records who, when, which PR and its head sha, shows the approval log on the card and in its history, and wakes Bobby with `pr.approved` / `pr.changes_requested`. Fast-lane PRs need no OK.
+- **Why:** one place for the founders' OK, with an audit trail tied to the exact commit approved.
+- **Link:** [ex-tales-forge#125](https://github.com/whyse-ab/ex-tales-forge/pull/125), [idea board design note](design-idea-board.md).
+
 ## 2026-10-10: Live numbers everywhere on /team/presentation, data.json as a labelled fallback per group
 
 **Decision:** Every number on the founders' presentation that has a live source now reads it; `priv/team/data.json` is only the fallback, chosen per number group (never per number) and labelled "as of <date>". Timelines say their window. Shipped as ex-tales-forge PR [#114](https://github.com/whyse-ab/ex-tales-forge/pull/114) (merged `6afdb4a`, playtest v101).
