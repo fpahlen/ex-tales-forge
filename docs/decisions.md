@@ -18,6 +18,12 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 - Prompts did not change. The GM golden test is the same. The identifier renames (`unsure_share`, `unsure_below`, `unsure_pct` and others) wait for a later normal-lane PR.
 - Lane: normal. "Deploy to production" ran for `6f1b383` (06:05 UTC) and then for main's tip `6ec8e31` (#125, 06:11 UTC). Both runs were started by the other workstream. Now playtest v111 and production v104 both run `6ec8e31`, which includes #122.
 
+## 2026-10-10: Idea board full card: move buttons, downvote reasons, Done gate
+
+- **Decision (Fredrik, 2026-10-10, via Case):** the full card has Back, Forward and On hold buttons from `TalesForge.Board.Transitions` instead of a "Move to" list. A failed gate disables a button and shows the reason. A downvote needs a reason, which shows next to "Needs work". Case's refinement is read-only, with an Edit button. Building → Done needs the PR's merge commit in the running prod release. Case confirmed the readings of the state machine; `pr.link_added` stays removed and `pr.changes_requested` stays.
+- **Why:** clear next steps on each card, and a "needs work" signal that says what needs work.
+- **Link:** [design-board-states.md](design-board-states.md), ex-tales-forge#128.
+
 ## 2026-10-10: Idea board card state machine, vote gates and thin cards
 
 - **Decision (Fredrik, 2026-10-10, via Case):** the board follows [design-board-states.md](design-board-states.md). One pure module (`TalesForge.Board.Transitions`) checks every move on the server and tells the UI which moves are possible and why. Ideas → Refining needs at least 1 upvote and 0 downvotes. Votes only set the backlog order (net votes, then total votes) and do not wake bots: `idea.pullable` is removed. Only moves and @mentions wake bots. A card with no votes is faded, and a card with a downvote has a "needs work" border. A card that cannot move shows the reason. Every card is thin, with the vote buttons inside the card. No WIP limit.
