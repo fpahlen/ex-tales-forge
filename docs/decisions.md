@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: In game, scroll so the last text is visible
+
+- **Decision (hawkan.fredriksson@gmail.com, 2026-10-10, on the idea board):** build it. When I play the game now, I write what I want to do, and GM answer but I need to scroll manually to read the text. It should always scroll automatically and show the latest text. If I want to read older text I have to scroll back manually instead. Autoscroll forward when a new text appear.
+- **Why:** Good catch, Håkan. Today the Story panel stays where it is when the GM answers, so you have to scroll down yourself. The fix is a small browser hook on the Story panel: when a new GM text or your own action appears, the panel scrolls to the bottom. If you have scrolled up to read older text, it stays where you are and shows a small "New text ↓" button instead, so reading back is never interrupted. The same applies when the GM is thinking and when a scene loads. This touches only the play page (the Story panel and one small JavaScript hook), with a test for the hook behaviour. No game logic and no AI calls change. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-6d08cf7e-43ad-42d9-a050-c6ba1a10a3e8)
+
+<!-- board:idea:6d08cf7e-43ad-42d9-a050-c6ba1a10a3e8 -->
+
 ## 2026-10-10: /team opens with "Our workspace"
 
 - **Decision (Fredrik, 2026-10-10):** the /team landing page opens with a compact workspace header: "Our workspace", "Ideas, building and chat for the whole crew", and four quick stats as links to the board (ideas waiting for votes, Founder check cards for you, PRs waiting for approval, pings for you). The hero "How Tales Forge gets built" with the starting-point banner and the crew picture is on /team/presentation only.
