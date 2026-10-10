@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Screen capture in chat
+
+- **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Built-in screen capture in the team chat (of the app or screen, not the chat window itself).
+- **Why:** Two parts, both built on one shared image store. 1) Images on cards and in team chat: paste, drag or pick a file (PNG/JPEG/WebP, max about 5 MB), stored once (Fly Tigris bucket or Postgres to start) and shown as thumbnails that open full size. 2) A 'Capture screen' button in chat and on cards that uses the browser's built-in screen sharing (getDisplayMedia) to grab one still of a tab, window or whole screen, then lets you add a note before posting. Bots read the image link through the chat and board APIs, so Bobby and Gentry can see exactly what looks wrong. Desktop browsers handle capture well; on phones we offer file upload only. Verdict: feasible, because the browser does the capture for us; the main work is one shared image store used by both chat and cards. Verdict: feasible. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-b96b9f95-bf82-466e-b700-418dc33d8130)
+
+<!-- board:idea:b96b9f95-bf82-466e-b700-418dc33d8130 -->
+
 ## 2026-10-10: Code heat map
 
 - **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Show the code tree by intensity: most calls, most total time, highest average time. Filter it and highlight hot spots.
