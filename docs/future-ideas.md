@@ -64,6 +64,7 @@ Fits the per-world process: consolidation and drift are pure functions run on wo
 
 - **From:** Fredrik, 2026-10-10.
 - **Idea:** built-in screen capture in team chat for bug reports, using the Screen Capture API. Capture the app, not the chat window, so a screenshot or clip lands in the thread with the report.
+- **Desktop only:** phone browsers can't capture the screen (no Screen Capture API on iOS Safari or Android Chrome), so on a phone the button is hidden and founders attach a screenshot instead.
 - **When:** after team chat; needs a design note and Fredrik's OK before any code.
 - **Related:** [Team chat with mentions](#team-chat-with-mentions).
 
