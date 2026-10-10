@@ -1,6 +1,6 @@
 ---
 title: Decision log
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Decision log
@@ -10,6 +10,12 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
+
+## 2026-10-10: Start the founders' idea board, design note first
+
+- **Decision (Fredrik, 2026-10-10):** start the founders' idea board, the working version of "One shared board" on /team: founders add and vote on ideas, Case refines, a founder drags a card to Building as the OK (which writes its own entry here), Bobby builds, then Done. Design note first; no code until Fredrik has answered its open questions.
+- **Why:** turns the Collab decision queue into an idea-to-done flow where every founder can steer the bots and give the OK, and keeps the board and this log in step.
+- **Link:** [Founders' idea board design note](design-idea-board.md).
 
 ## 2026-10-10: Free hands overnight to reorganise the admin area
 
