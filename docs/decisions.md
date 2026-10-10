@@ -11,6 +11,16 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Live numbers everywhere on /team/presentation, data.json as a labelled fallback per group
+
+**Decision:** Every number on the founders' presentation that has a live source now reads it; `priv/team/data.json` is only the fallback, chosen per number group (never per number) and labelled "as of <date>". Timelines say their window. Shipped as ex-tales-forge PR [#114](https://github.com/whyse-ab/ex-tales-forge/pull/114) (merged `6afdb4a`, playtest v101).
+
+- **Live from GitHub:** PRs and commits (the PR feed, as before); tests, doctests, failures and coverage from the "Test" job log of main's latest successful CI run (`GITHUB_FEED_TOKEN`, Actions: read); the decision count and per-day count from this file on GitHub (`GITHUB_DOCS_TOKEN`, ETag). Refreshed by the PR feed poller at most every 10 minutes (`TalesForge.PrFeed.Extras`). Checked on playtest after deploy: 1,141 tests + 184 doctests, 0 failing, 87.42% coverage at `6afdb4a`; 98 decisions.
+- **Live from the app's own database** (`TalesForgeWeb.TeamLiveNumbers`): AI spend per day (last 7 days, same rows as the costs page), Jev intent latency p50/p95/max (last 7 days), Jev score per persona over runs started since 2026-10-07 (playtest; production has no playtest runs, so it shows the last batch labelled "as of").
+- **No live source, labelled "as of":** the eval set, the shadow test, per-batch spend and the batch series (one-off analyses).
+- **Windows:** PRs, commits and decisions per day "since 2026-10-07" (earlier days as a chip or count); spend and latency "last 7 days".
+- **Lane:** all six files are on the admin list, but the deploy-lane check came out **normal** because main also carries the other workstream's undeployed normal-lane #113 (idea board foundation, with a migration). So production was **not** deployed from here: it stays on v95 (`f7f3abd`) and gets this change with the next "Deploy to production", which is #113's owner's call.
+
 ## 2026-10-10: /team Replay buttons fixed (#112)
 
 - **Decision (Fredrik, via Case, ~04:45; admin-only, fast lane, merge when green):** fix the /team/presentation Replay buttons, which were reported as not working.
