@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Approve once
+
+- **Decision (fredrik@whyse.se, 2026-10-10):** a founder's Approve on a PR is kept when the PR gets new commits. Bobby links the PR again with the new head sha; the card history notes "New commit <sha> after approval; approval kept", and the `pr.approved` merge uses the newest linked head. The founders answer again only when the link sets `player_change: true`, which means the new commit changes what the PR does for players. A link before any answer adds no second approval request.
+- **Why:** small fixes after review (tests, wording, a rebase) do not change what players get, so one Approve is enough. This keeps the merge lane fast and keeps the founders' attention on changes that matter to players.
+- **Link:** [Board states: PR approval in Building](design-board-states.md#pr-approval-in-building)
+
 ## 2026-10-10: Screen capture in chat
 
 - **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Built-in screen capture in the team chat (of the app or screen, not the chat window itself).
