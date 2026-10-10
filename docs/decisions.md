@@ -20,6 +20,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 - **Build order:** (1) AppRole areas and redirects, and nav items marked by home (normal lane). (2) An environment badge in the admin layout, and shared "lives on production" and "same page on the other app" links (normal lane). (3) After 1 and 2 are on production: costs cross links, menu dedupe, presentation live-stat labels, Jev latency under Operate (fast lane). (4) Later: a playtest-stats peer endpoint for the presentation.
 - **Why:** both apps showed the same pages, some of them empty or with data from the wrong app. One home for each page removes the duplicates and the empty board slot on playtest. The badge shows which app you are on.
 - Fredrik pre-approved the normal-lane merges and production deploys for this plan.
+- **Status:** steps 1 to 3 are on both apps. [#135](https://github.com/whyse-ab/ex-tales-forge/pull/135) (712eca8, normal lane), [#136](https://github.com/whyse-ab/ex-tales-forge/pull/136) (1508e23, normal lane), [#137](https://github.com/whyse-ab/ex-tales-forge/pull/137) (311b627, fast lane), [#138](https://github.com/whyse-ab/ex-tales-forge/pull/138) (7d6d8c9, fast lane). Production v119 and playtest v124 run 7d6d8c9. Step 4 (playtest-stats peer) is for later.
 
 ## 2026-10-10: Who's online right now
 
