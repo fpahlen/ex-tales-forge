@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: /team Replay buttons fixed (#112)
+
+- **Decision (Fredrik, via Case, ~04:45; admin-only, fast lane, merge when green):** fix the /team/presentation Replay buttons, which were reported as not working.
+- **Cause:** I reproduced it in headless Chrome at 390 and 1280 px with a live feed snapshot every 2 s. Each LiveView patch from the live PR feed reset the page root's `data-motion` to the server's "auto". The animations only run under "full", so Replay changed state but nothing moved. Revealed sections also lost `is-visible`.
+- **Fix:** the TeamPage hook's `updated()` restores both after every patch. In the same browser run, flow, lanes and board now visibly replay at both widths.
+- **Status:** #112 merged as f7f3abd (fast lane). It is on playtest v99 and prod v95.
+- **Next, from the same request:** every number on the presentation should be live where we have a source, with "as of <date>" per number group, and the charts labelled "since 2026-10-07" or "last 7 days". That work is not started yet.
+
 ## 2026-10-10: Idea board: the eight open questions answered
 
 - **Decision (Fredrik, 2026-10-10, via Case):** any one founder may OK a card (drag to Building), but not while any founder has a -1 vote on it; Case pulls ideas on its own at score > 0.3 and top 3, and founders can also move cards to Refining; decay stays (0.8, +2 days); the board lives and is editable on /team; production only, playtest links across; decisions.md commits use a GitHub App, not a personal token; open Collab items are imported as Ideas and /admin/decisions becomes read-only; Bobby moves Building to Done after Gentry's check.
