@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Team chat with mentions
+
+- **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Chat with anyone on the team, with mentions like @Case, @fpahlen and @founders.
+- **Why:** A chat panel on /team for founders and bots. It fits what we already have: Phoenix PubSub and Presence (already used for "Online now") give live messages, and the board already reads @case, @bobby and @gentry in comments and wakes that bot. Chat uses that same mention reader and the same bot wake-up, so there is one place for mentions. Messages are kept in the database (a new chat_messages table) so history stays after a reload. @fpahlen and other GitHub handles come from the whyse-ab/tales-forge team; @founders means all of them. A mention gives a highlight and an unread badge on /team. Admin-only, so it goes in the fast lane. Verdict in one line: the live chat is simple with what we have; the caveats are bot wake-up cost and any notice outside the site. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-9fb3b555-6144-46a3-81d0-35a6c0cba9a0)
+
+<!-- board:idea:9fb3b555-6144-46a3-81d0-35a6c0cba9a0 -->
+
 ## 2026-10-10: Chatt/Comment ping others
 
 - **Decision (hawkan.fredriksson@gmail.com, 2026-10-10, on the idea board):** build it. To be able to ping somebody and have a discussion in a card.
