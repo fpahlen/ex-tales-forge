@@ -25,7 +25,19 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - The one-place rule holds: surveys live on production, playtest runs on playtest, and the other app links across.
   - Fast lane where possible: admin-list files in one PR. Router and shared CSS, JS and layout changes go in a separate normal-lane PR, followed by the manual "Deploy to production" once playtest is verified.
 - **Why:** the admin pages grew one at a time and are hard to find; Fredrik wants them organised by purpose.
-- **Status:** in progress (2026-10-10, overnight). The PRs, the before and after nav, and the redirects are added here when done.
+- **Status:** shipped 2026-10-10 ~04:45.
+  - **#110** (855695e, normal lane): router, grouped nav, and the new admin home (`TalesForgeWeb.AdminSections`). Moved URLs redirect with a 302 after sign-in (`TalesForge.AdminPaths`):
+    - `/admin/sessions` → `/admin/play/sessions`
+    - `/admin/playtest` → `/admin/play/runs`
+    - `/admin/survey(s)` → `/admin/founders/survey(s)`
+    - `/admin/decisions` → `/admin/founders/decisions`
+    - `/admin/costs` → `/admin/operate/costs`
+    - `/admin/oban` → `/admin/operate/telemetry`
+    - `/admin/npc-definitions` → `/admin/archive/npc-definitions`
+  - Cross-app links keep the old paths so that they work with any version of either app.
+  - #110 went to playtest v97, then a manual "Deploy to production" put it on prod v93.
+  - **#111** (999740b, admin fast lane): the admin-list pages link to the new paths and name their section. It went to playtest v98 and prod v94.
+  - Nothing was removed: NPC definitions is still in use, so it moved to the Archive.
 
 ## 2026-10-09: Hover cards on the call-type rule; replay buttons always visible (first fast-lane deploy)
 
