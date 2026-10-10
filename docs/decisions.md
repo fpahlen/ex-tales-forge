@@ -18,6 +18,12 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 - Prompts did not change. The GM golden test is the same. The identifier renames (`unsure_share`, `unsure_below`, `unsure_pct` and others) wait for a later normal-lane PR.
 - Lane: normal. "Deploy to production" ran for `6f1b383` (06:05 UTC) and then for main's tip `6ec8e31` (#125, 06:11 UTC). Both runs were started by the other workstream. Now playtest v111 and production v104 both run `6ec8e31`, which includes #122.
 
+## 2026-10-10: Idea board card state machine, vote gates and thin cards
+
+- **Decision (Fredrik, 2026-10-10, via Case):** the board follows [design-board-states.md](design-board-states.md). One pure module (`TalesForge.Board.Transitions`) checks every move on the server and tells the UI which moves are possible and why. Ideas → Refining needs at least 1 upvote and 0 downvotes. Votes only set the backlog order (net votes, then total votes) and do not wake bots: `idea.pullable` is removed. Only moves and @mentions wake bots. A card with no votes is faded, and a card with a downvote has a "needs work" border. A card that cannot move shows the reason. Every card is thin, with the vote buttons inside the card. No WIP limit.
+- **Why:** votes started refinement by accident; one rule table for server and UI.
+- **Link:** [ex-tales-forge#126](https://github.com/whyse-ab/ex-tales-forge/pull/126), and the thin-cards follow-up PR.
+
 ## 2026-10-10: Merge approvals move onto the idea board
 
 - **Decision (Fredrik, 2026-10-10, via Case):** a normal-lane PR waits for a founder's OK on its board card, not in chat. Bobby posts the PR to the card (`POST /internal/board/prs`: PR link, head sha, one line on what changes for players); the card goes to Founder check; a founder presses Approve or Request changes (with a comment). The board records who, when, which PR and its head sha, shows the approval log on the card and in its history, and wakes Bobby with `pr.approved` / `pr.changes_requested`. Fast-lane PRs need no OK.
