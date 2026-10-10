@@ -10,7 +10,7 @@ status: brief for Bobby
 
 - **Audience:** the Tales Forge founders (the `whyse-ab/tales-forge` GitHub team). Most aren't deep in the setup. Fredrik presents from it.
 - **Tone:** plain, warm, a little proud, and inviting: *together we can create something awesome.* Founders and bots are one crew. Any technical term gets a one-line explanation the first time it shows up.
-- **Framing:** this page shows the **current setup, a starting point**, not a finished org chart. Every founder approves PRs on the idea board, and Fredrik pushes the production releases of the normal lane (board card "update presentation after shared workarea", answered 2026-10-10: "they already approve"). Keep that visible near the top of the presentation (`/team/presentation`) and wherever approvals appear.
+- **Framing:** this page shows **how we work today, and we shape it together**. Every founder approves PRs on the idea board. An approved change goes to playtest, Gentry checks it, and then it ships to production by itself. Changes that only touch admin pages ship straight away (board card "update presentation after shared workarea", answered 2026-10-10: "they already approve"). Keep that visible near the top of the presentation (`/team/presentation`) and wherever approvals appear.
 - **Avoid:** "Fredrik's team" or "Fredrik's bots", any picture with one person on top, and any "the funder decides" framing. (The decision log keeps its own wording; that's fine.)
 - **Money:** USD everywhere.
 - **Never on the page:** secret values, keys or tokens. Saying *where* a secret is kept is fine; showing the value is not.
@@ -23,7 +23,7 @@ Suggested layout: one long page with a sticky section nav (Team · How we work �
 
 ## Landing page (/team): our workspace
 
-The landing page `/team` is the shared workspace. It does not show the hero below. The hero (headline, "starting point" banner and crew picture) is on `/team/presentation` only.
+The landing page `/team` is the shared workspace. It does not show the hero below. The hero (headline, "we shape it together" callout and crew picture) is on `/team/presentation` only.
 
 **Title:** Our workspace
 
@@ -47,8 +47,8 @@ Then: the idea board ("What we're going to do"), the live PR feed ("What we're d
 
 **Subhead:** The founders and three bots, one crew, taking a lot of small, careful steps. Here's who does what, how a change gets from an idea to the game, and what we've learned from letting bots play it.
 
-**"Starting point" banner** (a soft, friendly callout right under the subhead):
-> **This is how we work today, and it's a starting point.** Every founder approves PRs on the idea board: send a card to Building, then approve its PR on the card. Fredrik pushes the production releases of the normal lane. This page is an invitation to shape the rest with us.
+**"We shape it together" callout** (a soft, friendly callout right under the subhead):
+> **This is how we work today, and we shape it together.** Every founder can add ideas, vote, answer the open questions and approve PRs on the board. An approved change goes to playtest, Gentry checks it, and then it ships to production by itself. Changes that only touch admin pages ship straight away. This page is an invitation to shape the rest with us.
 
 **Three stat tiles** (big number with a small label):
 - `pace.prs_merged` pull requests merged *(a pull request, or PR, is one proposed change to the code that someone reviews before it goes in)*
@@ -69,7 +69,7 @@ Then: the idea board ("What we're going to do"), the live PR feed ("What we're d
 **The founders** *(humans)*
 - Shape what we build: ideas, surveys and playing the game.
 - Make the decisions, written down in one shared log.
-- Approve PRs on the board. **Every founder holds the approval key; Fredrik pushes the normal-lane production releases.**
+- Approve PRs on the board. **A founder's Approve ships the change: playtest, then Gentry, then production by itself.**
 - Who we are (from `team.members[0].people`): "We're five founders: Fredrik, Thobias, Håkan, Jeanette and Max." All five are founders and equals; no one gets a title (Fredrik, 2026-10-10).
 - Badge: "The approval key: every founder, on the board"
 
@@ -82,7 +82,7 @@ Then: the idea board ("What we're going to do"), the live PR feed ("What we're d
 **Bobby**, Elixir developer and devops *(bot)*
 - Writes all the code, always as pull requests.
 - Runs the persona playtests and the evals *(an eval is a fixed test set we score the AI against, so we can tell if a change made it better or worse)*.
-- Deploys to Fly *(our hosting)* when Fredrik pushes the release, after a founder's OK on the board. Admin-only changes take the fast lane.
+- Ships to Fly *(our hosting)*. Admin-only changes take the fast lane and ship by themselves when the checks pass. Every other change goes to playtest after a founder approves it on the board. Gentry checks it, and then it ships to production by itself.
 - Checks the Fly logs every hour.
 - Badge: "Hourly log check"
 
@@ -111,7 +111,7 @@ Steps (from `change_flow.steps`):
 7. **Case's architecture review** of what just landed.
 8. **Deploy to playtest**, our separate copy of the game for testing.
 9. **Gentry + the persona playtest batch** check it: Gentry attacks it, and the five persona bots play it while Jev scores how each would have felt.
-10. **A founder's OK to ship.** *Normal lane only. Fredrik pushes the production release.*
+10. **Ships to production by itself.** *Normal lane only. When Gentry's checks pass, the change ships to production by itself.*
 11. **Production**, where players are.
 
 Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy order (playtest first, then production) as decided on 9 Oct 2026.
@@ -119,7 +119,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 **Animation spec: "flow"**
 - **Type:** a horizontal step animation (vertical on phones). A small glowing token (a d20 die fits the game) travels through the 11 steps. Each step lights up with its owner's avatar; the two approval steps show the shared founders' avatar, not one person.
 - **Data:** `change_flow.steps[].label`, `.who` and `.approval`.
-- **Behaviour:** it plays once when scrolled into view, with a "replay" button, and respects `prefers-reduced-motion` (show the static diagram then). At each **"A founder's OK"** step the token pauses on a wax seal stamped with the founders' crest. A small caption under the seal reads "Any founder, on the board." At the ship step it reads "Release: Fredrik pushes it."
+- **Behaviour:** it plays once when scrolled into view, with a "replay" button, and respects `prefers-reduced-motion` (show the static diagram then). At each **"A founder's OK"** step the token pauses on a wax seal stamped with the founders' crest. A small caption under the seal reads "Any founder, on the board." At the ship step it reads "Ships by itself after Gentry."
 
 ---
 
@@ -133,7 +133,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 1. **Decisions are written down.** Every decision goes into one log, `docs/decisions.md` in `tales-forge-docs`, with the date, the decision, why, and a link to the details. Changing a decision means adding a new entry, never editing history.
    - Stat: **`decisions.total` decisions in five days** (5–9 Oct).
    - Plus a decision queue of `decisions.queue.total` bigger questions (`decisions.queue.open` still open), and a future-ideas list (`decisions.future_ideas.count` ideas so far: *speculative intent while typing*, *memory consolidation and attitude drift* and *a founder kanban on /team*).
-2. **Docs go straight to main; code goes through PRs.** Writing things down should be fast, so docs need no review step. Code always gets a PR, CI and a founder's OK on the board card. Any founder approves PRs there, and Fredrik pushes the normal-lane production releases.
+2. **Docs go straight to main; code goes through PRs.** Writing things down should be fast, so docs need no review step. Code always gets a PR, CI and a founder's OK on the board card. Any founder approves PRs there. An approved change goes to playtest, Gentry checks it, and then it ships to production by itself.
 3. **The call-type rule.** Each piece of work in a turn uses the cheapest tool that can do it:
 
    | What goes in | What comes out | We use | Why |
@@ -429,7 +429,7 @@ From `gentry_findings`:
 
 **Ways to take part** (five cards, each with an icon and a link; the board comes first):
 1. **Start on the board.** The idea board on /team is the first place to take part. Add a card in Ideas, vote on the others and comment. A card with an upvote goes to Case for refining.
-2. **Hold the approval key yourself.** Live: founders already approve on the board. Send a card to Building to give the founder OK, and approve its PR on the card.
+2. **Approve on the board yourself.** Live: founders already approve on the board. Send a card to Building to give the founder OK, and approve its PR on the card.
 3. **Answer the surveys.** Founder surveys are on production at `/admin/founders/survey`. Your answers set how the game reads players and what we test for.
 4. **Play the playtest.** Sign in at [tales-forge-playtest.fly.dev](https://tales-forge-playtest.fly.dev) with GitHub and play a few turns. Your sessions show up next to the persona bots'.
 5. **Read the idea archive.** [`docs/future-ideas.md`](../future-ideas.md) keeps the ideas from before the board. Put a new idea on the board.
