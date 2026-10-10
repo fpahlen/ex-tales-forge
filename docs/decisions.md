@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: update presentation after shared workarea
+
+- **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. the new shared work area is now live and several founder are now contributing to the game - presentation needs to reflect this
+- **Why:** The presentation (/team/presentation) still describes the shared work area as coming. Section 6 "One shared board" is a mock, and the module doc says "the shared board that is coming". Section 7 still sends ideas to docs/future-ideas.md or to Case. The plan: (1) Replace the section 6 mock with the live board: real columns and card counts from TalesForge.Board, with a link to /team#idea-board. (2) Show who contributes: founders who added, voted on or commented on cards, with live counts since inception (7 Oct 2026) or a rolling 7-day window, by the chart rule. (3) Rewrite section 7 so the board is the first way to take part, and keep future-ideas.md as the archive. (4) Mention team chat and the Founders/Bots online counter when they are live. (5) Update the moduledoc and the anchors in one place. All founders are shown equally, with an inclusive "together" tone. Verdict: feasible. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-8018439a-33c4-4950-a64c-0c99ca02fba3)
+
+<!-- board:idea:8018439a-33c4-4950-a64c-0c99ca02fba3 -->
+
 ## 2026-10-10: Sorting button for Ideas
 
 - **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Sorting button for Ideas. Possibility to filter on Ideas a specific user has written, for example Fredrik, Håkan, Filter on Ideas I'm mentioned in, in the comment section. Sort on newest or oldest.
