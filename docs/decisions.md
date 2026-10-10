@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Founder pages are up to date; the five founders are equals
+
+- **Decision (Fredrik, board card "check that founder page is up to date", moved to Building 10:08):** Max is a founder like the others. "Apprentice" was an internal joke, so no founder has a title. This replaces the 2026-10-09 wording "our vibe-coding founder and RPG apprentice" and "never played a tabletop RPG".
+- **Status:** [ex-tales-forge #131](https://github.com/whyse-ab/ex-tales-forge/pull/131) merged as ca1cfca (fast lane). It is on playtest v117 and prod v112. The card is Done.
+  - Gentry's old drawn SVG avatar is gone. The bots' small avatars use the Grok Imagine portraits.
+  - The change flow starts on the idea board and shows both deploy lanes. The board section says it is live and follows [design-board-states.md](design-board-states.md). The learning rule text says it is live (physical skills right away, at most +1 for each long rest; other skills during sleep; reflection from level 10). Release numbers that go stale are removed.
+  - `docs/team-page/content.md` and `data.json` match the app.
+
 ## 2026-10-10: Positive-framing cleanup merged (ex-tales-forge #122)
 
 - OK'd by Fredrik (08:01). ex-tales-forge PR [#122](https://github.com/whyse-ab/ex-tales-forge/pull/122) merged as `6f1b383` after main was merged in (vote fix #124). Test and Dialyzer passed.

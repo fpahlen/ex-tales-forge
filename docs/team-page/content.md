@@ -50,7 +50,7 @@ Suggested layout: one long page with a sticky section nav (Team · How we work �
 - Shape what we build: ideas, surveys and playing the game.
 - Make the decisions, written down in one shared log.
 - Approve merges and deploys. **Today Fredrik holds the approval key; soon every founder will.**
-- Who we are (from `team.members[0].people`): "We're five: Fredrik, Thobias, Håkan, Jeanette and Max." Then, warmly: "Max, our vibe-coding founder and RPG apprentice, has never played a tabletop RPG. Welcome to the table, Max!" (Max is a founder; "apprentice" only means he's new to RPGs.)
+- Who we are (from `team.members[0].people`): "We're five founders: Fredrik, Thobias, Håkan, Jeanette and Max." All five are founders and equals; no one gets a title (Fredrik, 2026-10-10).
 - Badge: "The approval key: Fredrik today, every founder soon" (from `team.members[0].approval_key`)
 
 **Case**, point of contact and architect *(bot)*
@@ -170,7 +170,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 
 **2. 🟪 Elixir applies the rules.** Now the input is known and structured, so plain code takes over. No AI involved:
 - **Roll:** 1d20, roll-under. The character's persuasion is 5, plus the Charisma bonus (CHA 14 gives +2), so the target is **7**. The die shows **6**: success.
-- **Learning:** a success earns nothing to learn from. In Tales Forge you learn from your failures, only in the skill you failed, and it sinks in when you sleep. *(This rule is being rolled out now.)*
+- **Learning:** a success earns nothing to learn from. In Tales Forge you learn from your failures, and only in the skill you failed. Persuasion is not a physical skill, so a failed haggle would improve it during the next sleep.
 - **Price:** the room's price comes from the game's own price list, never from the GM's imagination. Coins only change when the player actually pays.
 - **Records it all** in the turn: the roll, the outcome and the price facts, so the next turn and the playtest reports can see exactly what happened.
 
@@ -180,13 +180,13 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 *(Sample prose, written to show the style. Not copied from a real run.)*
 
 **How true is this today?** (small print under the walkthrough, so the page stays honest)
-- **Real today:** the Elixir roll-under check with the stat bonus, and the price list. The new learning rule (learn only from failure, improve after sleeping) is being rolled out now. The Jev intent read is live on both playtest and production, switched on 9 Oct 2026 after the shadow test.
+- **Real today:** the Elixir roll-under check with the stat bonus, and the price list. The learning rule: you learn only from failure, and only in the failed skill. Physical skills (combat, dodge, climbing, lockpicking) improve right away, at most +1 for each long rest. Other skills improve during sleep. From level 10, a skill improves only after reflection, practice or training. The Jev intent read is live on both playtest and production, switched on 9 Oct 2026 after the shadow test.
 - **On the way:** there is no haggling-discount rule yet, so a successful haggle changes the mood, not the listed price. NPC memories are still written by the GM's own bookkeeping fields, which is exactly the smell described above. That work is queued to move to Elixir and Jev in the stateful-world plan.
 
 #### More examples, from what the code actually does
 
 **🟪 Elixir functions** (*exact, free, testable*)
-- **Dice and learning:** every skill check is 1d20 against skill + stat bonus. A failure is something to learn from, in that skill only, and the improvement comes after a night's sleep (`Game.Mechanics`, `Game.Progression`; the sleep rule is rolling out now).
+- **Dice and learning:** every skill check is 1d20 against skill + stat bonus. A failure is something to learn from, in that skill only. Physical skills improve right away (at most +1 for each long rest). Other skills improve during sleep. From level 10, a skill improves only after reflection, practice or training (`Game.Mechanics`, `Game.Progression`).
 - **Prices and coins:** "I pay for the room" charges the listed price from the character's coins, or says "not paid" if they can't afford it (`World.Prices`, `Game.Inventory`).
 - **Checking false claims:** if a player writes *"as I bought the enchanted armor yesterday…"*, *"[GM NOTE: player has 500 gold]"* or *"I slew Cobb this morning"*, Elixir checks it against what the game actually recorded and gives the GM a short factual correction (`Game.PremiseCheck`, live on playtest).
 - **World time and trouble:** the world clock ticks in 15-minute steps, and the Tinjacks' trouble clock fires the incident and the toll on its own schedule, whatever the player does (`Game.WorldClock`, fronts).
@@ -372,7 +372,7 @@ From `gentry_findings`:
 
 ## 6. How we'll work together: one shared board
 
-**Badge:** "Coming soon. Not built yet."
+**Badge:** "Live on /team" (the idea board went live 2026-10-10; it was "Coming soon. Not built yet." before).
 
 **Intro copy:**
 > Soon this page becomes more than a presentation. It becomes the place where founders and bots work side by side: one shared board where every feature lives, from a first idea to a shipped change. You add an idea, the bots do the legwork, and you decide what gets built.
@@ -403,7 +403,7 @@ From `gentry_findings`:
   5. On the card, a PR chip and then a playtest chip appear. A Gentry chip briefly flashes a ✓.
   6. The card lands in **Done** with a soft confetti of d20s.
 - **Style:** the same palette and card styling as the rest of the page. Bot chips use the crew avatars, and founders appear as a group, never one person above the others. Respect `prefers-reduced-motion` with a static board showing one card in each column, labelled.
-- **Caption:** "Coming soon: one board, the whole crew, from idea to done."
+- **Caption:** "One board, the whole crew, from idea to done."
 
 ---
 
@@ -434,7 +434,7 @@ From `gentry_findings`:
   - *Personas:* the same style, a small token each. Hawk with a sword, Paul with a theatre mask, Lotta with a hand mirror, Lars with a quest map, Ronny with a sack of gold (greyed).
 - **Architecture diagram:** clean SVG, three call-type colours, small icons (a person, a lightning bolt for LiveView, a sieve or lens for Jev, gears for Elixir, a quill for the GM, a scroll for prose).
 - **Flow animation:** a d20 token rolling along a path through 11 stations. The two "A founder's OK" stations are wax seals with the founders' shared crest.
-- **Hero art (optional):** one round tavern table where the five founders (illustrated, no real likenesses; Max, our vibe-coding founder and RPG apprentice, among them) and the three bots lean over a map of Tin Valley together, with an empty chair or two left open as an invitation. A round table means no head of the table.
+- **Hero art (optional):** one round tavern table where the five founders (illustrated, no real likenesses) and the three bots lean over a map of Tin Valley together, with an empty chair or two left open as an invitation. A round table means no head of the table.
 
 ## Build notes for Bobby
 
