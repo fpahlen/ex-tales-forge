@@ -1,6 +1,6 @@
 ---
 title: Future ideas
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Future ideas
@@ -45,3 +45,37 @@ Fits the per-world process: consolidation and drift are pure functions run on wo
 - **Builds on:** the existing Collab decision queue in ex-tales-forge (`TalesForge.Collab`, `/admin/decisions`: decisions imported from this repo, with comments, interest and rank in Postgres; exporting decided outcomes back to Markdown is still a TODO). The board would extend that into an idea-to-done flow, not start from scratch.
 - **When:** after the `/team` page is live; needs a design note and Fredrik's OK before any code.
 - **Related:** [team page brief](team-page/content.md#6-how-well-work-together-one-shared-board), [design: decision queue and docs](design-decision-queue-and-docs.md).
+
+## Presence on /team
+
+- **From:** Fredrik, 2026-10-10.
+- **Idea:** show who's online on `/team` with Phoenix Presence — founders and bots — and what each is doing right now (e.g. Bobby on a PR, Gentry probing, Case reviewing).
+- **When:** after the `/team` page is live; needs a design note and Fredrik's OK before any code.
+- **Related:** [Founder kanban on /team](#founder-kanban-on-team), [team page brief](team-page/content.md).
+
+## Team chat with mentions
+
+- **From:** Fredrik, 2026-10-10.
+- **Idea:** a team chat on `/team` with mentions (`@Case`, `@fpahlen`, `@founders`). Mentioning a bot wakes it so it can join the thread.
+- **When:** after Presence on `/team`; needs a design note and Fredrik's OK before any code.
+- **Related:** [Presence on /team](#presence-on-team), [Founder kanban on /team](#founder-kanban-on-team).
+
+## Built-in screen capture in chat
+
+- **From:** Fredrik, 2026-10-10.
+- **Idea:** built-in screen capture in team chat for bug reports, using the Screen Capture API. Capture the app, not the chat window, so a screenshot or clip lands in the thread with the report.
+- **When:** after team chat; needs a design note and Fredrik's OK before any code.
+- **Related:** [Team chat with mentions](#team-chat-with-mentions).
+
+## Code heat map
+
+- **From:** Fredrik, 2026-10-10.
+- **Idea:** a module tree coloured by call count, total time and average time, filterable to show hot spots. Built from telemetry so founders and bots can see where the app spends its time.
+- **When:** after enough telemetry is in place; needs a design note and Fredrik's OK before any code.
+
+## Attribution
+
+- **From:** Fredrik, 2026-10-10.
+- **Idea:** tag PRs, branches and cards with who came up with the idea, and show that attribution wherever the work appears.
+- **When:** alongside the Founder kanban; needs a design note and Fredrik's OK before any code.
+- **Related:** [Founder kanban on /team](#founder-kanban-on-team).
