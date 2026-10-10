@@ -17,7 +17,7 @@ status: brief for Bobby
 - **Numbers:** every number comes from `data.json` (given here as `key.path`). Where we don't have a number, the page says "not measured yet" rather than guessing.
 - **As of:** 2026-10-09 (Stockholm time). Show "Numbers as of 9 Oct 2026" in the footer, read from `_about.as_of`.
 
-Suggested layout: one long page with a sticky section nav (Team · How we work · Infrastructure · Playtests · Pace and cost · One shared board · Together). It should work on a phone at 320 px wide, since Gentry checks exactly that.
+Suggested layout: one long page with a section nav (sticky from 640 px; on a phone it wraps and scrolls away with the page, and a "Skip to content" link comes first) (Team · How we work · Infrastructure · Playtests · Pace and cost · One shared board · Together). It should work on a phone at 320 px wide, since Gentry checks exactly that.
 
 ---
 
@@ -104,7 +104,7 @@ Then: the idea board ("What we're going to do"), the live PR feed ("What we're d
 Steps (from `change_flow.steps`):
 1. **Idea.** From any founder.
 2. **Case** plans it and writes the brief.
-3. **Bobby** builds it as a pull request.
+3. **Bobby** writes "Picked up by Bobby. ETA ..." on the card at once, then builds it as a pull request.
 4. **CI** runs. *(CI, continuous integration: robots that run every test and check on every PR. If anything fails, the PR can't merge.)*
 5. **A founder's OK to merge.** *Any founder approves the PR on the board card.*
 6. **Merge** into `main`, the shared version of the code.
@@ -134,7 +134,12 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
    - Stat: **`decisions.total` decisions in five days** (5–9 Oct).
    - Plus a decision queue of `decisions.queue.total` bigger questions (`decisions.queue.open` still open), and a future-ideas list (`decisions.future_ideas.count` ideas so far: *speculative intent while typing*, *memory consolidation and attitude drift* and *a founder kanban on /team*).
 2. **Docs go straight to main; code goes through PRs.** Writing things down should be fast, so docs need no review step. Code always gets a PR, CI and a founder's OK on the board card. Any founder approves PRs there. An approved change goes to playtest, Gentry checks it, and then it ships to production by itself.
-3. **The call-type rule.** Each piece of work in a turn uses the cheapest tool that can do it:
+3. **Code that explains itself.** "Humans may need to understand the code one day." Every module says what it's for, every public function has docs and a type spec, and the tools check it all on every PR:
+   - doctests *(examples in the docs that also run as tests)*;
+   - Dialyzer *(a type checker)*: `code_standards.dialyzer_warnings` warnings;
+   - Credo *(a style checker)* and the formatter;
+   - tests for every change, with coverage up from 73.3% to `code_standards.coverage_pct`% in two days.
+4. **The call-type rule.** Each piece of work in a turn uses the cheapest tool that can do it:
 
    | What goes in | What comes out | We use | Why |
    |---|---|---|---|
@@ -144,11 +149,6 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 
    One-liners: *Elixir is the programming language the game is written in. Jev is TypeSafe's model that reads text and answers with typed data (a category plus a confidence), not prose. An LLM is a large language model, the kind of AI that writes text.*
    Data: `call_types.rows`. **The call-type rule is the heart of the game engine, so it gets its own walkthrough below:** [one turn, three call types](#the-call-type-rule-one-turn-three-call-types).
-4. **Code that explains itself.** "Humans may need to understand the code one day." Every module says what it's for, every public function has docs and a type spec, and the tools check it all on every PR:
-   - doctests *(examples in the docs that also run as tests)*;
-   - Dialyzer *(a type checker)*: `code_standards.dialyzer_warnings` warnings;
-   - Credo *(a style checker)* and the formatter;
-   - tests for every change, with coverage up from 73.3% to `code_standards.coverage_pct`% in two days.
 
 **Chart spec: "decisions per day"**
 - **Type:** a small vertical bar chart, one bar per day.
@@ -373,7 +373,7 @@ From `gentry_findings`:
 **Chart spec: "PRs per day"**
 - **Type:** a paired bar chart, created vs merged per day (Stockholm dates).
 - **Data:** `pace.prs_by_day[]` (`date`, `created`, `merged`).
-- **Note:** July is the first scaffold phase and the real push starts 5 Oct, so use a broken x-axis or show Oct only with a "+14 PRs in July" chip. 9 Oct is partial.
+- **Note:** July is the first scaffold phase and the real push starts 5 Oct, so use a broken x-axis or show Oct only with a "+N PRs before 7 Oct" chip (N from the earlier days). 9 Oct is partial.
 - **Caption:** "45 PRs opened on 7 October alone."
 
 **Chart spec: "commits per day"** (optional, small)
@@ -397,11 +397,11 @@ From `gentry_findings`:
 **Intro copy:**
 > The idea board on /team is where founders and bots work side by side. Every feature lives there, from a first idea to a change on production. You add an idea, the bots do the legwork, and you decide what gets built.
 
-**How a card travels** (five columns, from `shared_board.columns`; a founder can also put a card in **Parked**):
-1. **Ideas.** Any founder adds a card. A sentence is enough. Votes set the order: a card needs an upvote to move.
-2. **Refining (Case).** Case fills in the card: the details, the open questions and a rough cost.
+**How a card travels** (six columns: a card goes through five of them, from `shared_board.columns`; the sixth, **Parked**, holds a card for later, and a founder can send it back to Ideas):
+1. **Ideas.** Any founder adds a card. A sentence is enough. Votes set the order: a card needs an upvote to move. Tags and a tag cloud help you find a card.
+2. **Refining (Case).** Case fills in the card: the details, the open questions and a rough cost. Case's portrait is behind this column.
 3. **Founder check.** Founders read it, check it is what they meant, and answer the open questions. Then a founder sends it to **Building**. *That move is the founder's OK.*
-4. **Building (Bobby).** Bobby builds it and links the PR to the card. The PR's status shows on the card, so you can follow along and try it.
+4. **Building (Bobby).** Bobby writes "Picked up by Bobby. ETA ..." on the card at once, builds it and links the PR to the card. The PR's status shows on the card, so you can follow along and try it. Bobby's portrait is behind this column.
 5. **Done.** On production, and the card keeps the whole story.
 
 **The live board** (replaces the mock board, board card "update presentation after shared workarea", 2026-10-10):
@@ -413,10 +413,17 @@ From `gentry_findings`:
 - **Layout:** two columns per row on a phone, three from 640 px, all six from 1024 px. No motion.
 - **Caption:** "One board, the whole crew, from idea to done."
 
+**New on the board** (`#board-new`, small cards with icons; data: `shared_board.new_on_board`):
+- **The Ideas lane finds the card you want.** One icon sorts the lane: newest first or oldest first. Each card shows its tags. A founder's name becomes a tag by itself, and you can add your own free tags. Select tags in the tag cloud to show the cards that have all of them. The link keeps your selection, so you can share it. **Pings for you** shows each comment that mentions you.
+- **Each bot column shows its bot.** Case's portrait is behind Refining, and Bobby's portrait is behind Building. You see at a glance who works on a card.
+- **Bobby says when the work starts.** When a card moves to Building, Bobby writes "Picked up by Bobby. ETA ..." on the card at once.
+- **You approve once.** Your Approve stays when a later commit is only a rebase or a fix. The card history notes the new commit. The founders get the question again only when what players get changes.
+- **An hourly check keeps Building moving.** Every hour, Case looks at the Building column. When a card has no PR after more than one hour, Case reminds Bobby.
+
 **Three things that make it work** (small cards with icons):
-- **Moving a card pings the right bot.** A card in Refining wakes Case, and a card in Building wakes Bobby. Nobody has to keep checking, bots or people.
+- **Moving a card pings the right bot.** A card in Refining wakes Case, and a card in Building wakes Bobby. When a comment names a bot, that bot wakes too. Nobody has to keep checking, bots or people.
 - **One place for each thing.** When a card is approved, it writes its own entry in the decision log (`docs/decisions.md`), so the board and the log never disagree.
-- **Every founder decides.** Any founder can send a card to Building, and that move is the founder OK.
+- **Every founder decides.** Any founder can send a card to Building, and that move is the founder OK. Any founder also approves the PR on the card. The approved change goes to playtest, Gentry checks it, and then it ships to production by itself. Changes that only touch admin pages ship straight away.
 
 **Small print:** the board grew out of the founders' decision queue (`/admin/founders/decisions`). The rules for every move are in [`docs/design-board-states.md`](../design-board-states.md).
 
