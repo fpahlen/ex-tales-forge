@@ -390,54 +390,49 @@ From `gentry_findings`:
 
 ---
 
-## 6. How we'll work together: one shared board
+## 6. How we work together: one shared board
 
 **Badge:** "Live on /team" (the idea board went live 2026-10-10; it was "Coming soon. Not built yet." before).
 
 **Intro copy:**
-> Soon this page becomes more than a presentation. It becomes the place where founders and bots work side by side: one shared board where every feature lives, from a first idea to a shipped change. You add an idea, the bots do the legwork, and you decide what gets built.
+> The idea board on /team is where founders and bots work side by side. Every feature lives there, from a first idea to a change on production. You add an idea, the bots do the legwork, and you decide what gets built.
 
-**How a card travels** (five columns, from `shared_board.columns`):
-1. **Ideas.** Any founder adds a feature card, or drags an existing one into the queue. A sentence is enough.
-2. **Refining (Case).** Case picks it up and fills in the card: the details, the open questions and a rough cost.
-3. **Founder check.** Founders read it, check it's what they meant, and comment. When it's right, a founder drags it to **Building**. *That drag is the founder's OK.*
-4. **Building (Bobby).** Bobby builds it. The PR link and the playtest link appear right on the card, so you can follow along and try it.
-5. **Done.** Shipped, and the card keeps the whole story.
+**How a card travels** (five columns, from `shared_board.columns`; a founder can also put a card in **Parked**):
+1. **Ideas.** Any founder adds a card. A sentence is enough. Votes set the order: a card needs an upvote to move.
+2. **Refining (Case).** Case fills in the card: the details, the open questions and a rough cost.
+3. **Founder check.** Founders read it, check it is what they meant, and answer the open questions. Then a founder sends it to **Building**. *That move is the founder's OK.*
+4. **Building (Bobby).** Bobby builds it and links the PR to the card. The PR's status shows on the card, so you can follow along and try it.
+5. **Done.** On production, and the card keeps the whole story.
+
+**The live board** (replaces the mock board, board card "update presentation after shared workarea", 2026-10-10):
+- **Columns:** the real board columns (Ideas, Refining (Case), Founder check, Building (Bobby), Done, Parked), each with its card count now. Data: `TalesForge.Board.stats/0` in the app, not `data.json`.
+- **Team totals:** cards, votes, founder comments, PR approvals and founders taking part. Bot comments do not count. Show team totals only, with no founder names (answered on the card: "totals").
+- **Small text:** "Team totals since the board opened. We count what the team does together, not who does it."
+- **Updates:** the counts update on each board change. Where the board is not (or with no stats), each count reads "not measured yet", never a zero.
+- **Link:** "Open the idea board →" to `/team#idea-board`.
+- **Layout:** two columns per row on a phone, three from 640 px, all six from 1024 px. No motion.
+- **Caption:** "One board, the whole crew, from idea to done."
 
 **Three things that make it work** (small cards with icons):
 - **Moving a card pings the right bot.** A card in Refining wakes Case, and a card in Building wakes Bobby. Nobody has to keep checking, bots or people.
 - **One place for each thing.** When a card is approved, it writes its own entry in the decision log (`docs/decisions.md`), so the board and the log never disagree.
-- **Everyone holds the key.** Dragging a card to Building is the founder OK. That makes the board a real step toward every founder holding the approval key, not just Fredrik as today.
+- **Every founder decides.** Any founder can send a card to Building, and that move is the founder OK.
 
-**Small print:** it grows out of what's already there. The app has a founders' decision queue (`/admin/decisions`) with comments, interest and ranking; the board extends that into a full idea-to-done flow. Listed in [`docs/future-ideas.md`](../future-ideas.md) as "Founder kanban on /team".
-
-**Animation spec: "mock board"**
-- **Type:** a small animated mock of the board, about 8 s, playing once on scroll-in with a replay button. It's a picture of the idea, not a working board.
-- **Columns:** Ideas → Refining (Case) → Founder check → Building (Bobby) → Done. On phones, show the columns as a horizontal swipe strip or a vertical stack. Column headers carry the owner's chip: Case's avatar on Refining, the shared founders' avatar on Founder check, Bobby's on Building.
-- **Data:** `shared_board.columns[]` (`id`, `label`, `owner`, `on_enter`) and `shared_board.sample_card`.
-- **Sequence:**
-  1. A founder's hand-drawn-style cursor drops a card into **Ideas**: *"Brenna remembers regulars"*.
-  2. The card slides to **Refining**. A Case chip appears with a small "pinged" pulse, and the card grows three lines: details, 2 questions and "rough cost: small".
-  3. The card moves to **Founder check**. Two or three founder avatars (the same illustrated, no-real-likeness style as the crew art) pop up comment bubbles: "Yes, exactly!", "Only after the second visit?" and a 👍.
-  4. A founder drags it to **Building**. A wax-seal "Founder OK" stamp appears (the same crest as the change-flow animation), a small "decision logged" chip flies off toward a scroll icon, and a Bobby chip pulses "pinged".
-  5. On the card, a PR chip and then a playtest chip appear. A Gentry chip briefly flashes a ✓.
-  6. The card lands in **Done** with a soft confetti of d20s.
-- **Style:** the same palette and card styling as the rest of the page. Bot chips use the crew avatars, and founders appear as a group, never one person above the others. Respect `prefers-reduced-motion` with a static board showing one card in each column, labelled.
-- **Caption:** "One board, the whole crew, from idea to done."
+**Small print:** the board grew out of the founders' decision queue (`/admin/founders/decisions`). The rules for every move are in [`docs/design-board-states.md`](../design-board-states.md).
 
 ---
 
 ## 7. Where we go from here, together
 
 **Intro copy:**
-> What you've seen is where we started. The best part is still ahead, and it gets better with every founder who jumps in. Together we can make something awesome.
+> Several founders already add, vote, comment and approve on the shared board. The best part is still ahead, and it gets better with every founder who joins in. Together we can make something awesome.
 
-**Ways to get involved** (four friendly cards, each with an icon and a link):
-1. **Answer the surveys.** Founder surveys are on production at `/admin/survey`. Your answers set how the game reads players and what we test for.
-2. **Play the playtest.** Sign in at [tales-forge-playtest.fly.dev](https://tales-forge-playtest.fly.dev) with GitHub and play a few turns. Your sessions show up next to the persona bots'.
-3. **Suggest ideas.** Anything you'd love to see goes in [`docs/future-ideas.md`](../future-ideas.md). Tell Case, or add it yourself, since docs go straight to main.
-4. **Soon: hold the approval key yourself.** Approve merges and deploys, steer the bots and make decisions, just like Fredrik does today. We'll set that up together.
-5. **Soon: put your ideas on the board.** Once the shared board is live, drop a card in Ideas and watch the crew pick it up.
+**Ways to take part** (five cards, each with an icon and a link; the board comes first):
+1. **Start on the board.** The idea board on /team is the first place to take part. Add a card in Ideas, vote on the others and comment. A card with an upvote goes to Case for refining.
+2. **Hold the approval key yourself.** Live: founders already approve on the board. Send a card to Building to give the founder OK, and approve its PR on the card.
+3. **Answer the surveys.** Founder surveys are on production at `/admin/founders/survey`. Your answers set how the game reads players and what we test for.
+4. **Play the playtest.** Sign in at [tales-forge-playtest.fly.dev](https://tales-forge-playtest.fly.dev) with GitHub and play a few turns. Your sessions show up next to the persona bots'.
+5. **Read the idea archive.** [`docs/future-ideas.md`](../future-ideas.md) keeps the ideas from before the board. Put a new idea on the board.
 
 **Closing line:**
 > A founder's yes on every change, three bots that never get tired, a paper trail for every decision, and room at the table for all of us. Let's build it together.
