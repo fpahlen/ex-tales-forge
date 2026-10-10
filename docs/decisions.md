@@ -11,6 +11,16 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Admin split: one home for each page, production or playtest
+
+- **Decision (Fredrik, via Case, 11:36):** the admin plan in `/workspace/admin-split/plan.md` (Case's analysis) is approved. Each page has one home:
+  - **Production only:** the idea board and `/team`, `/team/presentation`, founders' decisions, the docs (and surveys, as before). Playtest redirects these to production.
+  - **Playtest only:** playtest runs (as before).
+  - **Both, per app:** sessions, NPCs, turns, costs (prod has the total), telemetry, logs, code docs, the game.
+- **Build order:** (1) AppRole areas and redirects, and nav items marked by home (normal lane). (2) An environment badge in the admin layout, and shared "lives on production" and "same page on the other app" links (normal lane). (3) After 1 and 2 are on production: costs cross links, menu dedupe, presentation live-stat labels, Jev latency under Operate (fast lane). (4) Later: a playtest-stats peer endpoint for the presentation.
+- **Why:** both apps showed the same pages, some of them empty or with data from the wrong app. One home for each page removes the duplicates and the empty board slot on playtest. The badge shows which app you are on.
+- Fredrik pre-approved the normal-lane merges and production deploys for this plan.
+
 ## 2026-10-10: Who's online right now
 
 - **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Use Phoenix Presence to show which founders and bots are online and what each is doing right now.
