@@ -15,6 +15,14 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 
 - **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Chat with anyone on the team, with mentions like @Case, @fpahlen and @founders.
 - **Why:** A chat panel on /team for founders and bots. It fits what we already have: Phoenix PubSub and Presence (already used for "Online now") give live messages, and the board already reads @case, @bobby and @gentry in comments and wakes that bot. Chat uses that same mention reader and the same bot wake-up, so there is one place for mentions. Messages are kept in the database (a new chat_messages table) so history stays after a reload. @fpahlen and other GitHub handles come from the whyse-ab/tales-forge team; @founders means all of them. A mention gives a highlight and an unread badge on /team. Admin-only, so it goes in the fast lane. Verdict in one line: the live chat is simple with what we have; the caveats are bot wake-up cost and any notice outside the site. Verdict: feasible with caveats. Rough cost: M.
+- **Design (Bobby, built in [ex-tales-forge #145](https://github.com/whyse-ab/ex-tales-forge/pull/145), normal lane, waiting for a founder's Approve):**
+  - One shared room, in a panel that opens from the header next to the who-is-online counter. The Chat button on a person opens the room with their `@handle`.
+  - Mentions use the board's one parser (`TalesForge.Board.Mentions`, from #142).
+  - A founder mention gives an unread badge on the Chat button. There is no email or push.
+  - Only a founder's mention wakes a bot. The wake-up is a `chat.mention` job in the board's webhook outbox, with the last 10 messages and a reply URL. Bots reply through `/internal/chat` with their board tokens.
+  - The chat lives on production only, like the board. On playtest the Chat buttons link to production.
+  - Messages are kept in `team_chat_messages` with their mentions. Retention is the deferred question.
+  - The shared header loads the admin chat code through config, so admin and shared code stay separate.
 - **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-9fb3b555-6144-46a3-81d0-35a6c0cba9a0)
 
 <!-- board:idea:9fb3b555-6144-46a3-81d0-35a6c0cba9a0 -->
