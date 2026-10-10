@@ -26,6 +26,12 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 - Prompts did not change. The GM golden test is the same. The identifier renames (`unsure_share`, `unsure_below`, `unsure_pct` and others) wait for a later normal-lane PR.
 - Lane: normal. "Deploy to production" ran for `6f1b383` (06:05 UTC) and then for main's tip `6ec8e31` (#125, 06:11 UTC). Both runs were started by the other workstream. Now playtest v111 and production v104 both run `6ec8e31`, which includes #122.
 
+## 2026-10-10: The board moves cards to Done automatically
+
+- **Decision (Fredrik, 2026-10-10, via Case):** after each production boot, the board moves a card from Building to Done as `bot:board` when the merge commit of its linked PR is in the running prod release. The move note names the release. When GitHub does not answer, the board tries again later. Bobby's manual move stays as the fallback.
+- **Why:** Done then means "on prod" with no manual step.
+- **Link:** [design-board-states.md](design-board-states.md#automatic-done), ex-tales-forge#132.
+
 ## 2026-10-10: Idea board: step-named move buttons, links by bots only
 
 - **Decision (Fredrik, 2026-10-10, via Case):** each move button has the name of its target step ("Send to Founder check", "Start building", "Put on hold"). The names come from `TalesForge.Board.Transitions`. Only bots add links (the PR, the playtest run). The card shows each PR with its number, title and status (open, merged, on prod), and a thin card shows a small PR badge.
