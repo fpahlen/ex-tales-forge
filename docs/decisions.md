@@ -101,14 +101,19 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 - Prompts did not change. The GM golden test is the same. The identifier renames (`unsure_share`, `unsure_below`, `unsure_pct` and others) wait for a later normal-lane PR.
 - Lane: normal. "Deploy to production" ran for `6f1b383` (06:05 UTC) and then for main's tip `6ec8e31` (#125, 06:11 UTC). Both runs were started by the other workstream. Now playtest v111 and production v104 both run `6ec8e31`, which includes #122.
 
+## 2026-10-10: "Fredrik is typing…" on a card's comment box
+
+- **Decision (Håkan's card "Writing in the comment field in cards", Fredrik's answers, moved to Building 15:27):** when a founder writes a comment on a card, the others see "<name> is typing…" under the comment box and a small pencil on the thin card. It is a hint, not a lock.
+- **Design choices:** Phoenix Presence tracks the writer under their own LiveView (`TalesForge.Board.Typing`), so a closed tab removes the hint. The hint goes when the founder posts, closes the card, or stops for 5 seconds. Only the start and the stop update the board, not each keystroke. Built: [ex-tales-forge #152](https://github.com/whyse-ab/ex-tales-forge/pull/152), ef07ee6, admin lane.
+
 ## 2026-10-10: A PR waits for approval in Building
 
-- **Decision (Fredrik, via Case, 15:08):** a card with a normal-lane PR that waits for an OK stays in Building with a "PR waiting for approval" badge. Founders Approve or Request changes on the full card and on the thin card. Approve wakes Bobby (`pr.approved`) to merge and ship. Request changes wakes him with the comment. Founder check is only for the refined idea. A data migration moves the cards that are in Founder check because of a PR back to Building.
+- **Decision (Fredrik, via Case, 15:08; built in [#149](https://github.com/whyse-ab/ex-tales-forge/pull/149), 795c24b, normal lane):** a card with a normal-lane PR that waits for an OK stays in Building with a "PR waiting for approval" badge. Founders Approve or Request changes on the full card and on the thin card. Approve wakes Bobby (`pr.approved`) to merge and ship. Request changes wakes him with the comment. Founder check is only for the refined idea. A data migration moves the cards that are in Founder check because of a PR back to Building.
 - **Why:** a card that went back to Founder check for a PR looked like a new idea to decide on. The badge keeps the card where the work is.
 
 ## 2026-10-10: Answer boxes save together with the move
 
-- **Decision (Fredrik, via Case, 15:00):** no answer button for each question. Each open question has a text box and a Defer toggle (Defer disables the box). The boxes save together when the card moves or closes, and on blur. The gate uses the boxes on the screen; the server checks it again.
+- **Decision (Fredrik, via Case, 15:00; built in [#144](https://github.com/whyse-ab/ex-tales-forge/pull/144), f3fba8d, admin lane):** no answer button for each question. Each open question has a text box and a Defer toggle (Defer disables the box). The boxes save together when the card moves or closes, and on blur. The gate uses the boxes on the screen; the server checks it again.
 - **Why:** one button for each question was many clicks. Founders answer and then move the card.
 
 ## 2026-10-10: Founders ping each other with @mentions on the board
