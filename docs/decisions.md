@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Idea board: the eight open questions answered
+
+- **Decision (Fredrik, 2026-10-10, via Case):** any one founder may OK a card (drag to Building), but not while any founder has a -1 vote on it; Case pulls ideas on its own at score > 0.3 and top 3, and founders can also move cards to Refining; decay stays (0.8, +2 days); the board lives and is editable on /team; production only, playtest links across; decisions.md commits use a GitHub App, not a personal token; open Collab items are imported as Ideas and /admin/decisions becomes read-only; Bobby moves Building to Done after Gentry's check.
+- **Why:** unblocks the build of the board with a single, safe approval rule and no personal tokens.
+- **Link:** [Founders' idea board design note, Resolved](design-idea-board.md#resolved-fredrik-2026-10-10-via-case).
+
 ## 2026-10-10: Start the founders' idea board, design note first
 
 - **Decision (Fredrik, 2026-10-10):** start the founders' idea board, the working version of "One shared board" on /team: founders add and vote on ideas, Case refines, a founder drags a card to Building as the OK (which writes its own entry here), Bobby builds, then Done. Design note first; no code until Fredrik has answered its open questions.
