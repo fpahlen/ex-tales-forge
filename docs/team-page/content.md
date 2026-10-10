@@ -1,6 +1,6 @@
 ---
 title: "Team page (/team): content brief"
-updated: 2026-10-09
+updated: 2026-10-10
 status: brief for Bobby
 ---
 
@@ -10,7 +10,7 @@ status: brief for Bobby
 
 - **Audience:** the Tales Forge founders (the `whyse-ab/tales-forge` GitHub team). Most aren't deep in the setup. Fredrik presents from it.
 - **Tone:** plain, warm, a little proud, and inviting: *together we can create something awesome.* Founders and bots are one crew. Any technical term gets a one-line explanation the first time it shows up.
-- **Framing:** this page shows the **current setup, a starting point**, not a finished org chart. Today Fredrik holds the approval key; later every founder will approve, steer the bots and make decisions. Keep that visible near the top and wherever approvals appear.
+- **Framing:** this page shows the **current setup, a starting point**, not a finished org chart. Today Fredrik holds the approval key; later every founder will approve, steer the bots and make decisions. Keep that visible near the top of the presentation (`/team/presentation`) and wherever approvals appear.
 - **Avoid:** "Fredrik's team" or "Fredrik's bots", any picture with one person on top, and any "the funder decides" framing. (The decision log keeps its own wording; that's fine.)
 - **Money:** USD everywhere.
 - **Never on the page:** secret values, keys or tokens. Saying *where* a secret is kept is fine; showing the value is not.
@@ -21,7 +21,27 @@ Suggested layout: one long page with a sticky section nav (Team Â· How we work Â
 
 ---
 
-## 0. Hero
+## Landing page (/team): our workspace
+
+The landing page `/team` is the shared workspace. It does not show the hero below. The hero (headline, "starting point" banner and crew picture) is on `/team/presentation` only.
+
+**Title:** Our workspace
+
+**Subtitle:** Ideas, building and chat for the whole crew
+
+**Quick stats** (a number and a label; each stat is a link to the board):
+- **Ideas waiting for votes:** the cards in the Ideas column. Links to the Ideas column.
+- **Founder check cards for you:** the cards in Founder check that you did not vote on yet, or that have an open question with no answer. A deferred question counts as answered. Links to the Founder check column.
+- **PRs waiting for approval:** the Building cards with a PR that waits for an Approve. Links to the Building column.
+- **Pings for you:** your unread pings, the same number the board shows. Links to your pings.
+
+Rules: the copy names no role, because every founder can approve. The stats show in two columns on a phone and in four columns on a wide screen. The stats update live when the board changes.
+
+Then: the idea board ("What we're going to do"), the live PR feed ("What we're doing now") and one link to the presentation.
+
+---
+
+## 0. Hero (presentation only)
 
 **Headline:** How Tales Forge gets built
 

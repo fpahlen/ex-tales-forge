@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: /team opens with "Our workspace"
+
+- **Decision (Fredrik, 2026-10-10):** the /team landing page opens with a compact workspace header: "Our workspace", "Ideas, building and chat for the whole crew", and four quick stats as links to the board (ideas waiting for votes, Founder check cards for you, PRs waiting for approval, pings for you). The hero "How Tales Forge gets built" with the starting-point banner and the crew picture is on /team/presentation only.
+- **Why:** /team is the place where the crew works every day. The stats show at once what needs you. Every founder can approve, so the header names no role.
+- **Link:** [ex-tales-forge #150](https://github.com/whyse-ab/ex-tales-forge/pull/150), [team page content](team-page/content.md#landing-page-team-our-workspace)
+
 ## 2026-10-10: Writing in the comment field in cards
 
 - **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Only one person at a time can write a comment in a card. It must show the other users/founders that someone is writing a comment so we don't write at the same time and we lose information
