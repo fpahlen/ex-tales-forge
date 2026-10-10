@@ -18,6 +18,12 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 - Prompts did not change. The GM golden test is the same. The identifier renames (`unsure_share`, `unsure_below`, `unsure_pct` and others) wait for a later normal-lane PR.
 - Lane: normal. "Deploy to production" ran for `6f1b383` (06:05 UTC) and then for main's tip `6ec8e31` (#125, 06:11 UTC). Both runs were started by the other workstream. Now playtest v111 and production v104 both run `6ec8e31`, which includes #122.
 
+## 2026-10-10: Idea board: step-named move buttons, links by bots only
+
+- **Decision (Fredrik, 2026-10-10, via Case):** each move button has the name of its target step ("Send to Founder check", "Start building", "Put on hold"). The names come from `TalesForge.Board.Transitions`. Only bots add links (the PR, the playtest run). The card shows each PR with its number, title and status (open, merged, on prod), and a thin card shows a small PR badge.
+- **Why:** buttons that say what happens, and links that are always correct.
+- **Link:** [design-board-states.md](design-board-states.md), ex-tales-forge#130.
+
 ## 2026-10-10: Idea board full card: move buttons, downvote reasons, Done gate
 
 - **Decision (Fredrik, 2026-10-10, via Case):** the full card has Back, Forward and On hold buttons from `TalesForge.Board.Transitions` instead of a "Move to" list. A failed gate disables a button and shows the reason. A downvote needs a reason, which shows next to "Needs work". Case's refinement is read-only, with an Edit button. Building → Done needs the PR's merge commit in the running prod release. Case confirmed the readings of the state machine; `pr.link_added` stays removed and `pr.changes_requested` stays.
