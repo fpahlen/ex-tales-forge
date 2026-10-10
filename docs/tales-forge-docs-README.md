@@ -9,3 +9,7 @@ Private source of truth for the founders' **decision queue** and **shared docs**
 Git history is the audit log. The game admin (`ex-tales-forge`) indexes this repo for the LiveView queue; agents propose via MCP/PRs; only founders record outcomes.
 
 See `SCHEMA.md` for the decision file format.
+
+## Writing rules
+
+Write with positive framing ("confidence", never "unsure" or "uncertainty") and in ASD-STE100 Simplified Technical English. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [decision](docs/decisions.md) of 2026-10-10.
