@@ -10,7 +10,7 @@ status: brief for Bobby
 
 - **Audience:** the Tales Forge founders (the `whyse-ab/tales-forge` GitHub team). Most aren't deep in the setup. Fredrik presents from it.
 - **Tone:** plain, warm, a little proud, and inviting: *together we can create something awesome.* Founders and bots are one crew. Any technical term gets a one-line explanation the first time it shows up.
-- **Framing:** this page shows the **current setup, a starting point**, not a finished org chart. Today Fredrik holds the approval key; later every founder will approve, steer the bots and make decisions. Keep that visible near the top of the presentation (`/team/presentation`) and wherever approvals appear.
+- **Framing:** this page shows the **current setup, a starting point**, not a finished org chart. Every founder approves PRs on the idea board, and Fredrik pushes the production releases of the normal lane (board card "update presentation after shared workarea", answered 2026-10-10: "they already approve"). Keep that visible near the top of the presentation (`/team/presentation`) and wherever approvals appear.
 - **Avoid:** "Fredrik's team" or "Fredrik's bots", any picture with one person on top, and any "the funder decides" framing. (The decision log keeps its own wording; that's fine.)
 - **Money:** USD everywhere.
 - **Never on the page:** secret values, keys or tokens. Saying *where* a secret is kept is fine; showing the value is not.
@@ -48,7 +48,7 @@ Then: the idea board ("What we're going to do"), the live PR feed ("What we're d
 **Subhead:** The founders and three bots, one crew, taking a lot of small, careful steps. Here's who does what, how a change gets from an idea to the game, and what we've learned from letting bots play it.
 
 **"Starting point" banner** (a soft, friendly callout right under the subhead):
-> **This is how we work today, and it's a starting point.** Right now Fredrik holds the approval key for merges and deploys. That's where we began, not where we stop. Soon every founder will be able to do the same: approve changes, steer the bots and make decisions. This page is an invitation to shape it with us.
+> **This is how we work today, and it's a starting point.** Every founder approves PRs on the idea board: send a card to Building, then approve its PR on the card. Fredrik pushes the production releases of the normal lane. This page is an invitation to shape the rest with us.
 
 **Three stat tiles** (big number with a small label):
 - `pace.prs_merged` pull requests merged *(a pull request, or PR, is one proposed change to the code that someone reviews before it goes in)*
@@ -60,7 +60,7 @@ Then: the idea board ("What we're going to do"), the live PR feed ("What we're d
 ## 1. The team
 
 **Intro copy:**
-> Tales Forge is built by one crew: the founders and three bots. The bots do a lot of the hands-on work, and nothing reaches the game without a founder's yes. Today that yes comes from Fredrik, and soon it can come from any of us.
+> Tales Forge is built by one crew: the founders and three bots. The bots do a lot of the hands-on work, and nothing reaches the game without a founder's yes. Any founder gives that yes on the board.
 
 **Layout:** one row, no hierarchy. The founders' card comes first and is the same size as the bot cards. No org-chart lines, nobody drawn above anyone else.
 
@@ -69,9 +69,9 @@ Then: the idea board ("What we're going to do"), the live PR feed ("What we're d
 **The founders** *(humans)*
 - Shape what we build: ideas, surveys and playing the game.
 - Make the decisions, written down in one shared log.
-- Approve merges and deploys. **Today Fredrik holds the approval key; soon every founder will.**
+- Approve PRs on the board. **Every founder holds the approval key; Fredrik pushes the normal-lane production releases.**
 - Who we are (from `team.members[0].people`): "We're five founders: Fredrik, Thobias, Håkan, Jeanette and Max." All five are founders and equals; no one gets a title (Fredrik, 2026-10-10).
-- Badge: "The approval key: Fredrik today, every founder soon" (from `team.members[0].approval_key`)
+- Badge: "The approval key: every founder, on the board"
 
 **Case**, point of contact and architect *(bot)*
 - The crew's go-to bot. Turns ideas into plans and hands the work to Bobby.
@@ -82,7 +82,7 @@ Then: the idea board ("What we're going to do"), the live PR feed ("What we're d
 **Bobby**, Elixir developer and devops *(bot)*
 - Writes all the code, always as pull requests.
 - Runs the persona playtests and the evals *(an eval is a fixed test set we score the AI against, so we can tell if a change made it better or worse)*.
-- Deploys to Fly *(our hosting)* only with a founder's OK (today Fredrik's).
+- Deploys to Fly *(our hosting)* when Fredrik pushes the release, after a founder's OK on the board. Admin-only changes take the fast lane.
 - Checks the Fly logs every hour.
 - Badge: "Hourly log check"
 
@@ -106,12 +106,12 @@ Steps (from `change_flow.steps`):
 2. **Case** plans it and writes the brief.
 3. **Bobby** builds it as a pull request.
 4. **CI** runs. *(CI, continuous integration: robots that run every test and check on every PR. If anything fails, the PR can't merge.)*
-5. **A founder's OK to merge.** *Today that's Fredrik; soon any founder.*
+5. **A founder's OK to merge.** *Any founder approves the PR on the board card.*
 6. **Merge** into `main`, the shared version of the code.
 7. **Case's architecture review** of what just landed.
 8. **Deploy to playtest**, our separate copy of the game for testing.
 9. **Gentry + the persona playtest batch** check it: Gentry attacks it, and the five persona bots play it while Jev scores how each would have felt.
-10. **A founder's OK to ship.** *Today that's Fredrik; soon any founder.*
+10. **A founder's OK to ship.** *Normal lane only. Fredrik pushes the production release.*
 11. **Production**, where players are.
 
 Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy order (playtest first, then production) as decided on 9 Oct 2026.
@@ -119,7 +119,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 **Animation spec: "flow"**
 - **Type:** a horizontal step animation (vertical on phones). A small glowing token (a d20 die fits the game) travels through the 11 steps. Each step lights up with its owner's avatar; the two approval steps show the shared founders' avatar, not one person.
 - **Data:** `change_flow.steps[].label`, `.who` and `.approval`.
-- **Behaviour:** it plays once when scrolled into view, with a "replay" button, and respects `prefers-reduced-motion` (show the static diagram then). At each **"A founder's OK"** step the token pauses on a wax seal stamped with the founders' crest. A small caption under the seal reads: "Today: Fredrik · Soon: any founder."
+- **Behaviour:** it plays once when scrolled into view, with a "replay" button, and respects `prefers-reduced-motion` (show the static diagram then). At each **"A founder's OK"** step the token pauses on a wax seal stamped with the founders' crest. A small caption under the seal reads "Any founder, on the board." At the ship step it reads "Release: Fredrik pushes it."
 
 ---
 
@@ -133,7 +133,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 1. **Decisions are written down.** Every decision goes into one log, `docs/decisions.md` in `tales-forge-docs`, with the date, the decision, why, and a link to the details. Changing a decision means adding a new entry, never editing history.
    - Stat: **`decisions.total` decisions in five days** (5–9 Oct).
    - Plus a decision queue of `decisions.queue.total` bigger questions (`decisions.queue.open` still open), and a future-ideas list (`decisions.future_ideas.count` ideas so far: *speculative intent while typing*, *memory consolidation and attitude drift* and *a founder kanban on /team*).
-2. **Docs go straight to main; code goes through PRs.** Writing things down should be fast, so docs need no review step. Code always gets a PR, CI and a founder's OK (today Fredrik's, soon anyone's in the founders' team).
+2. **Docs go straight to main; code goes through PRs.** Writing things down should be fast, so docs need no review step. Code always gets a PR, CI and a founder's OK on the board card. Any founder approves PRs there, and Fredrik pushes the normal-lane production releases.
 3. **The call-type rule.** Each piece of work in a turn uses the cheapest tool that can do it:
 
    | What goes in | What comes out | We use | Why |
