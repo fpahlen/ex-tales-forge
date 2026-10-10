@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Writing in the comment field in cards
+
+- **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Only one person at a time can write a comment in a card. It must show the other users/founders that someone is writing a comment so we don't write at the same time and we lose information
+- **Why:** When a founder starts writing in a card's comment box, everyone else with that card open sees a line under the box like "Fredrik is typing…". It goes away a few seconds after they stop or when they post. We build it on the live presence we already use for the Founders/Bots online counter, so the only new part is a small 'typing' signal per card. No hard lock: the box stays open for everyone, so nobody gets blocked by a forgotten tab, and comments are saved one by one, so nothing gets overwritten. The same signal can later show on the per-question answer boxes too. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-9615a9bd-213b-4a25-bcca-434b962e58d5)
+
+<!-- board:idea:9615a9bd-213b-4a25-bcca-434b962e58d5 -->
+
 ## 2026-10-10: Team chat with mentions
 
 - **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Chat with anyone on the team, with mentions like @Case, @fpahlen and @founders.
