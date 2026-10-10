@@ -71,10 +71,20 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 - Prompts did not change. The GM golden test is the same. The identifier renames (`unsure_share`, `unsure_below`, `unsure_pct` and others) wait for a later normal-lane PR.
 - Lane: normal. "Deploy to production" ran for `6f1b383` (06:05 UTC) and then for main's tip `6ec8e31` (#125, 06:11 UTC). Both runs were started by the other workstream. Now playtest v111 and production v104 both run `6ec8e31`, which includes #122.
 
+## 2026-10-10: A PR waits for approval in Building
+
+- **Decision (Fredrik, via Case, 15:08):** a card with a normal-lane PR that waits for an OK stays in Building with a "PR waiting for approval" badge. Founders Approve or Request changes on the full card and on the thin card. Approve wakes Bobby (`pr.approved`) to merge and ship. Request changes wakes him with the comment. Founder check is only for the refined idea. A data migration moves the cards that are in Founder check because of a PR back to Building.
+- **Why:** a card that went back to Founder check for a PR looked like a new idea to decide on. The badge keeps the card where the work is.
+
+## 2026-10-10: Answer boxes save together with the move
+
+- **Decision (Fredrik, via Case, 15:00):** no answer button for each question. Each open question has a text box and a Defer toggle (Defer disables the box). The boxes save together when the card moves or closes, and on blur. The gate uses the boxes on the screen; the server checks it again.
+- **Why:** one button for each question was many clicks. Founders answer and then move the card.
+
 ## 2026-10-10: Founders ping each other with @mentions on the board
 
 - **Decision (Håkan, board card "Chatt/Comment ping others", moved to Building 14:54; Fredrik: no email):** a board comment that names a founder (`@fredrik`, `@thobias`, `@hakan`, `@jeanette`, `@max`) or `@founders` pings that founder. The ping shows under "Pings for you" on the /team board until the founder opens the card. Only the founders named get a ping, not everyone who commented (Håkan's answer). There is no email for now (Fredrik's answer).
-- **Design choices:** one parser for bot and founder mentions (`TalesForge.Board.Mentions`). A handle is the founder's first name from the team data, in lower case and without accents (`@håkan` also works). An email whose first part is not the first name gets its handle from config (`:board_founder_handles`). The author gets no ping for their own mention. Pings live in a new table, `board_pings`, so the PR takes the normal lane. The ping list is on the /team board, not in the shared header, so the header work for presence stays separate. The comment box suggests names as you type (arrow keys and Enter, or a click), and mentions show highlighted. This is separate from the larger "Team chat with mentions" card, which can reuse the parser.
+- **Design choices:** one parser for bot and founder mentions (`TalesForge.Board.Mentions`). A handle is the founder's first name from the team data, in lower case and without accents (`@håkan` also works). Founders sign in with GitHub, so the board finds the handle from the session's GitHub login (`:board_founder_handles`: fpahlen, jpa71, tsjokvist, Hawkan-Fredriksson, maxpahlen; case-insensitive; follow-up #143). The author gets no ping for their own mention. Pings live in a new table, `board_pings`, so the PR takes the normal lane. The ping list is on the /team board, not in the shared header, so the header work for presence stays separate. The comment box suggests names as you type (arrow keys and Enter, or a click), and mentions show highlighted. This is separate from the larger "Team chat with mentions" card, which can reuse the parser.
 - **Status:** [ex-tales-forge #142](https://github.com/whyse-ab/ex-tales-forge/pull/142), normal lane, waiting for a founder's Approve on the card.
 
 ## 2026-10-10: An answer box for each open question
