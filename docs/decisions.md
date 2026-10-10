@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Tags and a newest/oldest toggle in the Ideas lane
+
+- **Decision (Fredrik, 2026-10-10):** the Ideas lane sorts newest first or oldest first, with one icon toggle button. Top ranked and Most votes go out of the lane. Tags replace the Written by and Mentioning me filters: each card has an automatic founder tag (the author's display name), and founders add and remove free-text tags on the full card. A tag cloud above the lane filters the cards with AND logic. The URL holds the order and the selected tags (`?sort=`, `?tags=a,b`).
+- **Why:** one toggle and one tag cloud are easier to use, also on a phone, than a bar with three controls. Tags let the founders group ideas by topic and by founder with one control. The "Pings for you" box already lists the cards that mention you.
+- **Link:** [Board states: Tags in the Ideas lane](design-board-states.md#tags-in-the-ideas-lane), [PR #167](https://github.com/whyse-ab/ex-tales-forge/pull/167)
+
 ## 2026-10-10: Approve once
 
 - **Decision (fredrik@whyse.se, 2026-10-10):** a founder's Approve on a PR is kept when the PR gets new commits. Bobby links the PR again with the new head sha; the card history notes "New commit <sha> after approval; approval kept", and the `pr.approved` merge uses the newest linked head. The founders answer again only when the link sets `player_change: true`, which means the new commit changes what the PR does for players. A link before any answer adds no second approval request.
