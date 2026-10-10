@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Code heat map
+
+- **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Show the code tree by intensity: most calls, most total time, highest average time. Filter it and highlight hot spots.
+- **Why:** Plan: the BEAM can count calls and time per function with built-in call-time tracing (no new library). An admin page under Operate shows the code tree (app, module, function) as a heat map, colored by one chosen measure: number of calls, total time, or average time per call. You can filter by module name and by minimum value, and the hottest spots get a highlight. To keep prod safe, measuring runs only in short windows a founder starts (for example 60 seconds), only for our own modules, and stops by itself. Results are saved, so the page can show the last runs and a rolling 7-day view. Playtest gets it first. The tracing and the tree building live in one module; the page only renders. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-989f1dc5-a732-450d-a3ee-c12b112f02ed)
+
+<!-- board:idea:989f1dc5-a732-450d-a3ee-c12b112f02ed -->
+
 ## 2026-10-10: update presentation after shared workarea
 
 - **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. the new shared work area is now live and several founder are now contributing to the game - presentation needs to reflect this
