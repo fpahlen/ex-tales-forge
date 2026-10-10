@@ -11,6 +11,13 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Positive-framing cleanup merged (ex-tales-forge #122)
+
+- OK'd by Fredrik (08:01). ex-tales-forge PR [#122](https://github.com/whyse-ab/ex-tales-forge/pull/122) merged as `6f1b383` after main was merged in (vote fix #124). Test and Dialyzer passed.
+- The PR adds the language rule to `CONTRIBUTING.md` and `AGENTS.md`. Playtest pages show "4.21/5 · confident 70%" and "N low-confidence". The team pages show the confident share.
+- Prompts did not change. The GM golden test is the same. The identifier renames (`unsure_share`, `unsure_below`, `unsure_pct` and others) wait for a later normal-lane PR.
+- Lane: normal. "Deploy to production" ran for `6f1b383` (06:05 UTC) and then for main's tip `6ec8e31` (#125, 06:11 UTC). Both runs were started by the other workstream. Now playtest v111 and production v104 both run `6ec8e31`, which includes #122.
+
 ## 2026-10-10: Merge approvals move onto the idea board
 
 - **Decision (Fredrik, 2026-10-10, via Case):** a normal-lane PR waits for a founder's OK on its board card, not in chat. Bobby posts the PR to the card (`POST /internal/board/prs`: PR link, head sha, one line on what changes for players); the card goes to Founder check; a founder presses Approve or Request changes (with a comment). The board records who, when, which PR and its head sha, shows the approval log on the card and in its history, and wakes Bobby with `pr.approved` / `pr.changes_requested`. Fast-lane PRs need no OK.
