@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Who's online right now
+
+- **Decision (fredrik@whyse.se, 2026-10-10, on the idea board):** build it. Use Phoenix Presence to show which founders and bots are online and what each is doing right now.
+- **Why:** A small "Online now" strip on /team that shows who is here right now: founder avatars light up while their /team or /admin page is open, with a short note on what each person is looking at (for example "Idea board" or "Playtest runs"). We build it with Phoenix Presence on the PubSub we already run, in one module (TalesForgeWeb.Presence) that every founder LiveView joins through one on_mount hook, so the logic lives in one place. Bots (Case, Bobby, Gentry) do not keep a page open, so they show as online when they made a board API call or ran a job in the last few minutes, with that call as their "doing now". It is admin-only, no game-engine change, so it goes in the fast lane. Tests cover join, leave and the bot activity window; docs and doctests follow our standard. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-5c55bf37-8c6d-479b-a019-5466c66d0efd)
+
+<!-- board:idea:5c55bf37-8c6d-479b-a019-5466c66d0efd -->
+
 ## 2026-10-10: Founder pages are up to date; the five founders are equals
 
 - **Decision (Fredrik, board card "check that founder page is up to date", moved to Building 10:08):** Max is a founder like the others. "Apprentice" was an internal joke, so no founder has a title. This replaces the 2026-10-09 wording "our vibe-coding founder and RPG apprentice" and "never played a tabletop RPG".
