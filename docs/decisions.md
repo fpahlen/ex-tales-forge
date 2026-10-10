@@ -1020,3 +1020,11 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 ## Open questions
 
 None right now. (Prose-only GM vs structured reply format: decided on 2026-10-08, see [the prose-only GM prototype is dropped](#2026-10-08-the-prose-only-gm-prototype-is-dropped-the-gm-has-one-structured-reply-mode).)
+
+## 2026-10-10: Positive framing and ASD-STE100 language standard
+
+- Decided by: Fredrik
+- Speak about certainty, not doubt. In playtests, scores, UI and docs we say "confidence" or "certainty" (for example "confidence 0.8"), not "unsure", "uncertainty" or "unsureness".
+- Avoid minimized negatives, such as "not unlikely" or "fewer failures", and double negatives. State the positive quantity directly.
+- Code, code comments, moduledocs and docs use ASD-STE100 Simplified Technical English: short sentences, one instruction per sentence, active voice, and approved words with one meaning each.
+- Existing names (for example `uncertainty` fields) are renamed to the confidence form as we touch them, with a cleanup PR for the rest.
