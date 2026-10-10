@@ -11,6 +11,16 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-10: Free hands overnight to reorganise the admin area
+
+- **Decision (Fredrik, via Case, 2026-10-09 ~21:54, before bed):** the bots may reorganise the whole admin area of ex-tales-forge tonight, and merge and ship it (playtest and production) without waiting for his OK, because every change can be reverted.
+  - Scope: inventory every admin route and nav item on both apps, regroup them by purpose (Founders, Play and test, Operate, Develop, Docs), add an admin home with one card per section, and move old or unused pages to an Archive. A page is removed only when it is clearly dead.
+  - Every old URL keeps working (redirects, with tests), and the pages fit a 390 px phone.
+  - The one-place rule holds: surveys live on production, playtest runs on playtest, and the other app links across.
+  - Fast lane where possible: admin-list files in one PR. Router and shared CSS, JS and layout changes go in a separate normal-lane PR, followed by the manual "Deploy to production" once playtest is verified.
+- **Why:** the admin pages grew one at a time and are hard to find; Fredrik wants them organised by purpose.
+- **Status:** in progress (2026-10-10, overnight). The PRs, the before and after nav, and the redirects are added here when done.
+
 ## 2026-10-09: Hover cards on the call-type rule; replay buttons always visible (first fast-lane deploy)
 
 - **Decision (Fredrik, OK via Case, ~19:56 and ~20:01; admin-only, fast lane):** on `/team/presentation`, each of the three call types in "The call-type rule: one turn, three call types" gets a hover card (tap to open on phones):
