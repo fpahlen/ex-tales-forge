@@ -46,6 +46,12 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 - Prompts did not change. The GM golden test is the same. The identifier renames (`unsure_share`, `unsure_below`, `unsure_pct` and others) wait for a later normal-lane PR.
 - Lane: normal. "Deploy to production" ran for `6f1b383` (06:05 UTC) and then for main's tip `6ec8e31` (#125, 06:11 UTC). Both runs were started by the other workstream. Now playtest v111 and production v104 both run `6ec8e31`, which includes #122.
 
+## 2026-10-10: An answer box for each open question
+
+- **Decision (Fredrik, via Case, 14:37):** the full card shows each open question from Case's refinement with its own answer box and a Defer toggle, in every column. The board keeps each answer with who and when. A founder can change their own answer. Founder check → Building needs every question answered or deferred, and needs no comment. Each answer or deferral goes in the move log and wakes Case (`question.answered`) when the card is in Refining.
+- **Why:** one comment for all questions was hard to read and hard to check. One answer for each question makes the gate clear, and Case gets the answers while refining.
+- **Built (2026-10-10):** [ex-tales-forge #140](https://github.com/whyse-ab/ex-tales-forge/pull/140), normal lane (new table `board_answers`). Details: [design-board-states.md](design-board-states.md#open-questions).
+
 ## 2026-10-10: The board moves cards to Done automatically
 
 - **Decision (Fredrik, 2026-10-10, via Case):** after each production boot, the board moves a card from Building to Done as `bot:board` when the merge commit of its linked PR is in the running prod release. The move note names the release. When GitHub does not answer, the board tries again later. Bobby's manual move stays as the fallback.
