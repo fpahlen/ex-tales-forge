@@ -37,7 +37,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   use TalesForgeWeb, :live_component
 
   alias TalesForge.Board
-  alias TalesForge.Board.{Idea, Mentions, Tags, Transitions, Typing}
+  alias TalesForge.Board.{History, Idea, Mentions, Tags, Transitions, Typing}
   alias TalesForgeWeb.TeamImages
 
   @impl true
@@ -1710,16 +1710,38 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
         <section aria-label="History" class="text-xs text-[var(--paper-muted)]">
           <h5 class="font-semibold">History</h5>
-          <ol>
-            <li :for={t <- @idea.transitions}>
-              {if t.from, do: Transitions.label(t.from) <> " → ", else: "Added to "}{Transitions.label(
-                t.to
-              )} by {who(t.actor)}<span :if={t.note}>: {t.note}</span>
+          <ol id={"card-#{@idea.id}-history"}>
+            <li :for={e <- History.entries(@idea)} data-kind={e.kind}>
+              <span :if={e.kind != :decision}>{who(e.actor)} </span>{e.text}<.history_link
+                :if={e.link}
+                link={e.link}
+              /><span :if={e.tail}>{" " <> e.tail}</span>
+              · <time datetime={DateTime.to_iso8601(e.at)}>{History.time(e.at)}</time>
             </li>
           </ol>
         </section>
       </div>
     </article>
+    """
+  end
+
+  attr :link, :any, required: true
+
+  # The link of a History line (a PR, the decision commit); text only when
+  # there is no URL.
+  defp history_link(%{link: {_label, url}} = assigns) when is_binary(url) do
+    assigns = assign(assigns, label: elem(assigns.link, 0), url: url)
+
+    ~H"""
+    {" "}<a href={@url} target="_blank" rel="noopener" class="underline">{@label}</a>
+    """
+  end
+
+  defp history_link(assigns) do
+    assigns = assign(assigns, :label, elem(assigns.link, 0))
+
+    ~H"""
+    {" "}{@label}
     """
   end
 
@@ -1774,6 +1796,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   defp images(_idea), do: []
 
   defp who("bot:" <> bot), do: String.capitalize(bot)
+  defp who(actor) when actor in ["board", "import"], do: String.capitalize(actor)
   defp who(email) when is_binary(email), do: TalesForge.TeamOnline.name(email)
   defp who(_), do: "someone"
 

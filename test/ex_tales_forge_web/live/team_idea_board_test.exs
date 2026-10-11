@@ -153,7 +153,8 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
     view |> element("#card-#{idea.id}-q0-answer") |> render_blur()
     view |> element("#card-#{idea.id}-q0-answer") |> render_blur()
     assert [{_, %{answer: "At the mill."}}, {_, nil}] = Board.questions(Board.get_idea!(idea.id))
-    assert render(view) |> String.split("Answered: Where?") |> length() == 2
+    history = view |> element("#card-#{idea.id}-history") |> render()
+    assert history |> String.split(~s(data-kind="answered")) |> length() == 2
     assert has_element?(view, "#board-col-check #tile-#{idea.id}")
 
     # A drag that needs a comment opens the card with the reason.
@@ -723,8 +724,31 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
       assert has_element?(view, "#card-#{idea.id}-approvals", "Approved")
       assert has_element?(view, "#board-col-building #tile-#{idea.id}")
       refute has_element?(view, "#card-#{idea.id}-answer")
-      assert render(view) =~ "Approved PR #125 (abc1234): Good now"
+      assert has_element?(view, "#card-#{idea.id}-history li", "approved PR #125")
+      refute has_element?(view, "#card-#{idea.id}-history", "Good now")
     end
+  end
+
+  test "History: one line per event, display names, no comment or note text", %{conn: conn} do
+    {:ok, idea} = Board.create_idea("founder@example.com", %{"title" => "History card"})
+    {:ok, idea} = Board.vote(idea, "founder@example.com", 1)
+
+    {:ok, idea} =
+      Board.move(idea, {:founder, "founder@example.com"}, "refining", "Move note text")
+
+    {:ok, _} = Board.add_comment(idea, "founder@example.com", "Comment text stays out of History")
+    {:ok, view, _} = live(conn, "/team")
+    open(view, idea)
+
+    history = "#card-#{idea.id}-history"
+    assert has_element?(view, "#{history} li", "added this card to Ideas")
+    assert has_element?(view, "#{history} li", "moved Ideas → Refining")
+    assert has_element?(view, ~s(#{history} li[data-kind="comment"]), "commented")
+    assert has_element?(view, "#{history} time")
+    refute has_element?(view, history, "Comment text stays out of History")
+    refute has_element?(view, history, "Move note text")
+    refute has_element?(view, history, "founder@example.com")
+    assert render(view) =~ "Comment text stays out of History"
   end
 
   test "on playtest /team goes to the board on production", %{conn: conn} do
