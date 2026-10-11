@@ -1,0 +1,14 @@
+# Known dependency compile warnings, for CI's "Dependency warnings" job
+# (TalesForge.DepWarnings, .github/scripts/dep_warnings.exs).
+#
+# One entry per line: package | pattern | reason (a space on both sides of each
+# separating |, so a pattern can use | without spaces)
+#   package  the dependency that prints the warning (as in "(package x.y.z)")
+#   pattern  a regular expression, matched against the warning text and its location
+#   reason   why we accept it; the job summary shows it next to the warning
+# A warning that matches no entry is NEW: it is at the top of the summary, with a
+# warning annotation. The job does not fail. Remove an entry when its warning is gone.
+
+# Jido's Lua tool (Jido.Tools.LuaEval, lib/jido_tools/lua_eval.ex) calls the
+# optional `lua` package. We do not use the Lua tool and do not install `lua`.
+jido_action | \bLua\b.*(is undefined|undefined \(module) | Optional dependency `lua` of Jido.Tools.LuaEval: we do not use the Lua tool, so `lua` is not installed.

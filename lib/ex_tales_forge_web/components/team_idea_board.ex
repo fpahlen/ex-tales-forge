@@ -278,15 +278,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     case Integer.parse(to_string(vote)) do
       # A new -1 needs a reason: open the card with the reason box.
       {-1, ""} ->
-        case Board.get_idea(id) do
-          %Idea{} = idea ->
-            if Board.vote_of(idea, socket.assigns.founder) == -1,
-              do: with_idea(socket, id, &Board.vote(&1, socket.assigns.founder, -1)),
-              else: {:noreply, socket |> assign(open_id: id, downvote_for: id) |> load()}
-
-          nil ->
-            result(socket, id, {:error, "That card is gone."})
-        end
+        downvote(socket, id, Board.get_idea(id))
 
       {1, ""} ->
         with_idea(socket, id, &Board.vote(&1, socket.assigns.founder, 1))
@@ -391,7 +383,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   end
 
   def handle_event("refine", %{"card_id" => id} = params, socket) do
-    attrs = %{
+    fields = %{
       "details" => params["details"],
       "open_questions" =>
         params["open_questions"]
@@ -403,7 +395,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       "verdict" => params["verdict"]
     }
 
-    attrs = Map.reject(attrs, fn {_k, v} -> v in [nil, ""] end)
+    attrs = Map.reject(fields, fn {_k, v} -> v in [nil, ""] end)
 
     case with_idea(socket, id, &Board.refine(&1, attrs)) do
       {:noreply, %{assigns: %{errors: %{^id => _}}}} = answer -> answer
@@ -1824,4 +1816,13 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   defp blank("", default), do: default
   defp blank(s, _), do: s
+
+  # A -1 vote. An existing -1 is a toggle; a new -1 opens the card with the reason box.
+  defp downvote(socket, id, %Idea{} = idea) do
+    if Board.vote_of(idea, socket.assigns.founder) == -1,
+      do: with_idea(socket, id, &Board.vote(&1, socket.assigns.founder, -1)),
+      else: {:noreply, socket |> assign(open_id: id, downvote_for: id) |> load()}
+  end
+
+  defp downvote(socket, id, nil), do: result(socket, id, {:error, "That card is gone."})
 end

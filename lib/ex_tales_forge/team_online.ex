@@ -16,8 +16,8 @@ defmodule TalesForge.TeamOnline do
   import Ecto.Query
 
   alias TalesForge.AppRole
-  alias TalesForge.Board.Mentions
   alias TalesForge.Board.{Comment, Link, Transition}
+  alias TalesForge.Board.Mentions
   alias TalesForge.Online
   alias TalesForge.PrFeed
   alias TalesForge.Repo
@@ -174,12 +174,14 @@ defmodule TalesForge.TeamOnline do
       select: {field(r, ^field), max(r.inserted_at)}
     )
     |> Repo.all()
-    |> Enum.flat_map(fn {"bot:" <> bot, at} ->
-      case Enum.find(@bots, fn {id, _} -> Atom.to_string(id) == bot end) do
-        {id, _} -> [{id, to_utc(at), doing}]
-        nil -> []
-      end
-    end)
+    |> Enum.flat_map(&bot_activity(&1, doing))
+  end
+
+  defp bot_activity({"bot:" <> bot, at}, doing) do
+    case Enum.find(@bots, fn {id, _} -> Atom.to_string(id) == bot end) do
+      {id, _} -> [{id, to_utc(at), doing}]
+      nil -> []
+    end
   end
 
   defp to_utc(%DateTime{} = at), do: at

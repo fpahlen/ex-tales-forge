@@ -185,9 +185,13 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   def render(assigns) do
     # Rendered without a mount (tests call render/1 with just `d`): the
     # numbers of `d` itself, as the fallback.
-    assigns = Map.put_new_lazy(assigns, :pace, fn -> TeamPace.from_data(assigns.d) end)
-    assigns = Map.put_new_lazy(assigns, :live, fn -> TeamLiveNumbers.fallback(assigns.d) end)
-    assigns = Map.put_new(assigns, :board_live, nil)
+    d = assigns.d
+
+    assigns =
+      assigns
+      |> Map.put_new_lazy(:pace, fn -> TeamPace.from_data(d) end)
+      |> Map.put_new_lazy(:live, fn -> TeamLiveNumbers.fallback(d) end)
+      |> Map.put_new(:board_live, nil)
 
     ~H"""
     <div

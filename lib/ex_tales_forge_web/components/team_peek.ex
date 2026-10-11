@@ -87,7 +87,7 @@ defmodule TalesForgeWeb.TeamPeek do
   """
   @spec highlight(String.t()) :: [{atom() | nil, String.t()}]
   def highlight(code) when is_binary(code) do
-    {tokens, rest_at} =
+    {reversed, rest_at} =
       @token
       |> Regex.scan(code, return: :index)
       |> Enum.reduce({[], 0}, fn [{at, len} | groups], {acc, pos} ->
@@ -96,8 +96,7 @@ defmodule TalesForgeWeb.TeamPeek do
       end)
 
     tail = binary_part(code, rest_at, byte_size(code) - rest_at)
-    tokens = if tail == "", do: tokens, else: [{nil, tail} | tokens]
-    Enum.reverse(tokens)
+    if tail == "", do: Enum.reverse(reversed), else: Enum.reverse([{nil, tail} | reversed])
   end
 
   defp kind(groups) do
@@ -382,8 +381,11 @@ defmodule TalesForgeWeb.TeamPeek do
   end
 
   defp walkthrough_detail(d, lane) do
-    steps = get(d, ["call_types", "walkthrough", "steps"])
-    steps = if is_list(steps), do: steps, else: []
+    steps =
+      case get(d, ["call_types", "walkthrough", "steps"]) do
+        list when is_list(list) -> list
+        _other -> []
+      end
 
     case Enum.find(steps, &(is_map(&1) and &1["lane"] == lane)) do
       %{"detail" => %{} = detail} -> detail

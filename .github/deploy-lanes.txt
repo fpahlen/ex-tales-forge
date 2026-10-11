@@ -6,7 +6,6 @@
 #     (.github/scripts/deploy_lane.exs),
 #   - `mix deploy.check_boundaries` (CI Test job) fails when game or shared code
 #     depends on an [admin] file,
-#   - .credo.exs leaves [admin] files out of Credo (lighter gates).
 #
 # Lanes:
 #   admin   Every file changed since the commit production runs is on [admin]:

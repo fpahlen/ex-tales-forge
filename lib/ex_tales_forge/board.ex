@@ -295,8 +295,8 @@ defmodule TalesForge.Board do
   def add_comment(%Idea{} = idea, author, body, opts \\ []) do
     author = normalize(author)
     changeset = Comment.changeset(%Comment{}, %{idea_id: idea.id, author: author, body: body})
-    %{bots: bots, founders: founders} = Mentions.parse(body)
-    founders = founders -- [Mentions.handle_for(opts[:login])]
+    %{bots: bots, founders: mentioned} = Mentions.parse(body)
+    founders = mentioned -- [Mentions.handle_for(opts[:login])]
 
     Multi.new()
     |> Multi.insert(:comment, changeset)
@@ -456,16 +456,18 @@ defmodule TalesForge.Board do
       nil ->
         images
         |> Enum.with_index()
-        |> Enum.reduce(Multi.new(), fn {data, n}, multi ->
-          Multi.run(multi, {:image, n}, fn _repo, _changes ->
-            TalesForge.Images.store({:idea, idea.id}, data, %{uploader: uploader, note: note})
-          end)
-        end)
+        |> Enum.reduce(Multi.new(), &store_image_step(&1, &2, idea.id, uploader, note))
         |> run(idea.id)
 
       message ->
         {:error, message}
     end
+  end
+
+  defp store_image_step({data, n}, multi, idea_id, uploader, note) do
+    Multi.run(multi, {:image, n}, fn _repo, _changes ->
+      TalesForge.Images.store({:idea, idea_id}, data, %{uploader: uploader, note: note})
+    end)
   end
 
   defp image_error(data) do
@@ -623,17 +625,20 @@ defmodule TalesForge.Board do
         ]
         |> Enum.filter(& &1)
 
-      Enum.reduce_while(steps, {:ok, acc}, fn attrs, {:ok, i} ->
-        case answer_question(i, founder, q, attrs) do
-          {:ok, i} -> {:cont, {:ok, i}}
-          error -> {:halt, error}
-        end
-      end)
+      steps
+      |> Enum.reduce_while({:ok, acc}, &answer_step(&1, &2, founder, q))
       |> case do
         {:ok, i} -> {:cont, {:ok, i}}
         error -> {:halt, error}
       end
     end)
+  end
+
+  defp answer_step(attrs, {:ok, idea}, founder, question) do
+    case answer_question(idea, founder, question, attrs) do
+      {:ok, updated} -> {:cont, {:ok, updated}}
+      error -> {:halt, error}
+    end
   end
 
   defp answer_change(current, founder, %{"deferred" => d}, now, question) do
@@ -721,12 +726,12 @@ defmodule TalesForge.Board do
   def move(%Idea{} = idea, actor, to, note \\ nil) do
     idea = get_idea!(idea.id)
 
-    facts = facts(idea, note)
+    base_facts = facts(idea, note)
 
     facts =
-      if idea.column == "building" and to == "done" and facts.pr_linked,
-        do: Map.put(facts, :pr_on_prod, TalesForge.Board.OnProd.check(pr_number_of(idea))),
-        else: facts
+      if idea.column == "building" and to == "done" and base_facts.pr_linked,
+        do: Map.put(base_facts, :pr_on_prod, TalesForge.Board.OnProd.check(pr_number_of(idea))),
+        else: base_facts
 
     with :ok <- Transitions.allowed?(facts, idea.column, to, actor) do
       Multi.new()

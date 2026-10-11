@@ -1,0 +1,295 @@
+==> earmark_parser
+Compiling 3 files (.erl)
+Compiling 32 files (.ex)
+Generated earmark_parser app
+==> file_system
+Compiling 7 files (.ex)
+Generated file_system app
+==> json_spec
+Compiling 2 files (.ex)
+Generated json_spec app
+==> ex_tales_forge
+===> Analyzing applications...
+===> Compiling poolboy
+==> decimal
+Compiling 4 files (.ex)
+Generated decimal app
+==> mime
+Compiling 1 file (.ex)
+Generated mime app
+==> ex_tales_forge
+===> Analyzing applications...
+===> Compiling idna
+==> nimble_options
+Compiling 3 files (.ex)
+Generated nimble_options app
+==> fine
+Compiling 1 file (.ex)
+Generated fine app
+==> nimble_parsec
+Compiling 4 files (.ex)
+Generated nimble_parsec app
+==> bunt
+Compiling 2 files (.ex)
+Generated bunt app
+==> multigraph
+Compiling 16 files (.ex)
+Generated multigraph app
+==> ex_tales_forge
+===> Analyzing applications...
+===> Compiling telemetry
+==> telemetry_metrics
+Compiling 7 files (.ex)
+Generated telemetry_metrics app
+==> ex_tales_forge
+===> Analyzing applications...
+===> Compiling telemetry_poller
+==> thousand_island
+Compiling 18 files (.ex)
+Generated thousand_island app
+==> jason
+Compiling 10 files (.ex)
+Generated jason app
+==> esbuild
+Compiling 4 files (.ex)
+Generated esbuild app
+==> phoenix_html
+Compiling 6 files (.ex)
+Generated phoenix_html app
+==> zoi
+Compiling 84 files (.ex)
+Generated zoi app
+==> phoenix_template
+Compiling 4 files (.ex)
+Generated phoenix_template app
+==> db_connection
+Compiling 18 files (.ex)
+Generated db_connection app
+==> expo
+Compiling 2 files (.erl)
+Compiling 22 files (.ex)
+Generated expo app
+==> phoenix_pubsub
+Compiling 12 files (.ex)
+Generated phoenix_pubsub app
+==> plug_crypto
+Compiling 5 files (.ex)
+Generated plug_crypto app
+==> rustler_precompiled
+Compiling 4 files (.ex)
+Generated rustler_precompiled app
+==> mdex_native
+Compiling 9 files (.ex)
+
+
+Generated mdex_native app
+==> hpax
+Compiling 4 files (.ex)
+Generated hpax app
+==> mint
+Compiling 1 file (.erl)
+Compiling 21 files (.ex)
+Generated mint app
+==> time_zone_info
+Compiling 31 files (.ex)
+Generated time_zone_info app
+==> ex_tales_forge
+===> Analyzing applications...
+===> Compiling yamerl
+==> yaml_elixir
+Compiling 6 files (.ex)
+Generated yaml_elixir app
+==> mix_audit
+Compiling 16 files (.ex)
+Generated mix_audit app
+==> dns_cluster
+Compiling 1 file (.ex)
+Generated dns_cluster app
+==> gettext
+Compiling 18 files (.ex)
+Generated gettext app
+==> ex_tales_forge
+===> Analyzing applications...
+===> Compiling fuse
+==> splode
+Compiling 5 files (.ex)
+Generated splode app
+==> jido_signal
+Compiling 66 files (.ex)
+
+
+
+
+     warning: :public_key.cacerts_get/0 is undefined (module :public_key is not available or is yet to be defined)
+     │
+ 442 │       cacerts: :public_key.cacerts_get(),
+     │                            ~
+     │
+     └─ (jido_signal 2.2.2) lib/jido_signal/dispatch/http.ex:442:28: Jido.Signal.Dispatch.Http.default_ssl_options/0
+
+     warning: :public_key.pkix_verify_hostname_match_fun/1 is undefined (module :public_key is not available or is yet to be defined)
+     │
+ 444 │         match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+     │                                ~
+     │
+     └─ (jido_signal 2.2.2) lib/jido_signal/dispatch/http.ex:444:32: Jido.Signal.Dispatch.Http.default_ssl_options/0
+
+Generated jido_signal app
+==> credo
+Compiling 257 files (.ex)
+Generated credo app
+==> ecto
+Compiling 56 files (.ex)
+Generated ecto app
+==> crontab
+Compiling 7 files (.ex)
+Generated crontab app
+==> plug
+Compiling 1 file (.erl)
+Compiling 42 files (.ex)
+Generated plug app
+==> postgrex
+Compiling 70 files (.ex)
+Generated postgrex app
+==> dotenvy
+Compiling 3 files (.ex)
+Generated dotenvy app
+==> makeup
+Compiling 15 files (.ex)
+Generated makeup app
+==> makeup_elixir
+Compiling 6 files (.ex)
+Generated makeup_elixir app
+==> makeup_erlang
+Compiling 4 files (.ex)
+Compiling lib/makeup/lexers/erlang_lexer.ex (it's taking more than 10s)
+Generated makeup_erlang app
+==> ex_doc
+Compiling 30 files (.ex)
+Generated ex_doc app
+==> erlex
+Compiling 2 files (.erl)
+Compiling 2 files (.ex)
+Generated erlex app
+==> dialyxir
+Compiling 70 files (.ex)
+Generated dialyxir app
+==> ecto_sql
+Compiling 25 files (.ex)
+Generated ecto_sql app
+==> oban
+Compiling 66 files (.ex)
+     warning: this clause of defp expected_error?/1 is never used
+     │
+ 253 │   defp expected_error?(%_{mysql: %{code: code}}) when code in [1205, 1213], do: true
+     │        ~
+     │
+     └─ (oban 2.23.0) lib/oban/repo.ex:253:8: Oban.Repo.expected_error?/1
+
+Generated oban app
+==> nimble_pool
+Compiling 2 files (.ex)
+Generated nimble_pool app
+==> finch
+Compiling 23 files (.ex)
+Generated finch app
+==> req
+Compiling 24 files (.ex)
+Generated req app
+==> jido_action
+Compiling 40 files (.ex)
+     warning: Lua.new/1 is undefined (module Lua is not available or is yet to be defined). Make sure the module name is correct and has been specified in full (or that an alias has been defined)
+     │
+ 266 │           |> Lua.new()
+     │                  ~
+     │
+     └─ (jido_action 2.3.2) lib/jido_tools/lua_eval.ex:266:18: Jido.Tools.LuaEval.do_run/1
+     └─ (jido_action 2.3.2) lib/jido_tools/lua_eval.ex:334:16: Jido.Tools.LuaEval.lua_accepts_max_call_depth_option?/0
+
+     warning: Lua.eval!/2 is undefined (module Lua is not available or is yet to be defined). Make sure the module name is correct and has been specified in full (or that an alias has been defined)
+     │
+ 269 │         {values, _state} = Lua.eval!(lua, code)
+     │                                ~
+     │
+     └─ (jido_action 2.3.2) lib/jido_tools/lua_eval.ex:269:32: Jido.Tools.LuaEval.do_run/1
+
+     warning: struct Lua.CompilerException is undefined (module Lua.CompilerException is not available or is yet to be defined)
+     │
+ 279 │         e in Lua.CompilerException ->
+     │           ~
+     │
+     └─ (jido_action 2.3.2) lib/jido_tools/lua_eval.ex:279:11: Jido.Tools.LuaEval.do_run/1
+
+     warning: struct Lua.RuntimeException is undefined (module Lua.RuntimeException is not available or is yet to be defined)
+     │
+ 282 │         e in Lua.RuntimeException ->
+     │           ~
+     │
+     └─ (jido_action 2.3.2) lib/jido_tools/lua_eval.ex:282:11: Jido.Tools.LuaEval.do_run/1
+
+     warning: Lua.encode!/2 is undefined (module Lua is not available or is yet to be defined). Make sure the module name is correct and has been specified in full (or that an alias has been defined)
+     │
+ 348 │       {encoded, acc2} = Lua.encode!(acc, value)
+     │                             ~
+     │
+     └─ (jido_action 2.3.2) lib/jido_tools/lua_eval.ex:348:29: Jido.Tools.LuaEval.inject_globals/2
+
+     warning: Lua.set!/3 is undefined (module Lua is not available or is yet to be defined). Make sure the module name is correct and has been specified in full (or that an alias has been defined)
+     │
+ 350 │       Lua.set!(acc2, path, encoded)
+     │           ~
+     │
+     └─ (jido_action 2.3.2) lib/jido_tools/lua_eval.ex:350:11: Jido.Tools.LuaEval.inject_globals/2
+
+Generated jido_action app
+==> jido
+Compiling 126 files (.ex)
+Generated jido app
+==> assent
+Compiling 38 files (.ex)
+Generated assent app
+==> json_codec
+Compiling 4 files (.ex)
+Generated json_codec app
+==> jev
+Compiling 12 files (.ex)
+Generated jev app
+==> tailwind
+Compiling 3 files (.ex)
+Generated tailwind app
+==> elixir_make
+Compiling 8 files (.ex)
+Generated elixir_make app
+==> cc_precompiler
+Compiling 3 files (.ex)
+Generated cc_precompiler app
+==> lazy_html
+Compiling 3 files (.ex)
+Generated lazy_html app
+==> websock
+Compiling 1 file (.ex)
+Generated websock app
+==> bandit
+Compiling 54 files (.ex)
+Generated bandit app
+==> swoosh
+Compiling 62 files (.ex)
+Generated swoosh app
+==> websock_adapter
+Compiling 4 files (.ex)
+Generated websock_adapter app
+==> phoenix
+Compiling 74 files (.ex)
+Generated phoenix app
+==> phoenix_live_view
+Compiling 55 files (.ex)
+Generated phoenix_live_view app
+==> phoenix_live_dashboard
+Compiling 36 files (.ex)
+Generated phoenix_live_dashboard app
+==> mdex
+Compiling 11 files (.ex)
+Generated mdex app
+==> phoenix_ecto
+Compiling 7 files (.ex)
+Generated phoenix_ecto app
