@@ -209,6 +209,22 @@ defmodule TalesForge.DeployLanes.SecurityTest do
       refute SecurityCLI.since_production(lanes, "head", nil, git([], trees)).ok
     end
 
+    test "extract_json/1 takes the deps.audit report out of mixed output (run 38154907517)" do
+      out = fixture("deps_audit_mixed.out")
+      assert {:ok, json} = SecurityCLI.extract_json(out)
+      assert %{"pass" => false, "vulnerabilities" => [vuln]} = SecurityCLI.decode_pr(json)
+      assert vuln["advisory"]["id"] == "GHSA-5chx-gg25-v37m"
+    end
+
+    test "extract_json/1: clean JSON as is; compile output alone or a cut-off report is :error" do
+      assert SecurityCLI.extract_json(~s({"pass":true,"vulnerabilities":[]})) ==
+               {:ok, ~s({"pass":true,"vulnerabilities":[]})}
+
+      assert SecurityCLI.extract_json("==> jido_tools\nwarning: {x}\n") == :error
+      assert SecurityCLI.extract_json(~s({"pass":true,"vulnerabilities":[)) == :error
+      assert SecurityCLI.extract_json(~s({"pass":true})) == :error
+    end
+
     test "decode_pr/1 reads gh's JSON (escapes, unicode, nesting)" do
       json =
         ~s({"body":"a\\nb \\u00e5 \\ud83d\\ude00","labels":[{"name":"security"}],"n":12,"x":null,"t":true})

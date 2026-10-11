@@ -17,6 +17,10 @@ defmodule TalesForge.DeployLanes.SecurityCLI do
       # lock changed and every package keeps its major version.
       elixir .github/scripts/security_lane.exs bump <old mix.lock> <new mix.lock>
 
+      # The JSON report out of `mix deps.audit --format json` output that may
+      # also hold compile output (exit 3 when there is none):
+      elixir .github/scripts/security_lane.exs extract-json audit.out
+
   `pr.json` is `gh pr view --json title,body,labels` (labels as `[{"name": …}]`).
   JSON is read with a small parser here, so no deps are needed.
 
@@ -76,6 +80,17 @@ defmodule TalesForge.DeployLanes.SecurityCLI do
     IO.puts(if changes == [], do: "no change", else: Security.describe_changes(changes))
 
     if changes != [] and Enum.all?(changes, & &1.same_major), do: :ok, else: System.halt(1)
+  end
+
+  def main(["extract-json", path]) do
+    case extract_json(File.read!(path)) do
+      {:ok, json} ->
+        IO.write(json)
+
+      :error ->
+        IO.puts(:stderr, "no JSON object with \"vulnerabilities\" found in #{path}")
+        System.halt(3)
+    end
   end
 
   def main(_argv) do
@@ -272,6 +287,43 @@ defmodule TalesForge.DeployLanes.SecurityCLI do
       _ ->
         raise ArgumentError, "expected a JSON object"
     end
+  end
+
+  @doc """
+  The `mix deps.audit --format json` report out of `output`: the last JSON
+  object with a `"vulnerabilities"` key, as the original text. Other text
+  around it (compile warnings) is skipped. `:error` when there is none.
+
+      iex> TalesForge.DeployLanes.SecurityCLI.extract_json(~s(warning: x {y} {"pass":true,"vulnerabilities":[]}))
+      {:ok, ~s({"pass":true,"vulnerabilities":[]})}
+      iex> TalesForge.DeployLanes.SecurityCLI.extract_json("warning: no report")
+      :error
+  """
+  @spec extract_json(String.t()) :: {:ok, String.t()} | :error
+  def extract_json(output) do
+    ~r/\{/
+    |> Regex.scan(output, return: :index)
+    |> Enum.map(fn [{start, _}] -> report_at(output, start) end)
+    |> Enum.reject(&is_nil/1)
+    |> List.last()
+    |> case do
+      nil -> :error
+      json -> {:ok, json}
+    end
+  end
+
+  defp report_at(output, start) do
+    text = binary_part(output, start, byte_size(output) - start)
+
+    case value(text) do
+      {%{"vulnerabilities" => list}, rest} when is_list(list) ->
+        binary_part(text, 0, byte_size(text) - byte_size(rest))
+
+      _ ->
+        nil
+    end
+  rescue
+    _ -> nil
   end
 
   defp skip(<<c, rest::binary>>) when c in ~c" \t\r\n", do: skip(rest)

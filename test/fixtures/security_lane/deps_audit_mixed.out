@@ -1,0 +1,15 @@
+==> jido_tools
+Compiling 42 files (.ex)
+     warning: struct Lua.RuntimeException is undefined (module Lua.RuntimeException is not available or is yet to be defined)
+     │
+ 282 │         e in Lua.RuntimeException ->
+     │           ~
+     │
+     └─ lib/jido_tools/lua_eval.ex:282:11: Jido.Tools.LuaEval.do_run/1
+
+     warning: Lua.set!/3 is undefined (module Lua is not available or is yet to be defined)
+     │
+ 350 │       Lua.set!(acc2, path, encoded) # {not: json}
+     │
+Generated jido_tools app
+{"pass":false,"vulnerabilities":[{"advisory":{"id":"GHSA-5chx-gg25-v37m","package":"xain","severity":"moderate","first_patched_versions":["0.6.2"],"title":"Cross-site Scripting in xain"},"dependency":{"package":"xain","version":"0.6.1","lockfile":"mix.lock"}}]}
