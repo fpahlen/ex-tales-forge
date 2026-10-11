@@ -1211,3 +1211,10 @@ None right now. (Prose-only GM vs structured reply format: decided on 2026-10-08
 - Avoid minimized negatives, such as "not unlikely" or "fewer failures", and double negatives. State the positive quantity directly.
 - Code, code comments, moduledocs and docs use ASD-STE100 Simplified Technical English: short sentences, one instruction per sentence, active voice, and approved words with one meaning each.
 - Existing names (for example `uncertainty` fields) are renamed to the confidence form as we touch them, with a cleanup PR for the rest.
+
+## 2026-10-11: Security-bump lane
+
+- Decided by: Fredrik
+- A dependency bump that fixes a published advisory ships without a founder OK when all of these are true: only `mix.lock` (or version pins in `mix.exs`) changes, the version stays in the same major, and CI is green. The order is playtest, then a Gentry smoke check, then prod. Founders get a short note after it ships.
+- A founder OK is still needed for a major version bump, for any code change needed by the fix, and for a fix that changes player-facing behaviour.
+- High and critical advisories are fixed immediately, also outside working hours, under the same rules.
