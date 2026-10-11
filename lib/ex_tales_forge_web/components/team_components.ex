@@ -318,7 +318,7 @@ defmodule TalesForgeWeb.TeamComponents do
 
   @doc """
   Small multiples of persona scores: one panel per persona (`%{id, name,
-  style}`), one bar per series (`%{"label", "weighted", "unsure_pct",
+  style}`), one bar per series (`%{"label", "weighted", "low_confidence_pct",
   "completed_runs"}`) on a 1-5 scale, and a light band of +-`noise` around
   the first series. Ronny (the anti-persona) is drawn dashed.
   """
@@ -423,7 +423,7 @@ defmodule TalesForgeWeb.TeamComponents do
   end
 
   defp series_tip(series, id) do
-    "#{series["label"]}: #{score(get_in(series, ["weighted", id]))} · confident #{TeamPage.pct(confident_pct(get_in(series, ["unsure_pct", id])))} · #{number(series["completed_runs"])} runs"
+    "#{series["label"]}: #{score(get_in(series, ["weighted", id]))} · confident #{TeamPage.pct(confident_pct(get_in(series, ["low_confidence_pct", id])))} · #{number(series["completed_runs"])} runs"
   end
 
   # Height in percent of a 1-5 score on a 1-5 axis.
@@ -479,7 +479,7 @@ defmodule TalesForgeWeb.TeamComponents do
 
   defp missing?(value), do: value == TeamPage.not_measured()
 
-  # The data keeps the low-confidence share ("unsure_pct"); the page shows the
+  # The data keeps the low-confidence share ("low_confidence_pct"); the page shows the
   # confident share (positive framing, decisions.md 2026-10-10).
   defp confident_pct(pct) when is_number(pct), do: 100 - pct
   defp confident_pct(_missing), do: nil
