@@ -111,6 +111,17 @@ Same names as production, with **separate values** (never copied from prod), exc
 
 GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.
 
+## GitHub Actions secrets for the security lane
+
+The security lane ([environments.md](environments.md#security-lane-advisory-fixes-ship-without-a-founder-ok), [decision 2026-10-11](decisions.md#2026-10-11-security-bump-lane), ex-tales-forge [#171](https://github.com/whyse-ab/ex-tales-forge/pull/171)) uses these GitHub Actions secrets in ex-tales-forge (repo Settings → Secrets and variables → Actions). They are not Fly secrets. None is set yet.
+
+| Name | What it is | Without it |
+|---|---|---|
+| `SECURITY_BOT_APP_ID`, `SECURITY_BOT_APP_PRIVATE_KEY` | The bot that pushes the audit's branch, opens the `security:` PR and merges it. A GitHub App installed on `whyse-ab/ex-tales-forge` only, with *Contents: write*, *Pull requests: write* and *Issues: write* (for the label). Add the App as a bypass actor in the `main` ruleset, so it can merge without a review. A PR or merge made with the default `GITHUB_TOKEN` does not start CI, so the bot must be an App (or a PAT) | Set `SECURITY_BOT_TOKEN` instead. With neither, the audit only reports, and a qualifying PR waits for a founder's Approve |
+| `SECURITY_BOT_TOKEN` | Optional fallback for the App: a fine-grained PAT, resource owner `whyse-ab`, repository access only `whyse-ab/ex-tales-forge`, *Contents: write*, *Pull requests: write*, *Issues: write* | See above |
+| `SECURITY_LANE_WEBHOOK_URL` | Optional: Bobby's webhook. After a security-lane production deploy, it gets a JSON note (`security_lane.deployed`: sha, PR, advisory ids, run link) | No note; the run summary says so |
+| `SECURITY_LANE_WEBHOOK_KEY` | Optional: the key sent as `Authorization: Bearer <key>` and used for `X-Security-Lane-Signature: sha256=<HMAC-SHA256 of "<timestamp>.<body>">`, the same scheme as the board webhooks | The note goes out unsigned |
+
 ## Good habits
 
 - Use a separate key per environment (local `.env` vs Fly) and per provider account, so one can be revoked without breaking the other.
