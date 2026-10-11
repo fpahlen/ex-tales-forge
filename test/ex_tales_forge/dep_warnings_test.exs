@@ -22,21 +22,14 @@ defmodule TalesForge.DepWarningsTest do
     assert Enum.all?(warnings, &is_binary(&1.location))
   end
 
-  test "the repo's known list marks the jido_action Lua warnings as known, the rest as new" do
+  test "the repo's known list marks the Lua and oban warnings as known; the local-only :public_key ones are new" do
     report =
       "deps_compile.log" |> fixture() |> DepWarnings.parse_log() |> DepWarnings.classify(@known)
 
-    assert length(report.known) == 6
+    assert report.known |> Enum.map(fn {w, _} -> w.package end) |> Enum.frequencies() ==
+             %{"jido_action" => 6, "oban" => 1}
 
-    assert Enum.all?(report.known, fn {w, _} ->
-             w.package == "jido_action" and w.message =~ "Lua"
-           end)
-
-    assert report.new |> Enum.map(& &1.package) |> Enum.sort() == [
-             "jido_signal",
-             "jido_signal",
-             "oban"
-           ]
+    assert Enum.map(report.new, & &1.package) == ["jido_signal", "jido_signal"]
   end
 
   test "parse_log/1: Erlang warnings and a location without a package use the ==> header" do
@@ -70,8 +63,9 @@ defmodule TalesForge.DepWarningsTest do
 
     text = DepWarnings.summary(report)
 
-    assert text =~ ~r/\A### Dependency warnings: 3 NEW/
-    assert text =~ "<details><summary>6 known warning(s), with reasons</summary>"
+    assert text =~ ~r/\A### Dependency warnings: 2 NEW/
+    assert text =~ "<details><summary>7 known warning(s), with reasons</summary>"
+    assert text =~ "Reason: MySQL-only clause in Oban"
     assert text =~ "Reason: Optional dependency"
 
     {new_at, _} = :binary.match(text, "jido_signal")

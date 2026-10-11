@@ -12,3 +12,6 @@
 # Jido's Lua tool (Jido.Tools.LuaEval, lib/jido_tools/lua_eval.ex) calls the
 # optional `lua` package. We do not use the Lua tool and do not install `lua`.
 jido_action | \bLua\b.*(is undefined|undefined \(module) | Optional dependency `lua` of Jido.Tools.LuaEval: we do not use the Lua tool, so `lua` is not installed.
+
+# Oban.Repo.expected_error?/1 has a clause for MySQL errors (lib/oban/repo.ex).
+oban | expected_error\?/1 is never used | MySQL-only clause in Oban; we use Postgres; upstream code, no effect on us
