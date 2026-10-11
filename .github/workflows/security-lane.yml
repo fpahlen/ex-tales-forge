@@ -1,0 +1,181 @@
+# The security lane's merge step (tales-forge-docs docs/decisions.md,
+# 2026-10-11 "Security-bump lane"; .github/deploy-lanes.txt).
+#
+# Runs after every CI run of a pull request. When the PR qualifies
+# (TalesForge.DeployLanes.Security, .github/scripts/security_lane.exs):
+#   1. it changes only mix.lock, and optionally version pins in mix.exs deps,
+#   2. every changed package keeps its major version (old and new mix.lock),
+#   3. it has the label `security` or the title prefix `security:`, and an
+#      advisory id (CVE-…, GHSA-…, EEF-CVE-…) in the title or body,
+#   4. CI is green (Test and Dialyzer on the head sha),
+# this workflow squash-merges it for exactly that head sha
+# (`gh pr merge --squash --match-head-commit`). The push to main then runs CI
+# and playtest.yml, which checks the same rules again on the merge, deploys
+# playtest, runs the smoke check, deploys production for that sha and
+# notifies Bobby.
+#
+# When a rule fails, the PR takes the normal lane (a founder's Approve). The
+# run summary lists every rule with PASS or FAIL. PRs that do not change
+# mix.lock end after one short step.
+#
+# Merging as the bot: a merge made with GITHUB_TOKEN does not trigger the CI
+# run on main that starts the deploy. So the merge uses the same bot as
+# security-audit.yml: SECURITY_BOT_APP_ID + SECURITY_BOT_APP_PRIVATE_KEY (a
+# GitHub App, preferred) or SECURITY_BOT_TOKEN (a fine-grained PAT). The bot
+# must be allowed to merge into main without a review (a bypass for the App in
+# the main branch ruleset), because this lane has no founder OK.
+#
+# By hand (re-check one PR): gh workflow run security-lane.yml -f pr=<number>
+name: Security lane
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "Pull request number to check"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+env:
+  ELIXIR_VERSION: "1.18.4"
+  OTP_VERSION: "27.3.4.16"
+
+jobs:
+  classify:
+    name: Security lane check
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      lane: ${{ steps.lane.outputs.lane || 'normal' }}
+      pr: ${{ steps.pr.outputs.number }}
+      head: ${{ steps.pr.outputs.head }}
+    steps:
+      - name: The pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_PR: ${{ inputs.pr }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_PR:-}" ]; then
+            number="$INPUT_PR"
+          else
+            number="$(gh pr list -R "$GITHUB_REPOSITORY" --state open --head "$HEAD_BRANCH" \
+              --json number,headRefOid --jq "[.[] | select(.headRefOid == \"$HEAD_SHA\")][0].number // empty")"
+          fi
+          if [ -z "$number" ]; then
+            echo "No open pull request with head \`${HEAD_SHA:-?}\`: nothing to do." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh pr view "$number" -R "$GITHUB_REPOSITORY" \
+            --json number,title,body,labels,headRefOid,baseRefName,baseRefOid,files,isCrossRepository,state > "$RUNNER_TEMP/pr.json"
+          jq '{title, body, labels}' "$RUNNER_TEMP/pr.json" > "$RUNNER_TEMP/pr-meta.json"
+          head="$(jq -r .headRefOid "$RUNNER_TEMP/pr.json")"
+          if [ -n "${HEAD_SHA:-}" ] && [ "$head" != "$HEAD_SHA" ]; then
+            echo "PR #$number moved on to \`$head\`; its own CI run decides." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "$(jq -r '.baseRefName' "$RUNNER_TEMP/pr.json")" != "main" ] || \
+             [ "$(jq -r '.isCrossRepository' "$RUNNER_TEMP/pr.json")" = "true" ] || \
+             [ "$(jq -r '.state' "$RUNNER_TEMP/pr.json")" != "OPEN" ]; then
+            echo "PR #$number: not an open PR from this repo into main. Normal lane." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if ! jq -e '[.files[].path] | index("mix.lock")' "$RUNNER_TEMP/pr.json" > /dev/null; then
+            echo "PR #$number does not change \`mix.lock\`: normal lane." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "number=$number"
+            echo "head=$head"
+            echo "base=$(jq -r .baseRefOid "$RUNNER_TEMP/pr.json")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: CI is green (Test and Dialyzer on the head sha)
+        id: ci
+        if: steps.pr.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.pr.outputs.head }}
+        run: |
+          set -euo pipefail
+          result=success
+          for check in Test Dialyzer; do
+            conclusion="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?check_name=$check&filter=latest" \
+              --jq '.check_runs[0].conclusion // "missing"')"
+            echo "$check: $conclusion"
+            [ "$conclusion" = "success" ] || result=failure
+          done
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        if: steps.pr.outputs.number != ''
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - uses: erlef/setup-beam@v1
+        if: steps.pr.outputs.number != ''
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      # Runs the rules from main (not from the PR), so a PR cannot change them
+      # for itself. Writes lane=security|normal and the PASS/FAIL list.
+      - name: Pick the lane
+        id: lane
+        if: steps.pr.outputs.number != ''
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          BASE: ${{ steps.pr.outputs.base }}
+          HEAD: ${{ steps.pr.outputs.head }}
+          CI: ${{ steps.ci.outputs.result }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/pull/$PR/head:refs/remotes/pr/$PR" "$BASE"
+          echo "#### PR #$PR" >> "$GITHUB_STEP_SUMMARY"
+          elixir .github/scripts/security_lane.exs pr --base "$BASE" --head "$HEAD" \
+            --pr "$RUNNER_TEMP/pr-meta.json" --ci "$CI"
+
+  merge:
+    name: Squash-merge (security lane)
+    needs: classify
+    if: needs.classify.outputs.lane == 'security'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      HAS_APP: ${{ secrets.SECURITY_BOT_APP_ID != '' && secrets.SECURITY_BOT_APP_PRIVATE_KEY != '' }}
+    steps:
+      - name: Bot token (GitHub App)
+        id: app
+        if: env.HAS_APP == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.SECURITY_BOT_APP_ID }}
+          private-key: ${{ secrets.SECURITY_BOT_APP_PRIVATE_KEY }}
+
+      - name: gh pr merge --squash --match-head-commit
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.SECURITY_BOT_TOKEN }}
+          PR: ${{ needs.classify.outputs.pr }}
+          HEAD: ${{ needs.classify.outputs.head }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::No bot token (SECURITY_BOT_APP_ID/SECURITY_BOT_APP_PRIVATE_KEY or SECURITY_BOT_TOKEN): PR #$PR waits for a founder's Approve."
+            echo "PR #$PR qualifies, but no bot token is set, so it waits for a founder's Approve (normal lane)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh pr merge "$PR" -R "$GITHUB_REPOSITORY" --squash --match-head-commit "$HEAD"
+          echo "Merged PR #$PR (squash, head \`$HEAD\`). playtest.yml deploys it after CI on main." >> "$GITHUB_STEP_SUMMARY"

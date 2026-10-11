@@ -1,0 +1,181 @@
+# Hourly dependency audit (tales-forge-docs docs/decisions.md, 2026-10-11
+# "Security-bump lane"). Runs `mix hex.audit` (retired packages) and
+# `mix deps.audit` (mix_audit: published advisories). For each package with an
+# advisory it runs `mix deps.update <package>` within the requirement in
+# mix.exs, keeps the bump only when every changed package keeps its major
+# version, and opens a PR "security: <advisory id> …" with the label
+# `security`. That PR goes through the security lane
+# (.github/workflows/security-lane.yml, then playtest.yml).
+#
+# High and critical advisories are fixed at any hour: this job runs every hour,
+# day and night. A package that needs a major bump or a code change gets a
+# warning in the run summary; a founder decides (normal lane).
+#
+# The PR must trigger CI, and a PR opened with GITHUB_TOKEN does not trigger
+# workflows. So the job pushes and opens the PR as the bot:
+#   - SECURITY_BOT_APP_ID and SECURITY_BOT_APP_PRIVATE_KEY (repo secrets): a
+#     GitHub App installed on whyse-ab/ex-tales-forge with Contents: write,
+#     Pull requests: write and Issues: write (labels). Preferred.
+#   - or SECURITY_BOT_TOKEN: a fine-grained PAT for this repo with the same
+#     permissions.
+# Without either, the job still audits and lists the advisories in the summary.
+#
+# By hand: gh workflow run security-audit.yml
+name: Security audit
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-audit
+  cancel-in-progress: false
+
+env:
+  # Keep in sync with ci.yml and the Dockerfile.
+  ELIXIR_VERSION: "1.18.4"
+  OTP_VERSION: "27.3.4.16"
+  MIX_ENV: test
+
+jobs:
+  audit:
+    name: Audit deps
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      HAS_APP: ${{ secrets.SECURITY_BOT_APP_ID != '' && secrets.SECURITY_BOT_APP_PRIVATE_KEY != '' }}
+    steps:
+      - name: Bot token (GitHub App or PAT)
+        id: app
+        if: env.HAS_APP == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.SECURITY_BOT_APP_ID }}
+          private-key: ${{ secrets.SECURITY_BOT_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ steps.app.outputs.token || secrets.SECURITY_BOT_TOKEN || github.token }}
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Cache deps and _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: audit-${{ runner.os }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock') }}
+          restore-keys: audit-${{ runner.os }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
+
+      - name: Install deps
+        run: mix deps.get
+
+      - name: Hex audit (retired packages)
+        run: |
+          if mix hex.audit > hex-audit.txt 2>&1; then
+            echo "Hex audit: no retired packages." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::mix hex.audit found retired packages (see the summary)."
+            { echo "### Hex audit: retired packages"; echo; echo '```'; cat hex-audit.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Advisory audit (mix deps.audit)
+        id: audit
+        run: |
+          set -uo pipefail
+          mix deps.audit --format json > audit.json 2> audit.err
+          status=$?
+          if ! jq -e . audit.json > /dev/null 2>&1; then
+            echo "::error::mix deps.audit failed (exit $status)."
+            cat audit.err
+            exit 1
+          fi
+          count="$(jq '.vulnerabilities | length' audit.json)"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if [ "$count" = "0" ]; then
+            echo "Advisory audit (mix deps.audit): no known advisories." >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### Advisory audit: $count finding(s)"
+              echo
+              echo "| Package | Version | Advisory | Severity | Patched |"
+              echo "| --- | --- | --- | --- | --- |"
+              jq -r '.vulnerabilities[] | "| \(.dependency.package) | \(.dependency.version) | \(.advisory.id) | \(.advisory.severity // "?") | \(.advisory.first_patched_versions | join(", ")) |"' audit.json
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # One PR per package, from a clean main each time.
+      - name: Bump and open security PRs
+        if: steps.audit.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.SECURITY_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::SECURITY_BOT_APP_ID/SECURITY_BOT_APP_PRIVATE_KEY or SECURITY_BOT_TOKEN is not set: no PR opened."
+            echo "No bot token: no PR opened. Add SECURITY_BOT_APP_ID and SECURITY_BOT_APP_PRIVATE_KEY (or SECURITY_BOT_TOKEN)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "tales-forge-security-bot"
+          git config user.email "security-bot@users.noreply.github.com"
+          gh label create security --color B60205 --description "Fixes a published advisory (security lane)" 2>/dev/null || true
+          cp mix.lock "$RUNNER_TEMP/main.lock"
+
+          for package in $(jq -r '[.vulnerabilities[].dependency.package] | unique | .[]' audit.json); do
+            ids="$(jq -r --arg p "$package" '[.vulnerabilities[] | select(.dependency.package == $p) | .advisory.id] | unique | join(" ")' audit.json)"
+            first="${ids%% *}"
+            branch="security/$(echo "$first" | tr '[:upper:]' '[:lower:]')"
+            git checkout -q main
+            git reset -q --hard origin/main
+
+            if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+              echo "- $package ($ids): branch \`$branch\` already exists; its PR carries the fix." >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            if ! mix deps.update "$package" > update.log 2>&1; then
+              echo "::warning::$package ($ids): mix deps.update failed; a founder decides."
+              echo "- $package ($ids): \`mix deps.update\` failed (a founder decides):" >> "$GITHUB_STEP_SUMMARY"
+              { echo '```'; tail -20 update.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            if ! bump="$(elixir .github/scripts/security_lane.exs bump "$RUNNER_TEMP/main.lock" mix.lock)"; then
+              echo "::warning::$package ($ids): no fix within the major version ($bump); a founder decides."
+              echo "- $package ($ids): no fix within the major version ($bump). A major bump or a code change needs a founder's Approve." >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            still="$(mix deps.audit --format json 2>/dev/null | jq -r --arg p "$package" '[.vulnerabilities[] | select(.dependency.package == $p) | .advisory.id] | join(" ")' || true)"
+            if [ -n "$still" ]; then
+              echo "::warning::$package: after the update ($bump) the advisories $still are still open; a founder decides."
+              echo "- $package: \`mix deps.update\` gives $bump, but $still are still open (the fix needs a new major or a new mix.exs requirement). A founder decides." >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            bump="${bump%.}"
+            git checkout -q -b "$branch"
+            git add mix.lock
+            git commit -q -m "security: $ids: $bump" -m "mix deps.update $package (.github/workflows/security-audit.yml)."
+            git push -q origin "$branch"
+            body="$(cat <<BODY
+          Fixes $ids in \`$package\`: $bump
+
+          Opened by the hourly security audit (.github/workflows/security-audit.yml). It changes only \`mix.lock\`, within the major version, so it takes the security lane (decision 2026-10-11 "Security-bump lane"): when CI is green, security-lane.yml merges it, playtest.yml deploys playtest, runs the smoke check and deploys production, and Bobby tells the founders.
+
+          Advisories:
+          $(jq -r --arg p "$package" '.vulnerabilities[] | select(.dependency.package == $p) | "- \(.advisory.id) (\(.advisory.severity // "severity unknown")): \(.advisory.title) \(.advisory.url)"' audit.json | sort -u)
+          BODY
+          )"
+            url="$(gh pr create --base main --head "$branch" --label security --title "security: $ids: $bump" --body "$body")"
+            echo "- $package ($ids): opened $url" >> "$GITHUB_STEP_SUMMARY"
+          done

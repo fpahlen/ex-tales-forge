@@ -132,19 +132,20 @@ Events: `idea.to_refining`, `idea.back_to_refining` (Case), `idea.to_building`,
 Normally you don't run `fly deploy` by hand. A push to `main` that passes CI deploys to
 **playtest** first (see [Playtest environment](#playtest-environment)). Whether production
 follows automatically depends on the merge's **deploy lane** (tales-forge-docs decision
-2026-10-09 "A fast deploy lane for admin work"):
+2026-10-09 "A fast deploy lane for admin work" and 2026-10-11 "Security-bump lane"):
 
 | Lane | When | Playtest | Production |
 |------|------|----------|------------|
 | **admin** | Every file the merge changed, and every file changed since the commit production runs, is on the `[admin]` list in `.github/deploy-lanes.txt` (surveys, costs, playtest admin pages, `/team`) | Automatic | Automatic, right after playtest: no Gentry/batch gate, no prod OK |
-| **normal** | Anything else: game engine code, shared code (sign-in, Repo and migrations, config, AICalls, `mix.exs`/deps, the router, CI), docs, a mixed merge, unknown files, or an unknown production commit | Automatic | Manual, after Gentry, the playtest batch and Fredrik's OK |
+| **security** | A merged PR that changes only `mix.lock` (and version pins in `mix.exs` deps), keeps every package in its major version, has the label `security` or the title prefix `security:` and an advisory id (CVE, GHSA, EEF-CVE), with green CI; production would get nothing else | Automatic, then a smoke check | Automatic after a green smoke check, for exactly that sha; Bobby tells the founders |
+| **normal** | Anything else: game engine code, shared code (sign-in, Repo and migrations, config, AICalls, `mix.exs`/deps, the router, CI), docs, a mixed merge, unknown files, or an unknown production commit | Automatic | After Gentry and the playtest batch, a founder's Approve ships it |
 
 `.github/workflows/playtest.yml` picks the lane after its playtest deploy
 (`elixir .github/scripts/deploy_lane.exs`, logic in `TalesForge.DeployLanes`) and writes it,
 with the files that decided it, to the run summary. "Since production" is measured against the
 tag `deployed/production`, which every successful production deploy moves to its sha; without
 that tag (before the first production deploy through the workflow) every merge is normal. So an
-admin merge never carries an earlier game merge that is still waiting for Fredrik's OK. To see
+admin merge never carries an earlier game merge that still waits for a founder's Approve. To see
 which lane a set of files would take:
 
 ```bash
@@ -158,6 +159,45 @@ deploys only if the sha is still the tip of main (the playtest tip guard) and pr
 runs the commit the lane was picked against; otherwise it skips with a notice. CI's
 "Admin boundary" step (`mix deploy.check_boundaries`) fails when game or shared code depends
 on an `[admin]` file.
+
+### Security lane
+
+Decision 2026-10-11 "Security-bump lane". The rules are in `TalesForge.DeployLanes.Security`
+(run with `elixir .github/scripts/security_lane.exs`); the unit tests use the fixtures in
+`test/fixtures/security_lane/`.
+
+1. **Find:** `.github/workflows/security-audit.yml` runs every hour (and by hand,
+   `gh workflow run security-audit.yml`): `mix hex.audit` and `mix deps.audit` (mix_audit). For
+   each package with an advisory it runs `mix deps.update <package>`. When the update fixes the
+   advisory within the major version, it opens a PR `security: <advisory id>: …` with the label
+   `security`. Otherwise the run summary names the package; a founder decides.
+2. **Merge:** after the PR's CI run, `.github/workflows/security-lane.yml` checks the four rules
+   (lock only, same major, advisory reference, Test and Dialyzer green) with the rules from
+   `main`, and squash-merges the PR for exactly its head sha (`--match-head-commit`). When a rule
+   fails, the summary shows PASS or FAIL for each rule and the PR takes the normal lane.
+3. **Deploy:** the push to `main` runs CI, then playtest.yml. It checks the rules again on the
+   merge, plus one more: everything since `deployed/production` is a lock bump within the major
+   version or an `[admin]` file. Then "Smoke check" tests playtest
+   (`.github/scripts/smoke_check.py`: `/health`, the signed-out redirect, the sign-in page and a
+   LiveView mount over the websocket; no game turn, because a turn calls the LLM). A green smoke
+   check starts "Production (security lane)", deploy-production.yml with `lane=security`: the
+   same "Verify commit" job and the same tip-of-main and production-unchanged guard as the
+   admin lane.
+4. **Tell:** "Notify Bobby" posts a signed JSON note to `SECURITY_LANE_WEBHOOK_URL` (event
+   `security_lane.deployed`: sha, PR, advisory ids, run URL). Bobby tells Gentry and the
+   founders through Case. The headers are `X-Security-Lane-Timestamp`, and, with
+   `SECURITY_LANE_WEBHOOK_KEY`, `Authorization: Bearer <key>` and
+   `X-Security-Lane-Signature: sha256=<HMAC-SHA256 of "<timestamp>.<body>">` (the same scheme
+   as the board webhooks).
+
+GitHub Actions secrets for the lane (repo Settings → Secrets and variables → Actions):
+
+| Secret | Needed for | Without it |
+|--------|------------|------------|
+| `SECURITY_BOT_APP_ID`, `SECURITY_BOT_APP_PRIVATE_KEY` | The bot that pushes the audit's branch, opens the PR and merges it. A GitHub App installed on `whyse-ab/ex-tales-forge` with *Contents: write*, *Pull requests: write* and *Issues: write* (the label). A PR or merge made with `GITHUB_TOKEN` does not start CI, so the bot must be an App or a PAT. In the `main` ruleset, add the App as a bypass actor, so it can merge without a review | Use `SECURITY_BOT_TOKEN` instead. With neither, the audit only reports and a qualifying PR waits for a founder's Approve |
+| `SECURITY_BOT_TOKEN` | Optional fallback for the App: a fine-grained PAT, repository access only `whyse-ab/ex-tales-forge`, *Contents: write*, *Pull requests: write*, *Issues: write* | See above |
+| `SECURITY_LANE_WEBHOOK_URL` | Optional: Bobby's webhook for the note after a security-lane deploy | No note; the run summary says so |
+| `SECURITY_LANE_WEBHOOK_KEY` | Optional: the key for the bearer token and the HMAC signature | The note goes out unsigned |
 
 Normal lane: production is the manual GitHub Actions workflow
 `.github/workflows/deploy-production.yml` ("Deploy to production"), started once the build has

@@ -12,7 +12,7 @@ defmodule TalesForge.DeployLanes.CLI do
     2. everything production would get: the files changed between the commit
        production runs (`--production`, the `deployed/production` tag) and the
        merge. Without this, an admin merge could carry an earlier game merge
-       that is still waiting for Fredrik's OK to production.
+       that still waits for a founder's Approve.
 
   An unknown production commit, one that is not an ancestor of the merge, or a
   merge production already runs gives `normal`. The lane goes to
@@ -137,7 +137,7 @@ defmodule TalesForge.DeployLanes.CLI do
   defp outcome(:normal, sha) do
     [
       "",
-      "Playtest only. Production stays manual: after Gentry and the playtest batch and Fredrik's OK,",
+      "Playtest first. After Gentry and the playtest batch, a founder's Approve ships it to production:",
       "",
       "    gh workflow run deploy-production.yml -f sha=#{sha}"
     ]

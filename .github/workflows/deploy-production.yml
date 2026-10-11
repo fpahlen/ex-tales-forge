@@ -21,13 +21,20 @@
 #    still the tip of main and production still runs the commit the lane was
 #    picked against (production_base). Otherwise it skips with a notice.
 #
+# 3. Security lane, automatically (decision 2026-10-11 "Security-bump lane").
+#    playtest.yml calls this workflow with lane=security after the playtest
+#    deploy and a green smoke check, for a merged lock-only bump within the
+#    major version that fixes an advisory. Same "Verify commit" job and the
+#    same guard as the admin lane; no founder OK. The `deployed` output tells
+#    playtest.yml to notify Bobby.
+#
 # The "Verify commit" job refuses a sha that is not a full 40-character sha,
 # not on main, or whose Test and Dialyzer checks did not pass. By hand it warns
 # (does not fail) when no successful playtest deploy of the sha is found.
 #
 # After a successful deploy the tag `deployed/production` is moved to the sha:
 # the admin lane diffs against it, so an admin merge never carries a game
-# change that is still waiting for Fredrik's OK.
+# change that still waits for a founder's Approve.
 #
 # The deploy job runs in the GitHub environment `production`. With a required
 # reviewer on that environment (repo Settings -> Environments -> production),
@@ -50,7 +57,7 @@ on:
         required: true
         type: string
       lane:
-        description: "admin: the automatic admin lane from playtest.yml"
+        description: "admin or security: the automatic lane from playtest.yml"
         required: true
         type: string
       production_base:
@@ -60,6 +67,10 @@ on:
     secrets:
       FLY_API_TOKEN:
         required: true
+    outputs:
+      deployed:
+        description: "true when this run deployed the sha to production"
+        value: ${{ jobs.deploy.outputs.deployed }}
 
 permissions:
   contents: read
@@ -101,9 +112,10 @@ jobs:
               exit 1
             fi
           done
-          if [ "$LANE" = "admin" ]; then
-            # Called from playtest.yml right after it deployed this sha to playtest.
-            echo "Admin lane: deploying $SHA (on main; Test and Dialyzer passed; deployed to playtest in this run)." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$LANE" = "admin" ] || [ "$LANE" = "security" ]; then
+            # Called from playtest.yml right after it deployed this sha to playtest
+            # (security: and after the smoke check passed).
+            echo "${LANE^} lane: deploying $SHA (on main; Test and Dialyzer passed; deployed to playtest in this run)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           playtest="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/playtest.yml/runs?head_sha=$SHA&status=success" \
@@ -119,6 +131,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: production
+    outputs:
+      deployed: ${{ steps.done.outputs.deployed }}
     # Moves the deployed/production tag after the deploy.
     permissions:
       contents: write
@@ -131,11 +145,11 @@ jobs:
         with:
           ref: ${{ inputs.sha }}
 
-      # Admin lane only, checked inside the concurrency group so the answers are
+      # Admin and security lanes only, checked inside the concurrency group so the answers are
       # current: deploy only the tip of main (same guard as playtest.yml), and
       # only if production still runs the commit the lane was picked against (a
       # deploy in between, by hand or a rollback, makes the lane stale).
-      - name: Admin lane guard (tip of main, production unchanged)
+      - name: Lane guard (tip of main, production unchanged)
         id: guard
         env:
           SHA: ${{ inputs.sha }}
@@ -143,7 +157,7 @@ jobs:
           BASE: ${{ inputs.production_base }}
         run: |
           set -euo pipefail
-          if [ "$LANE" != "admin" ]; then
+          if [ "$LANE" != "admin" ] && [ "$LANE" != "security" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -158,11 +172,11 @@ jobs:
           fi
           if [ -n "$reason" ]; then
             echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Production deploy skipped (admin lane)::$reason"
+            echo "::notice title=Production deploy skipped ($LANE lane)::$reason"
             {
-              echo "Admin lane: production deploy skipped. $reason"
+              echo "${LANE^} lane: production deploy skipped. $reason"
               echo
-              echo "To deploy it anyway (needs Fredrik's OK):"
+              echo "A founder's Approve ships it by hand:"
               echo
               echo "    gh workflow run deploy-production.yml -f sha=$SHA"
             } >> "$GITHUB_STEP_SUMMARY"
@@ -196,3 +210,8 @@ jobs:
           set -euo pipefail
           git push --force origin "$SHA:refs/tags/deployed/production"
           echo "Deployed \`$SHA\` to production (tales-forge), lane: $LANE. Tag \`deployed/production\` moved to it." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deployed
+        id: done
+        if: steps.guard.outputs.deploy == 'true'
+        run: echo "deployed=true" >> "$GITHUB_OUTPUT"
