@@ -1,32 +1,15 @@
-# Admin files (the [admin] list in .github/deploy-lanes.txt, the one place for
-# it) get lighter gates: format and tests, no Credo (so no @moduledoc/@spec
-# demands). Game and shared code keep the full checks below. Decision
-# 2026-10-09 "A fast deploy lane for admin work" (tales-forge-docs
-# docs/decisions.md). Directory patterns stay as they are; globs are expanded.
-admin_files =
-  ".github/deploy-lanes.txt"
-  |> File.read!()
-  |> String.split("\n")
-  |> Enum.map(&(&1 |> String.replace(~r/#.*$/, "") |> String.trim()))
-  |> Enum.drop_while(&(&1 != "[admin]"))
-  |> Enum.drop(1)
-  |> Enum.take_while(&(not String.starts_with?(&1, "[")))
-  |> Enum.reject(&(&1 == ""))
-  |> Enum.flat_map(fn pattern ->
-    cond do
-      String.ends_with?(pattern, "/") -> [pattern]
-      String.contains?(pattern, "*") -> Path.wildcard(pattern)
-      true -> [pattern]
-    end
-  end)
-
+# Credo runs on every file in lib/, admin files included (decision 2026-10-11,
+# warning hygiene: admin files used to be left out, decision 2026-10-09 "A fast
+# deploy lane for admin work"). The admin lane stays as it is; only the gate
+# changed. The @spec check (Readability.Specs) still covers only the backfilled
+# files listed below.
 %{
   configs: [
     %{
       name: "default",
       files: %{
         included: ["lib/"],
-        excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/" | admin_files]
+        excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]
       },
       plugins: [],
       requires: [],
@@ -129,7 +112,8 @@ admin_files =
                  "lib/ex_tales_forge_web/controllers/costs_peer_controller.ex",
                  "lib/ex_tales_forge/code_heat.ex",
                  "lib/ex_tales_forge/code_heat/",
-                 "lib/mix/tasks/code_heat.overhead.ex"
+                 "lib/mix/tasks/code_heat.overhead.ex",
+                 "lib/ex_tales_forge/dep_warnings.ex"
                ]
              }
            ]}

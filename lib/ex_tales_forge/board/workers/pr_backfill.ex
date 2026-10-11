@@ -106,16 +106,20 @@ defmodule TalesForge.Board.Workers.PrBackfill do
   defp run(cards, token) do
     case lanes(token) do
       {:ok, lanes} ->
-        results = Enum.map(cards, &try_card(&1, token, lanes))
-        marked = for {:marked, id} <- results, do: id
-
-        case for({:unavailable, reason} <- results, do: reason) do
-          [] -> {:ok, marked}
-          [reason | _] -> {:error, reason}
-        end
+        cards |> Enum.map(&try_card(&1, token, lanes)) |> summarize()
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # The marked card ids, or the first reason GitHub was unavailable.
+  defp summarize(results) do
+    marked = for {:marked, id} <- results, do: id
+
+    case for({:unavailable, reason} <- results, do: reason) do
+      [] -> {:ok, marked}
+      [reason | _] -> {:error, reason}
     end
   end
 

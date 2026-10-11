@@ -1,0 +1,12 @@
+==> some_erl_dep
+===> Compiling some_erl_dep
+src/some_erl.erl:12:5: Warning: variable 'X' is unused
+==> newdep
+Compiling 1 file (.ex)
+     warning: variable "x" is unused
+     │
+  3 │   def f(x), do: 1
+     │
+     └─ lib/newdep.ex:3:9: Newdep.f/1
+
+Generated newdep app

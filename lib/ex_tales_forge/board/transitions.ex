@@ -423,14 +423,14 @@ defmodule TalesForge.Board.Transitions do
         to != nil,
         row?(from, to, actor) do
       plain = Map.put(card, :comment, nil)
-      answer = allowed?(Map.merge(card, %{comment: card[:comment]}), from, to, actor)
+      as_is = allowed?(Map.merge(card, %{comment: card[:comment]}), from, to, actor)
 
       needs_comment =
         allowed?(plain, from, to, actor) != :ok and
           allowed?(Map.put(card, :comment, "(comment)"), from, to, actor) == :ok and
           comment_gate?(allowed?(plain, from, to, actor))
 
-      answer = if needs_comment, do: :ok, else: answer
+      answer = if needs_comment, do: :ok, else: as_is
 
       %{
         kind: kind,

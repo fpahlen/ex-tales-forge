@@ -88,9 +88,16 @@ defmodule TalesForge.Chat do
     |> Map.put(:action, :insert)
   end
 
+  # One Oban insert that wakes `bot` about the stored message (with its images).
+  defp add_wake(bot, multi) do
+    Oban.insert(multi, {:wake, bot}, fn %{message: m, images: imgs} ->
+      wake_job(bot, %{m | images: imgs})
+    end)
+  end
+
   defp insert(author, body, images, opts) do
-    %{bots: bots, founders: founders} = Mentions.parse(body)
-    founders = founders -- [Mentions.handle_for(opts[:login])]
+    %{bots: bots, founders: mentioned} = Mentions.parse(body)
+    founders = mentioned -- [Mentions.handle_for(opts[:login])]
     wakes = if founder?(author), do: bots, else: []
 
     changeset =
@@ -108,13 +115,7 @@ defmodule TalesForge.Chat do
     Multi.new()
     |> Multi.insert(:message, changeset)
     |> Multi.run(:images, fn _repo, %{message: m} -> store_images(m, author, images) end)
-    |> then(fn multi ->
-      Enum.reduce(wakes, multi, fn bot, acc ->
-        Oban.insert(acc, {:wake, bot}, fn %{message: m, images: imgs} ->
-          wake_job(bot, %{m | images: imgs})
-        end)
-      end)
-    end)
+    |> then(fn multi -> Enum.reduce(wakes, multi, &add_wake/2) end)
     |> Repo.transaction()
     |> case do
       {:ok, %{message: message, images: stored}} ->

@@ -138,18 +138,16 @@ defmodule TalesForge.Board.History do
     do: {:decision, "Decision logged", decision_link(idea)}
 
   defp describe(%{note: "New commit " <> rest}, idea) do
-    cond do
-      String.contains?(rest, "after approval") ->
-        number = Map.get(idea, :pr_number)
+    if String.contains?(rest, "after approval") do
+      number = Map.get(idea, :pr_number)
 
-        {:new_commit_after_approval, "added a new commit to", number && pr_link(number, idea),
-         "after approval. The approval stays."}
-
-      true ->
-        case Regex.run(~r/on PR #(\d+)/, rest) do
-          [_, n] -> {:new_commit, "added a new commit to", pr_link(String.to_integer(n), idea)}
-          _ -> {:new_commit, "added a new commit", nil}
-        end
+      {:new_commit_after_approval, "added a new commit to", number && pr_link(number, idea),
+       "after approval. The approval stays."}
+    else
+      case Regex.run(~r/on PR #(\d+)/, rest) do
+        [_, n] -> {:new_commit, "added a new commit to", pr_link(String.to_integer(n), idea)}
+        _ -> {:new_commit, "added a new commit", nil}
+      end
     end
   end
 
