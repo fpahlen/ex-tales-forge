@@ -140,7 +140,8 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          if [ "$(wc -c < audit.json)" -lt "$(wc -c < audit.out)" ]; then
+          # Whitespace (the trailing newline) does not count as other text.
+          if [ "$(tr -d '[:space:]' < audit.json | wc -c)" -lt "$(tr -d '[:space:]' < audit.out | wc -c)" ]; then
             echo "::notice::mix deps.audit printed other text next to the JSON report; the report was taken out of it."
           fi
           count="$(jq '.vulnerabilities | length' audit.json)"
