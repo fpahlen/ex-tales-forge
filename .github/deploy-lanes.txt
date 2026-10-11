@@ -13,8 +13,17 @@
 #           deploy to playtest AND production automatically (no Gentry/batch
 #           gate, no prod OK). Production still goes through deploy-production.yml's
 #           "Verify commit" job and the tip-of-main guard.
+#   security  A dependency bump that fixes a published advisory (decision
+#           2026-10-11 "Security-bump lane"; TalesForge.DeployLanes.Security,
+#           .github/scripts/security_lane.exs). The PR changes only mix.lock (and
+#           version pins in mix.exs), every package keeps its major version, the
+#           PR has the label `security` or the title prefix `security:` and an
+#           advisory id (CVE, GHSA, EEF-CVE), and CI is green. security-lane.yml
+#           merges it; playtest.yml deploys playtest, runs the smoke check and
+#           deploys production for that sha, then notifies Bobby. No founder OK.
+#           This file has no [security] section: the rules are in the module.
 #   normal  Anything else (game, shared, CI, docs, unknown files; a mixed merge):
-#           playtest only; production stays manual after Fredrik's OK.
+#           playtest first; a founder's Approve ships it to production.
 #
 # Format: one pattern per line under a [section]; `#` starts a comment.
 #   path/to/file.ex   exactly that file

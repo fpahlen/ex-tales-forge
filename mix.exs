@@ -89,6 +89,8 @@ defmodule TalesForge.MixProject do
       {:bandit, "~> 1.5"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      # `mix deps.audit`: known advisories in deps (.github/workflows/security-audit.yml)
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       # Not dev-only: the Docker builder (MIX_ENV=prod) runs `mix docs` for
       # /admin/code-docs. runtime: false keeps it out of the release itself.
       {:ex_doc, "~> 0.38", runtime: false}

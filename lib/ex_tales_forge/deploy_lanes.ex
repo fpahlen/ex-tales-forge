@@ -15,8 +15,10 @@ defmodule TalesForge.DeployLanes do
       the application). Every other shared file must not depend on them either.
 
   Anything not on `[admin]` (game, shared, CI, docs, unknown files) takes the
-  **normal** lane: playtest only, production by hand after Fredrik's OK. A
-  merge with both admin and other files is normal.
+  **normal** lane: playtest first; a founder's Approve ships it to production.
+  A merge with both admin and other files is normal. A dependency bump that
+  fixes an advisory can take the **security** lane instead
+  (`TalesForge.DeployLanes.Security`).
 
   This module uses only Elixir's standard library, so the deploy workflow can
   load it with plain `elixir` (`.github/scripts/deploy_lane.exs`), without deps
