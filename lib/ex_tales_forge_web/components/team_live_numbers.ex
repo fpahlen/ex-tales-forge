@@ -304,7 +304,7 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
   @doc """
   The confidence-weighted Jev score per persona (`TalesForge.Playtest.JevHeadline`)
   over every scored turn of the playtest runs started on this app since
-  2026-10-07: `:runs` and `:by_persona` (`%{"paul" => %{score, unsure_pct,
+  2026-10-07: `:runs` and `:by_persona` (`%{"paul" => %{score, low_confidence_pct,
   turns}}`). Fallback (the last batch in `data.json`) when there are none,
   as on production, where playtest runs don't live.
   """
@@ -346,7 +346,7 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
             Enum.map(turns, &%{overall: &1.overall, confidence: &1.confidence || 0.0})
           )
 
-        {persona, %{score: h.score, unsure_pct: pct(h.unsure_share), turns: h.turns}}
+        {persona, %{score: h.score, low_confidence_pct: pct(h.unsure_share), turns: h.turns}}
       end)
 
     %{
@@ -362,10 +362,10 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
   The persona-scores fallback: the last batch in `data.json`'s playtest series.
 
       iex> data = %{"playtest_series" => %{"as_of" => "2026-10-09", "series" => [
-      ...>   %{"completed_runs" => 25, "weighted" => %{"hawk" => 2.5}, "unsure_pct" => %{"hawk" => 40}}]}}
+      ...>   %{"completed_runs" => 25, "weighted" => %{"hawk" => 2.5}, "low_confidence_pct" => %{"hawk" => 40}}]}}
       iex> TalesForgeWeb.TeamLiveNumbers.scores_fallback(data)
       %{source: :fallback, as_of: "2026-10-09", window: :snapshot, runs: 25,
-        by_persona: %{"hawk" => %{score: 2.5, unsure_pct: 40, turns: nil}}}
+        by_persona: %{"hawk" => %{score: 2.5, low_confidence_pct: 40, turns: nil}}}
   """
   @spec scores_fallback(map()) :: group()
   def scores_fallback(data) do
@@ -378,7 +378,12 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
       runs: last["completed_runs"],
       by_persona:
         Map.new(last["weighted"] || %{}, fn {p, score} ->
-          {p, %{score: score, unsure_pct: get_in(last, ["unsure_pct", p]), turns: nil}}
+          {p,
+           %{
+             score: score,
+             low_confidence_pct: get_in(last, ["low_confidence_pct", p]),
+             turns: nil
+           }}
         end)
     }
   end

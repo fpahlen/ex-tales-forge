@@ -1137,9 +1137,9 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           <span class="font-semibold">{p["name"]}</span>
           <span class="block">
             {score_text(get_in(@scores.by_persona, [p["id"], :score]))}<span
-              :if={get_in(@scores.by_persona, [p["id"], :unsure_pct])}
+              :if={get_in(@scores.by_persona, [p["id"], :low_confidence_pct])}
               class="text-xs text-[var(--paper-muted)]"
-            > · confident {100 - get_in(@scores.by_persona, [p["id"], :unsure_pct])}%</span>
+            > · confident {100 - get_in(@scores.by_persona, [p["id"], :low_confidence_pct])}%</span>
           </span>
         </li>
       </ul>
@@ -1845,8 +1845,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
     with %{} = s <- Enum.find(series, &(&1["id"] == "post-rework-2026-10-08")),
          value when is_number(value) <- get(s, ["weighted", "paul"]),
-         unsure when is_number(unsure) <- get(s, ["unsure_pct", "paul"]) do
-      "#{score(value)} · confident #{pct(100 - unsure)}"
+         low when is_number(low) <- get(s, ["low_confidence_pct", "paul"]) do
+      "#{score(value)} · confident #{pct(100 - low)}"
     else
       _missing -> get(d, ["jev_headline", "display"]) || TeamPage.not_measured()
     end

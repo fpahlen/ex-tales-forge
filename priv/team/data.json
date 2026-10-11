@@ -469,7 +469,7 @@
     "as_of": "2026-10-09",
     "source": "docs/jev-scoring.md; decisions.md 2026-10-08 'The headline Jev score is a confidence-weighted average'",
     "formula": "sum(score x confidence) / sum(confidence), 1-5 scale",
-    "unsure_threshold": 0.7,
+    "confidence_threshold": 0.7,
     "display": "X/5 · confident Y%"
   },
   "playtest_series": {
@@ -489,7 +489,7 @@
           "hawk": 1.9,
           "ronny": 4.62
         },
-        "unsure_pct": {
+        "low_confidence_pct": {
           "paul": 51,
           "lotta": 75,
           "lars": 55,
@@ -509,7 +509,7 @@
           "hawk": 2.12,
           "ronny": 4.58
         },
-        "unsure_pct": {
+        "low_confidence_pct": {
           "paul": 46,
           "lotta": 86,
           "lars": 40,
@@ -529,7 +529,7 @@
           "hawk": 2.39,
           "ronny": 4.72
         },
-        "unsure_pct": {
+        "low_confidence_pct": {
           "paul": 75,
           "lotta": 95,
           "lars": 80,
@@ -549,7 +549,7 @@
           "hawk": 2.4,
           "ronny": 4.27
         },
-        "unsure_pct": {
+        "low_confidence_pct": {
           "paul": 55,
           "lotta": 85,
           "lars": 85,
@@ -589,7 +589,7 @@
         "hawk": 2.2,
         "ronny": 4.67
       },
-      "unsure_pct": {
+      "low_confidence_pct": {
         "paul": 24,
         "lotta": 66,
         "lars": 66,
