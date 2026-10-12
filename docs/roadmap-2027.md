@@ -1,6 +1,6 @@
 ---
 title: "Roadmap 2027 (rev. 3)"
-updated: 2026-10-06
+updated: 2026-10-12
 source: https://docs.google.com/document/d/1Z2-_srhhFH79sVnxtW0A9OriFkdI9wkRviUQrV2r2fg/edit
 ---
 
@@ -92,7 +92,7 @@ One list, most important first. Each item gives the decision, why it matters for
 12. **Closed beta design.**
     *Why:* the beta is where the first strangers show up. *Unblocks:* recruitment on forums. *Options:* size (dozens vs. hundreds); invite-only vs. waitlist; paid from day one vs. free credits that convert.
 
-**Later (not before the game is proven):** when to open the author marketplace and on what revenue share; the second genre; scaling and hosting beyond one region; the ElixirConf 2027 talk.
+**Later (not before the game is proven):** when to open the author marketplace and on what revenue share; the second genre; scaling and hosting beyond one region.
 
 ## 4. Timeline: target outcomes, Oct 2026 – Dec 2027
 
@@ -111,7 +111,7 @@ These are target outcomes, not assignments. The whole timeline is a **proposal (
 | **Jun 2027** | **Public launch (P).** |
 | **Jul 2027** | Iterate on the first session and conversion; a second paid fantasy module. |
 | **Aug 2027** | Margin per session understood and improving (model mix, caching, shorter prompts); scaling check. |
-| **Sep 2027** | ElixirConf 2027 talk, if the founders want it **(A: check dates)**. Author tooling explored. |
+| **Sep 2027** | Author tooling explored. |
 | **Oct 2027** | Decision: when to open the author marketplace. Decision: second genre, only if fantasy is proven. |
 | **Nov 2027** | Hardening; review of LLM-judge drift vs. real-player behaviour. |
 | **Dec 2027** | Year review; 2028 plan. |
@@ -149,5 +149,4 @@ These are target outcomes, not assignments. The whole timeline is a **proposal (
 5. Where is the line between core and genre pack, and how are core changes approved (see the ADR)?
 6. Hosting: Fly.io only, or managed Postgres elsewhere?
 7. Observability tooling (dashboards, error tracking)?
-8. Is the ElixirConf 2027 talk a goal or optional?
-9. Company structure and compensation for part-time founders?
+8. Company structure and compensation for part-time founders?

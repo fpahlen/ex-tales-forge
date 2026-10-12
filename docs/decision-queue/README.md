@@ -22,4 +22,3 @@ Most important first (`rank` ascending). Status: `open` | `discussing` | `decide
 - When to open the author marketplace and on what revenue share
 - The second genre
 - Scaling and hosting beyond one region
-- The ElixirConf 2027 talk

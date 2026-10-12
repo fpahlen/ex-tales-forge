@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: ElixirConf 2027 is not a project goal
+
+- **Decision:** ElixirConf 2027 is not a project goal. It is a personal goal of Fredrik. We removed it from the roadmap.
+- **Why:** The talk is personal. It is not a Tales Forge milestone.
+- **Details:** [Roadmap 2027](roadmap-2027.md)
+
 ## 2026-10-12: Add animations to wiring section
 
 - **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. Add animations to the wiring section of the presentation

@@ -110,7 +110,7 @@ stream GM text (first token < 1 s), use a fast/small model or rule-based shortcu
 
 | Cost / risk | Mitigation |
 |---|---|
-| **Smaller hiring pool** than TS/React | We're a small team for 2027; Elixir devs are fewer but tend to be experienced and keen. Visibility via ElixirConf 2027 helps recruiting. |
+| **Smaller hiring pool** than TS/React | We're a small team for 2027; Elixir devs are fewer but tend to be experienced and keen. |
 | **Learning curve** for everyone new to Elixir | Primer + pairing; first PRs in contained areas (Ash admin, content tooling). Architecture, scaling and ops experience carries over regardless of language: reviewing designs and running load tests doesn't require writing much Elixir. |
 | **Rewrite risk:** the classic trap of never reaching parity | Phases 0–2 already done; an explicit parity checklist; the old app stays live until the new one is better; monthly target outcomes and a "stop" condition. |
 | **Losing Supabase conveniences** (auth, dashboard, row-level security, hosted functions) | phx.gen.auth / Ash auth for accounts; Ash admin for data; plain Postgres (could even stay on Supabase as a DB); we take on more ops ourselves, on Fly, drawing on the team's real-time ops experience. |
