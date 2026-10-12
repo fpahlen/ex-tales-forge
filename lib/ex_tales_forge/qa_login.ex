@@ -47,7 +47,9 @@ defmodule TalesForge.QaLogin do
   # read-only session, also events added later.
   @read_events ~w(open close toggle chat validate validate_images cancel_image
                   toggle_sort toggle_tag clear_tags cancel_comment cancel_downvote
-                  edit_refinement cancel_refinement draft_change)
+                  edit_refinement cancel_refinement draft_change
+                  open_archive close_archive archive_filter archive_tag cancel_archive
+                  cancel_delete)
 
   @refused "This QA session is read-only. Gentry (QA) can view the page but cannot change it."
 

@@ -15,6 +15,8 @@ defmodule TalesForge.Board.Idea do
   @foreign_key_type :binary_id
 
   @columns ~w(ideas refining check building done parked)
+  # Archived is a state outside the board columns (the Archive tile).
+  @states @columns ++ ["archived"]
 
   @typedoc "A card."
   @type t :: %__MODULE__{}
@@ -50,6 +52,10 @@ defmodule TalesForge.Board.Idea do
   @spec columns() :: [String.t()]
   def columns, do: @columns
 
+  @doc "Every state a card can be in: the columns and `archived`."
+  @spec states() :: [String.t()]
+  def states, do: @states
+
   @doc "Changeset for a new idea (title, body, author)."
   @spec create_changeset(t(), map()) :: Ecto.Changeset.t()
   def create_changeset(idea, attrs) do
@@ -79,6 +85,6 @@ defmodule TalesForge.Board.Idea do
       :player_note,
       :tags
     ])
-    |> validate_inclusion(:column, @columns)
+    |> validate_inclusion(:column, @states)
   end
 end

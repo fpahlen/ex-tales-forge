@@ -74,4 +74,14 @@ defmodule TalesForge.Board.PingsTest do
     {:ok, idea} = Board.answer_question(idea, @fredrik, "Why?", %{"deferred" => false})
     assert Enum.count(idea.transitions, &((&1.note || "") =~ "Why?")) == 1
   end
+
+  test "an archived card's pings leave the list and come back on restore" do
+    {:ok, idea} = Board.create_idea(@fredrik, %{"title" => "Fishing"})
+    {:ok, idea} = Board.add_comment(idea, @fredrik, "@hakan look", login: @fredrik_gh)
+    assert [%{count: 1}] = Board.unread_pings(@hakan_gh)
+    {:ok, idea} = Board.archive(idea, @fredrik, "Duplicate")
+    assert Board.unread_pings(@hakan_gh) == []
+    {:ok, _} = Board.restore(idea, @fredrik)
+    assert [%{count: 1}] = Board.unread_pings(@hakan_gh)
+  end
 end

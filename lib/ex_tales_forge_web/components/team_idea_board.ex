@@ -33,6 +33,16 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   images (`TalesForgeWeb.TeamImages`: paste, drop, pick or "Capture screen",
   with a note), comments and history. The parent LiveView forwards `{:board, :changed}` as
   `send_update(refresh: true)`; an open card stays open and refreshes.
+
+  Archive (decision 2026-10-12): a small tile next to Parked shows the count
+  of archived cards. It opens a panel (`#board-archive`) with the archived
+  cards as thin cards, newest first, a tag filter and a search box (title
+  and description). Each card shows who archived it, when (Stockholm time)
+  and why, a Restore button (back to Ideas) and, for a founder, Delete
+  (type the title to confirm). The full card of a card in Ideas or Parked
+  has an Archive button next to the move buttons; it asks for a short
+  reason. The Gentry QA session can open the panel but cannot archive,
+  restore or delete.
   """
   use TalesForgeWeb, :live_component
 
@@ -65,6 +75,12 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
      |> assign_new(:editing, fn -> nil end)
      |> assign_new(:drafts, fn -> %{} end)
      |> assign_new(:typed, fn -> %{} end)
+     |> assign_new(:archive_open, fn -> false end)
+     |> assign_new(:archive_tags, fn -> [] end)
+     |> assign_new(:archive_query, fn -> "" end)
+     |> assign_new(:archive_for, fn -> nil end)
+     |> assign_new(:delete_for, fn -> nil end)
+     |> assign_new(:archive_error, fn -> nil end)
      |> TeamImages.allow(:card_images)
      |> load()}
   end
@@ -125,14 +141,29 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       assign(socket, :tag_cloud, Enum.uniq(Tags.in_use(full["ideas"] || []) ++ selected))
 
     open_id = socket.assigns[:open_id]
-    open = open_id && board |> Map.values() |> List.flatten() |> Enum.find(&(&1.id == open_id))
+
+    # A card from the Archive is not on the board: load it by id.
+    open =
+      open_id &&
+        (board |> Map.values() |> List.flatten() |> Enum.find(&(&1.id == open_id)) ||
+           Board.get_idea(open_id))
+
+    archived = if socket.assigns[:archive_open], do: Board.archived(), else: []
 
     assign(socket,
       board: board,
       prs: prs(),
       pings: Board.unread_pings(socket.assigns[:login]),
       typing: Typing.who(),
-      open: open
+      open: open,
+      archive_count: Board.archived_count(),
+      archive_cloud: Enum.uniq(Tags.in_use(archived) ++ (socket.assigns[:archive_tags] || [])),
+      archived:
+        Board.filter_archived(
+          archived,
+          socket.assigns[:archive_tags] || [],
+          socket.assigns[:archive_query]
+        )
     )
   end
 
@@ -293,6 +324,60 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
      socket
      |> assign(open_id: nil, open: nil, comment_for: nil, downvote_for: nil, editing: nil)
      |> push_event("board:card", %{id: nil})}
+  end
+
+  # The Archive panel (open, close, filter). Read events: QA may use them.
+  defp event("open_archive", _params, socket),
+    do: {:noreply, socket |> assign(archive_open: true, archive_error: nil) |> load()}
+
+  defp event("close_archive", _params, socket),
+    do: {:noreply, socket |> assign(archive_open: false, delete_for: nil) |> load()}
+
+  defp event("archive_filter", params, socket),
+    do: {:noreply, socket |> assign(:archive_query, to_string(params["q"])) |> load()}
+
+  defp event("archive_tag", %{"tag" => tag}, socket),
+    do:
+      {:noreply,
+       socket |> assign(:archive_tags, Tags.toggle(socket.assigns.archive_tags, tag)) |> load()}
+
+  # Archive a card in Ideas or Parked: the button opens the reason box.
+  defp event("archive_start", %{"card_id" => id}, socket),
+    do: {:noreply, socket |> assign(archive_for: id, comment_for: nil) |> load()}
+
+  defp event("cancel_archive", _params, socket),
+    do: {:noreply, socket |> assign(:archive_for, nil) |> load()}
+
+  defp event("archive", %{"card_id" => id, "reason" => reason}, socket) do
+    case with_idea(socket, id, &Board.archive(&1, socket.assigns.founder, reason)) do
+      {:noreply, %{assigns: %{errors: %{^id => _}}}} = answer ->
+        answer
+
+      {:noreply, s} ->
+        {:noreply,
+         s
+         |> assign(archive_for: nil, open_id: nil, open: nil)
+         |> draft_saved("card:" <> id, ["reason"])
+         |> push_event("board:card", %{id: nil})
+         |> load()}
+    end
+  end
+
+  defp event("restore_card", %{"card_id" => id}, socket),
+    do: archive_result(socket, Board.get_idea(id), &Board.restore(&1, socket.assigns.founder))
+
+  defp event("ask_delete", %{"card_id" => id}, socket),
+    do: {:noreply, socket |> assign(delete_for: id, archive_error: nil) |> load()}
+
+  defp event("cancel_delete", _params, socket),
+    do: {:noreply, socket |> assign(delete_for: nil, archive_error: nil) |> load()}
+
+  defp event("delete_card", %{"card_id" => id} = params, socket) do
+    archive_result(
+      socket,
+      Board.get_idea(id),
+      &Board.delete_archived(&1, socket.assigns.founder, params["title"])
+    )
   end
 
   # Back / Forward / On hold. A move that needs a comment opens the comment box.
@@ -573,16 +658,32 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             myself={@myself}
           />
         </div>
-        <.area
-          column="parked"
-          size={:thin}
-          prs={@prs}
-          typing={@typing}
-          board={@board}
-          founder={@founder}
-          myself={@myself}
-          class="lg:col-start-2 lg:row-start-2"
-        />
+        <div class="flex min-w-0 gap-3 lg:col-start-2 lg:row-start-2">
+          <.area
+            column="parked"
+            size={:thin}
+            prs={@prs}
+            typing={@typing}
+            board={@board}
+            founder={@founder}
+            myself={@myself}
+            class="flex-1"
+          />
+          <button
+            type="button"
+            id="board-archive-tile"
+            phx-click={JS.push_focus() |> JS.push("open_archive", target: @myself)}
+            aria-haspopup="dialog"
+            aria-label={"Archive: #{@archive_count} #{if @archive_count == 1, do: "card", else: "cards"}"}
+            title="Archive"
+            class="flex h-[12rem] w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--paper-rule)] bg-[var(--paper-margin)] text-[var(--paper-ink)] hover:border-[var(--paper-accent)] lg:h-auto"
+          >
+            <.icon name="hero-archive-box" class="size-6" />
+            <span data-role="archive-count" class="text-sm font-semibold tabular-nums">
+              {@archive_count}
+            </span>
+          </button>
+        </div>
         <.area
           column="done"
           size={:thin}
@@ -595,6 +696,18 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         />
       </div>
 
+      <.archive_panel
+        :if={@archive_open}
+        cards={@archived}
+        count={@archive_count}
+        cloud={@archive_cloud}
+        selected={@archive_tags}
+        query={@archive_query}
+        delete_for={@delete_for}
+        error={@archive_error}
+        qa={assigns[:qa] == true}
+        myself={@myself}
+      />
       <div
         :if={@open}
         id="board-modal"
@@ -632,6 +745,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             prs={@prs}
             comment_for={@comment_for}
             downvote_for={@downvote_for}
+            archive_for={@archive_for}
+            qa={assigns[:qa] == true}
             editing={@editing}
             drafts={@drafts}
             typing={@typing}
@@ -1024,7 +1139,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   # card closes, and on blur. Another founder's answer is read-only. On a
   # Done or Parked card the questions are read-only: the answers show, with
   # no boxes and no Defer buttons.
-  defp questions(%{idea: %{column: column}} = assigns) when column in ["done", "parked"] do
+  defp questions(%{idea: %{column: column}} = assigns)
+       when column in ["done", "parked", "archived"] do
     assigns =
       assign(assigns,
         items:
@@ -1327,6 +1443,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   attr :prs, :map, default: %{}
   attr :comment_for, :any, default: nil
   attr :downvote_for, :any, default: nil
+  attr :archive_for, :any, default: nil
+  attr :qa, :boolean, default: false
   attr :editing, :any, default: nil
   attr :drafts, :map, default: %{}
   attr :typing, :map, default: %{}
@@ -1350,7 +1468,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             {id, to} when id == idea.id -> to
             _ -> nil
           end,
-        r: idea.refinement || %{}
+        r: idea.refinement || %{},
+        archivable:
+          not assigns.qa and Transitions.archivable?(idea.column, {:founder, assigns.founder})
       )
 
     ~H"""
@@ -1456,7 +1576,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         <p :if={@idea.body != ""} class="whitespace-pre-line">{@idea.body}</p>
 
         <div
-          :if={@buttons != []}
+          :if={@buttons != [] or @archivable}
           id={"card-#{@idea.id}-moves"}
           role="group"
           aria-label="Move the card"
@@ -1482,7 +1602,58 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             >
               {b.label}
             </button>
+            <button
+              :if={@archivable}
+              type="button"
+              id={"card-#{@idea.id}-archive"}
+              phx-click="archive_start"
+              phx-value-card_id={@idea.id}
+              phx-target={@myself}
+              aria-expanded={to_string(@archive_for == @idea.id)}
+              aria-controls={"card-#{@idea.id}-archive-form"}
+              class="inline-flex min-h-11 items-center gap-1 rounded-full border px-4 font-semibold"
+            >
+              <.icon name="hero-archive-box" class="size-4" /> Archive
+            </button>
           </div>
+          <form
+            :if={@archive_for == @idea.id}
+            id={"card-#{@idea.id}-archive-form"}
+            data-draft={"card:#{@idea.id}"}
+            phx-change="draft_change"
+            phx-submit="archive"
+            phx-target={@myself}
+            class="grid gap-1 rounded-lg border-2 border-[var(--paper-rule)] p-2"
+          >
+            <input type="hidden" name="card_id" value={@idea.id} />
+            <label class="grid gap-1 font-semibold">
+              Reason for the archive (necessary) <textarea
+                id={"card-#{@idea.id}-archive-reason"}
+                phx-update="ignore"
+                name="reason"
+                rows="2"
+                required
+                maxlength="500"
+                phx-mounted={JS.focus()}
+                placeholder="For example: same as another card"
+                class="rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2 py-1 font-normal"
+              ></textarea>
+            </label>
+            <p class="text-xs text-[var(--paper-muted)]">
+              The card keeps its votes, comments and history. You can restore it from the Archive.
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <button type="submit" class="min-h-11 rounded border px-3 font-semibold">Archive the card</button>
+              <button
+                type="button"
+                phx-click="cancel_archive"
+                phx-target={@myself}
+                class="min-h-11 rounded px-3"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
           <p
             :for={b <- @buttons}
             :if={b.answer != :ok}
@@ -1890,6 +2061,225 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     """
   end
 
+  attr :cards, :list, required: true
+  attr :count, :integer, required: true
+  attr :cloud, :list, default: []
+  attr :selected, :list, default: []
+  attr :query, :string, default: ""
+  attr :delete_for, :any, default: nil
+  attr :error, :string, default: nil
+  attr :qa, :boolean, default: false
+  attr :myself, :any, required: true
+
+  # The Archive panel: a dialog with the archived cards as thin cards, newest
+  # first, a tag filter and a search box. Restore sends a card back to Ideas;
+  # Delete (founders) asks for the title first.
+  defp archive_panel(assigns) do
+    close = JS.push("close_archive", target: assigns.myself) |> JS.pop_focus()
+    assigns = assign(assigns, :close, close)
+
+    ~H"""
+    <div
+      id="board-archive"
+      class="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+      phx-window-keydown={@close}
+      phx-key="Escape"
+    >
+      <.focus_wrap
+        id="board-archive-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="board-archive-title"
+        phx-click-away={@close}
+        class="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-[var(--paper-panel)] p-4 text-[var(--paper-ink)] shadow-xl sm:rounded-2xl sm:p-6"
+      >
+        <div class="flex items-center gap-2">
+          <h2
+            id="board-archive-title"
+            class="mr-auto flex items-center gap-2 font-serif text-xl font-bold"
+          >
+            <.icon name="hero-archive-box" class="size-6" /> Archive
+            <span class="font-sans text-sm font-normal text-[var(--paper-muted)]">{@count}</span>
+          </h2>
+          <button
+            type="button"
+            id="board-archive-close"
+            phx-click={@close}
+            aria-label="Close the archive"
+            class="min-h-11 min-w-11 rounded border px-2"
+          >
+            ✕
+          </button>
+        </div>
+        <p class="mt-1 text-xs text-[var(--paper-muted)]">
+          Archived cards keep their votes, comments and history. Restore sends a card back to Ideas.
+        </p>
+        <form
+          id="board-archive-search"
+          phx-change="archive_filter"
+          phx-submit="archive_filter"
+          phx-target={@myself}
+          class="mt-3"
+        >
+          <label for="board-archive-q" class="sr-only">Search the title and the description</label>
+          <input
+            id="board-archive-q"
+            type="search"
+            name="q"
+            value={@query}
+            phx-debounce="200"
+            placeholder="Search the title and the description"
+            class="input input-sm w-full bg-[var(--paper-panel)]"
+          />
+        </form>
+        <ul
+          :if={@cloud != []}
+          id="archive-tags"
+          aria-label="Filter by tags"
+          class="mt-2 flex flex-wrap gap-1 text-xs"
+        >
+          <li :for={tag <- @cloud}>
+            <button
+              type="button"
+              data-tag={tag}
+              phx-click="archive_tag"
+              phx-value-tag={tag}
+              phx-target={@myself}
+              aria-pressed={to_string(tag in @selected)}
+              class={[
+                "badge badge-sm h-auto min-h-7 cursor-pointer px-2",
+                if(tag in @selected, do: "badge-primary", else: "badge-outline")
+              ]}
+            >
+              {tag}
+            </button>
+          </li>
+        </ul>
+        <p
+          :if={@error}
+          id="board-archive-error"
+          role="alert"
+          class="mt-2 rounded bg-red-50 px-2 py-1 text-sm text-red-800"
+        >
+          {@error}
+        </p>
+        <p :if={@cards == []} id="board-archive-empty" class="mt-3 text-sm text-[var(--paper-muted)]">
+          {if @count == 0, do: "The archive is empty.", else: "No archived card matches the filter."}
+        </p>
+        <ul id="board-archive-list" class="mt-3 grid grid-cols-1 gap-1.5">
+          <li
+            :for={{idea, info} <- Enum.map(@cards, &{&1, Board.archived_info(&1)})}
+            id={"archived-#{idea.id}"}
+            data-size="thin"
+            class="card card-border min-w-0 rounded-lg border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2 py-1.5 text-sm"
+          >
+            <div class="flex min-w-0 items-start gap-2">
+              <.avatar id={idea.id} size="size-6" />
+              <div class="min-w-0 flex-1">
+                <button
+                  type="button"
+                  phx-click={
+                    JS.push("close_archive", target: @myself)
+                    |> JS.push("open", value: %{card_id: idea.id}, target: @myself)
+                  }
+                  aria-haspopup="dialog"
+                  class="block min-h-6 break-words text-left font-semibold leading-snug underline-offset-2 hover:underline"
+                  data-role="title"
+                >
+                  {idea.title}
+                </button>
+                <p data-role="archived-by" class="text-xs text-[var(--paper-muted)]">
+                  Archived by {who(info.by)}<span :if={info.at}> · <time datetime={
+                    DateTime.to_iso8601(info.at)
+                  }>{TalesForgeWeb.TimeAgo.stockholm(
+                    info.at,
+                    "%-d %b %Y %H:%M %Z"
+                  )}</time></span>
+                </p>
+                <p :if={info.reason} data-role="archive-reason" class="break-words text-xs">
+                  {info.reason}
+                </p>
+                <span :if={(tags = Tags.of(idea)) != []} class="mt-0.5 flex flex-wrap gap-0.5">
+                  <span
+                    :for={tag <- tags}
+                    class="badge badge-ghost badge-xs h-auto max-w-full break-all"
+                  >
+                    {tag}
+                  </span>
+                </span>
+              </div>
+            </div>
+            <div :if={not @qa} class="mt-1 flex flex-wrap justify-end gap-1">
+              <button
+                type="button"
+                id={"archived-#{idea.id}-restore"}
+                phx-click="restore_card"
+                phx-value-card_id={idea.id}
+                phx-target={@myself}
+                aria-label={"Restore #{idea.title} to Ideas"}
+                class="min-h-11 rounded-full border px-3 text-xs font-semibold"
+              >
+                Restore to Ideas
+              </button>
+              <button
+                :if={@delete_for != idea.id}
+                type="button"
+                id={"archived-#{idea.id}-delete"}
+                phx-click="ask_delete"
+                phx-value-card_id={idea.id}
+                phx-target={@myself}
+                aria-label={"Delete #{idea.title} for good"}
+                class="min-h-11 rounded-full border border-red-700 px-3 text-xs text-red-800"
+              >
+                Delete
+              </button>
+            </div>
+            <form
+              :if={@delete_for == idea.id and not @qa}
+              id={"archived-#{idea.id}-delete-form"}
+              phx-submit="delete_card"
+              phx-target={@myself}
+              class="mt-1 grid gap-1 rounded-lg border-2 border-red-700 p-2"
+            >
+              <input type="hidden" name="card_id" value={idea.id} />
+              <label class="grid gap-1 text-xs font-semibold">
+                To delete the card for good, type its title: {idea.title}
+                <input
+                  id={"archived-#{idea.id}-delete-title"}
+                  name="title"
+                  required
+                  autocomplete="off"
+                  phx-mounted={JS.focus()}
+                  class="input input-sm w-full bg-[var(--paper-panel)] font-normal"
+                />
+              </label>
+              <p class="text-xs text-[var(--paper-muted)]">
+                Use this for spam or a duplicate. The card, its images, votes and comments go. The audit log keeps a record.
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  class="min-h-11 rounded border border-red-700 px-3 text-xs font-semibold text-red-800"
+                >
+                  Delete for good
+                </button>
+                <button
+                  type="button"
+                  phx-click="cancel_delete"
+                  phx-target={@myself}
+                  class="min-h-11 rounded px-3 text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </li>
+        </ul>
+      </.focus_wrap>
+    </div>
+    """
+  end
+
   attr :link, :any, required: true
 
   # The link of a History line (a PR, the decision commit); text only when
@@ -1924,7 +2314,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       <h5 class="font-semibold">Images</h5>
       <TeamImages.thumbnails images={@images} id={"card-#{@idea.id}-thumbs"} />
       <form
-        :if={@idea.column != "done"}
+        :if={@idea.column not in ["done", "archived"]}
         id={"card-#{@idea.id}-image-form"}
         phx-submit="add_images"
         phx-change="validate_images"
@@ -1998,4 +2388,21 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   end
 
   defp downvote(socket, id, nil), do: result(socket, id, {:error, "That card is gone."})
+
+  # A Restore or Delete in the Archive panel: an error shows in the panel.
+  defp archive_result(socket, nil, _fun),
+    do: {:noreply, socket |> assign(:archive_error, "That card is gone.") |> load()}
+
+  defp archive_result(socket, idea, fun) do
+    case fun.(idea) do
+      {:error, %Ecto.Changeset{} = cs} ->
+        {:noreply, socket |> assign(:archive_error, changeset_text(cs)) |> load()}
+
+      {:error, msg} ->
+        {:noreply, socket |> assign(:archive_error, to_string(msg)) |> load()}
+
+      _ok ->
+        {:noreply, socket |> assign(delete_for: nil, archive_error: nil) |> load()}
+    end
+  end
 end
