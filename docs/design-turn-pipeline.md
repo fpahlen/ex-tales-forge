@@ -1,12 +1,12 @@
 ---
 title: "Design: the turn pipeline (Jev first, GM last)"
 updated: 2026-10-12
-status: Draft
+status: Approved (Fredrik, 2026-10-12 16:17)
 ---
 
 # Design: the turn pipeline (Jev first, GM last)
 
-**Status: Draft.** 2026-10-12, revised after Case's review of `28c0404`. Fredrik approved the stage order at 15:54 and 16:05, and answered the open questions at 16:10 (§11). This document changes no code. Code: [whyse-ab/ex-tales-forge](https://github.com/whyse-ab/ex-tales-forge), main `575c2f0` (#198). Input: Case's analysis `llm-study/jev-threshold.md` and `jev_thr.py`.
+**Status: Approved (Fredrik, 2026-10-12 16:17).** 2026-10-12, revised after Case's review of `28c0404`. Fredrik approved the stage order at 15:54 and 16:05, and answered the open questions at 16:10 (§11). This document changes no code. Code: [whyse-ab/ex-tales-forge](https://github.com/whyse-ab/ex-tales-forge), main `575c2f0` (#198). Input: Case's analysis `llm-study/jev-threshold.md` and `jev_thr.py`.
 
 ## 1. Goal
 
