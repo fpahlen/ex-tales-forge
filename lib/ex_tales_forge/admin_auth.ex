@@ -63,12 +63,14 @@ defmodule TalesForge.AdminAuth do
     |> Plug.Conn.put_session(@github_login_key, login)
   end
 
-  @doc "Signs out: drops the identity keys from the session."
+  @doc "Signs out: drops the identity keys (GitHub and QA) from the session."
   @spec clear_session(Plug.Conn.t()) :: Plug.Conn.t()
   def clear_session(conn) do
-    conn
-    |> Plug.Conn.delete_session(@session_key)
-    |> Plug.Conn.delete_session(@github_login_key)
+    Enum.reduce(
+      [@session_key, @github_login_key | TalesForge.QaLogin.session_keys()],
+      conn,
+      &Plug.Conn.delete_session(&2, &1)
+    )
   end
 
   @doc """

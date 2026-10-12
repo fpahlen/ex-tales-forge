@@ -8,11 +8,12 @@ defmodule TalesForgeWeb.LiveAuth do
   the safety net for a LiveView mounted outside them, so a new LiveView is
   protected even if its route is added in the wrong place. It also marks the
   founder as online on this page (`TalesForge.Online.track/2`). Only the login page
-  opts out (`use TalesForgeWeb, :public_live_view`).
+  opts out (`use TalesForgeWeb, :public_live_view`). A QA session
+  (`TalesForge.QaLogin`) mounts the `/team` LiveViews only, read-only, and is
+  not tracked as online (`TalesForgeWeb.QaGuard.mount/2`).
   """
 
   import Phoenix.Component, only: [assign: 2]
-  import Phoenix.LiveView, only: [redirect: 2]
 
   alias TalesForge.AdminAuth
   alias TalesForge.Online
@@ -23,7 +24,7 @@ defmodule TalesForgeWeb.LiveAuth do
   def on_mount(_name, _params, session, socket) do
     case AdminAuth.current_email(session) do
       nil ->
-        {:halt, redirect(socket, to: "/admin/login")}
+        TalesForgeWeb.QaGuard.mount(session, socket)
 
       email ->
         :ok = Online.track(socket, email, session[AdminAuth.github_login_key()])

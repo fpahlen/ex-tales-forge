@@ -93,7 +93,7 @@ defmodule TalesForgeWeb.TeamChatLive do
 
   def handle_info({:team_chat, %Message{} = m}, socket) do
     if socket.assigns.open do
-      Chat.mark_read(socket.assigns.login)
+      unless socket.assigns[:qa], do: Chat.mark_read(socket.assigns.login)
       {:noreply, assign(socket, :messages, socket.assigns.messages ++ [m])}
     else
       {:noreply, assign(socket, :unread, Chat.unread(socket.assigns.login))}
@@ -103,7 +103,8 @@ defmodule TalesForgeWeb.TeamChatLive do
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   defp open(socket, to) do
-    Chat.mark_read(socket.assigns.login)
+    # The QA session never marks the chat as read for anyone.
+    unless socket.assigns[:qa], do: Chat.mark_read(socket.assigns.login)
     body = if to, do: "@#{mention(to)} ", else: ""
 
     socket

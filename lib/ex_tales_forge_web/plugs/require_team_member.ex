@@ -6,6 +6,9 @@ defmodule TalesForgeWeb.Plugs.RequireTeamMember do
   else is redirected to `/admin/login`; for a GET the path and query are
   remembered (in the session and as `?return_to=`, same-origin only,
   `TalesForge.AdminAuth.safe_return_to/1`) so the sign-in returns there.
+
+  A valid QA session (`TalesForge.QaLogin`) gets through on the `/team` pages
+  only, with `:read_only` assigned.
   """
 
   @behaviour Plug
@@ -14,6 +17,7 @@ defmodule TalesForgeWeb.Plugs.RequireTeamMember do
   import Phoenix.Controller
 
   alias TalesForge.AdminAuth
+  alias TalesForge.QaLogin
 
   @impl Plug
   def init(opts), do: opts
@@ -22,14 +26,23 @@ defmodule TalesForgeWeb.Plugs.RequireTeamMember do
   def call(conn, _opts) do
     case AdminAuth.current_email(conn) do
       nil ->
-        conn
-        |> remember_path()
-        |> redirect(to: login_path(conn))
-        |> halt()
+        if QaLogin.valid_session?(conn) and QaLogin.allowed_path?(conn.request_path),
+          do:
+            conn
+            |> assign(:admin_email, QaLogin.email())
+            |> assign(:read_only, QaLogin.read_only?()),
+          else: refuse(conn)
 
       email ->
         assign(conn, :admin_email, email)
     end
+  end
+
+  defp refuse(conn) do
+    conn
+    |> remember_path()
+    |> redirect(to: login_path(conn))
+    |> halt()
   end
 
   defp remember_path(%Plug.Conn{method: "GET"} = conn),
