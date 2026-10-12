@@ -11,6 +11,44 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Refine ideation process
+
+- **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. Add a chat box instead of current idea input, bot then checks for already existing cards or variants or if it already is implemented before it creates a new card. Otherwise it displays links to the similar card. Show a notification that a card is created
+- **Why:** **Problem.** The New idea form on the board takes a title and a body. It does not check for cards that exist. Thus founders can add a duplicate card, or an idea that is already done. The form also gives no clear message when it creates a card.
+
+**Goal.** A chat box replaces the New idea form. The founder writes the idea. The bot looks for similar cards and for done work. If it finds a match, it shows links to those cards. If it finds no match, it creates the card and shows a notification.
+
+**Proposed approach.**
+1. Replace the `board-add` form (`phx-submit="add"`) in `lib/ex_tales_forge_web/components/team_idea_board.ex` with a chat box. Keep the draft save (`data-draft="new-idea"`).
+2. Add a module `TalesForge.Board.Similar` in `lib/ex_tales_forge/board/similar.ex`. It compares the new text with the title and body of each card. It returns the best matches with a score. Step one uses a text match in Postgres (`pg_trgm` similarity), so it adds no AI cost. A Done card counts as "already implemented".
+3. The `add` event first calls `Similar.matches/1`. When the score is high, the chat box shows the matches as links to `Board.url/1`, with two buttons: "Open card" and "Create anyway". When there is no match, it calls `Board.create_idea/2` as today.
+4. After `Board.create_idea/2` succeeds, show a flash notification with a link to the new card.
+5. Add tests in `test/ex_tales_forge/board/similar_test.exs` and for the event in the board LiveView test.
+
+**Acceptance criteria.**
+- The board shows a chat box in place of the New idea form.
+- A text that is close to an open card shows a link to that card. No card is created.
+- A text that is close to a Done card shows the link and says that the work is done.
+- "Create anyway" creates the card.
+- A text with no match creates the card in Ideas.
+- After each new card, the founder sees a notification with a link.
+- Tests pass in CI.
+
+**Size: M.**
+
+**Risks.**
+- The text match can miss an idea that uses other words. Mitigation: show the top three matches, and add an AI check later if needed.
+- The text match can stop a good new idea. Mitigation: the "Create anyway" button.
+- `pg_trgm` needs a migration. A migration is not on the admin list. Mitigation: ship the migration in one small normal-lane PR first, as the board design doc says.
+- An AI check through `lib/ex_tales_forge/llm.ex` would change a file outside the admin list.
+
+**Deploy lane: fast.** The main change is in `lib/ex_tales_forge/board/` and the board component, which are on the `[admin]` list in `.github/deploy-lanes.txt`. Only the `pg_trgm` migration takes the normal lane.
+
+**Confidence.** High confidence: the board has all the data, and the form and `create_idea/2` exist. Verdict: feasible. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-42fd5696-78dd-4551-bd7f-008ab7c37a76)
+
+<!-- board:idea:42fd5696-78dd-4551-bd7f-008ab7c37a76 -->
+
 ## 2026-10-12: Archive for ideas
 
 - **Decision (Fredrik, 2026-10-12):** the board gets an Archive. A founder archives a card in Ideas or Parked with a short reason; the card leaves the board and goes to the Archive panel, which a small tile next to Parked opens (a box icon and a count). The panel lists the archived cards newest first, with the Ideas tag filter and a search box, and shows who archived each card and when. Restore sends a card back to Ideas. Founders can delete an archived card for good (spam or duplicates) after they type its title; the delete removes the card's images and writes an audit record. Bots and the Gentry QA session cannot archive or delete.
