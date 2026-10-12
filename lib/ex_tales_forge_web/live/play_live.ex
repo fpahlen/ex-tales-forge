@@ -33,6 +33,7 @@ defmodule TalesForgeWeb.PlayLive do
      |> assign(:page_title, session.name)
      |> assign(:session, session)
      |> assign(:thinking, false)
+     |> assign(:streaming_text, "")
      |> assign(:scene_loading, status.needs_scene)
      |> assign(:scene_image_url, current_scene_image(session))
      |> assign(:clarification, GameSessions.pending_clarification(session.world_state))
@@ -96,10 +97,21 @@ defmodule TalesForgeWeb.PlayLive do
     {:noreply, assign(socket, :thinking, true)}
   end
 
+  # The GM narration while it streams. Each event has the whole text so far,
+  # so the page replaces its text. :reset clears it before a JSON retry.
+  def handle_info({:turn_stream, {:text, text}}, socket) do
+    {:noreply, socket |> assign(:thinking, true) |> assign(:streaming_text, text)}
+  end
+
+  def handle_info({:turn_stream, :reset}, socket) do
+    {:noreply, assign(socket, :streaming_text, "")}
+  end
+
   def handle_info({:clarification_needed, clarification}, socket) do
     {:noreply,
      socket
      |> assign(:thinking, false)
+     |> assign(:streaming_text, "")
      |> assign(:clarification, clarification)}
   end
 
@@ -112,6 +124,7 @@ defmodule TalesForgeWeb.PlayLive do
     socket =
       socket
       |> assign(:thinking, false)
+      |> assign(:streaming_text, "")
       |> assign(:clarification, nil)
       |> assign(:session, session)
       |> assign(:llm_source, payload.llm_source)
@@ -125,6 +138,7 @@ defmodule TalesForgeWeb.PlayLive do
     {:noreply,
      socket
      |> assign(:thinking, false)
+     |> assign(:streaming_text, "")
      |> put_flash(:info, spend_cap_message(kind))}
   end
 
@@ -132,6 +146,7 @@ defmodule TalesForgeWeb.PlayLive do
     {:noreply,
      socket
      |> assign(:thinking, false)
+     |> assign(:streaming_text, "")
      |> put_flash(:error, "Turn failed: #{reason}")}
   end
 
@@ -186,6 +201,7 @@ defmodule TalesForgeWeb.PlayLive do
             streams={@streams}
             scene_loading={@scene_loading}
             thinking={@thinking}
+            streaming_text={@streaming_text}
             clarification={@clarification}
             input_disabled={@input_disabled}
             session_status={@session.status}
@@ -239,12 +255,16 @@ defmodule TalesForgeWeb.PlayLive do
 
       {:error, :empty_message} ->
         {:noreply,
-         socket |> assign(:thinking, false) |> put_flash(:error, "Say something first.")}
+         socket
+         |> assign(:thinking, false)
+         |> assign(:streaming_text, "")
+         |> put_flash(:error, "Say something first.")}
 
       {:error, :clarification_expired} ->
         {:noreply,
          socket
          |> assign(:thinking, false)
+         |> assign(:streaming_text, "")
          |> assign(:clarification, nil)
          |> put_flash(:error, "That question has passed. Say what you do.")}
 
@@ -252,18 +272,21 @@ defmodule TalesForgeWeb.PlayLive do
         {:noreply,
          socket
          |> assign(:thinking, false)
+         |> assign(:streaming_text, "")
          |> put_flash(:error, "Wait for the GM to describe the scene before you act.")}
 
       {:error, :dead} ->
         {:noreply,
          socket
          |> assign(:thinking, false)
+         |> assign(:streaming_text, "")
          |> put_flash(:error, "You are dead.")}
 
       {:error, _reason} ->
         {:noreply,
          socket
          |> assign(:thinking, false)
+         |> assign(:streaming_text, "")
          |> put_flash(:error, "Could not process that action.")}
     end
   end

@@ -51,6 +51,7 @@ defmodule TalesForgeWeb.PlayComponents do
   attr :streams, :map, required: true
   attr :scene_loading, :boolean, required: true
   attr :thinking, :boolean, required: true
+  attr :streaming_text, :string, default: ""
   attr :clarification, :map, default: nil
   attr :input_disabled, :boolean, required: true
   attr :session_status, :string, default: "active"
@@ -99,7 +100,15 @@ defmodule TalesForgeWeb.PlayComponents do
           <p :if={@scene_loading} class="text-sm italic text-[var(--paper-muted)]">
             The GM is setting the scene…
           </p>
-          <p :if={@thinking} class="text-sm italic text-[var(--paper-muted)]">
+          <div :if={@thinking and @streaming_text != ""} id="gm-streaming" class="space-y-1">
+            <div class={entry_body_class(%{role: "gm"})}>
+              <span class="play-narrative-body">{@streaming_text}</span>
+            </div>
+          </div>
+          <p
+            :if={@thinking and @streaming_text == ""}
+            class="text-sm italic text-[var(--paper-muted)]"
+          >
             The GM is thinking…
           </p>
         </div>

@@ -176,6 +176,7 @@ Sources: `test/ex_tales_forge/game/prompt_prefix_test.exs`, `test/ex_tales_forge
 - **Golden prompts stay byte-identical** unless a change is intended. The fixtures in `test/fixtures/prompts/` (one per adventure and variant) only change on purpose: regenerate with `UPDATE_PROMPT_GOLDEN=1 mix test test/ex_tales_forge/game/prompt_golden_test.exs`, review the diff and say so in the PR.
 - **The baseline variant is frozen.** `priv/prompts/variants/baseline/`, the packs' `variants/baseline/` folders and the `*.baseline.txt` fixtures are the pre-rework game and must not change while the baseline arm exists; new behaviour goes into the default variant only.
 - The strict GM and scene reply schema has no `maxLength` or `maxItems` (they disable xAI's prompt cache); caps are applied in code when the reply is parsed.
+- The GM call streams (`stream: true`); the play page shows the narrative while it arrives (`TalesForge.LLM.Stream`). The GM reply has two variants by app role (`TalesForge.LLM.gm_variant/1`): production uses `lean` (no `gm_notes`, no `location_name` in schema and prompt), playtest and local use `full`. One prompt file serves both; `llm.ex` cuts the lean parts. `ai_calls` stores `ttft_ms` and `narration_variant`.
 - Only the scene and GM calls share the session's `x-grok-conv-id`; persona, scorer, intent and fact-extraction calls use `<session>:<purpose>`.
 - Prompt files are content: a code change must not alter their text by accident.
 
