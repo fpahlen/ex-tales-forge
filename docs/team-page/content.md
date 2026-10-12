@@ -1,6 +1,6 @@
 ---
 title: "Team page (/team): content brief"
-updated: 2026-10-10
+updated: 2026-10-12
 status: brief for Bobby
 ---
 
@@ -17,7 +17,7 @@ status: brief for Bobby
 - **Numbers:** every number comes from `data.json` (given here as `key.path`). Where we don't have a number, the page says "not measured yet" rather than guessing.
 - **As of:** 2026-10-09 (Stockholm time). Show "Numbers as of 9 Oct 2026" in the footer, read from `_about.as_of`.
 
-Suggested layout: one long page with a section nav (sticky from 640 px; on a phone it wraps and scrolls away with the page, and a "Skip to content" link comes first) (Team · How we work · Infrastructure · Playtests · Pace and cost · One shared board · Together). It should work on a phone at 320 px wide, since Gentry checks exactly that.
+Suggested layout: one long page with a section nav (sticky from 640 px; on a phone it wraps and scrolls away with the page, and a "Skip to content" link comes first) (Team · How we work · Infrastructure · How it's wired · Playtests · Pace and cost · One shared board · Together). It should work on a phone at 320 px wide, since Gentry checks exactly that.
 
 ---
 
@@ -274,7 +274,39 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 
 ---
 
-## 4. Playtests
+## 4. How it's wired
+
+**Source:** [infrastructure-summary.md](infrastructure-summary.md) (the founders' one-page summary of [Infrastructure setup](../infrastructure-setup.md)). Anchor `#wired`; nav label "How it's wired". Write it in Simplified Technical English: short sentences, one idea each, active voice.
+
+**Intro:** "Tales Forge runs as two apps on Fly.io in Stockholm. Playtest gets each change first. Production is what players use. GitHub keeps our code and our docs. GitHub also tests each change before it ships."
+
+**The bots:** "Three bots work with us. Case refines ideas and reviews work. Bobby builds and ships. Gentry tries to break things on playtest. When you move a card on the idea board, the board wakes the right bot. When you move a card to Building, the board writes the decision in our decision log."
+
+**From the idea board to production** (a numbered list, not a wide diagram, so the page does not scroll sideways on a phone):
+
+1. The idea board wakes Case or Bobby.
+2. Bobby builds the change as a PR. GitHub checks it.
+3. The change goes to playtest. Gentry checks it.
+4. Bobby deploys the approved commit to production.
+5. Admin and security fixes ship by themselves.
+
+**Key facts:**
+
+- **Two apps, two databases.** Playtest and production each have their own database. A test never touches player data.
+- **Playtest first.** Every change goes to playtest before production.
+- **One founder OK is enough.** Any founder approves a PR on its board card.
+- **Normal changes ship after Gentry's check.** Bobby then deploys the approved commit to production. No founder pushes anything.
+- **Fast lanes.** Admin-page changes and safe security fixes ship without a manual OK.
+- **Cards finish by themselves.** A card moves to Done when its change is live on production.
+- **Only the team gets in.** You sign in with GitHub. Only members of the Tales Forge team can open the site.
+
+**Footer line:** "The full runbook is "Infrastructure setup" in our docs (docs/infrastructure-setup.md)."
+
+Keep this consistent with the hero callout and section 1: a founder approves, Gentry checks, and Bobby triggers the production deploy for the approved commit. A founder never deploys.
+
+---
+
+## 5. Playtests
 
 **Intro copy:**
 > We can't hire a hundred players yet, so we built five pretend ones. Each persona bot plays the game the way a real kind of player would, and Jev reads every session and asks: how would *this* player have felt?
@@ -359,7 +391,7 @@ From `gentry_findings`:
 
 ---
 
-## 5. Pace and cost
+## 6. Pace and cost
 
 **Intro copy:**
 > Bots are fast. These numbers show how fast, and what it cost.
@@ -390,7 +422,7 @@ From `gentry_findings`:
 
 ---
 
-## 6. How we work together: one shared board
+## 7. How we work together: one shared board
 
 **Badge:** "Live on /team" (the idea board went live 2026-10-10; it was "Coming soon. Not built yet." before).
 
@@ -429,7 +461,7 @@ From `gentry_findings`:
 
 ---
 
-## 7. Where we go from here, together
+## 8. Where we go from here, together
 
 **Intro copy:**
 > Several founders already add, vote, comment and approve on the shared board. The best part is still ahead, and it gets better with every founder who joins in. Together we can make something awesome.
