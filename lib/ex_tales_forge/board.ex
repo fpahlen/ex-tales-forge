@@ -223,19 +223,48 @@ defmodule TalesForge.Board do
   @spec gentry_pass() :: String.t()
   def gentry_pass, do: @gentry_pass
 
-  @doc "Adds an idea to the Ideas column, by `founder`."
+  @doc """
+  Adds an idea to the Ideas column, by `founder` (an email, or `bot:<name>`
+  for a card that a bot writes through the board API). Optional `tags`: a
+  list of free-text tags (`TalesForge.Board.Tags`); a bad tag refuses the
+  card. A new card always starts in Ideas and wakes no bot.
+  """
   @spec create_idea(String.t(), map()) :: {:ok, Idea.t()} | error()
   def create_idea(founder, attrs) do
     attrs = Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
 
+    with {:ok, tags} <- new_tags(attrs["tags"], normalize(founder)) do
+      insert_idea(founder, attrs, tags)
+    end
+  end
+
+  defp new_tags(nil, _author), do: {:ok, []}
+
+  defp new_tags(tags, author) when is_list(tags) do
+    founder_tag = Tags.founder_tag(author)
+
+    Enum.reduce_while(tags, {:ok, []}, fn text, {:ok, acc} ->
+      case Tags.normalize(text) do
+        {:ok, tag} when tag == founder_tag -> {:cont, {:ok, acc}}
+        {:ok, tag} -> {:cont, {:ok, if(tag in acc, do: acc, else: acc ++ [tag])}}
+        {:error, message} -> {:halt, {:error, message}}
+      end
+    end)
+  end
+
+  defp new_tags(_tags, _author), do: {:error, "Tags must be a list of words."}
+
+  defp insert_idea(founder, attrs, tags) do
     Multi.new()
     |> Multi.insert(
       :idea,
-      Idea.create_changeset(%Idea{}, %{
+      %Idea{}
+      |> Idea.create_changeset(%{
         "title" => attrs["title"],
         "body" => attrs["body"] || "",
         "author" => normalize(founder)
       })
+      |> Ecto.Changeset.put_change(:tags, tags)
     )
     |> Multi.insert(:transition, fn %{idea: idea} ->
       Transition.changeset(%Transition{}, %{

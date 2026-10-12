@@ -78,4 +78,46 @@ defmodule TalesForge.Board.ApiTest do
 
     assert body =~ Board.gentry_pass()
   end
+
+  describe "POST /ideas (create)" do
+    test "a bot adds a card to Ideas, as its author, with tags; no bot wakes" do
+      {201, card} =
+        Oban.Testing.with_testing_mode(:manual, fn ->
+          Api.handle(:create, :case, %{
+            "title" => "  Tavern regulars  ",
+            "description" => "They remember you.",
+            "tags" => ["Combat  UI", "combat ui", "lore"],
+            "column" => "building",
+            "votes" => [1]
+          })
+        end)
+
+      assert card["title"] == "Tavern regulars"
+      assert card["body"] == "They remember you."
+      assert card["column"] == "ideas"
+      assert card["author"] == "bot:case"
+      assert card["free_tags"] == ["combat ui", "lore"]
+      assert card["net_votes"] == 0
+      assert [%{"to" => "ideas", "actor" => "bot:case"}] = card["history"]
+      assert Board.get_idea(card["id"]).column == "ideas"
+      assert TalesForge.Repo.all(Oban.Job) == []
+    end
+
+    test "validation errors: 422 with a message" do
+      assert {422, %{"error" => "title" <> _}} = Api.handle(:create, :bobby, %{})
+      assert {422, %{"error" => "title" <> _}} = Api.handle(:create, :bobby, %{"title" => "ab"})
+
+      assert {422, %{"error" => "Type a tag."}} =
+               Api.handle(:create, :bobby, %{"title" => "Good title", "tags" => [" "]})
+
+      assert {422, %{"error" => "A tag has 24 characters or fewer."}} =
+               Api.handle(:create, :bobby, %{
+                 "title" => "Good title",
+                 "tags" => [String.duplicate("a", 25)]
+               })
+
+      assert {422, %{"error" => "Tags must be a list of words."}} =
+               Api.handle(:create, :bobby, %{"title" => "Good title", "tags" => "a,b"})
+    end
+  end
 end

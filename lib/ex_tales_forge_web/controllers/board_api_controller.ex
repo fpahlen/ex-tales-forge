@@ -1,7 +1,7 @@
 defmodule TalesForgeWeb.BoardApiController do
   @moduledoc """
   The bots' API for the founders' idea board, `/internal/board/*` (router):
-  list and read cards, write Case's refinement, move a card, add a link (PR,
+  list and read cards, add a card to Ideas, write Case's refinement, move a card, add a link (PR,
   playtest) and comment. JSON in and out.
 
   - Production only, like the board (`TalesForge.AppRole.here?(:board)`):
@@ -20,7 +20,7 @@ defmodule TalesForgeWeb.BoardApiController do
   alias TalesForge.Online
   alias TalesForgeWeb.PeerToken
 
-  for action <- [:index, :show, :refine, :move, :link, :comment, :pr] do
+  for action <- [:index, :show, :create, :refine, :move, :link, :comment, :pr] do
     @doc "`#{action}` for an authorised bot (see the moduledoc)."
     @spec unquote(action)(Plug.Conn.t(), map()) :: Plug.Conn.t()
     def unquote(action)(conn, params), do: dispatch(conn, unquote(action), params)
