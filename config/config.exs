@@ -23,7 +23,18 @@ config :ex_tales_forge, TalesForge.CodeHeat, enabled: false
 config :ex_tales_forge, Oban,
   repo: TalesForge.Repo,
   queues: [default: 10, llm: 5, board: 5],
-  plugins: [{Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7}]
+  # Graceful stop: on SIGTERM Oban stops fetching and gives running jobs 20 s to
+  # finish, inside fly.toml's 30 s kill_timeout (so the old blue-green machine
+  # does not die with a job still 'executing').
+  shutdown_grace_period: :timer.seconds(20),
+  plugins: [
+    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
+    # A job left 'executing' by a machine that was killed anyway (OOM, a hard
+    # stop) goes back to 'available' after 5 minutes instead of never. Every
+    # worker must finish well within that (the board webhook times out at 30 s,
+    # Notify.timeout/1) and be idempotent (Notify keeps its delivery id).
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)}
+  ]
 
 # The founders' idea board on /team (tales-forge-docs docs/design-idea-board.md).
 # The bot API (TalesForgeWeb.BoardApiController, shared) hands each request to

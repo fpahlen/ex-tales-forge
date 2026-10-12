@@ -11,12 +11,16 @@ defmodule TalesForge.Board.Workers.Notify do
   key>`. Body: `event`, `delivery_id`, `bot`, `idea` (id, title, column, url),
   `transition` (from, to, actor) and, for a mention, `comment`.
 
-  Any 2xx ends it. Otherwise Oban retries up to 8 times with backoff (1 min,
-  2, 4 ... up to 4 h). A bot without a URL is skipped (the job is cancelled).
+  Any 2xx ends it. A pooled connection the bot already closed (`:closed`) is
+  retried once at once in the same attempt. Otherwise Oban retries up to 10
+  times, fast at first so a short outage of the bot costs seconds, not half an
+  hour: 10 s, 30 s, 1 min, 2 min, 2 min, then doubling up to 4 h (`backoff/1`).
+  The job is idempotent: the delivery id is in the args, so a retry or a job
+  rescued after a deploy (Oban.Plugins.Lifeline) sends the same id. A bot without a URL is skipped (the job is cancelled).
   Queue `:board`.
   """
 
-  use Oban.Worker, queue: :board, max_attempts: 8
+  use Oban.Worker, queue: :board, max_attempts: 10
 
   alias TalesForge.Board
   alias TalesForge.Board.Idea
@@ -74,7 +78,14 @@ defmodule TalesForge.Board.Workers.Notify do
 
   @impl Oban.Worker
   @spec backoff(Oban.Job.t()) :: pos_integer()
-  def backoff(%Oban.Job{attempt: attempt}), do: min(60 * Integer.pow(2, attempt - 1), 4 * 3600)
+  def backoff(%Oban.Job{attempt: attempt}) when attempt <= 5,
+    do: Enum.at([10, 30, 60, 120, 120], attempt - 1)
+
+  def backoff(%Oban.Job{attempt: attempt}), do: min(120 * Integer.pow(2, attempt - 5), 4 * 3600)
+
+  # Well inside Lifeline's rescue_after and the deploy's grace period.
+  @impl Oban.Worker
+  def timeout(_job), do: :timer.seconds(30)
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"bot" => bot} = args}) do
@@ -107,15 +118,31 @@ defmodule TalesForge.Board.Workers.Notify do
       {"x-board-signature", signature(key, ts, body)}
     ]
 
-    opts = [body: body, headers: headers, retry: false, receive_timeout: 15_000]
+    opts =
+      Keyword.merge(
+        [
+          body: body,
+          headers: headers,
+          retry: false,
+          receive_timeout: 10_000,
+          connect_options: [timeout: 5_000]
+        ],
+        Application.get_env(:ex_tales_forge, :board_req_options, [])
+      )
 
-    case Req.post(
-           url,
-           Keyword.merge(opts, Application.get_env(:ex_tales_forge, :board_req_options, []))
-         ) do
+    case post_once_more_if_closed(url, opts) do
       {:ok, %{status: status}} when status in 200..299 -> :ok
       {:ok, %{status: status}} -> {:error, "webhook answered #{status}"}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # The bot closed an idle pooled connection: send again on a fresh one now
+  # instead of waiting for Oban's first retry.
+  defp post_once_more_if_closed(url, opts) do
+    case Req.post(url, opts) do
+      {:error, %Req.TransportError{reason: :closed}} -> Req.post(url, opts)
+      other -> other
     end
   end
 

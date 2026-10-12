@@ -127,7 +127,7 @@ defmodule TalesForge.Board.OutboxTest do
                "payload" => %{}
              })
 
-    assert Notify.backoff(%Oban.Job{attempt: 1}) == 60
+    assert Notify.backoff(%Oban.Job{attempt: 1}) == 10
     assert Notify.backoff(%Oban.Job{attempt: 20}) == 4 * 3600
   end
 
