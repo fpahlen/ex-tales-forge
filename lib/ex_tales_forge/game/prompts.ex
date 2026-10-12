@@ -21,9 +21,10 @@ defmodule TalesForge.Game.Prompts do
   when it exists. The variant is fixed per session, so the cached prefix is too.
   """
 
-  alias TalesForge.Game.Context
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction}
   alias TalesForge.Game.Variant
+  alias TalesForge.Prompt
+  alias TalesForge.Prompt.{Ctx, Profile}
 
   @doc "System prompt of the intent step (`priv/prompts/intent_system.txt`) for a variant."
   @spec intent_system(Variant.t()) :: String.t()
@@ -43,13 +44,7 @@ defmodule TalesForge.Game.Prompts do
 
   @doc "Messages for the opening/arrival scene call."
   @spec scene_messages(map()) :: [%{role: String.t(), content: String.t()}]
-  def scene_messages(gm_context) do
-    narration_messages(
-      gm_context,
-      scene_system(variant(gm_context)),
-      Context.per_turn_section(gm_context)
-    )
-  end
+  def scene_messages(gm_context), do: messages(gm_context, :scene, [])
 
   @doc "Messages for a GM turn. Per-turn content, including the action, goes last."
   @spec gm_messages(
@@ -67,36 +62,21 @@ defmodule TalesForge.Game.Prompts do
         %HandlerResult{} = handler,
         turn_number
       ) do
-    per_turn =
-      Context.per_turn_section(gm_context) <>
-        Context.mechanical_bounds(mechanical) <>
-        "\n\nValidated player action (turn #{turn_number}):\n" <>
-        Jason.encode!(PlayerAction.encode(player_action), pretty: true) <>
-        "\n\nAction handler result:\n" <>
-        Jason.encode!(handler_payload(handler), pretty: true)
-
-    narration_messages(gm_context, gm_system(variant(gm_context)), per_turn)
+    messages(gm_context, :gm,
+      mechanical: mechanical,
+      player_action: player_action,
+      handler: handler,
+      turn_number: turn_number
+    )
   end
 
-  defp variant(gm_context), do: Variant.of(Map.get(gm_context, :world_state))
+  defp messages(gm_context, call, data) do
+    ctx = Ctx.from_gm_context(gm_context, call, data: data)
 
-  defp narration_messages(gm_context, task, per_turn) do
-    [
-      %{role: "system", content: narrator_system(variant(gm_context))},
-      %{role: "system", content: gm_context.rules},
-      %{role: "system", content: task},
-      %{role: "user", content: Context.session_stable_section(gm_context)},
-      %{role: "user", content: per_turn}
-    ]
-  end
-
-  defp handler_payload(%HandlerResult{} = handler) do
-    %{
-      "handler" => handler.handler,
-      "skill" => handler.skill,
-      "target" => handler.target,
-      "notes" => handler.notes
-    }
+    ctx
+    |> Prompt.new()
+    |> Prompt.add_all(Profile.sections(ctx))
+    |> Prompt.to_messages()
   end
 
   @doc "The whole scene context of a session as one flat string (for tests and debugging)."

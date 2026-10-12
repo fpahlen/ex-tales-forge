@@ -193,39 +193,20 @@ defmodule TalesForge.Game.Context do
   state so the prompt cache can reuse it on every turn.
   """
   @spec session_stable_section(map()) :: String.t()
-  def session_stable_section(context) do
-    [
-      character_sheet(context.world_state),
-      opening_section(Map.get(context, :opening_scene), context.world_state)
-    ]
-    |> join_sections()
-  end
+  def session_stable_section(context), do: slot_text(context, :session)
 
   @doc "Everything that can change from turn to turn. Always last in the prompt."
   @spec per_turn_section(map()) :: String.t()
-  def per_turn_section(context) do
-    npc_sections =
-      NPC.format_gm_sections(
-        context.session_id,
-        Map.get(context.intent_context, "present_npcs", [])
-      )
+  def per_turn_section(context), do: slot_text(context, :turn)
 
-    [
-      perceived_facts_section(context),
-      context.formatted_intent,
-      npc_sections,
-      TalesForge.World.prompt_section(Map.get(context, :world_facts)),
-      TalesForge.World.Prices.prompt_section(Map.get(context, :price_lines)),
-      TalesForge.Game.NpcReactions.prompt_section(Map.get(context, :npc_reactions)),
-      Map.get(context, :npc_memory),
-      Gestures.prompt_section(Map.get(context, :recent_gestures)),
-      scene_now_section(context),
-      TalesForge.Game.OutcomeRecord.prompt_section(Map.get(context, :outcome_record)),
-      premise_section(context),
-      rest_growth_section(context),
-      player_request_section(context)
-    ]
-    |> join_sections()
+  # The scene profile: the per-turn state with no GM turn tail.
+  defp slot_text(context, slot) do
+    ctx = TalesForge.Prompt.Ctx.from_gm_context(context, :scene)
+
+    ctx
+    |> TalesForge.Prompt.new()
+    |> TalesForge.Prompt.add_all(TalesForge.Prompt.Profile.sections(ctx))
+    |> TalesForge.Prompt.render_slot(slot)
   end
 
   @doc """
@@ -421,7 +402,9 @@ defmodule TalesForge.Game.Context do
     |> Enum.join("\n\n---\n\n")
   end
 
-  defp character_sheet(world) do
+  @doc false
+  @spec character_sheet(map() | nil) :: String.t() | nil
+  def character_sheet(world) do
     world = world || %{}
     character = Map.get(world, "character", %{})
 
@@ -435,9 +418,11 @@ defmodule TalesForge.Game.Context do
 
   # Already told to the player before turn 1. Keep it on every GM turn so the
   # model doesn't re-narrate the arrival as if it just happened (humans and bots).
-  defp opening_section(nil, _world), do: nil
+  @doc false
+  @spec opening_section(struct() | nil, map() | nil) :: String.t() | nil
+  def opening_section(nil, _world), do: nil
 
-  defp opening_section(%Scene{} = scene, world) do
+  def opening_section(%Scene{} = scene, world) do
     where = if(scene.location_name, do: " (#{scene.location_name})", else: "")
 
     if Variant.baseline?(world) do
@@ -491,7 +476,9 @@ defmodule TalesForge.Game.Context do
 
   def mechanical_bounds(_), do: ""
 
-  defp perceived_facts_section(context) do
+  @doc false
+  @spec perceived_facts_section(map()) :: String.t() | nil
+  def perceived_facts_section(context) do
     world = context.world_state || %{}
 
     case Map.fetch(world, "public_facts") do
