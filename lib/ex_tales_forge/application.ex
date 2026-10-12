@@ -27,7 +27,7 @@ defmodule TalesForge.Application do
       TalesForge.Survey.Cache,
       TalesForge.PrFeed.Poller,
       TalesForgeWeb.Endpoint,
-      # Playtest only: the daily code heat map sample (TalesForge.CodeHeat).
+      # Playtest only: the hourly code heat map sample (TalesForge.CodeHeat).
       TalesForge.CodeHeat.Sampler,
       # Production: move Building cards whose PR is in this release to Done.
       Supervisor.child_spec({Task, &TalesForge.Board.Workers.AutoDone.schedule_on_boot/0},
