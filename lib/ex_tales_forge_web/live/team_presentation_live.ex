@@ -1069,6 +1069,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
      "You sign in with GitHub. Only members of the Tales Forge team can open the site."}
   ]
 
+  # The bots that do each step of the path (the fifth step, the fast lane,
+  # is the note under the path).
+  @wired_bots [["case", "bobby"], ["bobby"], ["gentry"], ["bobby"]]
+
   @doc """
   The key facts of section 4 ("How it's wired"), as `{headline, text}`.
 
@@ -1079,7 +1083,14 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   def wired_facts, do: @wired_facts
 
   defp wired_section(assigns) do
-    assigns = assign(assigns, steps: @wired_steps, facts: @wired_facts)
+    {path, [fast_lane]} = Enum.split(@wired_steps, 4)
+
+    assigns =
+      assign(assigns,
+        path: Enum.zip(path, @wired_bots),
+        fast_lane: fast_lane,
+        facts: @wired_facts
+      )
 
     ~H"""
     <section id="wired" class="team-section space-y-8" aria-labelledby="wired-title" data-reveal>
@@ -1096,24 +1107,123 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         decision in our decision log.
       </p>
 
-      <ol
-        id="wired-steps"
-        class="team-card list-decimal space-y-1 p-4 pl-8"
-        aria-label="From the idea board to production"
+      <%!-- The path from the idea board to production (TeamFlow hook in
+           assets/js/team_hooks.js): the d20 visits each step, the step lights
+           up and shows its bot, then the fast-lane note and the seven facts
+           appear one at a time. In Present mode each click shows one more.
+           The server renders the full static picture; the styles below hide
+           parts only under data-motion="full", while the hook plays. --%>
+      <style>
+        .wired-line { position: absolute; left: 27px; top: 1.75rem; bottom: 1.75rem; width: 3px; border-radius: 2px; background: repeating-linear-gradient(to bottom, var(--paper-rule) 0 8px, transparent 8px 13px); }
+        @media (min-width: 768px) { .wired-line { left: 12.5%; right: 12.5%; top: 27px; bottom: auto; width: auto; height: 3px; background: repeating-linear-gradient(to right, var(--paper-rule) 0 8px, transparent 8px 13px); } }
+        .wired-flow [data-flow-step] [data-flow-marker] { box-shadow: 0 0 0 3px var(--paper-panel), 0 0 0 5px var(--paper-rule); transition: box-shadow 0.35s ease; }
+        .wired-flow [data-flow-step][data-state="lit"] [data-flow-marker] { box-shadow: 0 0 0 3px var(--paper-panel), 0 0 0 5px var(--paper-accent); }
+        .wired-flow .wired-bot, .wired-flow [data-flow-fact] { transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1); }
+        .team-page[data-motion="full"] .wired-flow[data-flow="playing"] [data-flow-step][data-state="idle"] .wired-bot { opacity: 0; transform: scale(0.6); }
+        .team-page[data-motion="full"] .wired-flow[data-flow="playing"] [data-flow-fact]:not([data-shown]) { opacity: 0; transform: translateY(10px); }
+        @media (prefers-reduced-motion: reduce) { .wired-flow .wired-bot, .wired-flow [data-flow-fact] { opacity: 1 !important; transform: none !important; } }
+      </style>
+      <figure
+        id="wired-flow"
+        class="team-flow wired-flow team-card relative space-y-6 p-4 sm:p-6"
+        phx-hook="TeamFlow"
+        data-flow="static"
+        data-present-steps
       >
-        <li :for={step <- @steps}>{step}</li>
-      </ol>
-
-      <ul id="wired-facts" class="grid gap-3 sm:grid-cols-2">
-        <li :for={{head, text} <- @facts} class="team-card p-4">
-          <strong>{head}</strong> {text}
-        </li>
-      </ul>
+        <figcaption class="font-semibold">From the idea board to production</figcaption>
+        <ol
+          id="wired-steps"
+          class="relative grid gap-5 md:grid-cols-4 md:gap-3"
+          aria-label="From the idea board to production"
+          data-flow-track
+        >
+          <div class="wired-line" aria-hidden="true" />
+          <li
+            :for={{{step, bots}, i} <- Enum.with_index(@path, 1)}
+            id={"wired-step-#{i}"}
+            class="team-flow-step relative flex items-center gap-3 md:flex-col md:items-center md:text-center"
+            data-flow-step
+            data-bots={Enum.join(bots, " ")}
+          >
+            <div
+              class="relative flex size-14 shrink-0 items-center justify-center rounded-full bg-[var(--paper-panel)]"
+              data-flow-marker
+            >
+              <.wired_bots bots={bots} />
+            </div>
+            <p class="min-w-0 text-sm leading-snug">
+              <span class="font-semibold text-[var(--paper-muted)]">{i}.</span> {step}
+            </p>
+          </li>
+          <TeamArt.d20
+            class="team-flow-token pointer-events-none absolute left-0 top-0 z-20 size-9"
+            data-flow-token
+          />
+        </ol>
+        <p
+          id="wired-fast-lane"
+          class="team-flow-step flex items-center gap-3 rounded-lg border border-dashed border-[var(--paper-rule)] p-3 text-sm"
+          data-flow-step
+          data-flow-note
+          data-bots="bobby"
+        >
+          <span
+            class="relative flex size-10 shrink-0 items-center justify-center rounded-full"
+            data-flow-marker
+          >
+            <TeamArt.avatar id="bobby" class="wired-bot size-10" />
+          </span>
+          <span>
+            <span class="font-semibold text-[var(--paper-muted)]">Fast lane:</span> {@fast_lane}
+          </span>
+        </p>
+        <ul id="wired-facts" class="grid gap-3 sm:grid-cols-2">
+          <li
+            :for={{{head, text}, i} <- Enum.with_index(@facts, 1)}
+            id={"wired-fact-#{i}"}
+            class="team-card p-4"
+            data-flow-fact
+          >
+            <strong>{head}</strong> {text}
+          </li>
+        </ul>
+        <button
+          type="button"
+          id="replay-wired"
+          aria-label="Replay the animation of the path from the idea board to production"
+          class="team-replay-btn min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--paper-accent)] inline-flex items-center gap-1.5 rounded-full border border-[var(--paper-rule)] px-3 py-1 text-sm hover:bg-[var(--paper-bg)]"
+          data-flow-replay
+        >
+          <.icon name="hero-arrow-path-micro" class="size-4" /> Replay
+        </button>
+      </figure>
 
       <p id="wired-runbook" class="text-sm opacity-80">
         The full runbook is "Infrastructure setup" in our docs (docs/infrastructure-setup.md).
       </p>
     </section>
+    """
+  end
+
+  attr :bots, :list, required: true
+
+  defp wired_bots(%{bots: [one]} = assigns) do
+    assigns = assign(assigns, :one, one)
+
+    ~H"""
+    <TeamArt.avatar id={@one} class="wired-bot size-14" />
+    """
+  end
+
+  defp wired_bots(assigns) do
+    ~H"""
+    <span class="relative block size-14">
+      <TeamArt.avatar
+        :for={{bot, i} <- Enum.with_index(@bots)}
+        id={bot}
+        class={"wired-bot absolute size-9 " <> if(i == 0, do: "left-0 top-0", else: "bottom-0 right-0")}
+      />
+    </span>
     """
   end
 

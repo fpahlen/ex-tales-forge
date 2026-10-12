@@ -130,8 +130,17 @@ export const setupPresent = hook => {
     window.scrollTo(0, 0)
   }
 
+  // A slide with a [data-present-steps] figure (TeamFlow) steps through it
+  // first: forward shows its next part until all is shown.
+  const stepper = () => current && document.getElementById(ids[current - 1])?.querySelector("[data-present-steps]")
+  const forward = () => { if (!stepper()?.presentNext?.()) go(current + 1) }
+
   const go = n => {
-    current = clampSlide(n, total)
+    const next = clampSlide(n, total)
+    if (next !== current) stepper()?.presentEnd?.()
+    const entered = next !== current
+    current = next
+    if (entered) stepper()?.presentStart?.()
     history.replaceState(null, "", `#slide-${current}`)
     render()
   }
@@ -147,6 +156,7 @@ export const setupPresent = hook => {
   const stop = () => {
     if (current === null) return
     const id = ids[current - 1]
+    stepper()?.presentEnd?.()
     current = null
     others().forEach(el => el.classList.remove("hidden"))
     bar.hidden = true
@@ -164,7 +174,7 @@ export const setupPresent = hook => {
     const fwd = ["ArrowRight", "ArrowDown", "PageDown"].includes(e.key) || (e.key === " " && !e.shiftKey)
     const back = ["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key) || (e.key === " " && e.shiftKey)
     if (e.key === "Escape") stop()
-    else if (fwd) go(current + 1)
+    else if (fwd) forward()
     else if (back) go(current - 1)
     else return
     e.preventDefault()
@@ -172,7 +182,8 @@ export const setupPresent = hook => {
 
   const onClick = e => {
     if (current === null || e.target.closest(PRESENT_SKIP)) return
-    go(e.clientX < window.innerWidth / 3 ? current - 1 : current + 1)
+    if (e.clientX < window.innerWidth / 3) go(current - 1)
+    else forward()
   }
 
   const onTouchStart = e => {
@@ -186,7 +197,7 @@ export const setupPresent = hook => {
     const dx = t.clientX - touch.x
     const dy = t.clientY - touch.y
     touch = null
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? current + 1 : current - 1)
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? forward() : go(current - 1)
   }
 
   const onFullscreen = () => { if (!document.fullscreenElement && current !== null) stop() }
@@ -374,18 +385,31 @@ export const setupPeeks = root => {
   }
 }
 
-// The change flow: the d20 visits each step; approval steps hold longer and
-// stamp the founders' seal. Plays once when scrolled into view.
+// The change flow (section 2) and the path from the idea board to production
+// (section 4, #wired-flow): the d20 visits each step; approval steps hold
+// longer and stamp the founders' seal. A [data-flow-note] step (the fast
+// lane under the path) lights up without the token. After the steps, the
+// [data-flow-fact] items appear one at a time. Plays once when scrolled into
+// view. In Present mode, a figure with data-present-steps shows one more step
+// or fact for each click or arrow key (el.presentStart / el.presentNext,
+// called by setupPresent).
 export const TeamFlow = {
   mounted() {
     this.steps = [...this.el.querySelectorAll("[data-flow-step]")]
+    this.facts = [...this.el.querySelectorAll("[data-flow-fact]")]
+    this.presentAt = null
+    if ("presentSteps" in this.el.dataset) {
+      this.el.presentStart = () => this.presentStart()
+      this.el.presentNext = () => this.presentNext()
+      this.el.presentEnd = () => this.presentEnd()
+    }
     this.track = this.el.querySelector("[data-flow-track]")
     this.token = this.el.querySelector("[data-flow-token]")
     this.timers = []
     this.current = null
     this.mq = reducedMotion()
 
-    this.onReplay = () => this.play()
+    this.onReplay = () => { this.presentAt = null; this.play() }
     this.replayButton = this.el.querySelector("[data-flow-replay]")
     this.replayButton?.addEventListener("click", this.onReplay)
 
@@ -410,23 +434,62 @@ export const TeamFlow = {
     this.clear()
     this.el.dataset.flow = "static"
     this.steps.forEach(s => { delete s.dataset.state; delete s.dataset.stamped })
+    this.facts.forEach(f => { delete f.dataset.shown })
+  },
+
+  reset() {
+    this.clear()
+    this.el.dataset.flow = "playing"
+    this.steps.forEach(s => { s.dataset.state = "idle"; delete s.dataset.stamped })
+    this.facts.forEach(f => { delete f.dataset.shown })
+  },
+
+  light(i) {
+    const step = this.steps[i]
+    if (!("flowNote" in step.dataset)) { this.current = i; this.place(i) }
+    step.dataset.state = "lit"
+    if (step.dataset.approval) step.dataset.stamped = "true"
+  },
+
+  // Present mode: the slide opens with nothing lit; each call of presentNext
+  // shows the next step, then the next fact. It returns false when all is
+  // shown, so the next click goes to the next slide.
+  presentStart() {
+    this.observer?.disconnect()
+    if (this.mq.matches) { this.presentAt = null; return this.settle() }
+    this.reset()
+    this.presentAt = 0
+  },
+
+  presentNext() {
+    if (this.presentAt == null || this.mq.matches) return false
+    const n = this.steps.length
+    if (this.presentAt >= n + this.facts.length) return false
+    if (this.presentAt < n) this.light(this.presentAt)
+    else this.facts[this.presentAt - n].dataset.shown = "true"
+    this.presentAt += 1
+    if (this.presentAt === n + this.facts.length) this.el.dataset.flow = "done"
+    return true
+  },
+
+  presentEnd() {
+    if (this.presentAt == null) return
+    this.presentAt = null
+    this.settle()
   },
 
   play() {
     if (this.mq.matches) return this.settle()
-    this.clear()
-    this.el.dataset.flow = "playing"
-    this.steps.forEach(s => { s.dataset.state = "idle"; delete s.dataset.stamped })
+    this.reset()
 
     let at = 250
     this.steps.forEach((step, i) => {
-      this.later(at, () => {
-        this.current = i
-        this.place(i)
-        step.dataset.state = "lit"
-        if (step.dataset.approval) step.dataset.stamped = "true"
-      })
-      at += step.dataset.approval ? 1600 : 600
+      this.later(at, () => this.light(i))
+      at += step.dataset.approval ? 1600 : (this.facts.length ? 900 : 600)
+    })
+    this.facts.forEach(fact => {
+      this.later(at, () => { fact.dataset.shown = "true" })
+      at += 450
     })
     this.later(at, () => { this.el.dataset.flow = "done" })
   },
