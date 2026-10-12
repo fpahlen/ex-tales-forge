@@ -11,6 +11,47 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Code heat map shows no data in playtest
+
+- **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. the code heat map on playtest never shows any data, i think there is an unclear sampling req.
+- **Why:** Verdict: feasible. The cause is clear, and the fix is small (high confidence).
+
+Cause (high confidence):
+1. `TalesForge.CodeHeat.Sampler` keeps the call counts in process memory.
+2. The sampler writes its first sample only after 24 hours (`:sample_every_ms`).
+3. A deploy or a restart of `tales-forge-playtest` stops the sampler. Then the counts in memory are lost.
+4. The playtest app gets a deploy after each green CI run on main.
+5. Since the heat map merge (#159, 2026-10-10 16:58), the longest gap between merges on main is about 8 hours.
+6. Thus the sampler never runs for 24 hours. The table `code_heat_snapshots` stays empty.
+7. The page shows "There is no sample yet". After each restart, the page shows a new time for the first sample.
+8. This 24-hour rule is the sampling rule that the card calls unclear.
+
+PR #161 and PR #168 changed only the page layout (390 px, legend, first sample time). They did not change the sampler.
+
+Fix:
+1. Change the sampler to write one sample each hour, at each `:read`. Each sample holds the counts of one hour.
+2. Write the current counts in `terminate/2` when Fly stops the machine. Then a deploy loses no counts.
+3. Add `kill_signal = "SIGTERM"` and `kill_timeout = "30s"` to `fly.playtest.toml`, as in `fly.toml`.
+4. Add one pure function in `TalesForge.CodeHeat` that merges the samples of a time window into one list of rows.
+5. Let the page pipe these rows into `tiles/4`, as it does now.
+6. Show the last 24 hours as a rolling window. The map then shows data one hour after a deploy.
+7. Change `:keep` from 14 samples to 72 samples (3 days of hourly samples).
+8. Change the page text to "A task writes one sample each hour. The map shows the last 24 hours."
+9. Remove the text that promises the first sample 24 hours after the start.
+10. Keep the heat map off on production. `enabled?(:production)` stays false.
+11. Add tests for the hourly write, the write at stop, the merge of a window and the empty window.
+
+Design notes:
+- The data flow is data, then pure transforms, then data. The trace and the database write stay at the edge, in the sampler.
+- `TalesForge.CodeHeat.save/4` stays the one place that writes samples. The table needs no migration.
+- Today `fly.playtest.toml` has no `kill_signal`. Fly then sends its default signal. Then `terminate/2` does not run (medium confidence).
+- One sample keeps at most 2000 functions (`:max_rows`). 72 samples use at most about 25 MB in the playtest database (medium confidence).
+- The fix reaches playtest only with a playtest deploy. Bobby needs a founder OK for that deploy.
+- Check: one hour after the deploy, Gentry opens `/admin/operate/code-heat` on playtest and sees tiles. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-3281c539-1373-4fc3-9aa9-664c717f836b)
+
+<!-- board:idea:3281c539-1373-4fc3-9aa9-664c717f836b -->
+
 ## 2026-10-12: Expand goals to add/subtract tasks
 
 - **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. clicking on a goal should expand it so we can add and subtract tasks that needs to be done to achieve the goal
