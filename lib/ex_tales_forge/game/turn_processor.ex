@@ -34,6 +34,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.Progression.Tiered
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Reflection
+  alias TalesForge.Game.Rest
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.{GMStructuredResponse, MechanicalResolution, PlayerAction}
   alias TalesForge.Game.Train
@@ -278,7 +279,11 @@ defmodule TalesForge.Game.TurnProcessor do
   # Handler resolution, server mechanics and the board (inventory, clock, move,
   # events, WorldSim, perception): everything decided before narration.
   defp resolve_rules(session, player_action) do
-    handler = ActionHandler.resolve(player_action, Variant.of(session.world_state))
+    handler =
+      player_action
+      |> ActionHandler.resolve(Variant.of(session.world_state))
+      |> Rest.apply(session.world_state || %{}, player_action.overall_intent)
+
     {character, rolled} = apply_mechanics(session.world_state, player_action, handler)
     board = apply_board(session, character, handler, player_action, rolled)
     {handler, %{rolled | improvements: board.improvements, training: board.training}, board}

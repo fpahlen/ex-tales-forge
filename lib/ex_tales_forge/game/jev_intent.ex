@@ -30,6 +30,7 @@ defmodule TalesForge.Game.JevIntent do
 
   alias TalesForge.Game.IntentCalibration
   alias TalesForge.Game.Inventory
+  alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, SingleAction}
   alias TalesForge.Game.WorldClock
 
@@ -374,6 +375,7 @@ defmodule TalesForge.Game.JevIntent do
   @spec decode(map(), [candidate()], keyword()) :: reading()
   def decode(reply, candidates, opts \\ []) do
     text = opts |> Keyword.get(:text, "") |> to_string()
+    reply = lodging_booking(reply, text)
     context = Keyword.get(opts, :context, %{})
     by_label = Map.new(candidates, fn c -> {c.label, c} end)
 
@@ -410,6 +412,26 @@ defmodule TalesForge.Game.JevIntent do
       cost: reply |> Map.get(:usage, %{}) |> Map.get(:cost, 0.0),
       model: Map.get(reply, :model)
     }
+  end
+
+  # Post-processing (a fact about the game, fitted on nothing): "I pay for a
+  # room and go to sleep" is the payment now and the sleep later
+  # (Rest.lodging_then_sleep?/1). Jev read it as a wait only in Gentry's
+  # session 0caf18f5 on 2026-10-12. A purchase stays a purchase; a message
+  # that is not benign does not change.
+  defp lodging_booking(reply, text) do
+    action = reply[:action]
+
+    if (reply[:safety] || :benign) == :benign and action in [nil, :wait, :spend, :buy] and
+         Rest.lodging_then_sleep?(text) do
+      later = if reply[:later] in [nil, :none], do: :wait, else: reply[:later]
+
+      reply
+      |> Map.put(:action, if(action == :buy, do: :buy, else: :spend))
+      |> Map.put(:later, later)
+    else
+      reply
+    end
   end
 
   defp candidate_id(_by_label, :none), do: nil
