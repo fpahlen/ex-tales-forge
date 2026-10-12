@@ -32,7 +32,6 @@ defmodule TalesForgeWeb.TeamChatLive do
   alias TalesForge.Chat.Message
   alias TalesForge.TeamOnline
   alias TalesForgeWeb.TeamImages
-  alias TalesForgeWeb.TimeAgo
 
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
@@ -216,12 +215,7 @@ defmodule TalesForgeWeb.TeamChatLive do
               ]}>
                 <p class="flex flex-wrap items-baseline gap-x-2 text-xs">
                   <span class="font-semibold">{author(m.author)}</span>
-                  <time
-                    datetime={DateTime.to_iso8601(m.inserted_at)}
-                    class="text-[var(--paper-muted)]"
-                  >
-                    {TimeAgo.stockholm(m.inserted_at, "%d %b %H:%M")}
-                  </time>
+                  <TalesForgeWeb.TeamTime.ago at={m.inserted_at} class="text-[var(--paper-muted)]" />
                   <span
                     :if={@me && @me in m.mentions}
                     class="font-semibold text-[var(--paper-accent)]"
