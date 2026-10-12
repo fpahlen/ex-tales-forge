@@ -6,7 +6,9 @@ defmodule TalesForge.LLM do
   require Logger
 
   alias TalesForge.AICalls
+  alias TalesForge.AppRole
   alias TalesForge.Config
+  alias TalesForge.LLM.Stream, as: SSE
 
   alias TalesForge.Game.Schemas.{
     GMStructuredResponse,
@@ -77,17 +79,69 @@ defmodule TalesForge.LLM do
   the messages in its prompt cache, so a different schema on the scene call
   would stop it from warming the cache for GM turn 1. The scene fills
   `narrative` + `location_name`; the GM leaves `location_name` out.
+
+  `variant` `:lean` (the production GM call) has no `location_name` and no
+  `gm_notes`. Its schema is different from the scene schema, so on production
+  the scene call does not warm the cache for the first GM turn after it.
   """
-  @spec narration_schema() :: map()
-  def narration_schema do
+  @spec narration_schema(gm_variant()) :: map()
+  def narration_schema(variant \\ :full) do
     %{
       "type" => "object",
       "required" => ["narrative"],
-      "properties" => Jason.OrderedObject.new(narration_properties())
+      "properties" => Jason.OrderedObject.new(narration_properties(variant))
     }
   end
 
-  defp narration_properties do
+  @typedoc """
+  The GM reply variant. `:full` has every narration field (playtest and local).
+  `:lean` has no `gm_notes` and no `location_name` (production). The scene call
+  always uses `:full`, because the scene owns `location_name`.
+  """
+  @type gm_variant :: :full | :lean
+
+  @lean_drop ~w(location_name gm_notes)
+
+  # The lean GM prompt is the same prompt file with these parts removed, so
+  # one prompt source serves both variants. LLMGmVariantTest checks that
+  # gm_system.txt contains them.
+  @lean_prompt_cuts [~r/^- gm_notes:.*(?:\n|\z)/m, ~r/ Leave location_name out\./]
+
+  @doc """
+  The GM reply variant for an app role: `:lean` on production, else `:full`.
+
+      iex> TalesForge.LLM.gm_variant(:production)
+      :lean
+      iex> TalesForge.LLM.gm_variant(:playtest)
+      :full
+  """
+  @spec gm_variant(AppRole.role()) :: gm_variant()
+  def gm_variant(role \\ AppRole.role())
+  def gm_variant(:production), do: :lean
+  def gm_variant(_role), do: :full
+
+  @doc """
+  The GM messages for a variant. `:full` returns them unchanged. `:lean`
+  removes the `gm_notes` instruction and the `location_name` sentence from the
+  system messages.
+  """
+  @spec gm_messages_for([map()], gm_variant()) :: [map()]
+  def gm_messages_for(messages, :full), do: messages
+
+  def gm_messages_for(messages, :lean) do
+    Enum.map(messages, fn
+      %{role: "system", content: content} = message when is_binary(content) ->
+        %{message | content: Enum.reduce(@lean_prompt_cuts, content, &Regex.replace(&1, &2, ""))}
+
+      message ->
+        message
+    end)
+  end
+
+  defp narration_properties(:lean),
+    do: Enum.reject(narration_properties(:full), fn {key, _} -> key in @lean_drop end)
+
+  defp narration_properties(:full) do
     [
       {"narrative", %{"type" => "string"}},
       {"location_name", %{"type" => ["string", "null"]}},
@@ -108,8 +162,24 @@ defmodule TalesForge.LLM do
     ]
   end
 
-  @typedoc "Options for the `complete_*` calls: `:session_id` (conv id and cost rows), `:turn_number`."
-  @type call_opts :: [session_id: String.t() | nil, turn_number: integer() | nil]
+  @typedoc """
+  Options for the `complete_*` calls: `:session_id` (conv id and cost rows),
+  `:turn_number`. `complete_turn/5` also takes `:on_text` (see there) and
+  `:variant` (default `gm_variant/1`).
+  """
+  @type call_opts :: [
+          session_id: String.t() | nil,
+          turn_number: integer() | nil,
+          on_text: (stream_event() -> any()) | nil,
+          variant: gm_variant()
+        ]
+
+  @typedoc """
+  A streamed narration event. `{:text, narrative}` carries the whole narrative
+  so far, so the receiver replaces its text. `:reset` comes before a JSON
+  correction retry: the receiver clears the text of the failed reply.
+  """
+  @type stream_event :: {:text, String.t()} | :reset
 
   @typedoc "A decoded JSON reply, or why there is none."
   @type result(reply) :: {:ok, reply} | {:error, term()}
@@ -280,7 +350,17 @@ defmodule TalesForge.LLM do
     end
   end
 
-  @doc "GM turn. `messages` come from `Prompts.gm_messages/5`; the reply is decoded into a `GMStructuredResponse`."
+  @doc """
+  GM turn. `messages` come from `Prompts.gm_messages/5`. The reply is decoded
+  into a `GMStructuredResponse`.
+
+  The call streams (`stream: true`). With `:on_text`, the function gets
+  `{:text, narrative_so_far}` while the reply arrives, at most once in each
+  `:llm_stream_throttle_ms` (default 75), and once more at the end. The
+  structured fields are parsed when the reply is complete.
+
+  `:variant` picks the prompt and schema (`gm_variant/1`, by app role).
+  """
   @spec complete_turn([map()], PlayerAction.t(), HandlerResult.t(), integer(), call_opts()) ::
           result(GMStructuredResponse.t())
   def complete_turn(
@@ -292,17 +372,25 @@ defmodule TalesForge.LLM do
       )
       when is_list(messages) do
     model = tier2_model()
+    variant = Keyword.get_lazy(opts, :variant, &gm_variant/0)
 
     if mock?(model) do
       {:ok, mock_turn_response(player_action, handler, turn_number)}
     else
-      complete_json(model, messages, narration_schema(), Config.tier2_temperature(),
+      complete_json(
+        model,
+        gm_messages_for(messages, variant),
+        narration_schema(variant),
+        Config.tier2_temperature(),
         tier: :tier2,
-        max_tokens: Config.tier2_max_tokens() + @gm_notes_max_tokens,
+        max_tokens: Config.tier2_max_tokens() + notes_budget(variant),
         session_id: opts[:session_id],
         turn_number: turn_number,
         structured_output: "narration",
-        validate: &valid_gm_reply?/1
+        validate: &valid_gm_reply?/1,
+        stream: true,
+        on_text: opts[:on_text],
+        variant: variant
       )
       |> case do
         {:ok, map} -> {:ok, GMStructuredResponse.decode(map)}
@@ -310,6 +398,9 @@ defmodule TalesForge.LLM do
       end
     end
   end
+
+  defp notes_budget(:full), do: @gm_notes_max_tokens
+  defp notes_budget(:lean), do: 0
 
   defp valid_gm_reply?(%{"narrative" => narrative}) when is_binary(narrative),
     do: String.trim(narrative) != ""
@@ -364,6 +455,8 @@ defmodule TalesForge.LLM do
 
     case dispatch_json(model, messages, temperature, opts, validate) do
       {:error, reason} when reason in [:invalid_json, :invalid_reply] ->
+        # The streamed text of the failed reply goes away; the retry streams anew.
+        if is_function(opts[:on_text], 1), do: opts[:on_text].(:reset)
         dispatch_json(model, retry_messages(messages), temperature, opts, validate)
 
       result ->
@@ -456,7 +549,9 @@ defmodule TalesForge.LLM do
           call_openai_compatible(model, messages, temperature, xai_base(), Config.xai_api_key(),
             max_tokens: max_tokens,
             headers: [{"x-grok-conv-id", conv_id(opts)}],
-            response_format: Keyword.get(opts, :response_format)
+            response_format: Keyword.get(opts, :response_format),
+            stream: Keyword.get(opts, :stream, false),
+            on_text: opts[:on_text]
           )
 
         String.starts_with?(model, "gpt-") or provider == "openai" ->
@@ -481,9 +576,9 @@ defmodule TalesForge.LLM do
     record_call(model, tier, opts, result, elapsed, %{started_at: started_at, conv_id: conv})
 
     case result do
-      {:ok, content, _usage} ->
+      {:ok, content, usage} ->
         Logger.info(
-          "llm call done tier=#{tier} provider=#{provider} model=#{model} duration_ms=#{elapsed} chars=#{String.length(content)}"
+          "llm call done tier=#{tier} provider=#{provider} model=#{model} duration_ms=#{elapsed} ttft_ms=#{usage[:ttft_ms]} chars=#{String.length(content)}"
         )
 
         {:ok, content}
@@ -511,9 +606,14 @@ defmodule TalesForge.LLM do
       usage: usage,
       call_type: "llm",
       started_at: extra[:started_at],
-      conv_id: extra[:conv_id]
+      conv_id: extra[:conv_id],
+      ttft_ms: usage[:ttft_ms],
+      narration_variant: variant_name(opts[:variant])
     })
   end
+
+  defp variant_name(nil), do: nil
+  defp variant_name(variant), do: Atom.to_string(variant)
 
   defp purpose(:tier1), do: "intent"
   defp purpose(:tier2), do: "gm"
@@ -563,31 +663,170 @@ defmodule TalesForge.LLM do
         }
         |> maybe_put_max_tokens(call_opts[:max_tokens])
 
-      Req.post(
-        base_url <> "/chat/completions",
-        [
-          headers:
-            [{"authorization", "Bearer " <> api_key}, {"content-type", "application/json"}] ++
-              Keyword.get(call_opts, :headers, []),
-          json: body,
-          receive_timeout: 120_000,
-          retry: false
-        ] ++ req_options()
-      )
-      |> case do
-        {:ok,
-         %{
-           status: 200,
-           body: %{"choices" => [%{"message" => %{"content" => content}} | _]} = body
-         }} ->
-          {:ok, content || "{}", AICalls.usage(body)}
-
-        {:ok, %{status: status, body: body}} ->
-          {:error, {:api_error, status, body}}
-
-        {:error, reason} ->
-          {:error, reason}
+      if call_opts[:stream] do
+        stream_openai_compatible(base_url, api_key, body, call_opts)
+      else
+        post_openai_compatible(base_url, api_key, body, call_opts)
       end
+    end
+  end
+
+  defp post_openai_compatible(base_url, api_key, body, call_opts) do
+    Req.post(
+      base_url <> "/chat/completions",
+      [
+        headers:
+          [{"authorization", "Bearer " <> api_key}, {"content-type", "application/json"}] ++
+            Keyword.get(call_opts, :headers, []),
+        json: body,
+        receive_timeout: 120_000,
+        retry: false
+      ] ++ req_options()
+    )
+    |> case do
+      {:ok,
+       %{
+         status: 200,
+         body: %{"choices" => [%{"message" => %{"content" => content}} | _]} = body
+       }} ->
+        {:ok, content || "{}", AICalls.usage(body)}
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, {:api_error, status, body}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # stream: true. Req hands each chunk to collect_chunk/3; the state lives in
+  # the response's private map. A reply that is not an event stream (an error,
+  # or a test stub) is read as one JSON body.
+  defp stream_openai_compatible(base_url, api_key, body, call_opts) do
+    started = System.monotonic_time(:millisecond)
+    on_text = call_opts[:on_text]
+
+    body = Map.merge(body, %{stream: true, stream_options: %{include_usage: true}})
+
+    state = %{
+      started: started,
+      buffer: "",
+      raw: [],
+      content: [],
+      usage: nil,
+      ttft_ms: nil,
+      sent: nil,
+      last_emit: nil,
+      on_text: on_text,
+      throttle_ms: Application.get_env(:ex_tales_forge, :llm_stream_throttle_ms, 75)
+    }
+
+    Req.post(
+      base_url <> "/chat/completions",
+      [
+        headers:
+          [{"authorization", "Bearer " <> api_key}, {"content-type", "application/json"}] ++
+            Keyword.get(call_opts, :headers, []),
+        json: body,
+        receive_timeout: 120_000,
+        retry: false,
+        into: fn {:data, data}, {req, resp} ->
+          state = Req.Response.get_private(resp, :llm_stream, state)
+          state = collect_chunk(state, data, event_stream?(resp))
+          {:cont, {req, Req.Response.put_private(resp, :llm_stream, state)}}
+        end
+      ] ++ req_options()
+    )
+    |> case do
+      {:ok, %{status: 200} = resp} ->
+        state = Req.Response.get_private(resp, :llm_stream, state)
+        finish_stream(state, event_stream?(resp))
+
+      {:ok, %{status: status} = resp} ->
+        state = Req.Response.get_private(resp, :llm_stream, state)
+        {:error, {:api_error, status, raw_body(state)}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp event_stream?(resp) do
+    resp |> Req.Response.get_header("content-type") |> Enum.any?(&(&1 =~ "event-stream"))
+  end
+
+  defp collect_chunk(state, data, false), do: %{state | raw: [state.raw, data]}
+
+  defp collect_chunk(state, data, true) do
+    {payloads, rest} = SSE.events(state.buffer <> data)
+    state = Enum.reduce(payloads, %{state | buffer: rest}, &collect_event/2)
+    maybe_emit(state, false)
+  end
+
+  defp collect_event(payload, state) do
+    case SSE.decode_event(payload) do
+      :done ->
+        state
+
+      {text, usage} ->
+        state = if usage, do: %{state | usage: usage}, else: state
+
+        cond do
+          text == "" -> state
+          state.ttft_ms -> %{state | content: [state.content, text]}
+          true -> %{state | content: [state.content, text], ttft_ms: elapsed_ms(state)}
+        end
+    end
+  end
+
+  defp elapsed_ms(state), do: System.monotonic_time(:millisecond) - state.started
+
+  # Sends the narrative so far when it changed and the throttle time passed
+  # (or always, when `final`).
+  defp maybe_emit(%{on_text: on_text} = state, final) when is_function(on_text, 1) do
+    now = System.monotonic_time(:millisecond)
+    due = final or is_nil(state.last_emit) or now - state.last_emit >= state.throttle_ms
+
+    with true <- due,
+         text when is_binary(text) and text != "" <-
+           state.content |> IO.iodata_to_binary() |> SSE.partial_narrative(),
+         true <- text != state.sent do
+      on_text.({:text, text})
+      %{state | sent: text, last_emit: now}
+    else
+      _ -> state
+    end
+  end
+
+  defp maybe_emit(state, _final), do: state
+
+  defp finish_stream(state, true) do
+    state = maybe_emit(state, true)
+    content = IO.iodata_to_binary(state.content)
+    usage = state.usage |> then(&AICalls.usage(%{"usage" => &1 || %{}}))
+    {:ok, if(content == "", do: "{}", else: content), Map.put(usage, :ttft_ms, state.ttft_ms)}
+  end
+
+  defp finish_stream(state, false) do
+    case raw_body(state) do
+      %{"choices" => [%{"message" => %{"content" => content}} | _]} = body ->
+        content = content || "{}"
+
+        state = %{state | content: [content], ttft_ms: elapsed_ms(state)}
+        maybe_emit(state, true)
+        {:ok, content, Map.put(AICalls.usage(body), :ttft_ms, state.ttft_ms)}
+
+      body ->
+        {:error, {:api_error, 200, body}}
+    end
+  end
+
+  defp raw_body(state) do
+    raw = IO.iodata_to_binary(state.raw)
+
+    case Jason.decode(raw) do
+      {:ok, body} -> body
+      _ -> raw
     end
   end
 
@@ -710,6 +949,7 @@ defmodule TalesForge.LLM do
   # Test hook: config :ex_tales_forge, :llm_req_options, plug: {Req.Test, ...}
   defp req_options, do: Application.get_env(:ex_tales_forge, :llm_req_options, [])
 
-  defp xai_base, do: "https://api.x.ai/v1"
+  # Test hook: config :ex_tales_forge, :xai_api_base (the streaming test server).
+  defp xai_base, do: Application.get_env(:ex_tales_forge, :xai_api_base, "https://api.x.ai/v1")
   defp openai_base, do: "https://api.openai.com/v1"
 end

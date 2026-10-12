@@ -91,6 +91,31 @@ defmodule TalesForgeWeb.PlayLiveTest do
     refute render(view) =~ "The GM is thinking…"
   end
 
+  test "the GM text shows while it streams, and a retry replaces it", %{conn: conn} do
+    {:ok, session} =
+      GameSessions.create_session(%{name: "Streaming Tin Valley", adventure_id: "tin_valley"})
+
+    {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+
+    send(view.pid, {:turn_processing, %{}})
+    send(view.pid, {:turn_stream, {:text, "The lamp"}})
+    send(view.pid, {:turn_stream, {:text, "The lamp gutters."}})
+    html = render(view)
+    assert has_element?(view, "#gm-streaming", "The lamp gutters.")
+    refute html =~ "The GM is thinking…"
+
+    # A JSON retry: the old text goes, the new reply replaces it.
+    send(view.pid, {:turn_stream, :reset})
+    refute has_element?(view, "#gm-streaming")
+    assert render(view) =~ "The GM is thinking…"
+    send(view.pid, {:turn_stream, {:text, "Rain falls."}})
+    assert has_element?(view, "#gm-streaming", "Rain falls.")
+    refute render(view) =~ "The lamp gutters."
+
+    send(view.pid, {:turn_failed, "boom"})
+    refute has_element?(view, "#gm-streaming")
+  end
+
   test "a spend cap shows a calm message, not a failure", %{conn: conn} do
     {:ok, session} =
       GameSessions.create_session(%{name: "Capped Tin Valley", adventure_id: "tin_valley"})

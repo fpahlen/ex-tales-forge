@@ -139,7 +139,8 @@ defmodule TalesForge.Game.TurnProcessor do
     with {:ok, gm_result} <-
            Steps.time(:gm, fn ->
              LLM.complete_turn(messages, player_action, handler, turn_number,
-               session_id: session.id
+               session_id: session.id,
+               on_text: &SessionPubSub.broadcast(session.id, {:turn_stream, &1})
              )
            end) do
       # Default variant: log the spent gestures the GM used anyway.

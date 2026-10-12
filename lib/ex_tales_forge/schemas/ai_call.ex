@@ -14,6 +14,10 @@ defmodule TalesForge.Schemas.AICall do
   request or step began; `inserted_at` is when it was recorded. `meta` holds
   call details that are not tokens or cost, e.g. the Jev intent read, its band,
   safety label and quote decision, or the shadow diff (`TalesForge.IntentJev`).
+
+  `latency_ms` is the total time of one request. For a streamed call,
+  `ttft_ms` is the time to the first token. `narration_variant` is the GM
+  reply variant (`"full"` or `"lean"`, `TalesForge.LLM.gm_variant/1`).
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -39,6 +43,8 @@ defmodule TalesForge.Schemas.AICall do
     field :conv_id, :string
     field :started_at, :utc_datetime_usec
     field :meta, :map
+    field :ttft_ms, :integer
+    field :narration_variant, :string
 
     belongs_to :game_session, TalesForge.Schemas.GameSession
 
@@ -63,7 +69,9 @@ defmodule TalesForge.Schemas.AICall do
     :game_system,
     :conv_id,
     :started_at,
-    :meta
+    :meta,
+    :ttft_ms,
+    :narration_variant
   ]
 
   @call_types ~w(function jev llm)
