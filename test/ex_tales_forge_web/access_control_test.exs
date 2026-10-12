@@ -34,6 +34,9 @@ defmodule TalesForgeWeb.AccessControlTest do
     {:get, "/internal/version"},
     # Playtest's founders online for production's /team (OnlinePeerController).
     {:get, "/internal/online"},
+    # Playtest's work log events for production (WorkLogPeerController), the
+    # same bearer token; decision 2026-10-12 "Work time auto log".
+    {:get, "/internal/work-log/events"},
     # The bots' idea-board API (production only), one bearer token per bot
     # (BOARD_BOT_TOKEN_<BOT>); see BoardApiController.
     {:get, "/internal/board/ideas"},

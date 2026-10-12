@@ -33,6 +33,7 @@ defmodule TalesForge.Chat do
   alias TalesForge.Chat.{Message, Read}
   alias TalesForge.Images
   alias TalesForge.Repo
+  alias TalesForge.WorkLog
 
   @topic "team_chat"
   @shown 100
@@ -115,6 +116,7 @@ defmodule TalesForge.Chat do
 
     Multi.new()
     |> Multi.insert(:message, changeset)
+    |> WorkLog.add("chat", :message, & &1.author)
     |> Multi.run(:images, fn _repo, %{message: m} -> store_images(m, author, images) end)
     |> then(fn multi -> Enum.reduce(wakes, multi, &add_wake/2) end)
     |> Repo.transaction()

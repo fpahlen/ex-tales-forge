@@ -200,6 +200,8 @@ defmodule TalesForgeWeb.Router do
   # running commit to the other app's live PR feed on /team; see
   # VersionPeerController. /internal/online (playtest only, same token) gives
   # production's /team the founders online on playtest; see OnlinePeerController.
+  # /internal/work-log/events (playtest only, same token) gives production the
+  # playtest work log events; see WorkLogPeerController.
   # None of them calls an LLM.
   scope "/internal", TalesForgeWeb do
     pipe_through :api
@@ -207,6 +209,7 @@ defmodule TalesForgeWeb.Router do
     get "/costs", CostsPeerController, :show
     get "/version", VersionPeerController, :show
     get "/online", OnlinePeerController, :show
+    get "/work-log/events", WorkLogPeerController, :show
   end
 
   # The founders' idea board's bot API (Case, Bobby and Gentry; production only).
