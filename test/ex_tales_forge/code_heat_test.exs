@@ -72,6 +72,60 @@ defmodule TalesForge.CodeHeatTest do
     end
   end
 
+  describe "window/1 and merge/3" do
+    test "merges the samples of the last 24 hours into one row list" do
+      now = DateTime.utc_now()
+
+      for {hours_ago, calls} <- [{30, 100}, {5, 2}, {1, 3}] do
+        ended = DateTime.add(now, -hours_ago, :hour)
+
+        {:ok, _} =
+          CodeHeat.save(
+            %{{TalesForge.AppRole, :role, 1} => {calls, calls * 10}},
+            DateTime.add(ended, -1, :hour),
+            ended,
+            4
+          )
+      end
+
+      merged = CodeHeat.window(24)
+      assert merged.samples == 2
+      assert merged.modules == 4
+
+      assert [
+               %{
+                 "module" => "TalesForge.AppRole",
+                 "function" => "role/1",
+                 "calls" => 5,
+                 "time_us" => 50
+               }
+             ] =
+               merged.rows
+
+      assert [%{label: "TalesForge.AppRole", calls: 5}] =
+               CodeHeat.tiles(merged.rows, :module, :calls)
+    end
+
+    test "an empty window gives no rows and no tiles" do
+      merged = CodeHeat.window(24)
+      assert %{samples: 0, modules: 0, rows: [], started_at: nil, ended_at: nil} = merged
+      assert CodeHeat.tiles(merged.rows, :module, :total) == []
+
+      from = ~U[2026-10-12 00:00:00Z]
+
+      old = %{
+        started_at: from,
+        ended_at: from,
+        modules: 1,
+        rows: [
+          %{"app" => "a", "module" => "M", "function" => "f/0", "calls" => 1, "time_us" => 1}
+        ]
+      }
+
+      assert %{samples: 0, rows: []} = CodeHeat.merge([old], from, DateTime.add(from, 24, :hour))
+    end
+  end
+
   describe "tiles/4" do
     @rows [
       %{

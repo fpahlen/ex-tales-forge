@@ -2,8 +2,8 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
   @moduledoc """
   The code heat map page (`/admin/operate/code-heat`), read-only.
 
-  The page shows the newest daily sample of `TalesForge.CodeHeat` as a heat
-  map. One tile is one app, one module or one function. The color shows the
+  The page merges the hourly samples of `TalesForge.CodeHeat` of the last
+  24 hours (`TalesForge.CodeHeat.window/1`) and shows them as a heat map. One tile is one app, one module or one function. The color shows the
   number of calls, the total time or the average time. The filters are a
   part of the module name and a minimum value. The highest tiles are hot
   spots. Modules that make AI calls have an "AI" mark. Below the map, the AI
@@ -12,9 +12,8 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
 
   Each tile shows its value as text and a heat step (1 to 5) next to the
   color. The legend shows the color and the value range of each step. Hot
-  spots have a "Hot" label and a flame icon. While there is no sample, the
-  page shows the time of the first sample (Stockholm time) and the filters
-  are disabled. On a narrow screen, each AI call is a stacked card; on a wide
+  spots have a "Hot" label and a flame icon. While there is no sample in the
+  last 24 hours, the filters are disabled. On a narrow screen, each AI call is a stacked card; on a wide
   screen, the AI calls are a table.
 
   The filters are in the URL (`level`, `metric`, `module`, `min`).
@@ -26,7 +25,6 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
 
   alias TalesForge.AppRole
   alias TalesForge.CodeHeat
-  alias TalesForge.CodeHeat.Sampler
 
   @levels %{"app" => :app, "module" => :module, "function" => :function}
   @metrics %{"calls" => :calls, "total" => :total, "avg" => :avg}
@@ -43,8 +41,7 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
      |> assign(:page_title, "Code heat map")
      |> assign(:enabled, CodeHeat.enabled?())
      |> assign(:role, AppRole.role())
-     |> assign(:snapshot, CodeHeat.latest())
-     |> assign(:next_sample_at, Sampler.next_sample_at())
+     |> assign(:snapshot, snapshot(CodeHeat.window(24)))
      |> assign(:ai_calls, CodeHeat.ai_calls(DateTime.add(now, -24, :hour)))}
   end
 
@@ -83,6 +80,9 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
     {:noreply, push_patch(socket, to: ~p"/admin/operate/code-heat?#{query}")}
   end
 
+  defp snapshot(%{samples: 0}), do: nil
+  defp snapshot(merged), do: merged
+
   defp parse_min(nil), do: 0
 
   defp parse_min(text) do
@@ -99,8 +99,7 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
       <header class="space-y-1">
         <h1 class="font-serif text-2xl font-semibold text-[var(--paper-ink)]">Code heat map</h1>
         <p class="text-sm text-[var(--paper-muted)]">
-          The BEAM counts the calls and the time of each function in the app. A daily task writes one
-          sample of the last 24 hours. The heat map runs on playtest only.
+          The BEAM counts the calls and the time of each function in the app. A task writes one sample each hour. The map shows the last 24 hours. The heat map runs on playtest only.
         </p>
       </header>
 
@@ -110,12 +109,12 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
 
       <.section_card id="code-heat-map" title="Heat map">
         <p :if={@snapshot} id="code-heat-sample" class="text-sm text-[var(--paper-muted)]">
-          Sample from {format_time(@snapshot.started_at)} to {format_time(@snapshot.ended_at)} (Stockholm time): {@snapshot.modules} modules, {length(
-            @snapshot.rows
-          )} functions.
+          {sample_count(@snapshot.samples)} from {format_time(@snapshot.started_at)} to {format_time(
+            @snapshot.ended_at
+          )} (Stockholm time): {@snapshot.modules} modules, {length(@snapshot.rows)} functions.
         </p>
         <p :if={is_nil(@snapshot)} id="code-heat-empty" class="text-sm">
-          {empty_text(@next_sample_at)}
+          There is no sample in the last 24 hours.
         </p>
 
         <form
@@ -174,7 +173,7 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
             </label>
           </fieldset>
           <p :if={is_nil(@snapshot)} class="text-xs text-[var(--paper-muted)] sm:col-span-4">
-            The filters are available when the first sample is ready.
+            The filters are available when a sample is ready.
           </p>
         </form>
 
@@ -343,11 +342,8 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
   defp off_text(_role),
     do: "The code heat map is off on this app. Set CODE_HEAT_MAP=on to turn it on."
 
-  defp empty_text(nil),
-    do: "There is no sample yet. The first sample comes 24 hours after the app starts."
-
-  defp empty_text(%DateTime{} = at),
-    do: "There is no sample yet. The first sample comes at #{format_time(at)} (Stockholm time)."
+  defp sample_count(1), do: "1 sample"
+  defp sample_count(n), do: "#{n} samples"
 
   defp metric_label(:calls), do: "calls"
   defp metric_label(:total), do: "total time"
