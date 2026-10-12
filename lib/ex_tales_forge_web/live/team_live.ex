@@ -40,7 +40,7 @@ defmodule TalesForgeWeb.TeamLive do
   @nav [
     {"idea-board", "Going to do"},
     {"live", "Doing now"},
-    {"presentation-cta", "Presentation"}
+    {"/team/presentation", "Presentation"}
   ]
 
   @doc """
@@ -51,7 +51,10 @@ defmodule TalesForgeWeb.TeamLive do
       ["idea-board", "live", "presentation-cta", "workspace"]
   """
   @spec anchors() :: [String.t()]
-  def anchors, do: Enum.map(@nav, &elem(&1, 0)) ++ ~w(workspace)
+  def anchors,
+    do:
+      for({id, _} <- @nav, not String.starts_with?(id, "/"), do: id) ++
+        ~w(presentation-cta workspace)
 
   @doc """
   The old crew anchors of this page and where they land now: the crew on the
@@ -59,6 +62,8 @@ defmodule TalesForgeWeb.TeamLive do
 
       iex> TalesForgeWeb.TeamLive.aliases()["crew"]
       "/team/presentation#team"
+      iex> TalesForgeWeb.TeamLive.aliases()["presentation"]
+      "/team/presentation"
       iex> TalesForgeWeb.TeamLive.aliases()["crew-case"]
       "/team/presentation#member-case"
   """
@@ -67,7 +72,11 @@ defmodule TalesForgeWeb.TeamLive do
     members = ~w(founders case bobby gentry)
 
     Map.new(
-      [{"crew", "/team/presentation#team"}, {"crew-cards", "/team/presentation#team"}] ++
+      [
+        {"presentation", "/team/presentation"},
+        {"crew", "/team/presentation#team"},
+        {"crew-cards", "/team/presentation#team"}
+      ] ++
         Enum.map(members, &{"crew-" <> &1, "/team/presentation#member-" <> &1})
     )
   end
