@@ -14,6 +14,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
   alias TalesForge.AICalls.Steps
   alias TalesForge.Game.ActionHandler
+  alias TalesForge.Game.AreaInventory
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.Turn
@@ -49,6 +50,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
       player_action
       |> ActionHandler.resolve(Variant.of(turn.session.world_state))
       |> Rest.apply(world, player_action.overall_intent)
+      |> find(world, player_action, Turn.flag?(turn, :jev_catalogue_v2))
 
     {premised, played} = premise_block(resolved, player_action, turn.premise.first)
 
@@ -66,6 +68,13 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
     {handler, %{rolled | improvements: board.improvements, training: board.training}, board}
   end
+
+  # Catalogue v2 (JEV_CATALOGUE_V2): a search, forage or hunt in an area
+  # with a stock rolls to find something (TalesForge.Game.AreaInventory).
+  defp find(handler, _world, _player_action, false), do: handler
+
+  defp find(handler, world, player_action, true),
+    do: AreaInventory.handler(handler, world, player_action.overall_intent || "")
 
   # A claim that the state contradicts blocks the action: the turn narrates,
   # rolls nothing, books nothing and costs no game time. The outcome record

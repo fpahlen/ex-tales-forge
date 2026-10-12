@@ -1,0 +1,21 @@
+{
+  "_comment": "Area inventories (catalogue v2, decision 2026-10-12 item 3; JEV_CATALOGUE_V2). Each area holds a limited stock of things to find, forage or hunt. Finding one needs a roll in the skill of the entry. The counts are PROVISIONAL. The session keeps what is left in world_state.area_inventories.",
+  "areas": {
+    "west_road": [
+      {"id": "pine_resin", "name": "pine resin", "skill": "survival", "quantity": 3, "copper_value": 1, "words": ["resin", "sap", "pine"]},
+      {"id": "wild_herbs", "name": "wild herbs", "skill": "survival", "quantity": 4, "copper_value": 1, "words": ["herb", "herbs", "forage", "plants"]},
+      {"id": "rabbit", "name": "rabbit", "skill": "survival", "quantity": 2, "copper_value": 2, "game": true, "words": ["rabbit", "hare", "game", "hunt", "snare"]}
+    ],
+    "orc_approach": [
+      {"id": "kindling", "name": "dry kindling", "skill": "survival", "quantity": 5, "copper_value": 0, "words": ["kindling", "firewood", "wood", "sticks"]},
+      {"id": "goat", "name": "wild goat", "skill": "survival", "quantity": 1, "copper_value": 6, "game": true, "words": ["goat", "game", "hunt"]}
+    ],
+    "old_adit": [
+      {"id": "tin_ore", "name": "chunk of tin ore", "skill": "perception", "quantity": 3, "copper_value": 2, "words": ["ore", "tin", "rock", "vein"]}
+    ],
+    "mine_workings": [
+      {"id": "tin_ore", "name": "chunk of tin ore", "skill": "perception", "quantity": 2, "copper_value": 2, "words": ["ore", "tin", "rock", "vein"]},
+      {"id": "lost_tally", "name": "carved tally stick", "skill": "perception", "quantity": 1, "copper_value": 1, "words": ["tally", "lost", "dropped"]}
+    ]
+  }
+}

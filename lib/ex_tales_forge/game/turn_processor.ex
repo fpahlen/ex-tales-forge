@@ -34,6 +34,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Config
   alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
+  alias TalesForge.Game.AreaInventory
   alias TalesForge.Game.Bargain
   alias TalesForge.Game.Catalogue
   alias TalesForge.Game.Events
@@ -199,6 +200,7 @@ defmodule TalesForge.Game.TurnProcessor do
       |> put_in(["character"], character)
       |> trade(session, player_action, handler, opts)
       |> apply_catalogue(session, handler, player_action)
+      |> apply_find(handler, mechanical)
 
     inventory_result = premise_result(handler, traded)
     handler = mark_rejected(handler, inventory_result)
@@ -616,6 +618,15 @@ defmodule TalesForge.Game.TurnProcessor do
   end
 
   defp apply_catalogue(acc, _session, _handler, _player_action), do: acc
+
+  defp apply_find({world, traded}, %{handler: "find"} = handler, mechanical) do
+    case AreaInventory.apply(world, handler, mechanical.outcome) do
+      {updated, nil} -> {updated, traded}
+      {updated, result} -> {updated, result}
+    end
+  end
+
+  defp apply_find(acc, _handler, _mechanical), do: acc
 
   defp gift_npc(_session, nil), do: nil
 

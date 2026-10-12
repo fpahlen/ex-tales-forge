@@ -33,7 +33,8 @@ defmodule TalesForge.Game.OutcomeRecord do
     {~r/not on the ground/, "not_here"},
     {~r/Insufficient funds/, "insufficient_funds"},
     {~r/requires/, "missing_parameter"},
-    {~r/refuses/, "npc_refused"}
+    {~r/refuses/, "npc_refused"},
+    {~r/nothing left to find/, "depleted"}
   ]
 
   @typedoc "A string-keyed map, so that the record is stored as JSON as it is."

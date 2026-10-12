@@ -277,6 +277,9 @@ defmodule TalesForge.Game.Mechanics do
       "insight"
   """
   @spec resolve_check_skill(String.t() | nil, term(), String.t() | nil) :: String.t() | nil
+  def resolve_check_skill("find", handler_skill, _action_skill),
+    do: normalize_skill_name(handler_skill)
+
   def resolve_check_skill(handler, handler_skill, action_skill) do
     if handler in ["move", "inventory", "wait", "train", "work", "equip", "give"] do
       nil
