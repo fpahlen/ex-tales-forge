@@ -11,6 +11,33 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Temporary notification pop-ups
+
+- **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. notifications should be temporary pop-ups "Card created" just like when connection is lost
+- **Why:** Confidence: high. The change uses only parts that exist in the code today.
+
+What exists today:
+- The connection-lost pop-up is `#client-error` in `Layouts.flash_group/1` (`lib/ex_tales_forge_web/components/layouts.ex`).
+- `#client-error` uses the `flash/1` component in `core_components.ex`. That component shows a daisyUI toast at the top right of the page.
+- `TeamLive` already renders `Layouts.flash_group/1` on `/team`.
+- The "Card created" notice is a box (`#board-notice`) under the New idea form in `TeamIdeaBoard`. It stays until a founder clicks ×.
+- No other success notice on the board uses a pop-up today.
+
+What to build:
+1. Show the "Card created" notice with the `flash/1` component, as `#client-error` does.
+2. Keep the id `board-notice`, the text "Card created:" and the link that opens the new card.
+3. Add an `autohide` attribute to `flash/1`. Its default value is false.
+4. Add a colocated JS hook next to `flash/1` for `autohide`. The hook closes the toast after 5 seconds.
+5. Stop the timer while the pointer or the keyboard focus is on the toast.
+6. Send the board event `dismiss_notice` when the toast closes. The server then clears `@notice`.
+7. Keep error messages open until a founder closes them.
+8. Update the `#board-notice` tests in `team_idea_board_test.exs`. Add a test for the `autohide` markup.
+
+Where it lives: the toast look and the timer live in one place, `flash/1`. Other pages keep their messages as they are now. The change adds no LLM call and does not change game code. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-1a49bfc9-fd72-4bbd-b3ff-1b961dffa2c2)
+
+<!-- board:idea:1a49bfc9-fd72-4bbd-b3ff-1b961dffa2c2 -->
+
 ## 2026-10-12: Code heat map shows no data in playtest
 
 - **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. the code heat map on playtest never shows any data, i think there is an unclear sampling req.
