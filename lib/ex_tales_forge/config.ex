@@ -79,6 +79,14 @@ defmodule TalesForge.Config do
   @spec turn_outcome_record?() :: boolean()
   def turn_outcome_record?, do: System.get_env("TURN_OUTCOME_RECORD", "off") in ~w(on true 1)
 
+  @doc """
+  Turn pipeline PR 2: the premise check runs first, before the mechanics and
+  the NPCs. A claim that the state contradicts blocks the action
+  (`TalesForge.Game.TurnProcessor`): TURN_PREMISE_FIRST=on. Default off.
+  """
+  @spec turn_premise_first?() :: boolean()
+  def turn_premise_first?, do: System.get_env("TURN_PREMISE_FIRST", "off") in ~w(on true 1)
+
   @doc "World agents prototype (persons/locations hold facts for the GM): WORLD_AGENTS=on. Default off."
   def world_agents?, do: System.get_env("WORLD_AGENTS", "off") in ~w(on true 1)
 

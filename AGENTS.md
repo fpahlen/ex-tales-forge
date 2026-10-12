@@ -136,6 +136,7 @@ Environment variables read through `TalesForge.Config`. Flags marked "new sessio
 | `INTENT_JEV_TIMEOUT_MS` | `INTENT_JEV=on`: hard deadline of the Jev call on the player's clock before the heuristic takes over | 1500 | not set | not set |
 | `PLAYER_QUOTE_MIN_BENIGN_CONFIDENCE` | `INTENT_JEV=on`: the GM gets the player's own words only for `benign` at or above this; otherwise a typed summary | 0.90 | not set | not set |
 | `TURN_OUTCOME_RECORD` | Turn pipeline PR 1: the outcome record of the mechanics (played action accepted or rejected with the reason, coin and item deltas, clock, location; `TalesForge.Game.OutcomeRecord`) goes to the per-turn GM prompt and to the turn as a `turn.outcome` event. Off: the GM prompt is as before. Only `on` (or `true`, `1`) turns it on | off | off | off |
+| `TURN_PREMISE_FIRST` | Turn pipeline PR 2: the premise check (`TalesForge.Game.PremiseCheck`) runs before the mechanics and the NPCs, against the state before the turn. A claim that the state contradicts blocks the action: no roll, no booking, no game time. The GM still gets the correction. Off: the check runs after the NPCs, as before. Only `on` (or `true`, `1`) turns it on | off | off | off |
 
 The baseline variant gets no world features. The GM has one reply mode, the strict structured JSON schema (`TalesForge.LLM`); there is no reply-mode flag.
 

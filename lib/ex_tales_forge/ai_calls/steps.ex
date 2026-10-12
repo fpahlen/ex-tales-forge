@@ -18,8 +18,24 @@ defmodule TalesForge.AICalls.Steps do
   @key {__MODULE__, :steps}
   @model "elixir"
 
-  @doc "Purposes of the turn steps, in pipeline order."
-  def purposes,
+  @doc """
+  Purposes of the turn steps, in pipeline order. The order follows
+  `TURN_PREMISE_FIRST` (`TalesForge.Config.turn_premise_first?/0`): with the
+  flag on, the premise check runs before the rules (stage 2 before stage 3);
+  with the flag off, it runs after the NPC reactions.
+  """
+  @spec purposes() :: [String.t()]
+  def purposes, do: purposes(TalesForge.Config.turn_premise_first?())
+
+  @doc "Purposes of the turn steps for the given `TURN_PREMISE_FIRST` value."
+  @spec purposes(boolean()) :: [String.t()]
+  def purposes(true),
+    do:
+      ~w(turn.intent turn.premise_check turn.rules turn.world_facts turn.prices turn.npc_reactions
+         turn.prompt turn.gm
+         turn.world_writeback turn.persist)
+
+  def purposes(false),
     do:
       ~w(turn.intent turn.rules turn.world_facts turn.prices turn.npc_reactions turn.premise_check
          turn.prompt turn.gm

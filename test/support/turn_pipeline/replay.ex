@@ -17,6 +17,8 @@ defmodule TalesForge.TurnPipeline.Replay do
     * The post-check runs only when `TalesForge.Game.ProseCheck` exists
       (turn pipeline PR 3). Before that, `post_check` and `mismatch_kinds`
       are not checked.
+    * `TURN_OUTCOME_RECORD` is always on, because the harness reads the
+      outcome record. The other flags follow `pending_on` (spec item 9).
     * A key that the harness does not support fails the fixture, so that a
       fixture never passes without its checks.
   """
@@ -43,7 +45,8 @@ defmodule TalesForge.TurnPipeline.Replay do
     "state_from_mechanics" => "TURN_STATE_FROM_MECHANICS"
   }
 
-  @base_env %{"INN_WORLD" => "on", "WORLD_ANTAGONIST" => "on"}
+  # TURN_OUTCOME_RECORD is always on: the record is what the harness reads.
+  @base_env %{"INN_WORLD" => "on", "WORLD_ANTAGONIST" => "on", "TURN_OUTCOME_RECORD" => "on"}
 
   @default_prose "The table waits."
 

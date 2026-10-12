@@ -2,7 +2,7 @@
   "id": "issue_180",
   "source": "PR #180 cases from Gentry's QA on playtest 774bf15 (tin_valley with INN_WORLD, 2026-10-12)",
   "owner": "Case (eval plan owner, design-turn-pipeline.md section 8). Bobby wrote the first version in PR #199. Later PRs extend it in test/fixtures/turn_pipeline.",
-  "note": "Each case plays one gold reading from a fresh session with the fixture's coins, inventory and location. h-fp14-sell plays the same words as a sell action: the rejected sale must reach the GM. The fixture asserts the outcome record and the books, not the prose words.",
+  "note": "Each case plays one gold reading from a fresh session with the fixture's coins, inventory and location. h-fp14-sell plays the same words as a sell action: the rejected sale must reach the GM. The fixture asserts the outcome record and the books, not the prose words. With TURN_PREMISE_FIRST=on, a case with `expect_premise_first` uses it instead of `expect`.",
   "adventure_id": "tin_valley",
   "start": {
     "coins": {
@@ -49,6 +49,20 @@
         "gained": [],
         "lost": [],
         "moved": false
+      },
+      "expect_premise_first": {
+        "actions": [
+          {
+            "type": "speak",
+            "status": "rejected",
+            "reason_prefix": "Premise check:"
+          }
+        ],
+        "delta_copper": 0,
+        "gained": [],
+        "lost": [],
+        "moved": false,
+        "clock_advances": false
       }
     },
     {
@@ -76,6 +90,20 @@
         "gained": [],
         "lost": [],
         "moved": false
+      },
+      "expect_premise_first": {
+        "actions": [
+          {
+            "type": "other",
+            "status": "rejected",
+            "reason_prefix": "Premise check:"
+          }
+        ],
+        "delta_copper": 0,
+        "gained": [],
+        "lost": [],
+        "moved": false,
+        "clock_advances": false
       }
     },
     {
@@ -103,6 +131,20 @@
         "gained": [],
         "lost": [],
         "moved": false
+      },
+      "expect_premise_first": {
+        "actions": [
+          {
+            "type": "speak",
+            "status": "rejected",
+            "reason_prefix": "Premise check:"
+          }
+        ],
+        "delta_copper": 0,
+        "gained": [],
+        "lost": [],
+        "moved": false,
+        "clock_advances": false
       }
     },
     {
@@ -134,6 +176,20 @@
         "gained": [],
         "lost": [],
         "moved": false
+      },
+      "expect_premise_first": {
+        "actions": [
+          {
+            "type": "sell",
+            "status": "rejected",
+            "reason_prefix": "Premise check:"
+          }
+        ],
+        "delta_copper": 0,
+        "gained": [],
+        "lost": [],
+        "moved": false,
+        "clock_advances": false
       }
     },
     {
@@ -162,6 +218,34 @@
         "lost": [],
         "moved": false
       }
+    },
+    {
+      "id": "true-claim",
+      "location_id": "valley_inn",
+      "text": "I draw my hunting knife and set it on the bar for Brenna to see.",
+      "player_action": {
+        "overall_intent": "show Brenna the hunting knife",
+        "action": {
+          "action_type": "speak",
+          "target": "innkeep",
+          "parameters": {}
+        },
+        "deferred_actions": [],
+        "confidence": 0.9
+      },
+      "expect": {
+        "actions": [
+          {
+            "type": "speak",
+            "status": "accepted"
+          }
+        ],
+        "delta_copper": 0,
+        "gained": [],
+        "lost": [],
+        "moved": false
+      },
+      "note": "A true claim (the character carries the knife). Stage 2 lets it through (design §10: reject only claims that the state contradicts)."
     }
   ]
 }
