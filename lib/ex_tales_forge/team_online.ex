@@ -67,7 +67,9 @@ defmodule TalesForge.TeamOnline do
 
   @doc """
   Each bot with its newest activity from `events` (`{bot, at, doing}` tuples),
-  and whether that is recent enough to count as online.
+  and whether that is recent enough to count as online. The most recently
+  active bot comes first; bots with no activity come last, in their usual
+  order.
 
       iex> now = ~U[2026-10-10 12:00:00Z]
       iex> [c, b, g] = TalesForge.TeamOnline.bots([{:case, ~U[2026-10-10 11:55:00Z], "Read the board"},
@@ -75,6 +77,11 @@ defmodule TalesForge.TeamOnline do
       ...>   {:bobby, ~U[2026-10-10 09:00:00Z], "Pull request #7"}], now)
       iex> {c.doing, c.online, b.online, g.at}
       {"Read the board", true, false, nil}
+
+      iex> now = ~U[2026-10-10 23:00:00Z]
+      iex> TalesForge.TeamOnline.bots([{:case, ~U[2026-10-10 20:33:00Z], "Read the board"},
+      ...>   {:bobby, ~U[2026-10-10 22:19:00Z], "Pull request #7"}], now) |> Enum.map(& &1.id)
+      ["bobby", "case", "gentry"]
   """
   @spec bots([{atom(), DateTime.t(), String.t()}], DateTime.t()) :: [bot()]
   def bots(events, %DateTime{} = now) do
@@ -98,6 +105,7 @@ defmodule TalesForge.TeamOnline do
           %{id: Atom.to_string(id), name: name, at: nil, doing: nil, online: false}
       end
     end
+    |> Enum.sort_by(&if(&1.at, do: -DateTime.to_unix(&1.at, :microsecond), else: :never))
   end
 
   @doc """

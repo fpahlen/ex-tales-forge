@@ -241,6 +241,7 @@ defmodule TalesForgeWeb.TeamChatLive do
           <.form
             for={@form}
             id={"#{@id_prefix}-form"}
+            data-draft="chat"
             phx-submit={JS.push("send", target: "##{@id_prefix}-root")}
             phx-change="validate"
             phx-target={"##{@id_prefix}-root"}
@@ -264,6 +265,7 @@ defmodule TalesForgeWeb.TeamChatLive do
               <label for={"#{@id_prefix}-body"} class="sr-only">Message</label>
               <textarea
                 id={"#{@id_prefix}-body"}
+                phx-update="ignore"
                 name="chat[body]"
                 rows="1"
                 maxlength={Message.max_length()}
@@ -295,6 +297,14 @@ defmodule TalesForgeWeb.TeamChatLive do
                 <.icon name="hero-paper-airplane" class="size-5" />
               </button>
             </div>
+            <p
+              id={"#{@id_prefix}-draft-hint"}
+              data-draft-hint
+              aria-live="polite"
+              phx-update="ignore"
+              class="text-xs font-semibold text-[var(--paper-accent)] empty:hidden"
+            >
+            </p>
             <p id={"#{@id_prefix}-hint"} class="sr-only">
               Enter sends, Shift and Enter adds a new line. Write @ to mention a founder or a bot. Paste or drop an image to add it.
             </p>

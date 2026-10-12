@@ -17,6 +17,7 @@ defmodule TalesForge.TeamOnlineTest do
 
     assert gentry.doing == "Commented on a card"
     assert gentry.online
-    assert Enum.map(bots, & &1.name) == ["Case", "Bobby", "Gentry"]
+    # The most recently active bot first; bots with no activity last.
+    assert Enum.map(bots, & &1.name) == ["Gentry", "Case", "Bobby"]
   end
 end
