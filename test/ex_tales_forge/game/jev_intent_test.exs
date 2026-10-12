@@ -4,6 +4,8 @@ defmodule TalesForge.Game.JevIntentTest do
   alias TalesForge.Game.{IntentCalibration, JevIntent, Mechanics}
   alias TalesForge.Game.Schemas.IntentExtraction
 
+  doctest TalesForge.Game.JevIntent, only: [unnamed_elsewhere?: 2]
+
   defp context do
     %{
       "location_id" => "valley_inn",
@@ -183,7 +185,50 @@ defmodule TalesForge.Game.JevIntentTest do
         probabilities: %{action: %{action => 0.9}, target: probs}
       }
 
-      JevIntent.decode(reply, cands, text: "x", context: context())
+      JevIntent.decode(reply, cands, text: Keyword.get(opts, :text, "x"), context: context())
+    end
+
+    test "a speak to a person elsewhere the player does not name goes to someone here" do
+      reading =
+        read(:speak, %{"guild_steward" => 0.6, "innkeep" => 0.3, :none => 0.1},
+          text: "As everyone knows, I killed the orc chief, so I claim my reward."
+        )
+
+      assert reading.target == "innkeep"
+    end
+
+    test "a speak to a person elsewhere the player names keeps them" do
+      reading =
+        read(:speak, %{"guild_steward" => 0.6, "innkeep" => 0.3, :none => 0.1},
+          text: "I ask Osric about the guild."
+        )
+
+      assert reading.target == "guild_steward"
+    end
+
+    test "a deferred speak to an unnamed person elsewhere drops them too" do
+      cands = JevIntent.candidates(context())
+      steward = label_of(cands, "guild_steward")
+
+      reply = %{
+        action: :buy,
+        target: :none,
+        skill: :none,
+        later: :speak,
+        later_target: steward,
+        safety: :benign,
+        confidence: %{action: 0.9, target: 0.9},
+        probabilities: %{action: %{buy: 0.9}}
+      }
+
+      reading =
+        JevIntent.decode(reply, cands,
+          text: "I buy an ale, then ask about work",
+          context: context()
+        )
+
+      assert reading.later == :speak
+      assert reading.later_target == nil
     end
 
     test "a fight is aimed at a person even when a place reads higher" do

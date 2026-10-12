@@ -141,6 +141,7 @@ defmodule TalesForge.Game.JevIntent do
   `text` shown to the model.
   """
   @type candidate :: %{
+          optional(:name) => String.t(),
           label: atom(),
           kind: :place | :npc | :npc_elsewhere | :fixture | :item,
           id: String.t(),
@@ -204,6 +205,7 @@ defmodule TalesForge.Game.JevIntent do
       %{
         kind: :npc_elsewhere,
         id: id,
+        name: info["name"] || id,
         text: "#{info["name"] || id} — elsewhere, at #{info["location_id"]}"
       }
     end)
@@ -377,10 +379,10 @@ defmodule TalesForge.Game.JevIntent do
 
     action = reply[:action] || :other
     safety = reply[:safety] || :benign
-    target = pick_target(reply, :target, action, by_label, context)
+    target = pick_target(reply, :target, action, by_label, context, text)
     skill = if action in @no_skill_actions, do: nil, else: skill_name(reply[:skill])
     later = later_type(reply[:later], action, safety)
-    later_target = if later, do: pick_target(reply, :later_target, later, by_label, context)
+    later_target = if later, do: pick_target(reply, :later_target, later, by_label, context, text)
 
     raw_confidence = intent_confidence(reply, action)
     confidence = IntentCalibration.apply(raw_confidence)
@@ -439,7 +441,13 @@ defmodule TalesForge.Game.JevIntent do
   # or at a person elsewhere, a purchase at an item ...), against "none". A
   # move never answers "none" while a place is on offer (a move without a place
   # does not move), and a move to a person elsewhere goes to where they are.
-  defp pick_target(reply, question, action, by_label, context) do
+  #
+  # A speak goes to a person elsewhere only when the player names them: the
+  # game turns such a speak into a walk to them (Intent.validate_player_action/2),
+  # so a guess must not move the character. Gentry's session 0caf18f5 on
+  # 2026-10-12: "I claim my reward" at the inn was read as speak to Henrik
+  # Bale, who was in the square, and the character was walked there.
+  defp pick_target(reply, question, action, by_label, context, text) do
     kinds = Map.get(@target_kinds, action, [])
     probs = get_in(reply, [:probabilities, question]) || %{}
 
@@ -448,14 +456,68 @@ defmodule TalesForge.Game.JevIntent do
       |> Enum.filter(fn {label, _p} ->
         label == :none or Map.get(by_label, label, %{})[:kind] in kinds
       end)
+      |> Enum.reject(fn {label, _p} ->
+        action == :speak and unnamed_elsewhere?(Map.get(by_label, label), text)
+      end)
       |> Enum.reject(fn {label, _p} -> action == :move and label == :none end)
       |> Enum.sort_by(fn {label, p} -> {-p, label} end)
 
     case {ranked, map_size(probs)} do
-      {_, 0} -> resolve_target(candidate_id(by_label, reply[question]), action, context)
-      {[{label, _p} | _], _} -> resolve_target(candidate_id(by_label, label), action, context)
-      {[], _} -> nil
+      {_, 0} ->
+        cand = Map.get(by_label, reply[question])
+
+        if action == :speak and unnamed_elsewhere?(cand, text),
+          do: nil,
+          else: resolve_target(candidate_id(by_label, reply[question]), action, context)
+
+      {[{label, _p} | _], _} ->
+        resolve_target(candidate_id(by_label, label), action, context)
+
+      {[], _} ->
+        nil
     end
+  end
+
+  @doc """
+  True when `candidate` is a person elsewhere whom `text` does not name (by a
+  word of their name or id of three letters or more; a word of five letters or
+  more may be a short or long form of it, "Calder" for Caldern).
+
+      iex> c = %{kind: :npc_elsewhere, id: "worried_merchant", name: "Henrik Bale"}
+      iex> TalesForge.Game.JevIntent.unnamed_elsewhere?(c, "I claim my reward")
+      true
+      iex> TalesForge.Game.JevIntent.unnamed_elsewhere?(c, "I go and ask Henrik about it")
+      false
+      iex> c = %{kind: :npc_elsewhere, id: "prospector", name: "Caldern Voss"}
+      iex> TalesForge.Game.JevIntent.unnamed_elsewhere?(c, "I lean in closer to Calder")
+      false
+  """
+  @spec unnamed_elsewhere?(candidate() | map() | nil, String.t()) :: boolean()
+  def unnamed_elsewhere?(%{kind: :npc_elsewhere} = cand, text) do
+    words =
+      text |> to_string() |> String.downcase() |> String.split(~r/[^\p{L}\p{N}_]+/u, trim: true)
+
+    names =
+      [Map.get(cand, :name), cand.id]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.flat_map(
+        &(&1
+          |> String.downcase()
+          |> String.split(~r/[^\p{L}\p{N}]+/u, trim: true))
+      )
+      |> Enum.filter(&(String.length(&1) >= 3))
+
+    not Enum.any?(names, fn name -> Enum.any?(words, &name_word?(name, &1)) end)
+  end
+
+  def unnamed_elsewhere?(_cand, _text), do: false
+
+  # A word names a person when it is a word of their name, or (five letters
+  # or more) a short or long form of one: "Calder" for Caldern.
+  defp name_word?(name, word) do
+    name == word or
+      (min(String.length(name), String.length(word)) >= 5 and
+         (String.starts_with?(name, word) or String.starts_with?(word, name)))
   end
 
   defp resolve_target(nil, _action, _context), do: nil
