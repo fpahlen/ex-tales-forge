@@ -9,6 +9,7 @@ defmodule TalesForge.Game.ActionHandler do
   # check. Combat always rolls (melee_combat unless named). The baseline variant
   # keeps the old defaults: persuasion for speak, insight for everything else.
 
+  alias TalesForge.Game.Catalogue
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.Variant
@@ -18,6 +19,32 @@ defmodule TalesForge.Game.ActionHandler do
   @inventory_actions ~w(pickup drop buy sell trade spend)a
 
   def resolve(%PlayerAction{} = player_action, variant \\ "default") do
+    player_action
+    |> resolve_type(variant)
+    |> put_manner(player_action.action.parameters["manner"])
+  end
+
+  # Catalogue v2: the manner adverb (PROVISIONAL table, TalesForge.Game.Catalogue)
+  # scales the time of a timed action and changes the roll.
+  defp put_manner(handler, manner) when manner in ~w(quickly carefully quietly) do
+    mods = Catalogue.manner(manner, handler.handler)
+
+    hints =
+      handler.state_hints
+      |> Map.merge(%{"manner" => manner, "roll_modifier" => mods.roll})
+      |> scale_hint_ticks(mods)
+
+    %{handler | state_hints: hints}
+  end
+
+  defp put_manner(handler, _manner), do: handler
+
+  defp scale_hint_ticks(%{"ticks" => ticks} = hints, mods) when is_integer(ticks),
+    do: Map.put(hints, "ticks", Catalogue.scale_ticks(ticks, mods))
+
+  defp scale_hint_ticks(hints, _mods), do: hints
+
+  defp resolve_type(%PlayerAction{} = player_action, variant) do
     action = player_action.action
     baseline? = Variant.baseline?(%{"variant" => variant})
     skill = action.parameters |> Map.get("skill") |> Mechanics.normalize_skill_name()
@@ -42,7 +69,36 @@ defmodule TalesForge.Game.ActionHandler do
           }
         }
 
-      action.action_type == :wait ->
+      # Catalogue v2 (JEV_CATALOGUE_V2): no mechanics; the GM narrates the
+      # attempt (turn pipeline design §5, rule 5).
+      action.action_type == :none_fits ->
+        %HandlerResult{
+          handler: "narrate",
+          target: action.target,
+          notes:
+            "No mechanics: the action fits no type. Narrate the attempt with no mechanical effect.",
+          state_hints: %{"none_fits" => true}
+        }
+
+      action.action_type == :work ->
+        ticks = wait_ticks(player_action)
+
+        %HandlerResult{
+          handler: "work",
+          target: action.target,
+          notes: "Work #{ticks} ticks for the unskilled wage.",
+          state_hints: %{"ticks" => ticks}
+        }
+
+      action.action_type in [:equip, :give] ->
+        %HandlerResult{
+          handler: Atom.to_string(action.action_type),
+          target: action.target,
+          notes: "#{action.action_type} #{action.target}.",
+          state_hints: %{}
+        }
+
+      action.action_type in [:wait, :rest] ->
         ticks = wait_ticks(player_action)
 
         %HandlerResult{
@@ -121,7 +177,7 @@ defmodule TalesForge.Game.ActionHandler do
   end
 
   def tick_delta(%{handler: handler, state_hints: %{"ticks" => ticks}})
-      when handler in ["wait", "train"] do
+      when handler in ["wait", "train", "work"] do
     WorldClock.clamp_wait(ticks)
   end
 
