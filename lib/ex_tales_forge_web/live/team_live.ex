@@ -40,6 +40,7 @@ defmodule TalesForgeWeb.TeamLive do
   @nav [
     {"idea-board", "Going to do"},
     {"live", "Doing now"},
+    {"/team/work-log", "Work log"},
     {"/team/presentation", "Presentation"}
   ]
 

@@ -20,7 +20,7 @@ defmodule TalesForge.WorkLog do
   alias Ecto.Multi
   alias TalesForge.AppRole
   alias TalesForge.Repo
-  alias TalesForge.WorkLog.{Event, Sessions}
+  alias TalesForge.WorkLog.{Entry, Event, Sessions}
 
   @kinds ~w(comment move chat card_edit turn)
 
@@ -149,6 +149,38 @@ defmodule TalesForge.WorkLog do
   @doc "The work sessions from `from` to `to` (`TalesForge.WorkLog.Sessions`)."
   @spec sessions(DateTime.t(), DateTime.t()) :: [Sessions.session()]
   def sessions(from, to), do: from |> events(to) |> Sessions.build()
+
+  @doc """
+  Adds a manual entry for `founder` (`TalesForge.WorkLog.Entry`). `attrs`
+  has `date`, `hours` and `reason`. `added_by` is the signed-in founder.
+  A founder can add an entry for another founder, for example for the
+  spreadsheet import.
+  """
+  @spec add_entry(String.t(), map()) :: {:ok, Entry.t()} | {:error, Ecto.Changeset.t()}
+  def add_entry(added_by, attrs) do
+    attrs =
+      attrs
+      |> Map.new(fn {k, v} -> {to_string(k), v} end)
+      |> Map.reject(fn {_k, v} -> v in [nil, ""] end)
+
+    %Entry{}
+    |> Entry.changeset(
+      Map.merge(%{"founder" => added_by}, attrs)
+      |> Map.put("added_by", added_by)
+    )
+    |> Repo.insert()
+  end
+
+  @doc "The manual entries of the days `from` to `to` (both inclusive), oldest first."
+  @spec entries(Date.t(), Date.t()) :: [Entry.t()]
+  def entries(%Date{} = from, %Date{} = to) do
+    Repo.all(
+      from(e in Entry,
+        where: e.date >= ^from and e.date <= ^to,
+        order_by: [asc: e.date, asc: e.inserted_at]
+      )
+    )
+  end
 
   defp to_usec(%DateTime{microsecond: {us, _}} = at), do: %{at | microsecond: {us, 6}}
 end
