@@ -64,7 +64,7 @@ defmodule TalesForge.Game.OutcomeRecord do
     {gained, lost} = item_deltas(before_char, after_char)
 
     %{
-      "actions" => [action_entry(action, handler, inventory_result)],
+      "actions" => actions(action, handler, inventory_result),
       "coins" => %{
         "before_copper" => before_copper,
         "after_copper" => after_copper,
@@ -154,6 +154,10 @@ defmodule TalesForge.Game.OutcomeRecord do
       "payload" => record
     }
   end
+
+  # HISTORY_STRIP_INJECTION=on: an injection turn plays no action.
+  defp actions(_action, %{state_hints: %{"no_action" => true}}, _result), do: []
+  defp actions(action, handler, result), do: [action_entry(action, handler, result)]
 
   defp action_entry(action, handler, inventory_result) do
     base = %{
