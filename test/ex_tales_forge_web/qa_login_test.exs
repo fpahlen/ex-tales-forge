@@ -20,7 +20,7 @@ defmodule TalesForgeWeb.QaLoginTest do
 
   @tables ~w(board_ideas board_votes board_pings board_transitions board_approvals
              board_links board_comments board_answers team_chat_messages team_chat_reads
-             team_images)
+             team_images board_deletions)
 
   setup do
     Application.put_env(:ex_tales_forge, :qa_login, token: @token)
@@ -166,6 +166,11 @@ defmodule TalesForgeWeb.QaLoginTest do
         {"add_tag", %{"card_id" => id, "tag" => "qa"}},
         {"remove_tag", %{"card_id" => id, "tag" => "ux"}},
         {"typing", %{"card_id" => id, "body" => "x"}},
+        {"archive_start", %{"card_id" => id}},
+        {"archive", %{"card_id" => id, "reason" => "spam"}},
+        {"restore_card", %{"card_id" => id}},
+        {"ask_delete", %{"card_id" => id}},
+        {"delete_card", %{"card_id" => id, "title" => "Fishing"}},
         {"some_new_write", %{"card_id" => id}}
       ]
 

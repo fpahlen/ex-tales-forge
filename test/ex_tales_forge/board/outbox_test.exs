@@ -144,6 +144,14 @@ defmodule TalesForge.Board.OutboxTest do
     refute :idea_pullable in TalesForge.Board.Events.__info__(:functions)
   end
 
+  test "a @mention on an archived card wakes nobody" do
+    {:ok, idea} = Board.create_idea(@ada, %{"title" => "Brenna remembers regulars"})
+    {:ok, idea} = Board.archive(idea, @ada, "Duplicate")
+    refute_receive {:request, _, _, _, _}
+    {:ok, _} = Board.add_comment(idea, @ada, "@bobby how big is this?")
+    refute_receive {:request, _, _, _, _}
+  end
+
   test "a @mention wakes that bot" do
     {:ok, idea} = Board.create_idea(@ada, %{"title" => "Brenna remembers regulars"})
     {:ok, _} = Board.add_comment(idea, @ada, "@bobby how big is this?")

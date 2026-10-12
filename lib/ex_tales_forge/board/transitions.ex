@@ -12,7 +12,12 @@ defmodule TalesForge.Board.Transitions do
 
   States (the stored column names are on the left, the spec names in brackets):
   `ideas` (idea), `refining`, `check` (founder_check), `building`, `done`,
-  `parked`.
+  `parked`, `archived`.
+
+  Archived is outside the board columns: the Archive tile next to Parked
+  opens it. A card in Archived keeps its votes, comments and history; the
+  ranking, AutoDone, Case's pull and the pings skip it. A founder can
+  delete an archived card for good (`delete_allowed?/2`).
 
   | From | To | Who | Gate | Wakes |
   |---|---|---|---|---|
@@ -28,6 +33,9 @@ defmodule TalesForge.Board.Transitions do
   | building | done | the board (automatic), or Bobby | linked PR is on prod | founders (badge) |
   | building | refining | Bobby or founder | a comment with the blocker | Case |
   | parked | ideas | founder | none | none |
+  | ideas | archived | founder | a short reason | none |
+  | parked | archived | founder | a short reason | none |
+  | archived | ideas | founder (Restore) | none | none |
   | done | (none) | | done is final | |
 
   The card facts (`t:card/0`) come from `TalesForge.Board.facts/1`.
@@ -60,7 +68,7 @@ defmodule TalesForge.Board.Transitions do
           optional(:pr_on_prod) => :ok | {:error, String.t()} | nil
         }
 
-  @states ~w(ideas refining check building done parked)
+  @states ~w(ideas refining check building done parked archived)
 
   @labels %{
     "ideas" => "Ideas",
@@ -68,14 +76,15 @@ defmodule TalesForge.Board.Transitions do
     "check" => "Founder check",
     "building" => "Building (Bobby)",
     "done" => "Done",
-    "parked" => "Parked"
+    "parked" => "Parked",
+    "archived" => "Archive"
   }
 
   @doc """
   The states, in board order.
 
       iex> TalesForge.Board.Transitions.states()
-      ["ideas", "refining", "check", "building", "done", "parked"]
+      ["ideas", "refining", "check", "building", "done", "parked", "archived"]
   """
   @spec states() :: [String.t()]
   def states, do: @states
@@ -218,6 +227,33 @@ defmodule TalesForge.Board.Transitions do
       {:error, "Refining (Case) to Parked is not a move on the board."}
       iex> T.allowed?(%{}, "ideas", "ideas", {:founder, "a@x"})
       {:error, "The card is already there."}
+
+  Ideas or Parked → Archived: a founder, with a short reason (the reason
+  box works like the one for a downvote). Bots and other columns cannot
+  archive.
+
+      iex> alias TalesForge.Board.Transitions, as: T
+      iex> T.allowed?(%{comment: "Same as the chat card."}, "ideas", "archived", {:founder, "a@x"})
+      :ok
+      iex> T.allowed?(%{comment: "Spam."}, "parked", "archived", {:founder, "a@x"})
+      :ok
+      iex> T.allowed?(%{comment: " "}, "ideas", "archived", {:founder, "a@x"})
+      {:error, "Write a short reason for the archive."}
+      iex> T.allowed?(%{comment: "x"}, "ideas", "archived", {:bot, :gentry})
+      {:error, "A founder moves this card."}
+      iex> T.allowed?(%{comment: "x"}, "check", "archived", {:founder, "a@x"})
+      {:error, "Founder check to Archive is not a move on the board."}
+
+  Archived → Ideas (Restore): a founder, no gate. An archived card goes
+  only back to Ideas.
+
+      iex> alias TalesForge.Board.Transitions, as: T
+      iex> T.allowed?(%{}, "archived", "ideas", {:founder, "a@x"})
+      :ok
+      iex> T.allowed?(%{}, "archived", "ideas", {:bot, :case})
+      {:error, "A founder moves this card."}
+      iex> T.allowed?(%{}, "archived", "parked", {:founder, "a@x"})
+      {:error, "Restore the card to Ideas first."}
   """
   @spec allowed?(card(), String.t(), String.t(), actor()) :: :ok | {:error, String.t()}
   def allowed?(_card, same, same, _actor), do: {:error, "The card is already there."}
@@ -289,6 +325,16 @@ defmodule TalesForge.Board.Transitions do
 
   def allowed?(_card, "parked", "ideas", actor), do: founder(actor)
 
+  def allowed?(card, from, "archived", actor) when from in ["ideas", "parked"] do
+    with :ok <- founder(actor),
+         do: need(comment?(card), "Write a short reason for the archive.")
+  end
+
+  def allowed?(_card, "archived", "ideas", actor), do: founder(actor)
+
+  def allowed?(_card, "archived", _to, _actor),
+    do: {:error, "Restore the card to Ideas first."}
+
   def allowed?(_card, from, to, _actor),
     do: {:error, "#{label(from)} to #{label(to)} is not a move on the board."}
 
@@ -342,6 +388,8 @@ defmodule TalesForge.Board.Transitions do
       {[:bobby], [:founders], [:founders], [:founders]}
       iex> {T.wakes("ideas", "parked"), T.wakes("refining", "ideas"), T.wakes("parked", "ideas"), T.wakes("check", "parked")}
       {[], [], [], []}
+      iex> {T.wakes("ideas", "archived"), T.wakes("parked", "archived"), T.wakes("archived", "ideas")}
+      {[], [], []}
   """
   @spec wakes(String.t(), String.t()) :: [:case | :bobby | :founders]
   def wakes(_from, "refining"), do: [:case]
@@ -357,6 +405,8 @@ defmodule TalesForge.Board.Transitions do
   Every other state with the answer of `allowed?/4` for `actor`, for the UI's
   "Move to" list and drag targets. A move that needs a comment counts as
   possible when the only gate is the comment (the form asks for it).
+  Archived is not a drag target: the Archive button asks for the reason
+  (`archivable?/2`).
 
       iex> TalesForge.Board.Transitions.options(%{up: 0}, "ideas", {:founder, "a@x"})
       [{"refining", {:error, "Needs an upvote."}}, {"parked", :ok}]
@@ -367,7 +417,7 @@ defmodule TalesForge.Board.Transitions do
   def options(card, from, actor) do
     card = Map.put(card, :comment, "(comment)")
 
-    for to <- @states, to != from, row?(from, to, actor) do
+    for to <- @states, to != from, to != "archived", row?(from, to, actor) do
       {to, allowed?(card, from, to, actor)}
     end
   end
@@ -378,7 +428,8 @@ defmodule TalesForge.Board.Transitions do
     "check" => %{back: "refining", forward: "building", hold: "parked"},
     "building" => %{back: "refining", forward: "done", hold: nil},
     "parked" => %{back: nil, forward: "ideas", hold: nil},
-    "done" => %{back: nil, forward: nil, hold: nil}
+    "done" => %{back: nil, forward: nil, hold: nil},
+    "archived" => %{back: nil, forward: nil, hold: nil}
   }
 
   @typedoc "A move button on the full card."
@@ -413,6 +464,8 @@ defmodule TalesForge.Board.Transitions do
       [{:forward, "ideas"}]
       iex> T.buttons(%{}, "done", {:founder, "a@x"})
       []
+      iex> T.buttons(%{}, "archived", {:founder, "a@x"})
+      []
   """
   @spec buttons(card(), String.t(), actor()) :: [button()]
   def buttons(card, from, actor) do
@@ -443,6 +496,40 @@ defmodule TalesForge.Board.Transitions do
   end
 
   @doc """
+  True when `actor` sees the Archive button on a card in `from`: a founder,
+  on a card in Ideas or Parked only.
+
+      iex> alias TalesForge.Board.Transitions, as: T
+      iex> for c <- ~w(ideas parked refining check building done archived), do: {c, T.archivable?(c, {:founder, "a@x"})}
+      [{"ideas", true}, {"parked", true}, {"refining", false}, {"check", false}, {"building", false}, {"done", false}, {"archived", false}]
+      iex> T.archivable?("ideas", {:bot, :bobby})
+      false
+  """
+  @spec archivable?(String.t(), actor()) :: boolean()
+  def archivable?(from, actor),
+    do: from in ["ideas", "parked"] and allowed?(%{comment: "x"}, from, "archived", actor) == :ok
+
+  @doc """
+  `:ok` when `actor` may delete a card in `column` for good: a founder, and
+  only a card in Archived. Bots cannot delete. (The board also refuses the
+  Gentry QA session, `TalesForge.Board.delete_archived/3`.)
+
+      iex> alias TalesForge.Board.Transitions, as: T
+      iex> T.delete_allowed?("archived", {:founder, "a@x"})
+      :ok
+      iex> T.delete_allowed?("ideas", {:founder, "a@x"})
+      {:error, "Archive the card first. Then you can delete it."}
+      iex> T.delete_allowed?("archived", {:bot, :bobby})
+      {:error, "Only a founder can delete a card."}
+  """
+  @spec delete_allowed?(String.t(), actor()) :: :ok | {:error, String.t()}
+  def delete_allowed?(_column, {:bot, _}), do: {:error, "Only a founder can delete a card."}
+  def delete_allowed?("archived", {:founder, _}), do: :ok
+
+  def delete_allowed?(_column, _actor),
+    do: {:error, "Archive the card first. Then you can delete it."}
+
+  @doc """
   The button label of a move, named by its target step. The server and the
   UI share these.
 
@@ -453,9 +540,13 @@ defmodule TalesForge.Board.Transitions do
       ["Start building", "Back to Refining", "Put on hold", "Send to Founder check"]
       iex> for {f, t} <- [{"building", "done"}, {"building", "refining"}, {"parked", "ideas"}], do: T.step_label(f, t)
       ["Mark as done", "Back to Refining", "Back to Ideas"]
+      iex> for {f, t} <- [{"ideas", "archived"}, {"archived", "ideas"}], do: T.step_label(f, t)
+      ["Archive", "Restore to Ideas"]
   """
   @spec step_label(String.t(), String.t()) :: String.t()
   def step_label(_from, "parked"), do: "Put on hold"
+  def step_label(_from, "archived"), do: "Archive"
+  def step_label("archived", "ideas"), do: "Restore to Ideas"
   def step_label(_from, "building"), do: "Start building"
   def step_label(_from, "done"), do: "Mark as done"
   def step_label("ideas", "refining"), do: "Send to Refining"

@@ -113,6 +113,13 @@ defmodule TalesForge.Board.History do
   defp describe(%{note: "Changes requested on PR #" <> rest}, idea),
     do: pr(:pr_changes_requested, "asked for changes on", rest, idea)
 
+  # Archive and restore (the reason stays in the Archive panel, not here).
+  defp describe(%{to: "archived", from: from}, _idea) when from != "archived",
+    do: {:archived, "archived this card from #{label(from)}", nil}
+
+  defp describe(%{from: "archived", to: "ideas"}, _idea),
+    do: {:restored, "restored this card to Ideas", nil}
+
   # A move to another column.
   defp describe(%{from: "refining", to: "check", actor: "bot:case"}, _idea),
     do: {:refined, "wrote the refinement and moved Refining → Founder check", nil}
