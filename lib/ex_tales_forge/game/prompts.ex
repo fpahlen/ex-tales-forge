@@ -56,7 +56,7 @@ defmodule TalesForge.Game.Prompts do
 
   @doc """
   Messages for a GM turn. Per-turn content, including the action, goes last.
-  `opts[:role]` picks the app role (default `TalesForge.AppRole.role/0`).
+  `opts[:role]` picks the app role (default `TalesForge.AppRole.role/1`).
   """
   @spec gm_messages(
           map(),
