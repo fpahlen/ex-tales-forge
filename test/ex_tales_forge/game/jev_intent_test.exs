@@ -4,7 +4,7 @@ defmodule TalesForge.Game.JevIntentTest do
   alias TalesForge.Game.{IntentCalibration, JevIntent, Mechanics}
   alias TalesForge.Game.Schemas.IntentExtraction
 
-  doctest TalesForge.Game.JevIntent, only: [unnamed_elsewhere?: 2]
+  doctest TalesForge.Game.JevIntent, only: [unnamed_elsewhere?: 2, v1_actions: 1]
 
   defp context do
     %{

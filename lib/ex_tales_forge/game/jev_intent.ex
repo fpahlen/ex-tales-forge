@@ -101,6 +101,45 @@ defmodule TalesForge.Game.JevIntent do
 
   @later_labels Map.put(@action_labels, :none, "No second action is deferred to a later turn.")
 
+  # Catalogue v2 (JEV_CATALOGUE_V2, turn pipeline design §8 step 5): rest,
+  # work, equip and give get their own type, and `none_fits` replaces
+  # `freeform`. `other` stays the label for out-of-character talk.
+  @v2_action_labels @action_labels
+                    |> Map.drop([:freeform])
+                    |> Map.merge(%{
+                      wait: "Wait or let time pass while awake. Not sleep or rest.",
+                      rest:
+                        "Sleep, rest or take a room for the night, with or without paying for it.",
+                      work: "Work for pay: labour, chores or a job done for coin.",
+                      equip:
+                        "Put on, wear, wield, draw, sheathe or take off an item the character carries.",
+                      give:
+                        "Give or hand an item or coin to someone as a gift, with nothing back.",
+                      spend: "Pay, tip or bribe coin for a service or a favour.",
+                      none_fits: "An in-character action that fits no other type."
+                    })
+
+  @v2_then_labels Map.put(
+                    @v2_action_labels,
+                    :none,
+                    "No further action this turn."
+                  )
+
+  @v2_later_labels Map.put(
+                     @v2_action_labels,
+                     :none,
+                     "No second action is deferred to a later turn."
+                   )
+
+  # Manner adverbs (decision 2026-10-12, catalogue v2 rule 2; the server
+  # applies the PROVISIONAL time and roll table).
+  @manner_labels %{
+    none: "No stated manner, or a manner that changes nothing.",
+    quickly: "Quickly, hastily or in a rush.",
+    carefully: "Carefully, slowly or with caution.",
+    quietly: "Quietly, softly or trying not to be heard."
+  }
+
   @safety_labels %{
     benign:
       "An ordinary in-character action, even if it is rude, violent or a lie inside the story.",
@@ -113,7 +152,7 @@ defmodule TalesForge.Game.JevIntent do
   }
 
   # Action types whose reading is only meaningful with a target.
-  @target_actions ~w(speak move combat buy sell trade spend pickup drop interact use_item)a
+  @target_actions ~w(speak move combat buy sell trade spend pickup drop interact use_item equip give)a
 
   # Which kinds of candidate each action type can be aimed at (post-processing
   # in decode/3). Types not listed (wait, other, freeform) take no target.
@@ -130,12 +169,14 @@ defmodule TalesForge.Game.JevIntent do
     drop: [:item],
     use_item: [:item],
     interact: [:fixture, :item, :npc],
-    observe: [:npc, :fixture, :item]
+    observe: [:npc, :fixture, :item],
+    equip: [:item],
+    give: [:npc]
   }
 
   # Action types that never roll a skill in the game (put_skill/3 below), so
   # the reading carries none either.
-  @no_skill_actions ~w(move wait pickup drop buy sell trade spend other)a
+  @no_skill_actions ~w(move wait pickup drop buy sell trade spend other rest work equip give none_fits)a
 
   @typedoc """
   One proposed target: its index `label`, `kind`, world `id` and the human
@@ -157,6 +198,8 @@ defmodule TalesForge.Game.JevIntent do
           skill: String.t() | nil,
           later: atom() | nil,
           later_target: String.t() | nil,
+          then: [atom()],
+          manner: atom() | nil,
           safety: atom(),
           confidence: float() | nil,
           raw_confidence: float() | nil,
@@ -275,8 +318,34 @@ defmodule TalesForge.Game.JevIntent do
   The Jev questions for `candidates`: `action`, `skill` and `safety` always,
   and `target`/`later_target` when there is at least one candidate.
   """
-  @spec questions([candidate()]) :: keyword()
-  def questions(candidates) do
+  @spec questions([candidate()], :v1 | :v2) :: keyword()
+  def questions(candidates, catalogue \\ catalogue())
+
+  def questions(candidates, :v2) do
+    base = [
+      action: {"What is the player character's main action this turn?", @v2_action_labels},
+      then:
+        {"Does the character do a second, distinct action this turn, right after the main one?",
+         @v2_then_labels},
+      then2:
+        {"Does the character do a third, distinct action this turn, after the second one?",
+         @v2_then_labels},
+      manner: {"How does the character do the main action?", @manner_labels},
+      skill:
+        {"Which skill, if any, does the main action roll? Most actions roll none. " <>
+           "A social skill only when the character tries to change someone's mind or behaviour " <>
+           "against their interest (a haggle, a lie, a threat); plain talk rolls none.",
+         @skill_labels},
+      later:
+        {"Is a second, distinct action deferred to a later turn (a plan for later, not now)?",
+         @v2_later_labels},
+      safety: {"How should this message be treated for safety?", @safety_labels}
+    ]
+
+    with_targets(base, candidates)
+  end
+
+  def questions(candidates, :v1) do
     base = [
       action: {"What is the player character's main action this turn?", @action_labels},
       skill:
@@ -290,6 +359,34 @@ defmodule TalesForge.Game.JevIntent do
       safety: {"How should this message be treated for safety?", @safety_labels}
     ]
 
+    with_targets(base, candidates)
+  end
+
+  @doc "The catalogue of the Jev read: `:v2` with `JEV_CATALOGUE_V2=on`, else `:v1`."
+  @spec catalogue() :: :v1 | :v2
+  def catalogue, do: if(TalesForge.Config.jev_catalogue_v2?(), do: :v2, else: :v1)
+
+  @doc """
+  The catalogue v1 type for a v2 `action` (for the eval against v1 gold
+  labels): `rest` is a `wait`, `none_fits` a `freeform`; the other v2 types
+  have more than one v1 reading (see `v1_actions/1`).
+
+      iex> TalesForge.Game.JevIntent.v1_actions(:rest)
+      [:wait]
+      iex> TalesForge.Game.JevIntent.v1_actions(:give)
+      [:spend, :trade]
+      iex> TalesForge.Game.JevIntent.v1_actions(:speak)
+      [:speak]
+  """
+  @spec v1_actions(atom()) :: [atom()]
+  def v1_actions(:rest), do: [:wait]
+  def v1_actions(:none_fits), do: [:freeform]
+  def v1_actions(:work), do: [:freeform, :wait]
+  def v1_actions(:equip), do: [:use_item, :interact]
+  def v1_actions(:give), do: [:spend, :trade]
+  def v1_actions(action), do: [action]
+
+  defp with_targets(base, candidates) do
     case target_criteria(candidates) do
       nil ->
         base
@@ -375,7 +472,7 @@ defmodule TalesForge.Game.JevIntent do
   @spec decode(map(), [candidate()], keyword()) :: reading()
   def decode(reply, candidates, opts \\ []) do
     text = opts |> Keyword.get(:text, "") |> to_string()
-    reply = lodging_booking(reply, text)
+    reply = if Map.has_key?(reply, :then), do: reply, else: lodging_booking(reply, text)
     context = Keyword.get(opts, :context, %{})
     by_label = Map.new(candidates, fn c -> {c.label, c} end)
 
@@ -398,6 +495,8 @@ defmodule TalesForge.Game.JevIntent do
       skill: skill,
       later: later,
       later_target: later_target,
+      then: this_turn(reply, action, safety),
+      manner: manner(reply[:manner]),
       safety: safety,
       confidence: confidence,
       raw_confidence: raw_confidence,
@@ -434,6 +533,20 @@ defmodule TalesForge.Game.JevIntent do
     end
   end
 
+  # Catalogue v2: the further actions of this turn, in order (1 to 3 in all).
+  # A message that is not benign, or whose main action is `other`, plays one
+  # action only.
+  defp this_turn(_reply, action, safety) when action == :other or safety != :benign, do: []
+
+  defp this_turn(reply, _action, _safety) do
+    [reply[:then], reply[:then2]]
+    |> Enum.take_while(&(&1 not in [nil, :none]))
+    |> Enum.reject(&(&1 == :other))
+  end
+
+  defp manner(manner) when manner in [:quickly, :carefully, :quietly], do: manner
+  defp manner(_manner), do: nil
+
   defp candidate_id(_by_label, :none), do: nil
   defp candidate_id(_by_label, nil), do: nil
 
@@ -453,7 +566,8 @@ defmodule TalesForge.Game.JevIntent do
   # character, meta talk, an attack) or that is not benign defers nothing, and
   # an `other` / `freeform` plan carries nothing the game can act on later.
   defp later_type(type, action, safety)
-       when type in [nil, :none, :other, :freeform] or action == :other or safety != :benign,
+       when type in [nil, :none, :other, :freeform, :none_fits] or action == :other or
+              safety != :benign,
        do: nil
 
   defp later_type(type, _action, _safety) when is_atom(type), do: type
@@ -616,6 +730,9 @@ defmodule TalesForge.Game.JevIntent do
   defp put_skill(params, _skill, action) when action in @no_skill_actions, do: params
 
   defp put_skill(params, skill, _action), do: Map.put(params, "skill", skill)
+
+  defp put_numbers(params, :rest, text, _context, _target),
+    do: Map.put(params, "ticks", WorldClock.parse_duration(text))
 
   defp put_numbers(params, :wait, text, _context, _target),
     do: Map.put(params, "ticks", WorldClock.parse_duration(text))
