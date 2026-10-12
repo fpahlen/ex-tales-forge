@@ -45,6 +45,23 @@ defmodule TalesForge.Game.Mechanics do
     "arcana" => "INT"
   }
 
+  # Skill list v2 (decision 2026-10-12, JEV_CATALOGUE_V2): 28 skills in five
+  # domains. The stat lookup always knows them; the list of valid skills
+  # (`skill_stat_map/0`) has them only with the flag on.
+  @skill_stat_v2 Map.merge(@skill_stat, %{
+                   "sleight_of_hand" => "DEX",
+                   "acrobatics" => "DEX",
+                   "perception" => "WIS",
+                   "performance" => "CHA",
+                   "medicine" => "WIS",
+                   "appraisal" => "INT",
+                   "smithing" => "STR",
+                   "carpentry" => "DEX",
+                   "leatherworking" => "DEX",
+                   "cooking" => "WIS",
+                   "alchemy" => "INT"
+                 })
+
   @lp_stat_bonus_max 2
 
   @action_skill_hints [
@@ -89,11 +106,47 @@ defmodule TalesForge.Game.Mechanics do
      "melee_combat"}
   ]
 
+  # Skill list v2: the verbs of the new skills. Search, spot and notice move
+  # from insight to perception. Cooking a simple meal needs no roll.
+  @check_skill_hints_v2 [
+                          {~r/\b(search\w*|inspect\w*|examin\w*|spot\w*|notic\w*)\b/i,
+                           "perception"},
+                          {~r/\b(pickpocket\w*|pick (?:his|her|their|a|the) pocket|palm(?:s|ing)? (?:the|a)|sleight)\b/i,
+                           "sleight_of_hand"},
+                          {~r/\b(tumbl\w*|somersault\w*|cartwheel\w*|escape (?:my|the) bonds|slip (?:my|the) bonds|acrobat\w*)\b/i,
+                           "acrobatics"},
+                          {~r/\b(perform\w*|juggl\w*|sing (?:for|a|to)|play (?:a|the) (?:lute|song|tune))\b/i,
+                           "performance"},
+                          {~r/\b(bandag\w*|first aid|treat (?:the|his|her|my) wound|splint\w*|stitch (?:the|his|her|my) wound)\b/i,
+                           "medicine"},
+                          {~r/\b(apprais\w*|assess (?:its|the) (?:worth|value)|what (?:is|it's) (?:it )?worth)\b/i,
+                           "appraisal"},
+                          {~r/\b(forg(?:e|es|ing) (?:a|an|the)|smith(?:ing)?|hammer out)\b/i,
+                           "smithing"},
+                          {~r/\b(carpentr\w*|carv(?:e|es|ing) (?:a|an|the) (?:plank|beam|board)|build (?:a|an) (?:shelf|table|crate))\b/i,
+                           "carpentry"},
+                          {~r/\b(tan(?:s|ning)? (?:the|a) hide|leatherwork\w*|stitch (?:a|the) (?:boot|belt|saddle))\b/i,
+                           "leatherworking"},
+                          {~r/\b(brew(?:s|ing)? (?:a|an|the) (?:potion|tincture|draught)|alchem\w*|distil\w*)\b/i,
+                           "alchemy"},
+                          {~r/\b(cook(?:s|ing)? (?:a )?(?:feast|banquet))\b/i, "cooking"}
+                        ] ++ Enum.reject(@check_skill_hints, &(elem(&1, 1) == "insight"))
+
   @combat_skills ~w(melee_combat ranged_combat unarmed_combat)
 
-  @doc ~S(The stat linked to each skill, e.g. `"stealth" => "DEX"`; unlisted skills use WIS.)
+  @doc ~S"""
+  The stat linked to each valid skill, e.g. `"stealth" => "DEX"`; unlisted
+  skills use WIS. With `JEV_CATALOGUE_V2=on` this is skill list v2 (28
+  skills); otherwise the 17 skills of list v1.
+  """
   @spec skill_stat_map() :: %{String.t() => String.t()}
-  def skill_stat_map, do: @skill_stat
+  def skill_stat_map,
+    do: skill_stat_map(if TalesForge.Config.jev_catalogue_v2?(), do: :v2, else: :v1)
+
+  @doc "The skill list `:v1` (17 skills) or `:v2` (28 skills) with the linked stats."
+  @spec skill_stat_map(:v1 | :v2) :: %{String.t() => String.t()}
+  def skill_stat_map(:v1), do: @skill_stat
+  def skill_stat_map(:v2), do: @skill_stat_v2
 
   @doc """
   A skill name as the sheet keys it: trimmed, lower case, spaces as
@@ -135,7 +188,12 @@ defmodule TalesForge.Game.Mechanics do
   """
   @spec infer_check_skill(String.t()) :: String.t() | nil
   def infer_check_skill(action) when is_binary(action) do
-    Enum.find_value(@check_skill_hints, fn {pattern, skill} ->
+    hints =
+      if TalesForge.Config.jev_catalogue_v2?(),
+        do: @check_skill_hints_v2,
+        else: @check_skill_hints
+
+    Enum.find_value(hints, fn {pattern, skill} ->
       if Regex.match?(pattern, action), do: skill
     end)
   end
@@ -462,7 +520,7 @@ defmodule TalesForge.Game.Mechanics do
   end
 
   defp linked_stat(character, skill) do
-    character |> get_in(["stats", Map.get(@skill_stat, skill, "WIS")]) |> to_int(10)
+    character |> get_in(["stats", Map.get(@skill_stat_v2, skill, "WIS")]) |> to_int(10)
   end
 
   # A trained skill: level plus the linked stat's bonus ((stat - 10) div 2).
@@ -470,7 +528,7 @@ defmodule TalesForge.Game.Mechanics do
   # anyone can try with raw talent (old rules, 2026-10-07).
   defp effective_skill_level(character, skill) do
     base = character |> get_in(["skills", skill]) |> to_int(0)
-    stat_key = Map.get(@skill_stat, skill, "WIS")
+    stat_key = Map.get(@skill_stat_v2, skill, "WIS")
     stat_value = character |> get_in(["stats", stat_key]) |> to_int(10)
 
     if base <= 0,
