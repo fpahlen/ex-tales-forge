@@ -33,6 +33,7 @@ defmodule TalesForge.PrFeed do
   @table TalesForge.PrFeed.Poller
   @zone "Europe/Stockholm"
   @shown 15
+  @pace_ttl_ms 24 * 60 * 60 * 1000
 
   @typedoc "Where a pull request stands."
   @type state :: :open | :merged | :closed
@@ -150,11 +151,51 @@ defmodule TalesForge.PrFeed do
   def publish(snapshot) do
     try do
       :ets.insert(@table, {:snapshot, snapshot})
+      remember_pace(snapshot)
     rescue
       ArgumentError -> :ok
     end
 
     Phoenix.PubSub.broadcast(TalesForge.PubSub, @topic, {:pr_feed, snapshot})
+  end
+
+  # The last full count, kept apart from the snapshot: a poll that can't read
+  # every page (a timeout, a rate limit, GitHub down) replaces the snapshot
+  # but must not wipe the live numbers.
+  defp remember_pace(%{pace: %{prs_total: _} = pace}),
+    do: :ets.insert(@table, {:last_pace, pace})
+
+  defp remember_pace(_snapshot), do: true
+
+  @doc """
+  The pace of the latest snapshot, or else the last full count (`:pace`)
+  this machine read from GitHub, while it is younger than `:pace_ttl_ms`
+  (config `TalesForge.PrFeed`, default 24 h, measured from its `fetched_at`).
+  nil only when there is none: a cold start before the first full poll.
+
+  One poll that can't read every page (a timeout, a rate limit, GitHub down)
+  thus doesn't flip the pages to the bundled `data.json`; the poller keeps
+  refreshing the count in the background every interval.
+  """
+  @spec pace(DateTime.t()) :: Pace.t() | nil
+  def pace(now \\ DateTime.utc_now()) do
+    case snapshot() do
+      %{pace: %{prs_total: _} = pace} -> pace
+      _no_full_count -> last_pace(now)
+    end
+  end
+
+  defp last_pace(now) do
+    case :ets.lookup(@table, :last_pace) do
+      [{:last_pace, %{fetched_at: %DateTime{} = at} = pace}] ->
+        if DateTime.diff(now, at, :millisecond) <= config(:pace_ttl_ms, @pace_ttl_ms),
+          do: pace
+
+      _none ->
+        nil
+    end
+  rescue
+    ArgumentError -> nil
   end
 
   @doc "A snapshot without pull requests, with `status`."

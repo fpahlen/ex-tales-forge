@@ -333,6 +333,45 @@ defmodule TalesForge.PrFeedTest do
     end
   end
 
+  describe "pace/1: the last good count" do
+    setup do
+      :ets.delete(TalesForge.PrFeed.Poller, :last_pace)
+      config = Application.get_env(:ex_tales_forge, TalesForge.PrFeed, [])
+      on_exit(fn -> Application.put_env(:ex_tales_forge, TalesForge.PrFeed, config) end)
+      :ok
+    end
+
+    defp live_pace(at), do: %{prs_total: 190, prs_merged: 187, fetched_at: at}
+
+    test "a poll without a full count keeps the last good one" do
+      now = DateTime.utc_now()
+      PrFeed.publish(%{PrFeed.empty(:ok, now) | pace: live_pace(now)})
+      PrFeed.publish(PrFeed.empty(:unavailable, now))
+      assert %{prs_merged: 187} = PrFeed.pace(DateTime.add(now, 120))
+      assert TalesForge.TeamPace.current().source == :live
+    end
+
+    test "the last good count expires after :pace_ttl_ms" do
+      config = Application.get_env(:ex_tales_forge, TalesForge.PrFeed, [])
+
+      Application.put_env(
+        :ex_tales_forge,
+        TalesForge.PrFeed,
+        Keyword.put(config, :pace_ttl_ms, 60_000)
+      )
+
+      PrFeed.publish(%{PrFeed.empty(:ok, @now) | pace: live_pace(@now)})
+      PrFeed.publish(PrFeed.empty(:ok, @now))
+      assert PrFeed.pace(DateTime.add(@now, 30)) != nil
+      assert PrFeed.pace(DateTime.add(@now, 61)) == nil
+    end
+
+    test "a cold start with no count falls back to data.json" do
+      PrFeed.publish(PrFeed.empty(:loading))
+      assert PrFeed.pace(@now) == nil
+    end
+  end
+
   describe "extras: tests from CI and the decision log" do
     doctest TalesForge.PrFeed.Extras
 
