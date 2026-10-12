@@ -278,7 +278,7 @@ defmodule TalesForge.Game.TurnProcessor do
     blocked = %HandlerResult{
       handler: "narrate",
       notes: "Premise check: the action is blocked.",
-      state_hints: %{"premise_rejected" => true, "reason" => reason}
+      state_hints: %{"premise_rejected" => true, "rejected" => true, "reason" => reason}
     }
 
     action = player_action.action
@@ -472,6 +472,7 @@ defmodule TalesForge.Game.TurnProcessor do
       |> maybe_apply_inventory(session.id, player_action.action, handler)
 
     inventory_result = premise_result(handler, traded)
+    handler = mark_rejected(handler, inventory_result)
 
     world_present =
       world_traded
@@ -779,6 +780,16 @@ defmodule TalesForge.Game.TurnProcessor do
     do: {:error, "Premise check: " <> reason}
 
   defp premise_result(_handler, result), do: result
+
+  # TURN_OUTCOME_RECORD=on: stage 3 rejected the action, so the turn costs
+  # no game time (ActionHandler.tick_delta/1).
+  defp mark_rejected(handler, {:error, _reason}) do
+    if Config.turn_outcome_record?(),
+      do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "rejected", true)},
+      else: handler
+  end
+
+  defp mark_rejected(handler, _result), do: handler
 
   defp maybe_apply_context_summary(world_state, nil), do: world_state
 

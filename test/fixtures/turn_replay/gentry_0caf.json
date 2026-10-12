@@ -1,6 +1,7 @@
 {
   "id": "gentry_0caf",
   "source": "Gentry's playtest session 0caf18f5 (crossroads_ledger, 2026-10-12, 11 turns)",
+  "owner": "Case (eval plan owner, design-turn-pipeline.md section 8). Bobby wrote the first version in PR #199. Later PRs extend it in test/fixtures/turn_pipeline.",
   "note": "Each turn plays the gold reading of the intent fixture. The fixture asserts the outcome record and the books, not the prose words. Turn 10 plays the #198 rule: 'pay for a room' is a spend with the copper amount from the text (0 here). With TURN_PREMISE_FIRST=on, a turn with `expect_premise_first` uses it instead of `expect`.",
   "adventure_id": "crossroads_ledger",
   "start": {

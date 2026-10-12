@@ -1,6 +1,7 @@
 {
   "id": "issue_180",
   "source": "PR #180 cases from Gentry's QA on playtest 774bf15 (tin_valley with INN_WORLD, 2026-10-12)",
+  "owner": "Case (eval plan owner, design-turn-pipeline.md section 8). Bobby wrote the first version in PR #199. Later PRs extend it in test/fixtures/turn_pipeline.",
   "note": "Each case plays one gold reading from a fresh session with the fixture's coins, inventory and location. h-fp14-sell plays the same words as a sell action: the rejected sale must reach the GM. The fixture asserts the outcome record and the books, not the prose words. With TURN_PREMISE_FIRST=on, a case with `expect_premise_first` uses it instead of `expect`.",
   "adventure_id": "tin_valley",
   "start": {

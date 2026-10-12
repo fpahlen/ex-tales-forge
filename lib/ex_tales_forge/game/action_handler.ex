@@ -125,9 +125,9 @@ defmodule TalesForge.Game.ActionHandler do
     WorldClock.clamp_wait(ticks)
   end
 
-  # TURN_PREMISE_FIRST=on: a rejected action costs no game time (decision
-  # 2026-10-12, turn pipeline §11).
-  def tick_delta(%{state_hints: %{"premise_rejected" => true}}), do: 0
+  # TURN_OUTCOME_RECORD=on or TURN_PREMISE_FIRST=on: a rejected action costs no game time (turn
+  # pipeline design §11, decision 1).
+  def tick_delta(%{state_hints: %{"rejected" => true}}), do: 0
 
   def tick_delta(_), do: 1
 

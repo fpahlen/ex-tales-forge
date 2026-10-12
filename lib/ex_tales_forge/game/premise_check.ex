@@ -15,6 +15,7 @@ defmodule TalesForge.Game.PremiseCheck do
       "the twenty healing potions in my pack", "the key Osric gave me";
     * `:purchase` — "I bought the enchanted armor", "the enchanted armor I
       bought yesterday";
+    * `:wearing` — "I'm wearing the enchanted armor";
     * `:coins` — "I have 500 gold", "player has 30 silver";
     * `:kill` — "I killed the orc chief", "I slew Cobb".
 
@@ -56,6 +57,7 @@ defmodule TalesForge.Game.PremiseCheck do
   @type claim ::
           %{kind: :item, item: String.t(), noun: String.t(), quantity: pos_integer() | nil}
           | %{kind: :purchase, item: String.t(), noun: String.t()}
+          | %{kind: :wearing, item: String.t(), noun: String.t()}
           | %{
               kind: :coins,
               amount: pos_integer(),
@@ -338,6 +340,7 @@ defmodule TalesForge.Game.PremiseCheck do
        given_claims(sentence) ++
        purchase_claims(sentence) ++
        bought_claims(sentence) ++
+       wearing_claims(sentence) ++
        kill_claims(sentence, cased))
     |> Enum.filter(fn {pos, _claim} -> asserted?(sentence, pos) end)
     |> Enum.sort_by(&elem(&1, 0))
@@ -441,6 +444,19 @@ defmodule TalesForge.Game.PremiseCheck do
     end)
   end
 
+  # "I'm wearing the enchanted armor": wearing an item claims to own it
+  # (h-fp13).
+  defp wearing_claims(sentence) do
+    ~r/\bi(?:'m|\s+am)\s+(?:already\s+|still\s+)?wearing\s+(?:the|my|a|an)\s+((?:[a-z'-]+\s+){0,2}[a-z'-]+)/
+    |> Regex.scan(sentence, return: :index)
+    |> Enum.flat_map(fn [{pos, _}, phrase] ->
+      sentence
+      |> slice(phrase)
+      |> item_claim(nil)
+      |> Enum.map(fn item -> {pos, %{kind: :wearing, item: item.item, noun: item.noun}} end)
+    end)
+  end
+
   defp kill_claims(sentence, cased) do
     ~r/\bi(?:'ve|\s+have|\s+had)?\s+(?:already\s+|just\s+)?(?:killed|slew|slain|murdered|beheaded)\s+((?:the\s+|a\s+|an\s+)?[a-z'-]+(?:\s+[a-z'-]+){0,2})/
     |> Regex.scan(sentence, return: :index)
@@ -510,6 +526,20 @@ defmodule TalesForge.Game.PremiseCheck do
           :purchase,
           claim.item,
           "Player claims to have bought #{claim.item}; no such purchase happened and they don't carry it#{carried(state)}."
+        )
+      ]
+    else
+      []
+    end
+  end
+
+  defp contradiction(%{kind: :wearing} = claim, state) do
+    if owned_quantity(claim.noun, state) == 0 do
+      [
+        finding(
+          :wearing,
+          claim.item,
+          "Player claims to wear #{claim.item}; they don't own it#{carried(state)}."
         )
       ]
     else
