@@ -113,7 +113,7 @@ A post-check compares the prose with the record: coin numbers, item names, locat
 
 Measured in playtest `ai_calls` (2026-10-06 to 10-12, read-only query in Case's latency study, `llm-study/report.md`): Jev intent p95 291 ms (n=574), Jev `npc_reaction` p95 311 ms (n=2710), `turn.rules` 7 ms, `turn.persist` 69 ms, GM call p95 9.2 s (not streamed). The playtest app had no started VM on 2026-10-12 16:10, so this revision did not run a new query. Production has too few rows (6) for statistics.
 
-Today `NPC_REACTIONS_TIMEOUT_MS` defaults to 2500 ms, and `Task.async_stream` kills a task at timeout + 500 ms = 3.0 s (`npc_reactions.ex` lines 130 to 139). That is far above the measured p95. **Proposal:** set `NPC_REACTIONS_TIMEOUT_MS` to 600 ms. The kill then comes at 1.1 s. A reaction that times out is dropped, and the NPC keeps the mood from the last turn.
+Today `NPC_REACTIONS_TIMEOUT_MS` defaults to 2500 ms, and `Task.async_stream` kills a task at timeout + 500 ms = 3.0 s (`npc_reactions.ex` lines 130 to 139). That is far above the measured p95. **Confirmed (Fredrik, 2026-10-12):** set `NPC_REACTIONS_TIMEOUT_MS` to 600 ms. The kill then comes at 1.1 s. A reaction that times out is dropped, and the NPC keeps the mood from the last turn.
 
 | Stage | Budget (p95) | Basis |
 |---|---|---|
@@ -127,7 +127,13 @@ Today `NPC_REACTIONS_TIMEOUT_MS` defaults to 2500 ms, and `Task.async_stream` ki
 | Persist | 0.2 s | measured 69 ms |
 | **Full turn** | **6.0 s** | 0.9 + 1.0 + 3.9 + 0.2 |
 
-The GM budget (4.9 s) is below today's GM p95 of 9.2 s. Stage 5 meets it only with #191 streaming plus a shorter reply or a faster model (owner: Fredrik decides, Case measures). No new LLM call goes on the critical path. Grok is not a fallback for intent.
+The GM budget (4.9 s) is below today's GM p95 of 9.2 s. Bobby applies these levers in this order, and Case measures the GM p95 after each one:
+
+1. #191 streaming.
+2. The lean production reply, with no `gm_notes` and no `location_name`.
+3. A lower max-token cap on the GM reply.
+
+A model change is not a lever in this plan. It waits for its own decision. No new LLM call goes on the critical path. Grok is not a fallback for intent.
 
 ## 8. Migration
 
@@ -141,24 +147,25 @@ Small PRs. Each one has a flag and a default of off until its eval passes.
 6. **Clarification v2**: state-filtered options.
 7. **h-fa06**: strip injected text from the history. Add the multi-turn test.
 
-Owners: Case writes and reviews the PRs and owns the eval. Gentry turns the playtest sessions into fixtures. Fredrik approves each flag flip to on.
+Owners: Bobby builds the PRs. Case owns the eval plan and the fixtures. Gentry runs the adversarial and multi-turn sessions against the fixtures. Fredrik approves each flag flip to on.
 
 ## 9. Test and eval plan
 
-- **Regression fixtures:** Gentry's session 0caf (11 turns) and the #180 cases (h-fp12, h-fp13, h-fp14, h-fa06) become replay fixtures. Each fixture asserts the outcome record and the books, not the prose words.
+- **Regression fixtures:** Gentry's session 0caf (11 turns) and the #180 cases (h-fp12, h-fp13, h-fp14, h-fa06) become replay fixtures (owner: Case). Each fixture asserts the outcome record and the books, not the prose words.
 - **Intent eval:** `mix intent.eval` on the tune split. Target: Jev accuracy at or above 93 %, ECE at or below 0.05, and a `none_fits` recall target that the team sets after labelling.
+- **Adversarial and multi-turn sessions:** Gentry runs them against the fixtures before each flag flip.
 - **Multi-turn tests:** an injection on turn N does not appear in any line on turn N+1 or N+2. A sale on turn N matches the coins on turn N+1.
 - **Skill-growth fixture:** (a) a failed lockpick improves only lockpicking; (b) a long rest and a work turn with no failure give no growth; (c) a work turn adds coins and no skill or item.
 - **Mismatch metric:** each prose/record mismatch counts as 1 bug. A replay fixture fails on 1 or more mismatches. Live target: 0 mismatches per 100 turns.
-- **Live metrics** (owner: Case, weekly): mismatch count, `none_fits` rate, repetition-guard hits, latency per stage (`Steps`).
+- **Live metrics** (owner: Case, weekly; Bobby adds the metrics in the PRs): mismatch count, `none_fits` rate, repetition-guard hits, latency per stage (`Steps`).
 
 ## 10. Risks
 
-- Stricter premise checks can reject true claims. Mitigation: reject only claims that the state contradicts. Gentry reviews the rejection log weekly.
-- More Jev classes can lower accuracy on the old classes. Mitigation: gate the merge on the eval.
+- Stricter premise checks can reject true claims. Mitigation: reject only claims that the state contradicts. Case reviews the rejection log weekly. Gentry runs adversarial sessions with true and false claims.
+- More Jev classes can lower accuracy on the old classes. Mitigation: Case gates the merge on the eval.
 - Ordered actions can fail part way (pay succeeds, sleep fails). Mitigation: the record holds each action result, and the GM narrates each one.
 - A 600 ms NPC timeout can drop reactions. Mitigation: track the drop rate. Raise the timeout if drops are above 2 % of calls.
-- The GM budget of 4.9 s is about half of today's GM p95.
+- The GM budget of 4.9 s is about half of today's GM p95. Mitigation: the three levers in §7, in order.
 - The gold set is small below 0.8 confidence (2 to 14 items per bucket). Mitigation: label more live turns.
 
 ## 11. Decided (Fredrik, 2026-10-12 16:10)
