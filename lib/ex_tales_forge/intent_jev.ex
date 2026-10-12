@@ -316,7 +316,9 @@ defmodule TalesForge.IntentJev do
       band == :ask ->
         clarification =
           reading
-          |> IntentClarification.build(candidates)
+          |> IntentClarification.build(candidates,
+            v2: Keyword.get(opts, :clarification_v2, Config.intent_clarification_v2?())
+          )
           |> Map.put("raw_action", raw_action)
           |> Map.put("safety", safety_map(safety))
 

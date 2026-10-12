@@ -48,7 +48,11 @@ defmodule TalesForge.Game.IntentClarification do
     pickup: :items,
     drop: :items,
     wait: :time,
-    train: :time
+    train: :time,
+    rest: :time,
+    work: :time,
+    equip: :items,
+    give: :items
   }
 
   @verbs %{
@@ -63,6 +67,10 @@ defmodule TalesForge.Game.IntentClarification do
     spend: "pay",
     wait: "wait",
     train: "train",
+    rest: "rest",
+    work: "work",
+    equip: "equip",
+    give: "give something to",
     freeform: "do something else",
     other: "do something else"
   }
@@ -150,11 +158,19 @@ defmodule TalesForge.Game.IntentClarification do
   or go to Market Square?"), matching the shape
   `TalesForge.Game.Intent.build_clarification/2` returns, plus `"source"` and
   `"option_actions"` (each option's typed actions, primary first).
+
+  With `v2: true` (`INTENT_CLARIFICATION_V2`) the options come from
+  `options_v2/2`: only options that the game state allows, at most
+  #{3}. The question stays one templated sentence; there is no LLM call.
   """
-  @spec build(JevIntent.reading(), [JevIntent.candidate()]) :: map()
-  def build(reading, candidates) do
+  @spec build(JevIntent.reading(), [JevIntent.candidate()], keyword()) :: map()
+  def build(reading, candidates, opts \\ []) do
     id = Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
-    readings = readings(reading, candidates)
+
+    readings =
+      if Keyword.get(opts, :v2, false),
+        do: options_v2(reading, candidates),
+        else: readings(reading, candidates)
 
     %{
       "clarification_id" => id,
@@ -206,6 +222,78 @@ defmodule TalesForge.Game.IntentClarification do
       end
 
     Enum.uniq_by([first, second], &{&1.action_type, &1.target})
+  end
+
+  @max_options 3
+  @goods ~w(buy sell trade pickup drop equip give use_item)a
+
+  @doc """
+  Clarification v2: the options to offer for a reading, at most
+  #{@max_options}, each one that the game state allows:
+
+    * `buy` takes only an item for sale, never an item the character carries;
+    * `sell`, `drop`, `equip`, `give` (an item) and `use_item` take only a
+      carried item; `pickup` takes only an item on the ground;
+    * a goods action never takes a person as its target;
+    * `move` takes a place, `speak` and `combat` a person.
+
+  An option with a target that the state does not allow gets the best allowed
+  target from the ranking. When no allowed target exists, the option drops out.
+  """
+  @spec options_v2(JevIntent.reading(), [JevIntent.candidate()]) :: [SingleAction.t()]
+  def options_v2(reading, candidates) do
+    primary = List.first(reading.extraction.actions)
+    types = Enum.uniq([primary.action_type | reading.top2 ++ [reading.action]])
+    ranked = Enum.map(target_ranking(reading), &elem(&1, 0))
+
+    types
+    |> Enum.flat_map(&type_options(&1, primary, [primary.target | ranked], candidates))
+    |> Enum.uniq_by(&{&1.action_type, &1.target})
+    |> Enum.take(@max_options)
+  end
+
+  defp type_options(type, primary, targets, candidates) do
+    keep = if type == primary.action_type, do: 2, else: 1
+
+    targets
+    |> Enum.uniq()
+    |> Enum.filter(&allowed?(type, &1, candidates))
+    |> Enum.take(keep)
+    |> Enum.map(&option(type, &1, primary))
+  end
+
+  defp option(type, target, %{action_type: type, target: target} = primary), do: primary
+
+  defp option(type, target, _primary),
+    do: %SingleAction{action_type: type, target: target, parameters: %{}}
+
+  @doc """
+  True when the game state allows `type` on `target` (see `options_v2/2`).
+
+      iex> c = [%{kind: :item, id: "bread", text: "Bread (carried)"}, %{kind: :npc, id: "brenna", text: "Brenna — innkeeper (present)"}]
+      iex> TalesForge.Game.IntentClarification.allowed?(:buy, "bread", c)
+      false
+      iex> TalesForge.Game.IntentClarification.allowed?(:sell, "bread", c)
+      true
+      iex> TalesForge.Game.IntentClarification.allowed?(:buy, "brenna", c)
+      false
+  """
+  @spec allowed?(atom(), String.t() | nil, [JevIntent.candidate()]) :: boolean()
+  def allowed?(type, target, candidates) do
+    found = Enum.filter(candidates, &(&1.id == target))
+    item_status = fn status -> Enum.any?(found, &(&1.kind == :item and &1.text =~ status)) end
+    person? = Enum.any?(found, &(&1.kind in [:npc, :npc_elsewhere]))
+
+    case type do
+      _ when type in @goods and person? and type != :give -> false
+      :buy -> item_status.("(for sale)") and not item_status.("(carried)")
+      t when t in [:sell, :drop, :equip, :use_item] -> item_status.("(carried)")
+      :pickup -> item_status.("(on the ground)")
+      :give -> Enum.any?(found, &(&1.kind == :npc))
+      :move -> target == nil or Enum.any?(found, &(&1.kind in [:place, :npc_elsewhere]))
+      t when t in [:speak, :combat] -> target == nil or person?
+      _ -> target == nil or found != []
+    end
   end
 
   defp runner_up_target(first, reading) do

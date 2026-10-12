@@ -99,6 +99,23 @@ defmodule TalesForge.Game.JevIntent do
     arcana: "Recalling lore of the arcane."
   }
 
+  # Skill list v2 (JEV_CATALOGUE_V2, decision 2026-10-12): 28 skills.
+  # Perception takes search, spot and notice from insight.
+  @v2_skill_labels Map.merge(@skill_labels, %{
+                     insight: "Reading a person's motives, or seeing through a lie.",
+                     perception: "Searching, spotting or noticing something hidden.",
+                     sleight_of_hand: "Pickpocketing, palming or a trick of the hands.",
+                     acrobatics: "Tumbling, balancing, or escaping bonds.",
+                     performance: "Singing, playing, acting or another show for an audience.",
+                     medicine: "First aid or treating a wound or illness.",
+                     appraisal: "Judging an item's true value, scarcity or fair local price.",
+                     smithing: "Forging or repairing metal work.",
+                     carpentry: "Building or repairing wood work.",
+                     leatherworking: "Making or repairing leather goods.",
+                     cooking: "Cooking a hard dish. A simple meal is none.",
+                     alchemy: "Brewing a potion, tincture or draught."
+                   })
+
   @later_labels Map.put(@action_labels, :none, "No second action is deferred to a later turn.")
 
   # Catalogue v2 (JEV_CATALOGUE_V2, turn pipeline design §8 step 5): rest,
@@ -335,7 +352,7 @@ defmodule TalesForge.Game.JevIntent do
         {"Which skill, if any, does the main action roll? Most actions roll none. " <>
            "A social skill only when the character tries to change someone's mind or behaviour " <>
            "against their interest (a haggle, a lie, a threat); plain talk rolls none.",
-         @skill_labels},
+         @v2_skill_labels},
       later:
         {"Is a second, distinct action deferred to a later turn (a plan for later, not now)?",
          @v2_later_labels},
@@ -803,9 +820,9 @@ defmodule TalesForge.Game.JevIntent do
   end
 
   @doc "The skills offered to Jev, excluding `:none` (for the parity test with `Mechanics`)."
-  @spec skill_label_names() :: [String.t()]
-  def skill_label_names do
-    @skill_labels
+  @spec skill_label_names(:v1 | :v2) :: [String.t()]
+  def skill_label_names(list \\ :v1) do
+    if(list == :v2, do: @v2_skill_labels, else: @skill_labels)
     |> Map.keys()
     |> List.delete(:none)
     |> Enum.map(&Atom.to_string/1)
