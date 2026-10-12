@@ -47,6 +47,7 @@ defmodule TalesForgeWeb.BoardApiControllerTest do
 
     for {method, path, action} <- [
           {:get, "/internal/board/ideas", "index"},
+          {:post, "/internal/board/ideas", "create"},
           {:get, "/internal/board/ideas/abc", "show"},
           {:post, "/internal/board/ideas/abc/refinement", "refine"},
           {:post, "/internal/board/ideas/abc/links", "link"},
@@ -60,6 +61,7 @@ defmodule TalesForgeWeb.BoardApiControllerTest do
   test "missing, wrong or blank tokens: 401" do
     for token <- [nil, "nope", "  ", ""] do
       assert call(:get, "/internal/board/ideas", token).status == 401
+      assert call(:post, "/internal/board/ideas", token, %{"title" => "X"}).status == 401
     end
   end
 

@@ -6,6 +6,10 @@ defmodule TalesForge.Board.Api do
 
   - `GET /ideas` (`?column=ideas`): the cards, ranked Ideas first. Archived
     cards are not in the list (`?column=archived` lists only them).
+  - `POST /ideas`: a new card by the calling bot (author `bot:<name>`).
+    `title` (required), `description`, `tags` (a list of words, the normal
+    tag rules). The card always starts in Ideas: other fields (column, votes)
+    are ignored. 201 with the card. The new card wakes no bot.
   - `GET /ideas/:id`: one card with refinement, votes, comments, links,
     images, history. Each image has `url` (signed-in team members) and
     `api_url` (bots, with the board token; `TalesForgeWeb.TeamImageController`).
@@ -53,6 +57,19 @@ defmodule TalesForge.Board.Api do
         if params["column"] in Idea.columns(), do: [params["column"]], else: Idea.columns()
 
       {200, %{"ideas" => Enum.flat_map(columns, fn c -> Enum.map(board[c], &card/1) end)}}
+    end
+  end
+
+  def handle(:create, bot, params) do
+    attrs = %{
+      "title" => params["title"],
+      "body" => if(is_binary(params["description"]), do: params["description"], else: ""),
+      "tags" => params["tags"]
+    }
+
+    case Board.create_idea("bot:#{bot}", attrs) do
+      {:ok, idea} -> {201, card(idea)}
+      error -> answer(error)
     end
   end
 

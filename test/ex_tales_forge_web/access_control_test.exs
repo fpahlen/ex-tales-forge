@@ -37,6 +37,7 @@ defmodule TalesForgeWeb.AccessControlTest do
     # The bots' idea-board API (production only), one bearer token per bot
     # (BOARD_BOT_TOKEN_<BOT>); see BoardApiController.
     {:get, "/internal/board/ideas"},
+    {:post, "/internal/board/ideas"},
     {:get, "/internal/board/ideas/:id"},
     {:post, "/internal/board/ideas/:id/refinement"},
     {:post, "/internal/board/ideas/:id/move"},
