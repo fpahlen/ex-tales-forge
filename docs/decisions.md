@@ -11,6 +11,19 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Turn architecture: one pipe over a %Turn{} struct
+
+- **Decision (Fredrik, 17:50):** each turn is one pipe over a `%Turn{}` struct:
+  `input |> Jev.classify() |> Premise.check() |> Mechanics.apply() |> Npcs.react() |> Prompt.build() |> Gm.narrate() |> Outcome.persist()`.
+  1. Every stage takes the struct and returns it.
+  2. Stages are pure. IO (LLM, DB, PubSub) sits at the edges or behind a small adapter in the struct or the options, so tests need no mocks.
+  3. No ad hoc `Map.put`: each stage writes its own typed field (`turn.intent`, `turn.premise`, `turn.outcome`, `turn.npcs`, `turn.prompt`, `turn.narration`).
+  4. Pattern matching and function heads, not if/case chains. `{:ok, _}`/`{:error, _}` with `with`. A rejected action is data on the struct, not an exception.
+  5. Flags and the app role are read from config into the struct once, at the start.
+  GM streaming stays: `Gm.narrate` takes a stream adapter that emits partial text, and it starts only after `Npcs.react` returns. The 600 ms NPC timeout lives inside the NPC adapter.
+- **Why:** one readable shape for the turn, testable without mocks, and each stage owns its data.
+- **Details:** [Architecture](architecture.md)
+
 ## 2026-10-12: Unskilled wage and catalogue v2 rules
 
 - **Decision (Fredrik, 17:17): the unskilled wage comes from the price formula.** The economy rules anchor every price in labour: **1c = ~20 minutes of unskilled work** (`rules/economy.md`, "In Our System"). One hour of unskilled labour is therefore **3 copper**, and an 8-hour day is 24c. The `work` action pays this wage for each game hour. The wage is in the world config (`economy.unskilled_wage_copper_per_hour: 3` in the adventure front matter). Modifiers for skill, danger and region come later. The services table line "Unskilled labor (day) 5-10c" contradicted the anchor; it now reads 3c per hour and 24c per day.
