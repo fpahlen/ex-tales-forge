@@ -114,7 +114,8 @@ Services are pure labor — price equals time directly.
 
 | Service | Price | Labor Reality |
 |---------|-------|---------------|
-| Unskilled labor (day) | 5-10c | Moving things, digging, carrying |
+| Unskilled labor (hour) | 3c | Moving things, digging, carrying. From the anchor: 1c = ~20 minutes of unskilled work |
+| Unskilled labor (day, 8 hours) | 24c | 8 × 3c |
 | Skilled labor (day) | 2-3s | Carpentry, masonry, cooking |
 | Expert service (day) | 5-10s | Healing, legal advice, tutoring |
 | Hired guard (day) | 3-5s | Skilled + danger premium |

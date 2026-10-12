@@ -3,6 +3,7 @@ adventure_id: crossroads_ledger
 name: Crossroads Ledger
 starting_location_id: weary_pilgrim
 initial_present_npc_ids: [marta_kellen]
+unskilled_wage_copper_per_hour: 3
 ---
 
 # Crossroads Ledger

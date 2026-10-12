@@ -411,7 +411,8 @@ Services are pure labor — price equals time directly.
 
 | Service | Price | Labor Reality |
 |---------|-------|---------------|
-| Unskilled labor (day) | 5-10c | Moving things, digging, carrying |
+| Unskilled labor (hour) | 3c | Moving things, digging, carrying. From the anchor: 1c = ~20 minutes of unskilled work |
+| Unskilled labor (day, 8 hours) | 24c | 8 × 3c |
 | Skilled labor (day) | 2-3s | Carpentry, masonry, cooking |
 | Expert service (day) | 5-10s | Healing, legal advice, tutoring |
 | Hired guard (day) | 3-5s | Skilled + danger premium |
@@ -623,55 +624,53 @@ Skills are organized into five **Domains** — broad categories sharing underlyi
 
 ---
 
-## Skill → Domain Mappings
+## Skill → Domain Mappings (skill list v2, 2026-10-12)
+
+28 skills. A skill grows only from failures in that exact skill.
 
 ### Martial Domain
 - Melee Combat
-- Ranged Combat
+- Ranged Combat (includes throwing)
 - Unarmed Combat
-- Dodge
+- Dodge (includes blocking with a shield)
 - Tactics
-- Throwing
-- Shield Use
 
 ### Finesse Domain
 - Stealth
 - Lockpicking
-- Sleight of Hand
 - Climbing
-- Acrobatics
-- Pickpocket
-- Escape Artist
+- Sleight of Hand (includes pickpocketing)
+- Acrobatics (includes escaping bonds)
 
 ### Social Domain
-- Persuasion
+- Persuasion (includes haggling)
 - Deception
 - Intimidation
-- Insight
+- Insight (motives and lies)
 - Etiquette
+- Perception (search, spot, notice)
 - Performance
-- Bargaining
-- Leadership
 
 ### Knowledge Domain
+- History (includes geography, law and religion)
 - Arcana
-- History
-- Herbalism
-- Nature
-- Religion
-- Medicine
-- Geography
-- Law
+- Survival (includes nature and finding herbs)
+- Tracking
+- Medicine (includes first aid)
+- Appraisal (true value, scarcity and the fair local price)
 
 ### Craft Domain
-- Crafting (General)
-- Alchemy
-- First Aid
-- Cooking
 - Smithing
-- Leatherworking
 - Carpentry
-- Enchanting
+- Leatherworking
+- Cooking (a simple meal needs no roll)
+- Alchemy
+
+There is no general crafting skill.
+
+### Bargaining
+
+Haggling is a Persuasion roll. Appraisal is a separate roll that the player can skip. A successful appraisal tells the true value, the local scarcity and the fair local price. Knowing the price gives +2 to the Persuasion roll (+3 at Appraisal 10 or higher), and the haggle starts from the fair price. A success moves the price 10-20% in the player's favour. A failure caps the deal at the fair price minus 10%.
 
 ---
 
@@ -719,10 +718,10 @@ Skills are "spiritually adjacent" when they share underlying principles despite 
 
 | Master Skill | Adjacent Skills (Other Domains) |
 |--------------|--------------------------------|
-| Melee Combat | Performance (dance), Crafting (weapons) |
+| Melee Combat | Performance (dance), Smithing (weapons) |
 | Stealth | Tactics, Deception |
 | Persuasion | Performance, Leadership |
-| Arcana | Alchemy, Enchanting |
+| Arcana | Alchemy |
 | Smithing | Melee Combat (weapon feel), Alchemy (metallurgy) |
 
 ---
@@ -1196,7 +1195,8 @@ Services are pure labor — price equals time directly.
 
 | Service | Price | Labor Reality |
 |---------|-------|---------------|
-| Unskilled labor (day) | 5-10c | Moving things, digging, carrying |
+| Unskilled labor (hour) | 3c | Moving things, digging, carrying. From the anchor: 1c = ~20 minutes of unskilled work |
+| Unskilled labor (day, 8 hours) | 24c | 8 × 3c |
 | Skilled labor (day) | 2-3s | Carpentry, masonry, cooking |
 | Expert service (day) | 5-10s | Healing, legal advice, tutoring |
 | Hired guard (day) | 3-5s | Skilled + danger premium |
@@ -1408,55 +1408,53 @@ Skills are organized into five **Domains** — broad categories sharing underlyi
 
 ---
 
-## Skill → Domain Mappings
+## Skill → Domain Mappings (skill list v2, 2026-10-12)
+
+28 skills. A skill grows only from failures in that exact skill.
 
 ### Martial Domain
 - Melee Combat
-- Ranged Combat
+- Ranged Combat (includes throwing)
 - Unarmed Combat
-- Dodge
+- Dodge (includes blocking with a shield)
 - Tactics
-- Throwing
-- Shield Use
 
 ### Finesse Domain
 - Stealth
 - Lockpicking
-- Sleight of Hand
 - Climbing
-- Acrobatics
-- Pickpocket
-- Escape Artist
+- Sleight of Hand (includes pickpocketing)
+- Acrobatics (includes escaping bonds)
 
 ### Social Domain
-- Persuasion
+- Persuasion (includes haggling)
 - Deception
 - Intimidation
-- Insight
+- Insight (motives and lies)
 - Etiquette
+- Perception (search, spot, notice)
 - Performance
-- Bargaining
-- Leadership
 
 ### Knowledge Domain
+- History (includes geography, law and religion)
 - Arcana
-- History
-- Herbalism
-- Nature
-- Religion
-- Medicine
-- Geography
-- Law
+- Survival (includes nature and finding herbs)
+- Tracking
+- Medicine (includes first aid)
+- Appraisal (true value, scarcity and the fair local price)
 
 ### Craft Domain
-- Crafting (General)
-- Alchemy
-- First Aid
-- Cooking
 - Smithing
-- Leatherworking
 - Carpentry
-- Enchanting
+- Leatherworking
+- Cooking (a simple meal needs no roll)
+- Alchemy
+
+There is no general crafting skill.
+
+### Bargaining
+
+Haggling is a Persuasion roll. Appraisal is a separate roll that the player can skip. A successful appraisal tells the true value, the local scarcity and the fair local price. Knowing the price gives +2 to the Persuasion roll (+3 at Appraisal 10 or higher), and the haggle starts from the fair price. A success moves the price 10-20% in the player's favour. A failure caps the deal at the fair price minus 10%.
 
 ---
 
@@ -1504,10 +1502,10 @@ Skills are "spiritually adjacent" when they share underlying principles despite 
 
 | Master Skill | Adjacent Skills (Other Domains) |
 |--------------|--------------------------------|
-| Melee Combat | Performance (dance), Crafting (weapons) |
+| Melee Combat | Performance (dance), Smithing (weapons) |
 | Stealth | Tactics, Deception |
 | Persuasion | Performance, Leadership |
-| Arcana | Alchemy, Enchanting |
+| Arcana | Alchemy |
 | Smithing | Melee Combat (weapon feel), Alchemy (metallurgy) |
 
 ---
@@ -2046,7 +2044,8 @@ Services are pure labor — price equals time directly.
 
 | Service | Price | Labor Reality |
 |---------|-------|---------------|
-| Unskilled labor (day) | 5-10c | Moving things, digging, carrying |
+| Unskilled labor (hour) | 3c | Moving things, digging, carrying. From the anchor: 1c = ~20 minutes of unskilled work |
+| Unskilled labor (day, 8 hours) | 24c | 8 × 3c |
 | Skilled labor (day) | 2-3s | Carpentry, masonry, cooking |
 | Expert service (day) | 5-10s | Healing, legal advice, tutoring |
 | Hired guard (day) | 3-5s | Skilled + danger premium |
@@ -2258,55 +2257,53 @@ Skills are organized into five **Domains** — broad categories sharing underlyi
 
 ---
 
-## Skill → Domain Mappings
+## Skill → Domain Mappings (skill list v2, 2026-10-12)
+
+28 skills. A skill grows only from failures in that exact skill.
 
 ### Martial Domain
 - Melee Combat
-- Ranged Combat
+- Ranged Combat (includes throwing)
 - Unarmed Combat
-- Dodge
+- Dodge (includes blocking with a shield)
 - Tactics
-- Throwing
-- Shield Use
 
 ### Finesse Domain
 - Stealth
 - Lockpicking
-- Sleight of Hand
 - Climbing
-- Acrobatics
-- Pickpocket
-- Escape Artist
+- Sleight of Hand (includes pickpocketing)
+- Acrobatics (includes escaping bonds)
 
 ### Social Domain
-- Persuasion
+- Persuasion (includes haggling)
 - Deception
 - Intimidation
-- Insight
+- Insight (motives and lies)
 - Etiquette
+- Perception (search, spot, notice)
 - Performance
-- Bargaining
-- Leadership
 
 ### Knowledge Domain
+- History (includes geography, law and religion)
 - Arcana
-- History
-- Herbalism
-- Nature
-- Religion
-- Medicine
-- Geography
-- Law
+- Survival (includes nature and finding herbs)
+- Tracking
+- Medicine (includes first aid)
+- Appraisal (true value, scarcity and the fair local price)
 
 ### Craft Domain
-- Crafting (General)
-- Alchemy
-- First Aid
-- Cooking
 - Smithing
-- Leatherworking
 - Carpentry
-- Enchanting
+- Leatherworking
+- Cooking (a simple meal needs no roll)
+- Alchemy
+
+There is no general crafting skill.
+
+### Bargaining
+
+Haggling is a Persuasion roll. Appraisal is a separate roll that the player can skip. A successful appraisal tells the true value, the local scarcity and the fair local price. Knowing the price gives +2 to the Persuasion roll (+3 at Appraisal 10 or higher), and the haggle starts from the fair price. A success moves the price 10-20% in the player's favour. A failure caps the deal at the fair price minus 10%.
 
 ---
 
@@ -2354,10 +2351,10 @@ Skills are "spiritually adjacent" when they share underlying principles despite 
 
 | Master Skill | Adjacent Skills (Other Domains) |
 |--------------|--------------------------------|
-| Melee Combat | Performance (dance), Crafting (weapons) |
+| Melee Combat | Performance (dance), Smithing (weapons) |
 | Stealth | Tactics, Deception |
 | Persuasion | Performance, Leadership |
-| Arcana | Alchemy, Enchanting |
+| Arcana | Alchemy |
 | Smithing | Melee Combat (weapon feel), Alchemy (metallurgy) |
 
 ---

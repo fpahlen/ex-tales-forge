@@ -6,6 +6,7 @@ initial_present_npc_ids: [innkeep]
 situation_lines:
   - You have just pushed through the inn door.
   - Osric Vane wants the nest off the cut so the Guild can take the hill.
+unskilled_wage_copper_per_hour: 3
 ---
 
 # Tin Valley
