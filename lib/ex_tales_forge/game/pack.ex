@@ -72,6 +72,7 @@ defmodule TalesForge.Game.Pack do
       starting_location_id: adventure["starting_location_id"],
       initial_present_npc_ids: List.wrap(adventure["initial_present_npc_ids"]),
       situation_lines: List.wrap(adventure["situation_lines"]),
+      economy: economy(adventure),
       locations: locations,
       npcs: npcs,
       player_character: player_character,
@@ -110,6 +111,7 @@ defmodule TalesForge.Game.Pack do
       "world_clock" => WorldClock.format(tick),
       "last_scene_location" => nil,
       "situation_lines" => pack.situation_lines,
+      "economy" => Map.get(pack, :economy, %{}),
       "character" => Map.put(elara, "location_id", start_id),
       "npc_state" => %{},
       "locations" => pack.locations,
@@ -190,6 +192,14 @@ defmodule TalesForge.Game.Pack do
     end)
 
     :ok
+  end
+
+  # The world config of the economy (TalesForge.Game.Economy).
+  defp economy(adventure) do
+    case adventure["unskilled_wage_copper_per_hour"] do
+      wage when is_integer(wage) -> %{"unskilled_wage_copper_per_hour" => wage}
+      _ -> %{}
+    end
   end
 
   defp load_adventure!(dir) do

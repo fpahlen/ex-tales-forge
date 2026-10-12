@@ -1,0 +1,1117 @@
+{
+ "_meta": {
+  "source": "wordfreq 3.x (en, data CC BY-SA 4.0) filtered by WordNet 3.0 verb lemmas + SemCor tag counts",
+  "skills_from": "v2 (2026-10-12, Fredrik): 17 engine skills + 11 new; no general crafting (smithing, carpentry, leatherworking, cooking, alchemy); see skill-list-v2.md",
+  "provisional": true,
+  "licence": "Verb frequencies: wordfreq 3.x (Robyn Speer), data CC BY-SA 4.0. Lemmas: WordNet 3.0 (WordNet licence)."
+ },
+ "skills": {
+  "melee_combat": {
+   "family": "combat",
+   "verbs": [
+    "attack",
+    "strike",
+    "hit",
+    "swing",
+    "stab",
+    "slash",
+    "cut",
+    "hack",
+    "thrust",
+    "lunge",
+    "charge",
+    "bash",
+    "club",
+    "kill",
+    "slay",
+    "parry",
+    "disarm",
+    "fight",
+    "beat",
+    "wound"
+   ],
+   "phrases": [
+    "draw my sword/knife",
+    "take down",
+    "cut down",
+    "clear out (the nest)",
+    "run through",
+    "finish off"
+   ],
+   "ambiguous": {
+    "draw": "draw + weapon = ready weapon (combat); draw a map/card = other; draw a bow = ranged",
+    "cut": "cut at/down a foe = melee; cut rope/bread = manipulate/work",
+    "clear": "clear a nest/room of foes = combat; clear a table = work",
+    "charge": "charge at a foe = melee; charge a price = speak/sell",
+    "hit": "hit a foe = melee; hit the road = move"
+   },
+   "domain": "martial"
+  },
+  "ranged_combat": {
+   "family": "combat",
+   "verbs": [
+    "shoot",
+    "aim",
+    "fire",
+    "loose",
+    "nock",
+    "hurl",
+    "throw",
+    "snipe"
+   ],
+   "phrases": [
+    "draw my bow",
+    "fire at",
+    "loose an arrow",
+    "throw my knife/spear at"
+   ],
+   "ambiguous": {
+    "throw": "throw a weapon at a foe = ranged; throw an item to someone = transfer/gift; throw in (offer) = trade",
+    "fire": "fire at = ranged; fire a worker = speak"
+   },
+   "domain": "martial"
+  },
+  "unarmed_combat": {
+   "family": "combat",
+   "verbs": [
+    "punch",
+    "kick",
+    "tackle",
+    "grapple",
+    "wrestle",
+    "headbutt",
+    "shove",
+    "choke",
+    "trip",
+    "pin"
+   ],
+   "phrases": [
+    "fists up",
+    "put in a headlock",
+    "knock out"
+   ],
+   "ambiguous": {
+    "shove": "shove a foe = unarmed; shove a door/crate = manipulate (athletics)",
+    "pin": "pin a foe = unarmed; pin a note = manipulate"
+   },
+   "domain": "martial"
+  },
+  "tactics": {
+   "family": "combat",
+   "verbs": [
+    "flank",
+    "plan",
+    "position",
+    "coordinate",
+    "ambush",
+    "outmaneuver",
+    "regroup",
+    "retreat"
+   ],
+   "phrases": [
+    "set up an ambush",
+    "hold the line",
+    "fall back",
+    "form up"
+   ],
+   "ambiguous": {
+    "plan": "plan a fight = tactics; plan a trip = freeform, no roll",
+    "retreat": "retreat in a fight = tactics/dodge; leave a room = move"
+   },
+   "domain": "martial"
+  },
+  "dodge": {
+   "family": "combat",
+   "verbs": [
+    "dodge",
+    "duck",
+    "evade",
+    "sidestep",
+    "roll",
+    "dive",
+    "weave"
+   ],
+   "phrases": [
+    "get out of the way",
+    "jump aside",
+    "duck behind cover",
+    "roll away"
+   ],
+   "ambiguous": {
+    "duck": "duck a blow = dodge; duck into a shop = move",
+    "roll": "roll aside = dodge; roll dice/barrel = other/manipulate"
+   },
+   "domain": "martial"
+  },
+  "stealth": {
+   "family": "movement",
+   "verbs": [
+    "sneak",
+    "hide",
+    "creep",
+    "slip",
+    "skulk",
+    "lurk",
+    "tiptoe",
+    "prowl",
+    "shadow",
+    "conceal",
+    "stalk"
+   ],
+   "phrases": [
+    "stay out of sight",
+    "keep to the shadows",
+    "slip past",
+    "sneak up on",
+    "hide behind"
+   ],
+   "ambiguous": {
+    "hide": "hide oneself = stealth; hide an item = manipulate (+stealth vs search)",
+    "slip": "slip past/away = stealth; slip an item into a pocket = sleight_of_hand; slip someone a coin openly = gift",
+    "shadow": "shadow a person = stealth (follow unseen); follow tracks = tracking",
+    "stalk": "stalk a person = stealth; stalk game = tracking/survival (hunt)",
+    "follow": "follow openly = move; follow unseen = stealth; follow a trail = tracking"
+   },
+   "domain": "finesse"
+  },
+  "lockpicking": {
+   "family": "manipulate",
+   "verbs": [
+    "pick",
+    "unlock",
+    "jimmy",
+    "pry",
+    "force"
+   ],
+   "phrases": [
+    "pick the lock",
+    "work the lock",
+    "jimmy the latch",
+    "pry open"
+   ],
+   "ambiguous": {
+    "pick": "pick a lock = lockpicking; pick a pocket = sleight_of_hand; pick up = transfer; pick flowers = survival",
+    "force": "force a lock = lockpicking/STR; force someone = intimidation",
+    "open": "open an unlocked door = manipulate, no roll; locked = lockpicking"
+   },
+   "domain": "finesse"
+  },
+  "climbing": {
+   "family": "movement",
+   "verbs": [
+    "climb",
+    "scale",
+    "clamber",
+    "scramble",
+    "ascend",
+    "descend",
+    "rappel"
+   ],
+   "phrases": [
+    "climb up/down",
+    "scale the wall",
+    "shin up",
+    "haul myself up"
+   ],
+   "ambiguous": {
+    "scale": "scale + the/a/up wall = climbing; a scale (weighing) = not a verb",
+    "scramble": "scramble up rocks = climbing; scramble away = dodge/move"
+   },
+   "domain": "finesse"
+  },
+  "persuasion": {
+   "family": "communication",
+   "verbs": [
+    "persuade",
+    "convince",
+    "haggle",
+    "barter",
+    "bargain",
+    "plead",
+    "urge",
+    "coax",
+    "negotiate",
+    "charm",
+    "sway",
+    "appeal"
+   ],
+   "phrases": [
+    "talk them into",
+    "talk down the price",
+    "make a case",
+    "win over",
+    "beg for"
+   ],
+   "ambiguous": {
+    "ask": "plain ask = speak, no roll; ask for a favour/discount the NPC resists = persuasion",
+    "offer": "offer a deal = trade (persuasion only if haggling); offer a gift = transfer gift",
+    "negotiate": "price talk = persuasion; plain buy at list price = buy, no roll",
+    "haggle": "haggle/bargain = persuasion check; appraisal (if known) sets the anchor price and gives a bonus"
+   },
+   "domain": "social"
+  },
+  "deception": {
+   "family": "communication",
+   "verbs": [
+    "lie",
+    "bluff",
+    "deceive",
+    "trick",
+    "fool",
+    "mislead",
+    "pretend",
+    "feign",
+    "disguise",
+    "con",
+    "cheat",
+    "forge"
+   ],
+   "phrases": [
+    "pass myself off as",
+    "make up a story",
+    "cover for",
+    "play dumb"
+   ],
+   "ambiguous": {
+    "pretend": "pretend to an NPC = deception; pretend in narration = no roll",
+    "cheat": "cheat by lying = deception; by hand (cards, dice) = sleight_of_hand",
+    "forge": "forge papers = deception; forge a blade = crafting"
+   },
+   "domain": "social"
+  },
+  "intimidation": {
+   "family": "communication",
+   "verbs": [
+    "threaten",
+    "intimidate",
+    "menace",
+    "scare",
+    "frighten",
+    "bully",
+    "coerce",
+    "glare",
+    "loom",
+    "demand"
+   ],
+   "phrases": [
+    "lean on",
+    "rough up",
+    "put the fear into",
+    "or else"
+   ],
+   "ambiguous": {
+    "demand": "firm request = speak; demand with threat = intimidation",
+    "glare": "glare as flavour = speak tone; glare to force compliance = intimidation"
+   },
+   "domain": "social"
+  },
+  "insight": {
+   "family": "perception",
+   "verbs": [
+    "examine",
+    "inspect",
+    "study",
+    "scrutinize",
+    "investigate",
+    "read",
+    "discern",
+    "sense",
+    "suspect"
+   ],
+   "phrases": [
+    "look for",
+    "look closely",
+    "read their face",
+    "check for traps",
+    "see through"
+   ],
+   "ambiguous": {
+    "look": "look around = observe, no roll (2026-10-07); look for something hidden = insight",
+    "read": "read a person = insight; read a sign/book = observe (or history/arcana)",
+    "search": "search a room = perception (v2); read motives = insight"
+   },
+   "domain": "social"
+  },
+  "etiquette": {
+   "family": "communication",
+   "verbs": [
+    "bow",
+    "greet",
+    "curtsy",
+    "toast",
+    "address",
+    "introduce",
+    "apologize",
+    "compliment",
+    "flatter"
+   ],
+   "phrases": [
+    "mind my manners",
+    "pay respects",
+    "follow protocol",
+    "raise a toast"
+   ],
+   "ambiguous": {
+    "greet": "plain greeting = speak, no roll; greeting a noble where form matters = etiquette",
+    "bow": "bow as gesture = speak; bow (weapon) = ranged noun"
+   },
+   "domain": "social"
+  },
+  "survival": {
+   "family": "work",
+   "verbs": [
+    "forage",
+    "hunt",
+    "fish",
+    "gather",
+    "camp",
+    "shelter",
+    "trap",
+    "snare",
+    "skin",
+    "butcher",
+    "navigate",
+    "endure"
+   ],
+   "phrases": [
+    "make camp",
+    "build a fire",
+    "live off the land",
+    "set a snare",
+    "find water"
+   ],
+   "ambiguous": {
+    "hunt": "hunt = find game (tracking) + catch (survival/ranged); presence alone yields nothing",
+    "gather": "gather herbs/wood = survival; medicinal herb use = medicine",
+    "trap": "set a trap = survival; trap a foe = tactics",
+    "catch": "catch game/fish = survival; catch a thrown item = dodge/DEX, transfer pickup"
+   },
+   "domain": "knowledge"
+  },
+  "tracking": {
+   "family": "perception",
+   "verbs": [
+    "track",
+    "trail",
+    "follow",
+    "stalk",
+    "hunt",
+    "scout"
+   ],
+   "phrases": [
+    "follow the tracks",
+    "pick up the trail",
+    "read the signs",
+    "find where it went"
+   ],
+   "ambiguous": {
+    "follow": "follow a trail = tracking; follow a person openly = move",
+    "scout": "scout ahead = tracking/insight; scout unseen = stealth"
+   },
+   "domain": "knowledge"
+  },
+  "history": {
+   "family": "knowledge",
+   "verbs": [
+    "recall",
+    "remember",
+    "recognize",
+    "identify",
+    "date"
+   ],
+   "phrases": [
+    "know about",
+    "what do I know of",
+    "think back to",
+    "place the crest"
+   ],
+   "ambiguous": {
+    "recognize": "recognize a crest/ruin = history; recognize a rune = arcana; recognize a face = insight",
+    "remember": "player memory recap = no roll; lore = history"
+   },
+   "domain": "knowledge"
+  },
+  "arcana": {
+   "family": "knowledge",
+   "verbs": [
+    "cast",
+    "enchant",
+    "decipher",
+    "channel",
+    "ward",
+    "dispel",
+    "conjure",
+    "scry"
+   ],
+   "phrases": [
+    "sense the magic",
+    "read the runes",
+    "identify the spell"
+   ],
+   "ambiguous": {
+    "decipher": "runes = arcana; old script = history",
+    "ward": "magic ward = arcana; guard a door = wait"
+   },
+   "domain": "knowledge"
+  },
+  "perception": {
+   "family": "perception",
+   "stat": "WIS",
+   "verbs": [
+    "search",
+    "spot",
+    "notice",
+    "detect",
+    "scan",
+    "listen",
+    "watch",
+    "peer",
+    "survey",
+    "eavesdrop",
+    "smell",
+    "glimpse"
+   ],
+   "phrases": [
+    "look for",
+    "look around carefully",
+    "keep watch",
+    "check for traps",
+    "listen at the door",
+    "keep an eye out"
+   ],
+   "ambiguous": {
+    "look": "look around = observe, no roll; look for something hidden = perception",
+    "search": "search a room/body/area = perception; search the woods for game = tracking",
+    "read": "read a person = insight; read a room for hidden things = perception",
+    "notice": "passive notice = GM-side perception vs DC; active = rolled"
+   },
+   "new": true,
+   "domain": "social"
+  },
+  "sleight_of_hand": {
+   "family": "manipulate",
+   "stat": "DEX",
+   "verbs": [
+    "pickpocket",
+    "palm",
+    "pocket",
+    "swipe",
+    "lift",
+    "filch",
+    "plant",
+    "conceal",
+    "cheat",
+    "juggle",
+    "nick",
+    "snatch"
+   ],
+   "phrases": [
+    "pick a pocket",
+    "slip it into",
+    "palm the coin",
+    "plant it on",
+    "stack the deck",
+    "cut a purse"
+   ],
+   "ambiguous": {
+    "pick": "pick a pocket = sleight_of_hand; pick a lock = lockpicking",
+    "slip": "slip something into a pocket/drink unseen = sleight_of_hand; slip past = stealth",
+    "steal": "from a person or under watch = sleight_of_hand; unwatched item = take, no roll",
+    "cheat": "cheat at cards by hand = sleight_of_hand; lie about the score = deception"
+   },
+   "new": true,
+   "domain": "finesse"
+  },
+  "acrobatics": {
+   "family": "movement",
+   "stat": "DEX",
+   "verbs": [
+    "leap",
+    "jump",
+    "vault",
+    "flip",
+    "tumble",
+    "balance",
+    "swing",
+    "somersault",
+    "cartwheel",
+    "land"
+   ],
+   "phrases": [
+    "jump across",
+    "keep my balance",
+    "walk the beam",
+    "swing from the rope",
+    "break my fall",
+    "flip over"
+   ],
+   "ambiguous": {
+    "swing": "swing a weapon = melee; swing from a rope/chandelier = acrobatics",
+    "roll": "roll aside from a blow = dodge; tumble/roll on landing = acrobatics",
+    "jump": "small hop = move, no roll; gap/ledge = acrobatics",
+    "escape": "wriggle out of bonds = acrobatics (escape artist folded)"
+   },
+   "new": true,
+   "domain": "finesse"
+  },
+  "performance": {
+   "family": "communication",
+   "stat": "CHA",
+   "verbs": [
+    "sing",
+    "play",
+    "perform",
+    "dance",
+    "recite",
+    "act",
+    "entertain",
+    "juggle",
+    "busk",
+    "tell"
+   ],
+   "phrases": [
+    "play a tune",
+    "tell a story to the crowd",
+    "put on a show",
+    "sing for coin",
+    "work the crowd"
+   ],
+   "ambiguous": {
+    "play": "play an instrument/role = performance; play cards = no roll (or sleight/deception)",
+    "tell": "tell a tale to entertain = performance; tell someone a fact = speak",
+    "act": "act a part on stage = performance; act a part to fool someone = deception"
+   },
+   "new": true,
+   "domain": "social"
+  },
+  "medicine": {
+   "family": "work",
+   "stat": "WIS",
+   "verbs": [
+    "heal",
+    "treat",
+    "bandage",
+    "stitch",
+    "splint",
+    "diagnose",
+    "nurse",
+    "tend",
+    "dress",
+    "cure",
+    "poultice"
+   ],
+   "phrases": [
+    "tend his wounds",
+    "stop the bleeding",
+    "set the bone",
+    "check for poison",
+    "dress the wound"
+   ],
+   "ambiguous": {
+    "treat": "treat a wound = medicine; treat someone to a drink = buy/gift",
+    "dress": "dress a wound = medicine; get dressed = no roll",
+    "tend": "tend the wounded = medicine; tend a fire = no roll"
+   },
+   "new": true,
+   "domain": "knowledge"
+  },
+  "appraisal": {
+   "family": "perception",
+   "stat": "INT",
+   "verbs": [
+    "appraise",
+    "value",
+    "assess",
+    "evaluate",
+    "price",
+    "gauge",
+    "estimate",
+    "weigh",
+    "identify"
+   ],
+   "phrases": [
+    "what is it worth",
+    "size up the goods",
+    "check the market",
+    "ask around about prices",
+    "judge the quality",
+    "is it genuine"
+   ],
+   "ambiguous": {
+    "weigh": "weigh coins/goods for value = appraisal; weigh options = no roll",
+    "identify": "identify a magic item = arcana; identify a forgery/quality/value = appraisal",
+    "price": "ask the listed price = speak, no roll; work out true value/scarcity = appraisal"
+   },
+   "new": true,
+   "domain": "knowledge"
+  },
+  "alchemy": {
+   "family": "work",
+   "stat": "INT",
+   "verbs": [
+    "brew",
+    "distill",
+    "mix",
+    "concoct",
+    "extract",
+    "transmute",
+    "dissolve",
+    "refine"
+   ],
+   "phrases": [
+    "brew a potion",
+    "mix a poison",
+    "distill the essence",
+    "identify the potion"
+   ],
+   "ambiguous": {
+    "brew": "brew a potion/poison = alchemy; brew ale = cooking",
+    "mix": "mix reagents = alchemy; mix drinks = no roll",
+    "identify": "identify a potion = alchemy; magic item = arcana"
+   },
+   "new": true,
+   "domain": "craft"
+  },
+  "smithing": {
+   "family": "work",
+   "stat": "STR",
+   "verbs": [
+    "forge",
+    "smith",
+    "hammer",
+    "temper",
+    "quench",
+    "smelt",
+    "anneal",
+    "rivet"
+   ],
+   "phrases": [
+    "forge a blade",
+    "mend the chain",
+    "sharpen my blade",
+    "shoe the horse",
+    "repair the armour"
+   ],
+   "ambiguous": {
+    "forge": "forge a blade = smithing; forge papers = deception",
+    "hammer": "hammer metal = smithing; hammer a nail = carpentry"
+   },
+   "new": true,
+   "domain": "craft"
+  },
+  "carpentry": {
+   "family": "work",
+   "stat": "DEX",
+   "verbs": [
+    "build",
+    "carve",
+    "whittle",
+    "saw",
+    "plane",
+    "nail",
+    "fletch",
+    "join"
+   ],
+   "phrases": [
+    "build a raft",
+    "fix the wheel",
+    "mend the door",
+    "carve a stake",
+    "fletch arrows"
+   ],
+   "ambiguous": {
+    "build": "build with wood = carpentry; build a fire = survival",
+    "carve": "carve wood = carpentry; carve meat = cooking, no roll"
+   },
+   "new": true,
+   "domain": "craft"
+  },
+  "leatherworking": {
+   "family": "work",
+   "stat": "DEX",
+   "verbs": [
+    "tan",
+    "stitch",
+    "sew",
+    "cure",
+    "lace",
+    "tool"
+   ],
+   "phrases": [
+    "tan the hide",
+    "sew up the cloak",
+    "stitch a pouch",
+    "mend the boots",
+    "repair the saddle"
+   ],
+   "ambiguous": {
+    "sew": "sew leather/cloth gear = leatherworking",
+    "cure": "cure a hide = leatherworking; cure a wound = medicine"
+   },
+   "new": true,
+   "domain": "craft"
+  },
+  "cooking": {
+   "family": "work",
+   "stat": "WIS",
+   "verbs": [
+    "cook",
+    "bake",
+    "roast",
+    "stew",
+    "smoke",
+    "salt",
+    "preserve",
+    "season"
+   ],
+   "phrases": [
+    "cook a meal",
+    "bake bread",
+    "roast the hare",
+    "smoke the fish",
+    "cook a feast"
+   ],
+   "ambiguous": {
+    "cook": "a simple meal = no roll; a feast or preserving = cooking roll",
+    "brew": "brew ale = cooking; brew a potion = alchemy"
+   },
+   "new": true,
+   "domain": "craft"
+  }
+ },
+ "no_roll_families": {
+  "transfer": {
+   "verbs": {
+    "give": "gift",
+    "bring": "gift",
+    "share": "gift",
+    "slide": "gift|pay",
+    "send": "gift",
+    "earn": "take",
+    "hand": "gift",
+    "offer": "gift|trade",
+    "lend": "gift",
+    "donate": "gift",
+    "slip": "gift",
+    "take": "take|pickup",
+    "grab": "pickup",
+    "pick up": "pickup",
+    "collect": "pickup",
+    "claim": "pickup",
+    "receive": "take",
+    "accept": "take",
+    "buy": "buy",
+    "purchase": "buy",
+    "order": "buy",
+    "rent": "buy",
+    "hire": "buy",
+    "sell": "sell",
+    "pawn": "sell",
+    "steal": "steal (sleight_of_hand if from a person or watched)",
+    "pocket": "steal (sleight_of_hand if from a person or watched)",
+    "swipe": "steal (sleight_of_hand if from a person or watched)",
+    "snatch": "steal (sleight_of_hand if from a person or watched)",
+    "lift": "steal (sleight_of_hand if from a person or watched)",
+    "nick": "steal (sleight_of_hand if from a person or watched)",
+    "pickpocket": "steal (sleight_of_hand if from a person or watched)",
+    "trade": "trade",
+    "swap": "trade",
+    "exchange": "trade",
+    "barter": "trade",
+    "drop": "drop",
+    "discard": "drop",
+    "set down": "drop",
+    "leave": "drop",
+    "put": "put",
+    "place": "put",
+    "stow": "put",
+    "pack": "put",
+    "store": "put",
+    "loot": "loot",
+    "strip": "loot",
+    "plunder": "loot",
+    "pay": "pay",
+    "tip": "pay",
+    "spend": "pay",
+    "settle": "pay",
+    "bribe": "pay"
+   },
+   "ambiguous": {
+    "take": "take a sip/bite = body; take a job = work; take from NPC without consent = steal; from ground = pickup",
+    "lift": "lift a crate = work; lift a purse = steal",
+    "leave": "leave a room = move; leave an item = drop",
+    "keep": "keep an item = no transfer (refuse to give); keep an eye on = perception; keep voice low = private speech",
+    "share": "share food/drink = gift; share news = speak",
+    "bring": "bring X to NPC = gift/put; bring someone = move",
+    "settle": "settle a bill = pay; settle in = body/rest",
+    "pocket": "pocket your own item = put; someone else's = steal",
+    "order": "order food = buy; order someone = speak/intimidation",
+    "barter": "barter = trade + persuasion roll if NPC resists"
+   }
+  },
+  "communication": {
+   "verbs": [
+    "say",
+    "tell",
+    "ask",
+    "speak",
+    "talk",
+    "whisper",
+    "shout",
+    "call",
+    "reply",
+    "answer",
+    "explain",
+    "nod",
+    "thank",
+    "warn",
+    "pray"
+   ]
+  },
+  "movement": {
+   "verbs": [
+    "go",
+    "come",
+    "walk",
+    "head",
+    "head",
+    "out",
+    "stay",
+    "leave",
+    "reach",
+    "chase",
+    "enter",
+    "approach",
+    "step",
+    "run",
+    "return",
+    "travel",
+    "cross",
+    "follow",
+    "lead",
+    "ride"
+   ]
+  },
+  "perception": {
+   "verbs": [
+    "look",
+    "find",
+    "seek",
+    "eye",
+    "point",
+    "show",
+    "listen",
+    "hear",
+    "scan",
+    "observe",
+    "glance",
+    "smell"
+   ]
+  },
+  "body": {
+   "verbs": [
+    "eat",
+    "drink",
+    "sip",
+    "rest",
+    "sleep",
+    "sit",
+    "wait",
+    "stand",
+    "lean",
+    "warm",
+    "wash"
+   ]
+  },
+  "work": {
+   "verbs": [
+    "work",
+    "help",
+    "stir",
+    "carry",
+    "haul",
+    "chop",
+    "mend",
+    "clean",
+    "cook",
+    "build",
+    "craft",
+    "repair",
+    "dig"
+   ]
+  },
+  "manipulate": {
+   "verbs": [
+    "open",
+    "close",
+    "push",
+    "pull",
+    "slam",
+    "hold",
+    "raise",
+    "draw",
+    "clear",
+    "wipe",
+    "set",
+    "lock",
+    "break",
+    "light",
+    "turn",
+    "lift",
+    "move"
+   ]
+  }
+ },
+ "adverbs": {
+  "quickly": {
+   "time_mult": 0.5,
+   "roll_mod": -2,
+   "note": "less time, harder roll"
+  },
+  "hastily": {
+   "time_mult": 0.5,
+   "roll_mod": -3,
+   "note": "rushed; also more noise"
+  },
+  "fast": {
+   "time_mult": 0.5,
+   "roll_mod": -2,
+   "note": "= quickly"
+  },
+  "swiftly": {
+   "time_mult": 0.6,
+   "roll_mod": -1,
+   "note": "= quickly, skilled"
+  },
+  "immediately": {
+   "time_mult": 0.5,
+   "roll_mod": -2,
+   "note": "= quickly; with speech: tone only"
+  },
+  "carefully": {
+   "time_mult": 1.5,
+   "roll_mod": 2,
+   "note": "more time, easier roll"
+  },
+  "cautiously": {
+   "time_mult": 1.5,
+   "roll_mod": 2,
+   "note": "= carefully"
+  },
+  "slowly": {
+   "time_mult": 2.0,
+   "roll_mod": 1,
+   "note": "flavour if no roll (slowly nod)"
+  },
+  "closely": {
+   "time_mult": 1.5,
+   "roll_mod": 2,
+   "note": "perception only (watch closely)"
+  },
+  "thoroughly": {
+   "time_mult": 2.0,
+   "roll_mod": 3,
+   "note": "search: much more time, best odds"
+  },
+  "gently": {
+   "time_mult": 1.25,
+   "roll_mod": 1,
+   "note": "manipulate/transfer: avoids breakage/notice"
+  },
+  "patiently": {
+   "time_mult": 2.0,
+   "roll_mod": 2,
+   "note": "wait/track/persuade"
+  },
+  "quietly": {
+   "time_mult": 1.25,
+   "roll_mod": 1,
+   "note": "movement/manipulate -> stealth mode; with ask/say/tell/whisper -> private speech (audience=target), no modifier"
+  },
+  "silently": {
+   "time_mult": 1.5,
+   "roll_mod": 2,
+   "note": "stealth mode; with speech -> says nothing / gesture"
+  },
+  "stealthily": {
+   "time_mult": 1.5,
+   "roll_mod": 2,
+   "note": "stealth mode"
+  },
+  "secretly": {
+   "time_mult": 1.25,
+   "roll_mod": 1,
+   "note": "stealth mode; with speech -> private"
+  },
+  "softly": {
+   "time_mult": 1.0,
+   "roll_mod": 0,
+   "note": "speech: private/low; movement: = quietly"
+  },
+  "loudly": {
+   "time_mult": 1.0,
+   "roll_mod": -2,
+   "note": "stealth -2 / draws attention; speech: everyone hears"
+  },
+  "forcefully": {
+   "time_mult": 1.0,
+   "roll_mod": 1,
+   "note": "STR actions +1; social: intimidation tone, persuasion -1"
+  },
+  "firmly": {
+   "time_mult": 1.0,
+   "roll_mod": 0,
+   "note": "tone hint only"
+  },
+  "politely": {
+   "time_mult": 1.0,
+   "roll_mod": 0,
+   "note": "tone hint; etiquette/persuasion +1 if NPC values manners"
+  },
+  "calmly": {
+   "time_mult": 1.0,
+   "roll_mod": 0,
+   "note": "tone hint; intimidation -1"
+  },
+  "boldly": {
+   "time_mult": 0.9,
+   "roll_mod": 0,
+   "note": "tone hint"
+  },
+  "recklessly": {
+   "time_mult": 0.5,
+   "roll_mod": -3,
+   "note": "fast, very risky; GM may add consequence"
+  }
+ },
+ "skill_stat": {
+  "melee_combat": "STR",
+  "ranged_combat": "DEX",
+  "unarmed_combat": "STR",
+  "tactics": "INT",
+  "dodge": "DEX",
+  "stealth": "DEX",
+  "lockpicking": "DEX",
+  "climbing": "STR",
+  "persuasion": "CHA",
+  "deception": "CHA",
+  "intimidation": "CHA",
+  "insight": "WIS",
+  "etiquette": "CHA",
+  "survival": "CON",
+  "tracking": "WIS",
+  "history": "INT",
+  "arcana": "INT",
+  "perception": "WIS",
+  "sleight_of_hand": "DEX",
+  "acrobatics": "DEX",
+  "performance": "CHA",
+  "medicine": "WIS",
+  "appraisal": "INT",
+  "alchemy": "INT",
+  "smithing": "STR",
+  "carpentry": "DEX",
+  "leatherworking": "DEX",
+  "cooking": "WIS"
+ }
+}
