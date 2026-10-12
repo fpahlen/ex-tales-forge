@@ -11,6 +11,20 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Unskilled wage and catalogue v2 rules
+
+- **Decision (Fredrik, 17:17): the unskilled wage comes from the price formula.** The economy rules anchor every price in labour: **1c = ~20 minutes of unskilled work** (`rules/economy.md`, "In Our System"). One hour of unskilled labour is therefore **3 copper**, and an 8-hour day is 24c. The `work` action pays this wage for each game hour. The wage is in the world config (`economy.unskilled_wage_copper_per_hour: 3` in the adventure front matter). Modifiers for skill, danger and region come later. The services table line "Unskilled labor (day) 5-10c" contradicted the anchor; it now reads 3c per hour and 24c per day.
+- **Decision (Fredrik, 17:21 to 17:33): catalogue v2 rules.**
+  1. **NPC refusal:** NPCs may refuse gifts and trades because of their personality or traits.
+  2. **Manner adverbs:** manner adverbs (quickly, carefully, quietly) change both the time and the roll odds. The server applies them from an adverb table. **The adverb table is PROVISIONAL** (for example: quickly ×0.5 time and −2 to the roll; carefully ×1.5 time and +2; quietly ×1.25 time and +1, stealth mode; with ask, say or tell it means private speech and has no modifier). Jev outputs family + mode + manner.
+  3. **Area inventories:** forests and other areas hold limited inventories. Finding things or killing game needs a roll.
+  4. **Skill synonyms:** Jev gets a synonym set for each skill, built from English verb frequency lists. The frequency data is wordfreq (Robyn Speer), CC BY-SA 4.0; see [Credits](credits.md).
+  5. **Skill list v2:** five domains. New skills: sleight_of_hand (includes pickpocket), acrobatics, perception (takes search, spot and notice from insight), performance, medicine and appraisal. **There is no general crafting skill.** Craft has smithing, carpentry, leatherworking, cooking (simple meals need no roll) and alchemy. Files: `skill-list-v2.md`, `skill_synonyms.v2.json` (full, server side) and `skill_synonyms.v2.trim.json` (Jev prompt).
+  6. **Bargaining (numbers approved):** haggling is a persuasion roll. Appraisal is a separate, optional roll that tells the true value, the scarcity and the fair local price. Knowing the price gives +2 to persuasion (+3 at appraisal 10 or higher), and the haggle then starts from the fair price. A success moves the price 10 to 20 %. A failure caps the deal at the fair price minus 10 %.
+  7. **Growth:** a skill grows only from failures in that exact skill.
+- **Why:** Fredrik settled the open questions in `action-families.md` §6 so that catalogue v2 (turn pipeline step 5) can start.
+- **Details:** [Design: the turn pipeline](design-turn-pipeline.md), §8 step 5
+
 ## 2026-10-12: Turn pipeline: provisional rules (PROVISIONAL)
 
 - **Decision (Fredrik, PROVISIONAL):** These rules settle gaps in the turn pipeline design until a full decision replaces them. The code is `TalesForge.Game.TurnRules` (ex-tales-forge PR 3, flag `TURN_STATE_FROM_MECHANICS`).
