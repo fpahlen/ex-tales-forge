@@ -33,6 +33,20 @@ defmodule TalesForgeWeb.TeamGoalsLiveTest do
     assert has_element?(view, ~s(#goal-#{g2().id} [role="progressbar"]))
     assert has_element?(view, ~s(#goal-#{g2().id} [data-role="countdown"]))
     assert has_element?(view, "#board-goals-unassigned")
+    assert has_element?(view, ~s(#goal-#{g2().id} [data-role="score"]), "0")
+  end
+
+  test "goals sort by score, then sort order; the score shows", %{conn: conn} do
+    g5 = Repo.get_by!(Goal, key: "G5")
+    {:ok, view, _} = live(conn, "/team")
+    view |> element("#goal-#{g5.id}-up") |> render_click()
+    assert has_element?(view, ~s(#goal-#{g5.id} [data-role="score"]), "+1")
+
+    keys =
+      view |> render() |> then(&Regex.scan(~r/data-key="(G\d+)"/, &1)) |> Enum.map(&List.last/1)
+
+    assert hd(keys) == "G5"
+    assert tl(keys) == Enum.sort_by(tl(keys), &String.to_integer(String.trim_leading(&1, "G")))
   end
 
   test "a goal downvote needs a reason", %{conn: conn} do
