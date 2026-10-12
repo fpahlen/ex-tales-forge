@@ -216,6 +216,7 @@ defmodule TalesForgeWeb.Router do
     pipe_through :api
 
     get "/ideas", BoardApiController, :index
+    post "/ideas", BoardApiController, :create
     get "/ideas/:id", BoardApiController, :show
     post "/ideas/:id/refinement", BoardApiController, :refine
     post "/ideas/:id/move", BoardApiController, :move

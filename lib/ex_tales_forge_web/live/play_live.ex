@@ -32,6 +32,7 @@ defmodule TalesForgeWeb.PlayLive do
      socket
      |> assign(:page_title, session.name)
      |> assign(:session, session)
+     |> assign(:connected, connected?(socket))
      |> assign(:thinking, false)
      |> assign(:streaming_text, "")
      |> assign(:scene_loading, status.needs_scene)
@@ -111,7 +112,7 @@ defmodule TalesForgeWeb.PlayLive do
     {:noreply,
      socket
      |> assign(:thinking, false)
-     |> assign(:streaming_text, "")
+     |> clear_streaming()
      |> assign(:clarification, clarification)}
   end
 
@@ -124,7 +125,7 @@ defmodule TalesForgeWeb.PlayLive do
     socket =
       socket
       |> assign(:thinking, false)
-      |> assign(:streaming_text, "")
+      |> clear_streaming()
       |> assign(:clarification, nil)
       |> assign(:session, session)
       |> assign(:llm_source, payload.llm_source)
@@ -138,7 +139,7 @@ defmodule TalesForgeWeb.PlayLive do
     {:noreply,
      socket
      |> assign(:thinking, false)
-     |> assign(:streaming_text, "")
+     |> clear_streaming()
      |> put_flash(:info, spend_cap_message(kind))}
   end
 
@@ -146,7 +147,7 @@ defmodule TalesForgeWeb.PlayLive do
     {:noreply,
      socket
      |> assign(:thinking, false)
-     |> assign(:streaming_text, "")
+     |> clear_streaming()
      |> put_flash(:error, "Turn failed: #{reason}")}
   end
 
@@ -175,7 +176,8 @@ defmodule TalesForgeWeb.PlayLive do
       |> assign(:quick_stats, quick_stats(character))
       |> assign(
         :input_disabled,
-        assigns.thinking or assigns.scene_loading or session_dead?(assigns.session)
+        not assigns.connected or assigns.thinking or assigns.scene_loading or
+          session_dead?(assigns.session)
       )
 
     ~H"""
@@ -248,7 +250,7 @@ defmodule TalesForgeWeb.PlayLive do
 
     case GameSessions.submit_message(session_id, message, opts) do
       {:ok, %{status: :processing}} ->
-        {:noreply, socket}
+        {:noreply, show_pending_action(socket, pending_action_text(socket, message, opts))}
 
       {:ok, %{status: :clarification}} ->
         {:noreply, assign(socket, :thinking, false)}
@@ -257,14 +259,14 @@ defmodule TalesForgeWeb.PlayLive do
         {:noreply,
          socket
          |> assign(:thinking, false)
-         |> assign(:streaming_text, "")
+         |> clear_streaming()
          |> put_flash(:error, "Say something first.")}
 
       {:error, :clarification_expired} ->
         {:noreply,
          socket
          |> assign(:thinking, false)
-         |> assign(:streaming_text, "")
+         |> clear_streaming()
          |> assign(:clarification, nil)
          |> put_flash(:error, "That question has passed. Say what you do.")}
 
@@ -272,23 +274,54 @@ defmodule TalesForgeWeb.PlayLive do
         {:noreply,
          socket
          |> assign(:thinking, false)
-         |> assign(:streaming_text, "")
+         |> clear_streaming()
          |> put_flash(:error, "Wait for the GM to describe the scene before you act.")}
 
       {:error, :dead} ->
         {:noreply,
          socket
          |> assign(:thinking, false)
-         |> assign(:streaming_text, "")
+         |> clear_streaming()
          |> put_flash(:error, "You are dead.")}
 
       {:error, _reason} ->
         {:noreply,
          socket
          |> assign(:thinking, false)
-         |> assign(:streaming_text, "")
+         |> clear_streaming()
          |> put_flash(:error, "Could not process that action.")}
     end
+  end
+
+  # The player's action shows in the story as soon as the server takes it, so
+  # it sits above the GM text that streams next. The entry has a fixed id;
+  # the turn's own entries replace it when the turn completes, and it goes
+  # away when the turn fails.
+  @pending_action_id "pending-player"
+
+  defp show_pending_action(socket, ""), do: socket
+
+  defp show_pending_action(socket, text) do
+    stream_insert(socket, :entries, %{id: @pending_action_id, role: "player", text: text})
+  end
+
+  # An option pick sends no text: it plays the words of the pending question.
+  defp pending_action_text(socket, message, opts) do
+    picked = Keyword.get(opts, :clarification_id)
+
+    case {String.trim(message), picked, socket.assigns.clarification} do
+      {"", id, %{"clarification_id" => id} = pending} when not is_nil(id) ->
+        String.trim(pending["player_text"] || pending["raw_action"] || "")
+
+      {text, _id, _pending} ->
+        text
+    end
+  end
+
+  defp clear_streaming(socket) do
+    socket
+    |> assign(:streaming_text, "")
+    |> stream_delete_by_dom_id(:entries, "entries-" <> @pending_action_id)
   end
 
   defp current_scene_image(%{world_state: world_state, scenes: scenes}) do
