@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Turn pipeline order and rules
+
+- **Decision (Fredrik):** Every turn runs in this order: Jev intent, premise and inventory check, mechanics and state, NPCs, GM narration of confirmed outcomes. In addition: (1) a rejected action costs no game time; (2) catalogue v2 adds `give` now, and `eat` and `drink` come later; (3) `none_fits` uses no extra Grok call, and the GM handles it alone; (4) a prose/record mismatch is logged and counted as a bug that fails the fixtures, with no GM re-run; (5) the server strips injected text from the history and keeps no marked copy.
+- **Why:** Six of seven playtest failures came from the pipeline order, not from the intent threshold (Case's analysis, 2026-10-12).
+- **Details:** [Design: the turn pipeline](design-turn-pipeline.md)
+
 ## 2026-10-12: Jev reads player intent on all sessions; no intent LLM call
 
 - **Decision (Fredrik):** `INTENT_JEV=on` for all new sessions on production and playtest. Jev reads the player's intent in one call. The Elixir heuristic is the fallback on a Jev error, a timeout or a missing key. We removed the Tier 1 intent LLM call (grok). The baseline variant stays the no-Jev arm, because the playtest series runs it. It now reads intent with the heuristic only.
