@@ -172,10 +172,10 @@ defmodule TalesForge.Game.OutcomeRecord do
 
   defp location_line(%{"from" => from, "to" => to}), do: "Location: #{to} (moved from #{from})."
 
-  defp character(world), do: Map.get(world || %{}, "character") || %{}
+  defp character(world), do: Map.get(world, "character") || %{}
 
   defp location(world),
-    do: get_in(world || %{}, ["character", "location_id"]) || Map.get(world || %{}, "location_id")
+    do: get_in(world, ["character", "location_id"]) || Map.get(world, "location_id")
 
   defp item_deltas(before_char, after_char) do
     before_q = quantities(before_char)
