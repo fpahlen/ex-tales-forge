@@ -14,7 +14,10 @@ defmodule TalesForge.Repo.Migrations.WorkLogAuthors do
 
     create table(:board_edits, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :idea_id, references(:board_ideas, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :idea_id, references(:board_ideas, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :author, :string, null: false
       add :fields, {:array, :string}, null: false, default: []
       timestamps(type: :utc_datetime_usec, updated_at: false)
