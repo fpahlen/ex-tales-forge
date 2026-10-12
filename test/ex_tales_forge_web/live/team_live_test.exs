@@ -148,12 +148,13 @@ defmodule TalesForgeWeb.TeamLiveTest do
       refute has_element?(view, "#crew-cards")
     end
 
-    test "the presentation is linked once, from its own card", %{conn: conn} do
+    test "the nav and the card open the presentation as its own page", %{conn: conn} do
       {:ok, view, html} = live(conn, ~p"/team")
 
       assert has_element?(view, ~s(#presentation-link.team-cta[href="/team/presentation"]))
       refute has_element?(view, "#hero-presentation-link")
-      refute has_element?(view, "#team-nav-presentation")
+      assert has_element?(view, ~s(#team-nav a[href="/team/presentation"]), "Presentation")
+      refute has_element?(view, ~s(a[href="#presentation-cta"]))
       refute has_element?(view, "#presentation-contents")
 
       links =
@@ -162,12 +163,24 @@ defmodule TalesForgeWeb.TeamLiveTest do
         |> LazyHTML.query(~s(a[href="/team/presentation"]))
         |> Enum.count()
 
-      assert links == 1
+      assert links == 2
 
       assert {:ok, _presentation, html} =
                view |> element("#presentation-link") |> render_click() |> follow_redirect(conn)
 
       assert html =~ "7. How we work together: one shared board"
+    end
+
+    test "the nav link opens /team/presentation, with its Present button", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/team")
+
+      assert {:ok, presentation, _html} =
+               view
+               |> element(~s(#team-nav a[href="/team/presentation"]))
+               |> render_click()
+               |> follow_redirect(conn, ~p"/team/presentation")
+
+      assert render(presentation) =~ "Present"
     end
 
     test "no placeholder: playtest redirects /team to production", %{conn: conn} do
