@@ -11,6 +11,61 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Work time auto log
+
+- **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it.
+- **Why:** **Problem.** Founders need a fair work time log for Slicing Pie. The app does not log founder work time today.
+
+**Goal.** The app logs work sessions for each founder. The log supports fair hour shares in the Slicing Pie spreadsheet.
+
+**Rules from the comments.**
+- Start a session when a founder edits a card or plays on playtest or prod (Fredrik, 2026-10-12).
+- Check activity every 15 minutes. Close the session when the founder is idle (Fredrik).
+- Idle limit is 15 minutes (Håkan).
+- Founders can add time by hand with a short reason (Håkan).
+- Reading alone does not count in v1. Comments and card moves cover that work (Håkan and Case).
+- All founders see the full log in a menu on `/team` (Håkan).
+- Each log entry stores a short note of the work (Håkan).
+- Ownership uses the Slicing Pie model and the existing spreadsheet (Fredrik, 2026-10-12).
+
+**Proposed approach.**
+1. Store activity events. Each founder action writes one event with author and time. Do not use an in-memory timer. A deploy clears memory. Stored events stay correct after a restart.
+2. Count actions, not open pages. `TalesForgeWeb.Presence`, `TalesForge.Online` and `TalesForge.TeamOnline` show open pages. An open page is not work.
+3. Actions in v1. Card comments (`TalesForge.Board.Comment`), card moves (`TalesForge.Board.Transition`), team chat (`TalesForge.Chat.Message`), card text edits and game turns on playtest or prod.
+4. Add author and time where missing. Card text edits and `TalesForge.Schemas.Turn` do not store the founder today. Add that data before we compute sessions.
+5. Playtest events reach prod. Prod already reads playtest through `TalesForge.Online.Peer` and `TalesForge.Costs.Peer`. Add the same peer pattern for activity events.
+6. Compute sessions from events. A session starts at the first action. The session ends at the last action when no new action arrives for 15 minutes. The idle gap does not count.
+7. Manual entries. A founder adds hours, a date and a short reason. Use this for work outside the app and for old spreadsheet hours.
+8. Work notes. Auto sessions list the action types. Manual entries keep the reason text.
+9. Export. Each month a founder exports hours as CSV. One row per founder and day. Paste the totals into the Slicing Pie spreadsheet.
+10. Record the Slicing Pie rule in `decisions.md` before build starts.
+
+**Acceptance criteria.**
+- A founder action on the board or in play creates an activity event with author and time.
+- A session starts at the first action and ends at the last action after 15 minutes with no action.
+- The idle 15 minutes do not add to the logged time.
+- A founder can add time by hand with a reason.
+- All founders can open the full log from a menu on `/team`.
+- Each entry shows a short work note.
+- Prod includes playtest activity events.
+- A CSV export lists hours per founder and day.
+- Reading a card alone does not create an event in v1.
+
+**Size: M.**
+
+**Risks.**
+- Card text edits and game turns lack founder today. Mitigation: add author and time in the first PR.
+- Playtest is a separate app. Mitigation: reuse the peer pattern from `Online.Peer` and `Costs.Peer`.
+- Work outside the app stays invisible. Mitigation: manual entries with a reason.
+- Deploy restarts clear memory. Mitigation: compute sessions from stored events.
+
+**Deploy lane: normal.** Team tools change. Ship to playtest first. Then a founder approves production.
+
+**Confidence.** High confidence on the event design and the session rules. Medium confidence on the source of truth after go-live until founders answer that question. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-e1fa4220-7e9e-43a2-924f-9ac3ebee11fa)
+
+<!-- board:idea:e1fa4220-7e9e-43a2-924f-9ac3ebee11fa -->
+
 ## 2026-10-12: Turn architecture: one pipe over a %Turn{} struct
 
 - **Decision (Fredrik, 17:50):** each turn is one pipe over a `%Turn{}` struct:
