@@ -42,7 +42,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     test "a team member sees the whole presentation, with a way back to /team", %{conn: conn} do
       conn = log_in_admin(conn)
       {:ok, view, html} = live(conn, ~p"/team/presentation")
-      assert html =~ "How Tales Forge gets built"
+      assert html =~ "1. What Tales Forge is and why"
       assert page_title(view) =~ "presentation"
 
       for {id, label} <- TeamPresentationLive.sections() do
@@ -391,7 +391,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
 
     test "an empty data file still renders, every number unmeasured" do
       html = render_with(%{})
-      assert html =~ "How Tales Forge gets built"
+      assert html =~ "1. What Tales Forge is and why"
       assert html =~ "not measured yet"
 
       assert html =~
@@ -408,7 +408,9 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       |> Map.fetch!("detail")
     end
 
-    test "rule 3 links to the walkthrough, which sits under it in 'How we work'", %{conn: conn} do
+    test "the call-type rule links to the walkthrough, which sits under it in part 6b", %{
+      conn: conn
+    } do
       {:ok, view, _html} = live(conn, ~p"/team/presentation")
       anchor = TeamCallTypes.anchor()
 
@@ -420,7 +422,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
 
       assert has_element?(
                view,
-               "#how ##{anchor} h3",
+               "#infrastructure ##{anchor} h3",
                "The call-type rule: one turn, three call types"
              )
 
@@ -864,10 +866,10 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
   end
 
-  describe "7. one shared board (live on /team)" do
+  describe "4. how we work: the board (live on /team)" do
     setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
 
-    test "sits between pace and together, badged as live, with the brief's copy", %{
+    test "is part 4, after the game, badged as live, with the brief's copy", %{
       conn: conn
     } do
       {:ok, view, html} = live(conn, ~p"/team/presentation")
@@ -879,11 +881,12 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
         |> LazyHTML.query("main > section")
         |> Enum.map(&(&1 |> LazyHTML.attribute("id") |> hd()))
 
-      assert ids == ["hero" | Enum.map(TeamPresentationLive.sections(), &elem(&1, 0))]
-      assert Enum.drop(ids, 6) == ["pace", anchor, "together"]
+      assert ids == Enum.map(TeamPresentationLive.sections(), &elem(&1, 0))
+      assert Enum.slice(ids, 2, 3) == ["game", anchor, "how"]
 
-      assert has_element?(view, "##{anchor} h2", "7. How we work together: one shared board")
-      assert has_element?(view, "#together h2", "8. Where we go from here, together")
+      assert has_element?(view, "##{anchor} h2", "4. How we work: the board")
+      assert has_element?(view, "##{anchor} #flow h3", "How a change flows")
+      assert has_element?(view, "#together h2", "9. Next steps, together")
       assert has_element?(view, "#board-badge", "Live on")
       assert has_element?(view, ~s(#board-badge a[href="/team#idea-board"]))
       assert has_element?(view, "##{anchor}", "Every feature lives there")
@@ -1008,7 +1011,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       html = render_with(%{})
       doc = LazyHTML.from_document(html)
 
-      assert html =~ "7. How we work together: one shared board"
+      assert html =~ "4. How we work: the board"
       assert doc |> LazyHTML.query("#board-travel li") |> Enum.count() == 5
 
       assert doc |> LazyHTML.query("#team-board .team-board-col[data-column]") |> Enum.count() ==
@@ -1307,10 +1310,12 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       end
     end
 
-    test "the section 2 rules are numbered 1, 2, 3, 4 in page order", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/team/presentation")
+    test "the part 5 rules are numbered 1, 2, 3 in page order", %{conn: conn} do
+      {:ok, view, html} = live(conn, ~p"/team/presentation")
       numbers = Regex.scan(~r/>\s*([1-4])\. (?:Decisions|Docs|Code|The call-type)/, html)
-      assert Enum.map(numbers, &List.last/1) == ["1", "2", "3", "4"]
+      assert Enum.map(numbers, &List.last/1) == ["1", "2", "3"]
+      assert has_element?(view, "#infrastructure #rule-call-types h3", "The call-type rule.")
+      refute has_element?(view, "#how #rule-call-types")
     end
 
     test "the header is sticky only from the sm breakpoint", %{conn: conn} do
@@ -1372,7 +1377,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       doc = LazyHTML.from_fragment(html)
       headings = doc |> LazyHTML.query("#how article h3") |> Enum.map(&LazyHTML.text/1)
       nums = headings |> Enum.map(&String.trim/1) |> Enum.map(&String.first/1)
-      assert Enum.take(nums, 4) == ~w(1 2 3 4)
+      assert nums == ~w(1 2 3)
       assert html =~ ~s(id="skip-to-content")
       assert html =~ ~s(href="#team-main")
       assert html =~ "Six columns."
@@ -1381,12 +1386,13 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
   end
 
   describe "Gentry on prod 0415def (wording)" do
-    test "the starting-point callout shows at once in the hero, not hidden behind a reveal" do
+    test "the hero shows at once, and the starting-point callout is in part 9" do
       html = render_with(@data)
       doc = LazyHTML.from_fragment(html)
       assert doc |> LazyHTML.query("#hero[data-reveal]") |> Enum.count() == 0
+      assert doc |> LazyHTML.query("#hero #starting-point") |> Enum.count() == 0
 
-      assert doc |> LazyHTML.query("#hero #starting-point") |> LazyHTML.text() =~
+      assert doc |> LazyHTML.query("#together #starting-point") |> LazyHTML.text() =~
                "This is how we work today, and we shape it together."
     end
 
@@ -1405,21 +1411,21 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
   end
 
-  describe "4. how it's wired" do
-    test "the section is in the nav, after Infrastructure" do
+  describe "6a. how it's wired" do
+    test "the section is in the nav, as 6a before Infrastructure (6b)" do
       ids = Enum.map(TeamPresentationLive.sections(), &elem(&1, 0))
 
-      assert Enum.drop_while(ids, &(&1 != "infrastructure")) |> Enum.take(2) == [
-               "infrastructure",
-               "wired"
+      assert Enum.drop_while(ids, &(&1 != "wired")) |> Enum.take(2) == [
+               "wired",
+               "infrastructure"
              ]
 
-      assert {"wired", "How it's wired"} in TeamPresentationLive.sections()
+      assert {"wired", "Wiring"} in TeamPresentationLive.sections()
     end
 
     test "the wording follows the founders' summary and the rest of the page" do
       html = render_with(@data)
-      assert html =~ "4. How it&#39;s wired"
+      assert html =~ "6a. How it&#39;s wired: the path"
       assert html =~ "Tales Forge runs as two apps on Fly.io in Stockholm."
       assert html =~ "Three bots work with us. Case refines ideas and reviews work."
       assert html =~ "Gentry tries to break things on playtest."
@@ -1437,7 +1443,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
   end
 
-  describe "4. how it's wired, animated" do
+  describe "6a. how it's wired, animated" do
     setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
 
     test "the path reuses the TeamFlow hook, static until the hook plays it", %{conn: conn} do
@@ -1560,6 +1566,51 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
 
       assert html =~ css
       refute html =~ ~r/\[data-flow-fact\]:not\(\[data-shown\]\) \{ opacity: 0;/
+    end
+  end
+
+  describe "the order of 12 Oct 2026" do
+    test "eleven slides in the new order, and every old anchor still lands" do
+      assert Enum.map(TeamPresentationLive.sections(), &elem(&1, 0)) ==
+               ~w(hero team game board how wired infrastructure playtests quality pace together)
+
+      for old <-
+            ~w(team how infrastructure wired playtests pace board together hero starting-point flow gentry shadow-test eval-set) do
+        assert TeamPresentationLive.presentation_path(old) == "/team/presentation#" <> old
+      end
+    end
+
+    test "parts 1 and 3 carry the approved text and a screenshot slot" do
+      html = render_with(@data)
+      doc = LazyHTML.from_fragment(html)
+
+      assert doc |> LazyHTML.query("#hero #hero-pitch") |> LazyHTML.text() =~
+               "Tales Forge is an online role-playing game. An AI game master tells the story."
+
+      assert doc |> LazyHTML.query("#game h2") |> LazyHTML.text() =~
+               "3. The game and how it plays"
+
+      assert doc |> LazyHTML.query("#game #game-turn") |> LazyHTML.text() =~
+               "It describes only what really happened."
+
+      assert doc
+             |> LazyHTML.query(~s(#game-screenshot [data-placeholder="screenshot"]))
+             |> Enum.count() == 1
+    end
+
+    test "the team slide has the cards only; Gentry comes first in 7a; the stats are in 8" do
+      html = render_with(@data)
+      doc = LazyHTML.from_fragment(html)
+      assert doc |> LazyHTML.query("#team #flow") |> Enum.count() == 0
+      assert doc |> LazyHTML.query("#playtests > #gentry") |> Enum.count() == 1
+      assert doc |> LazyHTML.query("#quality #shadow-test") |> Enum.count() == 1
+      assert doc |> LazyHTML.query("#pace #stat-prs-merged") |> Enum.count() == 1
+
+      {gentry_at, _} = :binary.match(html, ~s(id="gentry"))
+      {personas_at, _} = :binary.match(html, ~s(id="persona-cards"))
+      assert gentry_at < personas_at
+      assert html =~ "7a. Status, playtests and quality: Gentry and the personas"
+      assert html =~ "8. Status: pace, cost and goals"
     end
   end
 

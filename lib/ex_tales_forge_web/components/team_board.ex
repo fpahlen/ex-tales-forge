@@ -1,8 +1,7 @@
 defmodule TalesForgeWeb.TeamBoard do
   @moduledoc """
-  Section 6 of the founders' presentation (`/team/presentation`,
-  `TalesForgeWeb.TeamPresentationLive`): "How we work together: one shared
-  board". The idea board is live on `/team` (`#idea-board`, since
+  Part 4 of the founders' presentation (`/team/presentation`,
+  `TalesForgeWeb.TeamPresentationLive`): "How we work: the board". The idea board is live on `/team` (`#idea-board`, since
   2026-10-10), and founders and bots use it every day. This section explains
   how a card travels and shows the live board: the real columns with their
   card counts, and the team totals (cards, votes, founder comments, PR
@@ -14,7 +13,9 @@ defmodule TalesForgeWeb.TeamBoard do
   section reads; it has nothing to drag and sends no events.
 
   The rules follow tales-forge-docs `docs/design-board-states.md` (approved
-  2026-10-10), and the copy follows `docs/team-page/content.md` section 7.
+  2026-10-10), and the copy follows `docs/team-page/content.md` part 4.
+  The presentation puts "How a change flows" at the end of this section,
+  through the `inner_block` slot.
   The "How a card travels" steps come from `shared_board.columns` in
   `data.json` (`id`, `label`, `owner`); a column that the data does not name
   keeps the label from the brief. Without stats (where the board is not, or a
@@ -95,6 +96,8 @@ defmodule TalesForgeWeb.TeamBoard do
     default: nil,
     doc: "`TalesForge.Board.stats/0`, or `nil` where the board is not"
 
+  slot :inner_block, doc: "more content at the end of the section, such as how a change flows"
+
   @spec section(map()) :: Phoenix.LiveView.Rendered.t()
   def section(assigns) do
     columns = columns(assigns.d)
@@ -117,7 +120,7 @@ defmodule TalesForgeWeb.TeamBoard do
         <.icon name="hero-check-circle-micro" class="size-4" /> Live on
         <.link href="/team#idea-board" class="underline">/team</.link>
       </p>
-      <.section_head id={@anchor} title="7. How we work together: one shared board">
+      <.section_head id={@anchor} title="4. How we work: the board">
         The idea board on /team is where founders and bots work side by side.
         Every feature lives there, from a first idea to a change on production.
         You add an idea, the bots do the legwork, and you decide what gets built.
@@ -180,6 +183,7 @@ defmodule TalesForgeWeb.TeamBoard do
         (<.link href={~p"/admin/founders/decisions"} class="underline">/admin/founders/decisions</.link>).
         The rules for every move are in <a href="/admin/docs/design-board-states.md" class="underline">docs/design-board-states.md</a>.
       </p>
+      {render_slot(@inner_block)}
     </section>
     """
   end
