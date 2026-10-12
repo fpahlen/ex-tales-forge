@@ -33,7 +33,7 @@ defmodule TalesForge.IntentEval do
 
     * `:fixture` / `:worlds` — paths (default the repo fixture);
     * `:split` — `"tune"`, `"holdout"` or `"all"` (default `"tune"`);
-    * `:readers` — list of `:jev | :heuristic | :tier1` (default `[:jev, :heuristic, :tier1]`);
+    * `:readers` — list of `:jev | :heuristic` (default `[:jev, :heuristic]`);
     * `:ask_below` — clarification threshold for the clarifying-rate metric;
     * `:ask_below_raw` — raw-confidence ask threshold (`0.0` turns it off);
     * `:limit` — cap the number of items (after the split filter);
@@ -44,7 +44,7 @@ defmodule TalesForge.IntentEval do
   @spec run(keyword()) :: {String.t(), map()}
   def run(opts \\ []) do
     split = Keyword.get(opts, :split, "tune")
-    readers = Keyword.get(opts, :readers, [:jev, :heuristic, :tier1])
+    readers = Keyword.get(opts, :readers, [:jev, :heuristic])
 
     items =
       opts

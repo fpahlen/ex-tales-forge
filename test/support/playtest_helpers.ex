@@ -10,6 +10,29 @@ defmodule TalesForge.PlaytestHelpers do
     "gm_notes" => "SECRET-GM-NOTE"
   }
 
+  @doc """
+  Saves a pending clarification on the session, as the intent step does when
+  it asks back. `extraction` is an `IntentExtraction` JSON map. Returns the
+  question that the player sees.
+  """
+  def put_pending_clarification(session_id, extraction, player_text) do
+    alias TalesForge.Game.Intent
+    alias TalesForge.Game.Schemas.IntentExtraction
+    alias TalesForge.Schemas.GameSession
+
+    session = TalesForge.Repo.get!(GameSession, session_id)
+    question = Intent.build_clarification(IntentExtraction.decode(extraction), player_text)
+    pending = Map.put(question, "player_text", player_text)
+
+    session
+    |> GameSession.changeset(%{
+      world_state: Map.put(session.world_state || %{}, "pending_clarification", pending)
+    })
+    |> TalesForge.Repo.update!()
+
+    question
+  end
+
   def await(run_id) do
     result = Runner.await(run_id, 10_000, 20)
     wait_until(fn -> Task.Supervisor.children(TalesForge.Playtest.Supervisor) == [] end)

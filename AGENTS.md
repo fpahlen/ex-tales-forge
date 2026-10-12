@@ -68,7 +68,7 @@ Use kebab-case names that describe the work (`feature/two-tier-llm`, `fix/oban-m
 1. **Plain Ecto + Repo everywhere** (play loop, Jido, Oban, GameSessions, NPC logic, admin). Ash was removed on 2026-10-07 ([#47](https://github.com/whyse-ab/ex-tales-forge/pull/47)); revisit only if an in-app adventure editor needs it. Authored content lives in pack files, not database tables. Don't add a second data layer without a decision entry.
 2. **Call-type rule** (decision 2026-10-07, tales-forge-docs `docs/call-types.md`): known structured input + structured output = Elixir function; unstructured input + structured output = Jev; prose output = LLM. Asking the LLM for structured output is a smell. Elixir is exact, free and instant, Jev is fast and cheap, the LLM is the slowest and most expensive: use the LLM last, with the smallest input possible.
 3. **One Character type** for player characters and NPCs: OCEAN, personality-filtered memory, a Maslow level and concerns; only the controller differs (`player`, `gm` or `bot`). `TalesForge.Characters` keeps a `characters` row per PC and NPC in step after every turn; the game still reads `world_state["character"]` and `npc_instances` until the Character plan's read switch (tales-forge-docs `docs/plan-unify-character.md`). Don't add a separate PC or NPC model.
-4. **Intent before the GM; the GM gets a typed struct plus a short quote.** Tier 1 intent (heuristic, or the intent LLM when the heuristic has low confidence) runs first. The GM gets the validated, typed `PlayerAction` plus a short, sanitised quote of the player's words (`overall_intent`, at most 500 characters), so it keeps the player's tone. This is intended (decisions 2026-10-07 "GM pipeline direction" and 2026-10-08). When the intent LLM handles the turn, `overall_intent` is its short summary of the message, sanitised the same way. The full raw message never goes to the GM.
+4. **Intent before the GM; the GM gets a typed struct plus a short quote.** The intent step runs first: one Jev call (`INTENT_JEV=on`, `TalesForge.IntentJev`), with the Elixir heuristic as the fallback. There is no intent LLM call (decision 2026-10-12). The GM gets the validated, typed `PlayerAction` plus a short, sanitised quote of the player's words (`overall_intent`, at most 500 characters), so it keeps the player's tone. This is intended (decisions 2026-10-07 "GM pipeline direction" and 2026-10-08). When Jev gives no quote, `overall_intent` is a typed summary of the message, sanitised the same way. The full raw message never goes to the GM.
 5. **The server owns mechanics.** It rolls dice and applies LP, inventory, coins, prices and time; the LLM narrates and never invents mechanics. A player's claim about the character's own state (an item, coins, a purchase or a kill the session doesn't back) is checked in Elixir against the session (`TalesForge.Game.PremiseCheck`, default variant), not by Jev; a false one reaches the GM as a short correction in the per-turn prompt (decision 2026-10-09).
 6. Important authored state stays human-readable: `priv/rules/*.md`, `priv/prompts/*.txt`, pack files.
 7. LLM replies use structured JSON with a strict schema (Tier 1 `PlayerAction` via `TalesForge.Game.Intent`; the scene and GM reply via `TalesForge.LLM`).
@@ -130,7 +130,7 @@ Environment variables read through `TalesForge.Config`. Flags marked "new sessio
 | `WORLD_AGENTS` | World-agents prototype: persons and locations hold facts for the GM; also turns on NPC reactions | off | off | off |
 | `CODE_HEAT_MAP` | Daily call-time sample of the app's functions for the code heat map on `/admin/operate/code-heat` (`TalesForge.CodeHeat`). Only `on` (or `true`, `1`) turns it on. Production stays off, also with the variable set | off | off (refused) | `on` (`fly.playtest.toml`) |
 | `PLAYTEST_RUNNER_ENABLED` | Persona bot runner; only `true` enables it, and never on production (`TalesForge.AppRole`) | off | **never set** (refused anyway) | `true` |
-| `INTENT_JEV` | New sessions: player intent as one Jev call (`TalesForge.IntentJev`). `off` = today's path; `shadow` = today's path plays, the Jev read is only logged (`ai_calls` purpose `turn.intent_shadow`); `on` = Jev drives the turn, heuristic on error or timeout. Needs `TYPESAFE_INTENT_API_KEY` (secret). Baseline sessions are always off; the playtest runner can pick per run (`intent_jev`). Raises at boot on any other value | `off` | not set | not set (plan: `shadow` first) |
+| `INTENT_JEV` | New sessions: player intent as one Jev call (`TalesForge.IntentJev`). `on` = Jev drives the turn, heuristic on error or timeout; `shadow` = the heuristic plays, the Jev read is only logged (`ai_calls` purpose `turn.intent_shadow`); `off` = the heuristic plays. Needs `TYPESAFE_INTENT_API_KEY` (secret). Baseline sessions are always off (the no-Jev arm of `Playtest.Series`); the playtest runner can pick per run (`intent_jev`). Raises at boot on any other value | `on` | `on` (Fly secret) | `on` (Fly secret) |
 | `INTENT_ACT_MIN_CONFIDENCE` / `INTENT_ASK_BELOW_CONFIDENCE` | `INTENT_JEV=on` bands on the calibrated confidence: act at or above, ask below (only when the top two readings play out differently), best guess between | 0.70 / 0.45 | not set | not set |
 | `INTENT_ASK_BELOW_RAW_CONFIDENCE` | `INTENT_JEV=on`: also ask (top two readings play out differently) when Jev's **raw** confidence is below this, even if calibration lifted it into the act band; `0` turns the raw check off | 0.45 | not set | not set |
 | `INTENT_JEV_TIMEOUT_MS` | `INTENT_JEV=on`: hard deadline of the Jev call on the player's clock before the heuristic takes over | 1500 | not set | not set |
@@ -346,7 +346,6 @@ Each turn runs Tier 1 intent extraction (heuristic first, else a small-model LLM
 | `TIER1_MODEL`, `TIER2_MODEL` | unset (`XAI_MODEL`) | Per-tier model override |
 | `TIER1_MAX_TOKENS` | `400` | Intent JSON cap |
 | `TIER2_MAX_TOKENS` | `700` | GM narration cap |
-| `TIER1_HEURISTIC_THRESHOLD` | `0.85` | Skip Tier 1 LLM when heuristics are confident |
 | `TIER1_TEMPERATURE` | `0` | Intent extraction |
 | `TIER2_TEMPERATURE` | `0.7` | Storytelling |
 | `TIER1_CONFIDENCE_THRESHOLD` | `0.75` | Clarification cutoff |
@@ -385,7 +384,7 @@ Play always opens with a **scene** (GM exposition, not a turn). Player input is 
 
 1. `GameSessions.create_session/1` or `ensure_scene/1` — `TalesForge.Workers.ProcessScene` (Oban `:llm`) describes the location
 2. PubSub `{:scene_completed, payload}` → LiveView narrative log + sidebar image (`image_url` when authored)
-3. `GameSessions.submit_message/3` — Tier 1 intent (heuristic or LLM); returns `{:error, :needs_scene}` if scene pending
+3. `GameSessions.submit_message/3` — the intent step (Jev, or the heuristic); returns `{:error, :needs_scene}` if scene pending
 4. `TalesForge.Workers.ProcessTurn` — Tier 2 GM + mechanics
 5. PubSub `{:turn_completed, payload}` → LiveView; if travel changed location, `needs_scene: true` triggers step 1 again
 

@@ -113,23 +113,14 @@ defmodule TalesForgeWeb.PlayLiveTest do
       on_exit(fn ->
         System.put_env("LLM_PROVIDER", "mock")
         System.delete_env("XAI_API_KEY")
-        System.delete_env("TIER1_HEURISTIC_THRESHOLD")
       end)
 
       {:ok, session} =
         GameSessions.create_session(%{name: "Which way", adventure_id: "tin_valley"})
 
-      # The intent LLM asks back on every action; the player's words are kept
-      # with the pending question on the session.
-      System.put_env("TIER1_HEURISTIC_THRESHOLD", "1.0")
-      stub_llm(fn kind, _user -> if kind == :intent, do: clarifying_intent(), else: :default end)
-
-      assert {:ok, %{status: :clarification}} =
-               GameSessions.submit_message(session.id, "I go over there.")
-
-      # The GM turn after the pick runs on the offline mock.
-      System.put_env("LLM_PROVIDER", "mock")
-      System.delete_env("XAI_API_KEY")
+      # The intent step asked back; the player's words are kept with the
+      # pending question on the session.
+      put_pending_clarification(session.id, clarifying_intent(), "I go over there.")
 
       {:ok, session: session}
     end

@@ -24,7 +24,7 @@ defmodule TalesForge.Game.IntentTest do
       restore_env("XAI_API_KEY", previous_key)
     end)
 
-    # Live bundle path, but these cases are heuristic-sufficient so no HTTP.
+    # A live provider: the intent step still makes no LLM call.
     System.put_env("LLM_PROVIDER", "xai")
     System.put_env("XAI_API_KEY", "test-key")
     :ok
@@ -32,6 +32,22 @@ defmodule TalesForge.Game.IntentTest do
 
   defp restore_env(key, nil), do: System.delete_env(key)
   defp restore_env(key, value), do: System.put_env(key, value)
+
+  test "a live game reads a low-confidence action with the heuristic, without an LLM call" do
+    test_pid = self()
+
+    Req.Test.stub(TalesForge.LLM, fn conn ->
+      send(test_pid, :llm_called)
+      Req.Test.json(conn, %{})
+    end)
+
+    {bundle, source} =
+      Intent.resolve_bundle("perhaps I shall head to the square at first light", @context)
+
+    assert source == :heuristic
+    assert [_ | _] = bundle.actions
+    refute_received :llm_called
+  end
 
   test "resolve_bundle uses heuristic for clear observe action" do
     {bundle, source} = Intent.resolve_bundle("look around the tavern", @context)

@@ -24,7 +24,6 @@ defmodule TalesForge.Config do
   def tier1_temperature, do: env_float("TIER1_TEMPERATURE", 0.0)
   def tier2_temperature, do: env_float("TIER2_TEMPERATURE", 0.7)
   def tier1_confidence_threshold, do: env_float("TIER1_CONFIDENCE_THRESHOLD", 0.75)
-  def tier1_heuristic_threshold, do: env_float("TIER1_HEURISTIC_THRESHOLD", 0.85)
   def tier1_max_tokens, do: env_int("TIER1_MAX_TOKENS", 400)
   def tier2_max_tokens, do: env_int("TIER2_MAX_TOKENS", 700)
 

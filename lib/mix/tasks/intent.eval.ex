@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Intent.Eval do
   key the Jev reader reports errors rather than numbers. The task prints which
   source the key came from; the key itself is never printed.
 
-  The task starts the app for its config, Repo (Tier 1 calls are recorded in
+  The task starts the app for its config, Repo (calls are recorded in
   `ai_calls`) and HTTP clients, but with
   `config :ex_tales_forge, :npc_recovery_on_boot, false`, so the boot NPC sync
   (`TalesForge.NPCRecovery`) does not touch the active sessions in the local
@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Intent.Eval do
 
     * `--split` — `tune` (default), `holdout` or `all`. The holdout is locked:
       pass `--i-mean-it` to run it, so it is not spent by accident.
-    * `--readers` — comma list of `jev,heuristic,tier1` (default all three).
+    * `--readers` — comma list of `jev,heuristic` (default both).
     * `--ask-below` — clarification threshold to include in the clarifying table
       (and the calibrated ask threshold of the decision-band table).
     * `--ask-below-raw` — the raw-confidence ask threshold for both tables
@@ -159,7 +159,7 @@ defmodule Mix.Tasks.Intent.Eval do
   defp readers(opts) do
     case opts[:readers] do
       nil ->
-        [:jev, :heuristic, :tier1]
+        [:jev, :heuristic]
 
       list ->
         list

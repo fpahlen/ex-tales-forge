@@ -227,7 +227,7 @@ Player input is blocked in `PlayLive` while `scene_loading` or `thinking` (`inpu
 
 | Tier | Where | Model / temp | Input | Output |
 |------|-------|--------------|-------|--------|
-| 1 Intent | `GameSessions.resolve_and_enqueue/3` **before** Oban | Heuristic if ≥ `TIER1_HEURISTIC_THRESHOLD` (0.85); else `LLM.complete_intent` temp 0, 400 tokens | Raw player text + intent context | `PlayerAction` JSON |
+| 1 Intent | `GameSessions.resolve_and_enqueue/3` **before** Oban | `INTENT_JEV=on`: one Jev call (`IntentJev.resolve/3`); the heuristic on a Jev error or timeout. No LLM call | Raw player text + intent context | `PlayerAction` JSON |
 | 2 Table GM | `TurnProcessor.run/3` inside `ProcessTurn` | `LLM.complete_turn` temp 0.7, 700 tokens | Validated `PlayerAction` + handler + rules + present NPCs | `GMStructuredResponse` (narrative first; capped npc_memory_updates, context_summary, gm_notes) |
 | Scene | `SceneProcessor` / `ProcessScene` | Same model as Tier 2 | Location + GM context | `{location_name, narrative}` |
 
