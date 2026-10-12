@@ -349,3 +349,43 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
     }
   end
 end
+
+defmodule TalesForge.Prompt.Sections.NoticedDetails do
+  @moduledoc """
+  What the character notices this turn (`TalesForge.Game.Notice`,
+  `SKILL_DETAIL_LEVEL=on`). At most 3 lines.
+
+      iex> TalesForge.Prompt.Sections.NoticedDetails.text(nil)
+      nil
+      iex> TalesForge.Prompt.Sections.NoticedDetails.text(%{level: :low, details: []}) =~ "Tunnel vision"
+      true
+  """
+  use TalesForge.Prompt.Section, id: :noticed_details, slot: :turn
+
+  @impl true
+  def render(ctx), do: text(Map.get(ctx.data, :noticed))
+
+  @doc "The section for a notice (`level`, `details`), or nil."
+  @spec text(%{level: atom(), details: [String.t()]} | nil) :: String.t() | nil
+  def text(nil), do: nil
+
+  def text(%{level: :low}),
+    do:
+      "## Noticing (low)\nTunnel vision and time pressure: the character sees only the main threat or task. Tell no hidden detail."
+
+  def text(%{level: level, details: details}) do
+    focus = if level == :high, do: "Calm focus", else: "Some focus"
+
+    body =
+      case details do
+        [] ->
+          "#{focus}, but there is nothing hidden to notice. Tell no hidden detail."
+
+        _ ->
+          "#{focus}: weave these true details into the story (no \"You notice\" line): " <>
+            Enum.join(details, " ") <> "\nTell no other hidden fact."
+      end
+
+    "## Noticing (#{level})\n" <> body
+  end
+end
