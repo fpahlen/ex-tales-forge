@@ -140,21 +140,23 @@ defmodule TalesForge.Playtest.RunnerTest do
     assert run.game_cost_usd == 0.004
   end
 
-  test "answers a clarification by picking an option" do
+  test "answers a clarification with free text" do
     test_pid = self()
-    # Send every action to the intent LLM, which asks back.
-    System.put_env("TIER1_HEURISTIC_THRESHOLD", "1.0")
+    # The heuristic asks back on every action while the threshold is above 1.
+    System.put_env("TIER1_CONFIDENCE_THRESHOLD", "1.1")
+    on_exit(fn -> System.delete_env("TIER1_CONFIDENCE_THRESHOLD") end)
 
     stub_llm(fn
       :persona, user ->
         send(test_pid, {:persona_prompt, user})
 
-        if user =~ "The Game Master asks:",
-          do: %{"action" => "", "option_id" => "inn"},
-          else: %{"action" => "I go over there.", "option_id" => nil}
-
-      :intent, _user ->
-        clarifying_intent()
+        if user =~ "The Game Master asks:" do
+          # The answer plays: the heuristic acts again.
+          System.delete_env("TIER1_CONFIDENCE_THRESHOLD")
+          %{"action" => "I ask the innkeeper about the road.", "option_id" => nil}
+        else
+          %{"action" => "I go over there.", "option_id" => nil}
+        end
 
       _kind, _user ->
         :default
@@ -166,9 +168,8 @@ defmodule TalesForge.Playtest.RunnerTest do
     assert_received {:persona_prompt, first}
     refute first =~ "The Game Master asks:"
     assert_received {:persona_prompt, question}
-    assert question =~ "The Game Master asks: Which way?"
-    assert question =~ ~s(option_id "inn": Ask the innkeeper)
-    assert [%Turn{player_action: "Ask the innkeeper"}] = turns(run.game_session_id)
+    assert question =~ "The Game Master asks: What do you want to do?"
+    assert [%Turn{}] = turns(run.game_session_id)
   end
 
   test "stops when the character is dead" do
@@ -352,28 +353,6 @@ defmodule TalesForge.Playtest.RunnerTest do
       payload: %{"text" => "SECRET-EVENT"}
     })
     |> Repo.insert!()
-  end
-
-  defp clarifying_intent do
-    %{
-      "overall_intent" => "go somewhere",
-      "actions" => [
-        %{
-          "action_type" => "speak",
-          "target" => "innkeep",
-          "parameters" => %{"skill" => "persuasion"}
-        },
-        %{"action_type" => "move", "target" => "market_square", "parameters" => %{}}
-      ],
-      "primary_index" => 0,
-      "confidence" => 0.4,
-      "needs_clarification" => true,
-      "clarification_question" => "Which way?",
-      "clarification_options" => [
-        %{"id" => "inn", "label" => "Ask the innkeeper", "action_index" => 0},
-        %{"id" => "square", "label" => "Walk to the square", "action_index" => 1}
-      ]
-    }
   end
 
   describe "a stale turn_completed (double turn 2)" do

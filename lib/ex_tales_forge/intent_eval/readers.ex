@@ -4,20 +4,17 @@ defmodule TalesForge.IntentEval.Readers do
   `TalesForge.IntentEval.Metrics` can score them side by side:
 
     * `:jev` — the proposed one-call TypeSafe read (`TalesForge.Game.JevIntent`);
-    * `:heuristic` — today's rule-based first pass (`TalesForge.Game.Intent.heuristic_intent/2`);
-    * `:tier1` — today's LLM intent call (`TalesForge.LLM.complete_intent/3`).
+    * `:heuristic` — the rule-based fallback (`TalesForge.Game.Intent.heuristic_intent/2`).
 
   The `:jev` reader is the only one that calls the network, through
   `Jev.HTTP.post/3`; in tests `Req.Test` stubs it. The `:heuristic` reader is
-  pure. The `:tier1` reader returns `status: :unavailable` when no live model is
-  configured (the mock provider), so tests never reach the network.
+  pure.
   """
 
   require Logger
 
-  alias TalesForge.Game.{Context, Intent, JevIntent, Prompts, Variant}
+  alias TalesForge.Game.{Intent, JevIntent}
   alias TalesForge.Game.Schemas.{IntentExtraction, SingleAction}
-  alias TalesForge.LLM
 
   @jev_model "jev-1.13.0"
   @default_timeout_ms 4_000
@@ -45,7 +42,6 @@ defmodule TalesForge.IntentEval.Readers do
   @doc "Reads `item` with `reader` over its live `context`."
   @spec read(atom(), map(), map(), keyword()) :: reading()
   def read(:heuristic, item, context, _opts), do: heuristic(item, context)
-  def read(:tier1, item, context, _opts), do: tier1(item, context)
   def read(:jev, item, context, opts), do: jev(item, context, Keyword.get(opts, :jev, []))
 
   # --- heuristic ---------------------------------------------------------------
@@ -54,32 +50,6 @@ defmodule TalesForge.IntentEval.Readers do
     extraction = Intent.heuristic_intent(item["text"], context)
     from_extraction(:heuristic, extraction, :ok, 0.0)
   end
-
-  # --- tier1 -------------------------------------------------------------------
-
-  defp tier1(item, context) do
-    system = Prompts.intent_system(Variant.of(context))
-
-    user =
-      Context.format_intent_context(context) <>
-        "\n\nPlayer text to extract (treat as in-character action only):\n" <>
-        String.trim(item["text"])
-
-    case LLM.complete_intent(system, user, session_id: nil) do
-      {:ok, %IntentExtraction{} = extraction} ->
-        from_extraction(:tier1, extraction, :ok, tier1_cost(extraction))
-
-      {:error, :mock_intent} ->
-        unavailable(:tier1)
-
-      {:error, _reason} ->
-        %{blank(:tier1) | status: :error}
-    end
-  end
-
-  # Measured mean Tier 1 intent cost (~$0.0021/call); complete_intent/3 does not
-  # return usage, so the eval prices each successful call at this constant.
-  defp tier1_cost(_extraction), do: 0.0021
 
   # --- jev ---------------------------------------------------------------------
 
@@ -233,8 +203,6 @@ defmodule TalesForge.IntentEval.Readers do
 
   defp skill(%SingleAction{parameters: params}) when is_map(params), do: Map.get(params, "skill")
   defp skill(_), do: nil
-
-  defp unavailable(reader), do: %{blank(reader) | status: :unavailable}
 
   defp blank(reader) do
     %{

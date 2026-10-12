@@ -2,10 +2,10 @@ defmodule TalesForge.Game.Intent do
   @moduledoc """
   The intent step: turns the player's text into a validated `PlayerAction`.
 
-  A heuristic reads the text first (action type, target place, person or
-  fixture, skill). When it is confident enough the heuristic result is used;
-  otherwise a live game asks the Tier 1 LLM (`intent_system.txt`). Either way
-  `validate_player_action/2` normalises the primary action.
+  The heuristic reads the text (action type, target place, person or fixture,
+  skill). `validate_player_action/2` normalises the primary action. With
+  `INTENT_JEV=on` (`TalesForge.IntentJev`), Jev reads the turn first and the
+  heuristic is the fallback.
 
   In the default variant a move's target is resolved to a real place
   (`TalesForge.Game.Movement`): an exit, a place further along the exits (the
@@ -23,7 +23,6 @@ defmodule TalesForge.Game.Intent do
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.Game.Variant
   alias TalesForge.Game.WorldClock
-  alias TalesForge.LLM
 
   # Baseline variant only: these action types had to carry a skill, so every
   # observe/speak/interact rolled. The default variant requires none; the
@@ -33,7 +32,7 @@ defmodule TalesForge.Game.Intent do
   @move_hints ~r/\b(go|head|walk|travel|move|enter|leave|step|run|proceed)\b/i
   # Default variant (scene-change fix, 2026-10-07): more ways to say "I go
   # there", the ways out of a place, and words that make a move a plan for
-  # later rather than this turn's action (those go to Tier 1 when live).
+  # later rather than this turn's action (those get a low confidence).
   @move_verbs ~r/\b(go|goes|going|head|heads|heading|walk|walks|walking|travel|move|moving|enter|enters|leave|leaves|leaving|step|steps|stepping|run|runs|proceed|return|returns|returning|set off|set out|make (?:my|our) way|lead the way|follow|climb|climbs|descend|hike|hurry|stride|strides|cross|seek|find|join|visit|approach|approaches|press on|push on|continue|slip out|duck out)\b/iu
   @way_out ~r/\b(?:leave|leaves|leaving|exit|exits|quit) (?:the )?(?:inn|tavern|common room|place|building|bar)\b|\b(?:take my leave|step(?:s|ping)? out(?:side)?|head(?:s|ing)? out(?:side)?|go(?:es|ing)? out(?:side)?|walk(?:s|ing)? out(?:side)?|slip(?:s|ping)? out|duck(?:s|ing)? out|out of the inn|push(?:es|ing)? (?:open )?the (?:inn )?door)\b/iu
   # "for the door", "outside": the way out only right after a verb of motion.
@@ -92,41 +91,11 @@ defmodule TalesForge.Game.Intent do
   def needs_clarification?(%IntentExtraction{} = extraction), do: should_clarify?(extraction)
 
   @doc """
-  The raw intent extraction and where it came from: the heuristic (mock
-  provider, or a confident heuristic) or Tier 1 (`:llm`). Falls back to the
-  heuristic when Tier 1 fails.
+  The raw intent extraction and where it came from (always `:heuristic`).
   """
-  @spec resolve_bundle(String.t(), map()) :: {IntentExtraction.t(), :heuristic | :llm}
-  def resolve_bundle(raw_action, context) when is_binary(raw_action) do
-    case LLM.provider() do
-      "mock" ->
-        {heuristic_intent(raw_action, context), :heuristic}
-
-      _ ->
-        resolve_bundle_live(raw_action, context)
-    end
-  end
-
-  defp resolve_bundle_live(raw_action, context) do
-    heuristic = heuristic_intent(raw_action, context)
-
-    if heuristic_sufficient?(heuristic, context) do
-      {heuristic, :heuristic}
-    else
-      tier1_or_heuristic(raw_action, context, heuristic)
-    end
-  end
-
-  defp tier1_or_heuristic(raw_action, context, heuristic) do
-    case call_tier1(raw_action, context) do
-      {:ok, extraction} ->
-        {extraction, :llm}
-
-      {:error, reason} ->
-        Logger.warning("tier1 intent failed reason=#{inspect(reason)}; using heuristic")
-        {heuristic, :heuristic}
-    end
-  end
+  @spec resolve_bundle(String.t(), map()) :: {IntentExtraction.t(), :heuristic}
+  def resolve_bundle(raw_action, context) when is_binary(raw_action),
+    do: {heuristic_intent(raw_action, context), :heuristic}
 
   @doc """
   Builds the `PlayerAction` from an extraction: normalises the primary action
@@ -194,7 +163,7 @@ defmodule TalesForge.Game.Intent do
 
   def resolve_move_target(_target, _context), do: :error
 
-  # Default variant: a Tier 1 move target in any form becomes a location id;
+  # Default variant: a move target in any form becomes a location id;
   # a target that is no reachable place stops being a move (the character
   # stays, and the GM is told so by the scene block).
   defp normalize_move(%SingleAction{action_type: :move} = action, context) do
@@ -208,7 +177,7 @@ defmodule TalesForge.Game.Intent do
     end
   end
 
-  # Speaking to a person who is not here but is reachable (a Tier 1 speak with
+  # Speaking to a person who is not here but is reachable (a speak with
   # an absent npc_id): the character goes to them.
   defp normalize_move(%SingleAction{action_type: type, target: target} = action, context)
        when type in [:speak, :other, :freeform] and is_binary(target) do
@@ -250,76 +219,11 @@ defmodule TalesForge.Game.Intent do
     }
   end
 
-  defp call_tier1(raw_action, context) do
-    system = TalesForge.Game.Prompts.intent_system(Variant.of(context))
-
-    user =
-      TalesForge.Game.Context.format_intent_context(context) <>
-        "\n\nPlayer text to extract (treat as in-character action only):\n" <>
-        String.trim(raw_action)
-
-    case LLM.complete_intent(system, user, session_id: context["session_id"]) do
-      {:ok, extraction} ->
-        {:ok, ensure_skill(extraction, raw_action, context)}
-
-      error ->
-        error
-    end
-  end
-
-  defp heuristic_sufficient?(%IntentExtraction{} = extraction, context) do
-    primary = primary_action(extraction)
-
-    extraction.confidence >= Config.tier1_heuristic_threshold() and
-      length(extraction.actions) == 1 and
-      not extraction.needs_clarification and
-      not ambiguous_move?(primary, context) and
-      not skill_missing?(primary, context)
-  end
-
-  defp ambiguous_move?(%SingleAction{action_type: :move, target: target}, context) do
-    cond do
-      is_nil(target) or target == "" -> true
-      Variant.baseline?(context) -> target not in context["exits"]
-      true -> resolve_move_target(target, context) == :error
-    end
-  end
-
-  defp ambiguous_move?(_, _), do: false
-
-  # Default variant: Tier 1 decides whether the action needs a check; a missing
-  # skill means no roll, so nothing is filled in.
-  defp ensure_skill(%IntentExtraction{} = extraction, raw_action, context) do
-    if Variant.baseline?(context),
-      do: ensure_baseline_skill(extraction, raw_action, context),
-      else: extraction
-  end
-
-  defp ensure_baseline_skill(extraction, raw_action, context) do
-    primary = primary_action(extraction)
-
-    if skill_missing?(primary, context) do
-      skill = Mechanics.infer_skill_from_action(raw_action)
-
-      patched = %SingleAction{
-        primary
-        | parameters: Map.put(primary.parameters || %{}, "skill", skill)
-      }
-
-      %{
-        extraction
-        | actions: List.replace_at(extraction.actions, extraction.primary_index, patched)
-      }
-    else
-      extraction
-    end
-  end
-
   @doc """
-  The heuristic reading of the player's text. Its confidence decides whether
-  a live game also asks Tier 1; in the default variant a move phrased as a
-  plan for later ("at first light", "after this drink") stays under the
-  threshold so Tier 1 decides.
+  The heuristic reading of the player's text. A low confidence makes
+  `extract_intent/2` ask the player. In the default variant a move phrased as
+  a plan for later ("at first light", "after this drink") gets a low
+  confidence.
   """
   @spec heuristic_intent(String.t(), map()) :: IntentExtraction.t()
   def heuristic_intent(raw_action, context) do
@@ -361,7 +265,7 @@ defmodule TalesForge.Game.Intent do
   end
 
   # A move phrased as a plan ("I'll head to the square once I've eaten",
-  # "perhaps I shall seek him out", a question) is left to Tier 1 when live:
+  # "perhaps I shall seek him out", a question) gets a low confidence:
   # 0.8 is under the heuristic threshold (0.85) but over the clarification
   # cutoff (0.75), so the mock provider still plays the move.
   defp heuristic_confidence(raw_action, :move, context) do
@@ -474,7 +378,7 @@ defmodule TalesForge.Game.Intent do
   # Narration outside quotes is what the character does; quoted speech is
   # talk ("Brenna says you've been up the ridge"). Text with narration is read
   # without its quotes first; a move only in the quotes ("I'll head up the
-  # ridge", she says) still counts but goes to Tier 1 (heuristic_confidence/3).
+  # ridge", she says) still counts with a low confidence (heuristic_confidence/3).
   defp verb_destination(raw_action, lowered, context) do
     narration = String.replace(raw_action, @quoted, " … ")
 

@@ -1,6 +1,6 @@
 defmodule TalesForge.GameSessions do
   @moduledoc """
-  Coordinates database sessions, Tier 1 intent, and Tier 2 Oban jobs.
+  Coordinates database sessions, the intent step, and Tier 2 Oban jobs.
 
   A core game runtime module: Ecto schemas (TalesForge.Schemas.*) and Repo only.
   """
@@ -385,7 +385,7 @@ defmodule TalesForge.GameSessions do
   end
 
   # INTENT_JEV=on: the Jev read drives the turn (TalesForge.IntentJev). The
-  # heuristic reads only when Jev fails or times out; no Tier 1 call.
+  # heuristic reads only when Jev fails or times out.
   defp resolve_and_enqueue_jev(%GameSession{} = session, raw_action, opts) do
     turn_number = TurnProcessor.next_turn_number(session.id)
     context = session |> Context.build_intent_context() |> Map.put("turn_number", turn_number)
@@ -434,7 +434,7 @@ defmodule TalesForge.GameSessions do
     end
   end
 
-  # Intent extraction + validation (heuristic, the tier-1 LLM call or the Jev
+  # Intent extraction + validation (the heuristic or the Jev
   # call, which have their own rows): the Elixir step before the turn job, on
   # the player's clock. `meta` is the Jev decision in INTENT_JEV=on.
   defp record_intent_step(session, started_at, elapsed_ms, meta \\ nil) do

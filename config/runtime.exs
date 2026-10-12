@@ -190,7 +190,7 @@ if config_env() != :test do
 end
 
 # Player intent as one Jev call (TalesForge.IntentJev). Config, not secrets.
-# INTENT_JEV: off (default) | shadow | on, fixed per new default-variant session.
+# INTENT_JEV: on (default) | shadow | off, fixed per new default-variant session.
 # The key is TYPESAFE_INTENT_API_KEY (a secret; each Fly app has its own), on the
 # named Jev endpoint :intent, which inherits neither the TypeSafe key nor the
 # price, so both are set here. Not read in test (config/test.exs).
@@ -209,10 +209,10 @@ if config_env() != :test do
   end
 
   intent_jev =
-    case System.get_env("INTENT_JEV", "off") |> String.trim() |> String.downcase() do
-      mode when mode in ["", "off"] -> :off
+    case System.get_env("INTENT_JEV", "on") |> String.trim() |> String.downcase() do
+      "off" -> :off
       "shadow" -> :shadow
-      "on" -> :on
+      mode when mode in ["", "on"] -> :on
       other -> raise "INTENT_JEV must be off, shadow or on, got: #{inspect(other)}"
     end
 

@@ -8,7 +8,7 @@ defmodule TalesForge.IntentJev do
   "new sessions" flags; the baseline variant is always `off`
   (`mode_for_new_session/2`, `mode/1`):
 
-    * `:off` — today's intent path (heuristic, Tier 1 LLM when unsure). Nothing
+    * `:off` — the heuristic reads the turn. Nothing
       here runs.
     * `:shadow` — today's path plays, unchanged. After it has decided, the Jev
       read runs in a background task and is only logged (`shadow/4`): the

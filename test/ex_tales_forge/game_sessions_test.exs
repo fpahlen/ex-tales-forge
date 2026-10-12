@@ -40,18 +40,13 @@ defmodule TalesForge.GameSessionsTest do
       on_exit(fn ->
         System.put_env("LLM_PROVIDER", "mock")
         System.delete_env("XAI_API_KEY")
-        System.delete_env("TIER1_HEURISTIC_THRESHOLD")
       end)
 
       {:ok, session} =
         GameSessions.create_session(%{name: "Which way", adventure_id: "tin_valley"})
 
-      # Every action goes to the intent LLM, which asks back.
-      System.put_env("TIER1_HEURISTIC_THRESHOLD", "1.0")
-      stub_llm(fn kind, _user -> if kind == :intent, do: clarifying_intent(), else: :default end)
-
-      assert {:ok, %{status: :clarification, clarification: question}} =
-               GameSessions.submit_message(session.id, "I go over there.")
+      # The intent step asked back on "I go over there."
+      question = put_pending_clarification(session.id, clarifying_intent(), "I go over there.")
 
       {:ok, session: session, question: question}
     end

@@ -11,22 +11,7 @@ defmodule TalesForge.LLM do
   alias TalesForge.Game.Schemas.{
     GMStructuredResponse,
     HandlerResult,
-    IntentExtraction,
     PlayerAction
-  }
-
-  @intent_schema %{
-    "type" => "object",
-    "required" => ["overall_intent", "actions"],
-    "properties" => %{
-      "overall_intent" => %{"type" => "string"},
-      "actions" => %{"type" => "array", "minItems" => 1},
-      "primary_index" => %{"type" => "integer"},
-      "confidence" => %{"type" => "number"},
-      "needs_clarification" => %{"type" => "boolean"},
-      "clarification_question" => %{"type" => ["string", "null"]},
-      "clarification_options" => %{"type" => "array"}
-    }
   }
 
   @persona_schema %{
@@ -137,34 +122,6 @@ defmodule TalesForge.LLM do
   @spec llm_source(String.t()) :: String.t()
   def llm_source("mock"), do: "mock"
   def llm_source(_), do: "api"
-
-  @doc """
-  Player intent extraction (tier 1): the player's free text as an
-  `IntentExtraction`. Returns `{:error, :mock_intent}` with the mock model, so
-  callers fall back to the heuristic.
-  """
-  @spec complete_intent(String.t(), String.t(), call_opts()) :: result(IntentExtraction.t())
-  def complete_intent(system, user, opts \\ []) do
-    model = tier1_model()
-
-    if mock?(model) do
-      {:error, :mock_intent}
-    else
-      complete_json(
-        model,
-        simple_messages(system, user),
-        @intent_schema,
-        Config.tier1_temperature(),
-        tier: :tier1,
-        max_tokens: Config.tier1_max_tokens(),
-        session_id: opts[:session_id]
-      )
-      |> case do
-        {:ok, map} -> {:ok, IntentExtraction.decode(map)}
-        error -> error
-      end
-    end
-  end
 
   @doc "Opening/arrival scene. `messages` come from `Prompts.scene_messages/1`."
   @spec complete_scene([map()], map(), call_opts()) ::
