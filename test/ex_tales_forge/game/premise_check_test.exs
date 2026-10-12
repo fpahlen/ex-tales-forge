@@ -221,7 +221,7 @@ defmodule TalesForge.Game.PremiseCheckTest do
         |> Enum.filter(fn item -> PremiseCheck.check(item["text"], fixture_state(item)) != [] end)
         |> Enum.map(& &1["id"])
 
-      assert flagged == ~w(h-fa01 h-fp01 h-fp02 h-fp04 h-fp06 h-fp07 h-fp08 h-fp09 h-fp10 h-fp11)
+      assert flagged == ~w(h-fa01 h-fp01 h-fp02 h-fp04 h-fp06 h-fp07 h-fp08 h-fp09 h-fp10 h-fp11 h-fp12 h-fp13 h-fp14)
     end
   end
 
