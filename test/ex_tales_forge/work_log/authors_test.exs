@@ -82,12 +82,16 @@ defmodule TalesForge.WorkLog.AuthorsTest do
 
     test "the turn row stores the founder", %{session: session, action: action} do
       assert {:ok, _} = TurnProcessor.run(session.id, "look around", action, founder: @founder)
-      assert [%Turn{founder: @founder}] = Repo.all(Turn)
+      assert [%Turn{founder: @founder, id: id}] = Repo.all(Turn)
+
+      assert [%TalesForge.WorkLog.Event{kind: "turn", ref: ^id}] =
+               Repo.all(TalesForge.WorkLog.Event)
     end
 
     test "a turn without a founder stores nil", %{session: session, action: action} do
       assert {:ok, _} = TurnProcessor.run(session.id, "look around", action)
       assert [%Turn{founder: nil}] = Repo.all(Turn)
+      assert Repo.all(TalesForge.WorkLog.Event) == []
     end
   end
 end

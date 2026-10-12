@@ -19,6 +19,7 @@ defmodule TalesForge.Application do
       {Phoenix.PubSub, name: TalesForge.PubSub},
       TalesForgeWeb.Presence,
       TalesForge.Online.Peer,
+      TalesForge.WorkLog.Peer,
       {Task.Supervisor, name: TalesForge.Playtest.Supervisor},
       {Task.Supervisor, name: TalesForge.Playtest.SeriesSupervisor},
       {Task.Supervisor, name: TalesForge.IntentJev.Supervisor},

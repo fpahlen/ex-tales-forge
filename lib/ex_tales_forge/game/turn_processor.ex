@@ -71,6 +71,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
+  alias TalesForge.WorkLog
   alias TalesForge.World, as: WorldAgents
   alias TalesForge.World.{Extract, Prices}
 
@@ -971,6 +972,7 @@ defmodule TalesForge.Game.TurnProcessor do
           GameSession.changeset(session, attrs)
         )
         |> Ecto.Multi.insert(:turn, turn_cs)
+        |> WorkLog.add("turn", :turn, & &1.founder)
         |> GMReasoning.multi_insert(session.id, Map.get(world_state, "world_tick"), gm_result),
         fn {ev, idx}, acc ->
           cs =

@@ -21,6 +21,7 @@ defmodule TalesForge.Board do
   require Logger
 
   alias Ecto.Multi
+  alias TalesForge.WorkLog
 
   alias TalesForge.Board.{
     Answer,
@@ -344,6 +345,7 @@ defmodule TalesForge.Board do
 
     Multi.new()
     |> Multi.insert(:comment, changeset)
+    |> WorkLog.add("comment", :comment, & &1.author)
     |> Multi.run(:pings, fn repo, %{comment: comment} ->
       now = DateTime.utc_now()
 
@@ -556,6 +558,7 @@ defmodule TalesForge.Board do
           fields: Enum.sort(changed)
         })
       )
+      |> WorkLog.add("card_edit", :edit, & &1.author)
       |> Repo.transaction()
       |> case do
         {:ok, %{idea: idea}} -> after_update({:ok, idea})
@@ -819,6 +822,7 @@ defmodule TalesForge.Board do
           note: note
         })
       )
+      |> WorkLog.add("move", :transition, & &1.actor)
       |> add_move_events(idea, to, actor)
       |> clean_up_images(idea, to)
       |> run(idea.id)
