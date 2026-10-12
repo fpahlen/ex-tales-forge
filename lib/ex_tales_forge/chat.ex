@@ -8,7 +8,8 @@ defmodule TalesForge.Chat do
     (`subscribe/0`). History stays (how long we keep it is a deferred
     question on the card).
   - Mentions use the board's one parser, `TalesForge.Board.Mentions`:
-    `@fredrik`, `@founders` and `@case`, `@bobby`, `@gentry`.
+    `@fredrik`, `@founders` and `@case`, `@bobby`, `@gentry`, `@devops`
+    (all three bots).
   - A founder mention gives that founder an unread badge on the chat button
     (`unread/1`, by GitHub login) until they open the chat (`mark_read/1`). No email or push
     (Fredrik's answer on the card).
@@ -98,7 +99,7 @@ defmodule TalesForge.Chat do
   defp insert(author, body, images, opts) do
     %{bots: bots, founders: mentioned} = Mentions.parse(body)
     founders = mentioned -- [Mentions.handle_for(opts[:login])]
-    wakes = if founder?(author), do: bots, else: []
+    wakes = if founder?(author), do: Mentions.wakes(body), else: []
 
     changeset =
       Message.changeset(

@@ -1835,7 +1835,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           >
             <input type="hidden" name="card_id" value={@idea.id} />
             <label class="grid gap-1" for={"card-#{@idea.id}-comment-body"}>
-              Comment. Write @ and a name to ping a founder, or @founders to ping all founders. @case, @bobby or @gentry wakes that bot.
+              Comment. Write @ and a name to ping a founder, or @founders to ping all founders. @case, @bobby or @gentry wakes that bot. @devops wakes all three bots.
             </label>
             <div class="relative">
               <textarea

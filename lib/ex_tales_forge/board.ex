@@ -286,7 +286,8 @@ defmodule TalesForge.Board do
 
   @doc """
   Adds a comment by `author` (a founder email or `bot:<name>`). `@case`,
-  `@bobby`, `@gentry` wake that bot. `@fredrik`, `@hakan`, ... and
+  `@bobby`, `@gentry` wake that bot. `@devops` wakes each of the three bots
+  that has a webhook, once (see `TalesForge.Board.Mentions.wakes/2`). `@fredrik`, `@hakan`, ... and
   `@founders` add an unread ping for each founder named, except the author
   (see `TalesForge.Board.Mentions`). `opts[:login]` is the author's GitHub
   login, so the author gets no ping for their own name.
@@ -295,8 +296,9 @@ defmodule TalesForge.Board do
   def add_comment(%Idea{} = idea, author, body, opts \\ []) do
     author = normalize(author)
     changeset = Comment.changeset(%Comment{}, %{idea_id: idea.id, author: author, body: body})
-    %{bots: bots, founders: mentioned} = Mentions.parse(body)
+    %{founders: mentioned} = Mentions.parse(body)
     founders = mentioned -- [Mentions.handle_for(opts[:login])]
+    bots = Mentions.wakes(body)
 
     Multi.new()
     |> Multi.insert(:comment, changeset)
