@@ -135,25 +135,6 @@ defmodule TalesForge.Game.Gestures do
     found
   end
 
-  @doc """
-  The per-turn prompt section listing spent gestures, or nil when there are
-  none (so the prompt is unchanged).
-
-      iex> TalesForge.Game.Gestures.prompt_section([])
-      nil
-  """
-  @spec prompt_section([t()] | nil) :: String.t() | nil
-  def prompt_section(nil), do: nil
-  def prompt_section([]), do: nil
-
-  def prompt_section(gestures) when is_list(gestures) do
-    lines = Enum.map_join(gestures, "\n", &"- #{&1.phrase}")
-
-    "## Gestures already used (recent turns)\n" <>
-      lines <>
-      "\nThese are spent: do not use them again, nor the same motion with the same body part or prop."
-  end
-
   # --- patterns -------------------------------------------------------------
 
   @possessive ~S"(?:her|his|their|its|one|an|a|the|both|a\s+fresh)"

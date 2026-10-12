@@ -89,14 +89,19 @@ defmodule TalesForge.Game.PremisePromptTest do
     assert events == []
   end
 
-  test "Context.premise_section/1 is nil for the baseline variant even with findings" do
+  test "the profile leaves the premise section out for the baseline variant" do
     findings = PremiseCheck.check("I killed the orc chief", %{fronts: [%{id: "orc_nest"}]})
     assert findings != []
 
     baseline = %{world_state: %{"variant" => "baseline"}, premise_findings: findings}
     default = %{world_state: %{"variant" => "default"}, premise_findings: findings}
 
-    assert Context.premise_section(baseline) == nil
-    assert Context.premise_section(default) =~ @heading
+    ids = fn data ->
+      data |> TalesForge.Prompt.Ctx.from_gm_context(:scene) |> TalesForge.Prompt.Profile.ids()
+    end
+
+    refute :premise in ids.(baseline)
+    assert :premise in ids.(default)
+    assert TalesForge.Prompt.Sections.Premise.text(findings) =~ @heading
   end
 end

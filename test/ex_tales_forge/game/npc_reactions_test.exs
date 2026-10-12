@@ -205,7 +205,9 @@ defmodule TalesForge.Game.NpcReactionsTest do
     plain = Prompts.gm_messages(context, mech, action, handler, 2)
 
     with_reaction =
-      Prompts.gm_messages(Map.put(context, :npc_reactions, [reaction]), mech, action, handler, 2)
+      Prompts.gm_messages(Map.put(context, :npc_reactions, [reaction]), mech, action, handler, 2,
+        flags: %{npc_reactions: true}
+      )
 
     assert Enum.take(with_reaction, 4) == Enum.take(plain, 4)
     per_turn = List.last(with_reaction).content
@@ -215,7 +217,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
     refute List.last(plain).content =~ "NPC reactions"
     assert Prompts.gm_system() =~ "NPC reactions (this moment)"
-    assert NpcReactions.prompt_section([]) == nil
+    assert TalesForge.Prompt.Sections.NpcReactions.text([]) == nil
   end
 
   test "a turn with the flag on calls Jev before the GM and persists the mood", %{

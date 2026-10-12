@@ -283,7 +283,8 @@ defmodule TalesForge.Game.SceneChangeTest do
       context = Context.build_gm_context(session)
 
       refute move_target(@paul_t6, context.intent_context)
-      assert Context.scene_now_section(context) == nil
+      ctx = TalesForge.Prompt.Ctx.from_gm_context(context, :gm)
+      refute :scene_now in TalesForge.Prompt.Profile.ids(ctx)
     end
   end
 
