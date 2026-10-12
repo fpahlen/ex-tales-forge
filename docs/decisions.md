@@ -11,6 +11,52 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Expand goals to add/subtract tasks
+
+- **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. clicking on a goal should expand it so we can add and subtract tasks that needs to be done to achieve the goal
+- **Why:** **Problem.** A founder sees the progress on a goal, but cannot see or change its cards from the goals strip. Today a founder opens each card and picks a goal from the Goal list.
+
+**Goal.** A founder clicks a goal and the goal opens. The open goal shows its cards. The founder can add a card to the goal and can remove a card from the goal.
+
+**What we have today.**
+- `TalesForge.Board.Goals` stores goals. It counts Done cards over all cards for each goal. Archived cards are not counted.
+- A card has zero or one goal (`board_ideas.goal_id`).
+- `Goals.set_card_goal/3` sets or clears the goal. Only a founder can do this.
+- The Goal list on an open card already calls that function.
+- The goals strip (`TeamGoals`) shows votes, the progress bar and the countdown. It does not open.
+
+**Assumption.** A task under a goal is an idea-board card that has that goal. Progress already uses those cards. We do not add a second task list.
+
+**Proposed approach.**
+1. Make each goal row a control that opens and closes.
+2. Show the cards for that goal in the open panel. Show the title, the column and Done or not Done.
+3. Add a card: let the founder pick an unassigned card. Call `Goals.set_card_goal/3`.
+4. Remove a card: clear the goal on that card with the same function.
+5. Keep one place for the goal link: `board_ideas.goal_id`. Do not add a second task table.
+6. Keep the Goal list on the open card. Both UIs call the same function.
+7. Update the progress bar from the existing `Goals.strip/1` counts after each change.
+
+**Acceptance criteria.**
+- A founder clicks a goal and sees its cards.
+- A founder adds an unassigned card to the goal from the open panel.
+- A founder removes a card from the goal from the open panel.
+- The progress counts update after add and remove.
+- The layout works at 390 px phone width.
+- Bots and the QA session still cannot change a card's goal.
+
+**Size: S.**
+
+**Risks.**
+- A long card list on a small screen. Mitigation: show a short list with a Show all control, or a sheet on phone.
+- Two UIs for the same change. Mitigation: both call `Goals.set_card_goal/3`.
+
+**Deploy lane: admin / team tools.** Ship to playtest first. Then a founder approves production.
+
+**Confidence.** High confidence. The data model already supports this. The work is mostly UI. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-79643925-9725-4824-bbe1-42b2efb20965)
+
+<!-- board:idea:79643925-9725-4824-bbe1-42b2efb20965 -->
+
 ## 2026-10-12: Work time auto log
 
 - **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it.
