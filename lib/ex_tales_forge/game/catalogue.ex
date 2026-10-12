@@ -104,6 +104,28 @@ defmodule TalesForge.Game.Catalogue do
   def refuses_gift?(_npc), do: false
 
   @doc """
+  True when an NPC refuses to trade with the character (decision 2026-10-12,
+  item 1). **PROVISIONAL:** a relationship of -3 or lower, or an
+  agreeableness of 2 or lower with a relationship below 0.
+
+      iex> TalesForge.Game.Catalogue.refuses_trade?(%{"relationship_score" => -3.0})
+      true
+      iex> TalesForge.Game.Catalogue.refuses_trade?(%{"personality_traits" => %{"agreeableness" => 2}, "relationship_score" => -0.5})
+      true
+      iex> TalesForge.Game.Catalogue.refuses_trade?(%{"personality_traits" => %{"agreeableness" => 2}, "relationship_score" => 0.0})
+      false
+  """
+  @spec refuses_trade?(map() | nil) :: boolean()
+  def refuses_trade?(%{} = npc) do
+    agreeableness = get_in(npc, ["personality_traits", "agreeableness"])
+    relationship = npc["relationship_score"] || 0
+
+    relationship <= -3 or (is_number(agreeableness) and agreeableness <= 2 and relationship < 0)
+  end
+
+  def refuses_trade?(_npc), do: false
+
+  @doc """
   Applies a catalogue v2 handler to `world`. `text` is the player's words,
   `npc` the target NPC's profile (for `give`). Returns `{world, result}`;
   `result` is `{:ok, details}`, `{:error, reason}` (the action is rejected

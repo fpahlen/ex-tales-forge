@@ -34,6 +34,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Config
   alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
+  alias TalesForge.Game.Bargain
   alias TalesForge.Game.Catalogue
   alias TalesForge.Game.Events
   alias TalesForge.Game.Inventory
@@ -197,7 +198,7 @@ defmodule TalesForge.Game.TurnProcessor do
     {world_traded, traded} =
       world_before
       |> put_in(["character"], character)
-      |> maybe_apply_inventory(session.id, player_action.action, handler)
+      |> trade(session, player_action, handler, opts)
       |> apply_catalogue(session, handler, player_action)
 
     inventory_result = premise_result(handler, traded)
@@ -504,6 +505,100 @@ defmodule TalesForge.Game.TurnProcessor do
         {world_state, {:error, reason}}
     end
   end
+
+  # Catalogue v2 (JEV_CATALOGUE_V2): an NPC can refuse a trade, and the words
+  # can ask for a haggle (TalesForge.Game.Bargain) before the inventory step.
+  defp trade(world, session, player_action, handler, opts) do
+    action = player_action.action
+
+    if opts[:catalogue_v2] && handler.handler == "inventory" &&
+         action.action_type in [:buy, :sell] do
+      text = player_action.overall_intent || ""
+      trader = trader_id(world, session.id, action)
+      profile = trader && session.id |> NPC.notice_profiles([trader]) |> List.first()
+
+      if Catalogue.refuses_trade?(profile) do
+        reason = "#{profile["name"] || trader} refuses to trade with you."
+        Logger.info("trade refused session=#{session.id} npc=#{trader}")
+        {world, {:error, reason}}
+      else
+        {world, action} = maybe_haggle(world, session.id, action, trader, text, opts)
+        maybe_apply_inventory(world, session.id, action, handler)
+      end
+    else
+      maybe_apply_inventory(world, session.id, action, handler)
+    end
+  end
+
+  defp trader_id(world, session_id, action) do
+    present = List.wrap(world["present_npcs"])
+    item_id = (action.parameters || %{})["item_id"]
+
+    cond do
+      action.target in present ->
+        action.target
+
+      action.action_type == :buy and is_binary(item_id) ->
+        session_id
+        |> NPC.stock_map(present)
+        |> Enum.find_value(&seller(&1, item_id))
+
+      true ->
+        nil
+    end
+  end
+
+  defp seller({npc_id, stock}, item_id) do
+    if Enum.any?(Inventory.normalize_stock(stock), &(&1["id"] == item_id)), do: npc_id
+  end
+
+  defp maybe_haggle(world, session_id, action, trader, text, opts) do
+    price = trade_price(world, session_id, action, trader)
+
+    if Bargain.haggle?(text) and is_integer(price) and price > 0 do
+      {character, result} =
+        Bargain.haggle(world["character"], action.action_type, price,
+          appraise: Bargain.appraise?(text),
+          rolls: opts[:haggle_rolls] || %{},
+          variant: Variant.of(world)
+        )
+
+      Logger.info("haggle session=#{session_id} result=#{inspect(result)}")
+      params = Map.put(action.parameters || %{}, "price_copper", result["price_copper"])
+
+      {Map.put(world, "character", character), %{action | parameters: params}}
+    else
+      {world, action}
+    end
+  end
+
+  defp trade_price(_world, session_id, %{action_type: :buy} = action, trader)
+       when is_binary(trader) do
+    item_id = (action.parameters || %{})["item_id"]
+
+    session_id
+    |> NPC.stock_map([trader])
+    |> Map.get(trader, [])
+    |> Inventory.normalize_stock()
+    |> Enum.find_value(&if(&1["id"] == item_id, do: &1["price_copper"]))
+  end
+
+  defp trade_price(world, _session_id, %{action_type: :sell} = action, _trader) do
+    params = action.parameters || %{}
+
+    case params["price_copper"] do
+      price when is_integer(price) and price > 0 ->
+        price
+
+      _ ->
+        world
+        |> get_in(["character", "inventory"])
+        |> List.wrap()
+        |> Enum.find_value(&if(&1["id"] == params["item_id"], do: &1["copper_value"]))
+    end
+  end
+
+  defp trade_price(_world, _session_id, _action, _trader), do: nil
 
   # Catalogue v2 (JEV_CATALOGUE_V2): work, equip and give
   # (TalesForge.Game.Catalogue). Other handlers pass through.
