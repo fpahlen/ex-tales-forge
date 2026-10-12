@@ -10,7 +10,6 @@ defmodule TalesForge.Game.PremisePromptTest do
   import Ecto.Query
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
 
-  alias TalesForge.Game.Context
   alias TalesForge.Game.PremiseCheck
   alias TalesForge.GameSessions
   alias TalesForge.Jido
