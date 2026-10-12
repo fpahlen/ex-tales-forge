@@ -116,6 +116,72 @@ defmodule TalesForgeWeb.PlayLiveTest do
     refute has_element?(view, "#gm-streaming")
   end
 
+  test "the player's action shows as soon as it is sent, above the GM text",
+       %{conn: conn} do
+    {:ok, session} =
+      GameSessions.create_session(%{name: "Asking Tin Valley", adventure_id: "tin_valley"})
+
+    {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+
+    # The reply to the submit is the page before any turn message: the action
+    # shows in the story, and the input stays disabled while the turn runs.
+    html =
+      view
+      |> form("#action-form", %{message: "I ask Mags about the missing cart."})
+      |> render_submit()
+
+    pending = html |> LazyHTML.from_fragment() |> LazyHTML.query("#entries-pending-player")
+    assert LazyHTML.text(pending) =~ "You"
+    assert LazyHTML.text(pending) =~ "I ask Mags about the missing cart."
+    assert html =~ ~r/<input[^>]*name="message"[^>]*disabled/
+
+    # The turn completes (the mock GM runs inline): the turn's own player entry
+    # replaces the pending one, so the action shows one time.
+    done_html = render(view)
+    refute has_element?(view, "#entries-pending-player")
+    assert has_element?(view, "[id$='-player']", "I ask Mags about the missing cart.")
+    assert length(String.split(done_html, ">I ask Mags about the missing cart.<")) == 2
+  end
+
+  test "the streamed GM text comes after the player's action, with its heading",
+       %{conn: conn} do
+    {:ok, session} =
+      GameSessions.create_session(%{name: "Order Tin Valley", adventure_id: "tin_valley"})
+
+    {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+
+    send(
+      view.pid,
+      {:npc_initiative, %{npc_id: "mags", npc_name: "Mags", world_tick: 1, text: "Mags waits."}}
+    )
+
+    send(view.pid, {:turn_processing, %{}})
+    send(view.pid, {:turn_stream, {:text, "Mags turns."}})
+    html = render(view)
+
+    assert has_element?(view, "#gm-streaming", "Game Master")
+    {log_at, _} = :binary.match(html, "Mags waits.")
+    {gm_at, _} = :binary.match(html, "Mags turns.")
+    assert log_at < gm_at
+  end
+
+  test "the action form is disabled until the page connects", %{conn: conn} do
+    {:ok, session} =
+      GameSessions.create_session(%{name: "Loading Tin Valley", adventure_id: "tin_valley"})
+
+    # The first HTML comes before the socket joins. A submit at that time goes
+    # nowhere, so the input and Act are disabled until the join.
+    html = conn |> get(~p"/play/#{session.id}") |> html_response(200)
+    assert html =~ ~r/<input[^>]*name="message"[^>]*disabled/
+
+    assert html =~
+             ~r/<button[^>]*id="act-button"[^>]*disabled|<button[^>]*disabled[^>]*id="act-button"/
+
+    {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+    refute has_element?(view, "input[name=message][disabled]")
+    refute has_element?(view, "#act-button[disabled]")
+  end
+
   test "a spend cap shows a calm message, not a failure", %{conn: conn} do
     {:ok, session} =
       GameSessions.create_session(%{name: "Capped Tin Valley", adventure_id: "tin_valley"})
