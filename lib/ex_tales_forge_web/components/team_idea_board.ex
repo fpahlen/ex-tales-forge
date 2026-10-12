@@ -227,36 +227,47 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     end
   end
 
+  # Every event passes the QA guard first: the QA session (TalesForge.QaLogin)
+  # is read-only, so the server refuses each event that changes something
+  # (TalesForgeWeb.QaGuard), also events added later.
   @impl true
-  def handle_event("toggle_sort", _params, socket) do
+  def handle_event(event, params, socket) do
+    if TalesForgeWeb.QaGuard.refuse?(event, socket),
+      do: {:noreply, TalesForgeWeb.QaGuard.refused(socket)},
+      else: event(event, params, socket)
+  end
+
+  defp event("toggle_sort", _params, socket) do
     sort = if sort_key(socket.assigns[:ideas_sort]) == "newest", do: "oldest", else: "newest"
     {:noreply, push_patch(socket, to: ideas_path(sort, socket.assigns[:ideas_tags] || []))}
   end
 
-  def handle_event("toggle_tag", %{"tag" => tag}, socket) do
+  defp event("toggle_tag", %{"tag" => tag}, socket) do
     tags = Tags.toggle(socket.assigns[:ideas_tags] || [], tag)
     {:noreply, push_patch(socket, to: ideas_path(socket.assigns[:ideas_sort], tags))}
   end
 
-  def handle_event("clear_tags", _params, socket),
+  defp event("clear_tags", _params, socket),
     do: {:noreply, push_patch(socket, to: ideas_path(socket.assigns[:ideas_sort], []))}
 
-  def handle_event("add_tag", %{"card_id" => id, "tag" => text}, socket),
+  defp event("add_tag", %{"card_id" => id, "tag" => text}, socket),
     do:
       socket
       |> with_idea(id, &Board.add_tag(&1, socket.assigns.founder, text))
       |> confirm(id, ["tag"])
 
-  def handle_event("remove_tag", %{"card_id" => id, "tag" => tag}, socket),
+  defp event("remove_tag", %{"card_id" => id, "tag" => tag}, socket),
     do: with_idea(socket, id, &Board.remove_tag(&1, socket.assigns.founder, tag))
 
   # "restore" comes from the TeamPage hook after a reconnect (the card in the
   # URL, #idea-<id>). A card that is gone stays closed and leaves the URL.
-  def handle_event("open", %{"card_id" => id}, socket) do
+  defp event("open", %{"card_id" => id}, socket) do
     socket = socket |> assign(:open_id, id) |> load()
 
     if socket.assigns.open do
-      Board.read_pings(id, socket.assigns[:login])
+      # Opening a card clears this founder's pings on it. The QA session never
+      # clears pings.
+      unless socket.assigns[:qa], do: Board.read_pings(id, socket.assigns[:login])
       {:noreply, push_event(socket, "board:card", %{id: id})}
     else
       {:noreply, socket |> assign(:open_id, nil) |> push_event("board:card", %{id: nil})}
@@ -266,9 +277,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   # Form recovery (phx-change on every board form): LiveView sends the form
   # values again after a reconnect. The forms keep their values in the
   # browser, so nothing changes here.
-  def handle_event("draft_change", _params, socket), do: {:noreply, socket}
+  defp event("draft_change", _params, socket), do: {:noreply, socket}
 
-  def handle_event("close", _params, socket) do
+  defp event("close", _params, socket) do
     if id = socket.assigns.open_id, do: Typing.stop(id, socket.assigns.founder)
 
     socket =
@@ -285,16 +296,16 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   end
 
   # Back / Forward / On hold. A move that needs a comment opens the comment box.
-  def handle_event("step", %{"card_id" => id, "to" => to} = params, socket) do
+  defp event("step", %{"card_id" => id, "to" => to} = params, socket) do
     if params["needs_comment"] == "true",
       do: {:noreply, socket |> assign(comment_for: {id, to}) |> load()},
       else: move(socket, id, to, nil)
   end
 
-  def handle_event("cancel_comment", _params, socket),
+  defp event("cancel_comment", _params, socket),
     do: {:noreply, socket |> assign(:comment_for, nil) |> load()}
 
-  def handle_event("downvote", %{"card_id" => id, "reason" => reason}, socket) do
+  defp event("downvote", %{"card_id" => id, "reason" => reason}, socket) do
     case with_idea(socket, id, &Board.vote(&1, socket.assigns.founder, -1, reason)) do
       {:noreply, %{assigns: %{errors: %{^id => _}}}} = answer ->
         answer
@@ -305,16 +316,16 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     end
   end
 
-  def handle_event("cancel_downvote", _params, socket),
+  defp event("cancel_downvote", _params, socket),
     do: {:noreply, socket |> assign(:downvote_for, nil) |> load()}
 
-  def handle_event("edit_refinement", %{"card_id" => id}, socket),
+  defp event("edit_refinement", %{"card_id" => id}, socket),
     do: {:noreply, socket |> assign(:editing, id) |> load()}
 
-  def handle_event("cancel_refinement", _params, socket),
+  defp event("cancel_refinement", _params, socket),
     do: {:noreply, socket |> assign(:editing, nil) |> load()}
 
-  def handle_event("add", %{"idea" => attrs}, socket) do
+  defp event("add", %{"idea" => attrs}, socket) do
     case Board.create_idea(socket.assigns.founder, attrs) do
       {:ok, _} ->
         {:noreply, socket |> assign(:form_error, nil) |> draft_saved("new-idea", nil) |> load()}
@@ -326,7 +337,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   # The vote travels as phx-value-vote, never "value": a <button>'s own
   # (empty) value attribute overrides phx-value-value in the browser.
-  def handle_event("vote", %{"card_id" => id, "vote" => vote}, socket) do
+  defp event("vote", %{"card_id" => id, "vote" => vote}, socket) do
     case Integer.parse(to_string(vote)) do
       # A new -1 needs a reason: open the card with the reason box.
       {-1, ""} ->
@@ -340,12 +351,12 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     end
   end
 
-  def handle_event("move", %{"card_id" => id, "to" => to} = params, socket) do
+  defp event("move", %{"card_id" => id, "to" => to} = params, socket) do
     note = params["note"] |> to_string() |> String.trim()
     move(socket, id, to, if(note == "", do: nil, else: note))
   end
 
-  def handle_event("answer_pr", %{"card_id" => id, "answer" => answer} = params, socket) do
+  defp event("answer_pr", %{"card_id" => id, "answer" => answer} = params, socket) do
     answer = %{"approve" => :approve, "request_changes" => :request_changes}[answer]
 
     if answer,
@@ -358,7 +369,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   # The answer boxes: what the founder types is kept as a draft (client state)
   # and saved with the next move, on close, or on blur.
-  def handle_event("draft_answers", %{"card_id" => id} = params, socket) do
+  defp event("draft_answers", %{"card_id" => id} = params, socket) do
     qs = params["questions"] || %{}
 
     drafts =
@@ -372,7 +383,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     {:noreply, socket |> assign(:drafts, drafts) |> load()}
   end
 
-  def handle_event("toggle_defer", %{"card_id" => id, "question" => q, "deferred" => d}, socket) do
+  defp event("toggle_defer", %{"card_id" => id, "question" => q, "deferred" => d}, socket) do
     drafts =
       Map.update(
         socket.assigns.drafts,
@@ -384,25 +395,25 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     {:noreply, socket |> assign(:drafts, drafts) |> load()}
   end
 
-  def handle_event("save_answers", %{"card_id" => id}, socket) do
+  defp event("save_answers", %{"card_id" => id}, socket) do
     case save_drafts(socket, id) do
       {:ok, socket} -> {:noreply, load(socket)}
       {:error, socket, msg} -> result(socket, id, {:error, msg})
     end
   end
 
-  def handle_event("validate_images", _params, socket), do: {:noreply, socket}
+  defp event("validate_images", _params, socket), do: {:noreply, socket}
 
-  def handle_event("cancel_image", %{"ref" => ref}, socket),
+  defp event("cancel_image", %{"ref" => ref}, socket),
     do: {:noreply, cancel_upload(socket, :card_images, ref)}
 
-  def handle_event("add_images", %{"card_id" => id} = params, socket) do
+  defp event("add_images", %{"card_id" => id} = params, socket) do
     images = TeamImages.read_all(socket, :card_images)
 
     with_idea(socket, id, &Board.add_images(&1, socket.assigns.founder, images, params["note"]))
   end
 
-  def handle_event("comment", %{"card_id" => id, "body" => body}, socket) do
+  defp event("comment", %{"card_id" => id, "body" => body}, socket) do
     Typing.stop(id, socket.assigns.founder)
 
     socket
@@ -416,7 +427,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   # Typing in the comment box: the others see "<name> is typing…" (a hint,
   # not a lock). It goes 5 seconds after the last keystroke.
-  def handle_event("typing", %{"card_id" => id} = params, socket) do
+  defp event("typing", %{"card_id" => id} = params, socket) do
     if String.trim(to_string(params["body"])) == "" do
       Typing.stop(id, socket.assigns.founder)
       {:noreply, assign(socket, :typed, Map.delete(socket.assigns.typed, id))}
@@ -434,7 +445,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     end
   end
 
-  def handle_event("refine", %{"card_id" => id} = params, socket) do
+  defp event("refine", %{"card_id" => id} = params, socket) do
     fields = %{
       "details" => params["details"],
       "open_questions" =>

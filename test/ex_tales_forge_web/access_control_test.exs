@@ -22,6 +22,11 @@ defmodule TalesForgeWeb.AccessControlTest do
     {:get, "/admin/auth/github"},
     {:get, "/admin/auth/github/callback"},
     {:delete, "/admin/logout"},
+    # Gentry's QA sign-in: the token form and the token exchange. 404 while
+    # GENTRY_QA_TOKEN is unset; a correct token gives a read-only session for
+    # the /team pages only; see QaLoginController and TalesForge.QaLogin.
+    {:get, "/team/qa-login"},
+    {:post, "/team/qa-login"},
     # Machine-to-machine, bearer token (COSTS_PEER_TOKEN); see CostsPeerController.
     {:get, "/internal/costs"},
     # Machine-to-machine, same bearer token: the running commit for the other

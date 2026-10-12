@@ -152,11 +152,23 @@ defmodule TalesForgeWeb.TeamLive do
         tabindex="-1"
         class="mx-auto max-w-6xl space-y-16 px-4 pb-16 pt-8 sm:px-6 sm:pt-12"
       >
+        <p
+          :if={assigns[:qa]}
+          id="qa-banner"
+          role="status"
+          class="rounded-box border border-[var(--paper-line)] px-4 py-2 text-sm"
+        >
+          Signed in as Gentry (QA). {if assigns[:read_only],
+            do: "This session can view the page. It cannot change it.",
+            else: "Writes are on for this session (playtest only)."}
+        </p>
         <TeamWorkspace.header stats={assigns[:stats]} />
         <.going_to_do
           board?={assigns[:board?] || false}
           founder={assigns[:admin_email]}
           login={assigns[:admin_github_login]}
+          qa={assigns[:qa] == true}
+          read_only={assigns[:read_only] == true}
           ideas_sort={assigns[:ideas_sort] || "newest"}
           ideas_tags={assigns[:ideas_tags] || []}
         />
@@ -228,6 +240,8 @@ defmodule TalesForgeWeb.TeamLive do
   attr :board?, :boolean, default: false
   attr :founder, :string, default: nil
   attr :login, :string, default: nil
+  attr :qa, :boolean, default: false
+  attr :read_only, :boolean, default: false
   attr :ideas_sort, :string, default: "newest"
   attr :ideas_tags, :list, default: []
 
@@ -248,6 +262,8 @@ defmodule TalesForgeWeb.TeamLive do
         id="idea-board-live"
         founder={@founder}
         login={@login}
+        qa={@qa}
+        read_only={@read_only}
         ideas_sort={@ideas_sort}
         ideas_tags={@ideas_tags}
       />

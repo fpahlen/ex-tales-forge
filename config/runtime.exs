@@ -251,6 +251,15 @@ end
 if config_env() != :test do
   config :ex_tales_forge, :costs_peer, token: System.get_env("COSTS_PEER_TOKEN")
 
+  # Gentry's QA sign-in on /team (TalesForge.QaLogin). GENTRY_QA_TOKEN (secret,
+  # same value on both apps) turns on /team/qa-login; unset = 404. The session
+  # is read-only. QA_ALLOW_WRITES=true lets it write on playtest only (for later
+  # write-path tests); off by default, and production ignores it.
+  config :ex_tales_forge, :qa_login,
+    token: System.get_env("GENTRY_QA_TOKEN"),
+    allow_writes:
+      System.get_env("QA_ALLOW_WRITES", "false") |> String.trim() |> String.downcase() == "true"
+
   config :ex_tales_forge, :app_name, System.get_env("FLY_APP_NAME")
 
   # The code heat map (TalesForge.CodeHeat): CODE_HEAT_MAP=on turns on the daily

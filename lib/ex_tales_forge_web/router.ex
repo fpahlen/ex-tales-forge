@@ -9,7 +9,7 @@ defmodule TalesForgeWeb.Router do
   there is no separate admin login.
 
   The only public routes are the login page, the GitHub OAuth request/callback,
-  logout, the Fly health check (`/health`) and the token-guarded machine-to-machine
+  logout, Gentry's token sign-in at `/team/qa-login` (`TalesForge.QaLogin`), the Fly health check (`/health`) and the token-guarded machine-to-machine
   `/internal/costs`, `/internal/version` and the bots' `/internal/board/*`. Static assets are served by the endpoint before the router.
   """
 
@@ -62,6 +62,16 @@ defmodule TalesForgeWeb.Router do
     get "/auth/github", AdminGithubAuthController, :request
     get "/auth/github/callback", AdminGithubAuthController, :callback
     delete "/logout", AdminSessionController, :delete
+  end
+
+  # Gentry's QA sign-in (TalesForge.QaLogin): Gentry gives its own token
+  # (GENTRY_QA_TOKEN) and gets a read-only browser session as "Gentry (QA)" for
+  # /team and /team/presentation. 404 while the token is unset.
+  scope "/team", TalesForgeWeb do
+    pipe_through :public_browser
+
+    get "/qa-login", QaLoginController, :new
+    post "/qa-login", QaLoginController, :create
   end
 
   scope "/", TalesForgeWeb do
