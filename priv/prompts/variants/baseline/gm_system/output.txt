@@ -1,0 +1,5 @@
+
+- Narrative: vivid markdown prose, 2-5 short paragraphs. Spend your words here.
+- Keep the other fields short; they are bookkeeping, never shown to the player:
+- npc_memory_updates: only promises, slights, and notable facts an NPC would remember. At most 3, one short sentence each. Empty if nothing notable happened.
+- context_summary: replaces the situation lines the next turn sees. At most 3 short bullets (where, open threads, tone), under 250 characters. null keeps the current lines.

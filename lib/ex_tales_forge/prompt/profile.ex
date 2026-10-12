@@ -31,6 +31,34 @@ defmodule TalesForge.Prompt.Profile do
   def turn_sections(%Ctx{call: :scene}), do: state_sections()
   def turn_sections(%Ctx{call: :gm}), do: state_sections() ++ [Sections.GmTurnAction]
 
+  @doc """
+  The fragments of the GM task prompt (`priv/prompts/gm_system/`) for the app
+  role. Production has a lean reply with no `gm_notes` and no
+  `location_name`, so its prompt leaves out the fragments that ask for them.
+
+      iex> TalesForge.Prompt.Profile.gm_task_fragments(%TalesForge.Prompt.Ctx{role: :production})
+      ~w(head output)
+      iex> TalesForge.Prompt.Profile.gm_task_fragments(%TalesForge.Prompt.Ctx{role: :playtest})
+      ~w(head location_name output gm_notes)
+  """
+  @spec gm_task_fragments(Ctx.t()) :: [String.t()]
+  def gm_task_fragments(%Ctx{role: :production}), do: ~w(head output)
+  def gm_task_fragments(%Ctx{}), do: ~w(head location_name output gm_notes)
+
+  @doc """
+  The reply fields of a narration call for `ctx`, in schema order. The
+  production GM call has no `location_name` and no `gm_notes`.
+
+      iex> TalesForge.Prompt.Profile.narration_fields(%TalesForge.Prompt.Ctx{call: :gm, role: :production})
+      ~w(narrative npc_memory_updates context_summary)
+  """
+  @spec narration_fields(Ctx.t()) :: [String.t()]
+  def narration_fields(%Ctx{call: :gm, role: :production}),
+    do: ~w(narrative npc_memory_updates context_summary)
+
+  def narration_fields(%Ctx{}),
+    do: ~w(narrative location_name npc_memory_updates context_summary gm_notes)
+
   @doc "All sections for `ctx`, in cache order."
   @spec sections(Ctx.t()) :: [module()]
   def sections(ctx), do: static_sections(ctx) ++ session_sections(ctx) ++ turn_sections(ctx)

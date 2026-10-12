@@ -44,6 +44,36 @@ defmodule TalesForge.Game.PromptGoldenTest do
     end
   end
 
+  for role <- [:production, :playtest] do
+    test "tin_valley GM turn for the #{role} role is byte-identical to its golden file" do
+      check_role_golden(unquote(role))
+    end
+  end
+
+  defp check_role_golden(role) do
+    {:ok, session} = GameSessions.create_session(%{name: "Golden", adventure_id: "tin_valley"})
+    context = Context.build_gm_context(session)
+    variant = if role == :production, do: :lean, else: :full
+    schema = TalesForge.LLM.narration_schema(variant)["properties"]
+
+    actual =
+      ("===== reply fields =====\n" <>
+         Enum.join(Jason.decode!(Jason.encode!(schema)) |> Map.keys() |> Enum.sort(), "\n") <>
+         "\n===== gm turn 1 =====\n" <>
+         messages(gm_messages(context, 1, "look around", role: role)))
+      |> normalise(session.id)
+
+    path = Path.join([@dir, "roles", "tin_valley.#{role}.txt"])
+
+    if System.get_env("UPDATE_PROMPT_GOLDEN") in ~w(1 true) do
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(path, actual)
+    end
+
+    assert actual == File.read!(path),
+           "the #{role} GM prompt changed; UPDATE_PROMPT_GOLDEN=1 rewrites #{path}"
+  end
+
   defp check_golden(adventure, variant) do
     {:ok, session} =
       GameSessions.create_session(%{name: "Golden", adventure_id: adventure, variant: variant})
@@ -83,7 +113,7 @@ defmodule TalesForge.Game.PromptGoldenTest do
     |> normalise(session.id)
   end
 
-  defp gm_messages(context, turn_number, text) do
+  defp gm_messages(context, turn_number, text, opts \\ []) do
     player_action = %PlayerAction{
       overall_intent: text,
       action: %SingleAction{action_type: :observe, target: nil}
@@ -94,7 +124,8 @@ defmodule TalesForge.Game.PromptGoldenTest do
       %MechanicalResolution{skill: "insight", roll: 14, outcome: "success"},
       player_action,
       %HandlerResult{handler: "observe", skill: "insight"},
-      turn_number
+      turn_number,
+      opts
     )
   end
 

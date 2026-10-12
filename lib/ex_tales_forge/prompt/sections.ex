@@ -31,7 +31,7 @@ defmodule TalesForge.Prompt.Sections.Task do
     do:
       if(ctx.call == :scene,
         do: TalesForge.Game.Prompts.scene_system(ctx.variant),
-        else: TalesForge.Game.Prompts.gm_system(ctx.variant)
+        else: TalesForge.Game.Prompts.gm_system(ctx.variant, ctx.role)
       )
 end
 

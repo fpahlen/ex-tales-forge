@@ -100,13 +100,6 @@ defmodule TalesForge.LLM do
   """
   @type gm_variant :: :full | :lean
 
-  @lean_drop ~w(location_name gm_notes)
-
-  # The lean GM prompt is the same prompt file with these parts removed, so
-  # one prompt source serves both variants. LLMGmVariantTest checks that
-  # gm_system.txt contains them.
-  @lean_prompt_cuts [~r/^- gm_notes:.*(?:\n|\z)/m, ~r/ Leave location_name out\./]
-
   @doc """
   The GM reply variant for an app role: `:lean` on production, else `:full`.
 
@@ -120,28 +113,19 @@ defmodule TalesForge.LLM do
   def gm_variant(:production), do: :lean
   def gm_variant(_role), do: :full
 
-  @doc """
-  The GM messages for a variant. `:full` returns them unchanged. `:lean`
-  removes the `gm_notes` instruction and the `location_name` sentence from the
-  system messages.
-  """
-  @spec gm_messages_for([map()], gm_variant()) :: [map()]
-  def gm_messages_for(messages, :full), do: messages
+  # The fields come from TalesForge.Prompt.Profile.narration_fields/1, for the
+  # GM call of the role that the variant stands for.
+  defp narration_properties(variant) do
+    ctx = %TalesForge.Prompt.Ctx{call: :gm, role: variant_role(variant)}
+    fields = TalesForge.Prompt.Profile.narration_fields(ctx)
 
-  def gm_messages_for(messages, :lean) do
-    Enum.map(messages, fn
-      %{role: "system", content: content} = message when is_binary(content) ->
-        %{message | content: Enum.reduce(@lean_prompt_cuts, content, &Regex.replace(&1, &2, ""))}
-
-      message ->
-        message
-    end)
+    Enum.filter(all_narration_properties(), fn {key, _} -> key in fields end)
   end
 
-  defp narration_properties(:lean),
-    do: Enum.reject(narration_properties(:full), fn {key, _} -> key in @lean_drop end)
+  defp variant_role(:lean), do: :production
+  defp variant_role(:full), do: :playtest
 
-  defp narration_properties(:full) do
+  defp all_narration_properties do
     [
       {"narrative", %{"type" => "string"}},
       {"location_name", %{"type" => ["string", "null"]}},
@@ -379,7 +363,7 @@ defmodule TalesForge.LLM do
     else
       complete_json(
         model,
-        gm_messages_for(messages, variant),
+        messages,
         narration_schema(variant),
         Config.tier2_temperature(),
         tier: :tier2,

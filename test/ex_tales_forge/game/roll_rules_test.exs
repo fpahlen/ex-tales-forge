@@ -154,7 +154,12 @@ defmodule TalesForge.Game.RollRulesTest do
   test "the baseline variant reads the pre-rework prompt files" do
     baseline_dir = Path.join(:code.priv_dir(:ex_tales_forge), "prompts/variants/baseline")
 
-    assert Prompts.gm_system("baseline") == File.read!(Path.join(baseline_dir, "gm_system.txt"))
+    assert Prompts.gm_system("baseline") ==
+             Enum.map_join(
+               ~w(head location_name output gm_notes),
+               &File.read!(Path.join([baseline_dir, "gm_system", "#{&1}.txt"]))
+             )
+
     refute Prompts.gm_system("baseline") =~ "learns nothing extra"
 
     assert Prompts.intent_system("baseline") ==
