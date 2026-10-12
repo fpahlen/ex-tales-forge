@@ -21,7 +21,10 @@ defmodule TalesForge.Board.TransitionsTest do
     {"check", "parked", [@founder]},
     {"building", "done", [{:bot, :bobby}, {:bot, :board}]},
     {"building", "refining", [{:bot, :bobby}, @founder]},
-    {"parked", "ideas", [@founder]}
+    {"parked", "ideas", [@founder]},
+    {"ideas", "archived", [@founder]},
+    {"parked", "archived", [@founder]},
+    {"archived", "ideas", [@founder]}
   ]
 
   test "exactly the table's moves are possible, for exactly its actors" do
@@ -35,4 +38,21 @@ defmodule TalesForge.Board.TransitionsTest do
       assert ok? == expected?, "#{from} → #{to} for #{inspect(actor)}"
     end
   end
+
+  test "archive needs a reason; only a founder deletes, and only from Archived" do
+    for from <- ~w(ideas parked) do
+      assert {:error, "Write a short reason for the archive."} =
+               Transitions.allowed?(%{comment: nil}, from, "archived", @founder)
+    end
+
+    for from <- Transitions.states(), actor <- @actors do
+      expected = if from == "archived" and actor == @founder, do: :ok, else: :error
+      assert elem_or_ok(Transitions.delete_allowed?(from, actor)) == expected
+    end
+
+    refute "archived" in Enum.map(Transitions.options(@open, "ideas", @founder), &elem(&1, 0))
+  end
+
+  defp elem_or_ok(:ok), do: :ok
+  defp elem_or_ok({:error, _}), do: :error
 end

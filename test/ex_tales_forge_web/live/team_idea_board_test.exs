@@ -1129,4 +1129,112 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
       end
     end
   end
+
+  describe "archive" do
+    defp archive_via_card(view, idea, reason) do
+      open(view, idea)
+      view |> element("#card-#{idea.id}-archive") |> render_click()
+      view |> form("#card-#{idea.id}-archive-form", %{reason: reason}) |> render_submit()
+    end
+
+    test "the tile shows the count; Archive is on Ideas and Parked cards only", %{conn: conn} do
+      {:ok, a} = Board.create_idea("bo@example.com", %{"title" => "Spam card"})
+      {:ok, b} = Board.create_idea("bo@example.com", %{"title" => "Active one"})
+      {:ok, b} = Board.vote(b, "bo@example.com", 1)
+      {:ok, b} = Board.move(b, {:founder, "bo@example.com"}, "refining")
+      {:ok, view, _} = live(conn, "/team")
+
+      assert has_element?(view, ~s(#board-archive-tile[aria-label="Archive: 0 cards"]))
+      assert has_element?(view, ~s(#board-archive-tile [data-role="archive-count"]), "0")
+
+      open(view, b)
+      refute has_element?(view, "#card-#{b.id}-archive")
+      render_click(view |> element("#board-modal-close"))
+
+      archive_via_card(view, a, "Spam")
+      refute has_element?(view, "#tile-#{a.id}")
+      refute has_element?(view, "#board-modal")
+      assert has_element?(view, ~s(#board-archive-tile[aria-label="Archive: 1 card"]))
+      assert Board.get_idea(a.id).column == "archived"
+    end
+
+    test "a blank reason is refused", %{conn: conn} do
+      {:ok, a} = Board.create_idea("bo@example.com", %{"title" => "Spam card"})
+      {:ok, view, _} = live(conn, "/team")
+      archive_via_card(view, a, "  ")
+      assert has_element?(view, "#card-#{a.id}-error", "Write a short reason for the archive.")
+      assert Board.get_idea(a.id).column == "ideas"
+    end
+
+    test "the panel lists newest first, filters by tag and search, restores", %{conn: conn} do
+      {:ok, a} = Board.create_idea("bo@example.com", %{"title" => "Dark mode", "body" => "night"})
+      {:ok, a} = Board.add_tag(a, "bo@example.com", "ui")
+
+      {:ok, b} =
+        Board.create_idea("bo@example.com", %{"title" => "Chat sounds", "body" => "ping"})
+
+      {:ok, _} = Board.archive(a, "founder@example.com", "Old")
+      Process.sleep(5)
+      {:ok, _} = Board.archive(b, "founder@example.com", "Duplicate")
+      {:ok, view, _} = live(conn, "/team")
+
+      view |> element("#board-archive-tile") |> render_click()
+      assert has_element?(view, "#board-archive[class]")
+      html = view |> element("#board-archive-list") |> render()
+      assert :binary.match(html, "Chat sounds") < :binary.match(html, "Dark mode")
+      assert has_element?(view, ~s(#archived-#{b.id} [data-role="archived-by"]), "Archived by")
+      assert has_element?(view, ~s(#archived-#{b.id} [data-role="archive-reason"]), "Duplicate")
+      assert has_element?(view, ~s(#archived-#{b.id} time[datetime]))
+
+      view |> element(~s(#archive-tags button[data-tag="ui"])) |> render_click()
+      assert has_element?(view, "#archived-#{a.id}")
+      refute has_element?(view, "#archived-#{b.id}")
+      view |> element(~s(#archive-tags button[data-tag="ui"])) |> render_click()
+
+      view |> form("#board-archive-search", %{q: "PING"}) |> render_change()
+      assert has_element?(view, "#archived-#{b.id}")
+      refute has_element?(view, "#archived-#{a.id}")
+      view |> form("#board-archive-search", %{q: "zzz"}) |> render_change()
+      assert has_element?(view, "#board-archive-empty", "No archived card matches the filter.")
+      view |> form("#board-archive-search", %{q: ""}) |> render_change()
+
+      view |> element("#archived-#{b.id}-restore") |> render_click()
+      refute has_element?(view, "#archived-#{b.id}")
+      assert has_element?(view, "#board-col-ideas #tile-#{b.id}")
+
+      texts =
+        b.id |> Board.get_idea() |> TalesForge.Board.History.entries() |> Enum.map(& &1.text)
+
+      assert "archived this card from Ideas" in texts
+      assert "restored this card to Ideas" in texts
+    end
+
+    test "delete asks for the title, then removes the card", %{conn: conn} do
+      {:ok, a} = Board.create_idea("bo@example.com", %{"title" => "Spam card"})
+      {:ok, _} = Board.archive(a, "founder@example.com", "Spam")
+      {:ok, view, _} = live(conn, "/team")
+      view |> element("#board-archive-tile") |> render_click()
+      view |> element("#archived-#{a.id}-delete") |> render_click()
+
+      view |> form("#archived-#{a.id}-delete-form", %{title: "Spam"}) |> render_submit()
+      assert has_element?(view, "#board-archive-error", "Type the title of the card")
+      assert Board.get_idea(a.id)
+
+      view |> form("#archived-#{a.id}-delete-form", %{title: "spam card"}) |> render_submit()
+      refute has_element?(view, "#archived-#{a.id}")
+      assert Board.get_idea(a.id) == nil
+      assert [%{deleted_by: "founder@example.com"}] = Board.deletions()
+    end
+
+    test "an archived card opens read-only from the panel", %{conn: conn} do
+      {:ok, a} = Board.create_idea("bo@example.com", %{"title" => "Spam card"})
+      {:ok, _} = Board.archive(a, "founder@example.com", "Spam")
+      {:ok, view, _} = live(conn, "/team")
+      view |> element("#board-archive-tile") |> render_click()
+      view |> element(~s(#archived-#{a.id} [data-role="title"])) |> render_click()
+      assert has_element?(view, "#board-modal #card-#{a.id}")
+      refute has_element?(view, "#card-#{a.id}-archive")
+      refute has_element?(view, "#card-#{a.id}-image-form")
+    end
+  end
 end

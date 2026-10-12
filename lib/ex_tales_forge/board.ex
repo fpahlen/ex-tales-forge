@@ -18,12 +18,15 @@ defmodule TalesForge.Board do
 
   import Ecto.Query
 
+  require Logger
+
   alias Ecto.Multi
 
   alias TalesForge.Board.{
     Answer,
     Approval,
     Comment,
+    Deletion,
     Events,
     Idea,
     Link,
@@ -59,11 +62,12 @@ defmodule TalesForge.Board do
   @doc """
   The whole board: a map of column => cards, with votes, comments, links and
   history loaded. Ideas are ranked (best first, with `:score` set fresh); the
-  other columns are in the order the cards arrived there.
+  other columns are in the order the cards arrived there. Archived cards are
+  not on the board (`archived/0`).
   """
   @spec board(DateTime.t()) :: %{String.t() => [Idea.t()]}
   def board(now \\ DateTime.utc_now()) do
-    ideas = Idea |> Repo.all() |> preload_all()
+    ideas = from(i in Idea, where: i.column in ^Idea.columns()) |> Repo.all() |> preload_all()
     grouped = Enum.group_by(ideas, & &1.column)
 
     Map.new(Idea.columns(), fn column ->
@@ -94,7 +98,11 @@ defmodule TalesForge.Board do
   @spec stats() :: stats()
   def stats do
     counts =
-      from(i in Idea, group_by: i.column, select: {i.column, count(i.id)})
+      from(i in Idea,
+        where: i.column in ^Idea.columns(),
+        group_by: i.column,
+        select: {i.column, count(i.id)}
+      )
       |> Repo.all()
       |> Map.new()
 
@@ -288,14 +296,18 @@ defmodule TalesForge.Board do
   Adds a comment by `author` (a founder email or `bot:<name>`). `@case`,
   `@bobby`, `@gentry` wake that bot. `@fredrik`, `@hakan`, ... and
   `@founders` add an unread ping for each founder named, except the author
-  (see `TalesForge.Board.Mentions`). `opts[:login]` is the author's GitHub
+  (see `TalesForge.Board.Mentions`). On an archived card a comment wakes
+  no bot and pings nobody. `opts[:login]` is the author's GitHub
   login, so the author gets no ping for their own name.
   """
   @spec add_comment(Idea.t(), String.t(), String.t(), keyword()) :: {:ok, Idea.t()} | error()
   def add_comment(%Idea{} = idea, author, body, opts \\ []) do
     author = normalize(author)
     changeset = Comment.changeset(%Comment{}, %{idea_id: idea.id, author: author, body: body})
-    %{bots: bots, founders: mentioned} = Mentions.parse(body)
+    # A comment on an archived card stays on the card but wakes nobody.
+    %{bots: bots, founders: mentioned} =
+      if idea.column == "archived", do: %{bots: [], founders: []}, else: Mentions.parse(body)
+
     founders = mentioned -- [Mentions.handle_for(opts[:login])]
 
     Multi.new()
@@ -348,7 +360,7 @@ defmodule TalesForge.Board do
         from(p in Ping,
           join: i in Idea,
           on: i.id == p.idea_id,
-          where: p.handle == ^handle and is_nil(p.read_at),
+          where: p.handle == ^handle and is_nil(p.read_at) and i.column != "archived",
           order_by: [desc: p.inserted_at],
           select: {i.id, i.title, p.author, p.inserted_at}
         )
@@ -781,6 +793,150 @@ defmodule TalesForge.Board do
       {_, "done"} -> Events.add(multi, :idea_to_done, idea, extra)
       _ -> multi
     end
+  end
+
+  @doc """
+  The archived cards, newest archive first (everything loaded). Votes,
+  comments and history stay on them.
+  """
+  @spec archived() :: [Idea.t()]
+  def archived do
+    from(i in Idea, where: i.column == "archived")
+    |> Repo.all()
+    |> preload_all()
+    |> Enum.sort_by(&(archived_info(&1).at || &1.updated_at), {:desc, DateTime})
+  end
+
+  @doc "The number of archived cards (the Archive tile)."
+  @spec archived_count() :: non_neg_integer()
+  def archived_count,
+    do: Repo.aggregate(from(i in Idea, where: i.column == "archived"), :count)
+
+  @doc """
+  Who archived the card, when and why: the newest move to Archived
+  (transitions loaded). All nil for a card that is not archived.
+  """
+  @spec archived_info(Idea.t()) :: %{
+          by: String.t() | nil,
+          at: DateTime.t() | nil,
+          reason: String.t() | nil
+        }
+  def archived_info(%Idea{transitions: ts}) when is_list(ts) do
+    case ts
+         |> Enum.filter(&(&1.to == "archived"))
+         |> Enum.max_by(& &1.inserted_at, DateTime, fn -> nil end) do
+      nil -> %{by: nil, at: nil, reason: nil}
+      t -> %{by: t.actor, at: t.inserted_at, reason: t.note}
+    end
+  end
+
+  def archived_info(_idea), do: %{by: nil, at: nil, reason: nil}
+
+  @doc """
+  The archived cards that have all the `tags` and whose title or
+  description has `query` (case-insensitive; blank matches all). Pure.
+
+      iex> alias TalesForge.Board.Idea
+      iex> cards = [%Idea{title: "Dark mode", body: "", tags: ["ui"], author: "a@x"}, %Idea{title: "Chat", body: "Dark theme for chat", tags: [], author: "a@x"}]
+      iex> TalesForge.Board.filter_archived(cards, [], "dark") |> Enum.map(& &1.title)
+      ["Dark mode", "Chat"]
+      iex> TalesForge.Board.filter_archived(cards, ["ui"], "") |> Enum.map(& &1.title)
+      ["Dark mode"]
+      iex> TalesForge.Board.filter_archived(cards, [], "THEME") |> Enum.map(& &1.title)
+      ["Chat"]
+  """
+  @spec filter_archived([Idea.t()], [String.t()], String.t() | nil) :: [map()]
+  def filter_archived(cards, tags, query) do
+    q = query |> to_string() |> String.trim() |> String.downcase()
+
+    cards
+    |> Tags.filter(tags)
+    |> Enum.filter(fn card ->
+      q == "" or
+        String.contains?(String.downcase(card.title || ""), q) or
+        String.contains?(String.downcase(card.body || ""), q)
+    end)
+  end
+
+  @doc """
+  Archives a card in Ideas or Parked for a founder, with a short `reason`
+  (necessary). Bots and the Gentry QA session cannot archive. The move is a
+  transition, so it is in the card's history.
+  """
+  @spec archive(Idea.t(), String.t(), String.t() | nil) :: {:ok, Idea.t()} | error()
+  def archive(%Idea{} = idea, founder, reason) do
+    reason = reason |> to_string() |> String.trim()
+
+    with :ok <- not_qa(founder),
+         do: move(idea, actor_of(founder), "archived", if(reason == "", do: nil, else: reason))
+  end
+
+  @doc "Restores an archived card to Ideas for a founder (not a bot, not the QA session)."
+  @spec restore(Idea.t(), String.t()) :: {:ok, Idea.t()} | error()
+  def restore(%Idea{} = idea, founder) do
+    with :ok <- not_qa(founder), do: move(idea, actor_of(founder), "ideas")
+  end
+
+  @doc """
+  Deletes an archived card for good (spam or a duplicate), for a founder
+  only: not a bot, not the Gentry QA session. `confirm_title` must be the
+  card's title (trimmed, any case). The card's votes, comments, history and
+  images go with it. A `board_deletions` row and a server log line record
+  the delete.
+  """
+  @spec delete_archived(Idea.t(), String.t(), String.t() | nil) :: :ok | error()
+  def delete_archived(%Idea{} = idea, founder, confirm_title) do
+    idea = get_idea!(idea.id)
+
+    same? = fn a, b ->
+      String.downcase(String.trim(to_string(a))) == String.downcase(String.trim(b))
+    end
+
+    with :ok <- not_qa(founder),
+         :ok <- Transitions.delete_allowed?(idea.column, actor_of(founder)),
+         :ok <- need_title(same?.(confirm_title, idea.title)) do
+      info = archived_info(idea)
+
+      Multi.new()
+      |> Multi.delete_all(:images, TalesForge.Images.delete_query(idea.id))
+      |> Multi.insert(:audit, fn %{images: {n, _}} ->
+        Deletion.changeset(%Deletion{}, %{
+          idea_id: idea.id,
+          title: String.slice(idea.title, 0, 200),
+          deleted_by: normalize(founder),
+          archive_reason: info.reason,
+          image_count: n
+        })
+      end)
+      |> Multi.delete(:idea, idea)
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{images: {n, _}}} ->
+          Logger.notice(
+            "board: card #{idea.id} (#{inspect(idea.title)}) deleted from the archive by " <>
+              "#{normalize(founder)} with #{n} image(s)"
+          )
+
+          broadcast()
+          :ok
+
+        {:error, _step, reason, _} ->
+          {:error, if(is_binary(reason), do: reason, else: inspect(reason))}
+      end
+    end
+  end
+
+  @doc "The audit records of the deletes, newest first."
+  @spec deletions() :: [Deletion.t()]
+  def deletions, do: Repo.all(from(d in Deletion, order_by: [desc: d.inserted_at]))
+
+  defp need_title(true), do: :ok
+  defp need_title(false), do: {:error, "Type the title of the card to confirm the delete."}
+
+  defp not_qa(who) do
+    if normalize(to_string(who)) == TalesForge.QaLogin.email(),
+      do: {:error, TalesForge.QaLogin.refused_message()},
+      else: :ok
   end
 
   @doc "Records the decision log commit of a card (set once; idempotent)."

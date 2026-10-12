@@ -4,7 +4,8 @@ defmodule TalesForge.Board.Api do
   (`TalesForgeWeb.BoardApiController` hands each authorised call here; see the
   `TalesForge.BoardApi` contract). JSON in, JSON out:
 
-  - `GET /ideas` (`?column=ideas`): the cards, ranked Ideas first.
+  - `GET /ideas` (`?column=ideas`): the cards, ranked Ideas first. Archived
+    cards are not in the list (`?column=archived` lists only them).
   - `GET /ideas/:id`: one card with refinement, votes, comments, links,
     images, history. Each image has `url` (signed-in team members) and
     `api_url` (bots, with the board token; `TalesForgeWeb.TeamImageController`).
@@ -43,8 +44,16 @@ defmodule TalesForge.Board.Api do
           TalesForge.BoardApi.answer()
   def handle(:index, _bot, params) do
     board = Board.board()
-    columns = if params["column"] in Idea.columns(), do: [params["column"]], else: Idea.columns()
-    {200, %{"ideas" => Enum.flat_map(columns, fn c -> Enum.map(board[c], &card/1) end)}}
+    # The board columns only: archived cards are not in the pull, except on
+    # an explicit `?column=archived`.
+    if params["column"] == "archived" do
+      {200, %{"ideas" => Enum.map(Board.archived(), &card/1)}}
+    else
+      columns =
+        if params["column"] in Idea.columns(), do: [params["column"]], else: Idea.columns()
+
+      {200, %{"ideas" => Enum.flat_map(columns, fn c -> Enum.map(board[c], &card/1) end)}}
+    end
   end
 
   def handle(:pr, :bobby, params), do: params |> Board.link_pr() |> answer()
@@ -99,12 +108,19 @@ defmodule TalesForge.Board.Api do
     |> Enum.map_join("; ", fn {field, msgs} -> "#{field} #{Enum.join(msgs, ", ")}" end)
   end
 
+  defp archived_json(%Idea{column: "archived"} = idea) do
+    info = Board.archived_info(idea)
+    %{"by" => info.by, "at" => info.at, "reason" => info.reason}
+  end
+
+  defp archived_json(_idea), do: nil
+
   defp images(%Idea{images: images}) when is_list(images),
     do: Enum.map(images, &TalesForge.Images.to_json/1)
 
   defp images(_idea), do: []
 
-  @doc "A card as JSON (everything loaded), with its tags (`tags`: the founder tag and the free-text tags; `free_tags`: only the free-text tags) and its image links (`images`)."
+  @doc "A card as JSON (everything loaded), with its state (`state`: the column or `archived`; `archived`: who, when and why, or null), its tags (`tags`: the founder tag and the free-text tags; `free_tags`: only the free-text tags) and its image links (`images`)."
   @spec card(Idea.t()) :: map()
   def card(%Idea{} = idea) do
     %{
@@ -113,6 +129,8 @@ defmodule TalesForge.Board.Api do
       "body" => idea.body,
       "column" => idea.column,
       "column_label" => Transitions.label(idea.column),
+      "state" => idea.column,
+      "archived" => archived_json(idea),
       "author" => idea.author,
       "tags" => TalesForge.Board.Tags.of(idea),
       "free_tags" => idea.tags || [],
