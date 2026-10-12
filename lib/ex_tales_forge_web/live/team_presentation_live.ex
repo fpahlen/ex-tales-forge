@@ -209,6 +209,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         Skip to content
       </a>
       <TeamLayout.header socket={assigns[:socket]} page={:presentation} items={@sections} />
+      <.present_controls sections={@sections} />
 
       <main
         id="team-main"
@@ -238,6 +239,52 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       if connected?(socket), do: TalesForge.Board.subscribe()
       TalesForge.Board.stats()
     end
+  end
+
+  # ── Present mode ───────────────────────────────────────────────────────────
+  # The "Present" button shows one section of the nav per slide, in full
+  # screen (the same split as docs/team-page/content.md). The JS is
+  # `setupPresent` in assets/js/team_hooks.js: arrow keys, Space, a click or a
+  # swipe go forward and back, and Esc exits. The URL is #slide-N, so a link
+  # can open a slide. Without JS, the button does nothing and the page stays
+  # one long page.
+
+  attr :sections, :list, required: true
+
+  defp present_controls(assigns) do
+    ~H"""
+    <div id="present-start-wrap" class="mx-auto flex max-w-6xl justify-end px-4 pt-4 sm:px-6">
+      <button
+        id="present-start"
+        type="button"
+        data-present-start
+        data-slides={Jason.encode!(Enum.map(@sections, &elem(&1, 0)))}
+        class="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--paper-rule)] px-3 py-1 text-sm font-semibold hover:bg-[var(--paper-bg)] focus-visible:outline-2 focus-visible:outline-[var(--paper-accent)]"
+        title="Show one section for each slide, in full screen. Use the arrow keys, Space, a click or a swipe to move. Push Esc to stop."
+      >
+        <.icon name="hero-presentation-chart-bar" class="size-4" /> Present
+      </button>
+    </div>
+    <div
+      id="present-bar"
+      data-present-bar
+      hidden
+      class="fixed bottom-3 right-3 z-50 flex items-center gap-2 rounded-full border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-3 py-1 text-sm shadow"
+    >
+      <span id="present-counter" aria-live="polite" class="font-semibold tabular-nums">
+        1 / {length(@sections)}
+      </span>
+      <button
+        id="present-exit"
+        type="button"
+        data-present-exit
+        class="rounded-full px-2 hover:bg-[var(--paper-bg)]"
+        aria-label="Stop the presentation (Esc)"
+      >
+        Stop
+      </button>
+    </div>
+    """
   end
 
   # ── 0. Hero ────────────────────────────────────────────────────────────────

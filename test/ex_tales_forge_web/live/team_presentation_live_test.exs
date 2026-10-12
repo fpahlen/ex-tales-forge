@@ -1435,4 +1435,36 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       refute html =~ ~r/(?<!No )founder (pushes|deploys|triggers)/i
     end
   end
+
+  describe "present mode" do
+    test "a Present button lists one slide for each section of the nav, with a hidden counter",
+         %{conn: conn} do
+      {:ok, view, _html} = live(log_in_admin(conn), ~p"/team/presentation")
+      ids = Enum.map(TeamPresentationLive.sections(), &elem(&1, 0))
+
+      assert has_element?(view, "#present-start[data-present-start]", "Present")
+      doc = view |> render() |> LazyHTML.from_document()
+
+      assert doc |> LazyHTML.query("#present-start") |> LazyHTML.attribute("data-slides") ==
+               [Jason.encode!(ids)]
+
+      assert has_element?(view, "#present-bar[hidden]")
+      assert has_element?(view, "#present-counter", "1 / #{length(ids)}")
+      assert has_element?(view, "#present-exit", "Stop")
+    end
+
+    test "the JS moves with keys, Space, a click and a swipe, uses #slide-N and stops on Esc" do
+      js = File.read!("assets/js/team_hooks.js")
+      assert js =~ "this.presentCleanup = setupPresent(this)"
+
+      for part <- ~w(ArrowRight ArrowLeft PageDown Escape touchstart touchend requestFullscreen
+                     exitFullscreen fullscreenchange hashchange) do
+        assert js =~ part, part
+      end
+
+      assert js =~ ~s(e.key === " ")
+      assert js =~ "`#slide-${current}`"
+      assert js =~ "`${current} / ${total}`"
+    end
+  end
 end
