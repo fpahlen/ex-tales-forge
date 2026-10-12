@@ -29,6 +29,9 @@ defmodule TalesForge.Game.NpcMemoryTest do
         {key, nil} -> System.delete_env(key)
         {key, value} -> System.put_env(key, value)
       end)
+
+      System.put_env("LLM_PROVIDER", "mock")
+      System.delete_env("XAI_API_KEY")
     end)
 
     System.put_env("INN_WORLD", "on")
