@@ -146,6 +146,8 @@ defmodule TalesForgeWeb.QaLoginTest do
     test "every write on the board is refused on the server" do
       {:ok, idea} = Board.create_idea("fredrik@whyse.se", %{"title" => "Fishing"})
       {:ok, _} = Board.add_tag(idea, "fredrik@whyse.se", "ux")
+      goal = Repo.get_by!(TalesForge.Board.Goal, key: "G3")
+      {:ok, idea} = Board.Goals.set_card_goal(idea, "fredrik@whyse.se", goal.id)
       {:ok, view, _} = live(qa_conn(), "/team")
       board = with_target(view, "#idea-board-live")
       before = snapshot()
@@ -173,6 +175,11 @@ defmodule TalesForgeWeb.QaLoginTest do
         {"restore_card", %{"card_id" => id}},
         {"ask_delete", %{"card_id" => id}},
         {"delete_card", %{"card_id" => id, "title" => "Fishing"}},
+        {"goal_vote", %{"goal_id" => goal.id, "vote" => "1"}},
+        {"goal_vote", %{"goal_id" => goal.id, "vote" => "-1"}},
+        {"goal_downvote", %{"goal_id" => goal.id, "reason" => "no"}},
+        {"set_goal", %{"card_id" => id, "goal_id" => goal.id}},
+        {"set_goal", %{"card_id" => id, "goal_id" => ""}},
         {"some_new_write", %{"card_id" => id}}
       ]
 

@@ -69,6 +69,9 @@ defmodule TalesForgeWeb.TeamGoals do
                 <span class="text-xs text-[var(--paper-muted)]">{row.goal.key}</span> {row.goal.title}
               </p>
               <p class="text-xs text-[var(--paper-muted)]">{row.goal.outcome}</p>
+              <p data-role="score" class="text-xs">
+                Score: <span class="font-semibold tabular-nums">{format_score(row.score)}</span>
+              </p>
             </div>
             <div
               :if={@can_vote}
@@ -147,7 +150,7 @@ defmodule TalesForgeWeb.TeamGoals do
               aria-valuemax={row.total}
               aria-valuenow={row.done}
               aria-valuetext={"#{row.done} of #{row.total} cards done"}
-              class="h-2 overflow-hidden rounded-full bg-[var(--paper-bg)]"
+              class="h-2 overflow-hidden rounded-full bg-[var(--paper-rule)]"
             >
               <div
                 data-role="bar"
@@ -187,6 +190,20 @@ defmodule TalesForgeWeb.TeamGoals do
   @spec percent(non_neg_integer(), non_neg_integer()) :: non_neg_integer()
   def percent(_done, 0), do: 0
   def percent(done, total), do: round(done * 100 / total)
+
+  @doc """
+  The net score as shown on a goal (a plus sign on a positive score).
+
+      iex> TalesForgeWeb.TeamGoals.format_score(2)
+      "+2"
+      iex> TalesForgeWeb.TeamGoals.format_score(0)
+      "0"
+      iex> TalesForgeWeb.TeamGoals.format_score(-1)
+      "-1"
+  """
+  @spec format_score(integer()) :: String.t()
+  def format_score(n) when n > 0, do: "+#{n}"
+  def format_score(n), do: Integer.to_string(n)
 
   defp countdown_class(true), do: "text-[var(--color-warning)] team-goal-overdue"
   defp countdown_class(_), do: "text-[var(--paper-ink)]"
