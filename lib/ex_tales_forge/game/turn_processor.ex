@@ -1,6 +1,9 @@
 defmodule TalesForge.Game.TurnProcessor do
   @moduledoc """
-  Turn pipeline: board first, then one table GM, then one Multi.
+  Turn pipeline: board first, then one table GM, then one Multi. A run
+  is one pipe over a `%TalesForge.Game.Turn{}` struct; the stages are in
+  `TalesForge.Game.Turn`. This module keeps the board, the Multi and the
+  signals.
 
   PlayerAction → handler → server mechanics → inventory → clock+move →
   events → WorldSim → Perception → vitality → banked LP spent on improvement
@@ -31,23 +34,14 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Config
   alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
-  alias TalesForge.Game.Context
   alias TalesForge.Game.Events
-  alias TalesForge.Game.Gestures
-  alias TalesForge.Game.HistoryStrip
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
-  alias TalesForge.Game.NpcMemory
-  alias TalesForge.Game.NpcReactions
   alias TalesForge.Game.OutcomeRecord
   alias TalesForge.Game.Perception
-  alias TalesForge.Game.PremiseCheck
   alias TalesForge.Game.Progression
   alias TalesForge.Game.Progression.Tiered
-  alias TalesForge.Game.Prompts
-  alias TalesForge.Game.ProseCheck
   alias TalesForge.Game.Reflection
-  alias TalesForge.Game.Rest
   alias TalesForge.Game.SceneProcessor
 
   alias TalesForge.Game.Schemas.{
@@ -58,7 +52,7 @@ defmodule TalesForge.Game.TurnProcessor do
   }
 
   alias TalesForge.Game.Train
-  alias TalesForge.Game.TurnRules
+  alias TalesForge.Game.Turn
   alias TalesForge.Game.Variant
   alias TalesForge.Game.World
   alias TalesForge.Game.WorldClock
@@ -70,9 +64,8 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.NPCSignals
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
-  alias TalesForge.World, as: WorldAgents
-  alias TalesForge.World.{Extract, Prices}
+  alias TalesForge.Schemas.{GameSession, SessionEvent}
+  alias TalesForge.Schemas.Turn, as: TurnRow
 
   @doc """
   Runs one turn. The main steps (rules, prompt build, GM call, persistence)
@@ -113,406 +106,21 @@ defmodule TalesForge.Game.TurnProcessor do
 
         {result, steps} =
           Steps.collect(fn ->
-            player_action = PlayerAction.decode(player_action_map)
-            run_steps(session, turn_number, raw_action, player_action, opts)
+            session
+            |> Turn.new(turn_number, raw_action, PlayerAction.decode(player_action_map), opts)
+            |> Turn.Premise.check()
+            |> Turn.Mechanics.apply()
+            |> Turn.Npcs.react()
+            |> Turn.Prompt.build()
+            |> Turn.Gm.narrate()
+            |> Turn.Outcome.persist()
+            |> Turn.result()
           end)
 
         Steps.record(steps, session_id, turn_number, Tags.for_world(session.world_state))
         finish(result, session_id, turn_number, started)
     end
   end
-
-  defp run_steps(session, turn_number, raw_action, player_action, gm_opts) do
-    # TURN_PREMISE_FIRST=on: stage 2 runs before the mechanics. Its findings
-    # block the action. nil when the flag is off (the check runs later).
-    # HISTORY_STRIP_INJECTION=on (bug h-fa06): an injection turn plays no
-    # action, runs no premise check, and the history keeps a placeholder.
-    # The prompt flags are read once, at the start of the turn.
-    flags = TalesForge.Prompt.Ctx.read_flags()
-    injected = Config.history_strip_injection?() and HistoryStrip.injected?(raw_action)
-    history_action = if injected, do: HistoryStrip.placeholder(), else: raw_action
-
-    first = if injected, do: [], else: premise_first(session, raw_action, turn_number)
-
-    {handler, mechanical, ruled} =
-      Steps.time(:rules, fn -> resolve_rules(session, player_action, first, injected) end)
-
-    # Prototype, NPC_REACTIONS=on: Jev gut reactions of the NPCs present, before
-    # the GM call (on the critical path, short timeout). Moods carry over in
-    # world_state["npc_moods"]; this turn's reactions go to the per-turn prompt.
-    # Prototype, WORLD_AGENTS=on: the agents relevant to this turn and their facts.
-    agents = world_agents(session, ruled)
-    {price_lines, priced} = world_prices(agents, session, ruled, raw_action, player_action)
-    # NPC_DIALOGUE_MEMORY=on: stage 2 runs before stage 4, so the NPCs get the
-    # premise findings.
-    early = first || npc_premises(session, priced, raw_action, turn_number)
-
-    {reactions, board} =
-      npc_reactions(session, priced, turn_number, raw_action, mechanical, early || [])
-
-    premises = early || premise_findings(session, board, raw_action, turn_number)
-    outcome = outcome_record(board)
-
-    {gm_context, messages} =
-      Steps.time(:prompt, fn ->
-        gm_context =
-          %{session | world_state: board.world}
-          |> Context.build_gm_context()
-          |> Map.put(:npc_reactions, reactions)
-          |> Map.put(:world_facts, agents)
-          |> Map.put(:price_lines, price_lines)
-          |> Map.put(:moved_from, moved_from(session.world_state, board.world))
-          |> Map.put(:premise_findings, premises)
-          |> Map.put(:outcome_record, Map.get(board, :outcome))
-          |> Map.put(:rest_growth, rest_growth(handler, mechanical, board))
-          |> put_player_request(gm_opts[:gm_note])
-
-        {gm_context,
-         Prompts.gm_messages(
-           gm_context,
-           mechanical,
-           gm_action(player_action, gm_opts[:gm_quote]),
-           handler,
-           turn_number,
-           flags: flags
-         )}
-      end)
-
-    with {:ok, gm_result} <-
-           Steps.time(:gm, fn ->
-             LLM.complete_turn(messages, player_action, handler, turn_number,
-               session_id: session.id,
-               on_text: &SessionPubSub.broadcast(session.id, {:turn_stream, &1})
-             )
-           end) do
-      mismatches = prose_check(gm_result.narrative, board, session.id, turn_number)
-
-      {board, repeats} =
-        npc_memory(board, gm_context, gm_result.narrative, session.id, turn_number)
-
-      # Default variant: log the spent gestures the GM used anyway.
-      Gestures.log_repeats(gm_result.narrative, Map.get(gm_context, :recent_gestures),
-        session: session.id,
-        turn: turn_number
-      )
-
-      Steps.time(:persist, fn ->
-        world_final = turn_patches(board.world, gm_result, injected)
-
-        persist_and_signal(session, world_final, turn_number, history_action, %{
-          handler: handler,
-          mechanical: mechanical,
-          gm_result: gm_result,
-          events:
-            board.events ++
-              premise_events(premises, board.world) ++
-              outcome_events(outcome) ++
-              List.wrap(mismatches) ++ List.wrap(repeats),
-          sim: board.sim
-        })
-      end)
-      |> tap(fn
-        {:ok, _} when agents != [] ->
-          WorldAgents.commit(session.id, [], reactions)
-
-          Extract.run_async(
-            session.id,
-            turn_number,
-            history_action,
-            gm_result.narrative,
-            agents,
-            Tags.for_world(board.world)
-          )
-
-        _ ->
-          :ok
-      end)
-    end
-  end
-
-  # TURN_STATE_FROM_MECHANICS=on: the prose post-check (design §5). Each
-  # mismatch between the GM prose and the outcome record is logged and stored
-  # as a `turn.prose_mismatch` event. There is no GM re-run.
-  defp prose_check(narrative, board, session_id, turn_number) do
-    record = Map.get(board, :outcome)
-
-    if Config.turn_state_from_mechanics?() and record do
-      mismatches = ProseCheck.check(narrative, record)
-
-      if mismatches != [],
-        do:
-          Logger.warning(
-            "prose mismatch session=#{session_id} turn=#{turn_number} " <>
-              "count=#{length(mismatches)} kinds=#{inspect(Enum.map(mismatches, & &1.kind))}"
-          )
-
-      ProseCheck.event(mismatches, record)
-    end
-  end
-
-  # TURN_OUTCOME_RECORD=on: the outcome record of stage 3 (the mechanics) goes
-  # to the turn as a `turn.outcome` event. The prompt profile
-  # (TalesForge.Prompt.Profile) adds it to the per-turn GM prompt.
-  defp outcome_record(board) do
-    if Config.turn_outcome_record?(), do: Map.get(board, :outcome)
-  end
-
-  defp outcome_events(nil), do: []
-  defp outcome_events(record), do: [OutcomeRecord.event(record)]
-
-  # The location the character left this turn, or nil (the scene block in
-  # the GM prompt narrates the move from it).
-  defp moved_from(before, after_board) do
-    from = Map.get(before || %{}, "location_id")
-    if from != Map.get(after_board, "location_id"), do: from
-  end
-
-  # Default variant: the claims in the player's words that the session state
-  # contradicts (TalesForge.Game.PremiseCheck). They go to the per-turn GM
-  # prompt and are recorded on the turn as a `player.false_premise` event. The
-  # baseline variant never runs the check, so its prompts stay as they were.
-  defp premise_findings(session, board, raw_action, turn_number) do
-    if Variant.baseline?(session.world_state || %{}) do
-      []
-    else
-      Steps.time(:premise_check, fn ->
-        state =
-          PremiseCheck.state(
-            session.world_state,
-            board.world,
-            Map.get(board.sim, :fronts, []),
-            won_fights(session.id)
-          )
-
-        raw_action
-        |> PremiseCheck.check(state)
-        |> tap(&log_premises(&1, session.id, turn_number))
-      end)
-    end
-  end
-
-  # TURN_PREMISE_FIRST=on, default variant: the premise check against the
-  # state before the turn. Returns the findings ([] when all claims hold), or
-  # nil when the flag is off or the variant is baseline.
-  defp premise_first(session, raw_action, turn_number) do
-    world = session.world_state || %{}
-
-    if Config.turn_premise_first?() and not Variant.baseline?(world) do
-      Steps.time(:premise_check, fn ->
-        state =
-          PremiseCheck.state(world, world, Fronts.sim_fronts(session.id), won_fights(session.id))
-
-        raw_action
-        |> PremiseCheck.check(state)
-        |> tap(&log_premises(&1, session.id, turn_number))
-      end)
-    end
-  end
-
-  # A claim that the state contradicts blocks the action: the turn narrates,
-  # rolls nothing, books nothing and costs no game time. The outcome record
-  # shows the action as rejected, with the corrections as the reason.
-  defp premise_block(handler, player_action, nil), do: {handler, player_action}
-  defp premise_block(handler, player_action, []), do: {handler, player_action}
-
-  defp premise_block(_handler, player_action, findings) do
-    reason = Enum.map_join(findings, " ", & &1.correction)
-
-    blocked = %HandlerResult{
-      handler: "narrate",
-      notes: "Premise check: the action is blocked.",
-      state_hints: %{"premise_rejected" => true, "rejected" => true, "reason" => reason}
-    }
-
-    action = player_action.action
-    unrolled = %{action | parameters: Map.delete(action.parameters, "skill")}
-    {blocked, %PlayerAction{player_action | action: unrolled}}
-  end
-
-  # TURN_STATE_FROM_MECHANICS=on (provisional rule): "pay for a room" with
-  # nobody here who rents rooms is rejected (TalesForge.Game.TurnRules).
-  defp lodging_block(%{state_hints: %{"rejected" => true}} = handler, _world, _action),
-    do: handler
-
-  defp lodging_block(handler, world, player_action) do
-    if Config.turn_state_from_mechanics?() and player_action.action.action_type == :spend and
-         Rest.lodging_then_sleep?(player_action.overall_intent || "") and
-         not TurnRules.lodging_seller?(world, world["location_id"]) do
-      %HandlerResult{
-        handler: "narrate",
-        notes: "Room payment: nobody here rents rooms.",
-        state_hints: %{
-          "lodging_rejected" => true,
-          "rejected" => true,
-          "reason" => TurnRules.nobody_rents_rooms()
-        }
-      }
-    else
-      handler
-    end
-  end
-
-  defp injection_block(handler, false), do: handler
-
-  defp injection_block(_handler, true) do
-    %HandlerResult{
-      handler: "narrate",
-      notes: "Out-of-character text: the server plays no action. Decline in character.",
-      state_hints: %{"no_action" => true}
-    }
-  end
-
-  defp log_premises([], _session_id, _turn_number), do: :ok
-
-  defp log_premises(findings, session_id, turn_number) do
-    Logger.info(
-      "premise check session=#{session_id} turn=#{turn_number} " <>
-        "false_claims=#{inspect(Enum.map(findings, & &1.claim))}"
-    )
-  end
-
-  defp premise_events(findings, world) do
-    findings
-    |> PremiseCheck.event(world["world_tick"], world["location_id"])
-    |> List.wrap()
-  end
-
-  # The player text and narration of each fight the character has won this
-  # session, so a kill claim is checked against what was actually fought.
-  defp won_fights(session_id) do
-    import Ecto.Query
-
-    Turn
-    |> where([t], t.game_session_id == ^session_id)
-    |> select([t], {t.mechanical_resolution, t.player_action, t.narrative})
-    |> Repo.all()
-    |> Enum.filter(fn {resolution, _action, _narrative} ->
-      PremiseCheck.combat_win?(resolution)
-    end)
-    |> Enum.map(fn {_resolution, action, narrative} ->
-      Enum.join([action || "", narrative || ""], "\n")
-    end)
-  end
-
-  defp world_agents(session, board) do
-    if WorldAgents.enabled?(),
-      do: Steps.time(:world_facts, fn -> WorldAgents.collect(session.id, board.world) end),
-      else: []
-  end
-
-  defp world_prices([], _session, board, _raw_action, _player_action), do: {[], board}
-
-  defp world_prices(agents, session, board, raw_action, player_action) do
-    Steps.time(:prices, fn ->
-      {world, lines} =
-        Prices.resolve(agents, session.world_state, board.world, raw_action, player_action)
-
-      if lines != [],
-        do: Logger.info("world prices session=#{session.id} lines=#{inspect(lines)}")
-
-      {lines, %{board | world: world}}
-    end)
-  end
-
-  defp npc_premises(session, board, raw_action, turn_number) do
-    if Config.npc_dialogue_memory?(),
-      do: premise_findings(session, board, raw_action, turn_number)
-  end
-
-  # NPC_DIALOGUE_MEMORY=on: the server (never the GM) writes the lines that
-  # the NPCs spoke this turn, and the repetition guard counts each repeat.
-  defp npc_memory(board, gm_context, narrative, session_id, turn_number) do
-    if Config.npc_dialogue_memory?() do
-      lines = NpcMemory.lines(narrative, NpcMemory.present_npcs(gm_context.intent_context))
-      {memory, repeats} = NpcMemory.put(board.world["npc_memory"] || %{}, lines)
-
-      if repeats != [],
-        do:
-          Logger.warning(
-            "npc repeat session=#{session_id} turn=#{turn_number} count=#{length(repeats)} " <>
-              "npcs=#{inspect(Enum.map(repeats, &elem(&1, 0)))}"
-          )
-
-      world = Map.put(board.world, "npc_memory", memory)
-
-      {%{board | world: world},
-       NpcMemory.event(repeats, world["world_tick"] || 0, world["location_id"])}
-    else
-      {board, nil}
-    end
-  end
-
-  defp npc_reactions(session, board, turn_number, raw_action, mechanical, findings) do
-    if NpcReactions.enabled?() do
-      Steps.time(:npc_reactions, fn ->
-        {reactions, world} =
-          NpcReactions.react(
-            session.id,
-            board.world,
-            turn_number,
-            raw_action,
-            mechanical,
-            findings
-          )
-
-        {reactions, %{board | world: world}}
-      end)
-    else
-      {[], board}
-    end
-  end
-
-  # Handler resolution, server mechanics and the board (inventory, clock, move,
-  # events, WorldSim, perception): everything decided before narration.
-  defp resolve_rules(session, player_action, findings, injected) do
-    resolved =
-      player_action
-      |> ActionHandler.resolve(Variant.of(session.world_state))
-      |> Rest.apply(session.world_state || %{}, player_action.overall_intent)
-
-    {premised, played} = premise_block(resolved, player_action, findings)
-
-    handler =
-      premised
-      |> lodging_block(session.world_state || %{}, played)
-      |> injection_block(injected)
-
-    {character, rolled} = apply_mechanics(session.world_state, played, handler)
-    board = apply_board(session, character, handler, player_action, rolled)
-    {handler, %{rolled | improvements: board.improvements, training: board.training}, board}
-  end
-
-  # INTENT_JEV=on: the GM's quote replaces overall_intent in the prompt only.
-  defp gm_action(player_action, quote) when is_binary(quote) and quote != "",
-    do: %PlayerAction{player_action | overall_intent: quote}
-
-  defp gm_action(player_action, _quote), do: player_action
-
-  # Default variant: on a long rest, the improvement attempts the rest
-  # resolved and the skills that need reflection first, for the GM's "you wake
-  # and feel surer" / "needs reflection" note; on any other turn, a physical
-  # skill that improved right away, for the "a little surer at" note.
-  # The prompt profile leaves the note out for the baseline variant.
-  defp rest_growth(handler, mechanical, board) do
-    cond do
-      long_rest?(handler) ->
-        %{
-          attempts: mechanical.improvements || [],
-          needs_reflection: Map.get(board, :needs_reflection, [])
-        }
-
-      Enum.any?(Map.get(board, :turn_growth, []), & &1["improved"]) ->
-        %{attempts: board.turn_growth, now: true}
-
-      true ->
-        nil
-    end
-  end
-
-  defp put_player_request(gm_context, nil), do: gm_context
-
-  defp put_player_request(gm_context, note) when is_binary(note),
-    do: Map.put(gm_context, :player_request, note)
 
   defp finish({:ok, payload}, session_id, turn_number, started) do
     elapsed = System.monotonic_time(:millisecond) - started
@@ -770,7 +378,10 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  defp persist_and_signal(session, world_after, turn_number, raw_action, ctx) do
+  @doc false
+  @spec persist_and_signal(GameSession.t(), map(), integer(), String.t(), map()) ::
+          {:ok, map()} | {:error, term()}
+  def persist_and_signal(session, world_after, turn_number, raw_action, ctx) do
     %{
       handler: handler,
       mechanical: mechanical,
@@ -828,14 +439,18 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  defp apply_mechanics(world_state, player_action, handler) do
+  @doc false
+  @spec apply_mechanics(map() | nil, PlayerAction.t(), HandlerResult.t()) :: {map(), struct()}
+  def apply_mechanics(world_state, player_action, handler) do
     character = Map.get(world_state || %{}, "character", %{})
     Mechanics.apply_server_mechanics(character, player_action, handler, Variant.of(world_state))
   end
 
   # HISTORY_STRIP_INJECTION=on: an injection turn writes no context_summary.
-  defp turn_patches(world, _gm_result, true), do: world
-  defp turn_patches(world, gm_result, false), do: apply_allowlisted_patches(world, gm_result)
+  @doc false
+  @spec turn_patches(map(), struct(), boolean()) :: map()
+  def turn_patches(world, _gm_result, true), do: world
+  def turn_patches(world, gm_result, false), do: apply_allowlisted_patches(world, gm_result)
 
   defp apply_allowlisted_patches(world, gm_result) do
     maybe_apply_context_summary(world, gm_result.context_summary)
@@ -936,8 +551,8 @@ defmodule TalesForge.Game.TurnProcessor do
          sim
        ) do
     turn_cs =
-      %Turn{}
-      |> Turn.changeset(%{
+      %TurnRow{}
+      |> TurnRow.changeset(%{
         game_session_id: session.id,
         turn_number: turn_number,
         player_action: raw_action,
@@ -999,7 +614,7 @@ defmodule TalesForge.Game.TurnProcessor do
   def next_turn_number(session_id) do
     import Ecto.Query
 
-    Turn
+    TurnRow
     |> where([t], t.game_session_id == ^session_id)
     |> select([t], max(t.turn_number))
     |> Repo.one()
