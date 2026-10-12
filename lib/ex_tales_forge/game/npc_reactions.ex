@@ -102,8 +102,9 @@ defmodule TalesForge.Game.NpcReactions do
   moods carried over in `"npc_moods"`. Returns `{reactions, world}`;
   `{[], world}` when off, nobody is present, or every call failed.
   """
-  @spec react(String.t(), map(), integer(), String.t(), struct() | nil) :: {[reaction()], map()}
-  def react(session_id, world, turn_number, raw_action, mechanical) do
+  @spec react(String.t(), map(), integer(), String.t(), struct() | nil, [map()]) ::
+          {[reaction()], map()}
+  def react(session_id, world, turn_number, raw_action, mechanical, findings \\ []) do
     present = List.wrap(world["present_npcs"])
 
     npcs =
@@ -120,7 +121,12 @@ defmodule TalesForge.Game.NpcReactions do
       {[], world}
     else
       moods = world["npc_moods"] || %{}
-      scene = situation(session_id, raw_action, visible_outcome(mechanical, world))
+
+      scene =
+        session_id
+        |> situation(raw_action, visible_outcome(mechanical, world))
+        |> Map.put(:findings, findings_text(findings))
+
       reactions = run_all(npcs, moods, scene, session_id, turn_number)
       {reactions, put_moods(world, moods, reactions, turn_number)}
     end
@@ -219,11 +225,22 @@ defmodule TalesForge.Game.NpcReactions do
       "Mood before this moment: #{mood_text(mood)}.",
       scene.narration && "What #{name(inst)} last saw and heard (narration):\n#{scene.narration}",
       "What the player character says or does now:\n#{scene.action}",
-      scene.outcome && "How it comes across: #{scene.outcome}."
+      scene.outcome && "How it comes across: #{scene.outcome}.",
+      Map.get(scene, :findings) &&
+        "What the server checked (premise findings; these claims are not true):\n" <>
+          scene.findings
     ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n\n")
   end
+
+  # NPC_DIALOGUE_MEMORY=on: the NPCs get the premise findings (design §2,
+  # stage 4). nil when there are none.
+  defp findings_text([]), do: nil
+  defp findings_text(nil), do: nil
+
+  defp findings_text(findings),
+    do: Enum.map_join(findings, "\n", &("- " <> &1.correction))
 
   @doc false
   @spec questions(struct()) :: list()

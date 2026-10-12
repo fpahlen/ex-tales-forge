@@ -6,7 +6,7 @@ defmodule TalesForge.TurnPipeline.Landed do
   key here when it turns its fixtures on.
   """
 
-  @keys ~w(replay_harness outcome_record premise_first state_from_mechanics)
+  @keys ~w(replay_harness outcome_record premise_first state_from_mechanics npc_memory)
 
   @doc "The landed keys."
   @spec keys() :: [String.t()]

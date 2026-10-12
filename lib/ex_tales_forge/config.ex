@@ -69,7 +69,7 @@ defmodule TalesForge.Config do
   def npc_reactions?, do: System.get_env("NPC_REACTIONS", "off") in ~w(on true 1)
 
   @doc "Per-NPC Jev reaction timeout (ms); on timeout the turn goes on without that reaction."
-  def npc_reactions_timeout_ms, do: env_int("NPC_REACTIONS_TIMEOUT_MS", 2_500)
+  def npc_reactions_timeout_ms, do: env_int("NPC_REACTIONS_TIMEOUT_MS", 600)
 
   @doc """
   Turn pipeline PR 1: the outcome record of each turn goes to the per-turn GM
@@ -86,6 +86,16 @@ defmodule TalesForge.Config do
   """
   @spec turn_premise_first?() :: boolean()
   def turn_premise_first?, do: System.get_env("TURN_PREMISE_FIRST", "off") in ~w(on true 1)
+
+  @doc """
+  Turn pipeline step 4: NPC dialogue memory and the repetition guard
+  (`TalesForge.Game.NpcMemory`). The premise check runs before the NPC
+  reactions, and the NPCs get its findings: NPC_DIALOGUE_MEMORY=on.
+  Default off.
+  """
+  @spec npc_dialogue_memory?() :: boolean()
+  def npc_dialogue_memory?,
+    do: System.get_env("NPC_DIALOGUE_MEMORY", "off") in ~w(on true 1)
 
   @doc """
   Turn pipeline PR 3: coins, items, location and clock come only from stage 3.

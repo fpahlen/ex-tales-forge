@@ -217,6 +217,7 @@ defmodule TalesForge.Game.Context do
       TalesForge.World.prompt_section(Map.get(context, :world_facts)),
       TalesForge.World.Prices.prompt_section(Map.get(context, :price_lines)),
       TalesForge.Game.NpcReactions.prompt_section(Map.get(context, :npc_reactions)),
+      Map.get(context, :npc_memory),
       Gestures.prompt_section(Map.get(context, :recent_gestures)),
       scene_now_section(context),
       TalesForge.Game.OutcomeRecord.prompt_section(Map.get(context, :outcome_record)),
