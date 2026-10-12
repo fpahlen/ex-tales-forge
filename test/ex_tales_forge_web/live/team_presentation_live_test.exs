@@ -1540,6 +1540,27 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert flow =~ ~s|} else if (this.el.dataset.flow === "playing") {|
       assert flow =~ "this.settle()"
     end
+
+    test "once played (or partly played) it stays static on return; only Replay plays again" do
+      js = File.read!("assets/js/team_hooks.js")
+      [_, flow] = Regex.run(~r/export const TeamFlow = \{(.*?)\n\}\n/s, js)
+      assert flow =~ "if (!this.played) { this.played = true; this.play() }"
+      # Leaving mid-play must not clear `played`, or the return restarts at step 1.
+      refute flow =~ "this.played = false"
+      assert flow =~ ~s|this.onReplay = () => { this.presentAt = null; this.play() }|
+    end
+
+    test "during the first play, unrevealed facts are dimmed, never a blank box",
+         %{conn: conn} do
+      {:ok, view, _} = live(log_in_admin(conn), ~p"/team/presentation")
+      html = render(view)
+
+      css =
+        ~s|.wired-flow[data-flow="playing"] [data-flow-fact]:not([data-shown]) { opacity: 0.35;|
+
+      assert html =~ css
+      refute html =~ ~r/\[data-flow-fact\]:not\(\[data-shown\]\) \{ opacity: 0;/
+    end
   end
 
   describe "present mode" do

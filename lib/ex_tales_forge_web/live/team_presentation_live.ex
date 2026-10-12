@@ -216,6 +216,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         tabindex="-1"
         class="mx-auto max-w-6xl space-y-20 px-4 pb-16 pt-8 sm:px-6 sm:pt-12"
       >
+        <TeamLayout.qa_banner qa={assigns[:qa] == true} read_only={assigns[:read_only] == true} />
         <.hero d={@d} pace={@pace} live={@live} />
         <.team_section d={@d} />
         <.how_section d={@d} live={@live} />
@@ -1112,7 +1113,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
            up and shows its bot, then the fast-lane note and the seven facts
            appear one at a time. In Present mode each click shows one more.
            Back shows one less, drawn statically; from slide 5 it lands on
-           the last part. Scrolled away mid-play, it settles to the full picture.
+           the last part. Scrolled away mid-play, it settles to the full picture and stays
+           static; only Replay plays it again. Unrevealed facts show dimmed.
            The server renders the full static picture; the styles below hide
            parts only under data-motion="full", while the hook plays. --%>
       <style>
@@ -1122,7 +1124,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         .wired-flow [data-flow-step][data-state="lit"] [data-flow-marker] { box-shadow: 0 0 0 3px var(--paper-panel), 0 0 0 5px var(--paper-accent); }
         .wired-flow .wired-bot, .wired-flow [data-flow-fact] { transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1); }
         .team-page[data-motion="full"] .wired-flow[data-flow="playing"] [data-flow-step][data-state="idle"] .wired-bot { opacity: 0; transform: scale(0.6); }
-        .team-page[data-motion="full"] .wired-flow[data-flow="playing"] [data-flow-fact]:not([data-shown]) { opacity: 0; transform: translateY(10px); }
+        .team-page[data-motion="full"] .wired-flow[data-flow="playing"] [data-flow-fact]:not([data-shown]) { opacity: 0.35; transform: translateY(4px); }
         @media (prefers-reduced-motion: reduce) { .wired-flow .wired-bot, .wired-flow [data-flow-fact] { opacity: 1 !important; transform: none !important; } }
       </style>
       <figure

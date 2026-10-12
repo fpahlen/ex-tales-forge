@@ -97,6 +97,29 @@ defmodule TalesForgeWeb.TeamLayout do
     """
   end
 
+  @doc """
+  The QA banner: shown when Gentry (QA) is signed in, on /team and on
+  /team/presentation.
+  """
+  attr :qa, :boolean, default: false
+  attr :read_only, :boolean, default: false
+
+  @spec qa_banner(map()) :: Phoenix.LiveView.Rendered.t()
+  def qa_banner(assigns) do
+    ~H"""
+    <p
+      :if={@qa}
+      id="qa-banner"
+      role="status"
+      class="rounded-box border border-[var(--paper-line)] px-4 py-2 text-sm"
+    >
+      Signed in as Gentry (QA). {if @read_only,
+        do: "This session can view the page. It cannot change it.",
+        else: "Writes are on for this session (playtest only)."}
+    </p>
+    """
+  end
+
   @doc "The footer: the date the numbers are from, and where they come from."
   attr :d, :map, required: true
 

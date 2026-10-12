@@ -125,7 +125,9 @@ defmodule TalesForgeWeb.QaLoginTest do
       {:ok, view, _} = live(conn, "/team")
       assert has_element?(view, "#qa-banner", "cannot change it")
       assert has_element?(view, "#idea-board-live")
-      {:ok, _, _} = live(conn, "/team/presentation")
+      {:ok, pres, _} = live(conn, "/team/presentation")
+      assert has_element?(pres, "#qa-banner", "Signed in as Gentry (QA).")
+      assert has_element?(pres, "#qa-banner", "cannot change it")
     end
 
     test "opens no other page" do

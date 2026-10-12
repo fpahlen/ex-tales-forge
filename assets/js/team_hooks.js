@@ -426,14 +426,14 @@ export const TeamFlow = {
 
     if (this.mq.matches || !("IntersectionObserver" in window)) return this.settle()
 
-    // Plays when scrolled into view. Scrolled away before it is done, it
-    // shows the full static picture (no empty box) and plays again on return.
+    // Plays once when first scrolled into view. Scrolled away before it is
+    // done, it settles to the full static picture and stays so: coming back
+    // shows everything at once. Only the Replay button plays it again.
     this.observer = new IntersectionObserver(entries => {
       if (this.presentAt != null) return
       if (entries.some(e => e.isIntersecting)) {
         if (!this.played) { this.played = true; this.play() }
       } else if (this.el.dataset.flow === "playing") {
-        this.played = false
         this.settle()
       }
     }, {threshold: 0.3})
