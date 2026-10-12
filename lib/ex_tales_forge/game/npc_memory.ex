@@ -131,23 +131,19 @@ defmodule TalesForge.Game.NpcMemory do
   end
 
   @doc """
-  The per-turn GM prompt section with the memory of the present NPCs, or nil
-  when it is empty.
+  The NPCs present in `intent_context` with the names that can start a
+  spoken line (the full name and the first name).
   """
-  @spec prompt_section(map(), [npc()]) :: String.t() | nil
-  def prompt_section(memory, npcs) do
-    blocks =
-      npcs
-      |> Enum.map(fn npc -> {npc, Map.get(memory || %{}, npc.id, [])} end)
-      |> Enum.reject(fn {_npc, lines} -> lines == [] end)
-      |> Enum.map(fn {npc, lines} ->
-        "#{hd(npc.names)}:\n" <> Enum.map_join(lines, "\n", &"- \"#{&1}\"")
-      end)
+  @spec present_npcs(map() | nil) :: [npc()]
+  def present_npcs(intent_context) do
+    details = (intent_context || %{})["npc_details"] || %{}
 
-    if blocks != [],
-      do:
-        "## NPC dialogue memory (the last lines each NPC spoke; do not repeat these lines)\n" <>
-          Enum.join(blocks, "\n")
+    (intent_context || %{})["present_npcs"]
+    |> List.wrap()
+    |> Enum.map(fn id ->
+      name = get_in(details, [id, "name"]) || id
+      %{id: id, names: Enum.uniq([name, name |> String.split() |> hd()])}
+    end)
   end
 
   @doc "The session event for the repeats (kind `turn.npc_repeat`), or nil."

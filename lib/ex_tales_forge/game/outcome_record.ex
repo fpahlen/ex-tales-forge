@@ -114,29 +114,18 @@ defmodule TalesForge.Game.OutcomeRecord do
   def rejected(_record), do: []
 
   @doc """
-  The per-turn GM prompt section for the record, or nil when there is no
-  record (the flag is off). The section gives the GM the booked facts. The GM
-  narrates each accepted and each rejected action, and states no coin or item
-  change that the record does not contain.
+  The lines of the record for the GM prompt (`TalesForge.Prompt.Sections.OutcomeRecord`):
+  one line per action, then the coins, items, clock and location lines.
   """
-  @spec prompt_section(t() | nil) :: String.t() | nil
-  def prompt_section(nil), do: nil
-
-  def prompt_section(%{} = record) do
-    lines =
-      Enum.map(record["actions"], &action_line/1) ++
-        [
-          coins_line(record["coins"]),
-          items_line(record["items"]),
-          clock_line(record["clock"]),
-          location_line(record["location"])
-        ]
-
-    """
-    ## Outcome record (booked by the server)
-    The server booked this turn. #{@rejection_template} State no coin amount, item gain or item loss that this record does not contain. Use this location and this time.
-    #{Enum.map_join(lines, "\n", &("- " <> &1))}
-    """
+  @spec prompt_lines(t()) :: [String.t()]
+  def prompt_lines(%{} = record) do
+    Enum.map(record["actions"], &action_line/1) ++
+      [
+        coins_line(record["coins"]),
+        items_line(record["items"]),
+        clock_line(record["clock"]),
+        location_line(record["location"])
+      ]
   end
 
   @doc """

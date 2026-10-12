@@ -297,7 +297,8 @@ defmodule TalesForge.Game.PromptPrefixTest do
       %MechanicalResolution{skill: "insight", roll: 14, outcome: "success"},
       player_action,
       handler,
-      turn_number
+      turn_number,
+      flags: %{world_agents: true, npc_reactions: true}
     )
   end
 

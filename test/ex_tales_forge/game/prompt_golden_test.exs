@@ -50,6 +50,74 @@ defmodule TalesForge.Game.PromptGoldenTest do
     end
   end
 
+  # One golden per prompt flag (`TalesForge.Prompt.Ctx.read_flags/0`). The
+  # context holds the data of every flag section; only the flag that is on
+  # adds its section. "off" has every flag off.
+  for flag <- ~w(off turn_outcome_record npc_dialogue_memory npc_reactions world_agents) do
+    test "tin_valley GM turn with the #{flag} flag is byte-identical to its golden file" do
+      check_flag_golden(unquote(flag))
+    end
+  end
+
+  defp check_flag_golden(flag) do
+    {:ok, session} = GameSessions.create_session(%{name: "Golden", adventure_id: "tin_valley"})
+    context = session |> Context.build_gm_context() |> Map.merge(flag_data())
+    present = hd(context.intent_context["present_npcs"])
+    context = put_in(context, [:world_state, "npc_memory"], %{present => ["Mind the step."]})
+
+    flags =
+      Map.new(~w(turn_outcome_record npc_dialogue_memory npc_reactions world_agents)a, fn f ->
+        {f, Atom.to_string(f) == flag}
+      end)
+
+    actual =
+      context
+      |> gm_messages(2, "look around", role: :playtest, flags: flags)
+      |> messages()
+      |> normalise(session.id)
+
+    path = Path.join([@dir, "flags", "tin_valley.#{flag}.txt"])
+
+    if System.get_env("UPDATE_PROMPT_GOLDEN") in ~w(1 true) do
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(path, actual)
+    end
+
+    assert actual == File.read!(path),
+           "the GM prompt with #{flag} changed; UPDATE_PROMPT_GOLDEN=1 rewrites #{path}"
+  end
+
+  defp flag_data do
+    %{
+      outcome_record: %{
+        "actions" => [%{"type" => "observe", "status" => "accepted"}],
+        "coins" => %{"delta_copper" => 0, "after_copper" => 30},
+        "items" => %{"gained" => [], "lost" => []},
+        "clock" => %{},
+        "location" => %{"from" => "valley_inn", "to" => "valley_inn"}
+      },
+      npc_reactions: [
+        %{
+          "name" => "Brenna Holt",
+          "emotion" => "wary",
+          "intensity" => 0.7,
+          "stance" => "cool",
+          "confidence" => 0.8
+        }
+      ],
+      world_facts: [
+        %{
+          id: "valley_inn",
+          kind: :location,
+          name: "Valley Inn",
+          role: :here,
+          facts: [%{"source" => "pack", "text" => "The common room has one hearth."}]
+        }
+      ],
+      price_lines: ["Price: ale, 2 copper"]
+    }
+  end
+
   defp check_role_golden(role) do
     {:ok, session} = GameSessions.create_session(%{name: "Golden", adventure_id: "tin_valley"})
     context = Context.build_gm_context(session)
