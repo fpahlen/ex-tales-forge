@@ -103,7 +103,10 @@ defmodule TalesForge.IntentEval.Metrics do
   @spec action_correct?(map(), map()) :: boolean()
   def action_correct?(item, r) do
     not is_nil(r.action) and
-      to_string(r.action) in acceptable(item, "action", "acceptable_actions")
+      Enum.any?(
+        TalesForge.Game.JevIntent.v1_actions(r.action),
+        &(to_string(&1) in acceptable(item, "action", "acceptable_actions"))
+      )
   end
 
   defp target_expected?({item, r}) do

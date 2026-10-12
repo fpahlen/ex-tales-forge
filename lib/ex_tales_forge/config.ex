@@ -72,6 +72,15 @@ defmodule TalesForge.Config do
   def npc_reactions_timeout_ms, do: env_int("NPC_REACTIONS_TIMEOUT_MS", 600)
 
   @doc """
+  Turn pipeline step 5: the Jev intent read uses catalogue v2
+  (`TalesForge.Game.JevIntent`): `rest`, `work`, `equip`, `give` and
+  `none_fits`, up to 3 ordered actions this turn, and the manner.
+  JEV_CATALOGUE_V2=on. Default off.
+  """
+  @spec jev_catalogue_v2?() :: boolean()
+  def jev_catalogue_v2?, do: System.get_env("JEV_CATALOGUE_V2", "off") in ~w(on true 1)
+
+  @doc """
   Turn pipeline PR 1: the outcome record of each turn goes to the per-turn GM
   prompt and to the turn (`TalesForge.Game.OutcomeRecord`):
   TURN_OUTCOME_RECORD=on. Default off.

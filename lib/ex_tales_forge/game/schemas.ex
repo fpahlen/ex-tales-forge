@@ -19,6 +19,11 @@ defmodule TalesForge.Game.Schemas do
           | :wait
           | :train
           | :freeform
+          | :rest
+          | :work
+          | :equip
+          | :give
+          | :none_fits
           | :other
 
   defmodule SingleAction do
@@ -77,6 +82,11 @@ defmodule TalesForge.Game.Schemas do
         "wait" -> :wait
         "train" -> :train
         "freeform" -> :freeform
+        "rest" -> :rest
+        "work" -> :work
+        "equip" -> :equip
+        "give" -> :give
+        "none_fits" -> :none_fits
         _ -> :other
       end
     end

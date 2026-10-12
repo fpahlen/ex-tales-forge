@@ -42,7 +42,18 @@ defmodule TalesForge.Game.ActionHandler do
           }
         }
 
-      action.action_type == :wait ->
+      # Catalogue v2 (JEV_CATALOGUE_V2): no mechanics; the GM narrates the
+      # attempt (turn pipeline design §5, rule 5).
+      action.action_type == :none_fits ->
+        %HandlerResult{
+          handler: "narrate",
+          target: action.target,
+          notes:
+            "No mechanics: the action fits no type. Narrate the attempt with no mechanical effect.",
+          state_hints: %{"none_fits" => true}
+        }
+
+      action.action_type in [:wait, :rest] ->
         ticks = wait_ticks(player_action)
 
         %HandlerResult{
