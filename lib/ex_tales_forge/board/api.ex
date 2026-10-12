@@ -120,7 +120,7 @@ defmodule TalesForge.Board.Api do
 
   defp images(_idea), do: []
 
-  @doc "A card as JSON (everything loaded), with its state (`state`: the column or `archived`; `archived`: who, when and why, or null), its tags (`tags`: the founder tag and the free-text tags; `free_tags`: only the free-text tags) and its image links (`images`)."
+  @doc "A card as JSON (everything loaded), with its state (`state`: the column or `archived`; `archived`: who, when and why, or null), its goal (`goal`: id, key, title, outcome, target date, or null), its tags (`tags`: the founder tag and the free-text tags; `free_tags`: only the free-text tags) and its image links (`images`)."
   @spec card(Idea.t()) :: map()
   def card(%Idea{} = idea) do
     %{
@@ -134,6 +134,7 @@ defmodule TalesForge.Board.Api do
       "author" => idea.author,
       "tags" => TalesForge.Board.Tags.of(idea),
       "free_tags" => idea.tags || [],
+      "goal" => TalesForge.Board.Goals.to_json(if(Ecto.assoc_loaded?(idea.goal), do: idea.goal)),
       "score" => Float.round(idea.score * 1.0, 3),
       "net_votes" => Board.net_votes(idea),
       "downvoted" => Board.downvoted?(idea),

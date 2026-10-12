@@ -20,7 +20,7 @@ defmodule TalesForgeWeb.QaLoginTest do
 
   @tables ~w(board_ideas board_votes board_pings board_transitions board_approvals
              board_links board_comments board_answers team_chat_messages team_chat_reads
-             team_images board_deletions)
+             team_images board_deletions board_goal_votes)
 
   setup do
     Application.put_env(:ex_tales_forge, :qa_login, token: @token)

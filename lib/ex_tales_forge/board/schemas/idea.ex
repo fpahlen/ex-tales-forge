@@ -36,6 +36,7 @@ defmodule TalesForge.Board.Idea do
     field :pr_head_sha, :string
     field :player_note, :string
     field :tags, {:array, :string}, default: []
+    belongs_to :goal, TalesForge.Board.Goal
 
     has_many :votes, Vote
     has_many :comments, Comment
