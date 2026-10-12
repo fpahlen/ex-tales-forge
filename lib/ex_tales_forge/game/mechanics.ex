@@ -204,7 +204,8 @@ defmodule TalesForge.Game.Mechanics do
     if is_nil(skill) do
       {character, no_check_resolution()}
     else
-      perform_and_apply(character, skill, nil, variant)
+      modifier = (handler.state_hints || %{})["roll_modifier"] || 0
+      perform_and_apply(character, skill, nil, variant, modifier)
     end
   end
 
@@ -219,7 +220,7 @@ defmodule TalesForge.Game.Mechanics do
   """
   @spec resolve_check_skill(String.t() | nil, term(), String.t() | nil) :: String.t() | nil
   def resolve_check_skill(handler, handler_skill, action_skill) do
-    if handler in ["move", "inventory", "wait", "train"] do
+    if handler in ["move", "inventory", "wait", "train", "work", "equip", "give"] do
       nil
     else
       action_skill || normalize_skill_name(handler_skill)
@@ -232,12 +233,19 @@ defmodule TalesForge.Game.Mechanics do
   spending them is `TalesForge.Game.Progression` (default) or
   `TalesForge.Game.Progression.Tiered` (baseline).
   """
-  @spec perform_and_apply(map(), String.t() | nil, 1..20 | nil, String.t()) ::
+  @spec perform_and_apply(map(), String.t() | nil, 1..20 | nil, String.t(), integer()) ::
           {map(), MechanicalResolution.t()}
-  def perform_and_apply(character, skill, injected_roll \\ nil, variant \\ "default") do
+  def perform_and_apply(
+        character,
+        skill,
+        injected_roll \\ nil,
+        variant \\ "default",
+        modifier \\ 0
+      ) do
     normalized = normalize_skill_name(skill) || "insight"
     raw_level = character |> get_in(["skills", normalized]) |> to_int(0)
-    effective = effective_skill_level(character, normalized)
+    # Catalogue v2: the manner adverb's roll modifier (PROVISIONAL table).
+    effective = max(0, effective_skill_level(character, normalized) + modifier)
     roll = injected_roll || :rand.uniform(20)
     outcome = resolve_outcome(roll, effective, raw_level)
     baseline? = variant == "baseline"
