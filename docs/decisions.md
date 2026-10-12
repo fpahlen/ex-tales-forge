@@ -11,6 +11,17 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Turn pipeline: provisional rules (PROVISIONAL)
+
+- **Decision (Fredrik, PROVISIONAL):** These rules settle gaps in the turn pipeline design until a full decision replaces them. The code is `TalesForge.Game.TurnRules` (ex-tales-forge PR 3, flag `TURN_STATE_FROM_MECHANICS`).
+  1. **PROVISIONAL:** Game minutes per action use the existing clock costs (15 minutes for one plain action; wait and train use their own time). Each new catalogue action gets a placeholder: `rest` 60, `work` 60, `equip` 15, `give` 15. There is no full time table.
+  2. **PROVISIONAL:** A `none_fits` turn does not move the clock.
+  3. **PROVISIONAL:** Jev plays at most 3 ordered actions. The server drops a 4th action, and the GM gets a note.
+  4. **PROVISIONAL:** An NPC repeat is an exact match after the server lowers the case and collapses the whitespace.
+  5. **PROVISIONAL:** "Pay for a room" with nobody here who rents rooms is rejected with the reason "nobody here rents rooms".
+- **Why:** The fixtures for the turn pipeline need fixed values now. Catalogue v2 (step 5) is on hold while the transfer-action model is open.
+- **Details:** [Design: the turn pipeline](design-turn-pipeline.md), §8
+
 ## 2026-10-12: Turn pipeline order and rules
 
 - **Decision (Fredrik):** Every turn runs in this order: Jev intent, premise and inventory check, mechanics and state, NPCs, GM narration of confirmed outcomes. In addition: (1) a rejected action costs no game time; (2) catalogue v2 adds `give` now, and `eat` and `drink` come later; (3) `none_fits` uses no extra Grok call, and the GM handles it alone; (4) a prose/record mismatch is logged and counted as a bug that fails the fixtures, with no GM re-run; (5) the server strips injected text from the history and keeps no marked copy.
