@@ -13,7 +13,8 @@ defmodule TalesForge.TeamPace do
     `TalesForge.PrFeed.Pace`).
   - **Fallback** (`source: :fallback`): the bundled `data.json`
     (`TalesForge.TeamPage`, its `pace` block) when the feed has no full count:
-    no token, GitHub unreachable, not polled yet, or a list cut short. The
+    no token, or no full count read since this machine started (one failed
+    poll keeps the last good count, `TalesForge.PrFeed.pace/1`). The
     pages then label the numbers "as of <date>" (`label/1`).
 
   Live or fallback is decided for the whole map, never per number.
@@ -45,11 +46,13 @@ defmodule TalesForge.TeamPace do
         }
 
   @doc """
-  The pace numbers now: live from the PR feed's latest snapshot when it has a
-  full count, otherwise the bundled `data.json`.
+  The pace numbers now: live from the PR feed's latest full count
+  (`TalesForge.PrFeed.pace/1`: the latest snapshot's, or the last good one
+  while it is fresh), otherwise the bundled `data.json`. The fallback is used
+  only when this machine has no full count yet (a cold start).
   """
   @spec current() :: t()
-  def current, do: current(PrFeed.snapshot(), TeamPage.data())
+  def current, do: current(%{status: :ok, pace: PrFeed.pace()}, TeamPage.data())
 
   @doc """
   The pace numbers from a feed `snapshot` (live, when it carries `:pace`) or
