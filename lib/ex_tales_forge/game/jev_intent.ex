@@ -489,7 +489,16 @@ defmodule TalesForge.Game.JevIntent do
 
     %{
       extraction:
-        build_extraction(action, target, skill, later, later_target, text, context, confidence),
+        build_extraction(
+          action,
+          target,
+          skill,
+          {later, later_target},
+          text,
+          context,
+          confidence,
+          manner(reply[:manner])
+        ),
       action: action,
       target: target,
       skill: skill,
@@ -697,11 +706,20 @@ defmodule TalesForge.Game.JevIntent do
     |> Enum.map(fn {label, _p} -> label end)
   end
 
-  defp build_extraction(action, target, skill, later, later_target, text, context, confidence) do
+  defp build_extraction(
+         action,
+         target,
+         skill,
+         {later, later_target},
+         text,
+         context,
+         confidence,
+         manner
+       ) do
     primary = %SingleAction{
       action_type: action,
       target: target,
-      parameters: parameters(action, skill, text, context, target)
+      parameters: parameters(action, skill, text, context, target, manner)
     }
 
     deferred =
@@ -719,17 +737,24 @@ defmodule TalesForge.Game.JevIntent do
     }
   end
 
-  defp parameters(action, skill, text, context, target) do
+  defp parameters(action, skill, text, context, target, manner) do
     %{}
+    |> put_manner(manner)
     |> put_skill(skill, action)
     |> put_numbers(action, text, context, target)
   end
+
+  defp put_manner(params, nil), do: params
+  defp put_manner(params, manner), do: Map.put(params, "manner", Atom.to_string(manner))
 
   defp put_skill(params, nil, _action), do: params
 
   defp put_skill(params, _skill, action) when action in @no_skill_actions, do: params
 
   defp put_skill(params, skill, _action), do: Map.put(params, "skill", skill)
+
+  defp put_numbers(params, :work, text, _context, _target),
+    do: Map.put(params, "ticks", WorldClock.parse_duration(text))
 
   defp put_numbers(params, :rest, text, _context, _target),
     do: Map.put(params, "ticks", WorldClock.parse_duration(text))

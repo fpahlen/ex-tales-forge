@@ -34,6 +34,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Config
   alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
+  alias TalesForge.Game.Catalogue
   alias TalesForge.Game.Events
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
@@ -194,6 +195,7 @@ defmodule TalesForge.Game.TurnProcessor do
       world_before
       |> put_in(["character"], character)
       |> maybe_apply_inventory(session.id, player_action.action, handler)
+      |> apply_catalogue(session, handler, player_action)
 
     inventory_result = premise_result(handler, traded)
     handler = mark_rejected(handler, inventory_result)
@@ -510,6 +512,29 @@ defmodule TalesForge.Game.TurnProcessor do
         {world_state, {:error, reason}}
     end
   end
+
+  # Catalogue v2 (JEV_CATALOGUE_V2): work, equip and give
+  # (TalesForge.Game.Catalogue). Other handlers pass through.
+  defp apply_catalogue({world, traded}, session, %{handler: h} = handler, player_action)
+       when h in ["work", "equip", "give"] do
+    npc = if h == "give", do: gift_npc(session, handler.target)
+
+    case Catalogue.apply(world, handler, player_action.overall_intent || "", npc) do
+      {updated, {:error, reason} = error} ->
+        Logger.info("catalogue skipped session=#{session.id} reason=#{reason}")
+        {updated, error}
+
+      {updated, result} ->
+        {updated, result || traded}
+    end
+  end
+
+  defp apply_catalogue(acc, _session, _handler, _player_action), do: acc
+
+  defp gift_npc(_session, nil), do: nil
+
+  defp gift_npc(session, npc_id),
+    do: session.id |> NPC.notice_profiles([npc_id]) |> List.first()
 
   defp premise_result(%{state_hints: %{"premise_rejected" => true, "reason" => reason}}, _result),
     do: {:error, "Premise check: " <> reason}
