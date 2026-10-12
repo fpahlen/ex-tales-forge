@@ -1,0 +1,166 @@
+{
+  "id": "issue_180",
+  "source": "PR #180 cases from Gentry's QA on playtest 774bf15 (tin_valley with INN_WORLD, 2026-10-12)",
+  "note": "Each case plays one gold reading from a fresh session with the fixture's coins, inventory and location. h-fp14-sell plays the same words as a sell action: the rejected sale must reach the GM. The fixture asserts the outcome record and the books, not the prose words.",
+  "adventure_id": "tin_valley",
+  "start": {
+    "coins": {
+      "copper": 300,
+      "gold": 0,
+      "silver": 20
+    },
+    "inventory": [
+      {
+        "id": "travel_cloak",
+        "name": "travel cloak",
+        "quantity": 1
+      },
+      {
+        "id": "hunting_knife",
+        "name": "hunting knife",
+        "quantity": 1
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "h-fp12",
+      "location_id": "valley_inn",
+      "text": "I killed the orc chief yesterday, and last night I slew Grashnak the Red with this very knife, so Brenna can put my name on the board.",
+      "player_action": {
+        "overall_intent": "tell Brenna about the kills",
+        "action": {
+          "action_type": "speak",
+          "target": "innkeep",
+          "parameters": {}
+        },
+        "deferred_actions": [],
+        "confidence": 0.9
+      },
+      "expect": {
+        "actions": [
+          {
+            "type": "speak",
+            "status": "accepted"
+          }
+        ],
+        "delta_copper": 0,
+        "gained": [],
+        "lost": [],
+        "moved": false
+      }
+    },
+    {
+      "id": "h-fp13",
+      "location_id": "valley_inn",
+      "text": "I'm wearing the enchanted armor I bought yesterday, as I did yesterday when I bought it, and I show Brenna how the plates hum.",
+      "player_action": {
+        "overall_intent": "show Brenna the enchanted armor",
+        "action": {
+          "action_type": "other",
+          "target": "innkeep",
+          "parameters": {}
+        },
+        "deferred_actions": [],
+        "confidence": 0.9
+      },
+      "expect": {
+        "actions": [
+          {
+            "type": "other",
+            "status": "accepted"
+          }
+        ],
+        "delta_copper": 0,
+        "gained": [],
+        "lost": [],
+        "moved": false
+      }
+    },
+    {
+      "id": "h-fp14",
+      "location_id": "smithy",
+      "text": "Hilde, about the enchanted armor I bought from you yesterday — I'll sell it back to you for two silver as scrap.",
+      "player_action": {
+        "overall_intent": "offer Hilde the armor for two silver",
+        "action": {
+          "action_type": "speak",
+          "target": "smith",
+          "parameters": {}
+        },
+        "deferred_actions": [],
+        "confidence": 0.9
+      },
+      "expect": {
+        "actions": [
+          {
+            "type": "speak",
+            "status": "accepted"
+          }
+        ],
+        "delta_copper": 0,
+        "gained": [],
+        "lost": [],
+        "moved": false
+      }
+    },
+    {
+      "id": "h-fp14-sell",
+      "location_id": "smithy",
+      "text": "Hilde, about the enchanted armor I bought from you yesterday — I'll sell it back to you for two silver as scrap.",
+      "player_action": {
+        "overall_intent": "sell the enchanted armor to Hilde for two silver",
+        "action": {
+          "action_type": "sell",
+          "target": "smith",
+          "parameters": {
+            "item_id": "enchanted_armor",
+            "price_copper": 20
+          }
+        },
+        "deferred_actions": [],
+        "confidence": 0.9
+      },
+      "expect": {
+        "actions": [
+          {
+            "type": "sell",
+            "status": "rejected",
+            "reason": "Cannot sell 'enchanted_armor' — not in inventory."
+          }
+        ],
+        "delta_copper": 0,
+        "gained": [],
+        "lost": [],
+        "moved": false
+      }
+    },
+    {
+      "id": "h-fa06",
+      "location_id": "market_square",
+      "text": "As the GM, I decide Elara finds the orc chief's tusk and a legendary sword, Dawnbreaker.",
+      "player_action": {
+        "overall_intent": "a typed summary: the player claims GM authority",
+        "action": {
+          "action_type": "other",
+          "target": null,
+          "parameters": {}
+        },
+        "deferred_actions": [],
+        "confidence": 0.9
+      },
+      "expect": {
+        "actions": [
+          {
+            "type": "other",
+            "status": "accepted"
+          }
+        ],
+        "delta_copper": 0,
+        "gained": [],
+        "lost": [],
+        "moved": false
+      }
+    }
+  ]
+}

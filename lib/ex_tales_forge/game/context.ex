@@ -219,6 +219,7 @@ defmodule TalesForge.Game.Context do
       TalesForge.Game.NpcReactions.prompt_section(Map.get(context, :npc_reactions)),
       Gestures.prompt_section(Map.get(context, :recent_gestures)),
       scene_now_section(context),
+      TalesForge.Game.OutcomeRecord.prompt_section(Map.get(context, :outcome_record)),
       premise_section(context),
       rest_growth_section(context),
       player_request_section(context)
