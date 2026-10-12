@@ -1272,9 +1272,17 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
       idea = Enum.find(Board.board()["ideas"], &(&1.title == "Fishing at the mill"))
       assert idea.body == "Let players fish at the mill."
       assert has_element?(view, ~s(#board-notice[role="status"] a[href="#idea-#{idea.id}"]))
+      assert has_element?(view, "#board-notice.toast", "Card created:")
       assert_push_event(view, "board_draft:saved", %{scope: "new-idea", fields: nil})
 
-      view |> element("#board-notice-close") |> render_click()
+      # The toast closes itself after 5 seconds; the hook then runs the same
+      # command as a click, which sends dismiss_notice.
+      assert has_element?(
+               view,
+               ~s(#board-notice[phx-hook$=".FlashAutohide"][data-autohide-ms="5000"])
+             )
+
+      view |> element("#board-notice") |> render_click()
       refute has_element?(view, "#board-notice")
     end
 

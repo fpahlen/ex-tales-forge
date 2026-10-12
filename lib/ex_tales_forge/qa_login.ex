@@ -49,7 +49,7 @@ defmodule TalesForge.QaLogin do
                   toggle_sort toggle_tag clear_tags cancel_comment cancel_downvote
                   edit_refinement cancel_refinement draft_change
                   open_archive close_archive archive_filter archive_tag cancel_archive
-                  cancel_delete)
+                  cancel_delete goal_toggle)
 
   @refused "This QA session is read-only. Gentry (QA) can view the page but cannot change it."
 

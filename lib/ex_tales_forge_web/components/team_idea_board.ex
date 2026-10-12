@@ -86,6 +86,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
      |> assign_new(:downvote_for, fn -> nil end)
      |> assign_new(:goal_downvote_for, fn -> nil end)
      |> assign_new(:goal_error, fn -> nil end)
+     |> assign_new(:goal_open, fn -> nil end)
      |> assign_new(:editing, fn -> nil end)
      |> assign_new(:drafts, fn -> %{} end)
      |> assign_new(:typed, fn -> %{} end)
@@ -169,6 +170,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       prs: prs(),
       pings: Board.unread_pings(socket.assigns[:login]),
       goals_strip: Goals.strip(),
+      goal_cards: goal_cards(socket.assigns[:goal_open]),
       goals: Goals.list() |> Enum.sort_by(&{&1.sort, &1.title}),
       typing: Typing.who(),
       open: open,
@@ -184,6 +186,24 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   end
 
   defp actor(socket), do: {:founder, socket.assigns.founder}
+
+  # The cards of the open goal and the cards that a founder can add to it.
+  defp goal_cards(nil), do: nil
+
+  defp goal_cards(goal_id),
+    do: %{cards: Goals.open_cards(goal_id), unassigned: Goals.unassigned_cards()}
+
+  # The actor for a goal change: the QA session uses its own email, so
+  # Goals.set_card_goal/3 refuses it.
+  defp goal_actor(socket),
+    do: if(socket.assigns[:qa], do: TalesForge.QaLogin.email(), else: socket.assigns.founder)
+
+  defp goal_card(socket, card_id, goal_id) do
+    case Board.get_idea(card_id) do
+      nil -> goal_result(socket, {:error, "That card is gone."})
+      idea -> goal_result(socket, Goals.set_card_goal(idea, goal_actor(socket), goal_id))
+    end
+  end
 
   defp goal_result(socket, {:ok, _goal}),
     do: {:noreply, socket |> assign(goal_downvote_for: nil, goal_error: nil) |> load()}
@@ -348,6 +368,41 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     case Goals.get(id) do
       nil -> goal_result(socket, {:error, "That goal is gone."})
       goal -> goal_result(socket, Goals.vote(goal, socket.assigns.founder, -1, reason))
+    end
+  end
+
+  defp event("goal_toggle", %{"goal_id" => id}, socket) do
+    open = if socket.assigns.goal_open == id, do: nil, else: id
+    {:noreply, socket |> assign(goal_open: open, goal_error: nil) |> load()}
+  end
+
+  defp event("goal_add_card", %{"goal_id" => goal_id, "card_id" => card_id}, socket)
+       when card_id != "",
+       do: goal_card(socket, card_id, goal_id)
+
+  defp event("goal_add_card", _params, socket),
+    do: goal_result(socket, {:error, "Select a card to add."})
+
+  defp event("goal_remove_card", %{"card_id" => card_id}, socket),
+    do: goal_card(socket, card_id, nil)
+
+  defp event("goal_new_card", %{"goal_id" => goal_id, "title" => title}, socket) do
+    actor = goal_actor(socket)
+
+    cond do
+      not Goals.founder?(actor) ->
+        goal_result(socket, {:error, "Only a founder changes the goal of a card."})
+
+      String.trim(title) == "" ->
+        goal_result(socket, {:error, "Write a title for the new card."})
+
+      true ->
+        with {:ok, idea} <- Board.create_idea(actor, %{"title" => String.trim(title)}),
+             {:ok, _idea} <- Goals.set_card_goal(idea, actor, goal_id) do
+          goal_result(socket, {:ok, nil})
+        else
+          error -> goal_result(socket, error)
+        end
     end
   end
 
@@ -689,6 +744,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         downvote_for={@goal_downvote_for}
         error={@goal_error}
         can_vote={assigns[:qa] != true}
+        open_id={@goal_open}
+        open_cards={@goal_cards}
       />
       <section
         :if={@pings != []}
@@ -816,13 +873,14 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           </p>
           <.draft_hint id="board-add-draft-hint" class="sm:col-span-2" />
         </form>
-        <div
+        <.flash
           :if={@notice}
           id="board-notice"
-          role="status"
-          class="flex flex-wrap items-center gap-2 rounded border border-[var(--paper-rule)] px-3 py-2 text-sm"
+          kind={:info}
+          autohide
+          on_close={JS.push("dismiss_notice", target: @myself) |> hide("#board-notice")}
         >
-          <span>Card created:</span>
+          Card created:
           <a
             href={"#idea-" <> @notice.id}
             phx-click="open"
@@ -830,15 +888,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             phx-target={@myself}
             class="font-semibold underline"
           >{@notice.title}</a>
-          <button
-            type="button"
-            id="board-notice-close"
-            phx-click="dismiss_notice"
-            phx-target={@myself}
-            aria-label="Close the notification"
-            class="ml-auto min-h-11 px-2"
-          >×</button>
-        </div>
+        </.flash>
       </section>
 
       <%!-- Desktop: Ideas left, the three active columns in the middle with

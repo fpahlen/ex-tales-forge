@@ -180,6 +180,9 @@ defmodule TalesForgeWeb.QaLoginTest do
         {"goal_downvote", %{"goal_id" => goal.id, "reason" => "no"}},
         {"set_goal", %{"card_id" => id, "goal_id" => goal.id}},
         {"set_goal", %{"card_id" => id, "goal_id" => ""}},
+        {"goal_add_card", %{"goal_id" => goal.id, "card_id" => id}},
+        {"goal_remove_card", %{"card_id" => id}},
+        {"goal_new_card", %{"goal_id" => goal.id, "title" => "From QA"}},
         {"some_new_write", %{"card_id" => id}}
       ]
 
@@ -191,6 +194,19 @@ defmodule TalesForgeWeb.QaLoginTest do
       end
 
       assert Board.Typing.who() == %{}
+    end
+
+    test "the QA session opens a goal and sees its cards, without the goal controls" do
+      goal = TalesForge.Repo.get_by!(TalesForge.Board.Goal, key: "G2")
+      {:ok, idea} = Board.create_idea("fredrik@whyse.se", %{"title" => "Goal card"})
+      {:ok, _} = TalesForge.Board.Goals.set_card_goal(idea, "fredrik@whyse.se", goal.id)
+      {:ok, view, _} = live(qa_conn(), "/team")
+
+      view |> element("#goal-#{goal.id}-toggle") |> render_click()
+      assert has_element?(view, "#goal-#{goal.id}-card-#{idea.id}", "Goal card")
+      refute has_element?(view, "#goal-#{goal.id}-remove-#{idea.id}")
+      refute has_element?(view, "#goal-#{goal.id}-add")
+      refute has_element?(view, "#goal-#{goal.id}-new")
     end
 
     test "chat send is refused on the server" do

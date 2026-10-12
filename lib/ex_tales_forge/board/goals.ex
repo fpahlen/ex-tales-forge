@@ -13,6 +13,10 @@ defmodule TalesForge.Board.Goals do
   - The goals strip: for each goal, the Done cards over all its cards
     (archived cards are not counted) and the time left in Stockholm days, and
     the count of cards without a goal.
+  - An open goal lists its cards that are not Done or archived
+    (`open_cards/1`). A founder adds a card without a goal from
+    `unassigned_cards/0`. The goal of a card is the only link: there is no
+    task table.
   - The north star is a header line, not a goal (`north_star/0`).
   """
   import Ecto.Query
@@ -210,6 +214,30 @@ defmodule TalesForge.Board.Goals do
           {:ok, TalesForge.Board.get_idea!(idea.id)}
         end
     end
+  end
+
+  @doc """
+  The cards of a goal that are not Done and not archived, in board column
+  order, then oldest first. Parked cards are in the list.
+  """
+  @spec open_cards(String.t()) :: [Idea.t()]
+  def open_cards(goal_id) when is_binary(goal_id) do
+    from(i in Idea, where: i.goal_id == ^goal_id and i.column not in ["done", "archived"])
+    |> Repo.all()
+    |> sort_cards()
+  end
+
+  @doc "The cards without a goal that are not Done and not archived."
+  @spec unassigned_cards() :: [Idea.t()]
+  def unassigned_cards do
+    from(i in Idea, where: is_nil(i.goal_id) and i.column not in ["done", "archived"])
+    |> Repo.all()
+    |> sort_cards()
+  end
+
+  defp sort_cards(cards) do
+    order = TalesForge.Board.Transitions.states() |> Enum.with_index() |> Map.new()
+    Enum.sort_by(cards, &{Map.get(order, &1.column, 99), DateTime.to_unix(&1.inserted_at)})
   end
 
   @doc "True for a founder (an email); false for a bot (`bot:`) and for the QA session."
