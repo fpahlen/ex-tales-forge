@@ -58,7 +58,12 @@ defmodule TalesForge.Game.Turn.Mechanics do
       |> injection_block(turn.injected)
 
     {character, rolled} = TurnProcessor.apply_mechanics(turn.session.world_state, played, handler)
-    board = TurnProcessor.apply_board(turn.session, character, handler, player_action, rolled)
+
+    board =
+      TurnProcessor.apply_board(turn.session, character, handler, player_action, rolled,
+        catalogue_v2: Turn.flag?(turn, :jev_catalogue_v2)
+      )
+
     {handler, %{rolled | improvements: board.improvements, training: board.training}, board}
   end
 

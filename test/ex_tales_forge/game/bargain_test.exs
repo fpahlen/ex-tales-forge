@@ -1,0 +1,92 @@
+defmodule TalesForge.Game.BargainTest do
+  use TalesForge.DataCase, async: false
+
+  alias TalesForge.Game.{ActionHandler, Inventory, TurnProcessor}
+  alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
+  alias TalesForge.GameSessions
+  alias TalesForge.NPC
+  alias TalesForge.Repo
+  alias TalesForge.Schemas.{GameSession, NpcInstance}
+
+  doctest TalesForge.Game.Bargain
+
+  setup do
+    {:ok, session} = GameSessions.create_session(%{name: "Bargain", adventure_id: "tin_valley"})
+    session = Repo.get!(GameSession, session.id)
+
+    set_runtime(session.id, %{
+      "stock" => [%{"id" => "rope", "name" => "Rope", "price_copper" => 110, "quantity" => 3}]
+    })
+
+    {:ok, session: Repo.get!(GameSession, session.id)}
+  end
+
+  defp set_runtime(session_id, changes) do
+    inst = NPC.get_instance(session_id, "innkeep")
+
+    inst
+    |> Ecto.Changeset.change(runtime_state: Map.merge(inst.runtime_state, changes))
+    |> Repo.update!()
+  end
+
+  defp buy(session, text, opts) do
+    action = %PlayerAction{
+      overall_intent: text,
+      action: %SingleAction{
+        action_type: :buy,
+        target: "innkeep",
+        parameters: %{"item_id" => "rope"}
+      }
+    }
+
+    TurnProcessor.apply_board(
+      session,
+      session.world_state["character"],
+      ActionHandler.resolve(action),
+      action,
+      %MechanicalResolution{},
+      opts
+    )
+  end
+
+  defp copper(board), do: Inventory.coin_total_copper(board.world["character"]["coins"])
+
+  test "a haggle with a low roll lowers the price", %{session: session} do
+    before = Inventory.coin_total_copper(session.world_state["character"]["coins"])
+
+    board =
+      buy(session, "I buy the rope, but I haggle",
+        catalogue_v2: true,
+        haggle_rolls: %{"persuasion" => 1}
+      )
+
+    paid = before - copper(board)
+    assert paid < 110 and paid >= 90
+  end
+
+  test "a failed haggle pays the asking price", %{session: session} do
+    before = Inventory.coin_total_copper(session.world_state["character"]["coins"])
+
+    board =
+      buy(session, "I buy the rope, but I haggle",
+        catalogue_v2: true,
+        haggle_rolls: %{"persuasion" => 19}
+      )
+
+    assert before - copper(board) == 110
+  end
+
+  test "with the flag off there is no haggle", %{session: session} do
+    before = Inventory.coin_total_copper(session.world_state["character"]["coins"])
+    board = buy(session, "I buy the rope, but I haggle", haggle_rolls: %{"persuasion" => 1})
+    assert before - copper(board) == 110
+  end
+
+  test "a hostile trader refuses the trade", %{session: session} do
+    set_runtime(session.id, %{"relationship_score" => -4.0})
+    board = buy(session, "I buy the rope", catalogue_v2: true)
+    assert [%{"status" => "rejected", "code" => "npc_refused"}] = board.outcome["actions"]
+    assert copper(board) == Inventory.coin_total_copper(session.world_state["character"]["coins"])
+    assert %NpcInstance{} = NPC.get_instance(session.id, "innkeep")
+  end
+end
