@@ -14,7 +14,7 @@ defmodule TalesForgeWeb.TeamBoard do
   section reads; it has nothing to drag and sends no events.
 
   The rules follow tales-forge-docs `docs/design-board-states.md` (approved
-  2026-10-10), and the copy follows `docs/team-page/content.md` section 6.
+  2026-10-10), and the copy follows `docs/team-page/content.md` section 7.
   The "How a card travels" steps come from `shared_board.columns` in
   `data.json` (`id`, `label`, `owner`); a column that the data does not name
   keeps the label from the brief. Without stats (where the board is not, or a
@@ -117,7 +117,7 @@ defmodule TalesForgeWeb.TeamBoard do
         <.icon name="hero-check-circle-micro" class="size-4" /> Live on
         <.link href="/team#idea-board" class="underline">/team</.link>
       </p>
-      <.section_head id={@anchor} title="6. How we work together: one shared board">
+      <.section_head id={@anchor} title="7. How we work together: one shared board">
         The idea board on /team is where founders and bots work side by side.
         Every feature lives there, from a first idea to a change on production.
         You add an idea, the bots do the legwork, and you decide what gets built.
