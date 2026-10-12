@@ -25,6 +25,7 @@ export const TeamPage = {
     this.boardDragCleanup = setupBoardDrag(this)
     this.draftsCleanup = BoardDrafts.setup(this)
     this.cardUrlCleanup = setupCardUrl(this)
+    this.presentCleanup = setupPresent(this)
   },
 
   // After a reconnect (a deploy restarts production) the board component
@@ -67,6 +68,7 @@ export const TeamPage = {
   // revealed sections fade out again. Put them back.
   updated() {
     if (this.motion) this.el.dataset.motion = this.motion
+    this.presentRefresh?.()
     this.revealed?.forEach(id => document.getElementById(id)?.classList.add("is-visible"))
   },
 
@@ -77,7 +79,141 @@ export const TeamPage = {
     this.boardDragCleanup?.()
     this.draftsCleanup?.()
     this.cardUrlCleanup?.()
+    this.presentCleanup?.()
   },
+}
+
+// Present mode on /team/presentation (TeamPresentationLive.present_controls).
+// The "Present" button ([data-present-start], its data-slides lists the
+// section ids of the nav) shows one section for each slide, in full screen.
+//   - Forward: Right or Down arrow, Page Down, Space, a click, a swipe left.
+//   - Back: Left or Up arrow, Page Up, Shift+Space, a click on the left third,
+//     a swipe right.
+//   - Esc (or leaving full screen) stops it and goes to that section.
+// The URL hash is #slide-N (1-based), so a link opens that slide. The
+// browser allows full screen only after a click, so a link opens the slide
+// in the window.
+export const slideFromHash = (hash, total) => {
+  const m = /^#slide-(\d+)$/.exec(hash || "")
+  if (!m) return null
+  const n = parseInt(m[1], 10)
+  return n >= 1 && n <= total ? n : null
+}
+
+export const clampSlide = (n, total) => Math.min(Math.max(n, 1), total)
+
+const PRESENT_SKIP = "a, button, input, textarea, select, summary, label, [data-peek], [data-present-bar]"
+
+export const setupPresent = hook => {
+  const root = hook.el
+  const start = root.querySelector("[data-present-start]")
+  const bar = root.querySelector("[data-present-bar]")
+  if (!start || !bar) return () => {}
+  const ids = JSON.parse(start.dataset.slides || "[]")
+  const total = ids.length
+  let current = null
+  let touch = null
+
+  const others = () => root.querySelectorAll("#team-header, #present-start-wrap, #team-main > *, footer")
+
+  const render = () => {
+    if (current === null) return
+    const id = ids[current - 1]
+    others().forEach(el => el.classList.toggle("hidden", el.id !== id))
+    document.getElementById(id)?.classList.add("is-visible")
+    bar.hidden = false
+    root.dataset.presenting = "true"
+    const counter = bar.querySelector("#present-counter")
+    if (counter) counter.textContent = `${current} / ${total}`
+    window.scrollTo(0, 0)
+  }
+
+  const go = n => {
+    current = clampSlide(n, total)
+    history.replaceState(null, "", `#slide-${current}`)
+    render()
+  }
+
+  const begin = (n, fullscreen) => {
+    if (total === 0) return
+    if (fullscreen && document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {})
+    }
+    go(n)
+  }
+
+  const stop = () => {
+    if (current === null) return
+    const id = ids[current - 1]
+    current = null
+    others().forEach(el => el.classList.remove("hidden"))
+    bar.hidden = true
+    delete root.dataset.presenting
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
+    history.replaceState(null, "", `#${id}`)
+    document.getElementById(id)?.scrollIntoView()
+  }
+
+  const onStart = () => begin(1, true)
+  const onExit = e => { e.stopPropagation(); stop() }
+
+  const onKey = e => {
+    if (current === null || e.target.closest?.("input, textarea, select, [contenteditable]")) return
+    const fwd = ["ArrowRight", "ArrowDown", "PageDown"].includes(e.key) || (e.key === " " && !e.shiftKey)
+    const back = ["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key) || (e.key === " " && e.shiftKey)
+    if (e.key === "Escape") stop()
+    else if (fwd) go(current + 1)
+    else if (back) go(current - 1)
+    else return
+    e.preventDefault()
+  }
+
+  const onClick = e => {
+    if (current === null || e.target.closest(PRESENT_SKIP)) return
+    go(e.clientX < window.innerWidth / 3 ? current - 1 : current + 1)
+  }
+
+  const onTouchStart = e => {
+    const t = e.changedTouches[0]
+    touch = {x: t.clientX, y: t.clientY}
+  }
+
+  const onTouchEnd = e => {
+    if (current === null || !touch) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - touch.x
+    const dy = t.clientY - touch.y
+    touch = null
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? current + 1 : current - 1)
+  }
+
+  const onFullscreen = () => { if (!document.fullscreenElement && current !== null) stop() }
+
+  const onHash = () => {
+    const n = slideFromHash(window.location.hash, total)
+    if (n && n !== current) begin(n, false)
+  }
+
+  start.addEventListener("click", onStart)
+  bar.querySelector("[data-present-exit]")?.addEventListener("click", onExit)
+  document.addEventListener("keydown", onKey)
+  root.addEventListener("click", onClick)
+  root.addEventListener("touchstart", onTouchStart, {passive: true})
+  root.addEventListener("touchend", onTouchEnd, {passive: true})
+  document.addEventListener("fullscreenchange", onFullscreen)
+  window.addEventListener("hashchange", onHash)
+  hook.presentRefresh = render
+  onHash()
+
+  return () => {
+    start.removeEventListener("click", onStart)
+    document.removeEventListener("keydown", onKey)
+    root.removeEventListener("click", onClick)
+    root.removeEventListener("touchstart", onTouchStart)
+    root.removeEventListener("touchend", onTouchEnd)
+    document.removeEventListener("fullscreenchange", onFullscreen)
+    window.removeEventListener("hashchange", onHash)
+  }
 }
 
 // Peeks: the hover cards on the call-type pills (TalesForgeWeb.TeamPeek).
