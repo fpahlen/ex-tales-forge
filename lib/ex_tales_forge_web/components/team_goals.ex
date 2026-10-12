@@ -6,6 +6,12 @@ defmodule TalesForgeWeb.TeamGoals do
   progress bar (Done cards over all its cards, archived cards not counted)
   and its time left, and the count of cards without a goal. The events go to
   the board component (`myself`).
+
+  Each goal opens and closes (`goal_toggle`). An open goal lists its cards
+  that are not Done, with the title and column of each card. A founder adds
+  a card without a goal, removes a card from the goal, or creates a new Idea
+  card with the goal set. The QA session sees the list but gets no controls.
+  On a phone the open goal is a full-screen sheet.
   """
   use Phoenix.Component
 
@@ -17,6 +23,8 @@ defmodule TalesForgeWeb.TeamGoals do
   attr :downvote_for, :any, default: nil
   attr :error, :string, default: nil
   attr :can_vote, :boolean, default: true
+  attr :open_id, :string, default: nil
+  attr :open_cards, :map, default: nil
 
   @spec strip(map()) :: Phoenix.LiveView.Rendered.t()
   def strip(assigns) do
@@ -72,6 +80,22 @@ defmodule TalesForgeWeb.TeamGoals do
               <p data-role="score" class="text-xs">
                 Score: <span class="font-semibold tabular-nums">{format_score(row.score)}</span>
               </p>
+              <button
+                type="button"
+                id={"goal-#{row.goal.id}-toggle"}
+                phx-click="goal_toggle"
+                phx-value-goal_id={row.goal.id}
+                phx-target={@myself}
+                aria-expanded={to_string(@open_id == row.goal.id)}
+                aria-controls={"goal-#{row.goal.id}-cards"}
+                class="mt-1 inline-flex min-h-11 items-center gap-1 rounded px-2 text-sm font-semibold underline"
+              >
+                <.icon
+                  name={if @open_id == row.goal.id, do: "hero-chevron-up", else: "hero-chevron-down"}
+                  class="size-4"
+                />
+                {if @open_id == row.goal.id, do: "Close cards", else: "Show cards"}
+              </button>
             </div>
             <div
               :if={@can_vote}
@@ -173,8 +197,127 @@ defmodule TalesForgeWeb.TeamGoals do
               </span>
             </p>
           </div>
+          <.goal_cards
+            :if={@open_id == row.goal.id and @open_cards != nil}
+            row={row}
+            cards={@open_cards}
+            can_edit={@can_vote}
+            error={@error}
+            myself={@myself}
+          />
         </li>
       </ol>
+    </section>
+    """
+  end
+
+  attr :row, :map, required: true
+  attr :cards, :map, required: true
+  attr :can_edit, :boolean, required: true
+  attr :error, :string, default: nil
+  attr :myself, :any, required: true
+
+  # The open goal: a full-screen sheet on a phone, a panel in the goal from
+  # the sm breakpoint.
+  defp goal_cards(assigns) do
+    ~H"""
+    <section
+      id={"goal-#{@row.goal.id}-cards"}
+      role="region"
+      aria-labelledby={"goal-#{@row.goal.id}-cards-title"}
+      class="fixed inset-0 z-50 grid content-start gap-3 overflow-y-auto bg-[var(--paper-panel)] p-4 sm:static sm:z-auto sm:overflow-visible sm:border-t sm:border-[var(--paper-rule)] sm:p-0 sm:pt-2"
+    >
+      <div class="flex items-start justify-between gap-2">
+        <h4 id={"goal-#{@row.goal.id}-cards-title"} class="font-semibold">
+          Cards for {@row.goal.key} {@row.goal.title}
+        </h4>
+        <button
+          type="button"
+          id={"goal-#{@row.goal.id}-close"}
+          phx-click="goal_toggle"
+          phx-value-goal_id={@row.goal.id}
+          phx-target={@myself}
+          aria-label={"Close the cards for #{@row.goal.title}"}
+          class="inline-flex min-h-11 min-w-11 items-center justify-center rounded sm:hidden"
+        >
+          <.icon name="hero-x-mark" class="size-6" />
+        </button>
+      </div>
+      <p data-role="sheet-progress" class="text-xs tabular-nums sm:hidden">
+        {@row.done} of {@row.total} done
+      </p>
+      <p :if={@error} role="alert" class="rounded bg-red-50 px-2 py-1 text-sm text-red-800 sm:hidden">
+        {@error}
+      </p>
+      <p :if={@cards.cards == []} data-role="empty" class="text-sm text-[var(--paper-muted)]">
+        This goal has no open cards.
+      </p>
+      <ul :if={@cards.cards != []} class="grid gap-1">
+        <li
+          :for={card <- @cards.cards}
+          id={"goal-#{@row.goal.id}-card-#{card.id}"}
+          data-column={card.column}
+          class="flex items-center justify-between gap-2 rounded border border-[var(--paper-rule)] px-2 py-1"
+        >
+          <span class="min-w-0">
+            <span class="block break-words text-sm">{card.title}</span>
+            <span data-role="column" class="text-xs text-[var(--paper-muted)]">
+              {TalesForge.Board.Transitions.label(card.column)}
+            </span>
+          </span>
+          <button
+            :if={@can_edit}
+            type="button"
+            id={"goal-#{@row.goal.id}-remove-#{card.id}"}
+            phx-click="goal_remove_card"
+            phx-value-card_id={card.id}
+            phx-target={@myself}
+            aria-label={"Remove #{card.title} from the goal"}
+            class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded hover:bg-[var(--paper-bg)]"
+          >
+            <.icon name="hero-minus-circle" class="size-5" />
+          </button>
+        </li>
+      </ul>
+      <form
+        :if={@can_edit and @cards.unassigned != []}
+        id={"goal-#{@row.goal.id}-add"}
+        phx-submit="goal_add_card"
+        phx-target={@myself}
+        class="flex flex-wrap items-end gap-2"
+      >
+        <input type="hidden" name="goal_id" value={@row.goal.id} />
+        <label class="grid flex-1 gap-1 text-sm">
+          Add a card without a goal
+          <select name="card_id" class="select select-sm min-h-11 w-full bg-[var(--paper-panel)]">
+            <option value="">Select a card</option>
+            <option :for={card <- @cards.unassigned} value={card.id}>
+              {card.title} ({TalesForge.Board.Transitions.label(card.column)})
+            </option>
+          </select>
+        </label>
+        <button type="submit" class="min-h-11 rounded border px-3 font-semibold">Add</button>
+      </form>
+      <form
+        :if={@can_edit}
+        id={"goal-#{@row.goal.id}-new"}
+        phx-submit="goal_new_card"
+        phx-target={@myself}
+        class="flex flex-wrap items-end gap-2"
+      >
+        <input type="hidden" name="goal_id" value={@row.goal.id} />
+        <label class="grid flex-1 gap-1 text-sm">
+          New Idea card for this goal
+          <input
+            type="text"
+            name="title"
+            required
+            maxlength="200"
+            class="min-h-11 rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2"
+          />
+        </label>
+        <button type="submit" class="min-h-11 rounded border px-3 font-semibold">Create</button>
+      </form>
     </section>
     """
   end

@@ -68,4 +68,92 @@ defmodule TalesForgeWeb.TeamGoalsLiveTest do
     view |> form("#card-#{idea.id}-goal-form", %{goal_id: g.id}) |> render_change()
     assert Board.get_idea!(idea.id).goal_id == g.id
   end
+
+  describe "an open goal" do
+    test "lists its cards with the column; Done cards are not listed", %{conn: conn} do
+      g = g2()
+      {:ok, parked} = Board.create_idea("bo@example.com", %{"title" => "Parked card"})
+      {:ok, done} = Board.create_idea("bo@example.com", %{"title" => "Done card"})
+
+      for {idea, column} <- [{parked, "parked"}, {done, "done"}] do
+        idea |> Ecto.Changeset.change(goal_id: g.id, column: column) |> Repo.update!()
+      end
+
+      {:ok, view, _} = live(conn, "/team")
+      refute has_element?(view, "#goal-#{g.id}-cards")
+      view |> element("#goal-#{g.id}-toggle") |> render_click()
+      assert has_element?(view, ~s(#goal-#{g.id}-toggle[aria-expanded="true"]))
+
+      assert has_element?(
+               view,
+               ~s(#goal-#{g.id}-card-#{parked.id}[data-column="parked"]),
+               "Parked card"
+             )
+
+      assert has_element?(
+               view,
+               ~s(#goal-#{g.id}-card-#{parked.id} [data-role="column"]),
+               "Parked"
+             )
+
+      refute has_element?(view, "#goal-#{g.id}-card-#{done.id}")
+      view |> element("#goal-#{g.id}-toggle") |> render_click()
+      refute has_element?(view, "#goal-#{g.id}-cards")
+    end
+
+    test "a founder adds and removes a card; progress follows", %{conn: conn} do
+      g = g2()
+      {:ok, idea} = Board.create_idea("bo@example.com", %{"title" => "Loose card"})
+      {:ok, view, _} = live(conn, "/team")
+      view |> element("#goal-#{g.id}-toggle") |> render_click()
+      before = TalesForge.Board.Goals.strip().goals |> Enum.find(&(&1.goal.id == g.id))
+
+      view |> form("#goal-#{g.id}-add", %{card_id: idea.id}) |> render_submit()
+      assert Board.get_idea!(idea.id).goal_id == g.id
+      assert has_element?(view, "#goal-#{g.id}-card-#{idea.id}", "Loose card")
+
+      assert has_element?(
+               view,
+               ~s(#goal-#{g.id} [data-role="progress"]),
+               "of #{before.total + 1} done"
+             )
+
+      view |> element("#goal-#{g.id}-remove-#{idea.id}") |> render_click()
+      assert Board.get_idea!(idea.id).goal_id == nil
+      refute has_element?(view, "#goal-#{g.id}-card-#{idea.id}")
+    end
+
+    test "a founder creates a new Idea card with the goal set", %{conn: conn} do
+      g = g2()
+      {:ok, view, _} = live(conn, "/team")
+      view |> element("#goal-#{g.id}-toggle") |> render_click()
+      view |> form("#goal-#{g.id}-new", %{title: "Fresh goal card"}) |> render_submit()
+
+      idea = Repo.get_by!(TalesForge.Board.Idea, title: "Fresh goal card")
+      assert idea.goal_id == g.id
+      assert idea.column == "ideas"
+      assert has_element?(view, "#goal-#{g.id}-card-#{idea.id}", "Fresh goal card")
+    end
+
+    test "on a phone the open goal is a full-screen sheet with a close button", %{conn: conn} do
+      g = g2()
+      {:ok, view, _} = live(conn, "/team")
+      view |> element("#goal-#{g.id}-toggle") |> render_click()
+      assert has_element?(view, "#goal-#{g.id}-cards.fixed.inset-0")
+      view |> element("#goal-#{g.id}-close") |> render_click()
+      refute has_element?(view, "#goal-#{g.id}-cards")
+    end
+  end
+
+  test "bots and the QA session cannot change the goal of a card" do
+    {:ok, idea} = Board.create_idea("bo@example.com", %{"title" => "Guarded"})
+    g = g2()
+
+    assert {:error, _} = TalesForge.Board.Goals.set_card_goal(idea, "bot:bobby", g.id)
+
+    assert {:error, _} =
+             TalesForge.Board.Goals.set_card_goal(idea, TalesForge.QaLogin.email(), g.id)
+
+    assert Board.get_idea!(idea.id).goal_id == nil
+  end
 end
