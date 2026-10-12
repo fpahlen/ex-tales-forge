@@ -14,6 +14,10 @@ primary_region = "arn"
 # 512MB is tight for the BEAM at boot (OOM-killed without swap); swap on the
 # rootfs costs nothing extra and keeps the VM at the cheap 512MB size.
 swap_size_mb = 512
+# Fly sends SIGTERM and waits 30s before it kills the machine, so the code
+# heat sampler can write its last sample (same as fly.toml).
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
 
 [build]
 
@@ -29,7 +33,7 @@ swap_size_mb = 512
   # docs/design-tin-valley-world.md); off on production (fly.toml).
   INN_WORLD = "on"
   WORLD_ANTAGONIST = "on"
-  # Daily call-time sample for /admin/operate/code-heat (TalesForge.CodeHeat).
+  # Hourly call-time sample for /admin/operate/code-heat (TalesForge.CodeHeat).
   # Playtest only: production stays off.
   CODE_HEAT_MAP = "on"
 

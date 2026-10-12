@@ -27,7 +27,7 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLiveTest do
           {TalesForge.AppRole, :role, 1} => {90_000, 45_000},
           {TalesForge.AppRole, :playtest?, 1} => {1_200_000, 30_000}
         },
-        DateTime.add(now, -24, :hour),
+        DateTime.add(now, -1, :hour),
         now,
         3
       )
@@ -53,12 +53,14 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLiveTest do
     refute html =~ "$"
   end
 
-  test "no sample yet: shows the first sample time in Stockholm time and disables the filters",
-       %{conn: conn} do
-    start_supervised!({TalesForge.CodeHeat.Sampler, force: true, modules: []})
-    {:ok, view, _html} = live(conn, ~p"/admin/operate/code-heat")
+  test "no sample in the last 24 hours: says so and disables the filters", %{conn: conn} do
+    now = DateTime.utc_now()
+    {:ok, _} = CodeHeat.save(%{}, DateTime.add(now, -26, :hour), DateTime.add(now, -25, :hour), 1)
+    {:ok, view, html} = live(conn, ~p"/admin/operate/code-heat")
 
-    assert has_element?(view, "#code-heat-empty", "(Stockholm time)")
+    assert has_element?(view, "#code-heat-empty", "There is no sample in the last 24 hours.")
+    assert html =~ "A task writes one sample each hour. The map shows the last 24 hours."
+    refute html =~ "first sample comes"
     assert has_element?(view, "#code-heat-filters fieldset[disabled]")
     refute has_element?(view, "#code-heat-legend")
   end
@@ -85,6 +87,7 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLiveTest do
 
     {:ok, view, html} = live(conn, ~p"/admin/operate/code-heat")
     refute has_element?(view, "#code-heat-off")
+    assert has_element?(view, "#code-heat-sample", "1 sample from")
     assert has_element?(view, "#code-heat-sample", "3 modules, 3 functions")
     assert has_element?(view, "#tile-TalesForge-IntentJev[data-hot=true]", "AI")
     assert has_element?(view, "#code-heat-hot", "TalesForge.IntentJev")
