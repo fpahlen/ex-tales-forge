@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Jev reads player intent on all sessions; no intent LLM call
+
+- **Decision (Fredrik):** `INTENT_JEV=on` for all new sessions on production and playtest. Jev reads the player's intent in one call. The Elixir heuristic is the fallback on a Jev error, a timeout or a missing key. We removed the Tier 1 intent LLM call (grok). The baseline variant stays the no-Jev arm, because the playtest series runs it. It now reads intent with the heuristic only.
+- **Why:** Jev is fast and cheap and gives typed answers from free text (call-type rule, 2026-10-07). The Tier 1 call added time before the GM call (turn time p50 0.36 s, p95 1.9 s, latency study 2026-10-12). Supersedes the Tier 1 part of "GM pipeline direction" (2026-10-07).
+- **Details:** [ex-tales-forge #193](https://github.com/whyse-ab/ex-tales-forge/pull/193), `TalesForge.IntentJev`
+
 ## 2026-10-12: Goals on the idea board
 
 - **Decision:** The idea board shows goals at the top. Each card has zero or one goal. The north star ("first paying customer we don't personally know", Apr 2027) is a header line with its own countdown, not a goal. The goals are G2 to G7 from the roadmap, plus G7 "Our shared workspace (team tools)" with the target 2026-10-31. Founders vote on goals (a -1 needs a reason) and change the goal of a card. Bots and the QA session cannot change it. A month target uses the last day of the month.
