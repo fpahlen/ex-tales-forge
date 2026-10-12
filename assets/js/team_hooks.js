@@ -23,6 +23,16 @@ export const TeamPage = {
     this.apply()
     this.peeksCleanup = setupPeeks(this.el)
     this.boardDragCleanup = setupBoardDrag(this)
+    this.draftsCleanup = BoardDrafts.setup(this)
+    this.cardUrlCleanup = setupCardUrl(this)
+  },
+
+  // After a reconnect (a deploy restarts production) the board component
+  // mounts again with no card open: open the card in the URL again, and put
+  // the drafts back.
+  reconnected() {
+    this.cardUrlRestore?.()
+    BoardDrafts.restoreAll(this.el)
   },
 
   apply() {
@@ -65,6 +75,8 @@ export const TeamPage = {
     this.mq?.removeEventListener("change", this.onChange)
     this.peeksCleanup?.()
     this.boardDragCleanup?.()
+    this.draftsCleanup?.()
+    this.cardUrlCleanup?.()
   },
 }
 
@@ -498,7 +510,9 @@ export const TeamChat = {
     })
     const box = this.box()
     if (box) growBox(box)
+    this.draftsCleanup = BoardDrafts.setup(this)
   },
+  reconnected() { BoardDrafts.restoreAll(this.el) },
   updated() { this.toBottom() },
   toBottom() {
     const list = this.list()
@@ -507,6 +521,7 @@ export const TeamChat = {
   destroyed() {
     this.el.removeEventListener("input", this.onInput)
     this.el.removeEventListener("keydown", this.onKey)
+    this.draftsCleanup?.()
   },
 }
 
@@ -596,4 +611,264 @@ export const ImageInput = {
       this.stopStream()
     }
   },
+}
+
+// BoardDrafts: unsaved text on the idea board and in the team chat stays in
+// localStorage, so a reconnect, a deploy or a reload does not lose it.
+//   - A form with data-draft="<scope>" (for example "card:<id>", "new-idea",
+//     "chat") is a draft scope. Each text box and select in it is saved on
+//     every input as {value, at} under "tf:draft:<scope>:<field name>".
+//     A button with data-draft-toggle="<field>" and aria-pressed (the Defer
+//     toggles) is saved as "true" or "false".
+//   - When a draft form shows up (page mount, a card opens, a reconnect),
+//     the saved values go back into empty boxes. A form with data-draft-sync
+//     (the answer boxes, whose drafts the server keeps) also gets an input
+//     event, so the server state follows.
+//     A [data-draft-hint] element (aria-live polite) then says "Draft restored".
+//   - The server confirms a save with push_event("board_draft:saved",
+//     %{scope: scope, fields: [names] | nil}): those drafts go (nil: all of
+//     the scope). The chat clears its scope on "team_chat:sent".
+//   - Drafts older than 7 days go when the page loads.
+// The hook runs from TeamPage (the board) and TeamChat (the composer), so
+// app.js needs no change. The pure functions take the storage and the time
+// as arguments, so they run without a browser.
+const DRAFT_PREFIX = "tf:draft:"
+export const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+const HINT_MS = 6000
+
+const safeStorage = () => {
+  try { return window.localStorage } catch (_e) { return null }
+}
+
+export const BoardDrafts = {
+  key: (scope, field) => `${DRAFT_PREFIX}${scope}:${field}`,
+
+  save(storage, scope, field, value, now = Date.now()) {
+    if (!storage || !scope || !field) return
+    const key = this.key(scope, field)
+    try {
+      if (value === "" || value == null) storage.removeItem(key)
+      else storage.setItem(key, JSON.stringify({value: String(value), at: now}))
+    } catch (_e) { /* storage full or blocked: the draft stays only on screen */ }
+  },
+
+  // The fresh drafts of a scope as {field: value}. Old or broken ones go.
+  load(storage, scope, now = Date.now()) {
+    const out = {}
+    if (!storage) return out
+    const prefix = `${DRAFT_PREFIX}${scope}:`
+    for (const key of this.keys(storage)) {
+      if (!key.startsWith(prefix)) continue
+      const d = this.read(storage, key, now)
+      if (d) out[key.slice(prefix.length)] = d.value
+    }
+    return out
+  },
+
+  // Removes the drafts of a scope: the fields named (a name or a prefix
+  // ending in "[" such as "answers["), or every field when fields is null.
+  clear(storage, scope, fields = null) {
+    if (!storage) return
+    const prefix = `${DRAFT_PREFIX}${scope}:`
+    for (const key of this.keys(storage)) {
+      if (!key.startsWith(prefix)) continue
+      const field = key.slice(prefix.length)
+      const hit = !fields || fields.some(f => f.endsWith("[") ? field.startsWith(f) : field === f)
+      if (hit) storage.removeItem(key)
+    }
+  },
+
+  // Removes every draft older than 7 days.
+  prune(storage, now = Date.now()) {
+    if (!storage) return
+    for (const key of this.keys(storage)) if (key.startsWith(DRAFT_PREFIX)) this.read(storage, key, now)
+  },
+
+  read(storage, key, now) {
+    try {
+      const d = JSON.parse(storage.getItem(key))
+      if (d && typeof d.value === "string" && now - d.at <= DRAFT_MAX_AGE_MS) return d
+    } catch (_e) { /* broken entry: remove it below */ }
+    storage.removeItem(key)
+    return null
+  },
+
+  keys(storage) {
+    const keys = []
+    for (let i = 0; i < storage.length; i++) keys.push(storage.key(i))
+    return keys
+  },
+
+  // Puts the saved drafts back into one form. Returns true when something
+  // came back. A box the founder already typed in keeps its text.
+  restoreForm(form, storage = safeStorage(), now = Date.now()) {
+    const scope = form.dataset.draft
+    if (!scope || this.restored.has(form)) return false
+    this.restored.add(form)
+    const drafts = this.load(storage, scope, now)
+    let restored = false
+    // Toggles first: a click on a button in a form that waits for a change
+    // reply does nothing.
+    const entries = Object.entries(drafts)
+      .sort(([a], [b]) => Number(b.startsWith("deferred[")) - Number(a.startsWith("deferred[")))
+    for (const [field, value] of entries) {
+      const toggle = form.querySelector(`[data-draft-toggle="${CSS.escape(field)}"]`)
+      if (toggle) {
+        if (toggle.getAttribute("aria-pressed") !== value) { toggle.click(); restored = true }
+        continue
+      }
+      const box = form.elements.namedItem(field)
+      if (!box || box.disabled || box.readOnly || box.type === "hidden") continue
+      if (box.value !== "" && box.value !== box.defaultValue) continue
+      if (box.value === value) continue
+      box.value = value
+      // Only a form whose server keeps the value (data-draft-sync, the answer
+      // boxes) gets the input event: LiveView puts the server's value back
+      // into an unfocused box when it acknowledges a change.
+      if (form.hasAttribute("data-draft-sync")) box.dispatchEvent(new Event("input", {bubbles: true}))
+      restored = true
+    }
+    if (restored) this.hint(form)
+    return restored
+  },
+
+  // The forms already restored (kept in JS: a LiveView patch would remove a
+  // marker attribute).
+  restored: new WeakSet(),
+
+  restoreAll(root) {
+    this.restored = new WeakSet()
+    root.querySelectorAll("form[data-draft]").forEach(f => this.restoreForm(f))
+  },
+
+  // The boxes with phx-update="ignore" keep their text through LiveView
+  // patches (a patch puts the server's empty value into an unfocused box).
+  // After a confirmed save, empty the saved ones here.
+  emptyBoxes(root, scope, fields) {
+    root.querySelectorAll("form[data-draft]").forEach(form => {
+      if (form.dataset.draft !== scope) return
+      form.querySelectorAll("[phx-update=ignore][name]").forEach(box => {
+        const hit = !fields || fields.some(f => f.endsWith("[") ? box.name.startsWith(f) : box.name === f)
+        if (!hit) return
+        if (box.tagName === "SELECT") box.selectedIndex = 0
+        else box.value = ""
+      })
+    })
+  },
+
+  hint(form) {
+    const hint = form.querySelector("[data-draft-hint]") ||
+      form.closest("[data-draft-hint-root]")?.querySelector("[data-draft-hint]")
+    if (!hint) return
+    hint.textContent = "Draft restored"
+    clearTimeout(hint._draftTimer)
+    hint._draftTimer = setTimeout(() => { hint.textContent = "" }, HINT_MS)
+  },
+
+  // Wires a hook: save on input and toggle clicks, restore when a draft form
+  // shows up, clear on the server's confirmation.
+  setup(hook) {
+    const storage = safeStorage()
+    if (!storage) return () => {}
+    this.prune(storage)
+    const root = hook.el
+
+    const onInput = e => {
+      const form = e.target.form
+      if (!form?.dataset.draft || !e.target.name || !e.isTrusted) return
+      this.save(storage, form.dataset.draft, e.target.name, e.target.value)
+    }
+    const onClick = e => {
+      const toggle = e.target.closest?.("[data-draft-toggle]")
+      const form = toggle?.closest("form[data-draft]")
+      if (!form || !e.isTrusted) return
+      // The click flips the state: save the new one.
+      const next = toggle.getAttribute("aria-pressed") === "true" ? "false" : "true"
+      this.save(storage, form.dataset.draft, toggle.dataset.draftToggle, next)
+    }
+    root.addEventListener("input", onInput)
+    root.addEventListener("change", onInput)
+    root.addEventListener("click", onClick)
+
+    root.querySelectorAll("form[data-draft]").forEach(f => this.restoreForm(f, storage))
+    const observer = new MutationObserver(() => {
+      root.querySelectorAll("form[data-draft]").forEach(f => this.restoreForm(f, storage))
+    })
+    observer.observe(root, {childList: true, subtree: true})
+
+    hook.handleEvent("board_draft:saved", ({scope, fields}) => {
+      this.clear(storage, scope, fields || null)
+      this.emptyBoxes(root, scope, fields || null)
+    })
+    hook.handleEvent("team_chat:sent", () => this.clear(storage, "chat"))
+
+    return () => {
+      observer.disconnect()
+      root.removeEventListener("input", onInput)
+      root.removeEventListener("change", onInput)
+      root.removeEventListener("click", onClick)
+    }
+  },
+}
+
+// The open card in the URL (#idea-<id>) and the scroll position. The board
+// component pushes "board:card" with the id when a card opens and with nil
+// when it closes; a reconnect (the component mounts again with no card open)
+// sends nothing, so the hash stays. On mount and after a reconnect, the card
+// in the hash opens again and the page and the card scroll back to where
+// they were (sessionStorage, this tab only).
+const SCROLL_KEY = "tf:board-scroll"
+export const cardIdFromHash = hash => {
+  const m = /^#idea-([0-9a-f-]{8,})$/i.exec(hash || "")
+  return m ? m[1] : null
+}
+
+const setupCardUrl = hook => {
+  const board = () => hook.el.querySelector("[data-board-target]")
+  if (!board()) return () => {}
+  let pendingPanelScroll = null
+
+  const panel = () => document.getElementById("board-modal-panel")
+  const saveScroll = () => {
+    try {
+      sessionStorage.setItem(SCROLL_KEY, JSON.stringify({
+        y: window.scrollY, card: cardIdFromHash(location.hash), panel: panel()?.scrollTop || 0,
+      }))
+    } catch (_e) { /* sessionStorage blocked */ }
+  }
+  let timer = null
+  const onScroll = () => { clearTimeout(timer); timer = setTimeout(saveScroll, 200) }
+  window.addEventListener("scroll", onScroll, {passive: true})
+  hook.el.addEventListener("scroll", onScroll, {passive: true, capture: true})
+
+  hook.handleEvent("board:card", ({id}) => {
+    const url = new URL(location.href)
+    url.hash = id ? `idea-${id}` : ""
+    history.replaceState(history.state, "", url.toString().replace(/#$/, ""))
+    if (!id) saveScroll()
+  })
+
+  const reopen = () => {
+    const id = cardIdFromHash(location.hash)
+    let saved = {}
+    try { saved = JSON.parse(sessionStorage.getItem(SCROLL_KEY)) || {} } catch (_e) { saved = {} }
+    if (typeof saved.y === "number") window.scrollTo(0, saved.y)
+    if (!id || document.getElementById("board-modal")) return
+    pendingPanelScroll = saved.card === id ? saved.panel : null
+    hook.pushEventTo(board().dataset.boardTarget, "open", {card_id: id, restore: "true"})
+  }
+  hook.cardUrlRestore = reopen
+
+  const observer = new MutationObserver(() => {
+    const p = panel()
+    if (p && pendingPanelScroll != null) { p.scrollTop = pendingPanelScroll; pendingPanelScroll = null }
+  })
+  observer.observe(hook.el, {childList: true, subtree: true})
+  reopen()
+
+  return () => {
+    observer.disconnect()
+    window.removeEventListener("scroll", onScroll)
+    hook.el.removeEventListener("scroll", onScroll, {capture: true})
+  }
 }

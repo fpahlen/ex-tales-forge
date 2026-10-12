@@ -138,6 +138,19 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   defp actor(socket), do: {:founder, socket.assigns.founder}
 
+  # The server saved what a form held: the BoardDrafts hook (TeamPage,
+  # assets/js/team_hooks.js) removes those local drafts. `fields` are input
+  # names (a name ending in "[" is a prefix); nil removes the whole scope.
+  defp draft_saved(socket, scope, fields),
+    do: push_event(socket, "board_draft:saved", %{scope: scope, fields: fields})
+
+  # The same, after a with_idea/3 reply, when the card has no error.
+  defp confirm({:noreply, %{assigns: %{errors: errors}} = s}, id, fields) do
+    if Map.has_key?(errors, id),
+      do: {:noreply, s},
+      else: {:noreply, draft_saved(s, "card:" <> id, fields)}
+  end
+
   defp result(socket, id, {:ok, _}),
     do: {:noreply, socket |> assign(:errors, Map.delete(socket.assigns.errors, id)) |> load()}
 
@@ -175,11 +188,24 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
          %Idea{} = idea <- Board.get_idea(id),
          {:ok, _} <- Board.save_answers(idea, socket.assigns.founder, mine) do
       {:ok,
-       assign(socket, :drafts, Map.reject(socket.assigns.drafts, fn {{i, _}, _} -> i == id end))}
+       socket
+       |> assign(:drafts, Map.reject(socket.assigns.drafts, fn {{i, _}, _} -> i == id end))
+       |> draft_saved("card:" <> id, saved_fields(idea, mine))}
     else
       [] -> {:ok, socket}
       nil -> {:ok, socket}
       {:error, msg} -> {:error, socket, to_string(msg)}
+    end
+  end
+
+  # The input names of the saved answer drafts ("answers[0]", "deferred[0]"):
+  # only those local drafts go, not a toggle made while the save ran.
+  defp saved_fields(idea, mine) do
+    index =
+      idea |> Board.questions() |> Enum.with_index() |> Map.new(fn {{q, _}, i} -> {q, i} end)
+
+    for {q, d} <- mine, i = index[q], i != nil, key <- Map.keys(d) do
+      if key == "deferred", do: "deferred[#{i}]", else: "answers[#{i}]"
     end
   end
 
@@ -189,7 +215,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         {:noreply, s |> assign(:open_id, id) |> load()}
 
       {:noreply, s} ->
-        {:noreply, s |> assign(:comment_for, nil) |> load()}
+        {:noreply,
+         s |> assign(:comment_for, nil) |> draft_saved("card:" <> id, ["note"]) |> load()}
     end
   end
 
@@ -215,15 +242,31 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     do: {:noreply, push_patch(socket, to: ideas_path(socket.assigns[:ideas_sort], []))}
 
   def handle_event("add_tag", %{"card_id" => id, "tag" => text}, socket),
-    do: with_idea(socket, id, &Board.add_tag(&1, socket.assigns.founder, text))
+    do:
+      socket
+      |> with_idea(id, &Board.add_tag(&1, socket.assigns.founder, text))
+      |> confirm(id, ["tag"])
 
   def handle_event("remove_tag", %{"card_id" => id, "tag" => tag}, socket),
     do: with_idea(socket, id, &Board.remove_tag(&1, socket.assigns.founder, tag))
 
+  # "restore" comes from the TeamPage hook after a reconnect (the card in the
+  # URL, #idea-<id>). A card that is gone stays closed and leaves the URL.
   def handle_event("open", %{"card_id" => id}, socket) do
-    Board.read_pings(id, socket.assigns[:login])
-    {:noreply, socket |> assign(:open_id, id) |> load()}
+    socket = socket |> assign(:open_id, id) |> load()
+
+    if socket.assigns.open do
+      Board.read_pings(id, socket.assigns[:login])
+      {:noreply, push_event(socket, "board:card", %{id: id})}
+    else
+      {:noreply, socket |> assign(:open_id, nil) |> push_event("board:card", %{id: nil})}
+    end
   end
+
+  # Form recovery (phx-change on every board form): LiveView sends the form
+  # values again after a reconnect. The forms keep their values in the
+  # browser, so nothing changes here.
+  def handle_event("draft_change", _params, socket), do: {:noreply, socket}
 
   def handle_event("close", _params, socket) do
     if id = socket.assigns.open_id, do: Typing.stop(id, socket.assigns.founder)
@@ -236,7 +279,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       end
 
     {:noreply,
-     assign(socket, open_id: nil, open: nil, comment_for: nil, downvote_for: nil, editing: nil)}
+     socket
+     |> assign(open_id: nil, open: nil, comment_for: nil, downvote_for: nil, editing: nil)
+     |> push_event("board:card", %{id: nil})}
   end
 
   # Back / Forward / On hold. A move that needs a comment opens the comment box.
@@ -251,8 +296,12 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   def handle_event("downvote", %{"card_id" => id, "reason" => reason}, socket) do
     case with_idea(socket, id, &Board.vote(&1, socket.assigns.founder, -1, reason)) do
-      {:noreply, %{assigns: %{errors: %{^id => _}}}} = answer -> answer
-      {:noreply, s} -> {:noreply, s |> assign(:downvote_for, nil) |> load()}
+      {:noreply, %{assigns: %{errors: %{^id => _}}}} = answer ->
+        answer
+
+      {:noreply, s} ->
+        {:noreply,
+         s |> assign(:downvote_for, nil) |> draft_saved("card:" <> id, ["reason"]) |> load()}
     end
   end
 
@@ -267,8 +316,11 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   def handle_event("add", %{"idea" => attrs}, socket) do
     case Board.create_idea(socket.assigns.founder, attrs) do
-      {:ok, _} -> {:noreply, socket |> assign(:form_error, nil) |> load()}
-      {:error, cs} -> {:noreply, assign(socket, :form_error, changeset_text(cs))}
+      {:ok, _} ->
+        {:noreply, socket |> assign(:form_error, nil) |> draft_saved("new-idea", nil) |> load()}
+
+      {:error, cs} ->
+        {:noreply, assign(socket, :form_error, changeset_text(cs))}
     end
   end
 
@@ -298,11 +350,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
     if answer,
       do:
-        with_idea(
-          socket,
-          id,
-          &Board.answer_pr(&1, socket.assigns.founder, answer, params["comment"])
-        ),
+        socket
+        |> with_idea(id, &Board.answer_pr(&1, socket.assigns.founder, answer, params["comment"]))
+        |> confirm(id, ["comment"]),
       else: result(socket, id, {:error, "Approve or request changes."})
   end
 
@@ -355,11 +405,13 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   def handle_event("comment", %{"card_id" => id, "body" => body}, socket) do
     Typing.stop(id, socket.assigns.founder)
 
-    with_idea(
-      assign(socket, :typed, Map.delete(socket.assigns.typed, id)),
+    socket
+    |> assign(:typed, Map.delete(socket.assigns.typed, id))
+    |> with_idea(
       id,
       &Board.add_comment(&1, socket.assigns.founder, body, login: socket.assigns[:login])
     )
+    |> confirm(id, ["body"])
   end
 
   # Typing in the comment box: the others see "<name> is typing…" (a hint,
@@ -398,8 +450,15 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     attrs = Map.reject(fields, fn {_k, v} -> v in [nil, ""] end)
 
     case with_idea(socket, id, &Board.refine(&1, attrs)) do
-      {:noreply, %{assigns: %{errors: %{^id => _}}}} = answer -> answer
-      {:noreply, s} -> {:noreply, s |> assign(:editing, nil) |> load()}
+      {:noreply, %{assigns: %{errors: %{^id => _}}}} = answer ->
+        answer
+
+      {:noreply, s} ->
+        {:noreply,
+         s
+         |> assign(:editing, nil)
+         |> draft_saved("card:" <> id, ~w(details open_questions rough_cost verdict))
+         |> load()}
     end
   end
 
@@ -439,6 +498,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       </section>
       <form
         id="board-add"
+        data-draft="new-idea"
+        phx-change="draft_change"
         phx-submit="add"
         phx-target={@myself}
         class="team-card grid gap-2 rounded-xl p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-end"
@@ -446,7 +507,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         <label class="grid gap-1 text-sm font-semibold">
           New idea
           <input
+            id="board-add-title"
             name="idea[title]"
+            phx-update="ignore"
             required
             maxlength="200"
             placeholder="A short title"
@@ -455,13 +518,16 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         </label>
         <label class="grid gap-1 text-sm font-semibold">
           A sentence or two (optional) <textarea
+            id="board-add-body"
             name="idea[body]"
+            phx-update="ignore"
             rows="1"
             class="rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-3 py-2 font-normal"
           ></textarea>
         </label>
         <button type="submit" class="team-cta min-h-11 rounded-full px-5 font-semibold">Add idea</button>
         <p :if={@form_error} role="alert" class="text-sm text-red-700 sm:col-span-3">{@form_error}</p>
+        <.draft_hint id="board-add-draft-hint" class="sm:col-span-3" />
       </form>
 
       <%!-- Desktop: Ideas left, the three active columns in the middle with
@@ -521,6 +587,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       <div
         :if={@open}
         id="board-modal"
+        data-open-card={@open.id}
         class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
         phx-window-keydown={close_js(@myself)}
         phx-key="Escape"
@@ -530,10 +597,12 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           role="dialog"
           aria-modal="true"
           aria-labelledby="board-modal-title"
+          data-draft-hint-root
           phx-click-away={close_js(@myself)}
           class="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-[var(--paper-panel)] p-4 text-[var(--paper-ink)] shadow-xl sm:rounded-2xl sm:p-6"
         >
-          <div class="flex justify-end">
+          <div class="flex items-center justify-end gap-2">
+            <.draft_hint id="board-modal-draft-hint" class="mr-auto" />
             <button
               type="button"
               id="board-modal-close"
@@ -577,6 +646,24 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   defp open_js(myself, id),
     do: JS.push_focus() |> JS.push("open", value: %{card_id: id}, target: myself)
+
+  attr :id, :string, required: true
+  attr :class, :any, default: nil
+
+  # The "Draft restored" hint. The BoardDrafts hook writes it; LiveView
+  # leaves it alone (phx-update="ignore").
+  defp draft_hint(assigns) do
+    ~H"""
+    <p
+      id={@id}
+      data-draft-hint
+      aria-live="polite"
+      phx-update="ignore"
+      class={["min-h-5 text-xs font-semibold text-[var(--paper-accent)]", @class]}
+    >
+    </p>
+    """
+  end
 
   attr :column, :string, required: true
   attr :founder, :string, required: true
@@ -921,10 +1008,57 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   attr :myself, :any, required: true
   attr :drafts, :map, default: %{}
 
-  # Case's open questions, in any column: each has a text box and a Defer
-  # toggle (Defer disables the box). The boxes save together with the next
-  # move, when the card closes, and on blur. Another founder's answer is
-  # read-only.
+  # Case's open questions: each has a text box and a Defer toggle (Defer
+  # disables the box). The boxes save together with the next move, when the
+  # card closes, and on blur. Another founder's answer is read-only. On a
+  # Done or Parked card the questions are read-only: the answers show, with
+  # no boxes and no Defer buttons.
+  defp questions(%{idea: %{column: column}} = assigns) when column in ["done", "parked"] do
+    assigns =
+      assign(assigns,
+        items:
+          for(
+            {{q, a}, i} <- Enum.with_index(Board.questions(assigns.idea)),
+            do: %{q: q, a: a, i: i}
+          ),
+        where: Transitions.label(column)
+      )
+
+    ~H"""
+    <section
+      :if={@items != []}
+      id={"card-#{@idea.id}-questions"}
+      aria-labelledby={"card-#{@idea.id}-questions-title"}
+      data-readonly
+      class="space-y-2"
+    >
+      <h5 id={"card-#{@idea.id}-questions-title"} class="font-semibold">
+        Questions
+        <span class="badge badge-ghost badge-sm ml-1" data-role="open-count">read-only</span>
+      </h5>
+      <p class="text-xs text-[var(--paper-muted)]">
+        This card is in {@where}. Here you can read the questions and the answers.
+      </p>
+      <ol class="space-y-2">
+        <li
+          :for={it <- @items}
+          id={"card-#{@idea.id}-q#{it.i}"}
+          class="rounded-lg border border-[var(--paper-rule)] p-2"
+        >
+          <p id={"card-#{@idea.id}-q#{it.i}-text"} class="font-semibold">{it.q}</p>
+          <p :if={it.a && it.a.answer} class="mt-1" data-role="answer">
+            {it.a.answer}
+            <span class="text-xs text-[var(--paper-muted)]">by {who(it.a.answered_by)}</span>
+          </p>
+          <p :if={it.a && it.a.deferred} class="mt-1 text-xs" data-role="deferred">
+            Deferred by {who(it.a.deferred_by)}
+          </p>
+        </li>
+      </ol>
+    </section>
+    """
+  end
+
   defp questions(assigns) do
     items =
       for {{q, a}, i} <- Enum.with_index(Board.questions(assigns.idea)) do
@@ -964,6 +1098,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       </p>
       <form
         id={"card-#{@idea.id}-answers"}
+        data-draft={"card:#{@idea.id}"}
+        data-draft-sync
         phx-change="draft_answers"
         phx-submit="save_answers"
         phx-target={@myself}
@@ -1016,6 +1152,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
                 type="button"
                 id={"card-#{@idea.id}-q#{it.i}-defer"}
                 phx-click="toggle_defer"
+                data-draft-toggle={"deferred[#{it.i}]"}
                 phx-value-card_id={@idea.id}
                 phx-value-question={it.q}
                 phx-value-deferred={to_string(!it.deferred)}
@@ -1264,6 +1401,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       <form
         :if={@downvote_for == @idea.id}
         id={"card-#{@idea.id}-downvote"}
+        data-draft={"card:#{@idea.id}"}
+        phx-change="draft_change"
         phx-submit="downvote"
         phx-target={@myself}
         class="grid gap-1 rounded-lg border-2 border-warning p-2"
@@ -1272,6 +1411,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         <label class="grid gap-1 font-semibold">
           What needs work? (necessary for a -1) <textarea
             id={"card-#{@idea.id}-downvote-reason"}
+            phx-update="ignore"
             name="reason"
             rows="2"
             required
@@ -1343,6 +1483,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           <form
             :if={@comment_to}
             id={"card-#{@idea.id}-move"}
+            data-draft={"card:#{@idea.id}"}
+            phx-change="draft_change"
             phx-submit="move"
             phx-target={@myself}
             class="grid gap-1"
@@ -1353,6 +1495,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
               {comment_prompt(@idea.column, @comment_to)}
               <textarea
                 id={"card-#{@idea.id}-move-note"}
+                phx-update="ignore"
                 name="note"
                 rows="2"
                 required
@@ -1404,6 +1547,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           <form
             :if={@facts.pr == :awaiting and @idea.column == "building"}
             id={"card-#{@idea.id}-answer"}
+            data-draft={"card:#{@idea.id}"}
+            phx-change="draft_change"
             phx-submit="answer_pr"
             phx-target={@myself}
             class="grid gap-1"
@@ -1411,7 +1556,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             <input type="hidden" name="card_id" value={@idea.id} />
             <label class="grid gap-1">
               Comment for Bobby (optional) <textarea
+                id={"card-#{@idea.id}-answer-comment"}
                 name="comment"
+                phx-update="ignore"
                 rows="2"
                 class="rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2 py-1"
               ></textarea>
@@ -1489,21 +1636,27 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           <form
             :if={@idea.column == "refining" and @editing == @idea.id}
             phx-submit="refine"
+            phx-change="draft_change"
             phx-target={@myself}
             class="grid gap-1"
             id={"card-#{@idea.id}-refine"}
+            data-draft={"card:#{@idea.id}"}
           >
             <input type="hidden" name="card_id" value={@idea.id} />
             <label class="grid gap-1">
               Details <textarea
+                id={"card-#{@idea.id}-refine-details"}
                 name="details"
+                phx-update="ignore"
                 rows="3"
                 class="rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2 py-1"
               >{@r["details"]}</textarea>
             </label>
             <label class="grid gap-1">
               Open questions (one per line) <textarea
+                id={"card-#{@idea.id}-refine-questions"}
                 name="open_questions"
+                phx-update="ignore"
                 rows="2"
                 class="rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2 py-1"
               >{Enum.join(@r["open_questions"] || [], "\n")}</textarea>
@@ -1512,7 +1665,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
               <label class="grid gap-1">
                 Rough cost
                 <select
+                  id={"card-#{@idea.id}-refine-cost"}
                   name="rough_cost"
+                  phx-update="ignore"
                   class="min-h-11 rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2"
                 >
                   <option value="">-</option>
@@ -1524,7 +1679,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
               <label class="grid gap-1">
                 Verdict
                 <select
+                  id={"card-#{@idea.id}-refine-verdict"}
                   name="verdict"
+                  phx-update="ignore"
                   class="min-h-11 rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2"
                 >
                   <option value="">-</option>
@@ -1577,6 +1734,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           </ul>
           <form
             id={"card-#{@idea.id}-tag-form"}
+            data-draft={"card:#{@idea.id}"}
+            phx-change="draft_change"
             phx-submit="add_tag"
             phx-target={@myself}
             class="flex flex-wrap items-center gap-2"
@@ -1585,6 +1744,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             <label for={"card-#{@idea.id}-tag"} class="sr-only">New tag</label>
             <input
               id={"card-#{@idea.id}-tag"}
+              phx-update="ignore"
               name="tag"
               required
               maxlength={Tags.max_length()}
@@ -1660,6 +1820,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             phx-target={@myself}
             class="grid gap-1"
             id={"card-#{@idea.id}-comment"}
+            data-draft={"card:#{@idea.id}"}
           >
             <input type="hidden" name="card_id" value={@idea.id} />
             <label class="grid gap-1" for={"card-#{@idea.id}-comment-body"}>
@@ -1668,6 +1829,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             <div class="relative">
               <textarea
                 id={"card-#{@idea.id}-comment-body"}
+                phx-update="ignore"
                 name="body"
                 rows="2"
                 required

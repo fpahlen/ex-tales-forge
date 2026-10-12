@@ -993,4 +993,140 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
     assert render(view) =~ "Add a PNG, JPEG or WebP image."
     assert Board.get_idea!(idea.id).images == []
   end
+
+  describe "drafts survive a reconnect (BoardDrafts, assets/js/team_hooks.js)" do
+    setup do
+      me = "founder@example.com"
+      {:ok, idea} = Board.create_idea(me, %{"title" => "Fishing"})
+      {:ok, idea} = Board.vote(idea, me, 1)
+      {:ok, idea} = Board.move(idea, {:founder, me}, "refining")
+
+      {:ok, idea} =
+        Board.refine(idea, %{
+          "details" => "d",
+          "open_questions" => ["Where?", "Bait?", "When?"],
+          "rough_cost" => "S",
+          "verdict" => "feasible"
+        })
+
+      %{idea: idea}
+    end
+
+    test "every card form is a draft scope with an id and phx-change, and the dialog has the hint",
+         %{conn: conn, idea: idea} do
+      {:ok, view, _} = live(conn, "/team")
+      assert has_element?(view, ~s(form#board-add[data-draft="new-idea"][phx-change]))
+
+      assert has_element?(
+               view,
+               ~s(#board-add-draft-hint[aria-live="polite"][phx-update="ignore"])
+             )
+
+      open(view, idea)
+      scope = "card:#{idea.id}"
+
+      for f <- ~w(answers comment tag-form),
+          do:
+            assert(
+              has_element?(view, ~s(form#card-#{idea.id}-#{f}[data-draft="#{scope}"][phx-change]))
+            )
+
+      assert has_element?(view, ~s(#card-#{idea.id}-q0-defer[data-draft-toggle="deferred[0]"]))
+      assert has_element?(view, ~s(#board-modal-draft-hint[data-draft-hint][aria-live="polite"]))
+
+      view |> element("#card-#{idea.id}-edit-refinement") |> render_click()
+
+      assert has_element?(
+               view,
+               ~s(form#card-#{idea.id}-refine[data-draft="#{scope}"][phx-change])
+             )
+    end
+
+    test "open and close put the card in the URL; a gone card leaves it", %{
+      conn: conn,
+      idea: idea
+    } do
+      {:ok, view, _} = live(conn, "/team")
+      open(view, idea)
+      assert_push_event(view, "board:card", %{id: id})
+      assert id == idea.id
+      assert has_element?(view, ~s(#board-modal[data-open-card="#{idea.id}"]))
+
+      view |> element("#board-modal-close") |> render_click()
+      assert_push_event(view, "board:card", %{id: nil})
+
+      # After a reconnect the TeamPage hook sends the card from the URL.
+      view
+      |> with_target("#idea-board-live")
+      |> render_hook("open", %{
+        "card_id" => idea.id,
+        "restore" => "true"
+      })
+
+      assert has_element?(view, "#board-modal-title", "Fishing")
+
+      gone = Ecto.UUID.generate()
+      view |> with_target("#idea-board-live") |> render_hook("open", %{"card_id" => gone})
+      assert_push_event(view, "board:card", %{id: nil})
+    end
+
+    test "the server confirms each save, so the browser removes those drafts",
+         %{conn: conn, idea: idea} do
+      {:ok, view, _} = live(conn, "/team")
+      scope = "card:#{idea.id}"
+
+      view |> form("#board-add", idea: %{title: "New one"}) |> render_submit()
+      assert_push_event(view, "board_draft:saved", %{scope: "new-idea", fields: nil})
+
+      open(view, idea)
+      view |> form("#card-#{idea.id}-comment", %{body: "Looks good"}) |> render_submit()
+      assert_push_event(view, "board_draft:saved", %{scope: ^scope, fields: ["body"]})
+
+      view |> form("#card-#{idea.id}-tag-form", %{tag: "ui"}) |> render_submit()
+      assert_push_event(view, "board_draft:saved", %{scope: ^scope, fields: ["tag"]})
+
+      view
+      |> form("#card-#{idea.id}-answers", %{"answers" => %{"0" => "At the mill."}})
+      |> render_change()
+
+      view |> form("#card-#{idea.id}-answers") |> render_submit()
+
+      assert_push_event(view, "board_draft:saved", %{scope: ^scope, fields: fields})
+      assert "answers[0]" in fields
+      refute Enum.any?(fields, &String.starts_with?(&1, "deferred["))
+
+      refute_push_event(view, "board_draft:saved", %{fields: ["note"]})
+    end
+
+    test "a refused save keeps the drafts", %{conn: conn, idea: idea} do
+      {:ok, view, _} = live(conn, "/team")
+      open(view, idea)
+      too_long = String.duplicate("x", 200)
+      view |> form("#card-#{idea.id}-tag-form", %{tag: too_long}) |> render_submit()
+      refute_push_event(view, "board_draft:saved", %{fields: ["tag"]})
+    end
+
+    test "a Done or Parked card shows its questions read-only (QA: card #131)",
+         %{conn: conn, idea: idea} do
+      for column <- ~w(done parked) do
+        idea |> Ecto.Changeset.change(column: column) |> TalesForge.Repo.update!()
+        {:ok, view, _} = live(conn, "/team")
+        open(view, idea)
+
+        assert has_element?(view, ~s(#card-#{idea.id}-questions[data-readonly]))
+
+        assert has_element?(
+                 view,
+                 ~s(#card-#{idea.id}-questions [data-role="open-count"]),
+                 "read-only"
+               )
+
+        assert has_element?(view, "#card-#{idea.id}-q2", "When?")
+        refute has_element?(view, "#card-#{idea.id}-answers")
+        refute has_element?(view, "#card-#{idea.id}-questions textarea")
+        refute has_element?(view, "#card-#{idea.id}-q0-defer")
+        refute render(view) =~ "3 open"
+      end
+    end
+  end
 end
