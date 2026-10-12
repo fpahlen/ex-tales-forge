@@ -165,7 +165,7 @@ defmodule TalesForge.LLM do
   @typedoc """
   Options for the `complete_*` calls: `:session_id` (conv id and cost rows),
   `:turn_number`. `complete_turn/5` also takes `:on_text` (see there) and
-  `:variant` (default `gm_variant/0`).
+  `:variant` (default `gm_variant/1`).
   """
   @type call_opts :: [
           session_id: String.t() | nil,
