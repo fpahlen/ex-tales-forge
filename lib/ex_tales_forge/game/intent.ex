@@ -20,6 +20,7 @@ defmodule TalesForge.Game.Intent do
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Movement
+  alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.Game.Variant
   alias TalesForge.Game.WorldClock
@@ -257,7 +258,7 @@ defmodule TalesForge.Game.Intent do
 
     %IntentExtraction{
       overall_intent: sanitize_summary(raw_action),
-      actions: [action],
+      actions: [action | lodging_sleep_later(action_type, raw_action)],
       primary_index: 0,
       confidence: heuristic_confidence(raw_action, action_type, context),
       needs_clarification: false
@@ -324,6 +325,7 @@ defmodule TalesForge.Game.Intent do
 
     cond do
       train_intent?(lowered, target_npc) -> :train
+      Rest.lodging_then_sleep?(lowered) -> :spend
       wait_intent?(lowered) -> :wait
       target_location -> :move
       combat_intent?(lowered, context) -> :combat
@@ -578,6 +580,16 @@ defmodule TalesForge.Game.Intent do
   defp train_intent?(_, _), do: false
 
   defp train_verb?(lowered), do: Regex.match?(@train_verbs, lowered)
+
+  # "I pay for a room and go to sleep": the payment now, the sleep as the
+  # deferred action (Rest.lodging_then_sleep?/1).
+  defp lodging_sleep_later(:spend, raw_action) do
+    if Rest.lodging_then_sleep?(raw_action),
+      do: [%SingleAction{action_type: :wait, target: nil, parameters: %{}}],
+      else: []
+  end
+
+  defp lodging_sleep_later(_action_type, _raw_action), do: []
 
   defp wait_intent?(lowered) do
     Regex.match?(~r/\b(wait|dawdle|loiter|linger|idle|sleep|nap)\b/, lowered) or
