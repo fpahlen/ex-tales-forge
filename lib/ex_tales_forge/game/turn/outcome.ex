@@ -53,7 +53,8 @@ defmodule TalesForge.Game.Turn.Outcome do
               Premise.events(turn.premise.findings, board.world) ++
               record_events(turn, board) ++
               List.wrap(mismatches) ++ List.wrap(repeats),
-          sim: board.sim
+          sim: board.sim,
+          founder: turn.opts[:founder]
         })
       end)
 

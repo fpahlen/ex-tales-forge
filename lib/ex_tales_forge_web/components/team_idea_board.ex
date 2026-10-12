@@ -720,7 +720,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
     attrs = Map.reject(fields, fn {_k, v} -> v in [nil, ""] end)
 
-    case with_idea(socket, id, &Board.refine(&1, attrs)) do
+    case with_idea(socket, id, &Board.refine(&1, attrs, socket.assigns.founder)) do
       {:noreply, %{assigns: %{errors: %{^id => _}}}} = answer ->
         answer
 

@@ -187,6 +187,9 @@ defmodule TalesForge.GameSessions do
   so whatever sits in the input box doesn't matter). A clarification that is
   no longer pending returns `{:error, :clarification_expired}`. Blank text
   without an option returns `{:error, :empty_message}`.
+
+  `:founder` is the email of the signed-in founder who plays. The turn row
+  stores it for the work log.
   """
   @spec submit_message(String.t(), String.t(), keyword()) ::
           {:ok, %{required(:status) => :processing | :clarification, optional(atom()) => term()}}
@@ -342,7 +345,7 @@ defmodule TalesForge.GameSessions do
         clarification: false
       })
 
-      enqueue_turn(session, raw_action, player_action)
+      enqueue_turn(session, raw_action, player_action, nil, opts)
     rescue
       e in [Intent.ClarificationNeeded] ->
         record_intent_step(session, started_at, System.monotonic_time(:millisecond) - started)
@@ -403,7 +406,7 @@ defmodule TalesForge.GameSessions do
           "intent resolved session=#{session.id} duration_ms=#{elapsed} source=#{meta["source"]}"
         )
 
-        enqueue_turn(session, raw_action, player_action, gm)
+        enqueue_turn(session, raw_action, player_action, gm, opts)
 
       {:ask, clarification, meta} ->
         record_intent_step(session, started_at, elapsed, meta)
@@ -572,7 +575,8 @@ defmodule TalesForge.GameSessions do
          %GameSession{} = session,
          raw_action,
          %PlayerAction{} = player_action,
-         gm \\ nil
+         gm,
+         opts
        ) do
     session
     |> clear_clarification()
@@ -584,6 +588,7 @@ defmodule TalesForge.GameSessions do
           player_action: PlayerAction.encode(player_action)
         }
         |> put_gm_args(gm)
+        |> put_founder(Keyword.get(opts, :founder))
         |> ProcessTurn.new()
         |> Oban.insert()
         |> case do
@@ -596,6 +601,9 @@ defmodule TalesForge.GameSessions do
         end
     end
   end
+
+  defp put_founder(args, founder) when is_binary(founder), do: Map.put(args, :founder, founder)
+  defp put_founder(args, _founder), do: args
 
   defp put_gm_args(args, nil), do: args
 

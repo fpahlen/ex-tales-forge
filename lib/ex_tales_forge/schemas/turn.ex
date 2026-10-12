@@ -1,6 +1,9 @@
 defmodule TalesForge.Schemas.Turn do
   @moduledoc """
   Ecto schema: one played turn (player action, narrative, mechanical resolution).
+
+  `founder` is the email of the signed-in founder who played the turn. It is
+  nil for bot turns (the playtest runner) and for turns before the work log.
   """
 
   use Ecto.Schema
@@ -14,6 +17,7 @@ defmodule TalesForge.Schemas.Turn do
     field :player_action, :string
     field :narrative, :string
     field :mechanical_resolution, :map, default: %{}
+    field :founder, :string
 
     belongs_to :game_session, TalesForge.Schemas.GameSession
 
@@ -27,7 +31,8 @@ defmodule TalesForge.Schemas.Turn do
       :turn_number,
       :player_action,
       :narrative,
-      :mechanical_resolution
+      :mechanical_resolution,
+      :founder
     ])
     |> validate_required([:game_session_id, :turn_number, :player_action])
     |> unique_constraint([:game_session_id, :turn_number])
