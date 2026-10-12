@@ -23,6 +23,8 @@ defmodule TalesForge.TurnPipeline.Replay do
       copper, silver and gold.
     * With `npc_memory` in `pending_on`, the NPC reactions run with a stub
       Jev reply. The harness reads the input of each NPC call.
+    * `history` reads what the next turn reads: the stored turns (player text
+      and narration), the situation lines and the NPC memory.
     * `stage_order` compares the fixture order with `Steps.purposes/0`.
     * A key that the harness does not support fails the fixture, so that a
       fixture never passes without its checks.
@@ -38,7 +40,7 @@ defmodule TalesForge.TurnPipeline.Replay do
   alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{GameSession, NpcInstance, SessionEvent}
+  alias TalesForge.Schemas.{GameSession, NpcInstance, SessionEvent, Turn}
 
   import Ecto.Query
 
@@ -48,7 +50,8 @@ defmodule TalesForge.TurnPipeline.Replay do
     "outcome_record" => "TURN_OUTCOME_RECORD",
     "premise_first" => "TURN_PREMISE_FIRST",
     "state_from_mechanics" => "TURN_STATE_FROM_MECHANICS",
-    "npc_memory" => ["NPC_DIALOGUE_MEMORY", "NPC_REACTIONS"]
+    "npc_memory" => ["NPC_DIALOGUE_MEMORY", "NPC_REACTIONS"],
+    "history_strip" => "HISTORY_STRIP_INJECTION"
   }
 
   # The stub Jev reply for an NPC reaction (NPC_REACTIONS=on).
@@ -66,7 +69,7 @@ defmodule TalesForge.TurnPipeline.Replay do
   @default_prose "The table waits."
 
   @supported ~w(intent premise outcome post_check mismatch_kinds fixture_fails gm_prompt
-                coins_after npc stage_order)
+                coins_after npc stage_order history inventory_lacks)
 
   @prose_check TalesForge.Game.ProseCheck
 
@@ -178,6 +181,8 @@ defmodule TalesForge.TurnPipeline.Replay do
           prompt: prompt,
           npc_inputs: npc_inputs,
           context: context,
+          session_id: session_id,
+          text: turn["text"],
           prose: prose
         })
 
@@ -285,6 +290,8 @@ defmodule TalesForge.TurnPipeline.Replay do
         coins_after_checks(expect["coins_after"], turn) ++
         npc_checks(expect["npc"], record, turn) ++
         stage_order_checks(expect["stage_order"]) ++
+        history_checks(expect["history"], turn) ++
+        inventory_lacks_checks(expect["inventory_lacks"], turn) ++
         post_checks(expect, record, turn)
     else
       ["no turn.outcome event (is TURN_OUTCOME_RECORD on?)"]
@@ -447,7 +454,59 @@ defmodule TalesForge.TurnPipeline.Replay do
     end
   end
 
+  defp npc_check({"lines_must_not_contain", words}, npc_id, _record, turn) do
+    name = npc_name(turn.context, npc_id)
+    npcs = [%{id: npc_id, names: Enum.uniq([name, name |> String.split() |> hd()])}]
+
+    lines =
+      for({^npc_id, line} <- TalesForge.Game.NpcMemory.lines(turn.prose, npcs), do: line) ++
+        (get_in(turn.after, ["npc_memory", npc_id]) || [])
+
+    for word <- words, line <- lines, contains?(line, word), do: "line has #{inspect(word)}"
+  end
+
   defp npc_check({key, _value}, _npc_id, _record, _turn), do: ["unsupported key #{key}"]
+
+  defp contains?(text, word), do: String.contains?(String.downcase(text), String.downcase(word))
+
+  # --- step 7: the history that the next turn reads -----------------------------
+
+  defp history_checks(nil, _turn), do: []
+
+  defp history_checks(want, turn) do
+    history = history(turn)
+
+    banned =
+      for word <- want["must_not_contain"] || [],
+          Enum.any?(history, &contains?(&1, word)),
+          do: "history has #{inspect(word)}"
+
+    marked =
+      if want["no_marked_copy"] && Enum.any?(history, &contains?(&1, turn.text)),
+        do: ["history keeps a copy of the injected text"],
+        else: []
+
+    banned ++ marked
+  end
+
+  defp history(turn) do
+    turns =
+      Turn
+      |> where([t], t.game_session_id == ^turn.session_id)
+      |> select([t], [t.player_action, t.narrative])
+      |> Repo.all()
+      |> List.flatten()
+
+    memory = turn.after |> Map.get("npc_memory", %{}) |> Map.values() |> List.flatten()
+    Enum.reject(turns ++ List.wrap(turn.after["situation_lines"]) ++ memory, &is_nil/1)
+  end
+
+  defp inventory_lacks_checks(nil, _turn), do: []
+
+  defp inventory_lacks_checks(ids, turn) do
+    held = turn.after |> get_in(["character", "inventory"]) |> List.wrap() |> Enum.map(& &1["id"])
+    for id <- ids, id in held, do: "inventory_lacks: has #{id}"
+  end
 
   defp npc_name(context, npc_id) do
     context["present_npcs"]

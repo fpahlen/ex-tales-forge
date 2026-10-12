@@ -128,6 +128,7 @@ defmodule TalesForge.Game.ActionHandler do
   # TURN_OUTCOME_RECORD=on or TURN_PREMISE_FIRST=on: a rejected action costs no game time (turn
   # pipeline design §11, decision 1).
   def tick_delta(%{state_hints: %{"rejected" => true}}), do: 0
+  def tick_delta(%{state_hints: %{"no_action" => true}}), do: 0
 
   def tick_delta(_), do: 1
 

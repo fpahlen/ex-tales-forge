@@ -88,6 +88,15 @@ defmodule TalesForge.Config do
   def turn_premise_first?, do: System.get_env("TURN_PREMISE_FIRST", "off") in ~w(on true 1)
 
   @doc """
+  Turn pipeline step 7 (bug h-fa06): an injection turn plays no action, and
+  the history keeps a placeholder, not the injected text
+  (`TalesForge.Game.HistoryStrip`): HISTORY_STRIP_INJECTION=on. Default off.
+  """
+  @spec history_strip_injection?() :: boolean()
+  def history_strip_injection?,
+    do: System.get_env("HISTORY_STRIP_INJECTION", "off") in ~w(on true 1)
+
+  @doc """
   Turn pipeline step 4: NPC dialogue memory and the repetition guard
   (`TalesForge.Game.NpcMemory`). The premise check runs before the NPC
   reactions, and the NPCs get its findings: NPC_DIALOGUE_MEMORY=on.
