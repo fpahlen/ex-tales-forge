@@ -32,8 +32,12 @@ defmodule TalesForge.Game.JevIntentTest do
   end
 
   test "the skill labels equal the game's skills" do
-    assert JevIntent.skill_label_names() ==
-             Mechanics.skill_stat_map() |> Map.keys() |> Enum.sort()
+    for list <- [:v1, :v2] do
+      assert JevIntent.skill_label_names(list) ==
+               Mechanics.skill_stat_map(list) |> Map.keys() |> Enum.sort()
+    end
+
+    assert length(JevIntent.skill_label_names(:v2)) == 28
   end
 
   test "candidates are proposed with stable index labels" do
