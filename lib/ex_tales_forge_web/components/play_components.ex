@@ -59,7 +59,10 @@ defmodule TalesForgeWeb.PlayComponents do
   @doc """
   The story column of the play page: the narrative log, the GM's "thinking"
   placeholders, any clarification question, and the action form (text input
-  plus the Act button). On phones the input shrinks to the space left beside
+  plus the Act button). The input and Act are disabled while a turn runs, and
+  also before the page connects, because a submit at that time is not sent.
+  While the GM reply streams, its text shows under a "Game Master" heading
+  after the player's action. On phones the input shrinks to the space left beside
   Act, so the button stays on screen down to a 320px viewport.
 
   When the player scrolled up and new text arrives, the "New text below"
@@ -101,6 +104,7 @@ defmodule TalesForgeWeb.PlayComponents do
             The GM is setting the scene…
           </p>
           <div :if={@thinking and @streaming_text != ""} id="gm-streaming" class="space-y-1">
+            <p class={entry_heading_class(%{role: "gm"})}>{entry_heading(%{role: "gm"})}</p>
             <div class={entry_body_class(%{role: "gm"})}>
               <span class="play-narrative-body">{@streaming_text}</span>
             </div>
