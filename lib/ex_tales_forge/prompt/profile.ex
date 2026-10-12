@@ -18,6 +18,7 @@ defmodule TalesForge.Prompt.Profile do
     * `NPC_DIALOGUE_MEMORY` adds the NPC dialogue memory;
     * `NPC_REACTIONS` or `WORLD_AGENTS` adds the NPC reactions;
     * `WORLD_AGENTS` adds the world facts and the prices;
+    * `SKILL_DETAIL_LEVEL` adds the noticed details;
     * the production role gets the lean GM task (`gm_task_fragments/1`) and
       the lean reply (`narration_fields/1`).
   """
@@ -94,6 +95,7 @@ defmodule TalesForge.Prompt.Profile do
       Sections.Gestures,
       Sections.SceneNow,
       Sections.OutcomeRecord,
+      Sections.NoticedDetails,
       Sections.Premise,
       Sections.RestGrowth,
       Sections.PlayerRequest
@@ -109,6 +111,7 @@ defmodule TalesForge.Prompt.Profile do
 
   defp include?(Sections.NpcMemory, ctx), do: Ctx.flag?(ctx, :npc_dialogue_memory)
   defp include?(Sections.OutcomeRecord, ctx), do: Ctx.flag?(ctx, :turn_outcome_record)
+  defp include?(Sections.NoticedDetails, ctx), do: Ctx.flag?(ctx, :skill_detail_level)
   defp include?(section, ctx) when section in @default_only, do: not Ctx.baseline?(ctx)
   defp include?(_section, _ctx), do: true
 end

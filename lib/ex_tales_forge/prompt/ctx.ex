@@ -45,7 +45,8 @@ defmodule TalesForge.Prompt.Ctx do
       turn_outcome_record: TalesForge.Config.turn_outcome_record?(),
       npc_dialogue_memory: TalesForge.Config.npc_dialogue_memory?(),
       npc_reactions: TalesForge.Config.npc_reactions?(),
-      world_agents: TalesForge.Config.world_agents?()
+      world_agents: TalesForge.Config.world_agents?(),
+      skill_detail_level: TalesForge.Config.skill_detail_level?()
     }
   end
 

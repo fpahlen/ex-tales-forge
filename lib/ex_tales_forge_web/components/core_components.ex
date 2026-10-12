@@ -45,11 +45,26 @@ defmodule TalesForgeWeb.CoreComponents do
       >
         Welcome Back!
       </.flash>
+
+  With `autohide`, the toast closes itself after 5 seconds. The timer stops
+  while the pointer or the keyboard focus is on the toast. The toast closes
+  with its `phx-click` command, so `on_close` also runs on autohide.
+
+      <.flash kind={:info} flash={@flash} autohide />
   """
   attr :id, :string, doc: "the optional id of flash container"
   attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
   attr :title, :string, default: nil
   attr :kind, :atom, values: [:info, :error], doc: "used for styling and flash lookup"
+
+  attr :autohide, :boolean,
+    default: false,
+    doc: "close the toast after 5 seconds; the timer stops on hover or focus"
+
+  attr :on_close, JS,
+    default: nil,
+    doc: "the command that closes the toast; defaults to clearing the flash"
+
   attr :rest, :global, doc: "the arbitrary HTML attributes to add to the flash container"
 
   slot :inner_block, doc: "the optional inner block that renders the flash message"
@@ -61,8 +76,10 @@ defmodule TalesForgeWeb.CoreComponents do
     <div
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
-      phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
-      role="alert"
+      phx-click={@on_close || JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
+      phx-hook={@autohide && "#{inspect(__MODULE__)}.FlashAutohide"}
+      data-autohide-ms={@autohide && "5000"}
+      role={if @kind == :error, do: "alert", else: "status"}
       class="toast toast-top toast-end z-50"
       {@rest}
     >
@@ -88,6 +105,33 @@ defmodule TalesForgeWeb.CoreComponents do
         </button>
       </div>
     </div>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".FlashAutohide">
+      export default {
+        mounted() {
+          this.paused = new Set()
+          const pause = (why) => { this.paused.add(why); this.stop() }
+          const resume = (why) => { this.paused.delete(why); this.start() }
+          this.el.addEventListener("pointerenter", () => pause("pointer"))
+          this.el.addEventListener("pointerleave", () => resume("pointer"))
+          this.el.addEventListener("focusin", () => pause("focus"))
+          this.el.addEventListener("focusout", (e) => {
+            if (!this.el.contains(e.relatedTarget)) resume("focus")
+          })
+          this.start()
+        },
+        updated() { this.stop(); this.start() },
+        destroyed() { this.stop() },
+        start() {
+          if (this.paused.size > 0 || this.el.hidden) return
+          const ms = parseInt(this.el.dataset.autohideMs || "5000", 10)
+          this.stop()
+          this.timer = setTimeout(() => {
+            this.liveSocket.execJS(this.el, this.el.getAttribute("phx-click"))
+          }, ms)
+        },
+        stop() { clearTimeout(this.timer); this.timer = null }
+      }
+    </script>
     """
   end
 

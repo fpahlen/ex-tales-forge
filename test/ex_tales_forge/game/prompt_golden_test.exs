@@ -53,7 +53,8 @@ defmodule TalesForge.Game.PromptGoldenTest do
   # One golden per prompt flag (`TalesForge.Prompt.Ctx.read_flags/0`). The
   # context holds the data of every flag section; only the flag that is on
   # adds its section. "off" has every flag off.
-  for flag <- ~w(off turn_outcome_record npc_dialogue_memory npc_reactions world_agents) do
+  for flag <-
+        ~w(off turn_outcome_record npc_dialogue_memory npc_reactions world_agents skill_detail_level) do
     test "tin_valley GM turn with the #{flag} flag is byte-identical to its golden file" do
       check_flag_golden(unquote(flag))
     end
@@ -66,9 +67,12 @@ defmodule TalesForge.Game.PromptGoldenTest do
     context = put_in(context, [:world_state, "npc_memory"], %{present => ["Mind the step."]})
 
     flags =
-      Map.new(~w(turn_outcome_record npc_dialogue_memory npc_reactions world_agents)a, fn f ->
-        {f, Atom.to_string(f) == flag}
-      end)
+      Map.new(
+        ~w(turn_outcome_record npc_dialogue_memory npc_reactions world_agents skill_detail_level)a,
+        fn f ->
+          {f, Atom.to_string(f) == flag}
+        end
+      )
 
     actual =
       context
@@ -114,7 +118,8 @@ defmodule TalesForge.Game.PromptGoldenTest do
           facts: [%{"source" => "pack", "text" => "The common room has one hearth."}]
         }
       ],
-      price_lines: ["Price: ale, 2 copper"]
+      price_lines: ["Price: ale, 2 copper"],
+      noticed: %{level: :high, details: ["Under the surface, Brenna Holt is wary."]}
     }
   end
 

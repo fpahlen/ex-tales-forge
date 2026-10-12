@@ -33,6 +33,18 @@ defmodule TalesForge.NPC do
   end
 
   @doc """
+  The present NPCs as the GM prompt sees them (name, personality traits,
+  concern focus, mood), for `TalesForge.Game.Notice.details/3`.
+  """
+  @spec notice_profiles(String.t(), [String.t()]) :: [map()]
+  def notice_profiles(session_id, present_npc_ids) do
+    session_id
+    |> list_instances()
+    |> Enum.filter(&(&1.npc_id in present_npc_ids))
+    |> Enum.map(&prompt_npc_context/1)
+  end
+
+  @doc """
   Seeds the session's NPC instances from the pack (tin_valley) or the
   `priv/npcs` files. Definitions with a `derive` block get their defaults from
   `TalesForge.Characters.Defaults` (skills on the PC scale, stats, OCEAN), seeded
