@@ -8,6 +8,7 @@ defmodule TalesForge.Game.Turn do
       |> Turn.Premise.check()
       |> Turn.Mechanics.apply()
       |> Turn.Npcs.react()
+      |> Turn.Notice.select()
       |> Turn.Prompt.build()
       |> Turn.Gm.narrate()
       |> Turn.Outcome.persist()
@@ -16,7 +17,7 @@ defmodule TalesForge.Game.Turn do
   The intent step (`Jev.classify`, `TalesForge.Game.JevIntent`) runs before
   the turn job, and its result is the `intent` field.
 
-  Each stage writes its own field: `premise`, `outcome`, `npcs`, `prompt`,
+  Each stage writes its own field: `premise`, `outcome`, `npcs`, `notice`, `prompt`,
   `narration` and `result`. The feature flags and the role are read one time,
   in `new/5`. IO goes through `adapters` (`TalesForge.Game.Turn.Adapters`).
   A rejected action is data (`outcome.handler` has `"rejected" => true`). A
@@ -38,6 +39,7 @@ defmodule TalesForge.Game.Turn do
     :intent,
     :role,
     :outcome,
+    :notice,
     :prompt,
     :narration,
     :result,
@@ -57,6 +59,7 @@ defmodule TalesForge.Game.Turn do
           intent: PlayerAction.t(),
           role: atom(),
           outcome: map() | nil,
+          notice: %{level: atom(), details: [String.t()]} | nil,
           prompt: map() | nil,
           narration: {:ok, struct()} | {:error, term()} | nil,
           result: {:ok, map()} | {:error, term()} | nil,

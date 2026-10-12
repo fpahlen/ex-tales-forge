@@ -80,6 +80,14 @@ defmodule TalesForge.Config do
   def turn_outcome_record?, do: System.get_env("TURN_OUTCOME_RECORD", "off") in ~w(on true 1)
 
   @doc """
+  The skill sets how much the character notices (`TalesForge.Game.Notice`):
+  the GM prompt gets the detail level and 0-2 true details from the world
+  state. SKILL_DETAIL_LEVEL=on. Default off.
+  """
+  @spec skill_detail_level?() :: boolean()
+  def skill_detail_level?, do: System.get_env("SKILL_DETAIL_LEVEL", "off") in ~w(on true 1)
+
+  @doc """
   Turn pipeline PR 2: the premise check runs first, before the mechanics and
   the NPCs. A claim that the state contradicts blocks the action
   (`TalesForge.Game.TurnProcessor`): TURN_PREMISE_FIRST=on. Default off.

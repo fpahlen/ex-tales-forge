@@ -1,0 +1,11 @@
+{
+  "_comment": "Detail levels for TalesForge.Game.Notice (decision 2026-10-12, high vs low skills storytelling). The effective skill sets the base level; a success with a margin of at least success_margin, or a natural 1, adds one level; a failure keeps the base level. A turn with no roll uses the passive skill, one level lower.",
+  "levels": [
+    {"level": "low", "min": 0, "max": 5},
+    {"level": "medium", "min": 6, "max": 11},
+    {"level": "high", "min": 12}
+  ],
+  "success_margin": 5,
+  "passive_skills": ["perception", "insight"],
+  "details": {"low": 0, "medium": 1, "high": 2}
+}
