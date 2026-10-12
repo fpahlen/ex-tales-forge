@@ -19,6 +19,8 @@ defmodule TalesForge.TurnPipeline.Replay do
       are not checked.
     * `TURN_OUTCOME_RECORD` is always on, because the harness reads the
       outcome record. The other flags follow `pending_on` (spec item 9).
+    * `coins_after` compares the coin total in copper, not the split into
+      copper, silver and gold.
     * A key that the harness does not support fails the fixture, so that a
       fixture never passes without its checks.
   """
@@ -342,15 +344,15 @@ defmodule TalesForge.TurnPipeline.Replay do
 
   defp coins_after_checks(nil, _turn), do: []
 
+  # The coin total in copper. The server makes change when it books a
+  # payment (`Inventory.deduct_coins/2`), so the split into copper, silver
+  # and gold can differ from the fixture while the total is the same.
   defp coins_after_checks(want, turn) do
     got = get_in(turn.after, ["character", "coins"]) || %{}
-    norm = &Map.new(~w(copper silver gold), fn d -> {d, Map.get(&1, d, 0)} end)
 
-    if norm.(want) == norm.(got),
+    if Inventory.coin_total_copper(want) == Inventory.coin_total_copper(got),
       do: [],
-      else: [
-        "coins_after: want #{inspect(want)}, got #{inspect(got)} (#{Inventory.coin_total_copper(got)}c)"
-      ]
+      else: ["coins_after: want #{inspect(want)}, got #{inspect(got)}"]
   end
 
   defp post_checks(expect, record, turn) do

@@ -43,6 +43,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.Progression
   alias TalesForge.Game.Progression.Tiered
   alias TalesForge.Game.Prompts
+  alias TalesForge.Game.ProseCheck
   alias TalesForge.Game.Reflection
   alias TalesForge.Game.Rest
   alias TalesForge.Game.SceneProcessor
@@ -55,6 +56,7 @@ defmodule TalesForge.Game.TurnProcessor do
   }
 
   alias TalesForge.Game.Train
+  alias TalesForge.Game.TurnRules
   alias TalesForge.Game.Variant
   alias TalesForge.Game.World
   alias TalesForge.Game.WorldClock
@@ -167,6 +169,8 @@ defmodule TalesForge.Game.TurnProcessor do
                on_text: &SessionPubSub.broadcast(session.id, {:turn_stream, &1})
              )
            end) do
+      mismatches = prose_check(gm_result.narrative, board, session.id, turn_number)
+
       # Default variant: log the spent gestures the GM used anyway.
       Gestures.log_repeats(gm_result.narrative, Map.get(gm_context, :recent_gestures),
         session: session.id,
@@ -181,7 +185,10 @@ defmodule TalesForge.Game.TurnProcessor do
           mechanical: mechanical,
           gm_result: gm_result,
           events:
-            board.events ++ premise_events(premises, board.world) ++ outcome_events(outcome),
+            board.events ++
+              premise_events(premises, board.world) ++
+              outcome_events(outcome) ++
+              List.wrap(mismatches),
           sim: board.sim
         })
       end)
@@ -201,6 +208,26 @@ defmodule TalesForge.Game.TurnProcessor do
         _ ->
           :ok
       end)
+    end
+  end
+
+  # TURN_STATE_FROM_MECHANICS=on: the prose post-check (design §5). Each
+  # mismatch between the GM prose and the outcome record is logged and stored
+  # as a `turn.prose_mismatch` event. There is no GM re-run.
+  defp prose_check(narrative, board, session_id, turn_number) do
+    record = Map.get(board, :outcome)
+
+    if Config.turn_state_from_mechanics?() and record do
+      mismatches = ProseCheck.check(narrative, record)
+
+      if mismatches != [],
+        do:
+          Logger.warning(
+            "prose mismatch session=#{session_id} turn=#{turn_number} " <>
+              "count=#{length(mismatches)} kinds=#{inspect(Enum.map(mismatches, & &1.kind))}"
+          )
+
+      ProseCheck.event(mismatches, record)
     end
   end
 
@@ -286,6 +313,29 @@ defmodule TalesForge.Game.TurnProcessor do
     {blocked, %PlayerAction{player_action | action: unrolled}}
   end
 
+  # TURN_STATE_FROM_MECHANICS=on (provisional rule): "pay for a room" with
+  # nobody here who rents rooms is rejected (TalesForge.Game.TurnRules).
+  defp lodging_block(%{state_hints: %{"rejected" => true}} = handler, _world, _action),
+    do: handler
+
+  defp lodging_block(handler, world, player_action) do
+    if Config.turn_state_from_mechanics?() and player_action.action.action_type == :spend and
+         Rest.lodging_then_sleep?(player_action.overall_intent || "") and
+         not TurnRules.lodging_seller?(world, world["location_id"]) do
+      %HandlerResult{
+        handler: "narrate",
+        notes: "Room payment: nobody here rents rooms.",
+        state_hints: %{
+          "lodging_rejected" => true,
+          "rejected" => true,
+          "reason" => TurnRules.nobody_rents_rooms()
+        }
+      }
+    else
+      handler
+    end
+  end
+
   defp log_premises([], _session_id, _turn_number), do: :ok
 
   defp log_premises(findings, session_id, turn_number) do
@@ -359,7 +409,8 @@ defmodule TalesForge.Game.TurnProcessor do
       |> ActionHandler.resolve(Variant.of(session.world_state))
       |> Rest.apply(session.world_state || %{}, player_action.overall_intent)
 
-    {handler, played} = premise_block(resolved, player_action, findings)
+    {premised, played} = premise_block(resolved, player_action, findings)
+    handler = lodging_block(premised, session.world_state || %{}, played)
     {character, rolled} = apply_mechanics(session.world_state, played, handler)
     board = apply_board(session, character, handler, player_action, rolled)
     {handler, %{rolled | improvements: board.improvements, training: board.training}, board}
@@ -778,6 +829,9 @@ defmodule TalesForge.Game.TurnProcessor do
 
   defp premise_result(%{state_hints: %{"premise_rejected" => true, "reason" => reason}}, _result),
     do: {:error, "Premise check: " <> reason}
+
+  defp premise_result(%{state_hints: %{"lodging_rejected" => true, "reason" => reason}}, _result),
+    do: {:error, reason}
 
   defp premise_result(_handler, result), do: result
 
