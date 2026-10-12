@@ -1520,6 +1520,26 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
 
       assert js =~ "if (!stepper()?.presentNext?.()) go(current + 1)"
     end
+
+    # Gentry on prod ebf8dd5: Back from part 9 of slide 4 jumped to slide 3,
+    # and Back from slide 5 left slide 4 half drawn (d20 at step 4, nothing lit).
+    test "Back steps back one part at a time and lands on the last part from slide 5" do
+      js = File.read!("assets/js/team_hooks.js")
+      assert js =~ "const back = () => { if (!stepper()?.presentPrev?.()) go(current - 1, true) }"
+      assert js =~ "stepper()?.presentStart?.(fromEnd)"
+      assert js =~ "this.presentShow(fromEnd ? this.parts() : 0)"
+      assert js =~ "this.presentShow(this.presentAt - 1)"
+      # Every Back route (keys, left-third click, swipe right) goes through back().
+      refute js =~ "go(current - 1)"
+      assert js =~ "dx < 0 ? forward() : back()"
+    end
+
+    test "scrolled away mid-play, the path settles to the full picture, no empty box" do
+      js = File.read!("assets/js/team_hooks.js")
+      [_, flow] = Regex.run(~r/export const TeamFlow = \{(.*?)\n\}\n/s, js)
+      assert flow =~ ~s|} else if (this.el.dataset.flow === "playing") {|
+      assert flow =~ "this.settle()"
+    end
   end
 
   describe "present mode" do

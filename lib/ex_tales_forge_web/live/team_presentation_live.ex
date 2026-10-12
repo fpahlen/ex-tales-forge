@@ -1111,6 +1111,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
            assets/js/team_hooks.js): the d20 visits each step, the step lights
            up and shows its bot, then the fast-lane note and the seven facts
            appear one at a time. In Present mode each click shows one more.
+           Back shows one less, drawn statically; from slide 5 it lands on
+           the last part. Scrolled away mid-play, it settles to the full picture.
            The server renders the full static picture; the styles below hide
            parts only under data-motion="full", while the hook plays. --%>
       <style>

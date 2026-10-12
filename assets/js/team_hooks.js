@@ -133,16 +133,20 @@ export const setupPresent = hook => {
   // A slide with a [data-present-steps] figure (TeamFlow) steps through it
   // first: forward shows its next part until all is shown.
   const stepper = () => current && document.getElementById(ids[current - 1])?.querySelector("[data-present-steps]")
+  // Back steps back one part at a time; from the next slide it lands on the
+  // stepper's last part, everything shown (presentStart(true)).
   const forward = () => { if (!stepper()?.presentNext?.()) go(current + 1) }
+  const back = () => { if (!stepper()?.presentPrev?.()) go(current - 1, true) }
 
-  const go = n => {
+  const go = (n, fromEnd = false) => {
     const next = clampSlide(n, total)
     if (next !== current) stepper()?.presentEnd?.()
     const entered = next !== current
     current = next
-    if (entered) stepper()?.presentStart?.()
     history.replaceState(null, "", `#slide-${current}`)
     render()
+    // After render, so the slide is visible and the d20 can be placed.
+    if (entered) stepper()?.presentStart?.(fromEnd)
   }
 
   const begin = (n, fullscreen) => {
@@ -172,17 +176,17 @@ export const setupPresent = hook => {
   const onKey = e => {
     if (current === null || e.target.closest?.("input, textarea, select, [contenteditable]")) return
     const fwd = ["ArrowRight", "ArrowDown", "PageDown"].includes(e.key) || (e.key === " " && !e.shiftKey)
-    const back = ["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key) || (e.key === " " && e.shiftKey)
+    const bwd = ["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key) || (e.key === " " && e.shiftKey)
     if (e.key === "Escape") stop()
     else if (fwd) forward()
-    else if (back) go(current - 1)
+    else if (bwd) back()
     else return
     e.preventDefault()
   }
 
   const onClick = e => {
     if (current === null || e.target.closest(PRESENT_SKIP)) return
-    if (e.clientX < window.innerWidth / 3) go(current - 1)
+    if (e.clientX < window.innerWidth / 3) back()
     else forward()
   }
 
@@ -197,7 +201,7 @@ export const setupPresent = hook => {
     const dx = t.clientX - touch.x
     const dy = t.clientY - touch.y
     touch = null
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? forward() : go(current - 1)
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? forward() : back()
   }
 
   const onFullscreen = () => { if (!document.fullscreenElement && current !== null) stop() }
@@ -399,8 +403,9 @@ export const TeamFlow = {
     this.facts = [...this.el.querySelectorAll("[data-flow-fact]")]
     this.presentAt = null
     if ("presentSteps" in this.el.dataset) {
-      this.el.presentStart = () => this.presentStart()
+      this.el.presentStart = fromEnd => this.presentStart(fromEnd)
       this.el.presentNext = () => this.presentNext()
+      this.el.presentPrev = () => this.presentPrev()
       this.el.presentEnd = () => this.presentEnd()
     }
     this.track = this.el.querySelector("[data-flow-track]")
@@ -421,10 +426,16 @@ export const TeamFlow = {
 
     if (this.mq.matches || !("IntersectionObserver" in window)) return this.settle()
 
+    // Plays when scrolled into view. Scrolled away before it is done, it
+    // shows the full static picture (no empty box) and plays again on return.
     this.observer = new IntersectionObserver(entries => {
-      if (!entries.some(e => e.isIntersecting)) return
-      this.observer.disconnect()
-      this.play()
+      if (this.presentAt != null) return
+      if (entries.some(e => e.isIntersecting)) {
+        if (!this.played) { this.played = true; this.play() }
+      } else if (this.el.dataset.flow === "playing") {
+        this.played = false
+        this.settle()
+      }
     }, {threshold: 0.3})
     this.observer.observe(this.el)
   },
@@ -454,11 +465,41 @@ export const TeamFlow = {
   // Present mode: the slide opens with nothing lit; each call of presentNext
   // shows the next step, then the next fact. It returns false when all is
   // shown, so the next click goes to the next slide.
-  presentStart() {
-    this.observer?.disconnect()
+  presentStart(fromEnd = false) {
     if (this.mq.matches) { this.presentAt = null; return this.settle() }
+    this.presentShow(fromEnd ? this.parts() : 0)
+  },
+
+  parts() { return this.steps.length + this.facts.length },
+
+  // Present mode, static: the first k parts shown, no token travel (Back).
+  presentShow(k) {
     this.reset()
-    this.presentAt = 0
+    const n = this.steps.length
+    this.presentAt = k
+    this.current = null
+    this.steps.forEach((step, i) => {
+      if (i >= k) return
+      step.dataset.state = "lit"
+      if (step.dataset.approval) step.dataset.stamped = "true"
+      if (!("flowNote" in step.dataset)) this.current = i
+    })
+    this.facts.forEach((f, j) => { if (n + j < k) f.dataset.shown = "true" })
+    if (k >= this.parts()) this.el.dataset.flow = "done"
+    if (this.token) {
+      this.token.style.transition = "none"
+      if (this.current == null) this.token.style.transform = ""
+      else this.place(this.current)
+      void this.token.offsetWidth
+      this.token.style.transition = ""
+    }
+  },
+
+  // Back one part; false at the first part, so Back goes to the slide before.
+  presentPrev() {
+    if (this.presentAt == null || this.mq.matches || this.presentAt <= 0) return false
+    this.presentShow(this.presentAt - 1)
+    return true
   },
 
   presentNext() {
@@ -475,6 +516,7 @@ export const TeamFlow = {
   presentEnd() {
     if (this.presentAt == null) return
     this.presentAt = null
+    this.played = true
     this.settle()
   },
 
