@@ -161,16 +161,7 @@ defmodule TalesForgeWeb.TeamLive do
         tabindex="-1"
         class="mx-auto max-w-6xl space-y-16 px-4 pb-16 pt-8 sm:px-6 sm:pt-12"
       >
-        <p
-          :if={assigns[:qa]}
-          id="qa-banner"
-          role="status"
-          class="rounded-box border border-[var(--paper-line)] px-4 py-2 text-sm"
-        >
-          Signed in as Gentry (QA). {if assigns[:read_only],
-            do: "This session can view the page. It cannot change it.",
-            else: "Writes are on for this session (playtest only)."}
-        </p>
+        <TeamLayout.qa_banner qa={assigns[:qa] == true} read_only={assigns[:read_only] == true} />
         <TeamWorkspace.header stats={assigns[:stats]} />
         <.going_to_do
           board?={assigns[:board?] || false}
