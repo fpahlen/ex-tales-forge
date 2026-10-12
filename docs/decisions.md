@@ -11,6 +11,14 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Add animations to wiring section
+
+- **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. Add animations to the wiring section of the presentation
+- **Why:** Plan: make section 4 "How it's wired" on /team/presentation move like the other sections already do. The five steps become a path from the idea board to production. A d20 token travels along the path. Each step lights up when the token reaches it, and the bot that does the step (Case, Bobby or Gentry) shows its portrait. The fast-lane step (admin and security fixes) branches off and skips the founder OK. After the path, the seven key facts appear one at a time. The animation starts when the section scrolls into view or when its slide opens in Present mode. A Replay button plays it again, as on every other animation. With reduced motion, the section shows the full, static picture. The page already has the parts for this: the TeamFlow hook (the d20 token on the change flow), data-reveal, and the data-motion rules in app.css. So the change stays in team_presentation_live.ex, team_hooks.js and app.css, with no new library. The text of the steps and facts stays the same. It must fit a 390 px phone and work in dark mode. Playtest gets it first. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-5448d20a-ebc6-4c36-bed6-56f37c57a66e)
+
+<!-- board:idea:5448d20a-ebc6-4c36-bed6-56f37c57a66e -->
+
 ## 2026-10-12: Refine ideation process
 
 - **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. Add a chat box instead of current idea input, bot then checks for already existing cards or variants or if it already is implemented before it creates a new card. Otherwise it displays links to the similar card. Show a notification that a card is created
