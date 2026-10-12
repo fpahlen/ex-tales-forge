@@ -9,6 +9,7 @@ config :ex_tales_forge, TalesForge.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
+  port: String.to_integer(System.get_env("PGPORT", "5432")),
   database: "ex_tales_forge_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2

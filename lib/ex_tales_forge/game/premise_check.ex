@@ -13,7 +13,8 @@ defmodule TalesForge.Game.PremiseCheck do
 
     * `:item` — owning gear: "my enchanted armor", "I have a legendary sword",
       "the twenty healing potions in my pack", "the key Osric gave me";
-    * `:purchase` — "I bought the enchanted armor";
+    * `:purchase` — "I bought the enchanted armor", "the enchanted armor I
+      bought yesterday";
     * `:coins` — "I have 500 gold", "player has 30 silver";
     * `:kill` — "I killed the orc chief", "I slew Cobb".
 
@@ -336,6 +337,7 @@ defmodule TalesForge.Game.PremiseCheck do
        pack_claims(sentence) ++
        given_claims(sentence) ++
        purchase_claims(sentence) ++
+       bought_claims(sentence) ++
        kill_claims(sentence, cased))
     |> Enum.filter(fn {pos, _claim} -> asserted?(sentence, pos) end)
     |> Enum.sort_by(&elem(&1, 0))
@@ -417,6 +419,19 @@ defmodule TalesForge.Game.PremiseCheck do
 
   defp purchase_claims(sentence) do
     ~r/\bi\s+(?:already\s+|just\s+)?(?:bought|purchased|paid for)\s+(?:a|an|the|my|some)?\s*((?:[a-z'-]+\s+){0,2}[a-z'-]+)/
+    |> Regex.scan(sentence, return: :index)
+    |> Enum.flat_map(fn [{pos, _}, phrase] ->
+      sentence
+      |> slice(phrase)
+      |> item_claim(nil)
+      |> Enum.map(fn item -> {pos, %{kind: :purchase, item: item.item, noun: item.noun}} end)
+    end)
+  end
+
+  # "the enchanted armor I bought yesterday": the purchase in a relative
+  # clause after the item (h-fp13, h-fp14, Gentry's session 0caf turn 5).
+  defp bought_claims(sentence) do
+    ~r/\bthe\s+((?:[a-z'-]+\s+){0,2}[a-z'-]+)\s+(?:that\s+|which\s+)?i\s+(?:already\s+|just\s+)?(?:bought|purchased|paid for)\b/
     |> Regex.scan(sentence, return: :index)
     |> Enum.flat_map(fn [{pos, _}, phrase] ->
       sentence

@@ -15,7 +15,11 @@ defmodule TalesForge.Game.TurnProcessor do
 
   `TURN_OUTCOME_RECORD=on`: the board step writes an outcome record
   (`TalesForge.Game.OutcomeRecord`). The record goes to the per-turn GM prompt
-  and to the turn as a `turn.outcome` event. The step order does not change.
+  and to the turn as a `turn.outcome` event.
+
+  `TURN_PREMISE_FIRST=on`: the premise check runs first, against the state
+  before the turn. A claim that the state contradicts blocks the action: the
+  turn rolls nothing, books nothing and costs no game time.
 
   Core runtime is 100% Ecto.
   """
@@ -42,7 +46,14 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.Reflection
   alias TalesForge.Game.Rest
   alias TalesForge.Game.SceneProcessor
-  alias TalesForge.Game.Schemas.{GMStructuredResponse, MechanicalResolution, PlayerAction}
+
+  alias TalesForge.Game.Schemas.{
+    GMStructuredResponse,
+    HandlerResult,
+    MechanicalResolution,
+    PlayerAction
+  }
+
   alias TalesForge.Game.Train
   alias TalesForge.Game.Variant
   alias TalesForge.Game.World
@@ -108,8 +119,12 @@ defmodule TalesForge.Game.TurnProcessor do
   end
 
   defp run_steps(session, turn_number, raw_action, player_action, gm_opts) do
+    # TURN_PREMISE_FIRST=on: stage 2 runs before the mechanics. Its findings
+    # block the action. nil when the flag is off (the check runs later).
+    first = premise_first(session, raw_action, turn_number)
+
     {handler, mechanical, ruled} =
-      Steps.time(:rules, fn -> resolve_rules(session, player_action) end)
+      Steps.time(:rules, fn -> resolve_rules(session, player_action, first) end)
 
     # Prototype, NPC_REACTIONS=on: Jev gut reactions of the NPCs present, before
     # the GM call (on the critical path, short timeout). Moods carry over in
@@ -118,7 +133,7 @@ defmodule TalesForge.Game.TurnProcessor do
     agents = world_agents(session, ruled)
     {price_lines, priced} = world_prices(agents, session, ruled, raw_action, player_action)
     {reactions, board} = npc_reactions(session, priced, turn_number, raw_action, mechanical)
-    premises = premise_findings(session, board, raw_action, turn_number)
+    premises = first || premise_findings(session, board, raw_action, turn_number)
     outcome = outcome_record(board)
 
     {gm_context, messages} =
@@ -233,6 +248,44 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
+  # TURN_PREMISE_FIRST=on, default variant: the premise check against the
+  # state before the turn. Returns the findings ([] when all claims hold), or
+  # nil when the flag is off or the variant is baseline.
+  defp premise_first(session, raw_action, turn_number) do
+    world = session.world_state || %{}
+
+    if Config.turn_premise_first?() and not Variant.baseline?(world) do
+      Steps.time(:premise_check, fn ->
+        state =
+          PremiseCheck.state(world, world, Fronts.sim_fronts(session.id), won_fights(session.id))
+
+        raw_action
+        |> PremiseCheck.check(state)
+        |> tap(&log_premises(&1, session.id, turn_number))
+      end)
+    end
+  end
+
+  # A claim that the state contradicts blocks the action: the turn narrates,
+  # rolls nothing, books nothing and costs no game time. The outcome record
+  # shows the action as rejected, with the corrections as the reason.
+  defp premise_block(handler, player_action, nil), do: {handler, player_action}
+  defp premise_block(handler, player_action, []), do: {handler, player_action}
+
+  defp premise_block(_handler, player_action, findings) do
+    reason = Enum.map_join(findings, " ", & &1.correction)
+
+    blocked = %HandlerResult{
+      handler: "narrate",
+      notes: "Premise check: the action is blocked.",
+      state_hints: %{"premise_rejected" => true, "reason" => reason}
+    }
+
+    action = player_action.action
+    unrolled = %{action | parameters: Map.delete(action.parameters, "skill")}
+    {blocked, %PlayerAction{player_action | action: unrolled}}
+  end
+
   defp log_premises([], _session_id, _turn_number), do: :ok
 
   defp log_premises(findings, session_id, turn_number) do
@@ -300,13 +353,14 @@ defmodule TalesForge.Game.TurnProcessor do
 
   # Handler resolution, server mechanics and the board (inventory, clock, move,
   # events, WorldSim, perception): everything decided before narration.
-  defp resolve_rules(session, player_action) do
-    handler =
+  defp resolve_rules(session, player_action, findings) do
+    resolved =
       player_action
       |> ActionHandler.resolve(Variant.of(session.world_state))
       |> Rest.apply(session.world_state || %{}, player_action.overall_intent)
 
-    {character, rolled} = apply_mechanics(session.world_state, player_action, handler)
+    {handler, played} = premise_block(resolved, player_action, findings)
+    {character, rolled} = apply_mechanics(session.world_state, played, handler)
     board = apply_board(session, character, handler, player_action, rolled)
     {handler, %{rolled | improvements: board.improvements, training: board.training}, board}
   end
@@ -412,10 +466,12 @@ defmodule TalesForge.Game.TurnProcessor do
   def apply_board(session, character, handler, player_action, mechanical, opts \\ []) do
     world_before = session.world_state || %{}
 
-    {world_traded, inventory_result} =
+    {world_traded, traded} =
       world_before
       |> put_in(["character"], character)
       |> maybe_apply_inventory(session.id, player_action.action, handler)
+
+    inventory_result = premise_result(handler, traded)
 
     world_present =
       world_traded
@@ -718,6 +774,11 @@ defmodule TalesForge.Game.TurnProcessor do
         {world_state, {:error, reason}}
     end
   end
+
+  defp premise_result(%{state_hints: %{"premise_rejected" => true, "reason" => reason}}, _result),
+    do: {:error, "Premise check: " <> reason}
+
+  defp premise_result(_handler, result), do: result
 
   defp maybe_apply_context_summary(world_state, nil), do: world_state
 
