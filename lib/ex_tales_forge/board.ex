@@ -294,7 +294,8 @@ defmodule TalesForge.Board do
 
   @doc """
   Adds a comment by `author` (a founder email or `bot:<name>`). `@case`,
-  `@bobby`, `@gentry` wake that bot. `@fredrik`, `@hakan`, ... and
+  `@bobby`, `@gentry` wake that bot. `@devops` wakes each of the three bots
+  that has a webhook, once (see `TalesForge.Board.Mentions.wakes/2`). `@fredrik`, `@hakan`, ... and
   `@founders` add an unread ping for each founder named, except the author
   (see `TalesForge.Board.Mentions`). On an archived card a comment wakes
   no bot and pings nobody. `opts[:login]` is the author's GitHub
@@ -305,10 +306,10 @@ defmodule TalesForge.Board do
     author = normalize(author)
     changeset = Comment.changeset(%Comment{}, %{idea_id: idea.id, author: author, body: body})
     # A comment on an archived card stays on the card but wakes nobody.
-    %{bots: bots, founders: mentioned} =
-      if idea.column == "archived", do: %{bots: [], founders: []}, else: Mentions.parse(body)
-
+    archived? = idea.column == "archived"
+    %{founders: mentioned} = if archived?, do: %{founders: []}, else: Mentions.parse(body)
     founders = mentioned -- [Mentions.handle_for(opts[:login])]
+    bots = if archived?, do: [], else: Mentions.wakes(body)
 
     Multi.new()
     |> Multi.insert(:comment, changeset)

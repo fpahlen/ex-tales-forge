@@ -3,7 +3,8 @@ defmodule TalesForge.Board.Mentions do
   The one mention parser of the idea board. A comment can name bots
   (`@case`, `@bobby`, `@gentry`: a webhook wakes the bot) and founders
   (`@fredrik`, `@hakan`, ...: the founder gets a ping on `/team`).
-  `@founders` pings every founder except the author.
+  `@founders` pings every founder except the author. `@devops` names all
+  three bots (Case, Bobby and Gentry), as if the comment named each one.
 
   A founder's handle is their first name from the team data
   (`priv/team/data.json`), in lower case and without accents, so "Håkan" is
@@ -12,15 +13,20 @@ defmodule TalesForge.Board.Mentions do
   `:board_founder_handles` config (login to handle, case-insensitive).
   """
 
+  require Logger
+
   @bots ~w(case bobby gentry)
   @everyone "founders"
+  @devops "devops"
 
   @typedoc "What a comment mentions."
   @type t :: %{bots: [:case | :bobby | :gentry], founders: [String.t()]}
 
   @doc """
   The bots and founder handles that `body` mentions, in order, once each.
-  `@founders` gives every handle. An email address is not a mention.
+  `@founders` gives every handle. `@devops` gives every bot, and a bot that
+  the body also names directly is still there only once. An email address is
+  not a mention.
 
       iex> alias TalesForge.Board.Mentions
       iex> Mentions.parse("@Case look? cc @gentry and @Håkan, not @bobbyx or a@fredrik.se", ~w(fredrik hakan))
@@ -29,6 +35,8 @@ defmodule TalesForge.Board.Mentions do
       %{bots: [], founders: ["fredrik", "hakan"]}
       iex> Mentions.parse("nothing here", ~w(fredrik))
       %{bots: [], founders: []}
+      iex> Mentions.parse("@gentry and @DevOps, please", ~w(fredrik))
+      %{bots: [:gentry, :case, :bobby], founders: []}
   """
   @spec parse(String.t() | nil, [String.t()]) :: t()
   def parse(body, handles \\ handles())
@@ -40,12 +48,67 @@ defmodule TalesForge.Board.Mentions do
       if @everyone in names, do: handles, else: Enum.filter(names, &(&1 in handles))
 
     %{
-      bots: for(n <- names, n in @bots, do: String.to_existing_atom(n)),
+      bots:
+        names
+        |> Enum.flat_map(&bot_names/1)
+        |> Enum.uniq()
+        |> Enum.map(&String.to_existing_atom/1),
       founders: Enum.uniq(founders)
     }
   end
 
   def parse(_body, _handles), do: %{bots: [], founders: []}
+
+  defp bot_names(@devops), do: @bots
+  defp bot_names(name) when name in @bots, do: [name]
+  defp bot_names(_name), do: []
+
+  @doc """
+  The bots that `body` wakes, in order, once each: every bot that `body`
+  names directly, and every bot of `@devops` that has a webhook. `@devops`
+  skips a bot without a webhook URL and key (`TalesForge.BoardApi.bot_config/1`)
+  and logs this at debug level only. A direct mention keeps its wake-up job
+  in all cases (`TalesForge.Board.Workers.Notify` cancels it when there is no
+  webhook).
+
+      iex> alias TalesForge.Board.Mentions
+      iex> Mentions.wakes("@devops and @case", &(&1 == :bobby))
+      [:case, :bobby]
+      iex> Mentions.wakes("@devops @gentry", fn _ -> false end)
+      [:gentry]
+      iex> Mentions.wakes("no bots", fn _ -> true end)
+      []
+  """
+  @spec wakes(String.t() | nil, (atom() -> boolean())) :: [:case | :bobby | :gentry]
+  def wakes(body, webhook? \\ &webhook?/1)
+
+  def wakes(body, webhook?) when is_binary(body) do
+    direct = body |> words() |> Enum.filter(&(&1 in @bots))
+
+    body
+    |> parse([])
+    |> Map.fetch!(:bots)
+    |> Enum.filter(fn bot ->
+      cond do
+        Atom.to_string(bot) in direct ->
+          true
+
+        webhook?.(bot) ->
+          true
+
+        true ->
+          Logger.debug("@devops: #{bot} has no webhook, not woken")
+          false
+      end
+    end)
+  end
+
+  def wakes(_body, _webhook?), do: []
+
+  defp webhook?(bot) do
+    config = TalesForge.BoardApi.bot_config(bot)
+    is_binary(config[:webhook_url]) and is_binary(config[:webhook_key])
+  end
 
   @doc """
   The body split into text and mentions, to highlight the mentions.
@@ -55,7 +118,7 @@ defmodule TalesForge.Board.Mentions do
   """
   @spec segments(String.t(), [String.t()]) :: [{:text | :mention, String.t()}]
   def segments(body, handles \\ handles()) when is_binary(body) do
-    known = handles ++ @bots ++ [@everyone]
+    known = handles ++ @bots ++ [@everyone, @devops]
 
     ~r/(?<![\w@.])@\p{L}+(?!\p{L})/u
     |> Regex.split(body, include_captures: true, trim: true)
@@ -71,10 +134,11 @@ defmodule TalesForge.Board.Mentions do
   end
 
   @doc """
-  The handles that the comment box suggests: founders, `founders`, then the bots.
+  The handles that the comment box suggests: founders, `founders`, `devops`,
+  then the bots.
   """
   @spec suggestions() :: [String.t()]
-  def suggestions, do: handles() ++ [@everyone] ++ @bots
+  def suggestions, do: handles() ++ [@everyone, @devops] ++ @bots
 
   @doc "The founder handles, from the team data."
   @spec handles() :: [String.t()]
