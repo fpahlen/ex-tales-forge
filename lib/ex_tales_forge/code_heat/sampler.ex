@@ -1,16 +1,18 @@
 defmodule TalesForge.CodeHeat.Sampler do
   @moduledoc """
-  The daily task of the code heat map (`TalesForge.CodeHeat`).
+  The hourly task of the code heat map (`TalesForge.CodeHeat`).
 
   When the heat map is on (`TalesForge.CodeHeat.enabled?/1`), the sampler
   starts call-time tracing of the app's modules (`TalesForge.CodeHeat.Tracer`).
-  At each `:read_every_ms` it adds the counters to its totals and starts a
-  new trace session. This keeps the counter memory small. At each
-  `:sample_every_ms` (24 hours) it writes one sample of the totals and starts
-  again from zero. When the heat map is off, the sampler does not start.
+  At each `:read_every_ms` (1 hour) it reads the counters, writes one sample
+  with the counts of that hour (`TalesForge.CodeHeat.save/4`) and starts a
+  new trace session from zero. When the heat map is off, the sampler does
+  not start.
 
-  The sampler stops the trace session when it stops (`terminate/2`). The
-  BEAM also removes the session when the sampler process stops.
+  When the sampler stops (`terminate/2`, for example when Fly stops the
+  machine with SIGTERM), it writes one sample with the counts since the last
+  sample. Then it stops the trace session. The BEAM also removes the session
+  when the sampler process stops.
   """
   use GenServer
 
@@ -35,22 +37,11 @@ defmodule TalesForge.CodeHeat.Sampler do
   end
 
   @doc """
-  Writes one sample now and starts the totals again from zero. Returns the
-  result of `TalesForge.CodeHeat.save/4`.
+  Writes one sample now with the counts since the last sample and starts
+  again from zero. Returns the result of `TalesForge.CodeHeat.save/4`.
   """
   @spec sample_now(GenServer.server()) :: {:ok, struct()} | {:error, Ecto.Changeset.t()}
   def sample_now(server \\ __MODULE__), do: GenServer.call(server, :sample, 30_000)
-
-  @doc """
-  Returns the time of the next sample (UTC), or `nil` when the sampler does
-  not run on this app.
-  """
-  @spec next_sample_at(GenServer.server()) :: DateTime.t() | nil
-  def next_sample_at(server \\ __MODULE__) do
-    if GenServer.whereis(server), do: GenServer.call(server, :next_sample_at), else: nil
-  catch
-    :exit, _reason -> nil
-  end
 
   @impl true
   def init(opts) do
@@ -60,19 +51,13 @@ defmodule TalesForge.CodeHeat.Sampler do
 
     Logger.info("code_heat started modules=#{length(modules)}")
     schedule(:read, CodeHeat.config(:read_every_ms))
-    schedule(:sample, CodeHeat.config(:sample_every_ms))
 
-    {:ok, %{session: session, modules: modules, totals: %{}, started_at: DateTime.utc_now()}}
+    {:ok, %{session: session, modules: modules, started_at: DateTime.utc_now()}}
   end
 
   @impl true
   def handle_info(:read, state) do
     schedule(:read, CodeHeat.config(:read_every_ms))
-    {:noreply, read(state)}
-  end
-
-  def handle_info(:sample, state) do
-    schedule(:sample, CodeHeat.config(:sample_every_ms))
     {_result, state} = sample(state)
     {:noreply, state}
   end
@@ -85,42 +70,41 @@ defmodule TalesForge.CodeHeat.Sampler do
     {:reply, result, state}
   end
 
-  def handle_call(:next_sample_at, _from, state) do
-    next = DateTime.add(state.started_at, CodeHeat.config(:sample_every_ms), :millisecond)
-    {:reply, next, state}
-  end
-
   @impl true
-  def terminate(_reason, %{session: session}) do
-    Tracer.stop(session)
+  def terminate(_reason, state) do
+    {_result, state} = sample(state, restart: false)
+    Tracer.stop(state.session)
   end
 
-  # Add the counters to the totals, then start a new session from zero.
-  defp read(state) do
+  # Read the counters, write one sample of them, then start a new session
+  # from zero (unless the sampler stops).
+  defp sample(state, opts \\ []) do
+    started = System.monotonic_time(:microsecond)
     rows = Tracer.read(state.session, state.modules)
     :ok = Tracer.stop(state.session)
-    {:ok, session} = Tracer.start(state.modules)
 
-    totals =
-      Enum.reduce(rows, state.totals, fn {m, f, a, calls, time_us}, acc ->
+    session =
+      if Keyword.get(opts, :restart, true) do
+        {:ok, session} = Tracer.start(state.modules)
+        session
+      else
+        state.session
+      end
+
+    counts =
+      Enum.reduce(rows, %{}, fn {m, f, a, calls, time_us}, acc ->
         Map.update(acc, {m, f, a}, {calls, time_us}, fn {c, t} -> {c + calls, t + time_us} end)
       end)
 
-    %{state | session: session, totals: totals}
-  end
-
-  defp sample(state) do
-    started = System.monotonic_time(:microsecond)
-    state = read(state)
     now = DateTime.utc_now()
-    result = CodeHeat.save(state.totals, state.started_at, now, length(state.modules))
+    result = CodeHeat.save(counts, state.started_at, now, length(state.modules))
 
     Logger.info(
-      "code_heat sample functions=#{map_size(state.totals)} " <>
+      "code_heat sample functions=#{map_size(counts)} " <>
         "duration_ms=#{div(System.monotonic_time(:microsecond) - started, 1000)}"
     )
 
-    {result, %{state | totals: %{}, started_at: now}}
+    {result, %{state | session: session, started_at: now}}
   end
 
   defp schedule(message, ms), do: Process.send_after(self(), message, ms)
