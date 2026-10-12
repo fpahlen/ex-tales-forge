@@ -17,7 +17,7 @@ status: brief for Bobby
 - **Numbers:** every number comes from `data.json` (given here as `key.path`). Where we don't have a number, the page says "not measured yet" rather than guessing.
 - **As of:** 2026-10-09 (Stockholm time). Show "Numbers as of 9 Oct 2026" in the footer, read from `_about.as_of`.
 
-Suggested layout: one long page with a section nav (sticky from 640 px; on a phone it wraps and scrolls away with the page, and a "Skip to content" link comes first) (Team · How we work · Infrastructure · How it's wired · Playtests · Pace and cost · One shared board · Together). It should work on a phone at 320 px wide, since Gentry checks exactly that.
+Suggested layout: one long page with a section nav (sticky from 640 px; on a phone it wraps and scrolls away with the page, and a "Skip to content" link comes first) (What and why · Team · The game · The board · Rules and bots · Wiring · Stack · Playtests · Quality · Pace and cost · Together). Present mode shows one slide for each nav item: eleven slides, the nine parts with 6 and 7 in two (order approved by Fredrik on 12 Oct 2026; the old anchors stay). It should work on a phone at 320 px wide, since Gentry checks exactly that.
 
 ---
 
@@ -41,23 +41,18 @@ Then: the idea board ("What we're going to do"), the live PR feed ("What we're d
 
 ---
 
-## 0. Hero (presentation only)
+## 1. What Tales Forge is and why (presentation only, anchor `#hero`)
 
-**Headline:** How Tales Forge gets built
+**Headline:** 1. What Tales Forge is and why
 
-**Subhead:** The founders and three bots, one crew, taking a lot of small, careful steps. Here's who does what, how a change gets from an idea to the game, and what we've learned from letting bots play it.
+**Text** (approved by Fredrik, 12 Oct 2026):
+> Tales Forge is an online role-playing game. An AI game master tells the story. You write what your character does, in your own words. The game works out what happens, using real rules and dice. Then the game master tells the story of the result. Our goal is a world that feels alive and fair, where your choices matter.
 
-**"We shape it together" callout** (a soft, friendly callout right under the subhead):
-> **This is how we work today, and we shape it together.** Every founder can add ideas, vote, answer the open questions and approve PRs on the board. An approved change goes to playtest, Gentry checks it, and then Bobby deploys that sha to production. Changes that only touch admin pages ship straight away. This page is an invitation to shape the rest with us.
-
-**Three stat tiles** (big number with a small label):
-- `pace.prs_merged` pull requests merged *(a pull request, or PR, is one proposed change to the code that someone reviews before it goes in)*
-- `decisions.total` decisions written down
-- `pace.tests.total` automated tests, all passing
+Beside it: the crew picture. The "we shape it together" callout is in part 9 and the three stat tiles are in part 8.
 
 ---
 
-## 1. The team
+## 2. The team (cards only)
 
 **Intro copy:**
 > Tales Forge is built by one crew: the founders and three bots. The bots do a lot of the hands-on work, and nothing reaches the game without a founder's yes. Any founder gives that yes on the board.
@@ -96,7 +91,55 @@ Then: the idea board ("What we're going to do"), the live PR feed ("What we're d
 **Small strip under the cards** (from `team.other_bots_note`):
 > There are also a few helper bots for company admin, like bookkeeping, invoices and mail. They don't work on the game.
 
-### How a change flows
+---
+
+## 3. The game and how it plays (anchor `#game`)
+
+**Text** (approved by Fredrik, 12 Oct 2026):
+> You type an action, for example 'I offer the smith two copper for the knife'. The game first works out what you want to do. It checks that you can do it: do you have two copper? Then it rolls the dice where they are needed, and the NPCs react. Last, the game master writes the scene. It describes only what really happened.
+
+Beside it: a screenshot slot for one turn (a marked placeholder until we have the screenshot).
+
+---
+
+## 4. How we work: the board (anchor `#board`)
+
+**Badge:** "Live on /team" (the idea board went live 2026-10-10; it was "Coming soon. Not built yet." before).
+
+**Intro copy:**
+> The idea board on /team is where founders and bots work side by side. Every feature lives there, from a first idea to a change on production. You add an idea, the bots do the legwork, and you decide what gets built.
+
+**How a card travels** (six columns: a card goes through five of them, from `shared_board.columns`; the sixth, **Parked**, holds a card for later, and a founder can send it back to Ideas):
+1. **Ideas.** Any founder adds a card. A sentence is enough. Votes set the order: a card needs an upvote to move. Tags and a tag cloud help you find a card.
+2. **Refining (Case).** Case fills in the card: the details, the open questions and a rough cost. Case's portrait is behind this column.
+3. **Founder check.** Founders read it, check it is what they meant, and answer the open questions. Then a founder sends it to **Building**. *That move is the founder's OK.*
+4. **Building (Bobby).** Bobby writes "Picked up by Bobby. ETA ..." on the card at once, builds it and links the PR to the card. The PR's status shows on the card, so you can follow along and try it. Bobby's portrait is behind this column.
+5. **Done.** On production, and the card keeps the whole story.
+
+**The live board** (replaces the mock board, board card "update presentation after shared workarea", 2026-10-10):
+- **Columns:** the real board columns (Ideas, Refining (Case), Founder check, Building (Bobby), Done, Parked), each with its card count now. Data: `TalesForge.Board.stats/0` in the app, not `data.json`.
+- **Team totals:** cards, votes, founder comments, PR approvals and founders taking part. Bot comments do not count. Show team totals only, with no founder names (answered on the card: "totals").
+- **Small text:** "Team totals since the board opened. We count what the team does together, not who does it."
+- **Updates:** the counts update on each board change. Where the board is not (or with no stats), each count reads "not measured yet", never a zero.
+- **Link:** "Open the idea board →" to `/team#idea-board`.
+- **Layout:** two columns per row on a phone, three from 640 px, all six from 1024 px. No motion.
+- **Caption:** "One board, the whole crew, from idea to done."
+
+**New on the board** (`#board-new`, small cards with icons; data: `shared_board.new_on_board`):
+- **The Ideas lane finds the card you want.** One icon sorts the lane: newest first or oldest first. Each card shows its tags. A founder's name becomes a tag by itself, and you can add your own free tags. Select tags in the tag cloud to show the cards that have all of them. The link keeps your selection, so you can share it. **Pings for you** shows each comment that mentions you.
+- **Each bot column shows its bot.** Case's portrait is behind Refining, and Bobby's portrait is behind Building. You see at a glance who works on a card.
+- **Bobby says when the work starts.** When a card moves to Building, Bobby writes "Picked up by Bobby. ETA ..." on the card at once.
+- **You approve once.** Your Approve stays when a later commit is only a rebase or a fix. The card history notes the new commit. The founders get the question again only when what players get changes.
+- **An hourly check keeps Building moving.** Every hour, Case looks at the Building column. When a card has no PR after more than one hour, Case reminds Bobby.
+
+**Three things that make it work** (small cards with icons):
+- **Moving a card pings the right bot.** A card in Refining wakes Case, and a card in Building wakes Bobby. When a comment names a bot, that bot wakes too. Nobody has to keep checking, bots or people.
+- **One place for each thing.** When a card is approved, it writes its own entry in the decision log (`docs/decisions.md`), so the board and the log never disagree.
+- **Every founder decides.** Any founder can send a card to Building, and that move is the founder OK. Any founder also approves the PR on the card. The approved change goes to playtest, Gentry checks it, and then Bobby deploys that sha to production. Changes that only touch admin pages ship straight away.
+
+**Small print:** the board grew out of the founders' decision queue (`/admin/founders/decisions`). The rules for every move are in [`docs/design-board-states.md`](../design-board-states.md).
+
+### How a change flows (moved here from the team part)
 
 **Copy:**
 > Every change takes the same path. It looks like a lot of steps, but most take minutes, and the median PR went from opened to merged in about 15 minutes in October. A change goes to playtest first; only once Gentry and the persona bots have had a go does it reach players.
@@ -123,7 +166,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 
 ---
 
-## 2. How we work
+## 5. How we work: rules and bots (anchor `#how`; the call-type rule moved to 6b)
 
 **Intro copy:**
 > A few simple rules keep the whole crew, founders and bots, pulling in the same direction.
@@ -155,6 +198,68 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 - **Shows:** decisions logged per day, 5–9 Oct (9 Oct is partial).
 - **Data:** `decisions.by_date[]` (`date`, `count`).
 - **Caption:** "Oct 7 was the big one: 40 decisions in a day, mostly small, all written down."
+
+---
+
+## 6a. How it's wired: the path (anchor `#wired`)
+
+**Source:** [infrastructure-summary.md](infrastructure-summary.md) (the founders' one-page summary of [Infrastructure setup](../infrastructure-setup.md)). Anchor `#wired`; nav label "How it's wired". Write it in Simplified Technical English: short sentences, one idea each, active voice.
+
+**Intro:** "Tales Forge runs as two apps on Fly.io in Stockholm. Playtest gets each change first. Production is what players use. GitHub keeps our code and our docs. GitHub also tests each change before it ships."
+
+**The bots:** "Three bots work with us. Case refines ideas and reviews work. Bobby builds and ships. Gentry tries to break things on playtest. When you move a card on the idea board, the board wakes the right bot. When you move a card to Building, the board writes the decision in our decision log."
+
+**From the idea board to production** (a numbered list, not a wide diagram, so the page does not scroll sideways on a phone):
+
+1. The idea board wakes Case or Bobby.
+2. Bobby builds the change as a PR. GitHub checks it.
+3. The change goes to playtest. Gentry checks it.
+4. Bobby deploys the approved commit to production.
+5. Admin and security fixes ship by themselves.
+
+**Key facts:**
+
+- **Two apps, two databases.** Playtest and production each have their own database. A test never touches player data.
+- **Playtest first.** Every change goes to playtest before production.
+- **One founder OK is enough.** Any founder approves a PR on its board card.
+- **Normal changes ship after Gentry's check.** Bobby then deploys the approved commit to production. No founder pushes anything.
+- **Fast lanes.** Admin-page changes and safe security fixes ship without a manual OK.
+- **Cards finish by themselves.** A card moves to Done when its change is live on production.
+- **Only the team gets in.** You sign in with GitHub. Only members of the Tales Forge team can open the site.
+
+**Footer line:** "The full runbook is "Infrastructure setup" in our docs (docs/infrastructure-setup.md)."
+
+Keep this consistent with the hero callout and section 1: a founder approves, Gentry checks, and Bobby triggers the production deploy for the approved commit. A founder never deploys.
+
+---
+
+## 6b. How it's wired: stack, hosting and one turn (anchor `#infrastructure`; ends with the call-type rule and its walkthrough below)
+
+**Intro copy:**
+> The game is a small, sturdy web app. Here is what it runs on, in plain words.
+
+**Stack list** (icon and one line each; from `infrastructure.stack`):
+- **Elixir and Phoenix LiveView.** The language and web framework. LiveView keeps the page live over one connection, so the story updates without page reloads.
+- **Ecto and Postgres.** The database layer and the database: sessions, characters, turns and costs.
+- **Oban.** Background jobs, such as running a turn or a playtest, so nothing blocks the page.
+- **TypeSafe Jev.** Reads what the player meant (intent), flags tricks (safety) and scores playtests.
+- **Grok (xAI).** The Game Master model. It writes the story, and only the story.
+- **Fly.io, Stockholm.** Two apps: `tales-forge` (production, release `infrastructure.apps[0].release`) and `tales-forge-playtest` (playtest, `infrastructure.apps[1].release`).
+
+**Safety and access cards:**
+- **One way in:** "Sign in with GitHub", only for members of the founders' team, on every page of both apps.
+- **Separate keys:** production and playtest have their own AI keys, so bot testing never mixes with real play in the bills. The keys live in Fly's secret store; nobody pastes them anywhere.
+- **Costs pages:** `/admin/costs` shows AI spend per day and month. Production shows everything, with playtest's costs read live from the playtest app.
+
+**Hosting cost tile:** "About $`infrastructure.hosting_total_usd_per_month`/month for hosting and the domain, before AI usage." Expand to show `infrastructure.hosting_usd_per_month[]`.
+
+**Diagram spec: "how a turn works" (architecture)**
+- **Type:** a left-to-right flow diagram (top-to-bottom on phones), drawn as SVG.
+- **Nodes** (`infrastructure.architecture_nodes`): Player → LiveView → **Jev: intent + safety** → **Elixir: rules and state** (dice, prices, world) → **GM LLM (Grok)** → prose back to the player.
+- **Colour by call type**, using the same three colours as the call-type table: Elixir nodes one colour, Jev another, LLM a third. The legend repeats the rule.
+- **Annotations:** under Jev, "~255 ms, $0.00013 a turn" (from `intent_shadow`). Under Elixir, "decides what happened, and saves it first". Under the GM, "writes the story, never the facts".
+- **Caption:** "The rules decide what happens. The AI only tells the story."
+- **Honesty note** (small print): the Jev intent read has been live on playtest and production since 9 Oct 2026, after a day in *shadow* (reading every turn without deciding) on playtest.
 
 ### The call-type rule: one turn, three call types
 
@@ -244,69 +349,20 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 
 ---
 
-## 3. Infrastructure
+## 7a. Status, playtests and quality: Gentry and the personas (anchor `#playtests`; Gentry's findings come first)
 
-**Intro copy:**
-> The game is a small, sturdy web app. Here is what it runs on, in plain words.
+### Gentry's findings so far
 
-**Stack list** (icon and one line each; from `infrastructure.stack`):
-- **Elixir and Phoenix LiveView.** The language and web framework. LiveView keeps the page live over one connection, so the story updates without page reloads.
-- **Ecto and Postgres.** The database layer and the database: sessions, characters, turns and costs.
-- **Oban.** Background jobs, such as running a turn or a playtest, so nothing blocks the page.
-- **TypeSafe Jev.** Reads what the player meant (intent), flags tricks (safety) and scores playtests.
-- **Grok (xAI).** The Game Master model. It writes the story, and only the story.
-- **Fly.io, Stockholm.** Two apps: `tales-forge` (production, release `infrastructure.apps[0].release`) and `tales-forge-playtest` (playtest, `infrastructure.apps[1].release`).
+**Copy:**
+> Gentry started on playtest this week. The first catch was not an exploit but something every phone player would have hit.
 
-**Safety and access cards:**
-- **One way in:** "Sign in with GitHub", only for members of the founders' team, on every page of both apps.
-- **Separate keys:** production and playtest have their own AI keys, so bot testing never mixes with real play in the bills. The keys live in Fly's secret store; nobody pastes them anywhere.
-- **Costs pages:** `/admin/costs` shows AI spend per day and month. Production shows everything, with playtest's costs read live from the playtest app.
+From `gentry_findings`:
+- The **Act** button was cut off on small phones (320 px wide). Fixed in PR #89.
+- The admin menu scrolled sideways on phones. Now it wraps.
+- The theme buttons had no labels for screen readers. Now they do.
+- Also noted: the home page lists 150 sessions, there's no sign-out on the play pages, and the story panel is very short on phones.
 
-**Hosting cost tile:** "About $`infrastructure.hosting_total_usd_per_month`/month for hosting and the domain, before AI usage." Expand to show `infrastructure.hosting_usd_per_month[]`.
-
-**Diagram spec: "how a turn works" (architecture)**
-- **Type:** a left-to-right flow diagram (top-to-bottom on phones), drawn as SVG.
-- **Nodes** (`infrastructure.architecture_nodes`): Player → LiveView → **Jev: intent + safety** → **Elixir: rules and state** (dice, prices, world) → **GM LLM (Grok)** → prose back to the player.
-- **Colour by call type**, using the same three colours as the call-type table: Elixir nodes one colour, Jev another, LLM a third. The legend repeats the rule.
-- **Annotations:** under Jev, "~255 ms, $0.00013 a turn" (from `intent_shadow`). Under Elixir, "decides what happened, and saves it first". Under the GM, "writes the story, never the facts".
-- **Caption:** "The rules decide what happens. The AI only tells the story."
-- **Honesty note** (small print): the Jev intent read has been live on playtest and production since 9 Oct 2026, after a day in *shadow* (reading every turn without deciding) on playtest.
-
----
-
-## 4. How it's wired
-
-**Source:** [infrastructure-summary.md](infrastructure-summary.md) (the founders' one-page summary of [Infrastructure setup](../infrastructure-setup.md)). Anchor `#wired`; nav label "How it's wired". Write it in Simplified Technical English: short sentences, one idea each, active voice.
-
-**Intro:** "Tales Forge runs as two apps on Fly.io in Stockholm. Playtest gets each change first. Production is what players use. GitHub keeps our code and our docs. GitHub also tests each change before it ships."
-
-**The bots:** "Three bots work with us. Case refines ideas and reviews work. Bobby builds and ships. Gentry tries to break things on playtest. When you move a card on the idea board, the board wakes the right bot. When you move a card to Building, the board writes the decision in our decision log."
-
-**From the idea board to production** (a numbered list, not a wide diagram, so the page does not scroll sideways on a phone):
-
-1. The idea board wakes Case or Bobby.
-2. Bobby builds the change as a PR. GitHub checks it.
-3. The change goes to playtest. Gentry checks it.
-4. Bobby deploys the approved commit to production.
-5. Admin and security fixes ship by themselves.
-
-**Key facts:**
-
-- **Two apps, two databases.** Playtest and production each have their own database. A test never touches player data.
-- **Playtest first.** Every change goes to playtest before production.
-- **One founder OK is enough.** Any founder approves a PR on its board card.
-- **Normal changes ship after Gentry's check.** Bobby then deploys the approved commit to production. No founder pushes anything.
-- **Fast lanes.** Admin-page changes and safe security fixes ship without a manual OK.
-- **Cards finish by themselves.** A card moves to Done when its change is live on production.
-- **Only the team gets in.** You sign in with GitHub. Only members of the Tales Forge team can open the site.
-
-**Footer line:** "The full runbook is "Infrastructure setup" in our docs (docs/infrastructure-setup.md)."
-
-Keep this consistent with the hero callout and section 1: a founder approves, Gentry checks, and Bobby triggers the production deploy for the approved commit. A founder never deploys.
-
----
-
-## 5. Playtests
+**Gap to show honestly:** "Hostile-play results (injections, fake GM notes, false claims) will appear here once Gentry has logged them." (`gentry_findings.hostile_play_results` is null.)
 
 **Intro copy:**
 > We can't hire a hundred players yet, so we built five pretend ones. Each persona bot plays the game the way a real kind of player would, and Jev reads every session and asks: how would *this* player have felt?
@@ -335,6 +391,8 @@ Data: `jev_headline`.
 - The GM parroting the player's words: 22% → **5%** of turns.
 - Runs that left the starting inn: 0 → **12 of 23**.
 - Characters growing skills: 0 → **13 levels** in 23 runs.
+
+## 7b. Status, playtests and quality: Jev under test (anchor `#quality`)
 
 ### Jev intent: the shadow test
 
@@ -376,22 +434,9 @@ Data: `jev_headline`.
 - **Type:** a stacked horizontal bar or treemap of categories, coloured real vs attack vs tricky.
 - **Data:** `intent_eval_set.categories`.
 
-### Gentry's findings so far
-
-**Copy:**
-> Gentry started on playtest this week. The first catch was not an exploit but something every phone player would have hit.
-
-From `gentry_findings`:
-- The **Act** button was cut off on small phones (320 px wide). Fixed in PR #89.
-- The admin menu scrolled sideways on phones. Now it wraps.
-- The theme buttons had no labels for screen readers. Now they do.
-- Also noted: the home page lists 150 sessions, there's no sign-out on the play pages, and the story panel is very short on phones.
-
-**Gap to show honestly:** "Hostile-play results (injections, fake GM notes, false claims) will appear here once Gentry has logged them." (`gentry_findings.hostile_play_results` is null.)
-
 ---
 
-## 6. Pace and cost
+## 8. Status: pace, cost and goals (anchor `#pace`; starts with the three stat tiles from the old hero)
 
 **Intro copy:**
 > Bots are fast. These numbers show how fast, and what it cost.
@@ -422,46 +467,7 @@ From `gentry_findings`:
 
 ---
 
-## 7. How we work together: one shared board
-
-**Badge:** "Live on /team" (the idea board went live 2026-10-10; it was "Coming soon. Not built yet." before).
-
-**Intro copy:**
-> The idea board on /team is where founders and bots work side by side. Every feature lives there, from a first idea to a change on production. You add an idea, the bots do the legwork, and you decide what gets built.
-
-**How a card travels** (six columns: a card goes through five of them, from `shared_board.columns`; the sixth, **Parked**, holds a card for later, and a founder can send it back to Ideas):
-1. **Ideas.** Any founder adds a card. A sentence is enough. Votes set the order: a card needs an upvote to move. Tags and a tag cloud help you find a card.
-2. **Refining (Case).** Case fills in the card: the details, the open questions and a rough cost. Case's portrait is behind this column.
-3. **Founder check.** Founders read it, check it is what they meant, and answer the open questions. Then a founder sends it to **Building**. *That move is the founder's OK.*
-4. **Building (Bobby).** Bobby writes "Picked up by Bobby. ETA ..." on the card at once, builds it and links the PR to the card. The PR's status shows on the card, so you can follow along and try it. Bobby's portrait is behind this column.
-5. **Done.** On production, and the card keeps the whole story.
-
-**The live board** (replaces the mock board, board card "update presentation after shared workarea", 2026-10-10):
-- **Columns:** the real board columns (Ideas, Refining (Case), Founder check, Building (Bobby), Done, Parked), each with its card count now. Data: `TalesForge.Board.stats/0` in the app, not `data.json`.
-- **Team totals:** cards, votes, founder comments, PR approvals and founders taking part. Bot comments do not count. Show team totals only, with no founder names (answered on the card: "totals").
-- **Small text:** "Team totals since the board opened. We count what the team does together, not who does it."
-- **Updates:** the counts update on each board change. Where the board is not (or with no stats), each count reads "not measured yet", never a zero.
-- **Link:** "Open the idea board →" to `/team#idea-board`.
-- **Layout:** two columns per row on a phone, three from 640 px, all six from 1024 px. No motion.
-- **Caption:** "One board, the whole crew, from idea to done."
-
-**New on the board** (`#board-new`, small cards with icons; data: `shared_board.new_on_board`):
-- **The Ideas lane finds the card you want.** One icon sorts the lane: newest first or oldest first. Each card shows its tags. A founder's name becomes a tag by itself, and you can add your own free tags. Select tags in the tag cloud to show the cards that have all of them. The link keeps your selection, so you can share it. **Pings for you** shows each comment that mentions you.
-- **Each bot column shows its bot.** Case's portrait is behind Refining, and Bobby's portrait is behind Building. You see at a glance who works on a card.
-- **Bobby says when the work starts.** When a card moves to Building, Bobby writes "Picked up by Bobby. ETA ..." on the card at once.
-- **You approve once.** Your Approve stays when a later commit is only a rebase or a fix. The card history notes the new commit. The founders get the question again only when what players get changes.
-- **An hourly check keeps Building moving.** Every hour, Case looks at the Building column. When a card has no PR after more than one hour, Case reminds Bobby.
-
-**Three things that make it work** (small cards with icons):
-- **Moving a card pings the right bot.** A card in Refining wakes Case, and a card in Building wakes Bobby. When a comment names a bot, that bot wakes too. Nobody has to keep checking, bots or people.
-- **One place for each thing.** When a card is approved, it writes its own entry in the decision log (`docs/decisions.md`), so the board and the log never disagree.
-- **Every founder decides.** Any founder can send a card to Building, and that move is the founder OK. Any founder also approves the PR on the card. The approved change goes to playtest, Gentry checks it, and then Bobby deploys that sha to production. Changes that only touch admin pages ship straight away.
-
-**Small print:** the board grew out of the founders' decision queue (`/admin/founders/decisions`). The rules for every move are in [`docs/design-board-states.md`](../design-board-states.md).
-
----
-
-## 8. Where we go from here, together
+## 9. Next steps, together (anchor `#together`; with the "we shape it together" callout)
 
 **Intro copy:**
 > Several founders already add, vote, comment and approve on the shared board. The best part is still ahead, and it gets better with every founder who joins in. Together we can make something awesome.
@@ -496,3 +502,19 @@ From `gentry_findings`:
 - `null` in `data.json` means "not measured yet". Render that text, never a zero.
 - No secrets on the page. `infrastructure.keys` deliberately says only where keys live.
 - Behind the existing GitHub team sign-in. Check it at 320, 390 and 1280 px, in dark mode, and with `prefers-reduced-motion`. Gentry will.
+
+## Moved from the old hero
+
+### Old hero copy (kept for the record; callout now in part 9, stat tiles in part 8)
+
+**Headline:** How Tales Forge gets built
+
+**Subhead:** The founders and three bots, one crew, taking a lot of small, careful steps. Here's who does what, how a change gets from an idea to the game, and what we've learned from letting bots play it.
+
+**"We shape it together" callout** (a soft, friendly callout right under the subhead):
+> **This is how we work today, and we shape it together.** Every founder can add ideas, vote, answer the open questions and approve PRs on the board. An approved change goes to playtest, Gentry checks it, and then Bobby deploys that sha to production. Changes that only touch admin pages ship straight away. This page is an invitation to shape the rest with us.
+
+**Three stat tiles** (big number with a small label):
+- `pace.prs_merged` pull requests merged *(a pull request, or PR, is one proposed change to the code that someone reviews before it goes in)*
+- `decisions.total` decisions written down
+- `pace.tests.total` automated tests, all passing
