@@ -13,6 +13,10 @@ defmodule TalesForge.Game.TurnProcessor do
   per-turn GM prompt (`TalesForge.Game.Context.rest_growth_section/1`) so the
   GM can narrate the character waking surer of them.
 
+  `TURN_OUTCOME_RECORD=on`: the board step writes an outcome record
+  (`TalesForge.Game.OutcomeRecord`). The record goes to the per-turn GM prompt
+  and to the turn as a `turn.outcome` event. The step order does not change.
+
   Core runtime is 100% Ecto.
   """
 
@@ -20,6 +24,7 @@ defmodule TalesForge.Game.TurnProcessor do
 
   alias TalesForge.AICalls.{Steps, Tags}
   alias TalesForge.Characters
+  alias TalesForge.Config
   alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Context
@@ -28,6 +33,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.NpcReactions
+  alias TalesForge.Game.OutcomeRecord
   alias TalesForge.Game.Perception
   alias TalesForge.Game.PremiseCheck
   alias TalesForge.Game.Progression
@@ -113,6 +119,7 @@ defmodule TalesForge.Game.TurnProcessor do
     {price_lines, priced} = world_prices(agents, session, ruled, raw_action, player_action)
     {reactions, board} = npc_reactions(session, priced, turn_number, raw_action, mechanical)
     premises = premise_findings(session, board, raw_action, turn_number)
+    outcome = outcome_record(board)
 
     {gm_context, messages} =
       Steps.time(:prompt, fn ->
@@ -124,6 +131,7 @@ defmodule TalesForge.Game.TurnProcessor do
           |> Map.put(:price_lines, price_lines)
           |> Map.put(:moved_from, moved_from(session.world_state, board.world))
           |> Map.put(:premise_findings, premises)
+          |> put_outcome_record(outcome)
           |> put_rest_growth(session.world_state, handler, mechanical, board)
           |> put_player_request(gm_opts[:gm_note])
 
@@ -157,7 +165,8 @@ defmodule TalesForge.Game.TurnProcessor do
           handler: handler,
           mechanical: mechanical,
           gm_result: gm_result,
-          events: board.events ++ premise_events(premises, board.world),
+          events:
+            board.events ++ premise_events(premises, board.world) ++ outcome_events(outcome),
           sim: board.sim
         })
       end)
@@ -179,6 +188,19 @@ defmodule TalesForge.Game.TurnProcessor do
       end)
     end
   end
+
+  # TURN_OUTCOME_RECORD=on: the outcome record of stage 3 (the mechanics). It
+  # goes to the per-turn GM prompt and to the turn as a `turn.outcome` event.
+  # With the flag off, there is no record, and the prompt is as before.
+  defp outcome_record(board) do
+    if Config.turn_outcome_record?(), do: Map.get(board, :outcome)
+  end
+
+  defp put_outcome_record(gm_context, nil), do: gm_context
+  defp put_outcome_record(gm_context, record), do: Map.put(gm_context, :outcome_record, record)
+
+  defp outcome_events(nil), do: []
+  defp outcome_events(record), do: [OutcomeRecord.event(record)]
 
   # The location the character left this turn, or nil (the scene block in
   # the GM prompt narrates the move from it).
@@ -390,10 +412,15 @@ defmodule TalesForge.Game.TurnProcessor do
   def apply_board(session, character, handler, player_action, mechanical, opts \\ []) do
     world_before = session.world_state || %{}
 
-    world_present =
+    {world_traded, inventory_result} =
       world_before
       |> put_in(["character"], character)
       |> maybe_apply_inventory(session.id, player_action.action, handler)
+
+    handler = mark_rejected(handler, inventory_result)
+
+    world_present =
+      world_traded
       |> maybe_move(handler)
       |> apply_location_presence(session)
 
@@ -433,7 +460,9 @@ defmodule TalesForge.Game.TurnProcessor do
       improvements: improvements ++ spent,
       training: training,
       needs_reflection: needs_reflection,
-      turn_growth: if(long_rest?(handler), do: [], else: spent)
+      turn_growth: if(long_rest?(handler), do: [], else: spent),
+      outcome:
+        OutcomeRecord.build(world_before, world, player_action.action, handler, inventory_result)
     }
   end
 
@@ -676,18 +705,31 @@ defmodule TalesForge.Game.TurnProcessor do
 
   defp maybe_apply_inventory(world_state, session_id, action, handler) do
     case Inventory.apply_server_inventory(world_state, session_id, action, handler) do
-      {:ok, updated, %{applied: applied}} when is_list(applied) ->
+      {:ok, updated, %{applied: applied} = details} when is_list(applied) ->
         Logger.info("inventory applied session=#{session_id} changes=#{inspect(applied)}")
-        updated
+        {updated, {:ok, details}}
 
-      {:ok, updated, _} ->
-        updated
+      {:ok, updated, nil} ->
+        {updated, nil}
+
+      {:ok, updated, details} ->
+        {updated, {:ok, details}}
 
       {:error, reason} ->
         Logger.warning("inventory skipped session=#{session_id} reason=#{reason}")
-        world_state
+        {world_state, {:error, reason}}
     end
   end
+
+  # TURN_OUTCOME_RECORD=on: stage 3 rejected the action, so the turn costs
+  # no game time (ActionHandler.tick_delta/1).
+  defp mark_rejected(handler, {:error, _reason}) do
+    if Config.turn_outcome_record?(),
+      do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "rejected", true)},
+      else: handler
+  end
+
+  defp mark_rejected(handler, _result), do: handler
 
   defp maybe_apply_context_summary(world_state, nil), do: world_state
 

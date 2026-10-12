@@ -71,6 +71,14 @@ defmodule TalesForge.Config do
   @doc "Per-NPC Jev reaction timeout (ms); on timeout the turn goes on without that reaction."
   def npc_reactions_timeout_ms, do: env_int("NPC_REACTIONS_TIMEOUT_MS", 2_500)
 
+  @doc """
+  Turn pipeline PR 1: the outcome record of each turn goes to the per-turn GM
+  prompt and to the turn (`TalesForge.Game.OutcomeRecord`):
+  TURN_OUTCOME_RECORD=on. Default off.
+  """
+  @spec turn_outcome_record?() :: boolean()
+  def turn_outcome_record?, do: System.get_env("TURN_OUTCOME_RECORD", "off") in ~w(on true 1)
+
   @doc "World agents prototype (persons/locations hold facts for the GM): WORLD_AGENTS=on. Default off."
   def world_agents?, do: System.get_env("WORLD_AGENTS", "off") in ~w(on true 1)
 
