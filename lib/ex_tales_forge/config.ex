@@ -87,6 +87,16 @@ defmodule TalesForge.Config do
   @spec turn_premise_first?() :: boolean()
   def turn_premise_first?, do: System.get_env("TURN_PREMISE_FIRST", "off") in ~w(on true 1)
 
+  @doc """
+  Turn pipeline PR 3: coins, items, location and clock come only from stage 3.
+  The server runs the prose post-check (`TalesForge.Game.ProseCheck`, log
+  only), and rejects a room payment with nobody here who rents rooms:
+  TURN_STATE_FROM_MECHANICS=on. Default off.
+  """
+  @spec turn_state_from_mechanics?() :: boolean()
+  def turn_state_from_mechanics?,
+    do: System.get_env("TURN_STATE_FROM_MECHANICS", "off") in ~w(on true 1)
+
   @doc "World agents prototype (persons/locations hold facts for the GM): WORLD_AGENTS=on. Default off."
   def world_agents?, do: System.get_env("WORLD_AGENTS", "off") in ~w(on true 1)
 

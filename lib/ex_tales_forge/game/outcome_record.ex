@@ -27,6 +27,7 @@ defmodule TalesForge.Game.OutcomeRecord do
   # first pattern that matches gives the code.
   @reason_codes [
     {~r/^Premise check:/, "premise_rejected"},
+    {~r/nobody here rents rooms/, "no_seller"},
     {~r/is not sold here|in stock/, "not_in_stock"},
     {~r/not in inventory/, "not_owned"},
     {~r/not on the ground/, "not_here"},
