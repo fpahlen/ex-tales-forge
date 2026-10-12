@@ -93,7 +93,7 @@ defmodule TalesForge.Board.Api do
     do:
       params
       |> Map.take(~w(details open_questions rough_cost verdict))
-      |> then(&Board.refine(idea, &1))
+      |> then(&Board.refine(idea, &1, "bot:case"))
       |> answer()
 
   defp act(:refine, _bot, _idea, _params), do: {422, %{"error" => "Only Case refines cards."}}

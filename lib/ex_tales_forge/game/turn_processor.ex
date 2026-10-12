@@ -97,6 +97,8 @@ defmodule TalesForge.Game.TurnProcessor do
       `player_action_map`.
     * `:gm_note` — `"decline_nefarious"`: the GM declines the request in
       character (`TalesForge.Game.Context.player_request_section/1`).
+    * `:founder` — the email of the signed-in founder who plays the turn. The
+      turn row stores it for the work log. The GM prompt does not use it.
 
   Without them the GM prompt is byte-identical to before.
   """
@@ -206,7 +208,8 @@ defmodule TalesForge.Game.TurnProcessor do
               premise_events(premises, board.world) ++
               outcome_events(outcome) ++
               List.wrap(mismatches) ++ List.wrap(repeats),
-          sim: board.sim
+          sim: board.sim,
+          founder: gm_opts[:founder]
         })
       end)
       |> tap(fn
@@ -802,22 +805,11 @@ defmodule TalesForge.Game.TurnProcessor do
     %{
       handler: handler,
       mechanical: mechanical,
-      gm_result: gm_result,
-      events: events,
-      sim: sim
+      gm_result: gm_result
     } = ctx
 
     with {:ok, %{session: session, turn: turn}} <-
-           persist_turn_multi(
-             session,
-             world_after,
-             turn_number,
-             raw_action,
-             gm_result,
-             mechanical,
-             events,
-             sim
-           ),
+           persist_turn_multi(session, world_after, turn_number, raw_action, ctx),
          :ok <-
            NPC.apply_gm_updates(session.id, gm_result, Map.get(world_after, "world_tick")),
          # Double-write to `characters` (nothing reads it yet); never fails the turn.
@@ -953,16 +945,9 @@ defmodule TalesForge.Game.TurnProcessor do
     Map.put(world_state, "situation_lines", lines)
   end
 
-  defp persist_turn_multi(
-         session,
-         world_state,
-         turn_number,
-         raw_action,
-         gm_result,
-         mechanical,
-         events,
-         sim
-       ) do
+  defp persist_turn_multi(session, world_state, turn_number, raw_action, ctx) do
+    %{gm_result: gm_result, mechanical: mechanical, events: events, sim: sim} = ctx
+
     turn_cs =
       %Turn{}
       |> Turn.changeset(%{
@@ -970,7 +955,8 @@ defmodule TalesForge.Game.TurnProcessor do
         turn_number: turn_number,
         player_action: raw_action,
         narrative: gm_result.narrative,
-        mechanical_resolution: MechanicalResolution.encode(mechanical)
+        mechanical_resolution: MechanicalResolution.encode(mechanical),
+        founder: Map.get(ctx, :founder)
       })
 
     attrs = session_attrs(world_state)
