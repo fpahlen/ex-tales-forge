@@ -262,7 +262,7 @@ if config_env() != :test do
 
   config :ex_tales_forge, :app_name, System.get_env("FLY_APP_NAME")
 
-  # The code heat map (TalesForge.CodeHeat): CODE_HEAT_MAP=on turns on the daily
+  # The code heat map (TalesForge.CodeHeat): CODE_HEAT_MAP=on turns on the hourly
   # call-time sample. Set it on playtest only (fly.playtest.toml). The heat map
   # stays off on production, also when the variable is set there.
   code_heat_map = System.get_env("CODE_HEAT_MAP", "off") |> String.trim() |> String.downcase()

@@ -1,13 +1,15 @@
 defmodule TalesForge.CodeHeat do
   @moduledoc """
   The code heat map: call counts and call time of the app's functions, one
-  sample each day.
+  sample each hour.
 
   `TalesForge.CodeHeat.Sampler` traces the app's modules with BEAM call-time
-  tracing (`TalesForge.CodeHeat.Tracer`). Each day it writes one sample of the
-  last 24 hours (`TalesForge.Schemas.CodeHeatSnapshot`). The admin page
-  `/admin/operate/code-heat` (`TalesForgeWeb.AdminLive.CodeHeatLive`) shows
-  the latest sample as a heat map of apps, modules or functions.
+  tracing (`TalesForge.CodeHeat.Tracer`). Each hour it writes one sample with
+  the counts of that hour (`TalesForge.Schemas.CodeHeatSnapshot`). It also
+  writes one sample when it stops. The admin page `/admin/operate/code-heat`
+  (`TalesForgeWeb.AdminLive.CodeHeatLive`) merges the samples of the last
+  24 hours (`window/1`, `merge/3`) and shows them as a heat map of apps,
+  modules or functions.
 
   The heat map runs on playtest only. Set `CODE_HEAT_MAP=on` to turn it on
   (`fly.playtest.toml`). `enabled?/1` is always false on production, also
@@ -16,15 +18,12 @@ defmodule TalesForge.CodeHeat do
   Config `config :ex_tales_forge, TalesForge.CodeHeat`:
 
   - `:enabled`: true from `CODE_HEAT_MAP=on` (`config/runtime.exs`). Default false.
-  - `:read_every_ms`: the sampler adds the counters to its totals and starts
-    a new session at this interval. This keeps the counter memory small.
-    Default 1 hour.
-  - `:sample_every_ms`: the sampler writes one sample at this interval.
-    Default 24 hours.
+  - `:read_every_ms`: the sampler writes one sample and starts a new session
+    at this interval. Default 1 hour.
   - `:max_modules`: the maximum number of traced modules. Default 1500.
   - `:max_rows`: the maximum number of functions in one sample (the
     functions with the most time). Default 2000.
-  - `:keep`: the number of samples to keep. Default 14.
+  - `:keep`: the number of samples to keep. Default 72 (3 days of hourly samples).
 
   The page shows no money. AI calls (Jev and LLM) show the number of calls
   and the time only (`ai_calls/1`).
@@ -42,10 +41,9 @@ defmodule TalesForge.CodeHeat do
   @defaults [
     enabled: false,
     read_every_ms: :timer.hours(1),
-    sample_every_ms: :timer.hours(24),
     max_modules: 1500,
     max_rows: 2000,
-    keep: 14
+    keep: 72
   ]
 
   # Modules whose functions make AI calls. The page marks them "AI".
@@ -183,6 +181,88 @@ defmodule TalesForge.CodeHeat do
   @spec latest() :: CodeHeatSnapshot.t() | nil
   def latest do
     Repo.one(from(s in CodeHeatSnapshot, order_by: [desc: s.ended_at], limit: 1))
+  end
+
+  @typedoc """
+  The samples of a time window, merged: the first start, the last end, the
+  number of samples, the most traced modules and the merged rows.
+  """
+  @type merged :: %{
+          started_at: DateTime.t() | nil,
+          ended_at: DateTime.t() | nil,
+          samples: non_neg_integer(),
+          modules: non_neg_integer(),
+          rows: [map()]
+        }
+
+  @doc """
+  Returns the samples that end in the last `hours` hours, merged with
+  `merge/3`. The window rolls: it ends now.
+  """
+  @spec window(pos_integer()) :: merged()
+  def window(hours \\ 24) do
+    to = DateTime.utc_now()
+    from = DateTime.add(to, -hours, :hour)
+
+    samples =
+      Repo.all(
+        from(s in CodeHeatSnapshot,
+          where: s.ended_at > ^from and s.ended_at <= ^to,
+          order_by: [asc: s.ended_at]
+        )
+      )
+
+    merge(samples, from, to)
+  end
+
+  @doc """
+  Merges the samples that end after `from` and at or before `to` into one
+  row list. Rows with the same app, module and function add their calls and
+  time. The rows are sorted by time, the most first. This function is pure:
+  pass its rows to `tiles/4`.
+
+      iex> at = fn h -> DateTime.add(~U[2026-10-12 00:00:00Z], h, :hour) end
+      iex> row = fn calls -> %{"app" => "a", "module" => "M", "function" => "f/1", "calls" => calls, "time_us" => calls} end
+      iex> samples = [
+      ...>   %{started_at: at.(0), ended_at: at.(1), modules: 2, rows: [row.(1)]},
+      ...>   %{started_at: at.(1), ended_at: at.(2), modules: 3, rows: [row.(2)]},
+      ...>   %{started_at: at.(30), ended_at: at.(31), modules: 3, rows: [row.(9)]}
+      ...> ]
+      iex> merged = TalesForge.CodeHeat.merge(samples, at.(0), at.(24))
+      iex> {merged.samples, merged.modules, merged.rows}
+      {2, 3, [%{"app" => "a", "module" => "M", "function" => "f/1", "calls" => 3, "time_us" => 3}]}
+      iex> TalesForge.CodeHeat.merge([], at.(0), at.(24)).rows
+      []
+  """
+  @spec merge([map()], DateTime.t(), DateTime.t()) :: merged()
+  def merge(samples, from, to) do
+    in_window =
+      Enum.filter(samples, fn s ->
+        DateTime.compare(s.ended_at, from) == :gt and DateTime.compare(s.ended_at, to) != :gt
+      end)
+
+    rows =
+      in_window
+      |> Enum.flat_map(& &1.rows)
+      |> Enum.group_by(&{&1["app"], &1["module"], &1["function"]})
+      |> Enum.map(fn {{app, module, function}, group} ->
+        %{
+          "app" => app,
+          "module" => module,
+          "function" => function,
+          "calls" => group |> Enum.map(& &1["calls"]) |> Enum.sum(),
+          "time_us" => group |> Enum.map(& &1["time_us"]) |> Enum.sum()
+        }
+      end)
+      |> Enum.sort_by(&{&1["time_us"], &1["module"], &1["function"]}, :desc)
+
+    %{
+      started_at: in_window |> Enum.map(& &1.started_at) |> Enum.min(DateTime, fn -> nil end),
+      ended_at: in_window |> Enum.map(& &1.ended_at) |> Enum.max(DateTime, fn -> nil end),
+      samples: length(in_window),
+      modules: in_window |> Enum.map(& &1.modules) |> Enum.max(fn -> 0 end),
+      rows: rows
+    }
   end
 
   @doc """
