@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: Goals on the idea board
+
+- **Decision:** The idea board shows goals at the top. Each card has zero or one goal. The north star ("first paying customer we don't personally know", Apr 2027) is a header line with its own countdown, not a goal. The goals are G2 to G7 from the roadmap, plus G7 "Our shared workspace (team tools)" with the target 2026-10-31. Founders vote on goals (a -1 needs a reason) and change the goal of a card. Bots and the QA session cannot change it. A month target uses the last day of the month.
+- **Why:** The founders see which cards move which goal, how much is done and how much time is left.
+- **Details:** [Founders' idea board, Goals](design-idea-board.md#goals)
+
 ## 2026-10-12: ElixirConf 2027 is not a project goal
 
 - **Decision:** ElixirConf 2027 is not a project goal. It is a personal goal of Fredrik. We removed it from the roadmap.
