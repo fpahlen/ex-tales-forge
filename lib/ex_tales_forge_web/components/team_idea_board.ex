@@ -2,7 +2,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   @moduledoc """
   The founders' idea board on /team (`#idea-board`; design: tales-forge-docs
   `docs/design-idea-board.md`). A LiveComponent over `TalesForge.Board`:
-  add ideas, vote +1/-1 (again to take it back), comment (with `@case`,
+  add ideas through the chat box, vote +1/-1 (again to take it back), comment (with `@case`,
   `@bobby`, `@gentry` to wake a bot), add links, fill in Case's refinement,
   and move cards.
 
@@ -34,6 +34,15 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   with a note), comments and history. The parent LiveView forwards `{:board, :changed}` as
   `send_update(refresh: true)`; an open card stays open and refreshes.
 
+  New ideas (decision 2026-10-12 "Refine ideation process"): a chat box
+  (`#board-chat`) takes the idea as free text. Before the board creates a
+  card, `TalesForge.Board.Similar` runs an AI check against every card that
+  is not archived (Done and Parked included). With no match the card goes to
+  Ideas and a notification (`#board-notice`) links to it. With a match the
+  chat shows links to the similar cards (a Done card says the work is
+  built) and the founder chooses "Create anyway" or "Skip". The check runs
+  in the background (`start_async`); a failed check offers "Create anyway".
+
   Archive (decision 2026-10-12): a small tile next to Parked shows the count
   of archived cards. It opens a panel (`#board-archive`) with the archived
   cards as thin cards, newest first, a tag filter and a search box (title
@@ -47,7 +56,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   use TalesForgeWeb, :live_component
 
   alias TalesForge.Board
-  alias TalesForge.Board.{History, Idea, Mentions, Tags, Transitions, Typing}
+  alias TalesForge.Board.{History, Idea, Mentions, Similar, Tags, Transitions, Typing}
   alias TalesForgeWeb.TeamImages
 
   @impl true
@@ -69,6 +78,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
      |> assign(assigns)
      |> assign_new(:errors, fn -> %{} end)
      |> assign_new(:form_error, fn -> nil end)
+     |> assign_new(:idea_chat, fn -> nil end)
+     |> assign_new(:notice, fn -> nil end)
      |> assign_new(:open_id, fn -> nil end)
      |> assign_new(:comment_for, fn -> nil end)
      |> assign_new(:downvote_for, fn -> nil end)
@@ -262,6 +273,39 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   # is read-only, so the server refuses each event that changes something
   # (TalesForgeWeb.QaGuard), also events added later.
   @impl true
+  def handle_async(:idea_check, {:ok, {:ok, %{matches: [], title: title}}}, socket),
+    do: create_from_chat(socket, title, socket.assigns.idea_chat.text)
+
+  def handle_async(:idea_check, {:ok, {:ok, %{matches: matches, title: title}}}, socket) do
+    chat =
+      %{socket.assigns.idea_chat | status: :matches}
+      |> Map.merge(%{title: title, matches: matches})
+
+    {:noreply, assign(socket, :idea_chat, chat)}
+  end
+
+  def handle_async(:idea_check, _failed, socket) do
+    {:noreply, update(socket, :idea_chat, &(&1 && %{&1 | status: :failed}))}
+  end
+
+  defp create_from_chat(socket, title, text) do
+    case Board.create_idea(socket.assigns.founder, Similar.card_attrs(title, text)) do
+      {:ok, idea} ->
+        {:noreply,
+         socket
+         |> assign(form_error: nil, idea_chat: nil, notice: %{id: idea.id, title: idea.title})
+         |> draft_saved("new-idea", nil)
+         |> load()}
+
+      {:error, cs} ->
+        {:noreply,
+         socket
+         |> assign(:form_error, changeset_text(cs))
+         |> update(:idea_chat, &(&1 && %{&1 | status: :failed}))}
+    end
+  end
+
+  @impl true
   def handle_event(event, params, socket) do
     if TalesForgeWeb.QaGuard.refuse?(event, socket),
       do: {:noreply, TalesForgeWeb.QaGuard.refused(socket)},
@@ -410,15 +454,44 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   defp event("cancel_refinement", _params, socket),
     do: {:noreply, socket |> assign(:editing, nil) |> load()}
 
-  defp event("add", %{"idea" => attrs}, socket) do
-    case Board.create_idea(socket.assigns.founder, attrs) do
-      {:ok, _} ->
-        {:noreply, socket |> assign(:form_error, nil) |> draft_saved("new-idea", nil) |> load()}
+  # The chat box: the AI similar-card check runs first (TalesForge.Board.Similar).
+  defp event("add", %{"idea" => %{"text" => text}}, socket) do
+    text = String.trim(to_string(text))
 
-      {:error, cs} ->
-        {:noreply, assign(socket, :form_error, changeset_text(cs))}
+    cond do
+      text == "" ->
+        {:noreply, assign(socket, :form_error, "Write your idea first.")}
+
+      match?(%{status: :checking}, socket.assigns.idea_chat) ->
+        {:noreply, socket}
+
+      true ->
+        {:noreply,
+         socket
+         |> assign(form_error: nil, notice: nil, idea_chat: %{text: text, status: :checking})
+         |> start_async(:idea_check, fn -> Similar.check(text) end)}
     end
   end
+
+  defp event("add", _params, socket),
+    do: {:noreply, assign(socket, :form_error, "Write your idea first.")}
+
+  defp event("add_anyway", _params, socket) do
+    case socket.assigns.idea_chat do
+      %{text: text} = chat when chat.status != :checking ->
+        create_from_chat(socket, Map.get(chat, :title) || Similar.fallback_title(text), text)
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  defp event("add_skip", _params, socket),
+    do:
+      {:noreply,
+       socket |> assign(idea_chat: nil, form_error: nil) |> draft_saved("new-idea", nil)}
+
+  defp event("dismiss_notice", _params, socket), do: {:noreply, assign(socket, :notice, nil)}
 
   # The vote travels as phx-value-vote, never "value": a <button>'s own
   # (empty) value attribute overrides phx-value-value in the browser.
@@ -592,39 +665,126 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           </li>
         </ul>
       </section>
-      <form
-        id="board-add"
-        data-draft="new-idea"
-        phx-change="draft_change"
-        phx-submit="add"
-        phx-target={@myself}
-        class="team-card grid gap-2 rounded-xl p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-end"
+      <section
+        id="board-chat"
+        aria-labelledby="board-chat-title"
+        class="team-card grid gap-2 rounded-xl p-4"
       >
-        <label class="grid gap-1 text-sm font-semibold">
-          New idea
-          <input
-            id="board-add-title"
-            name="idea[title]"
+        <h3 id="board-chat-title" class="text-sm font-semibold">New idea</h3>
+        <ol
+          :if={@idea_chat}
+          id="board-chat-log"
+          aria-live="polite"
+          class="grid gap-2 text-sm"
+        >
+          <li
+            data-role="me"
+            class="justify-self-end whitespace-pre-line rounded-xl bg-[var(--paper-panel)] px-3 py-2"
+          >
+            {@idea_chat.text}
+          </li>
+          <li :if={@idea_chat.status == :checking} data-role="bot" id="board-chat-checking">
+            I look for similar cards on the board…
+          </li>
+          <li
+            :if={@idea_chat.status == :matches}
+            data-role="bot"
+            id="board-chat-matches"
+            class="grid gap-2"
+          >
+            <p>These cards are similar. Open a card, or add your idea anyway.</p>
+            <ul class="grid gap-1">
+              <li
+                :for={m <- @idea_chat.matches}
+                id={"board-chat-match-#{m.idea.id}"}
+                data-done={to_string(m.done)}
+              >
+                <a
+                  href={"#idea-" <> m.idea.id}
+                  phx-click="open"
+                  phx-value-card_id={m.idea.id}
+                  phx-target={@myself}
+                  class="font-semibold underline"
+                >{m.idea.title}</a>
+                <span class="text-xs text-[var(--paper-muted)]">({Transitions.label(m.idea.column)})</span>
+                <span :if={m.done} data-role="done" class="text-xs font-semibold">This work is done.</span>
+                <span :if={m.reason != ""} class="block text-xs text-[var(--paper-muted)]">{m.reason}</span>
+              </li>
+            </ul>
+          </li>
+          <li :if={@idea_chat.status == :failed} data-role="bot" id="board-chat-failed">
+            The check did not work. You can add the idea anyway.
+          </li>
+          <li :if={@idea_chat.status in [:matches, :failed]} class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              id="board-chat-create"
+              phx-click="add_anyway"
+              phx-target={@myself}
+              class="team-cta min-h-11 rounded-full px-4 font-semibold"
+            >Create anyway</button>
+            <button
+              type="button"
+              id="board-chat-skip"
+              phx-click="add_skip"
+              phx-target={@myself}
+              class="min-h-11 rounded-full border px-4"
+            >Skip</button>
+          </li>
+        </ol>
+        <form
+          id="board-add"
+          data-draft="new-idea"
+          phx-change="draft_change"
+          phx-submit="add"
+          phx-target={@myself}
+          class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+        >
+          <label for="board-add-text" class="sr-only">Your idea</label>
+          <textarea
+            id="board-add-text"
+            name="idea[text]"
             phx-update="ignore"
             required
-            maxlength="200"
-            placeholder="A short title"
-            class="rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-3 py-2 font-normal"
-          />
-        </label>
-        <label class="grid gap-1 text-sm font-semibold">
-          A sentence or two (optional) <textarea
-            id="board-add-body"
-            name="idea[body]"
-            phx-update="ignore"
-            rows="1"
-            class="rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-3 py-2 font-normal"
+            maxlength="4000"
+            rows="2"
+            placeholder="Write your idea. I check the board for similar cards first."
+            class="rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-3 py-2"
           ></textarea>
-        </label>
-        <button type="submit" class="team-cta min-h-11 rounded-full px-5 font-semibold">Add idea</button>
-        <p :if={@form_error} role="alert" class="text-sm text-red-700 sm:col-span-3">{@form_error}</p>
-        <.draft_hint id="board-add-draft-hint" class="sm:col-span-3" />
-      </form>
+          <button
+            type="submit"
+            disabled={match?(%{status: :checking}, @idea_chat)}
+            class="team-cta min-h-11 rounded-full px-5 font-semibold"
+          >Send</button>
+          <p :if={@form_error} role="alert" class="text-sm text-red-700 sm:col-span-2">
+            {@form_error}
+          </p>
+          <.draft_hint id="board-add-draft-hint" class="sm:col-span-2" />
+        </form>
+        <div
+          :if={@notice}
+          id="board-notice"
+          role="status"
+          class="flex flex-wrap items-center gap-2 rounded border border-[var(--paper-rule)] px-3 py-2 text-sm"
+        >
+          <span>Card created:</span>
+          <a
+            href={"#idea-" <> @notice.id}
+            phx-click="open"
+            phx-value-card_id={@notice.id}
+            phx-target={@myself}
+            class="font-semibold underline"
+          >{@notice.title}</a>
+          <button
+            type="button"
+            id="board-notice-close"
+            phx-click="dismiss_notice"
+            phx-target={@myself}
+            aria-label="Close the notification"
+            class="ml-auto min-h-11 px-2"
+          >×</button>
+        </div>
+      </section>
 
       <%!-- Desktop: Ideas left, the three active columns in the middle with
            Parked under them, Done right. Phone: the areas stack. Each area

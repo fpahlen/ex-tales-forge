@@ -65,8 +65,10 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
     {:ok, view, _} = live(conn, "/team")
 
     view
-    |> form("#board-add", idea: %{title: "Brenna remembers regulars", body: "By name."})
+    |> form("#board-add", idea: %{text: "Brenna remembers regulars\nBy name."})
     |> render_submit()
+
+    render_async(view)
 
     [idea] = Board.board()["ideas"]
 
@@ -1082,7 +1084,8 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
       {:ok, view, _} = live(conn, "/team")
       scope = "card:#{idea.id}"
 
-      view |> form("#board-add", idea: %{title: "New one"}) |> render_submit()
+      view |> form("#board-add", idea: %{text: "New one"}) |> render_submit()
+      render_async(view)
       assert_push_event(view, "board_draft:saved", %{scope: "new-idea", fields: nil})
 
       open(view, idea)
@@ -1242,6 +1245,101 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
       assert has_element?(view, "#board-modal #card-#{a.id}")
       refute has_element?(view, "#card-#{a.id}-archive")
       refute has_element?(view, "#card-#{a.id}-image-form")
+    end
+  end
+
+  describe "the new-idea chat box (similar-card check)" do
+    setup do
+      on_exit(fn -> Application.delete_env(:ex_tales_forge, :board_similar_llm) end)
+    end
+
+    defp reply_with(reply),
+      do: Application.put_env(:ex_tales_forge, :board_similar_llm, fn _, _, _ -> reply end)
+
+    defp send_idea(view, text) do
+      view |> form("#board-add", idea: %{text: text}) |> render_submit()
+      render_async(view)
+    end
+
+    test "no match: the card goes to Ideas and a notification links to it", %{conn: conn} do
+      {:ok, _} = Board.create_idea("bo@example.com", %{"title" => "Boats"})
+      reply_with({:ok, %{"title" => "Fishing at the mill", "matches" => []}})
+      {:ok, view, _} = live(conn, "/team")
+
+      assert has_element?(view, "#board-chat textarea#board-add-text[name='idea[text]']")
+      send_idea(view, "Let players fish at the mill.")
+
+      idea = Enum.find(Board.board()["ideas"], &(&1.title == "Fishing at the mill"))
+      assert idea.body == "Let players fish at the mill."
+      assert has_element?(view, ~s(#board-notice[role="status"] a[href="#idea-#{idea.id}"]))
+      assert_push_event(view, "board_draft:saved", %{scope: "new-idea", fields: nil})
+
+      view |> element("#board-notice-close") |> render_click()
+      refute has_element?(view, "#board-notice")
+    end
+
+    test "a match shows links (Done says the work is done); no card until Create anyway",
+         %{conn: conn} do
+      {:ok, open} = Board.create_idea("bo@example.com", %{"title" => "Fishing"})
+      {:ok, done} = Board.create_idea("bo@example.com", %{"title" => "Fishing rods"})
+      done |> Ecto.Changeset.change(column: "done") |> TalesForge.Repo.update!()
+
+      # Candidates are newest first: c1 is "Fishing rods", c2 is "Fishing".
+      refs =
+        TalesForge.Board.Similar.candidates()
+        |> Enum.with_index(1)
+        |> Map.new(fn {c, n} -> {c.id, "c#{n}"} end)
+
+      reply_with(
+        {:ok,
+         %{
+           "title" => "Fish",
+           "matches" => [
+             %{"ref" => refs[done.id], "reason" => "Rods exist."},
+             %{"ref" => refs[open.id], "reason" => "Same idea."}
+           ]
+         }}
+      )
+
+      {:ok, view, _} = live(conn, "/team")
+      send_idea(view, "Players can fish.")
+
+      assert has_element?(view, ~s(#board-chat-match-#{open.id}[data-done="false"] a), "Fishing")
+      assert has_element?(view, ~s(#board-chat-match-#{done.id} [data-role="done"]))
+      assert length(Board.board()["ideas"]) == 1
+
+      view |> element("#board-chat-create") |> render_click()
+      assert Enum.any?(Board.board()["ideas"], &(&1.title == "Fish"))
+      assert has_element?(view, "#board-notice", "Fish")
+      refute has_element?(view, "#board-chat-log")
+    end
+
+    test "Skip drops the idea", %{conn: conn} do
+      {:ok, open} = Board.create_idea("bo@example.com", %{"title" => "Fishing"})
+
+      reply_with(
+        {:ok, %{"title" => "Fish", "matches" => [%{"ref" => "c1", "reason" => "Same."}]}}
+      )
+
+      {:ok, view, _} = live(conn, "/team")
+      send_idea(view, "Fishing please")
+      assert has_element?(view, "#board-chat-match-#{open.id}")
+
+      view |> element("#board-chat-skip") |> render_click()
+      refute has_element?(view, "#board-chat-log")
+      assert length(Board.board()["ideas"]) == 1
+      assert_push_event(view, "board_draft:saved", %{scope: "new-idea", fields: nil})
+    end
+
+    test "a failed check offers Create anyway", %{conn: conn} do
+      {:ok, _} = Board.create_idea("bo@example.com", %{"title" => "Fishing"})
+      reply_with({:error, :timeout})
+      {:ok, view, _} = live(conn, "/team")
+      send_idea(view, "Boats on the lake")
+
+      assert has_element?(view, "#board-chat-failed")
+      view |> element("#board-chat-create") |> render_click()
+      assert Enum.any?(Board.board()["ideas"], &(&1.title == "Boats on the lake"))
     end
   end
 end

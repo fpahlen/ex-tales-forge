@@ -283,6 +283,46 @@ defmodule TalesForge.LLM do
     }
   end
 
+  @board_similar_schema %{
+    "type" => "object",
+    "required" => ["title", "matches"],
+    "properties" => %{
+      "title" => %{"type" => "string"},
+      "matches" => %{
+        "type" => "array",
+        "items" => %{
+          "type" => "object",
+          "required" => ["ref", "reason"],
+          "properties" => %{
+            "ref" => %{"type" => "string"},
+            "reason" => %{"type" => "string"}
+          }
+        }
+      }
+    }
+  }
+  @board_similar_max_tokens 400
+
+  @doc """
+  The idea board's similar-card check (`TalesForge.Board.Similar`): a short
+  `title` for the new idea and the `matches` (`ref`, `reason`) among the
+  cards in the prompt. Purpose `board_similar`, no session, temperature 0.
+  The mock reply has no matches and an empty title.
+  """
+  @spec complete_board_similar(String.t(), String.t(), keyword()) :: result(map())
+  def complete_board_similar(system, user, _opts \\ []) do
+    model = tier1_model()
+
+    if mock?(model) do
+      {:ok, %{"title" => "", "matches" => []}}
+    else
+      complete_json(model, simple_messages(system, user), @board_similar_schema, 0.0,
+        tier: :board_similar,
+        max_tokens: @board_similar_max_tokens
+      )
+    end
+  end
+
   @doc "GM turn. `messages` come from `Prompts.gm_messages/5`; the reply is decoded into a `GMStructuredResponse`."
   @spec complete_turn([map()], PlayerAction.t(), HandlerResult.t(), integer(), call_opts()) ::
           result(GMStructuredResponse.t())
