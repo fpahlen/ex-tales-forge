@@ -193,7 +193,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       {:ok, conn: log_in_admin(conn)}
     end
 
-    # The pace numbers as rendered in the headline stats and in section 5.
+    # The pace numbers as rendered in the headline stats and in section 6.
     defp pace_numbers(html) do
       doc = LazyHTML.from_document(html)
       text = &(doc |> LazyHTML.query(&1) |> LazyHTML.text() |> String.trim())
@@ -210,7 +210,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       }
     end
 
-    test "live: the headline and section 5 show the same live numbers, and follow the feed",
+    test "live: the headline and section 6 show the same live numbers, and follow the feed",
          %{conn: conn} do
       PrFeed.publish(snapshot([], pace: pace()))
       {:ok, view, html} = live(conn, ~p"/team/presentation")
@@ -863,7 +863,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
   end
 
-  describe "6. one shared board (live on /team)" do
+  describe "7. one shared board (live on /team)" do
     setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
 
     test "sits between pace and together, badged as live, with the brief's copy", %{
@@ -879,10 +879,10 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
         |> Enum.map(&(&1 |> LazyHTML.attribute("id") |> hd()))
 
       assert ids == ["hero" | Enum.map(TeamPresentationLive.sections(), &elem(&1, 0))]
-      assert Enum.drop(ids, 5) == ["pace", anchor, "together"]
+      assert Enum.drop(ids, 6) == ["pace", anchor, "together"]
 
-      assert has_element?(view, "##{anchor} h2", "6. How we work together: one shared board")
-      assert has_element?(view, "#together h2", "7. Where we go from here, together")
+      assert has_element?(view, "##{anchor} h2", "7. How we work together: one shared board")
+      assert has_element?(view, "#together h2", "8. Where we go from here, together")
       assert has_element?(view, "#board-badge", "Live on")
       assert has_element?(view, ~s(#board-badge a[href="/team#idea-board"]))
       assert has_element?(view, "##{anchor}", "Every feature lives there")
@@ -917,7 +917,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert has_element?(view, "#involve-board", "Start on the board.")
       assert has_element?(view, "#involve-board", "the first place to take part")
 
-      # The board comes first in section 7, and the approval key is live.
+      # The board comes first in section 8, and the approval key is live.
       assert view
              |> render()
              |> LazyHTML.from_document()
@@ -1007,7 +1007,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       html = render_with(%{})
       doc = LazyHTML.from_document(html)
 
-      assert html =~ "6. How we work together: one shared board"
+      assert html =~ "7. How we work together: one shared board"
       assert doc |> LazyHTML.query("#board-travel li") |> Enum.count() == 5
 
       assert doc |> LazyHTML.query("#team-board .team-board-col[data-column]") |> Enum.count() ==
@@ -1395,12 +1395,44 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert html =~ "the move to Building, then Approve on the PR before the merge"
     end
 
-    test "section 7 says a founder moves an upvoted card" do
+    test "section 8 says a founder moves an upvoted card" do
       html = render_with(@data)
       refute html =~ "A card with an upvote goes to Case"
 
       assert html =~
                "A card needs an upvote before it can move. Then a founder moves it to Refining"
+    end
+  end
+
+  describe "4. how it's wired" do
+    test "the section is in the nav, after Infrastructure" do
+      ids = Enum.map(TeamPresentationLive.sections(), &elem(&1, 0))
+
+      assert Enum.drop_while(ids, &(&1 != "infrastructure")) |> Enum.take(2) == [
+               "infrastructure",
+               "wired"
+             ]
+
+      assert {"wired", "How it's wired"} in TeamPresentationLive.sections()
+    end
+
+    test "the wording follows the founders' summary and the rest of the page" do
+      html = render_with(@data)
+      assert html =~ "4. How it&#39;s wired"
+      assert html =~ "Tales Forge runs as two apps on Fly.io in Stockholm."
+      assert html =~ "Three bots work with us. Case refines ideas and reviews work."
+      assert html =~ "Gentry tries to break things on playtest."
+      assert html =~ "One founder OK is enough."
+      assert html =~ "Normal changes ship after Gentry&#39;s check."
+
+      assert html =~
+               "Bobby then deploys the approved commit to production. No founder pushes anything."
+
+      assert html =~ "Admin-page changes and safe security fixes ship without a manual OK."
+      assert html =~ "A card moves to Done when its change is live on production."
+      assert html =~ "Bobby deploys the approved commit to production."
+      # A founder approves. No founder deploys.
+      refute html =~ ~r/(?<!No )founder (pushes|deploys|triggers)/i
     end
   end
 end

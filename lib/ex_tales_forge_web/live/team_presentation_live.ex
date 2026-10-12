@@ -2,10 +2,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   @moduledoc """
   The founders' full presentation at `/team/presentation`: who the crew is
   (the founders and three bots), how a change gets from an idea to the game,
-  how we work, what the game runs on, what the persona playtests and Gentry
+  how we work, what the game runs on and how it is wired, what the persona playtests and Gentry
   found, the pace and cost so far, the shared board that founders and bots use
-  every day (section 6, live columns, card counts and team totals) and how to
-  take part, with the board first (section 7). Fredrik presents from
+  every day (section 7, live columns, card counts and team totals) and how to
+  take part, with the board first (section 8). Fredrik presents from
   it. `/team` (`TalesForgeWeb.TeamLive`) is the light landing page that links
   here.
 
@@ -22,7 +22,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   Copy follows tales-forge-docs `docs/team-page/content.md` (commit d118917,
   2026-10-09). The pace numbers (pull requests, merged, open, per day, and
   commits on main) come from one place, `TalesForge.TeamPace.current/0`, for
-  both the headline stats and section 5: live from GitHub through the PR feed
+  both the headline stats and section 6: live from GitHub through the PR feed
   (updated on every feed broadcast), or `data.json` labelled "as of <date>"
   when the feed has no full count. Every other number comes from
   `TalesForge.TeamPage` (the bundled `data.json`); a missing or empty value
@@ -70,6 +70,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     {"team", "Team"},
     {"how", "How we work"},
     {"infrastructure", "Infrastructure"},
+    {"wired", "How it's wired"},
     {"playtests", "Playtests"},
     {"pace", "Pace and cost"},
     {TeamBoard.anchor(), "One shared board"},
@@ -129,7 +130,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
       iex> anchors = TalesForgeWeb.TeamPresentationLive.anchors()
       iex> Enum.take(anchors, 8)
-      ["team", "how", "infrastructure", "playtests", "pace", "board", "together", "hero"]
+      ["team", "how", "infrastructure", "wired", "playtests", "pace", "board", "together"]
       iex> "the-call-type-rule-one-turn-three-call-types" in anchors
       true
   """
@@ -218,6 +219,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         <.team_section d={@d} />
         <.how_section d={@d} live={@live} />
         <.infra_section d={@d} />
+        <.wired_section />
         <.playtests_section d={@d} live={@live} />
         <.pace_section d={@d} pace={@pace} live={@live} />
         <TeamBoard.section d={@d} live={@board_live} />
@@ -993,7 +995,82 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  # ── 4. Playtests ───────────────────────────────────────────────────────────
+  # ── 4. How it's wired ──────────────────────────────────────────────────────
+  # The founders' one-page summary of the infrastructure. Source:
+  # tales-forge-docs docs/team-page/infrastructure-summary.md (the full runbook
+  # is docs/infrastructure-setup.md there).
+
+  @wired_steps [
+    "The idea board wakes Case or Bobby.",
+    "Bobby builds the change as a PR. GitHub checks it.",
+    "The change goes to playtest. Gentry checks it.",
+    "Bobby deploys the approved commit to production.",
+    "Admin and security fixes ship by themselves."
+  ]
+
+  @wired_facts [
+    {"Two apps, two databases.",
+     "Playtest and production each have their own database. A test never touches player data."},
+    {"Playtest first.", "Every change goes to playtest before production."},
+    {"One founder OK is enough.", "Any founder approves a PR on its board card."},
+    {"Normal changes ship after Gentry's check.",
+     "Bobby then deploys the approved commit to production. No founder pushes anything."},
+    {"Fast lanes.", "Admin-page changes and safe security fixes ship without a manual OK."},
+    {"Cards finish by themselves.",
+     "A card moves to Done when its change is live on production."},
+    {"Only the team gets in.",
+     "You sign in with GitHub. Only members of the Tales Forge team can open the site."}
+  ]
+
+  @doc """
+  The key facts of section 4 ("How it's wired"), as `{headline, text}`.
+
+      iex> TalesForgeWeb.TeamPresentationLive.wired_facts() |> hd() |> elem(0)
+      "Two apps, two databases."
+  """
+  @spec wired_facts() :: [{String.t(), String.t()}]
+  def wired_facts, do: @wired_facts
+
+  defp wired_section(assigns) do
+    assigns = assign(assigns, steps: @wired_steps, facts: @wired_facts)
+
+    ~H"""
+    <section id="wired" class="team-section space-y-8" aria-labelledby="wired-title" data-reveal>
+      <.section_head id="wired" title="4. How it's wired">
+        Tales Forge runs as two apps on Fly.io in Stockholm. Playtest gets each change first.
+        Production is what players use. GitHub keeps our code and our docs. GitHub also tests
+        each change before it ships.
+      </.section_head>
+
+      <p id="wired-bots" class="max-w-3xl">
+        Three bots work with us. Case refines ideas and reviews work. Bobby builds and ships.
+        Gentry tries to break things on playtest. When you move a card on the idea board, the
+        board wakes the right bot. When you move a card to Building, the board writes the
+        decision in our decision log.
+      </p>
+
+      <ol
+        id="wired-steps"
+        class="team-card list-decimal space-y-1 p-4 pl-8"
+        aria-label="From the idea board to production"
+      >
+        <li :for={step <- @steps}>{step}</li>
+      </ol>
+
+      <ul id="wired-facts" class="grid gap-3 sm:grid-cols-2">
+        <li :for={{head, text} <- @facts} class="team-card p-4">
+          <strong>{head}</strong> {text}
+        </li>
+      </ul>
+
+      <p id="wired-runbook" class="text-sm opacity-80">
+        The full runbook is "Infrastructure setup" in our docs (docs/infrastructure-setup.md).
+      </p>
+    </section>
+    """
+  end
+
+  # ── 5. Playtests ───────────────────────────────────────────────────────────
 
   attr :d, :map, required: true
   attr :live, :map, required: true
@@ -1006,7 +1083,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       aria-labelledby="playtests-title"
       data-reveal
     >
-      <.section_head id="playtests" title="4. Playtests">
+      <.section_head id="playtests" title="5. Playtests">
         We can't hire a hundred players yet, so we built {count_word(length(personas(@d)))} pretend ones. Each persona bot plays the game the way
         a real kind of player would, and Jev reads every session and asks: how would <em>this</em>
         player have felt?
@@ -1424,7 +1501,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  # ── 5. Pace and cost ───────────────────────────────────────────────────────
+  # ── 6. Pace and cost ───────────────────────────────────────────────────────
 
   attr :d, :map, required: true
   attr :pace, :map, required: true, doc: "`TalesForge.TeamPace.current/0`"
@@ -1449,7 +1526,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
     ~H"""
     <section id="pace" class="team-section space-y-8" aria-labelledby="pace-title" data-reveal>
-      <.section_head id="pace" title="5. Pace and cost">
+      <.section_head id="pace" title="6. Pace and cost">
         Bots are fast. These numbers show how fast, and what it cost.
       </.section_head>
 
@@ -1607,7 +1684,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
     ~H"""
     <section id="together" class="team-section space-y-8" aria-labelledby="together-title" data-reveal>
-      <.section_head id="together" title="7. Where we go from here, together">
+      <.section_head id="together" title="8. Where we go from here, together">
         Several founders already add, vote, comment and approve on the shared board. The best part is still ahead,
         and it gets better with every founder who joins in. Together we can make something awesome.
       </.section_head>

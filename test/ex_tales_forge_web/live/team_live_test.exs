@@ -167,7 +167,7 @@ defmodule TalesForgeWeb.TeamLiveTest do
       assert {:ok, _presentation, html} =
                view |> element("#presentation-link") |> render_click() |> follow_redirect(conn)
 
-      assert html =~ "6. How we work together: one shared board"
+      assert html =~ "7. How we work together: one shared board"
     end
 
     test "no placeholder: playtest redirects /team to production", %{conn: conn} do
