@@ -1,6 +1,6 @@
 ---
 title: Decision log
-updated: 2026-10-10
+updated: 2026-10-12
 ---
 
 # Decision log
@@ -10,6 +10,12 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
+
+## 2026-10-12: Archive for ideas
+
+- **Decision (Fredrik, 2026-10-12):** the board gets an Archive. A founder archives a card in Ideas or Parked with a short reason; the card leaves the board and goes to the Archive panel, which a small tile next to Parked opens (a box icon and a count). The panel lists the archived cards newest first, with the Ideas tag filter and a search box, and shows who archived each card and when. Restore sends a card back to Ideas. Founders can delete an archived card for good (spam or duplicates) after they type its title; the delete removes the card's images and writes an audit record. Bots and the Gentry QA session cannot archive or delete.
+- **Why:** spam, duplicates and old ideas made the Ideas lane and Parked long. The archive keeps them out of the way but keeps their votes, comments and history, so a founder can bring a card back. A hard delete is only for cards that must go, and it always leaves an audit record.
+- **Link:** [Board states: Archive](design-board-states.md#archive)
 
 ## 2026-10-10: Tags and a newest/oldest toggle in the Ideas lane
 
