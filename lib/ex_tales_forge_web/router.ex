@@ -90,7 +90,11 @@ defmodule TalesForgeWeb.Router do
     live_session :team, on_mount: [{Hooks, :require_team_member}] do
       live "/team", TeamLive, :index
       live "/team/presentation", TeamPresentationLive, :index
+      live "/team/work-log", TeamWorkLogLive, :index
     end
+
+    # The founders' work log as CSV (TalesForge.WorkLog.Report), for Slicing Pie.
+    get "/team/work-log.csv", WorkLogExportController, :csv
 
     # Images on idea board cards and in the team chat (TalesForge.Images).
     get "/team/images/:id", TeamImageController, :show
