@@ -9,7 +9,7 @@ defmodule TalesForge.Game.Turn.Adapters do
     * `stream` — gets each GM text chunk (`{:turn_stream, chunk}` on the
       session topic);
     * `store` — persists the turn and signals
-      (`TalesForge.Game.TurnProcessor.persist_and_signal/5`).
+      (the persist step of `TalesForge.Game.TurnProcessor`).
   """
 
   defstruct npc: &TalesForge.Game.NpcReactions.react/6,
