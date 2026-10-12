@@ -111,6 +111,7 @@ defmodule TalesForge.Game.TurnProcessor do
             |> Turn.Premise.check()
             |> Turn.Mechanics.apply()
             |> Turn.Npcs.react()
+            |> Turn.Notice.select()
             |> Turn.Prompt.build()
             |> Turn.Gm.narrate()
             |> Turn.Outcome.persist()

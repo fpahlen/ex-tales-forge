@@ -11,6 +11,7 @@ defmodule TalesForge.PromptTest do
   doctest Sections.Gestures
   doctest Sections.OutcomeRecord
   doctest Sections.Premise
+  doctest Sections.NoticedDetails
 
   defmodule StaticA do
     @moduledoc false
@@ -91,7 +92,8 @@ defmodule TalesForge.PromptTest do
       turn_outcome_record: false,
       npc_dialogue_memory: false,
       npc_reactions: false,
-      world_agents: false
+      world_agents: false,
+      skill_detail_level: false
     }
 
     defp ids(call, variant, flags),
@@ -118,7 +120,8 @@ defmodule TalesForge.PromptTest do
             turn_outcome_record: [:outcome_record],
             npc_dialogue_memory: [:npc_memory],
             npc_reactions: [:npc_reactions],
-            world_agents: [:world_facts, :prices, :npc_reactions]
+            world_agents: [:world_facts, :prices, :npc_reactions],
+            skill_detail_level: [:noticed_details]
           ] do
         assert Enum.sort(ids(:gm, "default", %{flag => true}) -- base) == Enum.sort(added)
       end
@@ -129,7 +132,7 @@ defmodule TalesForge.PromptTest do
 
       assert ids(:gm, "default", on) ==
                @static ++
-                 ~w(character_sheet opening perceived_facts intent_context npcs world_facts prices npc_reactions npc_memory gestures scene_now outcome_record premise rest_growth player_request gm_turn_action)a
+                 ~w(character_sheet opening perceived_facts intent_context npcs world_facts prices npc_reactions npc_memory gestures scene_now outcome_record noticed_details premise rest_growth player_request gm_turn_action)a
     end
   end
 end
