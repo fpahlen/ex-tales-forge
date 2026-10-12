@@ -19,7 +19,8 @@ defmodule TalesForge.Workers.ProcessTurn do
       }) do
     # gm_quote / gm_note: set only by the Jev intent path (INTENT_JEV=on,
     # TalesForge.IntentJev); absent otherwise, so the turn is exactly today's.
-    gm = [gm_quote: args["gm_quote"], gm_note: args["gm_note"]]
+    # founder: the signed-in founder who played the turn (work log), or absent.
+    gm = [gm_quote: args["gm_quote"], gm_note: args["gm_note"], founder: args["founder"]]
 
     case TurnProcessor.run(session_id, raw_action, player_action, gm) do
       {:ok, _payload} -> :ok

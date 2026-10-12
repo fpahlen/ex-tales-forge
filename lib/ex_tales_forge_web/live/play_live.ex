@@ -248,6 +248,8 @@ defmodule TalesForgeWeb.PlayLive do
     session_id = socket.assigns.session.id
     socket = assign(socket, :thinking, true)
 
+    opts = Keyword.put(opts, :founder, socket.assigns[:admin_email])
+
     case GameSessions.submit_message(session_id, message, opts) do
       {:ok, %{status: :processing}} ->
         {:noreply, show_pending_action(socket, pending_action_text(socket, message, opts))}

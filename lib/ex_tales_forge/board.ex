@@ -27,6 +27,7 @@ defmodule TalesForge.Board do
     Approval,
     Comment,
     Deletion,
+    Edit,
     Events,
     Idea,
     Link,
@@ -528,18 +529,47 @@ defmodule TalesForge.Board do
   Case's refinement of a card in Refining: `details` (text), `open_questions`
   (a list of strings), `rough_cost` (S, M or L) and `verdict` (feasible,
   feasible_with_caveats or not_feasible). Merged into what is there.
+
+  `author` is the founder email or `"bot:<name>"` that makes the edit. The
+  default is Case, the bot that refines cards. The
+  same transaction writes one `TalesForge.Board.Edit` row with the author,
+  the time and the changed fields.
   """
-  @spec refine(Idea.t(), map()) :: {:ok, Idea.t()} | error()
-  def refine(%Idea{column: "refining"} = idea, attrs) do
+  @spec refine(Idea.t(), map(), String.t()) :: {:ok, Idea.t()} | error()
+  def refine(idea, attrs, author \\ "bot:case")
+
+  def refine(%Idea{column: "refining"} = idea, attrs, author) when is_binary(author) do
     attrs = attrs |> Map.new(fn {k, v} -> {to_string(k), v} end) |> Map.take(@refinement_keys)
     merged = Map.merge(idea.refinement || %{}, attrs)
 
+    changed =
+      attrs |> Map.keys() |> Enum.filter(&(Map.get(idea.refinement || %{}, &1) != attrs[&1]))
+
     with :ok <- valid_refinement(merged) do
-      idea |> Idea.update_changeset(%{refinement: merged}) |> Repo.update() |> after_update()
+      Multi.new()
+      |> Multi.update(:idea, Idea.update_changeset(idea, %{refinement: merged}))
+      |> Multi.insert(
+        :edit,
+        Edit.changeset(%Edit{}, %{
+          idea_id: idea.id,
+          author: normalize(author),
+          fields: Enum.sort(changed)
+        })
+      )
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{idea: idea}} -> after_update({:ok, idea})
+        {:error, _step, %Ecto.Changeset{} = cs, _} -> {:error, cs}
+      end
     end
   end
 
-  def refine(%Idea{}, _attrs), do: {:error, "Only a card in Refining can be refined."}
+  def refine(%Idea{}, _attrs, _author), do: {:error, "Only a card in Refining can be refined."}
+
+  @doc "The card text edits from `since` on, oldest first."
+  @spec edits_since(DateTime.t()) :: [Edit.t()]
+  def edits_since(%DateTime{} = since),
+    do: Repo.all(from(e in Edit, where: e.inserted_at >= ^since, order_by: e.inserted_at))
 
   defp valid_refinement(r) do
     cond do
