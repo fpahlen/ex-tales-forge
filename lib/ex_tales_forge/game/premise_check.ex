@@ -271,24 +271,6 @@ defmodule TalesForge.Game.PremiseCheck do
   def combat_win?(_resolution), do: false
 
   @doc """
-  The per-turn GM note for `findings`, or nil when there are none (which adds
-  nothing to the prompt).
-  """
-  @spec prompt_section([finding()] | nil) :: String.t() | nil
-  def prompt_section(nil), do: nil
-  def prompt_section([]), do: nil
-
-  def prompt_section(findings) when is_list(findings) do
-    lines = Enum.map_join(findings, "\n", &("- " <> &1.correction))
-
-    """
-    ## Player claims the state doesn't back
-    The server owns the inventory, the coins and what has happened. These claims in the player's words are not true in this session. The character may believe or say them, but the world doesn't change: don't narrate them as true, don't let anyone accept them, and play the action from what is actually there.
-    #{lines}
-    """
-  end
-
-  @doc """
   The session event that records `findings` on the turn (kind
   `player.false_premise`, not shown to the player), or nil when there are none.
   """

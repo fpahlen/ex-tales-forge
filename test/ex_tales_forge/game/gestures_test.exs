@@ -75,13 +75,14 @@ defmodule TalesForge.Game.GesturesTest do
   end
 
   test "prompt_section/1 lists the spent gestures, or nothing" do
-    section = Gestures.prompt_section(Gestures.recent(["Brenna wipes her hands."]))
+    section =
+      TalesForge.Prompt.Sections.Gestures.text(Gestures.recent(["Brenna wipes her hands."]))
 
     assert section ==
              "## Gestures already used (recent turns)\n- wipes her hands\n" <>
                "These are spent: do not use them again, nor the same motion with the same body part or prop."
 
-    assert Gestures.prompt_section(nil) == nil
+    assert TalesForge.Prompt.Sections.Gestures.text(nil) == nil
   end
 
   test "log_repeats/3 logs each spent gesture the GM used anyway" do

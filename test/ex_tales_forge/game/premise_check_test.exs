@@ -244,14 +244,14 @@ defmodule TalesForge.Game.PremiseCheckTest do
 
   describe "prompt_section/1, event/3 and state/4" do
     test "no findings add nothing" do
-      assert PremiseCheck.prompt_section([]) == nil
-      assert PremiseCheck.prompt_section(nil) == nil
+      assert TalesForge.Prompt.Sections.Premise.text([]) == nil
+      assert TalesForge.Prompt.Sections.Premise.text(nil) == nil
       assert PremiseCheck.event([], 3, "valley_inn") == nil
     end
 
     test "findings become a per-turn note and a hidden event" do
       findings = PremiseCheck.check("I killed the orc chief", @state)
-      section = PremiseCheck.prompt_section(findings)
+      section = TalesForge.Prompt.Sections.Premise.text(findings)
 
       assert section =~ "## Player claims the state doesn't back\n"
       assert section =~ "\n- Player claims to have killed the orc chief;"
