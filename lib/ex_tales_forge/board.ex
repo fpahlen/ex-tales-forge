@@ -166,6 +166,7 @@ defmodule TalesForge.Board do
   defp preload_all(query_or_ideas) do
     Repo.preload(query_or_ideas,
       votes: [],
+      goal: [],
       comments: from(c in Comment, order_by: [asc: c.inserted_at, asc: c.id]),
       links: from(l in Link, order_by: [asc: l.inserted_at]),
       transitions: from(t in Transition, order_by: [asc: t.inserted_at, asc: t.id]),

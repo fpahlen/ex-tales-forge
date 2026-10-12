@@ -56,7 +56,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   use TalesForgeWeb, :live_component
 
   alias TalesForge.Board
-  alias TalesForge.Board.{History, Idea, Mentions, Similar, Tags, Transitions, Typing}
+  alias TalesForge.Board.{Goals, History, Idea, Mentions, Similar, Tags, Transitions, Typing}
+  alias TalesForgeWeb.TeamGoals
   alias TalesForgeWeb.TeamImages
 
   @impl true
@@ -83,6 +84,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
      |> assign_new(:open_id, fn -> nil end)
      |> assign_new(:comment_for, fn -> nil end)
      |> assign_new(:downvote_for, fn -> nil end)
+     |> assign_new(:goal_downvote_for, fn -> nil end)
+     |> assign_new(:goal_error, fn -> nil end)
      |> assign_new(:editing, fn -> nil end)
      |> assign_new(:drafts, fn -> %{} end)
      |> assign_new(:typed, fn -> %{} end)
@@ -165,6 +168,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       board: board,
       prs: prs(),
       pings: Board.unread_pings(socket.assigns[:login]),
+      goals_strip: Goals.strip(),
+      goals: Goals.list() |> Enum.sort_by(&{&1.sort, &1.title}),
       typing: Typing.who(),
       open: open,
       archive_count: Board.archived_count(),
@@ -179,6 +184,15 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   end
 
   defp actor(socket), do: {:founder, socket.assigns.founder}
+
+  defp goal_result(socket, {:ok, _goal}),
+    do: {:noreply, socket |> assign(goal_downvote_for: nil, goal_error: nil) |> load()}
+
+  defp goal_result(socket, {:error, %Ecto.Changeset{} = cs}),
+    do: goal_result(socket, {:error, changeset_text(cs)})
+
+  defp goal_result(socket, {:error, msg}),
+    do: {:noreply, socket |> assign(:goal_error, msg) |> load()}
 
   # The server saved what a form held: the BoardDrafts hook (TeamPage,
   # assets/js/team_hooks.js) removes those local drafts. `fields` are input
@@ -310,6 +324,39 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     if TalesForgeWeb.QaGuard.refuse?(event, socket),
       do: {:noreply, TalesForgeWeb.QaGuard.refused(socket)},
       else: event(event, params, socket)
+  end
+
+  defp event("goal_vote", %{"goal_id" => id, "vote" => vote}, socket) do
+    goal = Goals.get(id)
+
+    cond do
+      goal == nil ->
+        {:noreply, socket |> assign(:goal_error, "That goal is gone.") |> load()}
+
+      vote == "-1" and Goals.vote_of(goal, socket.assigns.founder) != -1 ->
+        {:noreply, socket |> assign(goal_downvote_for: id, goal_error: nil) |> load()}
+
+      vote in ["1", "-1"] ->
+        goal_result(socket, Goals.vote(goal, socket.assigns.founder, String.to_integer(vote)))
+
+      true ->
+        goal_result(socket, {:error, "A vote is +1 or -1."})
+    end
+  end
+
+  defp event("goal_downvote", %{"goal_id" => id, "reason" => reason}, socket) do
+    case Goals.get(id) do
+      nil -> goal_result(socket, {:error, "That goal is gone."})
+      goal -> goal_result(socket, Goals.vote(goal, socket.assigns.founder, -1, reason))
+    end
+  end
+
+  defp event("cancel_goal_downvote", _params, socket),
+    do: {:noreply, socket |> assign(:goal_downvote_for, nil) |> load()}
+
+  defp event("set_goal", %{"card_id" => id} = params, socket) do
+    actor = if socket.assigns[:qa], do: TalesForge.QaLogin.email(), else: socket.assigns.founder
+    with_idea(socket, id, &Goals.set_card_goal(&1, actor, params["goal_id"]))
   end
 
   defp event("toggle_sort", _params, socket) do
@@ -635,6 +682,14 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   def render(assigns) do
     ~H"""
     <div id={@id} class="team-idea-board space-y-5" data-board-target={"##{@id}"}>
+      <TeamGoals.strip
+        strip={@goals_strip}
+        founder={@founder}
+        myself={@myself}
+        downvote_for={@goal_downvote_for}
+        error={@goal_error}
+        can_vote={assigns[:qa] != true}
+      />
       <section
         :if={@pings != []}
         id="board-pings"
@@ -906,6 +961,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             comment_for={@comment_for}
             downvote_for={@downvote_for}
             archive_for={@archive_for}
+            goals={@goals}
             qa={assigns[:qa] == true}
             editing={@editing}
             drafts={@drafts}
@@ -917,6 +973,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     </div>
     """
   end
+
+  defp goal_name(%{goal: %TalesForge.Board.Goal{key: key, title: title}}), do: "#{key} #{title}"
+  defp goal_name(_idea), do: "Unassigned"
 
   # The decorative portrait for the columns that a bot owns.
   @spec portrait(String.t()) :: String.t() | nil
@@ -1605,6 +1664,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   attr :downvote_for, :any, default: nil
   attr :archive_for, :any, default: nil
   attr :qa, :boolean, default: false
+  attr :goals, :list, default: []
   attr :editing, :any, default: nil
   attr :drafts, :map, default: %{}
   attr :typing, :map, default: %{}
@@ -2048,6 +2108,33 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
                 Cancel
               </button>
             </div>
+          </form>
+        </section>
+
+        <section id={"card-#{@idea.id}-goal"} aria-label="Goal" class="space-y-1">
+          <h5 class="font-semibold">Goal</h5>
+          <p :if={@qa} data-role="goal" class="text-sm">
+            {goal_name(@idea)}
+          </p>
+          <form
+            :if={not @qa}
+            id={"card-#{@idea.id}-goal-form"}
+            phx-change="set_goal"
+            phx-target={@myself}
+            class="flex flex-wrap items-center gap-2"
+          >
+            <input type="hidden" name="card_id" value={@idea.id} />
+            <label for={"card-#{@idea.id}-goal-select"} class="sr-only">Goal of this card</label>
+            <select
+              id={"card-#{@idea.id}-goal-select"}
+              name="goal_id"
+              class="select select-sm min-h-11 bg-[var(--paper-panel)]"
+            >
+              <option value="" selected={is_nil(@idea.goal_id)}>Unassigned</option>
+              <option :for={g <- @goals} value={g.id} selected={@idea.goal_id == g.id}>
+                {g.key} {g.title}
+              </option>
+            </select>
           </form>
         </section>
 
