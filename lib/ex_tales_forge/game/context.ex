@@ -21,7 +21,6 @@ defmodule TalesForge.Game.Context do
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Movement
   alias TalesForge.Game.Perception
-  alias TalesForge.Game.PremiseCheck
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.Variant
   alias TalesForge.Game.World
@@ -216,8 +215,9 @@ defmodule TalesForge.Game.Context do
   resolved, and `needs_reflection`, skills at the reflection level that were
   not reflected on). Skills that improved are named so the GM can let the
   character wake surer of them; skills that need reflection get a short line
-  saying so. Never any numbers. nil when there is nothing to say, when the turn
-  was not a long rest, and always for the baseline variant.
+  saying so. Never any numbers. nil when there is nothing to say and when the
+  turn was not a long rest. `TalesForge.Prompt.Profile` leaves the section out
+  for the baseline variant.
 
       iex> section = TalesForge.Game.Context.rest_growth_section(%{world_state: %{}, rest_growth: %{
       ...>   attempts: [
@@ -261,28 +261,24 @@ defmodule TalesForge.Game.Context do
     pending = growth |> Map.get(:needs_reflection, []) |> Enum.map(&skill_words/1)
 
     if growth[:now] do
-      growth_now_section(improved, context)
+      growth_now_section(improved)
     else
-      rest_lines(improved, pending, context)
+      rest_lines(improved, pending)
     end
   end
 
   # A physical skill that improved at the end of this turn (decision
   # 2026-10-09: physical skills improve right away).
-  defp growth_now_section([], _context), do: nil
+  defp growth_now_section([]), do: nil
 
-  defp growth_now_section(improved, context) do
-    if Variant.baseline?(Map.get(context, :world_state) || %{}) do
-      nil
-    else
-      "## Growth: what that failure taught\n" <>
-        "That failure taught their body something. They are a little surer at: " <>
-        Enum.join(improved, ", ") <>
-        ".\n" <> @growth_hint
-    end
+  defp growth_now_section(improved) do
+    "## Growth: what that failure taught\n" <>
+      "That failure taught their body something. They are a little surer at: " <>
+      Enum.join(improved, ", ") <>
+      ".\n" <> @growth_hint
   end
 
-  defp rest_lines(improved, pending, context) do
+  defp rest_lines(improved, pending) do
     lines =
       [
         improved != [] &&
@@ -296,27 +292,12 @@ defmodule TalesForge.Game.Context do
       ]
       |> Enum.filter(&is_binary/1)
 
-    if lines == [] or Variant.baseline?(Map.get(context, :world_state) || %{}) do
-      nil
-    else
-      "## Rest: what sank in\n" <> Enum.join(lines, "\n") <> "\n" <> @growth_hint
-    end
+    if lines == [],
+      do: nil,
+      else: "## Rest: what sank in\n" <> Enum.join(lines, "\n") <> "\n" <> @growth_hint
   end
 
   defp skill_words(skill), do: String.replace(to_string(skill), "_", " ")
-
-  @doc """
-  Default variant: the claims in the player's words that the session state
-  contradicts (`context[:premise_findings]`, set by the turn from
-  `TalesForge.Game.PremiseCheck`), with a short correction each. nil when
-  there are none, and always nil for the baseline variant.
-  """
-  @spec premise_section(map()) :: String.t() | nil
-  def premise_section(context) do
-    if Variant.baseline?(context.world_state || %{}),
-      do: nil,
-      else: PremiseCheck.prompt_section(Map.get(context, :premise_findings))
-  end
 
   @doc """
   The note that tells the GM to decline the player's request in character
@@ -339,29 +320,25 @@ defmodule TalesForge.Game.Context do
   others are, plus the move when this turn changed the location
   (`context[:moved_from]`, set by the turn). The GM narrates from this place
   and voices only the people present, so it can't answer Osric as Brenna
-  after the character has left the inn. nil for the baseline variant.
+  after the character has left the inn. `TalesForge.Prompt.Profile` leaves
+  the section out for the baseline variant.
   """
   @spec scene_now_section(map()) :: String.t() | nil
   def scene_now_section(context) do
     world = context.world_state || %{}
+    intent = context.intent_context
+    here = intent["location_name"] || intent["location_id"]
 
-    if Variant.baseline?(world) do
-      nil
-    else
-      intent = context.intent_context
-      here = intent["location_name"] || intent["location_id"]
-
-      [
-        "## Scene now",
-        "Where: #{here} (#{intent["location_id"]}).",
-        "Present: #{present_names(intent)}.",
-        elsewhere_line(world, intent),
-        moved_line(world, Map.get(context, :moved_from), here),
-        "Narrate from this place. Only the people present can speak or act here; anyone else is elsewhere."
-      ]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.map_join(&(&1 <> "\n"))
-    end
+    [
+      "## Scene now",
+      "Where: #{here} (#{intent["location_id"]}).",
+      "Present: #{present_names(intent)}.",
+      elsewhere_line(world, intent),
+      moved_line(world, Map.get(context, :moved_from), here),
+      "Narrate from this place. Only the people present can speak or act here; anyone else is elsewhere."
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map_join(&(&1 <> "\n"))
   end
 
   defp present_names(intent) do
@@ -418,14 +395,15 @@ defmodule TalesForge.Game.Context do
 
   # Already told to the player before turn 1. Keep it on every GM turn so the
   # model doesn't re-narrate the arrival as if it just happened (humans and bots).
+  # `TalesForge.Prompt.Profile` picks the baseline text for the baseline variant.
   @doc false
-  @spec opening_section(struct() | nil, map() | nil) :: String.t() | nil
-  def opening_section(nil, _world), do: nil
+  @spec opening_section(struct() | nil, :baseline | :default) :: String.t() | nil
+  def opening_section(nil, _text), do: nil
 
-  def opening_section(%Scene{} = scene, world) do
+  def opening_section(%Scene{} = scene, text) do
     where = if(scene.location_name, do: " (#{scene.location_name})", else: "")
 
-    if Variant.baseline?(world) do
+    if text == :baseline do
       """
       ## Opening scene#{where} — already told to the player
       Do not rewrite or re-narrate this as if it just happened. The player has

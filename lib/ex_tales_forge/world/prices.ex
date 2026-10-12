@@ -83,21 +83,6 @@ defmodule TalesForge.World.Prices do
   defp resolve_one(world, fact, false),
     do: {world, "Price: #{fact["item"]}, #{money(fact["copper"])}"}
 
-  @doc "Per-turn prompt section for the lines, or nil."
-  @spec prompt_section([String.t()] | nil) :: String.t() | nil
-  def prompt_section([]), do: nil
-  def prompt_section(nil), do: nil
-
-  def prompt_section(lines),
-    do:
-      Enum.join(
-        [
-          "## Prices this turn (from the server; use these exact amounts)"
-          | Enum.map(lines, &("- " <> &1))
-        ],
-        "\n"
-      )
-
   @doc false
   @spec price_facts([TalesForge.World.agent()]) :: [map()]
   def price_facts(agents) do

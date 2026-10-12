@@ -61,14 +61,14 @@ defmodule TalesForge.WorldTest do
 
     assert is_pid(Agent.whereis(session.id, "valley_inn"))
 
-    section = World.prompt_section(agents)
+    section = TalesForge.Prompt.Sections.WorldFacts.text(agents)
     assert section =~ "## World facts (true in this world; keep to them)"
     assert section =~ "- Valley Inn [valley_inn] (here): Mug of ale: 2 copper;"
     assert section =~ "Private room: 3 silver a night, paid up front"
     assert section =~ "- Brenna Holt [innkeep] (present):"
     assert section =~ "orc nest"
     assert String.length(section) < 1_500
-    assert World.prompt_section([]) == nil
+    assert TalesForge.Prompt.Sections.WorldFacts.text([]) == nil
   end
 
   test "validate_facts checks new facts; stored ones reach the agents and survive a restart", %{
@@ -127,10 +127,11 @@ defmodule TalesForge.WorldTest do
     GenServer.stop(Agent.whereis(session.id, "valley_inn"))
     agents = World.collect(session.id, world)
 
-    assert World.prompt_section(agents) =~
+    assert TalesForge.Prompt.Sections.WorldFacts.text(agents) =~
              "promised: Keep the back room for Lotta until dusk (turn 2)"
 
-    assert World.prompt_section(agents) =~ "Stabling: 4 copper a night (turn 2)"
+    assert TalesForge.Prompt.Sections.WorldFacts.text(agents) =~
+             "Stabling: 4 copper a night (turn 2)"
   end
 
   describe "prices from code" do
@@ -222,7 +223,7 @@ defmodule TalesForge.WorldTest do
 
     test "nothing mentioned, no lines; money words", %{agents: agents, world: world} do
       assert {_, []} = Prices.resolve(agents, world, world, "I look around the common room.", nil)
-      assert Prices.prompt_section([]) == nil
+      assert TalesForge.Prompt.Sections.Prices.text([]) == nil
       assert Prices.money(30) == "3 silver"
       assert Prices.money(535) == "1 gold 3 silver 5 copper"
     end
@@ -246,7 +247,9 @@ defmodule TalesForge.WorldTest do
     plain = Prompts.gm_messages(context, mech, action, handler, 2)
 
     with_facts =
-      Prompts.gm_messages(Map.put(context, :world_facts, agents), mech, action, handler, 2)
+      Prompts.gm_messages(Map.put(context, :world_facts, agents), mech, action, handler, 2,
+        flags: %{world_agents: true}
+      )
 
     assert Enum.take(with_facts, 4) == Enum.take(plain, 4)
     assert List.last(with_facts).content =~ "## World facts"

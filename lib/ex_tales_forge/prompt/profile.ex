@@ -9,12 +9,24 @@ defmodule TalesForge.Prompt.Profile do
     3. turn: the per-turn state; for a GM turn also the server bounds, the
        validated player action and the handler result.
 
-  Each section decides on its own content today. The role, flag and baseline
-  checks move here in later steps.
+  The profile holds all the role, flag and baseline checks. A section only
+  renders its data:
+
+    * the baseline variant gets the baseline opening scene and no scene-now,
+      premise or growth note;
+    * `TURN_OUTCOME_RECORD` adds the outcome record;
+    * `NPC_DIALOGUE_MEMORY` adds the NPC dialogue memory;
+    * `NPC_REACTIONS` or `WORLD_AGENTS` adds the NPC reactions;
+    * `WORLD_AGENTS` adds the world facts and the prices;
+    * the production role gets the lean GM task (`gm_task_fragments/1`) and
+      the lean reply (`narration_fields/1`).
   """
 
   alias TalesForge.Prompt.Ctx
   alias TalesForge.Prompt.Sections
+
+  # Sections of the default variant only (the baseline prompts stay as they were).
+  @default_only [Sections.SceneNow, Sections.Premise, Sections.RestGrowth]
 
   @doc "The static sections (system messages)."
   @spec static_sections(Ctx.t()) :: [module()]
@@ -23,13 +35,13 @@ defmodule TalesForge.Prompt.Profile do
 
   @doc "The session sections."
   @spec session_sections(Ctx.t()) :: [module()]
-  def session_sections(%Ctx{call: call}) when call in [:gm, :scene],
-    do: [Sections.CharacterSheet, Sections.Opening]
+  def session_sections(%Ctx{call: call} = ctx) when call in [:gm, :scene],
+    do: [Sections.CharacterSheet, opening(ctx)]
 
   @doc "The turn sections."
   @spec turn_sections(Ctx.t()) :: [module()]
-  def turn_sections(%Ctx{call: :scene}), do: state_sections()
-  def turn_sections(%Ctx{call: :gm}), do: state_sections() ++ [Sections.GmTurnAction]
+  def turn_sections(%Ctx{call: :scene} = ctx), do: state_sections(ctx)
+  def turn_sections(%Ctx{call: :gm} = ctx), do: state_sections(ctx) ++ [Sections.GmTurnAction]
 
   @doc """
   The fragments of the GM task prompt (`priv/prompts/gm_system/`) for the app
@@ -63,7 +75,14 @@ defmodule TalesForge.Prompt.Profile do
   @spec sections(Ctx.t()) :: [module()]
   def sections(ctx), do: static_sections(ctx) ++ session_sections(ctx) ++ turn_sections(ctx)
 
-  defp state_sections do
+  @doc "The section ids for `ctx`, in prompt order."
+  @spec ids(Ctx.t()) :: [atom()]
+  def ids(ctx), do: Enum.map(sections(ctx), & &1.id())
+
+  defp opening(ctx),
+    do: if(Ctx.baseline?(ctx), do: Sections.BaselineOpening, else: Sections.Opening)
+
+  defp state_sections(ctx) do
     [
       Sections.PerceivedFacts,
       Sections.IntentContext,
@@ -79,5 +98,17 @@ defmodule TalesForge.Prompt.Profile do
       Sections.RestGrowth,
       Sections.PlayerRequest
     ]
+    |> Enum.filter(&include?(&1, ctx))
   end
+
+  defp include?(Sections.WorldFacts, ctx), do: Ctx.flag?(ctx, :world_agents)
+  defp include?(Sections.Prices, ctx), do: Ctx.flag?(ctx, :world_agents)
+
+  defp include?(Sections.NpcReactions, ctx),
+    do: Ctx.flag?(ctx, :npc_reactions) or Ctx.flag?(ctx, :world_agents)
+
+  defp include?(Sections.NpcMemory, ctx), do: Ctx.flag?(ctx, :npc_dialogue_memory)
+  defp include?(Sections.OutcomeRecord, ctx), do: Ctx.flag?(ctx, :turn_outcome_record)
+  defp include?(section, ctx) when section in @default_only, do: not Ctx.baseline?(ctx)
+  defp include?(_section, _ctx), do: true
 end

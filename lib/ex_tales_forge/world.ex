@@ -219,12 +219,12 @@ defmodule TalesForge.World do
 
   # --- 2. prompt -------------------------------------------------------------------
 
-  @doc "Per-turn prompt lines for the collected agents, within the budget, or nil."
-  @spec prompt_section([agent()] | nil) :: String.t() | nil
-  def prompt_section(nil), do: nil
-  def prompt_section([]), do: nil
-
-  def prompt_section(agents) when is_list(agents) do
+  @doc """
+  The prompt lines for the collected agents, within the fact and character
+  budget (`TalesForge.Prompt.Sections.WorldFacts`).
+  """
+  @spec prompt_lines([agent()]) :: [String.t()]
+  def prompt_lines(agents) when is_list(agents) do
     {lines, _count, _chars} =
       Enum.reduce(agents, {[], 0, 0}, fn agent, {lines, count, chars} ->
         facts = budget_facts(agent, @max_facts - count)
@@ -238,10 +238,7 @@ defmodule TalesForge.World do
         end
       end)
 
-    case Enum.reverse(lines) do
-      [] -> nil
-      lines -> Enum.join(["## World facts (true in this world; keep to them)" | lines], "\n")
-    end
+    Enum.reverse(lines)
   end
 
   defp budget_facts(_agent, left) when left <= 0, do: []

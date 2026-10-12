@@ -353,23 +353,6 @@ defmodule TalesForge.Game.NpcReactions do
     Map.put(world, "npc_moods", updated)
   end
 
-  @doc """
-  The per-turn prompt section for this turn's reactions, or nil. One short
-  typed line per NPC, e.g. `- Brenna Holt — wary (0.7), stance cool, confidence 0.8`.
-  """
-  @spec prompt_section([reaction()] | nil) :: String.t() | nil
-  def prompt_section([]), do: nil
-  def prompt_section(nil), do: nil
-
-  def prompt_section(reactions) when is_list(reactions) do
-    lines =
-      Enum.map_join(reactions, "\n", fn r ->
-        "- #{r["name"]} — #{r["emotion"]} (#{fmt(r["intensity"])}), stance #{r["stance"]}, confidence #{fmt(r["confidence"])}"
-      end)
-
-    "## NPC reactions (this moment)\n" <> lines
-  end
-
   defp record(session_id, turn_number, status, latency_ms, reply) do
     usage = Map.get(reply, :usage) || %{}
     input = usage[:input_tokens] || 0
@@ -416,8 +399,4 @@ defmodule TalesForge.Game.NpcReactions do
       nums -> nums |> Enum.min() |> Float.round(2)
     end
   end
-
-  defp fmt(nil), do: "?"
-  defp fmt(x) when is_float(x), do: :erlang.float_to_binary(Float.round(x, 1), decimals: 1)
-  defp fmt(x), do: to_string(x)
 end

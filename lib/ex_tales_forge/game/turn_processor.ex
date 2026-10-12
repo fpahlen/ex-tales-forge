@@ -130,6 +130,8 @@ defmodule TalesForge.Game.TurnProcessor do
     # block the action. nil when the flag is off (the check runs later).
     # HISTORY_STRIP_INJECTION=on (bug h-fa06): an injection turn plays no
     # action, runs no premise check, and the history keeps a placeholder.
+    # The prompt flags are read once, at the start of the turn.
+    flags = TalesForge.Prompt.Ctx.read_flags()
     injected = Config.history_strip_injection?() and HistoryStrip.injected?(raw_action)
     history_action = if injected, do: HistoryStrip.placeholder(), else: raw_action
 
@@ -164,9 +166,8 @@ defmodule TalesForge.Game.TurnProcessor do
           |> Map.put(:price_lines, price_lines)
           |> Map.put(:moved_from, moved_from(session.world_state, board.world))
           |> Map.put(:premise_findings, premises)
-          |> put_npc_memory(board.world)
-          |> put_outcome_record(outcome)
-          |> put_rest_growth(session.world_state, handler, mechanical, board)
+          |> Map.put(:outcome_record, Map.get(board, :outcome))
+          |> Map.put(:rest_growth, rest_growth(handler, mechanical, board))
           |> put_player_request(gm_opts[:gm_note])
 
         {gm_context,
@@ -175,7 +176,8 @@ defmodule TalesForge.Game.TurnProcessor do
            mechanical,
            gm_action(player_action, gm_opts[:gm_quote]),
            handler,
-           turn_number
+           turn_number,
+           flags: flags
          )}
       end)
 
@@ -252,15 +254,12 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  # TURN_OUTCOME_RECORD=on: the outcome record of stage 3 (the mechanics). It
-  # goes to the per-turn GM prompt and to the turn as a `turn.outcome` event.
-  # With the flag off, there is no record, and the prompt is as before.
+  # TURN_OUTCOME_RECORD=on: the outcome record of stage 3 (the mechanics) goes
+  # to the turn as a `turn.outcome` event. The prompt profile
+  # (TalesForge.Prompt.Profile) adds it to the per-turn GM prompt.
   defp outcome_record(board) do
     if Config.turn_outcome_record?(), do: Map.get(board, :outcome)
   end
-
-  defp put_outcome_record(gm_context, nil), do: gm_context
-  defp put_outcome_record(gm_context, record), do: Map.put(gm_context, :outcome_record, record)
 
   defp outcome_events(nil), do: []
   defp outcome_events(record), do: [OutcomeRecord.event(record)]
@@ -424,24 +423,11 @@ defmodule TalesForge.Game.TurnProcessor do
       do: premise_findings(session, board, raw_action, turn_number)
   end
 
-  # NPC_DIALOGUE_MEMORY=on: the memory of the present NPCs goes to the per-turn
-  # GM prompt (TalesForge.Game.NpcMemory).
-  defp put_npc_memory(gm_context, world) do
-    if Config.npc_dialogue_memory?(),
-      do:
-        Map.put(
-          gm_context,
-          :npc_memory,
-          NpcMemory.prompt_section(world["npc_memory"], memory_npcs(gm_context))
-        ),
-      else: gm_context
-  end
-
   # NPC_DIALOGUE_MEMORY=on: the server (never the GM) writes the lines that
   # the NPCs spoke this turn, and the repetition guard counts each repeat.
   defp npc_memory(board, gm_context, narrative, session_id, turn_number) do
     if Config.npc_dialogue_memory?() do
-      lines = NpcMemory.lines(narrative, memory_npcs(gm_context))
+      lines = NpcMemory.lines(narrative, NpcMemory.present_npcs(gm_context.intent_context))
       {memory, repeats} = NpcMemory.put(board.world["npc_memory"] || %{}, lines)
 
       if repeats != [],
@@ -458,18 +444,6 @@ defmodule TalesForge.Game.TurnProcessor do
     else
       {board, nil}
     end
-  end
-
-  defp memory_npcs(gm_context) do
-    details = get_in(gm_context, [:intent_context, "npc_details"]) || %{}
-
-    gm_context
-    |> get_in([:intent_context, "present_npcs"])
-    |> List.wrap()
-    |> Enum.map(fn id ->
-      name = get_in(details, [id, "name"]) || id
-      %{id: id, names: Enum.uniq([name, name |> String.split() |> hd()])}
-    end)
   end
 
   defp npc_reactions(session, board, turn_number, raw_action, mechanical, findings) do
@@ -522,22 +496,20 @@ defmodule TalesForge.Game.TurnProcessor do
   # resolved and the skills that need reflection first, for the GM's "you wake
   # and feel surer" / "needs reflection" note; on any other turn, a physical
   # skill that improved right away, for the "a little surer at" note.
-  defp put_rest_growth(gm_context, world_state, handler, mechanical, board) do
+  # The prompt profile leaves the note out for the baseline variant.
+  defp rest_growth(handler, mechanical, board) do
     cond do
-      Variant.baseline?(world_state || %{}) ->
-        gm_context
-
       long_rest?(handler) ->
-        Map.put(gm_context, :rest_growth, %{
+        %{
           attempts: mechanical.improvements || [],
           needs_reflection: Map.get(board, :needs_reflection, [])
-        })
+        }
 
       Enum.any?(Map.get(board, :turn_growth, []), & &1["improved"]) ->
-        Map.put(gm_context, :rest_growth, %{attempts: board.turn_growth, now: true})
+        %{attempts: board.turn_growth, now: true}
 
       true ->
-        gm_context
+        nil
     end
   end
 
