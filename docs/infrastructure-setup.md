@@ -172,7 +172,7 @@ Repo access: `fpahlen` is admin on ex-tales-forge. `maxpahlen`, `jpa71` and `Haw
 |---|---|---|---|
 | admin (fast) | Every file in the merge, and every file changed since tag `deployed/production`, is on `[admin]` | CI → playtest → production automatically (same "Verify commit" job, tip-of-main guard) | No |
 | security | Only `mix.lock` (and version pins in `mix.exs`) change, same major version, label `security` or title prefix `security:`, an advisory id (CVE, GHSA, EEF-CVE), CI green | Security lane merges → CI → playtest → smoke check → production → note to Bobby | No (founders get a note after) |
-| normal | Anything else (game, shared, CI, docs, unknown, mixed) | CI → playtest only. Production by hand with `deploy-production.yml` after Gentry, the playtest batch and a founder's Approve | Yes |
+| normal | Anything else (game, shared, CI, docs, unknown, mixed) | CI → playtest automatically. After Gentry passes, Bobby starts `deploy-production.yml` for that sha. No founder deploys by hand | Yes (Approve merges the PR) |
 
 `mix deploy.check_boundaries` (CI `Test` job) fails when game or shared code depends on an `[admin]` file. `[wiring]` lists the shared files that may mount admin modules.
 
@@ -201,7 +201,7 @@ Owner means the person who holds the login to the source today. For all current 
 | `NPC_REACTIONS` | no | yes | Feature flag, not a credential | Fredrik |
 | `PLAYTEST_RUNNER_ENABLED` | no | yes | Feature flag (persona runner) | Fredrik |
 | `AI_CAP_DAY_USD`, `AI_CAP_SESSION_USD` | no | yes | Spending caps in USD, not credentials | Fredrik |
-| `GENTRY_QA_TOKEN` | yes | yes (same value) | `openssl rand -base64 32`; Gentry's copy is in `/home/box/.config/tales-forge/gentry-qa-token` on the shared box ([fly-secrets.md](fly-secrets.md#gentrys-qa-sign-in-gentry_qa_token)) | Fredrik / Gentry |
+| `GENTRY_QA_TOKEN` | yes | yes (same value) | Gentry's read-only `/team` login (ex-tales-forge PR [#175](https://github.com/whyse-ab/ex-tales-forge/pull/175)). Name only; no value here. See [fly-secrets.md](fly-secrets.md#gentrys-qa-sign-in-gentry_qa_token) | Fredrik / Gentry |
 | `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID` | yes | no | GitHub App "Tales Forge idea board": App ID 5260951, installation 169881712 (Verified in the org installation list). These two are identifiers, not secrets | Fredrik |
 | `GITHUB_APP_PRIVATE_KEY` | yes | no | The App's settings page → "Generate a private key" (PEM) | Fredrik |
 | `BOARD_WEBHOOK_URL_CASE`, `BOARD_WEBHOOK_KEY_CASE` | yes | no | Case's webhook trigger in Grok Bot (routine "Idea board wake-up") | Fredrik / Case |
@@ -240,7 +240,7 @@ Optional names that the code reads but no app has today: `RESEND_API_KEY`, `MAIL
 
 Each delivery is a JSON `POST` with these headers: `Authorization: Bearer <key>`, `X-Board-Event`, `X-Board-Delivery` (a UUID, the same on each retry), `X-Board-Timestamp` (Unix seconds) and `X-Board-Signature: sha256=<hex HMAC-SHA256 of "<timestamp>.<body>">`. Any 2xx ends the job. Oban retries up to 8 times (1 min, doubling, up to 4 h). The bot must check the signature, refuse a timestamp older than 5 minutes, and drop a delivery id that it has seen.
 
-### 2.9 Grok Bot routines (Reported; not visible in the repos)
+### 2.9 Grok Bot routines (Reported; Bobby and Case mention sweep confirmed 2026-10-12)
 
 All three agents share one Grok Bot box. `flyctl` is at `~/.fly/bin/flyctl` on that box and is signed in. Fredrik's Mac has no Fly CLI. Each agent has its own desktop, but the files and the logins on the box are shared.
 
@@ -251,8 +251,10 @@ All three agents share one Grok Bot box. `flyctl` is at `~/.fly/bin/flyctl` on t
 | Case | Pragmatic review on merge | GitHub PR merge trigger | Reviews each merged PR |
 | Case | Daily branch prune | Weekdays 08:02 Stockholm time | Removes merged branches |
 | Case | Hourly Bobby & Gentry update | Hourly | Reports what Bobby and Gentry did |
-| Bobby | Tales Forge board wake-ups | Webhook (`BOARD_WEBHOOK_URL_BOBBY`) | Picks up Building cards ("Picked up by Bobby. ETA ..."), links PRs, merges after `pr.approved`, ships |
-| Bobby | Other routines | To confirm with Bobby | — |
+| Case | Unanswered mention sweep | Every 15 minutes | Finds unanswered `@Case`, `@Bobby`, `@Gentry` and `@devops` mentions on the board and in chat. Replies or nudges. State is in `/workspace/mention-sweep/state.json` on the box |
+| Bobby | Tales Forge board wake-ups | Webhook (`BOARD_WEBHOOK_URL_BOBBY`) | Picks up Building cards ("Picked up by Bobby. ETA ..."), links PRs, merges after `pr.approved` |
+| Bobby | Tales Forge hourly Fly log check | Hourly at :51 | Runs read-only `flyctl` on the box. Stays silent unless something is wrong |
+| Bobby | Tales Forge security-lane deploys | Webhook from CI after a security-lane production deploy | Notes founders after a security deploy. Inactive until the security webhook secrets are set |
 | Gentry | All routines (playtest QA, smoke checks) | To confirm with Gentry | — |
 
 ---
@@ -270,11 +272,13 @@ All three agents share one Grok Bot box. `flyctl` is at `~/.fly/bin/flyctl` on t
 7. The lane decides the next step:
    - **admin:** `Production (admin lane)` calls `deploy-production.yml` at once.
    - **security:** `smoke` runs `smoke_check.py` against playtest. When it passes, `Production (security lane)` calls `deploy-production.yml`. Then `notify` posts `security_lane.deployed` to Bobby.
-   - **normal:** the run stops after playtest. Gentry and the persona batch check the build. Then Bobby (or a founder) starts production by hand:
+   - **normal:** the run stops after playtest. Gentry and the persona batch check the build. When Gentry passes, Bobby starts `Deploy to production` for that sha:
 
      ```bash
      gh workflow run deploy-production.yml -R whyse-ab/ex-tales-forge -f sha=<full 40-char sha>
      ```
+
+     No founder deploys by hand. The admin lane and a qualifying security bump deploy to production by themselves.
 
 8. `deploy-production.yml` runs `verify`, then `deploy` in the environment `production`. After a deploy it moves tag `deployed/production` to the sha.
 9. Production boots. Auto-Done and the PR backfill jobs start 30 seconds after boot.
@@ -605,10 +609,10 @@ Then check by hand:
 Each item has a confidence label. "To confirm" means that no source in the repos, on Fly or in the GitHub API shows it.
 
 1. **Gentry has no board secrets (Verified gap).** `BOARD_WEBHOOK_URL_GENTRY`, `BOARD_WEBHOOK_KEY_GENTRY` and `BOARD_BOT_TOKEN_GENTRY` are not set on `tales-forge`. An `@gentry` mention does not wake Gentry, and Gentry cannot call the bot API. To confirm with Gentry whether this is intended.
-2. **Bobby's and Gentry's routines (To confirm with Bobby/Gentry).** The repos name only Case's hourly Building check. Bobby's "Tales Forge board wake-ups" is from the task brief. Gentry's routines and any other Bobby routines are not in the repos.
-3. **Case's routines (Reported).** The five routine names and schedules come from the task brief. The repos do not show them.
+2. **Gentry's routines (To confirm with Gentry).** Bobby's three routines are confirmed in section 2.9 (board wake-ups, hourly Fly log check, security-lane deploys). Gentry's routines are not in the repos.
+3. **Case's routines (Reported).** The routine names and schedules come from the task brief (including Unanswered mention sweep every 15 minutes). The repos do not show them.
 4. **Security lane is not active (Verified).** No `SECURITY_BOT_*` and no `SECURITY_LANE_WEBHOOK_*` secrets are set. The workflows and fly-secrets.md say "add the App as a bypass actor in the `main` ruleset", but `ex-tales-forge` has no ruleset. It has classic branch protection with no required review. An App with Contents write can probably merge after green checks, with medium confidence. Confirm when the App is created.
-5. **Normal-lane production deploy (Medium confidence).** `deploy-production.yml` and `environments.md` say production is started by hand after Gentry and a founder's Approve. `team-page/content.md` says the change "ships to production by itself" after Gentry. No workflow does this automatically, so Bobby probably starts it after Gentry's check. Confirm with Bobby, and align team-page/content.md.
+5. **Normal-lane production deploy (Confirmed).** A founder's Approve on the board merges the PR. CI deploys to playtest by itself. After Gentry passes, Bobby starts `Deploy to production` for that sha. No founder deploys by hand. The admin lane and a qualifying security bump deploy to production by themselves. Aligned in section 2.5, section 3.1 and `team-page/content.md`.
 6. **Two OAuth client ids (Verified difference).** `GITHUB_OAUTH_CLIENT_ID` has different digests on the two apps. infrastructure.md names one OAuth app, "Tales Forge Admin". There is probably a second OAuth app for playtest. Confirm the name in the org's OAuth app list.
 7. **Unused secrets (Verified).** `ADMIN_EMAILS` and `COSTS_PEER_URL` are set on both apps, but no code in `lib/` or `config/` reads them. infrastructure.md still describes `COSTS_PEER_URL`. Decide if you remove them.
 8. **`PHX_HOST` twice on production (Verified).** It is a Fly secret and also in `fly.toml` `[env]`. The secret takes priority. Keep the two values the same, or remove the secret.
