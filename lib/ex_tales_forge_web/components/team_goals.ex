@@ -21,7 +21,11 @@ defmodule TalesForgeWeb.TeamGoals do
   @spec strip(map()) :: Phoenix.LiveView.Rendered.t()
   def strip(assigns) do
     ~H"""
-    <section id="board-goals" aria-labelledby="board-north-star" class="team-card grid gap-3 rounded-xl p-4">
+    <section
+      id="board-goals"
+      aria-labelledby="board-north-star"
+      class="team-card grid gap-3 rounded-xl p-4"
+    >
       <p id="board-north-star" class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span class="text-xs font-semibold uppercase tracking-wide text-[var(--paper-muted)]">North star</span>
         <span class="font-serif text-lg font-semibold">{@strip.north_star.text}</span>
@@ -37,11 +41,17 @@ defmodule TalesForgeWeb.TeamGoals do
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h3 class="text-sm font-semibold">Goals</h3>
         <p id="board-goals-unassigned" class="text-xs text-[var(--paper-muted)]">
-          Unassigned: <span data-role="count" class="font-semibold tabular-nums">{@strip.unassigned}</span>
+          Unassigned:
+          <span data-role="count" class="font-semibold tabular-nums">{@strip.unassigned}</span>
           {if @strip.unassigned == 1, do: "card", else: "cards"}
         </p>
       </div>
-      <p :if={@error} id="board-goals-error" role="alert" class="rounded bg-red-50 px-2 py-1 text-sm text-red-800">
+      <p
+        :if={@error}
+        id="board-goals-error"
+        role="alert"
+        class="rounded bg-red-50 px-2 py-1 text-sm text-red-800"
+      >
         {@error}
       </p>
       <p :if={@strip.goals == []} class="text-sm text-[var(--paper-muted)]">No goals yet.</p>
@@ -60,7 +70,12 @@ defmodule TalesForgeWeb.TeamGoals do
               </p>
               <p class="text-xs text-[var(--paper-muted)]">{row.goal.outcome}</p>
             </div>
-            <div :if={@can_vote} class="flex shrink-0 items-center gap-1" role="group" aria-label={"Votes on #{row.goal.title}"}>
+            <div
+              :if={@can_vote}
+              class="flex shrink-0 items-center gap-1"
+              role="group"
+              aria-label={"Votes on #{row.goal.title}"}
+            >
               <% mine = TalesForge.Board.Goals.vote_of(row.goal, @founder) %>
               <button
                 type="button"
@@ -71,7 +86,10 @@ defmodule TalesForgeWeb.TeamGoals do
                 phx-target={@myself}
                 aria-pressed={to_string(mine == 1)}
                 aria-label={"Upvote: #{row.up}"}
-                class={["inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded border px-2", vote_class(mine == 1, :up)]}
+                class={[
+                  "inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded border px-2",
+                  vote_class(mine == 1, :up)
+                ]}
               >
                 <.icon name="hero-hand-thumb-up" class="size-5" />
                 <span data-role="up" aria-hidden="true" class="tabular-nums">{row.up}</span>
@@ -85,7 +103,10 @@ defmodule TalesForgeWeb.TeamGoals do
                 phx-target={@myself}
                 aria-pressed={to_string(mine == -1)}
                 aria-label={"Downvote: #{row.down}"}
-                class={["inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded border px-2", vote_class(mine == -1, :down)]}
+                class={[
+                  "inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded border px-2",
+                  vote_class(mine == -1, :down)
+                ]}
               >
                 <.icon name="hero-hand-thumb-down" class="size-5" />
                 <span data-role="down" aria-hidden="true" class="tabular-nums">{row.down}</span>
@@ -101,12 +122,21 @@ defmodule TalesForgeWeb.TeamGoals do
           >
             <input type="hidden" name="goal_id" value={row.goal.id} />
             <label class="grid gap-1 font-semibold">
-              What needs work? (necessary for a -1)
-              <textarea name="reason" rows="2" required class="rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2 py-1 font-normal"></textarea>
+              What needs work? (necessary for a -1) <textarea
+                name="reason"
+                rows="2"
+                required
+                class="rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2 py-1 font-normal"
+              ></textarea>
             </label>
             <div class="flex flex-wrap gap-2">
               <button type="submit" class="min-h-11 rounded border px-3 font-semibold">Save -1 and reason</button>
-              <button type="button" phx-click="cancel_goal_downvote" phx-target={@myself} class="min-h-11 rounded px-3">Cancel</button>
+              <button
+                type="button"
+                phx-click="cancel_goal_downvote"
+                phx-target={@myself}
+                class="min-h-11 rounded px-3"
+              >Cancel</button>
             </div>
           </form>
           <div>
@@ -119,13 +149,22 @@ defmodule TalesForgeWeb.TeamGoals do
               aria-valuetext={"#{row.done} of #{row.total} cards done"}
               class="h-2 overflow-hidden rounded-full bg-[var(--paper-bg)]"
             >
-              <div data-role="bar" class="h-full rounded-full bg-[var(--paper-accent)]" style={"width: #{percent(row.done, row.total)}%"}></div>
+              <div
+                data-role="bar"
+                class="h-full rounded-full bg-[var(--paper-accent)]"
+                style={"width: #{percent(row.done, row.total)}%"}
+              >
+              </div>
             </div>
             <p class="mt-1 flex flex-wrap justify-between gap-2 text-xs">
               <span data-role="progress" class="tabular-nums">{row.done} of {row.total} done</span>
               <span>
                 <span :if={row.goal.target_label} class="text-[var(--paper-muted)]">{row.goal.target_label} ·</span>
-                <span data-role="countdown" data-overdue={to_string(row.overdue)} class={["font-semibold", countdown_class(row.overdue)]}>
+                <span
+                  data-role="countdown"
+                  data-overdue={to_string(row.overdue)}
+                  class={["font-semibold", countdown_class(row.overdue)]}
+                >
                   {row.countdown || "No target date"}
                 </span>
               </span>
@@ -153,7 +192,8 @@ defmodule TalesForgeWeb.TeamGoals do
   defp countdown_class(_), do: "text-[var(--paper-ink)]"
 
   defp vote_class(true, :up),
-    do: "border-[var(--paper-accent)] bg-[var(--paper-accent)] text-[var(--paper-on-accent)] font-semibold"
+    do:
+      "border-[var(--paper-accent)] bg-[var(--paper-accent)] text-[var(--paper-on-accent)] font-semibold"
 
   defp vote_class(true, :down), do: "border-red-700 bg-red-700 text-white font-semibold"
   defp vote_class(false, _), do: "border-transparent hover:bg-[var(--paper-bg)]"

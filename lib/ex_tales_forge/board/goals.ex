@@ -153,9 +153,21 @@ defmodule TalesForge.Board.Goals do
 
       result =
         case Repo.get_by(GoalVote, goal_id: goal.id, founder: founder) do
-          %GoalVote{value: ^value} = v -> Repo.delete(v)
-          %GoalVote{} = v -> v |> GoalVote.changeset(%{value: value, reason: reason}) |> Repo.update()
-          nil -> %GoalVote{} |> GoalVote.changeset(%{goal_id: goal.id, founder: founder, value: value, reason: reason}) |> Repo.insert()
+          %GoalVote{value: ^value} = v ->
+            Repo.delete(v)
+
+          %GoalVote{} = v ->
+            v |> GoalVote.changeset(%{value: value, reason: reason}) |> Repo.update()
+
+          nil ->
+            %GoalVote{}
+            |> GoalVote.changeset(%{
+              goal_id: goal.id,
+              founder: founder,
+              value: value,
+              reason: reason
+            })
+            |> Repo.insert()
         end
 
       case result do
