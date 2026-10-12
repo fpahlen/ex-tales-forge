@@ -43,9 +43,10 @@ defmodule TalesForge.TurnPipeline.FixtureTest do
     assert Enum.all?(@categories, &(Map.get(counts, &1, 0) >= 5))
   end
 
-  test "every item is pending and names the PRs that it waits for" do
+  test "an item is active when all the PRs that it waits for have landed" do
     for item <- @items do
-      assert item["status"] == "pending"
+      want = if TalesForge.TurnPipeline.Landed.active?(item), do: "active", else: "pending"
+      assert item["status"] == want, item["id"]
       assert "replay_harness" in item["pending_on"]
       assert Enum.all?(item["pending_on"], &(&1 in @pending_keys)), item["id"]
     end

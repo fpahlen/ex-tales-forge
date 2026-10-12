@@ -417,6 +417,8 @@ defmodule TalesForge.Game.TurnProcessor do
       |> put_in(["character"], character)
       |> maybe_apply_inventory(session.id, player_action.action, handler)
 
+    handler = mark_rejected(handler, inventory_result)
+
     world_present =
       world_traded
       |> maybe_move(handler)
@@ -718,6 +720,16 @@ defmodule TalesForge.Game.TurnProcessor do
         {world_state, {:error, reason}}
     end
   end
+
+  # TURN_OUTCOME_RECORD=on: stage 3 rejected the action, so the turn costs
+  # no game time (ActionHandler.tick_delta/1).
+  defp mark_rejected(handler, {:error, _reason}) do
+    if Config.turn_outcome_record?(),
+      do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "rejected", true)},
+      else: handler
+  end
+
+  defp mark_rejected(handler, _result), do: handler
 
   defp maybe_apply_context_summary(world_state, nil), do: world_state
 

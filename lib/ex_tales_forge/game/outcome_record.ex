@@ -11,12 +11,28 @@ defmodule TalesForge.Game.OutcomeRecord do
 
   With `TURN_OUTCOME_RECORD=on` (`TalesForge.Config.turn_outcome_record?/0`),
   the record goes to the per-turn GM prompt (`prompt_section/1`) and to the
-  turn as a `turn.outcome` session event. The GM then narrates a rejected sale
+  turn as a `turn.outcome` session event. A rejected action then costs no
+  game time (design §11, decision 1). The GM then narrates a rejected sale
   as rejected. With the flag off, the GM prompt is byte-identical to before.
   """
 
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Schemas.SingleAction
+
+  # The fixed rejection phrasing of the GM prompt (design §4, #180 "premise
+  # phrasing"). Every prompt with a record carries this exact sentence.
+  @rejection_template "Narrate each accepted action and each rejected action. Give the reason for a rejection in one in-world sentence."
+
+  # Reason codes for a rejected action, from the reason text of stage 3. The
+  # first pattern that matches gives the code.
+  @reason_codes [
+    {~r/^Premise check:/, "premise_rejected"},
+    {~r/is not sold here|in stock/, "not_in_stock"},
+    {~r/not in inventory/, "not_owned"},
+    {~r/not on the ground/, "not_here"},
+    {~r/Insufficient funds/, "insufficient_funds"},
+    {~r/requires/, "missing_parameter"}
+  ]
 
   @typedoc "A string-keyed map, so that the record is stored as JSON as it is."
   @type t :: %{required(String.t()) => term()}
@@ -66,6 +82,25 @@ defmodule TalesForge.Game.OutcomeRecord do
     }
   end
 
+  @doc "The fixed sentence that tells the GM how to narrate a rejection."
+  @spec rejection_template() :: String.t()
+  def rejection_template, do: @rejection_template
+
+  @doc """
+  The code for the reason text of a rejected action.
+
+      iex> TalesForge.Game.OutcomeRecord.reason_code("'short_sword' is not sold here.")
+      "not_in_stock"
+      iex> TalesForge.Game.OutcomeRecord.reason_code("Something else.")
+      "rejected"
+  """
+  @spec reason_code(String.t()) :: String.t()
+  def reason_code(reason) when is_binary(reason) do
+    Enum.find_value(@reason_codes, "rejected", fn {pattern, code} ->
+      if Regex.match?(pattern, reason), do: code
+    end)
+  end
+
   @doc """
   The rejected actions of the record, each with its reason.
 
@@ -98,7 +133,7 @@ defmodule TalesForge.Game.OutcomeRecord do
 
     """
     ## Outcome record (booked by the server)
-    The server booked this turn. Narrate each accepted action and each rejected action. Give the reason for a rejection in one in-world sentence. State no coin amount, item gain or item loss that this record does not contain. Use this location and this time.
+    The server booked this turn. #{@rejection_template} State no coin amount, item gain or item loss that this record does not contain. Use this location and this time.
     #{Enum.map_join(lines, "\n", &("- " <> &1))}
     """
   end
@@ -128,10 +163,16 @@ defmodule TalesForge.Game.OutcomeRecord do
 
     case inventory_result do
       {:error, reason} ->
-        Map.merge(base, %{"status" => "rejected", "reason" => to_string(reason)})
+        reason = to_string(reason)
+
+        Map.merge(base, %{
+          "status" => "rejected",
+          "reason" => reason,
+          "code" => reason_code(reason)
+        })
 
       _ ->
-        Map.merge(base, %{"status" => "accepted", "reason" => nil})
+        Map.merge(base, %{"status" => "accepted", "reason" => nil, "code" => nil})
     end
   end
 

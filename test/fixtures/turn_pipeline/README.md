@@ -5,18 +5,22 @@ These fixtures test the turn pipeline refactor. The design is
 2026-10-12, commit `4c1adae`). Section 9 is the eval plan. Case owns these
 fixtures. Bobby builds the code. Gentry runs the sessions against them.
 
-## Status: all pending
+## Status: pending or active
 
-Every fixture has `"status": "pending"`. The code that they test is not on
-main yet. `replay_test.exs` gives each fixture the ExUnit tag `:pending`.
-`test_helper.exs` excludes that tag, so CI stays green.
+A fixture has `"status": "active"` when every key in its `pending_on` list has
+landed on the branch. `TalesForge.TurnPipeline.Landed` (`test/support`)
+holds the landed keys. Each migration PR adds its key there and sets its
+fixtures to `active`. `fixture_test.exs` checks that the status agrees with
+`Landed`.
 
+- `replay_test.exs` runs the active fixtures in CI. It gives the pending
+  fixtures the ExUnit tag `:pending`. `test_helper.exs` excludes that tag.
 - Run the pending replays with `mix test --include pending`.
 - `pending_on` names the PRs that a fixture waits for. Each key is one PR in
-  section 8 of the design.
-- When all PRs in `pending_on` are on main, remove the tag for that fixture.
-- `fixture_test.exs` checks the fixture shape. It is not pending. It runs on
-  main now.
+  section 8 of the design. The list stays as it is when a PR lands.
+- The harness is `TalesForge.TurnPipeline.Replay`
+  (`test/support/turn_pipeline/replay.ex`). Its moduledoc lists what it
+  does not check yet.
 
 | `pending_on` key | Design section 8 step | Flag |
 |---|---|---|
@@ -111,8 +115,7 @@ forbidden words for h-fa06.
 
 ## Harness spec
 
-The harness is `TalesForge.TurnPipeline.Replay`. It does not exist yet.
-Bobby or Case adds it with the first PR that turns a fixture on.
+The harness is `TalesForge.TurnPipeline.Replay`. PR #199 adds it.
 
 1. `Replay.run(item)` returns `:ok` or `{:error, failures}`.
 2. The harness builds a session from `context` and the world in
