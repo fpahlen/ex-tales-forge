@@ -163,6 +163,15 @@ defmodule TalesForgeWeb.AccessControlTest do
     end
   end
 
+  test "production deploys blue-green and stops gracefully (fly.toml)" do
+    toml = File.read!("fly.toml")
+    assert toml =~ ~s(strategy = "bluegreen")
+    assert toml =~ ~s(kill_signal = "SIGTERM")
+    assert toml =~ ~s(kill_timeout = "30s")
+    # Blue-green needs a health check on the service.
+    assert toml =~ ~s(path = "/health")
+  end
+
   describe "magic-link sign-in is gone" do
     test "its routes answer 404" do
       conn = post(build_conn(), "/admin/login", %{"email" => "founder@example.com"})

@@ -2,10 +2,24 @@
 app = "tales-forge"
 primary_region = "arn"
 
+# Graceful stop (card "Drafts survive a deploy"). Fly's default is SIGINT and
+# 5 seconds, which ends the BEAM at once. SIGTERM starts the release's normal
+# shutdown: the endpoint's socket drainer (TalesForgeWeb.Endpoint) tells every
+# LiveView to reconnect, in batches, then open requests finish. 30 seconds is
+# more than the drainer's 20.
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
 [build]
 
 [deploy]
   release_command = "/app/bin/migrate"
+  # Blue-green: Fly starts the new machine next to the old one, waits for its
+  # /health check, moves the traffic, then stops the old machine. The
+  # LiveViews reconnect to a machine that is already up, so a deploy is a
+  # short reconnect and not a gap of 10 to 30 seconds. The second machine runs
+  # only during the deploy (about a minute); production stays at one machine.
+  strategy = "bluegreen"
 
 [env]
   PHX_HOST = "tales-forge.fly.dev"

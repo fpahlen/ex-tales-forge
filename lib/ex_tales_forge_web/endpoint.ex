@@ -24,9 +24,14 @@ defmodule TalesForgeWeb.Endpoint do
     secure: Application.compile_env(:ex_tales_forge, :secure_session_cookie, false)
   ]
 
+  # On shutdown (a deploy stops the old machine with SIGTERM, fly.toml) the
+  # drainer tells the LiveViews to reconnect, 200 at a time every 500 ms, so
+  # they move to the new machine in steps. fly.toml's kill_timeout (30 s) is
+  # longer than `shutdown`.
   socket "/live", Phoenix.LiveView.Socket,
     websocket: [connect_info: [session: @session_options]],
-    longpoll: [connect_info: [session: @session_options]]
+    longpoll: [connect_info: [session: @session_options]],
+    drainer: [batch_size: 200, batch_interval: 500, shutdown: 20_000]
 
   # Serve at "/" the static files from "priv/static" directory.
   #
