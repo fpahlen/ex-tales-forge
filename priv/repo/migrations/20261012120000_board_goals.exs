@@ -38,9 +38,12 @@ defmodule TalesForge.Repo.Migrations.BoardGoals do
     {"4efe811f-e7b9-4cad-a13f-f41d8c2b7b64", "The Tin Valley starter scope", "G2"},
     {"938c331b-ea5a-45eb-afbd-ea8eb0121355", "Worlds", "G2"},
     {"0ab31ff4-c605-4aa2-8a65-e067dc23649c", "Have Case explain a technical detail", "G7"},
-    {"7a7c5f6d-50f0-4d5f-89c5-3a0a63400101", "Set release thresholds for persona scores, cost per session and latency", "G3"},
-    {"1b3a88de-fc22-4259-8454-91b418ba985e", "Choose a coding-bot platform and set the guardrails", "G3"},
-    {"310dd4ef-284a-4769-9a8c-775e76bd6961", "The free first experience and the first paid offer", "G4"},
+    {"7a7c5f6d-50f0-4d5f-89c5-3a0a63400101",
+     "Set release thresholds for persona scores, cost per session and latency", "G3"},
+    {"1b3a88de-fc22-4259-8454-91b418ba985e",
+     "Choose a coding-bot platform and set the guardrails", "G3"},
+    {"310dd4ef-284a-4769-9a8c-775e76bd6961", "The free first experience and the first paid offer",
+     "G4"},
     {"e08fff73-1059-4ca6-ba94-d4200e1a3df6", "The payment provider and credit design", "G4"},
     {"ea42a6bf-9e21-4a3d-8513-72d901576e49", "Company, terms and tax for taking money", "G4"},
     {"a7fd7be3-c87f-4499-b1c4-77722d392b85", "The growth loop in v1", "G5"},
@@ -66,7 +69,7 @@ defmodule TalesForge.Repo.Migrations.BoardGoals do
     {"6d08cf7e-43ad-42d9-a050-c6ba1a10a3e8", "In game, scroll so the last text is visible", "G2"},
     {"8018439a-33c4-4950-a64c-0c99ca02fba3", "update presentation after shared workarea", "G7"},
     {"42fd5696-78dd-4551-bd7f-008ab7c37a76", "Refine ideation process", "G7"},
-    {"2a7317de-e9f8-4bc5-8bca-25980adc306f", "Set the AI spend ceiling", "G3"},
+    {"2a7317de-e9f8-4bc5-8bca-25980adc306f", "Set the AI spend ceiling", "G3"}
   ]
 
   def up do
