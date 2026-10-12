@@ -55,6 +55,8 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `COSTS_PEER_TOKEN` | Shared bearer token for the admin costs page (ex-tales-forge PR #28). It turns on this app's `GET /internal/costs` (off with a 404 while unset) and lets this app read the other app's numbers. **Same value on both apps**: generate it once (e.g. `openssl rand -hex 32`) and set it on `tales-forge` and `tales-forge-playtest` | Yes, since 2026-10-06 (same value as playtest) |
 | `COSTS_PEER_URL` | Base URL of the other app for the costs page: `https://tales-forge-playtest.fly.dev` on production. Config, not a secret, but set the same way. Without it (or without the token) the page says "not configured". **No longer read since ex-tales-forge [#90](https://github.com/whyse-ab/ex-tales-forge/pull/90) was deployed (2026-10-09)** (playtest's URL then comes from config); can be unset | Yes, since 2026-10-06: `https://tales-forge-playtest.fly.dev` |
 | `GITHUB_FEED_TOKEN` | Live PR feed on the founders' page (`/team`, section "Live: what we're shipping", ex-tales-forge PR [#102](https://github.com/whyse-ab/ex-tales-forge/pull/102)). Fine-grained GitHub token, resource owner `whyse-ab`, repository access **only `whyse-ab/ex-tales-forge`**, read-only: *Pull requests: read*, *Contents: read*, *Actions: read* (*Metadata: read* is added automatically). The server polls GitHub with it every 60 s; browsers never call GitHub. Unset = the section says "Live feed unavailable" and the rest of the page works. Can be the same value on both apps (read-only, one repo). `GITHUB_DOCS_TOKEN` can't be reused: it has no pull request or Actions access. "On playtest / on prod" also uses the existing `COSTS_PEER_TOKEN` (the other app's `GET /internal/version`). Setting it on production needs Fredrik's OK | **Yes, set 2026-10-09 (Fredrik)**, the same value as playtest (same Fly digest, checked 2026-10-09 ~17:40 by name and digest only). Read only once a release with #102 (`eec7ddf`) is deployed to production; until then it sits unused |
+| `GENTRY_QA_TOKEN` | Gentry's QA sign-in on `/team` (ex-tales-forge PR [#175](https://github.com/whyse-ab/ex-tales-forge/pull/175)). Gentry gives this token at `/team/qa-login` and gets a **read-only** browser session as "Gentry (QA)" for `/team` and `/team/presentation`. The server refuses every write, the session never clears pings, and it does not show in "Online now". Unset = `/team/qa-login` answers 404. **Same value on both apps.** Gentry's copy is on the box at `/home/box/.config/tales-forge/gentry-qa-token` (mode 600). To rotate: write a new value to that file and set it on both apps (see below); old QA sessions stop at the next request | **Staged 2026-10-12** on both apps (same value), applies with the next deploy |
+| `QA_ALLOW_WRITES` | `true` lets the QA session write, **on playtest only**, for later write-path tests. Production ignores it. Config, not a secret. Turning it on needs Fredrik's OK | **No, off** (unset). Never set on production |
 | `TYPESAFE_API_KEY` | TypeSafe Jev API key for persona-affect scoring. **Do not set on production yet** (playtest only) | No, not yet |
 | `TYPESAFE_INTENT_API_KEY` | TypeSafe Jev key for the Jev intent call (intent + safety label in one call, [design](design-jev-intent.md)). **Set 2026-10-08 with Fredrik's OK**: the key Fredrik created as tales-forge-intent (production only; playtest got its own key the same day, so intent usage is split per app at TypeSafe). Read by ex-tales-forge PR [#84](https://github.com/whyse-ab/ex-tales-forge/pull/84) (merged 2026-10-08) as the named Jev endpoint `:intent`. Used for every new default-variant session since `INTENT_JEV=on` (2026-10-09) | Yes, since 2026-10-08 (in use since 2026-10-09, `INTENT_JEV=on`) |
 | `PLAYER_QUOTE_MIN_BENIGN_CONFIDENCE` | Minimum confidence (0..1, default `0.90`) that the intent call's safety read must give `benign` for the GM to get the player's own words; below it the GM gets the intent summary ([decision 2026-10-08](decisions.md#2026-10-08-clarification-the-safety-read-is-part-of-the-intent-call-not-a-separate-jev-call); the rule carries over from ex-tales-forge PR #76, **closed 2026-10-08, superseded by the [Jev intent design](design-jev-intent.md)**). Config, not a secret; set the same way | No, not set = 0.90 |
@@ -108,8 +110,38 @@ Same names as production, with **separate values** (never copied from prod), exc
 | `INTENT_JEV` | **Yes, `on` since 2026-10-09 with Fredrik's OK** (release v76; [decision](decisions.md#2026-10-09-jev-intent-on-for-playtest-and-production)). New default-variant sessions use the Jev read for intent; the heuristic takes over on error or timeout. Before that it was `shadow` from 2026-10-08 (release v72, ex-tales-forge PR [#84](https://github.com/whyse-ab/ex-tales-forge/pull/84)), when the Jev read was only logged. Sessions created before the switch keep their pinned mode; baseline sessions stay off. Config, not a secret. Changing it needs Fredrik's OK |
 | `INTENT_ACT_MIN_CONFIDENCE`, `INTENT_ASK_BELOW_CONFIDENCE`, `INTENT_JEV_TIMEOUT_MS` | Not set, so the defaults apply (0.70, 0.45, 1500 ms). Config, not secrets. Changing them needs Fredrik's OK |
 | `INTENT_CALL_EVERY_TURN` | Not set (off). Turning it on (every turn through the intent call, about $0.0023 more per turn) needs Fredrik's OK |
+| `GENTRY_QA_TOKEN` | **Staged 2026-10-12**, the **same value** as production. Turns on `/team/qa-login` here too (ex-tales-forge PR [#175](https://github.com/whyse-ab/ex-tales-forge/pull/175)) |
+| `QA_ALLOW_WRITES` | Not set (off). `true` lets the Gentry (QA) session write on playtest only. Turning it on needs Fredrik's OK |
 
 GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.
+
+## Gentry's QA sign-in (`GENTRY_QA_TOKEN`)
+
+Gentry signs in to `/team` with its own token, not with a founder's GitHub session.
+
+**Set or rotate the token** (from a box where `flyctl` is signed in; the value never shows on the screen):
+
+```bash
+umask 077
+openssl rand -base64 32 | tr -d '\n/+=' > /home/box/.config/tales-forge/gentry-qa-token
+chmod 600 /home/box/.config/tales-forge/gentry-qa-token
+for app in tales-forge tales-forge-playtest; do
+  printf 'GENTRY_QA_TOKEN=%s\n' "$(cat /home/box/.config/tales-forge/gentry-qa-token)" \
+    | fly secrets import -a "$app"
+done
+```
+
+Add `--stage` to `fly secrets import` to apply the value with the next deploy and not restart the app now.
+
+**How Gentry signs in** (in Gentry's box browser):
+
+1. Open `https://tales-forge.fly.dev/team/qa-login` (playtest: `https://tales-forge-playtest.fly.dev/team/qa-login`).
+2. Read the token from `/home/box/.config/tales-forge/gentry-qa-token`. Type it in the **Token** field. Do not put the token in a URL, a log or a message.
+3. Click **Sign in**. The browser opens `/team` with the line "Signed in as Gentry (QA)."
+4. The session stays in the browser cookie. Open `/team` and `/team/presentation` as usual.
+5. To sign out, open `/admin/logout`, or clear the cookies.
+
+The session can view everything on the team pages. Each write (add, vote, move, comment, Approve, answers, images, tags, chat) is refused on the server with the message "This QA session is read-only." Other pages (admin, game) send the QA session to the login page.
 
 ## GitHub Actions secrets for the security lane
 
