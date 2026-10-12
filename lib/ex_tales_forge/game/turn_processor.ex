@@ -36,6 +36,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.Gestures
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
+  alias TalesForge.Game.NpcMemory
   alias TalesForge.Game.NpcReactions
   alias TalesForge.Game.OutcomeRecord
   alias TalesForge.Game.Perception
@@ -134,8 +135,14 @@ defmodule TalesForge.Game.TurnProcessor do
     # Prototype, WORLD_AGENTS=on: the agents relevant to this turn and their facts.
     agents = world_agents(session, ruled)
     {price_lines, priced} = world_prices(agents, session, ruled, raw_action, player_action)
-    {reactions, board} = npc_reactions(session, priced, turn_number, raw_action, mechanical)
-    premises = first || premise_findings(session, board, raw_action, turn_number)
+    # NPC_DIALOGUE_MEMORY=on: stage 2 runs before stage 4, so the NPCs get the
+    # premise findings.
+    early = first || npc_premises(session, priced, raw_action, turn_number)
+
+    {reactions, board} =
+      npc_reactions(session, priced, turn_number, raw_action, mechanical, early || [])
+
+    premises = early || premise_findings(session, board, raw_action, turn_number)
     outcome = outcome_record(board)
 
     {gm_context, messages} =
@@ -148,6 +155,7 @@ defmodule TalesForge.Game.TurnProcessor do
           |> Map.put(:price_lines, price_lines)
           |> Map.put(:moved_from, moved_from(session.world_state, board.world))
           |> Map.put(:premise_findings, premises)
+          |> put_npc_memory(board.world)
           |> put_outcome_record(outcome)
           |> put_rest_growth(session.world_state, handler, mechanical, board)
           |> put_player_request(gm_opts[:gm_note])
@@ -171,6 +179,9 @@ defmodule TalesForge.Game.TurnProcessor do
            end) do
       mismatches = prose_check(gm_result.narrative, board, session.id, turn_number)
 
+      {board, repeats} =
+        npc_memory(board, gm_context, gm_result.narrative, session.id, turn_number)
+
       # Default variant: log the spent gestures the GM used anyway.
       Gestures.log_repeats(gm_result.narrative, Map.get(gm_context, :recent_gestures),
         session: session.id,
@@ -188,7 +199,7 @@ defmodule TalesForge.Game.TurnProcessor do
             board.events ++
               premise_events(premises, board.world) ++
               outcome_events(outcome) ++
-              List.wrap(mismatches),
+              List.wrap(mismatches) ++ List.wrap(repeats),
           sim: board.sim
         })
       end)
@@ -388,11 +399,71 @@ defmodule TalesForge.Game.TurnProcessor do
     end)
   end
 
-  defp npc_reactions(session, board, turn_number, raw_action, mechanical) do
+  defp npc_premises(session, board, raw_action, turn_number) do
+    if Config.npc_dialogue_memory?(),
+      do: premise_findings(session, board, raw_action, turn_number)
+  end
+
+  # NPC_DIALOGUE_MEMORY=on: the memory of the present NPCs goes to the per-turn
+  # GM prompt (TalesForge.Game.NpcMemory).
+  defp put_npc_memory(gm_context, world) do
+    if Config.npc_dialogue_memory?(),
+      do:
+        Map.put(
+          gm_context,
+          :npc_memory,
+          NpcMemory.prompt_section(world["npc_memory"], memory_npcs(gm_context))
+        ),
+      else: gm_context
+  end
+
+  # NPC_DIALOGUE_MEMORY=on: the server (never the GM) writes the lines that
+  # the NPCs spoke this turn, and the repetition guard counts each repeat.
+  defp npc_memory(board, gm_context, narrative, session_id, turn_number) do
+    if Config.npc_dialogue_memory?() do
+      lines = NpcMemory.lines(narrative, memory_npcs(gm_context))
+      {memory, repeats} = NpcMemory.put(board.world["npc_memory"] || %{}, lines)
+
+      if repeats != [],
+        do:
+          Logger.warning(
+            "npc repeat session=#{session_id} turn=#{turn_number} count=#{length(repeats)} " <>
+              "npcs=#{inspect(Enum.map(repeats, &elem(&1, 0)))}"
+          )
+
+      world = Map.put(board.world, "npc_memory", memory)
+
+      {%{board | world: world},
+       NpcMemory.event(repeats, world["world_tick"] || 0, world["location_id"])}
+    else
+      {board, nil}
+    end
+  end
+
+  defp memory_npcs(gm_context) do
+    details = get_in(gm_context, [:intent_context, "npc_details"]) || %{}
+
+    gm_context
+    |> get_in([:intent_context, "present_npcs"])
+    |> List.wrap()
+    |> Enum.map(fn id ->
+      name = get_in(details, [id, "name"]) || id
+      %{id: id, names: Enum.uniq([name, name |> String.split() |> hd()])}
+    end)
+  end
+
+  defp npc_reactions(session, board, turn_number, raw_action, mechanical, findings) do
     if NpcReactions.enabled?() do
       Steps.time(:npc_reactions, fn ->
         {reactions, world} =
-          NpcReactions.react(session.id, board.world, turn_number, raw_action, mechanical)
+          NpcReactions.react(
+            session.id,
+            board.world,
+            turn_number,
+            raw_action,
+            mechanical,
+            findings
+          )
 
         {reactions, %{board | world: world}}
       end)

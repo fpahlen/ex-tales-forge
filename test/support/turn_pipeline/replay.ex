@@ -21,6 +21,9 @@ defmodule TalesForge.TurnPipeline.Replay do
       outcome record. The other flags follow `pending_on` (spec item 9).
     * `coins_after` compares the coin total in copper, not the split into
       copper, silver and gold.
+    * With `npc_memory` in `pending_on`, the NPC reactions run with a stub
+      Jev reply. The harness reads the input of each NPC call.
+    * `stage_order` compares the fixture order with `Steps.purposes/0`.
     * A key that the harness does not support fails the fixture, so that a
       fixture never passes without its checks.
   """
@@ -44,8 +47,18 @@ defmodule TalesForge.TurnPipeline.Replay do
   @flags %{
     "outcome_record" => "TURN_OUTCOME_RECORD",
     "premise_first" => "TURN_PREMISE_FIRST",
-    "state_from_mechanics" => "TURN_STATE_FROM_MECHANICS"
+    "state_from_mechanics" => "TURN_STATE_FROM_MECHANICS",
+    "npc_memory" => ["NPC_DIALOGUE_MEMORY", "NPC_REACTIONS"]
   }
+
+  # The stub Jev reply for an NPC reaction (NPC_REACTIONS=on).
+  @npc_reply [
+    emotion: :wary,
+    intensity: 2.0,
+    stance: 2.0,
+    confidence: %{emotion: 0.8, stance: 0.8},
+    usage: %{input_tokens: 400}
+  ]
 
   # TURN_OUTCOME_RECORD is always on: the record is what the harness reads.
   @base_env %{"INN_WORLD" => "on", "WORLD_ANTAGONIST" => "on", "TURN_OUTCOME_RECORD" => "on"}
@@ -53,7 +66,7 @@ defmodule TalesForge.TurnPipeline.Replay do
   @default_prose "The table waits."
 
   @supported ~w(intent premise outcome post_check mismatch_kinds fixture_fails gm_prompt
-                coins_after)
+                coins_after npc stage_order)
 
   @prose_check TalesForge.Game.ProseCheck
 
@@ -63,6 +76,8 @@ defmodule TalesForge.TurnPipeline.Replay do
     env = env_for(item)
     saved = Map.new(env, fn {key, _} -> {key, System.get_env(key)} end)
     Enum.each(env, fn {key, value} -> System.put_env(key, value) end)
+    jev_key = Application.get_env(:jev, :api_key)
+    if "npc_memory" in item["pending_on"], do: stub_npcs()
 
     try do
       session = session(item["context"])
@@ -76,6 +91,8 @@ defmodule TalesForge.TurnPipeline.Replay do
 
       if failures == [], do: :ok, else: {:error, failures}
     after
+      Application.put_env(:jev, :api_key, jev_key)
+
       Enum.each(saved, fn
         {key, nil} -> System.delete_env(key)
         {key, value} -> System.put_env(key, value)
@@ -150,6 +167,7 @@ defmodule TalesForge.TurnPipeline.Replay do
         action = player_action(turn["text"], expect, context)
         {:ok, _payload} = TurnProcessor.run(session_id, turn["text"], action)
         assert_received {:replay_gm_prompt, prompt}
+        npc_inputs = npc_inputs([])
         after_turn = Repo.get!(GameSession, session_id).world_state
         new_events = events(session_id) -- events_before
 
@@ -158,6 +176,8 @@ defmodule TalesForge.TurnPipeline.Replay do
           after: after_turn,
           events: new_events,
           prompt: prompt,
+          npc_inputs: npc_inputs,
+          context: context,
           prose: prose
         })
 
@@ -170,7 +190,31 @@ defmodule TalesForge.TurnPipeline.Replay do
     expect = turn["expect"]
     keys = Map.keys(expect) -- @supported
     keys = if Map.has_key?(turn, "dice"), do: ["dice" | keys], else: keys
-    if Map.has_key?(expect, "npc"), do: Enum.uniq(["npc" | keys]), else: keys
+    keys
+  end
+
+  defp stub_npcs do
+    test_pid = self()
+    Application.put_env(:jev, :api_key, "replay-key")
+
+    Req.Test.stub(Jev.HTTP, fn conn ->
+      {request, conn} = Jev.Test.request(conn)
+
+      send(
+        test_pid,
+        {:replay_npc_input, inspect(request, limit: :infinity, printable_limit: :infinity)}
+      )
+
+      Jev.Test.respond(conn, @npc_reply)
+    end)
+  end
+
+  defp npc_inputs(acc) do
+    receive do
+      {:replay_npc_input, input} -> npc_inputs([input | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
   end
 
   defp stub_gm(prose) do
@@ -239,6 +283,8 @@ defmodule TalesForge.TurnPipeline.Replay do
         premise_checks(expect["premise"], turn) ++
         prompt_checks(expect["gm_prompt"], turn) ++
         coins_after_checks(expect["coins_after"], turn) ++
+        npc_checks(expect["npc"], record, turn) ++
+        stage_order_checks(expect["stage_order"]) ++
         post_checks(expect, record, turn)
     else
       ["no turn.outcome event (is TURN_OUTCOME_RECORD on?)"]
@@ -322,6 +368,7 @@ defmodule TalesForge.TurnPipeline.Replay do
     slug =
       claim
       |> String.downcase()
+      |> String.replace(~r/^(killed|slew|slain|murdered)\s+/, "")
       |> String.replace(~r/^(the|a|an|my)\s+/, "")
       |> String.replace(~r/\W+/, "_")
 
@@ -340,6 +387,91 @@ defmodule TalesForge.TurnPipeline.Replay do
       {key, _value} ->
         ["gm_prompt: unsupported key #{key}"]
     end)
+  end
+
+  # --- stage 4: NPC memory, repetition guard, NPC input ------------------------
+
+  defp npc_checks(nil, _record, _turn), do: []
+
+  defp npc_checks(npcs, record, turn) do
+    Enum.flat_map(npcs, fn {npc_id, wants} ->
+      wants
+      |> Enum.flat_map(&npc_check(&1, npc_id, record, turn))
+      |> Enum.map(&"npc #{npc_id}: #{&1}")
+    end)
+  end
+
+  defp npc_check({"no_repeat_of_memory", true}, npc_id, _record, turn) do
+    repeats =
+      for %{kind: "turn.npc_repeat", payload: %{"repeats" => list}} <- turn.events,
+          %{"npc_id" => ^npc_id, "line" => line} <- list,
+          do: line
+
+    memory = get_in(turn.before, ["npc_memory", npc_id]) || []
+
+    cond do
+      repeats != [] ->
+        ["repeats a memory line: #{inspect(repeats)}"]
+
+      memory != [] and not String.contains?(turn.prompt, "NPC dialogue memory") ->
+        ["memory missing from the GM prompt"]
+
+      true ->
+        []
+    end
+  end
+
+  defp npc_check({"memory_lines_max", max}, npc_id, _record, turn) do
+    lines = get_in(turn.after, ["npc_memory", npc_id]) || []
+
+    if length(lines) <= max,
+      do: [],
+      else: ["memory_lines_max: want <= #{max}, got #{length(lines)}"]
+  end
+
+  defp npc_check({"input_has_premise_findings", true}, npc_id, _record, turn) do
+    name = npc_name(turn.context, npc_id)
+    inputs = Enum.filter(turn.npc_inputs, &String.contains?(&1, "NPC: #{name}"))
+
+    cond do
+      inputs == [] -> ["no NPC reaction call for #{name}"]
+      Enum.all?(inputs, &String.contains?(&1, "premise findings")) -> []
+      true -> ["the NPC input has no premise findings"]
+    end
+  end
+
+  defp npc_check({"no_free_items", true}, _npc_id, record, _turn) do
+    case record["items"]["gained"] do
+      [] -> []
+      gained -> ["free items: #{inspect(Enum.map(gained, & &1["id"]))}"]
+    end
+  end
+
+  defp npc_check({key, _value}, _npc_id, _record, _turn), do: ["unsupported key #{key}"]
+
+  defp npc_name(context, npc_id) do
+    context["present_npcs"]
+    |> Enum.find(%{}, &(&1["id"] == npc_id))
+    |> Map.get("name", npc_id)
+  end
+
+  @stages %{
+    "intent" => "turn.intent",
+    "premise" => "turn.premise_check",
+    "mechanics" => "turn.rules",
+    "npcs" => "turn.npc_reactions",
+    "narration" => "turn.gm"
+  }
+
+  defp stage_order_checks(nil), do: []
+
+  defp stage_order_checks(stages) do
+    order = TalesForge.AICalls.Steps.purposes()
+    positions = Enum.map(stages, &Enum.find_index(order, fn p -> p == @stages[&1] end))
+
+    if positions == Enum.sort(positions) and nil not in positions,
+      do: [],
+      else: ["stage_order: want #{inspect(stages)}, got #{inspect(order)}"]
   end
 
   defp coins_after_checks(nil, _turn), do: []

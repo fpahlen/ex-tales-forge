@@ -25,7 +25,26 @@ defmodule TalesForge.AICalls.Steps do
   with the flag off, it runs after the NPC reactions.
   """
   @spec purposes() :: [String.t()]
-  def purposes, do: purposes(TalesForge.Config.turn_premise_first?())
+  def purposes,
+    do:
+      purposes(
+        TalesForge.Config.turn_premise_first?(),
+        TalesForge.Config.npc_dialogue_memory?()
+      )
+
+  @doc """
+  Purposes of the turn steps for the given `TURN_PREMISE_FIRST` and
+  `NPC_DIALOGUE_MEMORY` values. With NPC memory on, the premise check runs
+  before the NPC reactions, because the NPCs get its findings.
+  """
+  @spec purposes(boolean(), boolean()) :: [String.t()]
+  def purposes(false, true),
+    do:
+      ~w(turn.intent turn.rules turn.world_facts turn.prices turn.premise_check turn.npc_reactions
+         turn.prompt turn.gm
+         turn.world_writeback turn.persist)
+
+  def purposes(premise_first, _npc_memory), do: purposes(premise_first)
 
   @doc "Purposes of the turn steps for the given `TURN_PREMISE_FIRST` value."
   @spec purposes(boolean()) :: [String.t()]
