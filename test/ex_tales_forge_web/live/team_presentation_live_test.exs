@@ -138,8 +138,9 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       buttons =
         LazyHTML.query(doc, "[data-flow-replay], [data-lanes-replay]")
 
-      # The flow and the call-type lanes; the live board has no animation.
-      assert Enum.count(buttons) == 2
+      # The flow, the call-type lanes and the wired path; the live board has
+      # no animation.
+      assert Enum.count(buttons) == 3
 
       for button <- buttons do
         [label] = LazyHTML.attribute(button, "aria-label")
@@ -1433,6 +1434,91 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert html =~ "Bobby deploys the approved commit to production."
       # A founder approves. No founder deploys.
       refute html =~ ~r/(?<!No )founder (pushes|deploys|triggers)/i
+    end
+  end
+
+  describe "4. how it's wired, animated" do
+    setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
+
+    test "the path reuses the TeamFlow hook, static until the hook plays it", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
+
+      assert has_element?(
+               view,
+               ~s(#wired #wired-flow[phx-hook="TeamFlow"][data-flow="static"][data-present-steps])
+             )
+
+      assert has_element?(view, "#wired-flow [data-flow-token]")
+      assert has_element?(view, "#wired-flow #replay-wired[data-flow-replay]", "Replay")
+      refute has_element?(view, "#wired-flow [data-state]")
+      refute has_element?(view, "#wired-flow [data-shown]")
+    end
+
+    test "the four steps of the path show the bot that does each one, word for word" do
+      doc = @data |> render_with() |> LazyHTML.from_fragment()
+      steps = LazyHTML.query(doc, "#wired-steps > li[data-flow-step]")
+
+      assert Enum.map(steps, &(&1 |> LazyHTML.text() |> String.split() |> Enum.join(" "))) == [
+               "1. The idea board wakes Case or Bobby.",
+               "2. Bobby builds the change as a PR. GitHub checks it.",
+               "3. The change goes to playtest. Gentry checks it.",
+               "4. Bobby deploys the approved commit to production."
+             ]
+
+      assert LazyHTML.attribute(steps, "data-bots") == ["case bobby", "bobby", "gentry", "bobby"]
+
+      for {id, bots} <- [{1, ~w(case bobby)}, {2, ~w(bobby)}, {3, ~w(gentry)}, {4, ~w(bobby)}],
+          bot <- bots do
+        imgs =
+          LazyHTML.query(
+            doc,
+            ~s(#wired-step-#{id} [data-flow-marker] img[src*="/images/team/#{bot}-avatar"])
+          )
+
+        assert Enum.count(imgs) == 1, "step #{id} shows #{bot}"
+      end
+    end
+
+    test "the fast lane is a note under the path, not a step on it" do
+      doc = @data |> render_with() |> LazyHTML.from_fragment()
+      note = LazyHTML.query(doc, "#wired-flow > #wired-fast-lane[data-flow-note][data-flow-step]")
+      assert LazyHTML.text(note) =~ "Admin and security fixes ship by themselves."
+      assert Enum.empty?(LazyHTML.query(doc, "#wired-steps #wired-fast-lane"))
+    end
+
+    test "the seven facts appear one at a time, word for word" do
+      doc = @data |> render_with() |> LazyHTML.from_fragment()
+      facts = LazyHTML.query(doc, "#wired-flow #wired-facts > li[data-flow-fact]")
+      assert Enum.count(facts) == 7
+
+      for {{head, text}, li} <- Enum.zip(TeamPresentationLive.wired_facts(), facts) do
+        assert li |> LazyHTML.text() |> String.split() |> Enum.join(" ") == head <> " " <> text
+      end
+    end
+
+    test "the styles stay in the component and hide parts only under full motion" do
+      html = render_with(@data)
+      [_, style] = String.split(html, ~s(.wired-line {), parts: 2)
+      [style, _] = String.split(style, "</style>", parts: 2)
+
+      for rule <- Regex.scan(~r/^[^\n{]*(opacity: 0|scale\(0)[^\n]*$/m, style) |> List.flatten(),
+          String.contains?(rule, "{") do
+        assert rule =~ ~s(.team-page[data-motion="full"]), rule
+      end
+
+      assert style =~ "@media (prefers-reduced-motion: reduce)"
+      refute File.read!("assets/css/app.css") =~ "wired-"
+    end
+
+    test "the hook lights a note without the token, shows facts and steps in Present mode" do
+      js = File.read!("assets/js/team_hooks.js")
+
+      for part <-
+            ~w([data-flow-fact] flowNote presentStart presentNext presentEnd data-present-steps) do
+        assert js =~ part, part
+      end
+
+      assert js =~ "if (!stepper()?.presentNext?.()) go(current + 1)"
     end
   end
 
