@@ -11,6 +11,59 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-12: high vs low skills storytelling
+
+- **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. A character with high skills (experience) notices more and should get more detailed storytelling
+- **Why:** **Problem.** Today the GM gets the skill, the roll and the outcome. The GM uses them for tone only. A novice and an expert see the same scene.
+
+**Goal.** The skill level changes how much the character notices. A low-skill character sees only the main threat. A high-skill character sees one or two useful details. The player can use these details in the next action.
+
+**Rules from the comments.**
+- The rule applies to all skills (Fredrik, 2026-10-12).
+- The skill level sets the base detail level. A large success adds one more detail (Case proposal, Håkan agreed on 2026-10-12).
+- Each detail must be true in the world state. The GM must not invent a weakness.
+
+**Examples.**
+- Unarmed combat: a high-skill character sees that the opponent is off balance. A low-skill character sees only the fists.
+- Lockpicking: a high-skill character notices that one pin is stuck.
+- Persuasion: a high-skill character sees that the guard is tired.
+
+**Proposed approach.** The server selects the details. The GM only narrates them (call-type rule).
+1. Detail level. Add a pure function `TalesForge.Game.Notice.level/1` in `lib/ex_tales_forge/game/notice.ex`. The function reads the `MechanicalResolution` (skill, roll, `effective_skill` and outcome). It returns `:low`, `:medium` or `:high`.
+2. Thresholds. Put the thresholds in one data file, `priv/rules/detail_levels.json`. Start values: an effective skill of 0 to 5 is low. A value of 6 to 11 is medium. A value of 12 or more is high. A success with a margin of 5 or more adds one detail. A natural 1 also adds one detail.
+3. Detail pool. Add `Notice.details/3`. It takes the world state, the skill and the level. It returns 0, 1 or 2 true details. The sources are NPC data that the server has now: mood, personality traits and concerns. A front fact can also have an optional `notice` field with a skill and a minimum level. The function selects only details that the player does not see now.
+4. Pipeline. The turn calls `Notice` after the mechanics stage and before the narration. This step is a pure function over plain data. The turn writes the details into the outcome record. Thus the turn log shows them.
+5. Prompt. Add a section `TalesForge.Prompt.Sections.NoticedDetails` in the `:turn` slot. The section lists the level and the details. At the low level, the GM narrates tunnel vision and time pressure. At the high level, the GM narrates calm focus and the listed details. The GM narrates no other hidden fact.
+6. Flag. `TalesForge.Prompt.Profile` adds the section only when the flag `SKILL_DETAIL_LEVEL=on` is set. When the flag is off, the GM prompt stays byte-identical.
+7. Tests. Add doctests for `level/1` and `details/3`. Add a test that shows a hidden detail in the prompt only at the correct level. Run the playtest personas with the flag on and with the flag off.
+
+**Case recommendations for the open questions.**
+- Turns with no roll: the perception skill sets a passive level, one level lower than a roll.
+- A failed roll keeps the base level from the skill. The failure itself is the cost.
+- The game shows the details in the story text only. Then the story stays natural.
+
+**Acceptance criteria.**
+- The same action gives less detail at a low skill and more detail at a high skill.
+- Each detail in the narration comes from the world state.
+- A low-skill turn shows no hidden detail.
+- When the flag is off, the production prompts stay the same.
+
+**Timing.** Bobby works on the prompt refactor now. The refactor gives each prompt section its own module (#208). This card adds one new section. Thus Bobby builds it after the refactor.
+
+**Size: M.** The prompt section is small. The detail pool and the thresholds need most of the work.
+
+**Risks.**
+- The world data has no combat details today, for example "favors the left side". Mitigation: version 1 uses NPC mood, traits and concerns. World authors add `notice` facts later.
+- The GM can add details that are not in the list. Mitigation: a clear prompt rule and a log-only check in `TalesForge.Game.ProseCheck`.
+- More text in the prompt adds tokens. Mitigation: a maximum of 3 short lines for each turn.
+
+**Deploy lane: normal.** The change is game code. Thus it goes to playtest first. Then a founder approves production.
+
+**Confidence.** We have high confidence for the level function and the prompt section. We have medium confidence for the detail pool, because the world data has few hidden details now. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-72996ae0-5af7-4e4c-b1a0-ab6d6330843a)
+
+<!-- board:idea:72996ae0-5af7-4e4c-b1a0-ab6d6330843a -->
+
 ## 2026-10-12: Temporary notification pop-ups
 
 - **Decision (fredrik@whyse.se, 2026-10-12, on the idea board):** build it. notifications should be temporary pop-ups "Card created" just like when connection is lost
