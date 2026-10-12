@@ -26,6 +26,7 @@ export const TeamPage = {
     this.draftsCleanup = BoardDrafts.setup(this)
     this.cardUrlCleanup = setupCardUrl(this)
     this.presentCleanup = setupPresent(this)
+    this.timesCleanup = startRelativeTimes()
   },
 
   // After a reconnect (a deploy restarts production) the board component
@@ -73,6 +74,7 @@ export const TeamPage = {
   },
 
   destroyed() {
+    this.timesCleanup?.()
     this.observer?.disconnect()
     this.mq?.removeEventListener("change", this.onChange)
     this.peeksCleanup?.()
@@ -647,6 +649,7 @@ export const TeamChat = {
     const box = this.box()
     if (box) growBox(box)
     this.draftsCleanup = BoardDrafts.setup(this)
+    this.timesCleanup = startRelativeTimes()
   },
   reconnected() { BoardDrafts.restoreAll(this.el) },
   updated() { this.toBottom() },
@@ -658,7 +661,53 @@ export const TeamChat = {
     this.el.removeEventListener("input", this.onInput)
     this.el.removeEventListener("keydown", this.onKey)
     this.draftsCleanup?.()
+    this.timesCleanup?.()
   },
+}
+
+// Relative times on card comments and in the team chat
+// (TalesForgeWeb.TeamTime: the same rules, keep them in step). The server
+// renders the text; every minute this writes it again for each
+// time[data-team-ago] on the page. One timer for the page, however many hooks
+// start it.
+const STOCKHOLM = "Europe/Stockholm"
+const stockholmYear = d =>
+  new Intl.DateTimeFormat("en-GB", {timeZone: STOCKHOLM, year: "numeric"}).format(d)
+
+export const relativeTime = (then, now = new Date()) => {
+  const s = Math.max(Math.floor((now - then) / 1000), 0)
+  if (s < 60) return "just now"
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`
+  if (s < 2 * 86400) return "yesterday"
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)} days ago`
+  const opts = {timeZone: STOCKHOLM, day: "numeric", month: "short"}
+  if (stockholmYear(then) !== stockholmYear(now)) opts.year = "numeric"
+  return new Intl.DateTimeFormat("en-GB", opts).format(then)
+}
+
+export const refreshRelativeTimes = (root = document, now = new Date()) => {
+  root.querySelectorAll("time[data-team-ago][datetime]").forEach(el => {
+    const then = new Date(el.getAttribute("datetime"))
+    if (isNaN(then)) return
+    const text = relativeTime(then, now)
+    if (el.textContent !== text) el.textContent = text
+  })
+}
+
+let timesUsers = 0
+let timesTimer = null
+export const startRelativeTimes = () => {
+  if (timesUsers++ === 0) {
+    refreshRelativeTimes()
+    timesTimer = setInterval(() => refreshRelativeTimes(), 60_000)
+  }
+  let stopped = false
+  return () => {
+    if (stopped) return
+    stopped = true
+    if (--timesUsers === 0) { clearInterval(timesTimer); timesTimer = null }
+  }
 }
 
 // Images on cards and in the team chat (TalesForgeWeb.TeamImages). The hook

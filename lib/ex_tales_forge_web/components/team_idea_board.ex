@@ -1988,10 +1988,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             >
               <div class="flex items-baseline gap-2 text-xs">
                 <span class="font-semibold">{who(c.author)}</span>
-                <time
-                  datetime={DateTime.to_iso8601(c.inserted_at)}
-                  class="text-[var(--paper-muted)]"
-                >{TalesForgeWeb.TimeAgo.stockholm(c.inserted_at)}</time>
+                <TalesForgeWeb.TeamTime.ago at={c.inserted_at} class="text-[var(--paper-muted)]" />
               </div>
               <p class="whitespace-pre-line break-words">{comment_body(c.body)}</p>
             </li>

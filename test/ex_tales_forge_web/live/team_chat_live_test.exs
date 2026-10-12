@@ -5,6 +5,8 @@ defmodule TalesForgeWeb.TeamChatLiveTest do
 
   alias TalesForge.Chat
 
+  doctest TalesForgeWeb.TeamTime
+
   setup %{conn: conn} do
     on_exit(fn -> Application.delete_env(:ex_tales_forge, :app_name) end)
     {:ok, conn: log_in_admin(conn, "fredrik@whyse.se", login: "fpahlen")}
@@ -186,5 +188,29 @@ defmodule TalesForgeWeb.TeamChatLiveTest do
              chat,
              ~s(#team-online-chat-msg-#{m.id} a[href="/team/images/#{image.id}"][target=_blank] img)
            )
+  end
+
+  describe "relative message times (TalesForgeWeb.TeamTime)" do
+    test "the time element has the relative text, the ISO time and the Stockholm time on hover" do
+      at = ~U[2026-10-12 07:40:00Z]
+
+      html =
+        render_component(&TalesForgeWeb.TeamTime.ago/1,
+          at: at,
+          now: ~U[2026-10-12 10:41:00Z]
+        )
+
+      doc = LazyHTML.from_fragment(html)
+      [time] = LazyHTML.query(doc, "time[data-team-ago]") |> Enum.to_list()
+      assert LazyHTML.text(time) == "3 h ago"
+      assert LazyHTML.attribute(time, "datetime") == ["2026-10-12T07:40:00Z"]
+      assert LazyHTML.attribute(time, "title") == ["2026-10-12 09:40 CEST"]
+    end
+
+    test "a date from 7 days, in Stockholm (a late UTC evening is the next day there)" do
+      now = ~U[2026-10-12 10:00:00Z]
+      assert TalesForgeWeb.TeamTime.relative(~U[2026-10-05 22:30:00Z], now) == "6 days ago"
+      assert TalesForgeWeb.TeamTime.relative(~U[2026-10-04 22:30:00Z], now) == "5 Oct"
+    end
   end
 end

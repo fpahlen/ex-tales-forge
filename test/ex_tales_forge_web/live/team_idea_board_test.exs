@@ -175,11 +175,18 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
 
     view |> form("#card-#{idea.id}-comment", %{body: "Looks fun"}) |> render_submit()
     assert render(view) =~ "Looks fun"
-    # Comment times are in Stockholm time, with the zone label (CET or CEST).
+    # Comment times are relative ("just now"), with the full Stockholm time
+    # (CET or CEST) on hover and the hook's data attribute.
     [comment] = Board.get_idea!(idea.id).comments
     stamp = TalesForgeWeb.TimeAgo.stockholm(comment.inserted_at)
     assert stamp =~ ~r/ CES?T$/
-    assert has_element?(view, "#comment-#{comment.id} time", stamp)
+
+    assert has_element?(
+             view,
+             ~s(#comment-#{comment.id} time[data-team-ago][title="#{stamp}"]),
+             "just now"
+           )
+
     refute has_element?(view, "#comment-#{comment.id} time", "UTC")
 
     # Links are read-only for founders: bots add them through the API.
