@@ -816,13 +816,14 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           </p>
           <.draft_hint id="board-add-draft-hint" class="sm:col-span-2" />
         </form>
-        <div
+        <.flash
           :if={@notice}
           id="board-notice"
-          role="status"
-          class="flex flex-wrap items-center gap-2 rounded border border-[var(--paper-rule)] px-3 py-2 text-sm"
+          kind={:info}
+          autohide
+          on_close={JS.push("dismiss_notice", target: @myself) |> hide("#board-notice")}
         >
-          <span>Card created:</span>
+          Card created:
           <a
             href={"#idea-" <> @notice.id}
             phx-click="open"
@@ -830,15 +831,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             phx-target={@myself}
             class="font-semibold underline"
           >{@notice.title}</a>
-          <button
-            type="button"
-            id="board-notice-close"
-            phx-click="dismiss_notice"
-            phx-target={@myself}
-            aria-label="Close the notification"
-            class="ml-auto min-h-11 px-2"
-          >×</button>
-        </div>
+        </.flash>
       </section>
 
       <%!-- Desktop: Ideas left, the three active columns in the middle with
