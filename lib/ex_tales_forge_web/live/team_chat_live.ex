@@ -360,6 +360,14 @@ defmodule TalesForgeWeb.TeamChatLive do
     """
   end
 
-  defp author("bot:" <> bot), do: String.capitalize(bot)
-  defp author(email), do: TeamOnline.name(email)
+  defp author("bot:" <> bot = actor) do
+    team = Workflow.Team.Source.team()
+
+    case Workflow.Team.bot_id(team, actor) do
+      nil -> String.capitalize(bot)
+      id -> Workflow.Team.bot_name(team, id)
+    end
+  end
+
+  defp author(email), do: TeamOnline.name(Workflow.Team.Source.team(), email)
 end

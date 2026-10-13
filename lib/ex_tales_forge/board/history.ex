@@ -8,12 +8,14 @@ defmodule TalesForge.Board.History do
   the Comments section shows the comments. Consecutive answers (or deferrals)
   by the same person become one line ("answered 2 questions").
 
-  Pure: pass `now` to get a deterministic result.
+  Pure: pass `now` to get a deterministic result. `entries/2` gets the team
+  config (`Workflow.Team`) for the column labels and the bot roles.
   """
 
   alias TalesForge.Board.Transitions
+  alias Workflow.Team
 
-  @typedoc "One History line. `actor` is the raw actor (an email, `bot:case`, `board`); `link` is `{label, url}` or nil."
+  @typedoc "One History line. `actor` is the raw actor (an email, `bot:<id>`, `board`); `link` is `{label, url}` or nil."
   @type entry :: %{
           kind: atom(),
           actor: String.t() | nil,
@@ -25,9 +27,9 @@ defmodule TalesForge.Board.History do
         }
 
   @doc "The History lines of `idea`, oldest first."
-  @spec entries(map()) :: [entry()]
-  def entries(idea) do
-    transitions = Enum.map(list(idea, :transitions), &transition(&1, idea))
+  @spec entries(Team.t(), map()) :: [entry()]
+  def entries(%Team{} = team, idea) do
+    transitions = Enum.map(list(idea, :transitions), &transition(&1, idea, team))
 
     comments =
       Enum.map(
@@ -86,9 +88,9 @@ defmodule TalesForge.Board.History do
 
   defp grouped_text(e), do: e
 
-  defp transition(t, idea) do
+  defp transition(t, idea, team) do
     {kind, text, link, tail} =
-      case describe(t, idea) do
+      case describe(t, idea, team) do
         {kind, text, link} -> {kind, text, link, nil}
         four -> four
       end
@@ -97,54 +99,62 @@ defmodule TalesForge.Board.History do
   end
 
   # A new card.
-  defp describe(%{from: nil, actor: "import"}, _idea),
+  defp describe(%{from: nil, actor: "import"}, _idea, _team),
     do: {:added, "added this card from the decision queue", nil}
 
-  defp describe(%{from: nil, actor: "bot:bobby", to: "building"}, _idea),
-    do: {:added, "made this card for a PR", nil}
-
-  defp describe(%{from: nil, to: to}, _idea),
-    do: {:added, "added this card to #{label(to)}", nil}
+  defp describe(%{from: nil, to: to} = t, _idea, team) do
+    if to == "building" and Map.get(t, :actor) == Team.actor(team, :builder),
+      do: {:added, "made this card for a PR", nil},
+      else: {:added, "added this card to #{label(team, to)}", nil}
+  end
 
   # A founder answers the PR (the column can stay or change).
-  defp describe(%{note: "Approved PR #" <> rest}, idea),
+  defp describe(%{note: "Approved PR #" <> rest}, idea, _team),
     do: pr(:pr_approved, "approved", rest, idea)
 
-  defp describe(%{note: "Changes requested on PR #" <> rest}, idea),
+  defp describe(%{note: "Changes requested on PR #" <> rest}, idea, _team),
     do: pr(:pr_changes_requested, "asked for changes on", rest, idea)
 
   # Archive and restore (the reason stays in the Archive panel, not here).
-  defp describe(%{to: "archived", from: from}, _idea) when from != "archived",
-    do: {:archived, "archived this card from #{label(from)}", nil}
+  defp describe(%{to: "archived", from: from}, _idea, team) when from != "archived",
+    do: {:archived, "archived this card from #{label(team, from)}", nil}
 
-  defp describe(%{from: "archived", to: "ideas"}, _idea),
+  defp describe(%{from: "archived", to: "ideas"}, _idea, _team),
     do: {:restored, "restored this card to Ideas", nil}
 
   # A move to another column.
-  defp describe(%{from: "refining", to: "check", actor: "bot:case"}, _idea),
-    do: {:refined, "wrote the refinement and moved Refining → Founder check", nil}
+  defp describe(%{from: "refining", to: "check"} = t, idea, team) do
+    if Map.get(t, :actor) == Team.actor(team, :refiner),
+      do: {:refined, "wrote the refinement and moved Refining → Founder check", nil},
+      else: describe_move(t, idea, team)
+  end
 
-  defp describe(%{to: "done", actor: "bot:board", note: note} = t, _idea) when is_binary(note) do
+  defp describe(%{to: "done", actor: "bot:board", note: note} = t, _idea, team)
+       when is_binary(note) do
     case Regex.run(~r/prod release (\S+?)(?: \(([^)]+)\))?\./, note) do
       [_, _sha, image] -> {:auto_done, "moved to Done (release #{image})", nil}
       [_, sha] -> {:auto_done, "moved to Done (release #{sha})", nil}
-      _ -> {:moved, moved(t), nil}
+      _ -> {:moved, moved(t, team), nil}
     end
   end
 
-  defp describe(%{from: from, to: to} = t, _idea) when from != to, do: {:moved, moved(t), nil}
+  defp describe(%{from: from, to: to} = t, idea, team) when from != to,
+    do: describe_move(t, idea, team)
 
   # Notes in the same column.
-  defp describe(%{note: "Answered: " <> _}, _idea), do: {:answered, "answered a question", nil}
-  defp describe(%{note: "Deferred: " <> _}, _idea), do: {:deferred, "deferred a question", nil}
+  defp describe(%{note: "Answered: " <> _}, _idea, _team),
+    do: {:answered, "answered a question", nil}
 
-  defp describe(%{note: "Open again (not deferred): " <> _}, _idea),
+  defp describe(%{note: "Deferred: " <> _}, _idea, _team),
+    do: {:deferred, "deferred a question", nil}
+
+  defp describe(%{note: "Open again (not deferred): " <> _}, _idea, _team),
     do: {:reopened, "opened a question again", nil}
 
-  defp describe(%{note: "Decision log entry written: " <> _}, idea),
+  defp describe(%{note: "Decision log entry written: " <> _}, idea, _team),
     do: {:decision, "Decision logged", decision_link(idea)}
 
-  defp describe(%{note: "New commit " <> rest}, idea) do
+  defp describe(%{note: "New commit " <> rest}, idea, _team) do
     if String.contains?(rest, "after approval") do
       number = Map.get(idea, :pr_number)
 
@@ -158,7 +168,7 @@ defmodule TalesForge.Board.History do
     end
   end
 
-  defp describe(%{note: "PR #" <> rest, actor: actor}, idea) do
+  defp describe(%{note: "PR #" <> rest, actor: actor}, idea, _team) do
     with [_, n] <- Regex.run(~r/^(\d+)/, rest) do
       link = pr_link(String.to_integer(n), idea)
 
@@ -172,12 +182,16 @@ defmodule TalesForge.Board.History do
     end
   end
 
-  defp describe(_t, _idea), do: {:other, "updated the card", nil}
+  defp describe(_t, _idea, _team), do: {:other, "updated the card", nil}
 
-  defp moved(%{from: from, to: to}), do: "moved #{label(from)} → #{label(to)}"
+  defp describe_move(t, _idea, team), do: {:moved, moved(t, team), nil}
 
-  # The column name without the bot in brackets: "Refining", not "Refining (Case)".
-  defp label(column), do: column |> Transitions.label() |> String.replace(~r/ \(.*\)$/, "")
+  defp moved(%{from: from, to: to}, team),
+    do: "moved #{label(team, from)} → #{label(team, to)}"
+
+  # The column name without the bot in brackets: "Refining", not "Refining (<bot>)".
+  defp label(team, column),
+    do: team |> Transitions.label(column) |> String.replace(~r/ \(.*\)$/, "")
 
   defp pr(kind, verb, rest, idea) do
     case Regex.run(~r/^(\d+)/, rest) do

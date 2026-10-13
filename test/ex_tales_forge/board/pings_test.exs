@@ -12,12 +12,18 @@ defmodule TalesForge.Board.PingsTest do
   @hakan_gh "Hawkan-Fredriksson"
 
   test "the founder handles map the GitHub team logins" do
-    handles = Application.fetch_env!(:ex_tales_forge, :board_founder_handles)
+    team = Workflow.Team.Source.team()
 
-    assert Enum.sort(Map.values(handles)) ==
-             Enum.sort(TalesForge.Board.Mentions.handles())
+    assert Workflow.Team.github_handles(team) == %{
+             "fpahlen" => "fredrik",
+             "jpa71" => "jeanette",
+             "tsjokvist" => "thobias",
+             "hawkan-fredriksson" => "hakan",
+             "maxpahlen" => "max"
+           }
 
-    assert handles["tsjokvist"] == "thobias"
+    assert Enum.sort(TalesForge.Board.Mentions.handles(team)) ==
+             ~w(fredrik hakan jeanette max thobias)
   end
 
   test "a comment pings the founders it names, never the author; opening the card reads them" do

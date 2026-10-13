@@ -1,7 +1,7 @@
 defmodule TalesForge.Board.OnProd do
   @moduledoc """
   Is a card's PR in the running prod release? The gate of Building → Done
-  (tales-forge-docs `docs/design-board-states.md`). The board runs only on
+  (docs repo `docs/design-board-states.md`). The board runs only on
   production, so the running release is this app's own commit (`GIT_SHA`, the
   same commit `/internal/version` gives). GitHub tells the PR's merge commit
   (`GET /repos/:repo/pulls/:number`) and whether it is an ancestor of the
@@ -15,7 +15,7 @@ defmodule TalesForge.Board.OnProd do
 
   @doc """
   `:ok` when PR `number`'s merge commit is in the running release, else
-  `{:error, reason}` (a sentence for Bobby and the card).
+  `{:error, reason}` (a sentence for the builder bot and the card).
   """
   @spec check(pos_integer() | nil) :: :ok | {:error, String.t()}
   def check(number) do

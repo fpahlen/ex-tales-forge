@@ -4,7 +4,7 @@ defmodule TalesForge.Board.GitHubApp do
   2026-10-10: an App, not a personal token). Config `:github_app` from
   GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID and GITHUB_APP_PRIVATE_KEY (PEM;
   literal `\\n` allowed). The App needs Contents: read and write on
-  whyse-ab/tales-forge-docs only.
+  the docs repo of the team config (`Workflow.Team`) only.
 
   `token/0` signs a short-lived RS256 JWT as the App and exchanges it for an
   installation token (valid about an hour), fetched fresh per commit.
@@ -70,7 +70,7 @@ defmodule TalesForge.Board.GitHubApp do
       {"authorization", "Bearer " <> token},
       {"accept", "application/vnd.github+json"},
       {"x-github-api-version", "2022-11-28"},
-      {"user-agent", "tales-forge-idea-board"}
+      {"user-agent", Workflow.Team.Source.team().user_agent}
     ]
   end
 

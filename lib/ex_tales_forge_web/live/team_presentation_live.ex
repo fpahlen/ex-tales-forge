@@ -2,15 +2,15 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   @moduledoc """
   The founders' full presentation at `/team/presentation`: who the crew is
   (the founders and three bots), how a change gets from an idea to the game,
-  how we work, what the game runs on and how it is wired, what the persona playtests and Gentry
-  found, the pace and cost so far, the shared board that founders and bots use
+  how we work, what the game runs on and how it is wired, what the persona playtests and the
+  checker bot found, the pace and cost so far, the shared board that founders and bots use
   every day (section 7, live columns, card counts and team totals) and how to
-  take part, with the board first (section 8). Fredrik presents from
+  take part, with the board first (section 8). A founder presents from
   it. `/team` (`TalesForgeWeb.TeamLive`) is the light landing page that links
   here.
 
   Old `/team#section` links are forwarded here by the landing page's anchor
-  hook, for the anchors in `anchors/0`.
+  hook, for the anchors in `anchors/1`.
 
   Behind the GitHub team sign-in like every page (router `:browser` pipeline
   plus the `:require_team_member` mount hook, the same `:play` live session as
@@ -19,7 +19,9 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   (`TalesForge.AppRole.here?(:board)`), to `TalesForge.Board`'s topic: each
   board change reloads the counts of `TalesForge.Board.stats/0`.
 
-  Copy follows tales-forge-docs `docs/team-page/content.md` (commit d118917,
+  The team names and the product text come from the team config
+  (`Workflow.Team`, `priv/team/content.json`); the mount reads it once
+  (`Workflow.Team.Source`). Copy follows the docs repo `docs/team-page/content.md` (commit d118917,
   2026-10-09). The pace numbers (pull requests, merged, open, per day, and
   commits on main) come from one place, `TalesForge.TeamPace.current/0`, for
   both the headline stats and section 6: live from GitHub through the PR feed
@@ -65,6 +67,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   alias TalesForgeWeb.TeamCallTypes
   alias TalesForgeWeb.TeamLayout
   alias TalesForgeWeb.TeamLiveNumbers
+  alias Workflow.Team
 
   @sections [
     {"team", "Team"},
@@ -80,27 +83,19 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   # Every place on this page an old `/team#...` link could point at: the
   # sections, plus the named parts inside them. The landing page forwards
   # these (and only these) to `/team/presentation#...`.
-  @anchors Enum.map(@sections, &elem(&1, 0)) ++
-             ~w(hero starting-point team-cards) ++
-             Enum.map(~w(founders case bobby gentry), &("member-" <> &1)) ++
-             ~w(flow rule-decisions rule-call-types) ++
-             [TeamCallTypes.anchor()] ++
-             ~w(stack hosting architecture persona-cards shadow-test intent-compare eval-set gentry hostile-play ai-spend)
+  # The checker's findings section has the id of the checker bot.
+  defp anchors_of(team) do
+    Enum.map(@sections, &elem(&1, 0)) ++
+      ~w(hero starting-point team-cards) ++
+      Enum.map(["founders" | Team.bot_handles(team)], &("member-" <> &1)) ++
+      ~w(flow rule-decisions rule-call-types) ++
+      [TeamCallTypes.anchor()] ++
+      ~w(stack hosting architecture persona-cards shadow-test intent-compare eval-set) ++
+      [checker_id(team)] ++ ~w(hostile-play ai-spend)
+  end
 
-  @flow_detail %{
-    "idea" => "A founder adds a card on the idea board. Votes set the order.",
-    "case" => "Case writes the details, the open questions and a rough cost.",
-    "pr" =>
-      "Bobby writes 'Picked up by Bobby. ETA ...' on the card at once, builds it as a pull request and links the PR to the card.",
-    "merge" => "Into main, the shared version of the code.",
-    "review" => "Case's architecture review of what just landed.",
-    "playtest" =>
-      "Our separate copy of the game for testing. Every merge goes here first, by itself.",
-    "prod" =>
-      "Where players are. Admin-only changes (the fast lane) go here by themselves after playtest. Other changes go here by themselves after a founder's Approve and Gentry's check.",
-    "done" =>
-      "Bobby moves the card to Done. The board allows it only when the merge commit runs on production."
-  }
+  defp refiner_id(team), do: team |> Team.bot(:refiner) |> Atom.to_string()
+  defp checker_id(team), do: team |> Team.bot(:checker) |> Atom.to_string()
 
   @category_labels %{
     "real_turn" => "Real playtest turns",
@@ -128,27 +123,29 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   The anchors (element ids) of this page that an old `/team#anchor` link may
   use: every section of the nav, then the named parts inside them.
 
-      iex> anchors = TalesForgeWeb.TeamPresentationLive.anchors()
+      iex> anchors = TalesForgeWeb.TeamPresentationLive.anchors(Workflow.Team.example())
       iex> Enum.take(anchors, 8)
       ["team", "how", "infrastructure", "wired", "playtests", "pace", "board", "together"]
-      iex> "the-call-type-rule-one-turn-three-call-types" in anchors
-      true
+      iex> {"the-call-type-rule-one-turn-three-call-types" in anchors, "member-rita" in anchors, "quill" in anchors}
+      {true, true, true}
   """
-  @spec anchors() :: [String.t()]
-  def anchors, do: @anchors
+  @spec anchors(Team.t()) :: [String.t()]
+  def anchors(%Team{} = team), do: anchors_of(team)
 
   @doc """
   Where an old `/team#anchor` link lands now: the same anchor on the
-  presentation, or `nil` when the anchor isn't one of `anchors/0`.
+  presentation, or `nil` when the anchor isn't one of `anchors/1`.
 
-      iex> TalesForgeWeb.TeamPresentationLive.presentation_path("playtests")
+      iex> team = Workflow.Team.example()
+      iex> TalesForgeWeb.TeamPresentationLive.presentation_path(team, "playtests")
       "/team/presentation#playtests"
-      iex> TalesForgeWeb.TeamPresentationLive.presentation_path("crew")
+      iex> TalesForgeWeb.TeamPresentationLive.presentation_path(team, "crew")
       nil
   """
-  @spec presentation_path(String.t()) :: String.t() | nil
-  def presentation_path(anchor) when anchor in @anchors, do: "/team/presentation#" <> anchor
-  def presentation_path(_anchor), do: nil
+  @spec presentation_path(Team.t(), String.t()) :: String.t() | nil
+  def presentation_path(%Team{} = team, anchor) do
+    if anchor in anchors_of(team), do: "/team/presentation#" <> anchor
+  end
 
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
@@ -159,6 +156,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     {:ok,
      socket
      |> assign(:page_title, "Team · presentation")
+     |> assign(:team, Workflow.Team.Source.team())
      |> assign(:d, d)
      |> assign(:pace, TeamPace.current(PrFeed.snapshot(), d))
      |> assign(:live, TeamLiveNumbers.all(d, Extras.current()))
@@ -208,7 +206,12 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       >
         Skip to content
       </a>
-      <TeamLayout.header socket={assigns[:socket]} page={:presentation} items={@sections} />
+      <TeamLayout.header
+        team={@team}
+        socket={assigns[:socket]}
+        page={:presentation}
+        items={@sections}
+      />
       <.present_controls sections={@sections} />
 
       <main
@@ -216,19 +219,23 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         tabindex="-1"
         class="mx-auto max-w-6xl space-y-20 px-4 pb-16 pt-8 sm:px-6 sm:pt-12"
       >
-        <TeamLayout.qa_banner qa={assigns[:qa] == true} read_only={assigns[:read_only] == true} />
-        <.hero d={@d} pace={@pace} live={@live} />
-        <.team_section d={@d} />
-        <.how_section d={@d} live={@live} />
-        <.infra_section d={@d} />
-        <.wired_section />
-        <.playtests_section d={@d} live={@live} />
+        <TeamLayout.qa_banner
+          team={@team}
+          qa={assigns[:qa] == true}
+          read_only={assigns[:read_only] == true}
+        />
+        <.hero team={@team} d={@d} pace={@pace} live={@live} />
+        <.team_section team={@team} d={@d} />
+        <.how_section team={@team} d={@d} live={@live} />
+        <.infra_section team={@team} d={@d} />
+        <.wired_section team={@team} />
+        <.playtests_section team={@team} d={@d} live={@live} />
         <.pace_section d={@d} pace={@pace} live={@live} />
-        <TeamBoard.section d={@d} live={@board_live} />
-        <.together_section d={@d} />
+        <TeamBoard.section team={@team} d={@d} live={@board_live} />
+        <.together_section team={@team} d={@d} />
       </main>
 
-      <TeamLayout.footer d={@d} />
+      <TeamLayout.footer team={@team} d={@d} />
       <Layouts.flash_group flash={@flash} />
     </div>
     """
@@ -294,6 +301,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   attr :pace, :map, required: true, doc: "`TalesForge.TeamPace.current/0`"
   attr :live, :map, required: true, doc: "`TalesForgeWeb.TeamLiveNumbers.all/3`"
 
+  attr :team, Team, required: true
+
   defp hero(assigns) do
     ~H"""
     <section
@@ -302,7 +311,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     >
       <div class="space-y-5">
         <h1 class="font-serif text-4xl font-bold leading-tight sm:text-5xl">
-          How Tales Forge gets built
+          {Team.text(@team, "hero.title")}
         </h1>
         <p class="text-lg leading-relaxed text-[var(--paper-muted)]">
           The founders and {count_word(bot_count(@d))} bots, one crew, taking a lot of small, careful steps.
@@ -312,7 +321,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           <TeamArt.seal class="size-10 shrink-0" />
           <p class="text-sm leading-relaxed sm:text-base">
             <strong>This is how we work today, and we shape it together.</strong>
-            Every founder can add ideas, vote, answer the open questions and approve PRs on the board. An approved change goes to playtest, Gentry checks it, and then it ships to production by itself. Changes that only touch admin pages ship straight away. This page is an invitation to shape the rest with us.
+            Every founder can add ideas, vote, answer the open questions and approve PRs on the board. An approved change goes to playtest, {Team.bot_name(
+              @team,
+              :checker
+            )} checks it, and then it ships to production by itself. Changes that only touch admin pages ship straight away. This page is an invitation to shape the rest with us.
           </p>
         </aside>
       </div>
@@ -320,6 +332,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         <TeamArt.picture
           id="hero-art"
           name="hero"
+          alt={Team.text(@team, "art.alt.hero")}
           sizes="(min-width: 1152px) 528px, (min-width: 1024px) calc(50vw - 3rem), calc(100vw - 3.5rem)"
           loading="eager"
           fetchpriority="high"
@@ -358,13 +371,15 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   attr :d, :map, required: true
 
+  attr :team, Team, required: true
+
   defp team_section(assigns) do
     assigns = assign(assigns, :steps, get(assigns.d, ["change_flow", "steps"]) || [])
 
     ~H"""
     <section id="team" class="team-section space-y-8" aria-labelledby="team-title" data-reveal>
       <.section_head id="team" title="1. The team">
-        Tales Forge is built by one crew: the founders and {count_word(bot_count(@d))} bots. The bots do a lot of the hands-on work,
+        {Team.text(@team, "team.intro")} {count_word(bot_count(@d))} bots. The bots do a lot of the hands-on work,
         and nothing reaches the game without a founder's yes. Any founder gives that yes on the board.
       </.section_head>
 
@@ -378,6 +393,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
             :if={TeamArt.portrait?(member["id"])}
             id={"portrait-#{member["id"]}"}
             name={member["id"]}
+            alt={Team.text(@team, "art.alt." <> member["id"])}
             sizes="(min-width: 1152px) 240px, (min-width: 1024px) calc(25vw - 3rem), (min-width: 640px) calc(50vw - 4rem), calc(100vw - 4rem)"
             class="team-portrait block aspect-[4/3] h-auto w-full rounded-lg object-cover"
           />
@@ -396,9 +412,14 @@ defmodule TalesForgeWeb.TeamPresentationLive do
             </div>
           </div>
           <ul class="team-bullets flex-1 space-y-1.5 text-sm leading-snug">
-            <.member_bullets id={member["id"]} d={@d} />
+            <.member_bullets
+              team={@team}
+              role={Team.role(@team, member["id"])}
+              id={member["id"]}
+              d={@d}
+            />
           </ul>
-          <.member_badge member={member} />
+          <.member_badge team={@team} member={member} />
         </li>
       </ul>
       <p class="rounded-lg border border-dashed border-[var(--paper-rule)] px-4 py-3 text-sm text-[var(--paper-muted)]">
@@ -413,9 +434,12 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           <strong>Fast lane:</strong>
           a change that only touches admin pages goes on to production by itself.
           <strong>Normal lane:</strong>
-          a founder gives the OK twice on the board: the move to Building, then Approve on the PR before the merge. After the merge, Gentry and the persona bots play it on playtest, and then it ships to production by itself.
+          a founder gives the OK twice on the board: the move to Building, then Approve on the PR before the merge. After the merge, {Team.bot_name(
+            @team,
+            :checker
+          )} and the persona bots play it on playtest, and then it ships to production by itself.
         </p>
-        <.flow steps={@steps} d={@d} />
+        <.flow team={@team} steps={@steps} d={@d} />
         <p class="text-xs text-[var(--paper-muted)]">
           Median time from a PR being opened to merged in October: {number(
             get(@d, ["pace", "median_hours_open_to_merge_oct"])
@@ -430,13 +454,16 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   attr :id, :string, required: true
   attr :d, :map, required: true
 
+  attr :team, Team, required: true
+  attr :role, :atom, default: nil
+
   defp member_bullets(%{id: "founders"} = assigns) do
     ~H"""
     <li>Shape what we build: ideas, surveys and playing the game.</li>
     <li>Make the decisions, written down in one shared log.</li>
     <li>
       Approve PRs on the board.
-      <strong>A founder's Approve ships the change: playtest, then Gentry, then production by itself.</strong>
+      <strong>A founder's Approve ships the change: playtest, then {Team.bot_name(@team, :checker)}, then production by itself.</strong>
     </li>
     <li :if={get(@d, ["team", "members", 0, "people", "names"]) not in [nil, []]}>
       <.founders_people id="founders-people" d={@d} />
@@ -444,7 +471,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  defp member_bullets(%{id: "case"} = assigns) do
+  defp member_bullets(%{role: :refiner} = assigns) do
     ~H"""
     <li>
       The crew's go-to bot. Refines the cards on the idea board: details, open questions and a rough cost.
@@ -459,7 +486,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  defp member_bullets(%{id: "bobby"} = assigns) do
+  defp member_bullets(%{role: :builder} = assigns) do
     ~H"""
     <li>Writes all the code, always as pull requests.</li>
     <li>
@@ -469,13 +496,16 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     <li>
       Ships to Fly
       <.explain text="our hosting" />. Admin-only changes take the fast lane and ship by themselves when the checks pass.
-      Every other change goes to playtest after a founder approves it on the board. Gentry checks it, and then it ships to production by itself.
+      Every other change goes to playtest after a founder approves it on the board. {Team.bot_name(
+        @team,
+        :checker
+      )} checks it, and then it ships to production by itself.
     </li>
     <li>Checks the Fly logs every hour.</li>
     """
   end
 
-  defp member_bullets(%{id: "gentry"} = assigns) do
+  defp member_bullets(%{role: :checker} = assigns) do
     ~H"""
     <li>
       Plays the game like a troublemaker: prompt injections
@@ -484,7 +514,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     </li>
     <li>Also checks broken links, speed, phone layout and accessibility.</li>
     <li>
-      Every attack Gentry finds goes into the intent eval set, so the game gets harder to fool over time.
+      Every attack {Team.bot_name(@team, :checker)} finds goes into the intent eval set, so the game gets harder to fool over time.
     </li>
     <li>Never touches production.</li>
     """
@@ -500,6 +530,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   attr :member, :map, required: true
 
+  attr :team, Team, required: true
+
   defp member_badge(%{member: %{"approval_key" => %{"holder_today" => holder}}} = assigns)
        when is_binary(holder) do
     assigns = assign(assigns, holder: holder)
@@ -513,7 +545,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   defp member_badge(%{member: %{"schedule" => schedule, "id" => id}} = assigns)
        when is_binary(schedule) do
-    assigns = assign(assigns, :text, badge_text(id, schedule))
+    assigns = assign(assigns, :text, badge_text(Team.role(assigns.team, id), schedule))
 
     ~H"""
     <p class="team-badge"><.icon name="hero-clock-micro" class="size-4" /> {@text}</p>
@@ -522,13 +554,15 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   defp member_badge(assigns), do: ~H""
 
-  defp badge_text("case", _schedule), do: "Hourly status · daily cleanup"
-  defp badge_text("bobby", _schedule), do: "Hourly log check"
-  defp badge_text("gentry", _schedule), do: "Weekdays 07:13 · after every playtest deploy"
-  defp badge_text(_id, schedule), do: schedule
+  defp badge_text(:refiner, _schedule), do: "Hourly status · daily cleanup"
+  defp badge_text(:builder, _schedule), do: "Hourly log check"
+  defp badge_text(:checker, _schedule), do: "Weekdays 07:13 · after every playtest deploy"
+  defp badge_text(_role, schedule), do: schedule
 
   attr :steps, :list, required: true
   attr :d, :map, required: true
+
+  attr :team, Team, required: true
 
   defp flow(assigns) do
     ~H"""
@@ -570,7 +604,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
                 label="The founders"
               />
             <% else %>
-              <.step_owners who={step["who"]} />
+              <.step_owners team={@team} who={step["who"]} />
             <% end %>
           </div>
           <div class="min-w-0 pt-1 lg:pt-0">
@@ -584,10 +618,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
               :if={step["approval"]}
               class="team-seal-caption mt-1 text-xs font-semibold text-[var(--team-seal)] lg:text-[0.68rem]"
             >
-              {seal_caption(step["id"], @d)}
+              {seal_caption(step["id"], @team)}
             </p>
             <p :if={!step["approval"]} class="mt-1 text-xs leading-snug lg:hidden">
-              <.step_detail id={step["id"]} d={@d} />
+              <.step_detail team={@team} id={step["id"]} d={@d} />
             </p>
           </div>
         </li>
@@ -599,7 +633,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       <ol class="mt-6 hidden gap-x-6 gap-y-1 border-t border-[var(--paper-rule)] pt-4 text-xs leading-snug text-[var(--paper-muted)] lg:grid lg:grid-cols-3">
         <li :for={{step, i} <- Enum.with_index(@steps, 1)}>
           <strong class="text-[var(--paper-ink)]">{i}. {step["label"]}.</strong>
-          <.step_detail id={step["id"]} d={@d} />
+          <.step_detail team={@team} id={step["id"]} d={@d} />
         </li>
       </ol>
       <button
@@ -615,8 +649,29 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
+  defp flow_detail(team) do
+    [r, b, c] = Enum.map(~w(refiner builder checker)a, &Team.bot_name(team, &1))
+
+    %{
+      "idea" => "A founder adds a card on the idea board. Votes set the order.",
+      refiner_id(team) => "#{r} writes the details, the open questions and a rough cost.",
+      "pr" =>
+        "#{b} writes 'Picked up by #{b}. ETA ...' on the card at once, builds it as a pull request and links the PR to the card.",
+      "merge" => "Into main, the shared version of the code.",
+      "review" => "#{r}'s architecture review of what just landed.",
+      "playtest" =>
+        "Our separate copy of the game for testing. Every merge goes here first, by itself.",
+      "prod" =>
+        "Where players are. Admin-only changes (the fast lane) go here by themselves after playtest. Other changes go here by themselves after a founder's Approve and #{c}'s check.",
+      "done" =>
+        "#{b} moves the card to Done. The board allows it only when the merge commit runs on production."
+    }
+  end
+
   attr :id, :string, required: true
   attr :d, :map, required: true
+
+  attr :team, Team, required: true
 
   defp step_detail(%{id: "ci"} = assigns) do
     ~H"""
@@ -627,7 +682,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   defp step_detail(%{id: "check"} = assigns) do
     ~H"""
-    Normal lane only: Gentry attacks it, and the five persona bots play it while Jev scores how each would have felt.
+    Normal lane only: {Team.bot_name(@team, :checker)} attacks it, and the five persona bots play it while Jev scores how each would have felt.
     """
   end
 
@@ -645,12 +700,12 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   defp step_detail(%{id: "ok_prod"} = assigns) do
     ~H"""
-    <em>Normal lane only. When Gentry's checks pass, the change ships to production by itself.</em>
+    <em>Normal lane only. When {Team.bot_name(@team, :checker)}'s checks pass, the change ships to production by itself.</em>
     """
   end
 
   defp step_detail(assigns) do
-    assigns = assign(assigns, :text, Map.get(@flow_detail, assigns.id, ""))
+    assigns = assign(assigns, :text, Map.get(flow_detail(assigns.team), assigns.id, ""))
 
     ~H"""
     {@text}
@@ -659,8 +714,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   attr :who, :string, default: nil
 
+  attr :team, Team, required: true
+
   defp step_owners(assigns) do
-    assigns = assign(assigns, :owners, owners(assigns.who))
+    assigns = assign(assigns, :owners, owners(assigns.team, assigns.who))
 
     ~H"""
     <%= case @owners do %>
@@ -683,6 +740,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   attr :d, :map, required: true
   attr :live, :map, required: true
+
+  attr :team, Team, required: true
 
   defp how_section(assigns) do
     decisions = assigns.live.decisions
@@ -710,7 +769,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           <h3 class="font-serif text-lg font-bold">1. Decisions are written down.</h3>
           <p class="text-sm leading-relaxed">
             Every decision goes into one log, <code>docs/decisions.md</code>
-            in <code>tales-forge-docs</code>, with the date, the decision, why,
+            in <code>{@team.docs_repo |> String.split("/") |> List.last()}</code>, with the date, the decision, why,
             and a link to the details. Changing a decision means adding a new entry, never editing history.
           </p>
           <p class="text-sm">
@@ -760,7 +819,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
             </h3>
             <p class="text-sm leading-relaxed">
               Writing things down should be fast, so docs need no review step. Code always gets a PR and CI. Each change also gets a founder's OK,
-              on the board card. Any founder approves PRs there. An approved change goes to playtest, Gentry checks it, and then it ships to production by itself.
+              on the board card. Any founder approves PRs there. An approved change goes to playtest, {Team.bot_name(
+                @team,
+                :checker
+              )} checks it, and then it ships to production by itself.
             </p>
           </article>
           <article id="rule-code" class="team-card space-y-2 p-5">
@@ -835,7 +897,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         </p>
       </article>
 
-      <TeamCallTypes.walkthrough d={@d} />
+      <TeamCallTypes.walkthrough d={@d} team={@team} />
     </section>
     """
   end
@@ -843,6 +905,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   # ── 3. Infrastructure ──────────────────────────────────────────────────────
 
   attr :d, :map, required: true
+
+  attr :team, Team, required: true
 
   defp infra_section(assigns) do
     ~H"""
@@ -877,9 +941,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           The Game Master model. It writes the story, and only the story.
         </.stack_item>
         <.stack_item icon="hero-cloud" title="Fly.io, Stockholm">
-          Two apps: <code>{get(@d, ["infrastructure", "apps", 0, "name"]) || "tales-forge"}</code>
+          Two apps:
+          <code>{get(@d, ["infrastructure", "apps", 0, "name"]) || TeamPage.not_measured()}</code>
           (production) and
-          <code>{get(@d, ["infrastructure", "apps", 1, "name"]) || "tales-forge-playtest"}</code>
+          <code>{get(@d, ["infrastructure", "apps", 1, "name"]) || TeamPage.not_measured()}</code>
           (playtest). The live feed on /team shows which commit each app runs.
         </.stack_item>
       </ul>
@@ -1045,65 +1110,83 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   # ── 4. How it's wired ──────────────────────────────────────────────────────
   # The founders' one-page summary of the infrastructure. Source:
-  # tales-forge-docs docs/team-page/infrastructure-summary.md (the full runbook
+  # the docs repo docs/team-page/infrastructure-summary.md (the full runbook
   # is docs/infrastructure-setup.md there).
 
-  @wired_steps [
-    "The idea board wakes Case or Bobby.",
-    "Bobby builds the change as a PR. GitHub checks it.",
-    "The change goes to playtest. Gentry checks it.",
-    "Bobby deploys the approved commit to production.",
-    "Admin and security fixes ship by themselves."
-  ]
+  defp wired_steps(team) do
+    [r, b, c] = Enum.map(~w(refiner builder checker)a, &Team.bot_name(team, &1))
 
-  @wired_facts [
-    {"Two apps, two databases.",
-     "Playtest and production each have their own database. A test never touches player data."},
-    {"Playtest first.", "Every change goes to playtest before production."},
-    {"One founder OK is enough.", "Any founder approves a PR on its board card."},
-    {"Normal changes ship after Gentry's check.",
-     "Bobby then deploys the approved commit to production. No founder pushes anything."},
-    {"Fast lanes.", "Admin-page changes and safe security fixes ship without a manual OK."},
-    {"Cards finish by themselves.",
-     "A card moves to Done when its change is live on production."},
-    {"Only the team gets in.",
-     "You sign in with GitHub. Only members of the Tales Forge team can open the site."}
-  ]
+    [
+      "The idea board wakes #{r} or #{b}.",
+      "#{b} builds the change as a PR. GitHub checks it.",
+      "The change goes to playtest. #{c} checks it.",
+      "#{b} deploys the approved commit to production.",
+      "Admin and security fixes ship by themselves."
+    ]
+  end
+
+  defp wired_facts_of(team) do
+    [
+      {"Two apps, two databases.",
+       "Playtest and production each have their own database. A test never touches player data."},
+      {"Playtest first.", "Every change goes to playtest before production."},
+      {"One founder OK is enough.", "Any founder approves a PR on its board card."},
+      {"Normal changes ship after #{Team.bot_name(team, :checker)}'s check.",
+       "#{Team.bot_name(team, :builder)} then deploys the approved commit to production. No founder pushes anything."},
+      {"Fast lanes.", "Admin-page changes and safe security fixes ship without a manual OK."},
+      {"Cards finish by themselves.",
+       "A card moves to Done when its change is live on production."},
+      {"Only the team gets in.", Team.text(team, "wired.sign_in")}
+    ]
+  end
 
   # The bots that do each step of the path (the fifth step, the fast lane,
   # is the note under the path).
-  @wired_bots [["case", "bobby"], ["bobby"], ["gentry"], ["bobby"]]
+  defp path_bots(team) do
+    [r, b, c] =
+      Enum.map(~w(refiner builder checker)a, &(team |> Team.bot(&1) |> Atom.to_string()))
+
+    [[r, b], [b], [c], [b]]
+  end
 
   @doc """
   The key facts of section 4 ("How it's wired"), as `{headline, text}`.
 
-      iex> TalesForgeWeb.TeamPresentationLive.wired_facts() |> hd() |> elem(0)
+      iex> TalesForgeWeb.TeamPresentationLive.wired_facts(Workflow.Team.Source.team()) |> hd() |> elem(0)
       "Two apps, two databases."
   """
-  @spec wired_facts() :: [{String.t(), String.t()}]
-  def wired_facts, do: @wired_facts
+  @spec wired_facts(Team.t()) :: [{String.t(), String.t()}]
+  def wired_facts(%Team{} = team), do: wired_facts_of(team)
+
+  attr :team, Team, required: true
 
   defp wired_section(assigns) do
-    {path, [fast_lane]} = Enum.split(@wired_steps, 4)
+    team = assigns.team
+    {path, [fast_lane]} = Enum.split(wired_steps(team), 4)
 
     assigns =
       assign(assigns,
-        path: Enum.zip(path, @wired_bots),
+        path: Enum.zip(path, path_bots(team)),
         fast_lane: fast_lane,
-        facts: @wired_facts
+        facts: wired_facts_of(team),
+        builder: team |> Team.bot(:builder) |> Atom.to_string()
       )
 
     ~H"""
     <section id="wired" class="team-section space-y-8" aria-labelledby="wired-title" data-reveal>
       <.section_head id="wired" title="4. How it's wired">
-        Tales Forge runs as two apps on Fly.io in Stockholm. Playtest gets each change first.
-        Production is what players use. GitHub keeps our code and our docs. GitHub also tests
+        {Team.text(@team, "wired.intro")} Production is what players use. GitHub keeps our code and our docs. GitHub also tests
         each change before it ships.
       </.section_head>
 
       <p id="wired-bots" class="max-w-3xl">
-        Three bots work with us. Case refines ideas and reviews work. Bobby builds and ships.
-        Gentry tries to break things on playtest. When you move a card on the idea board, the
+        {String.capitalize(Team.count_word(length(@team.bots)))} bots work with us. {Team.bot_name(
+          @team,
+          :refiner
+        )} refines ideas and reviews work. {Team.bot_name(@team, :builder)} builds and ships. {Team.bot_name(
+          @team,
+          :checker
+        )} tries to break things on playtest. When you move a card on the idea board, the
         board wakes the right bot. When you move a card to Building, the board writes the
         decision in our decision log.
       </p>
@@ -1169,13 +1252,13 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           class="team-flow-step flex items-center gap-3 rounded-lg border border-dashed border-[var(--paper-rule)] p-3 text-sm"
           data-flow-step
           data-flow-note
-          data-bots="bobby"
+          data-bots={@builder}
         >
           <span
             class="relative flex size-10 shrink-0 items-center justify-center rounded-full"
             data-flow-marker
           >
-            <TeamArt.avatar id="bobby" class="wired-bot size-10" />
+            <TeamArt.avatar id={@builder} class="wired-bot size-10" />
           </span>
           <span>
             <span class="font-semibold text-[var(--paper-muted)]">Fast lane:</span> {@fast_lane}
@@ -1235,6 +1318,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   attr :d, :map, required: true
   attr :live, :map, required: true
+
+  attr :team, Team, required: true
 
   defp playtests_section(assigns) do
     ~H"""
@@ -1310,7 +1395,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
       <.shadow_test d={@d} latency={@live.intent_latency} />
       <.eval_set d={@d} />
-      <.gentry d={@d} />
+      <.checker_findings d={@d} team={@team} />
     </section>
     """
   end
@@ -1585,18 +1670,26 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   end
 
   attr :d, :map, required: true
+  attr :team, Team, required: true
 
-  defp gentry(assigns) do
-    assigns = assign(assigns, :g, get(assigns.d, ["gentry_findings"]) || %{})
+  defp checker_findings(assigns) do
+    team = assigns.team
+
+    assigns =
+      assign(assigns,
+        g: get(assigns.d, ["gentry_findings"]) || %{},
+        checker: checker_id(team),
+        name: Team.bot_name(team, :checker)
+      )
 
     ~H"""
-    <div id="gentry" class="space-y-5">
+    <div id={@checker} class="space-y-5">
       <div class="flex items-center gap-3">
-        <TeamArt.avatar id="gentry" class="size-12" label="Gentry" />
-        <h3 class="font-serif text-2xl font-bold">Gentry's findings so far</h3>
+        <TeamArt.avatar id={@checker} class="size-12" label={@name} />
+        <h3 class="font-serif text-2xl font-bold">{@name}'s findings so far</h3>
       </div>
       <p class="max-w-3xl leading-relaxed text-[var(--paper-muted)]">
-        Gentry started on playtest this week. The first catch was not an exploit but something every phone player would have hit.
+        {@name} started on playtest this week. The first catch was not an exploit but something every phone player would have hit.
       </p>
       <div class="grid gap-4 lg:grid-cols-2">
         <div class="team-card space-y-2 p-4">
@@ -1612,12 +1705,14 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           </ul>
         </div>
       </div>
-      <.hostile_play results={@g["hostile_play_results"]} />
+      <.hostile_play team={@team} results={@g["hostile_play_results"]} />
     </div>
     """
   end
 
   attr :results, :map, default: nil
+
+  attr :team, Team, required: true
 
   defp hostile_play(%{results: %{"runs" => runs}} = assigns) when is_list(runs) do
     ~H"""
@@ -1657,7 +1752,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       id="hostile-play"
       class="rounded-lg border border-dashed border-[var(--paper-rule)] p-3 text-sm italic text-[var(--paper-muted)]"
     >
-      Hostile-play results (injections, fake GM notes, false claims) will appear here once Gentry has logged them.
+      Hostile-play results (injections, fake GM notes, false claims) will appear here once {Team.bot_name(
+        @team,
+        :checker
+      )} has logged them.
     </p>
     """
   end
@@ -1836,6 +1934,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   attr :d, :map, required: true
 
+  attr :team, Team, required: true
+
   defp together_section(assigns) do
     assigns =
       assign(assigns,
@@ -1858,7 +1958,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           link="The idea board"
         >
           The idea board on /team is the first place to take part. Add a card in Ideas, vote on the others and comment.
-          A card needs an upvote before it can move. Then a founder moves it to Refining, and Case refines it.
+          A card needs an upvote before it can move. Then a founder moves it to Refining, and {Team.bot_name(
+            @team,
+            :refiner
+          )} refines it.
         </.involve>
         <.involve
           id="involve-approve"
@@ -1932,8 +2035,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   defp bot_count(d), do: TeamPage.bot_count(d)
 
   # The caption under a founder's-OK seal in the change flow.
-  defp seal_caption("ok_prod", _d), do: "Ships by itself after Gentry."
-  defp seal_caption(_id, _d), do: "Any founder, on the board."
+  defp seal_caption("ok_prod", team),
+    do: "Ships by itself after #{Team.bot_name(team, :checker)}."
+
+  defp seal_caption(_id, _team), do: "Any founder, on the board."
 
   defp kind_label(%{"kind" => "humans"}), do: "humans"
   defp kind_label(%{"kind" => kind}), do: kind
@@ -1956,21 +2061,16 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   end
 
   @doc false
-  @spec owners(String.t() | nil) :: [String.t()]
-  def owners(who) when is_binary(who) do
+  @spec owners(Team.t(), String.t() | nil) :: [String.t()]
+  def owners(%Team{} = team, who) when is_binary(who) do
     who = String.downcase(who)
 
-    for {id, word} <- [
-          {"founders", "founder"},
-          {"case", "case"},
-          {"bobby", "bobby"},
-          {"gentry", "gentry"}
-        ],
+    for {id, word} <- [{"founders", "founder"} | Enum.map(Team.bot_handles(team), &{&1, &1})],
         String.contains?(who, word),
         do: id
   end
 
-  def owners(_who), do: []
+  def owners(_team, _who), do: []
 
   defp owner_text(who, d) when is_binary(who) do
     names = Map.new(members(d), &{&1["id"], &1["name"]})

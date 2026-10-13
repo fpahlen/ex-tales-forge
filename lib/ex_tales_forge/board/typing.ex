@@ -1,6 +1,6 @@
 defmodule TalesForge.Board.Typing do
   @moduledoc """
-  "Fredrik is typing…" on the idea board (card "Writing in the comment field
+  "<founder> is typing…" on the idea board (card "Writing in the comment field
   in cards", 2026-10-10). A founder who writes in a card's comment box is
   tracked with Phoenix Presence on the "board:typing" topic, under their LiveView process.
   This is a hint, not a lock: everyone can still write, and comments save one
@@ -53,16 +53,17 @@ defmodule TalesForge.Board.Typing do
   @doc """
   The hint text for the names, without the reader's own name.
 
-      iex> TalesForge.Board.Typing.hint(["fredrik@whyse.se"], "max@example.com")
-      "Fredrik is typing…"
-      iex> TalesForge.Board.Typing.hint(["fredrik@whyse.se", "max@example.com"], "jo@example.com")
-      "Fredrik and Max are typing…"
-      iex> TalesForge.Board.Typing.hint(["max@example.com"], "max@example.com")
+      iex> team = Workflow.Team.example()
+      iex> TalesForge.Board.Typing.hint(team, ["ada@example.com"], "lin@example.com")
+      "Ada is typing…"
+      iex> TalesForge.Board.Typing.hint(team, ["ada@example.com", "lin@example.com"], "jo@example.com")
+      "Ada and Lin are typing…"
+      iex> TalesForge.Board.Typing.hint(team, ["lin@example.com"], "lin@example.com")
       nil
   """
-  @spec hint([String.t()], String.t() | nil) :: String.t() | nil
-  def hint(emails, me) do
-    case emails |> List.delete(me) |> Enum.map(&TalesForge.TeamOnline.name/1) do
+  @spec hint(Workflow.Team.t(), [String.t()], String.t() | nil) :: String.t() | nil
+  def hint(team, emails, me) do
+    case emails |> List.delete(me) |> Enum.map(&TalesForge.TeamOnline.name(team, &1)) do
       [] -> nil
       [one] -> "#{one} is typing…"
       names -> "#{names |> Enum.drop(-1) |> Enum.join(", ")} and #{List.last(names)} are typing…"

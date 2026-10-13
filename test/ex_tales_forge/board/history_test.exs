@@ -29,7 +29,8 @@ defmodule TalesForge.Board.HistoryTest do
     )
   end
 
-  defp one(attrs), do: idea([tr(0, attrs)]) |> History.entries() |> hd()
+  defp one(attrs),
+    do: idea([tr(0, attrs)]) |> then(&History.entries(Workflow.Team.Source.team(), &1)) |> hd()
 
   test "a new card" do
     assert %{kind: :added, text: "added this card to Ideas"} = one(%{from: nil, to: "ideas"})
@@ -81,6 +82,7 @@ defmodule TalesForge.Board.HistoryTest do
   test "consecutive answers by the same person are one line" do
     entries =
       History.entries(
+        Workflow.Team.Source.team(),
         idea([
           tr(0, %{note: "Answered: A Answer: x"}),
           tr(1, %{note: "Answered: B Answer: y"}),
@@ -108,7 +110,7 @@ defmodule TalesForge.Board.HistoryTest do
       })
 
     assert [%{kind: :decision, text: "Decision logged", link: {"(commit)", ^url}}] =
-             History.entries(i)
+             History.entries(Workflow.Team.Source.team(), i)
   end
 
   test "PR events link to the PR" do
@@ -154,7 +156,9 @@ defmodule TalesForge.Board.HistoryTest do
     i =
       idea([], %{comments: [%{author: "hakan@x", body: "Top secret comment", inserted_at: at(5)}]})
 
-    assert [%{kind: :comment, actor: "hakan@x", text: "commented"} = e] = History.entries(i)
+    assert [%{kind: :comment, actor: "hakan@x", text: "commented"} = e] =
+             History.entries(Workflow.Team.Source.team(), i)
+
     refute inspect(e) =~ "secret"
   end
 end

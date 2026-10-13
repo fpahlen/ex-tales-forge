@@ -1,10 +1,14 @@
 defmodule TalesForgeWeb.TeamIdeaBoard do
   @moduledoc """
-  The founders' idea board on /team (`#idea-board`; design: tales-forge-docs
+  The founders' idea board on /team (`#idea-board`; design: docs repo
   `docs/design-idea-board.md`). A LiveComponent over `TalesForge.Board`:
-  add ideas through the chat box, vote +1/-1 (again to take it back), comment (with `@case`,
-  `@bobby`, `@gentry` to wake a bot), add links, fill in Case's refinement,
+  add ideas through the chat box, vote +1/-1 (again to take it back), comment (with
+  `@<bot id>` to wake a bot), add links, fill in the refiner's refinement,
   and move cards.
+
+  This LiveComponent is an edge: it reads the team config
+  (`Workflow.Team.Source`) for the bot names, the column labels and the
+  founder names, and gives it to the pure board modules.
 
   Moving: drag a card onto a column (the `TeamPage` hook, `assets/js/team_hooks.js`),
   or, with a keyboard or on a phone, the card's "Move to" form, which lists only
@@ -14,7 +18,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   Layout: Ideas (the backlog) on the left, the three active columns (Refining,
   Founder check, Building) in the middle with Parked under them across their
-  width, Done on the right. Every card is thin (Fredrik, 2026-10-10): the
+  width, Done on the right. Every card is thin (founder decision, 2026-10-10): the
   avatar, the full title (it wraps, no ellipsis), the compact "needs work" badge and
   can't-move reason, and a vote row inside the card (thumbs up and thumbs
   down, each with its own count, no net number; siblings of the open button, so a vote never opens the card). Each area has a fixed height and scrolls on its
@@ -29,7 +33,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   Clicking a card opens it in full in a modal dialog (`role="dialog"`, focus
   trapped by `focus_wrap`, Esc or clicking outside closes it, focus returns to
-  the card): votes, the open -1 block, Move to, Case's refinement, links,
+  the card): votes, the open -1 block, Move to, the refinement, links,
   images (`TalesForgeWeb.TeamImages`: paste, drop, pick or "Capture screen",
   with a note), comments and history. The parent LiveView forwards `{:board, :changed}` as
   `send_update(refresh: true)`; an open card stays open and refreshes.
@@ -50,7 +54,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   and why, a Restore button (back to Ideas) and, for a founder, Delete
   (type the title to confirm). The full card of a card in Ideas or Parked
   has an Archive button next to the move buttons; it asks for a short
-  reason. The Gentry QA session can open the panel but cannot archive,
+  reason. The QA session can open the panel but cannot archive,
   restore or delete.
   """
   use TalesForgeWeb, :live_component
@@ -59,6 +63,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   alias TalesForge.Board.{Goals, History, Idea, Mentions, Similar, Tags, Transitions, Typing}
   alias TalesForgeWeb.TeamGoals
   alias TalesForgeWeb.TeamImages
+  alias Workflow.Team
 
   @impl true
   def update(%{refresh: true}, socket), do: {:ok, load(socket)}
@@ -119,8 +124,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
       iex> TalesForgeWeb.TeamIdeaBoard.ideas_path("newest", [])
       "/team"
-      iex> TalesForgeWeb.TeamIdeaBoard.ideas_path("oldest", ["ui", "håkan"])
-      "/team?sort=oldest&tags=ui%2Ch%C3%A5kan"
+      iex> TalesForgeWeb.TeamIdeaBoard.ideas_path("oldest", ["ui", "örjan"])
+      "/team?sort=oldest&tags=ui%2C%C3%B6rjan"
   """
   @spec ideas_path(String.t(), [String.t()]) :: String.t()
   def ideas_path(sort, tags) do
@@ -148,12 +153,12 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
     board =
       Map.update(full, "ideas", [], fn cards ->
-        cards |> sort_ideas(sort) |> Tags.filter(selected)
+        cards |> sort_ideas(sort) |> then(&Tags.filter(team(), &1, selected))
       end)
 
     # The tag cloud: every tag in use on an Ideas card, and the selected ones.
     socket =
-      assign(socket, :tag_cloud, Enum.uniq(Tags.in_use(full["ideas"] || []) ++ selected))
+      assign(socket, :tag_cloud, Enum.uniq(Tags.in_use(team(), full["ideas"] || []) ++ selected))
 
     open_id = socket.assigns[:open_id]
 
@@ -175,7 +180,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       typing: Typing.who(),
       open: open,
       archive_count: Board.archived_count(),
-      archive_cloud: Enum.uniq(Tags.in_use(archived) ++ (socket.assigns[:archive_tags] || [])),
+      archive_cloud:
+        Enum.uniq(Tags.in_use(team(), archived) ++ (socket.assigns[:archive_tags] || [])),
       archived:
         Board.filter_archived(
           archived,
@@ -739,6 +745,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     <div id={@id} class="team-idea-board space-y-5" data-board-target={"##{@id}"}>
       <TeamGoals.strip
         strip={@goals_strip}
+        team={team()}
         founder={@founder}
         myself={@myself}
         downvote_for={@goal_downvote_for}
@@ -819,7 +826,10 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
                   phx-target={@myself}
                   class="font-semibold underline"
                 >{m.idea.title}</a>
-                <span class="text-xs text-[var(--paper-muted)]">({Transitions.label(m.idea.column)})</span>
+                <span class="text-xs text-[var(--paper-muted)]">({Transitions.label(
+                  team(),
+                  m.idea.column
+                )})</span>
                 <span :if={m.done} data-role="done" class="text-xs font-semibold">This work is done.</span>
                 <span :if={m.reason != ""} class="block text-xs text-[var(--paper-muted)]">{m.reason}</span>
               </li>
@@ -1030,8 +1040,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   # The decorative portrait for the columns that a bot owns.
   @spec portrait(String.t()) :: String.t() | nil
-  defp portrait("refining"), do: "/images/team/case-640.webp"
-  defp portrait("building"), do: "/images/team/bobby-640.webp"
+  defp portrait("refining"), do: "/images/team/#{Team.bot(team(), :refiner)}-640.webp"
+  defp portrait("building"), do: "/images/team/#{Team.bot(team(), :builder)}-640.webp"
   defp portrait(_column), do: nil
 
   # The accessible name of the sort toggle: the current order and the action.
@@ -1102,7 +1112,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         id={"board-col-#{@column}-title"}
         class="flex items-baseline justify-between px-1 pb-1 font-serif text-base font-bold"
       >
-        {Transitions.label(@column)}
+        {Transitions.label(team(), @column)}
         <span class="font-sans text-xs font-normal text-[var(--paper-muted)]">{length(@cards)}</span>
       </h3>
       <%!-- The Ideas toolbar: the sort toggle, then the tag cloud. It wraps
@@ -1169,7 +1179,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       <div
         class="min-h-0 flex-1 overflow-y-auto pr-1"
         tabindex="0"
-        aria-label={"#{Transitions.label(@column)} cards"}
+        aria-label={"#{Transitions.label(team(), @column)} cards"}
       >
         <p :if={@cards == []} class="px-1 text-sm text-[var(--paper-muted)]">Nothing here yet.</p>
         <ul class="grid min-w-0 grid-cols-1 gap-1.5">
@@ -1210,7 +1220,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
                   {look.blocker}
                 </span>
                 <span
-                  :if={(tags = Tags.of(idea)) != []}
+                  :if={(tags = Tags.of(team(), idea)) != []}
                   id={"tile-#{idea.id}-tags"}
                   data-role="tags"
                   class="mt-0.5 flex flex-wrap gap-0.5"
@@ -1224,7 +1234,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
                 </span>
               </span>
               <span
-                :if={hint = Typing.hint(@typing[idea.id] || [], @founder)}
+                :if={hint = Typing.hint(team(), @typing[idea.id] || [], @founder)}
                 id={"tile-#{idea.id}-typing"}
                 class="shrink-0"
                 role="img"
@@ -1404,7 +1414,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   attr :myself, :any, required: true
   attr :drafts, :map, default: %{}
 
-  # Case's open questions: each has a text box and a Defer toggle (Defer
+  # The refiner's open questions: each has a text box and a Defer toggle (Defer
   # disables the box). The boxes save together with the next move, when the
   # card closes, and on blur. Another founder's answer is read-only. On a
   # Done or Parked card the questions are read-only: the answers show, with
@@ -1418,7 +1428,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             {{q, a}, i} <- Enum.with_index(Board.questions(assigns.idea)),
             do: %{q: q, a: a, i: i}
           ),
-        where: Transitions.label(column)
+        where: Transitions.label(team(), column)
       )
 
     ~H"""
@@ -1649,9 +1659,12 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     %{
       faded: idea.column == "ideas" and idea.votes == [],
       needs_work: facts.down > 0,
-      blocker: Transitions.blocker(facts, idea.column),
+      blocker: Transitions.blocker(team(), facts, idea.column),
       moves:
-        for({to, :ok} <- Transitions.options(facts, idea.column, {:founder, founder}), do: to)
+        for(
+          {to, :ok} <- Transitions.options(team(), facts, idea.column, {:founder, founder}),
+          do: to
+        )
     }
   end
 
@@ -1729,6 +1742,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         facts: draft_facts(idea, assigns.drafts, assigns.founder),
         buttons:
           Transitions.buttons(
+            team(),
             draft_facts(idea, assigns.drafts, assigns.founder),
             idea.column,
             {:founder, assigns.founder}
@@ -1741,7 +1755,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           end,
         r: idea.refinement || %{},
         archivable:
-          not assigns.qa and Transitions.archivable?(idea.column, {:founder, assigns.founder})
+          not assigns.qa and
+            Transitions.archivable?(team(), idea.column, {:founder, assigns.founder})
       )
 
     ~H"""
@@ -1770,11 +1785,11 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
               Needs work
             </span>
             <span
-              :if={Transitions.blocker(@facts, @idea.column)}
+              :if={Transitions.blocker(team(), @facts, @idea.column)}
               id={"card-#{@idea.id}-reason"}
               class="badge badge-ghost badge-sm h-auto"
             >
-              {Transitions.blocker(@facts, @idea.column)}
+              {Transitions.blocker(team(), @facts, @idea.column)}
             </span>
             <span :if={@idea.decision_sha} class="badge badge-ghost badge-sm">Decision logged</span>
           </p>
@@ -1958,7 +1973,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             </label>
             <div class="flex flex-wrap gap-2">
               <button type="submit" class="min-h-11 rounded border px-3 font-semibold">
-                Move to {Transitions.label(@comment_to)}
+                Move to {Transitions.label(team(), @comment_to)}
               </button>
               <button
                 type="button"
@@ -2008,7 +2023,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           >
             <input type="hidden" name="card_id" value={@idea.id} />
             <label class="grid gap-1">
-              Comment for Bobby (optional) <textarea
+              Comment for {Team.bot_name(team(), :builder)} (optional) <textarea
                 id={"card-#{@idea.id}-answer-comment"}
                 name="comment"
                 phx-update="ignore"
@@ -2055,9 +2070,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
         <.questions idea={@idea} founder={@founder} myself={@myself} drafts={@drafts} />
 
-        <section aria-label="Case's refinement" class="space-y-1">
+        <section aria-label={"#{Team.bot_name(team(), :refiner)}'s refinement"} class="space-y-1">
           <div class="flex items-center justify-between gap-2">
-            <h5 class="font-semibold">Case's refinement</h5>
+            <h5 class="font-semibold">{Team.bot_name(team(), :refiner)}'s refinement</h5>
             <button
               :if={@idea.column == "refining" and @editing != @idea.id}
               type="button"
@@ -2065,14 +2080,14 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
               phx-click="edit_refinement"
               phx-value-card_id={@idea.id}
               phx-target={@myself}
-              aria-label="Edit Case's refinement"
+              aria-label={"Edit #{Team.bot_name(team(), :refiner)}'s refinement"}
               class="min-h-11 rounded border px-3 text-xs font-semibold"
             >
               Edit
             </button>
           </div>
           <p :if={@r == %{}} class="text-xs text-[var(--paper-muted)]">
-            Case has not written it yet.
+            {Team.bot_name(team(), :refiner)} has not written it yet.
           </p>
           <dl
             :if={@r != %{} and @editing != @idea.id}
@@ -2193,7 +2208,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           <h5 class="font-semibold">Tags</h5>
           <ul class="flex flex-wrap gap-1">
             <li
-              :for={tag <- Tags.of(@idea)}
+              :for={tag <- Tags.of(team(), @idea)}
               data-tag={tag}
               class="badge badge-outline gap-1 h-auto min-h-7"
             >
@@ -2238,7 +2253,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         <section aria-label="Links" class="space-y-1">
           <h5 class="font-semibold">Links</h5>
           <p :if={@idea.links == []} class="text-xs text-[var(--paper-muted)]">
-            No links yet. Bobby and Gentry add the PR and the playtest run.
+            No links yet. {Team.bot_name(team(), :builder)} and {Team.bot_name(team(), :checker)} add the PR and the playtest run.
           </p>
           <ul id={"card-#{@idea.id}-links"} class="space-y-0.5">
             <li :for={l <- @idea.links} data-kind={l.kind}>
@@ -2301,7 +2316,9 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           >
             <input type="hidden" name="card_id" value={@idea.id} />
             <label class="grid gap-1" for={"card-#{@idea.id}-comment-body"}>
-              Comment. Write @ and a name to ping a founder, or @founders to ping all founders. @case, @bobby or @gentry wakes that bot. @devops wakes all three bots.
+              Comment. Write @ and a name to ping a founder, or @founders to ping all founders. {Team.bot_mentions(
+                team()
+              )} wakes that bot. @devops wakes all {Team.count_word(length(team().bots))} bots.
             </label>
             <div class="relative">
               <textarea
@@ -2311,7 +2328,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
                 rows="2"
                 required
                 phx-hook="MentionSuggest"
-                data-handles={Jason.encode!(Mentions.suggestions())}
+                data-handles={Jason.encode!(Mentions.suggestions(team()))}
                 aria-autocomplete="list"
                 aria-controls={"card-#{@idea.id}-mention-list"}
                 aria-describedby={"card-#{@idea.id}-typing"}
@@ -2333,7 +2350,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
               aria-live="polite"
               class="min-h-5 text-xs italic text-[var(--paper-muted)]"
             >
-              {Typing.hint(@typing[@idea.id] || [], @founder)}
+              {Typing.hint(team(), @typing[@idea.id] || [], @founder)}
             </p>
             <button type="submit" class="min-h-11 rounded border px-3">Comment</button>
           </form>
@@ -2342,7 +2359,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         <section aria-label="History" class="text-xs text-[var(--paper-muted)]">
           <h5 class="font-semibold">History</h5>
           <ol id={"card-#{@idea.id}-history"}>
-            <li :for={e <- History.entries(@idea)} data-kind={e.kind}>
+            <li :for={e <- History.entries(team(), @idea)} data-kind={e.kind}>
               <span :if={e.kind != :decision}>{who(e.actor)} </span>{e.text}<.history_link
                 :if={e.link}
                 link={e.link}
@@ -2494,7 +2511,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
                 <p :if={info.reason} data-role="archive-reason" class="break-words text-xs">
                   {info.reason}
                 </p>
-                <span :if={(tags = Tags.of(idea)) != []} class="mt-0.5 flex flex-wrap gap-0.5">
+                <span :if={(tags = Tags.of(team(), idea)) != []} class="mt-0.5 flex flex-wrap gap-0.5">
                   <span
                     :for={tag <- tags}
                     class="badge badge-ghost badge-xs h-auto max-w-full break-all"
@@ -2645,9 +2662,15 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   defp images(%Idea{images: images}) when is_list(images), do: images
   defp images(_idea), do: []
 
-  defp who("bot:" <> bot), do: String.capitalize(bot)
+  defp who("bot:" <> bot = actor) do
+    case Team.bot_id(team(), actor) do
+      nil -> String.capitalize(bot)
+      id -> Team.bot_name(team(), id)
+    end
+  end
+
   defp who(actor) when actor in ["board", "import"], do: String.capitalize(actor)
-  defp who(email) when is_binary(email), do: TalesForge.TeamOnline.name(email)
+  defp who(email) when is_binary(email), do: TalesForge.TeamOnline.name(team(), email)
   defp who(_), do: "someone"
 
   # A comment body as one line of HTML: the text is escaped, the mentions are
@@ -2656,7 +2679,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   defp comment_body(body) do
     (body || "")
     |> String.trim()
-    |> Mentions.segments()
+    |> then(&Mentions.segments(team(), &1))
     |> Enum.map(fn
       {:mention, s} ->
         [
@@ -2700,4 +2723,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         {:noreply, socket |> assign(delete_for: nil, archive_error: nil) |> load()}
     end
   end
+
+  # The team config: this LiveComponent is an edge.
+  defp team, do: Workflow.Team.Source.team()
 end

@@ -1,6 +1,6 @@
 defmodule TalesForge.Board.Workers.AutoDone do
   @moduledoc """
-  The board moves cards to Done by itself (Fredrik, 2026-10-10): after each
+  The board moves cards to Done by itself (founder decision, 2026-10-10): after each
   production boot (every prod deploy boots the app), a Building card whose
   linked PR's merge commit is in the running release (`GIT_SHA`;
   `TalesForge.Board.OnProd`, the Done gate) moves to Done as `bot:board`,

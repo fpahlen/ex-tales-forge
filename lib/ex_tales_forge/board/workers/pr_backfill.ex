@@ -2,7 +2,7 @@ defmodule TalesForge.Board.Workers.PrBackfill do
   @moduledoc """
   Each open normal-lane PR on a Building card waits for a founder's OK, with
   the "PR waiting for approval" badge and the Approve and Request changes
-  buttons (Fredrik, 2026-10-10, card 6d08cf7e).
+  buttons (founder decision, 2026-10-10, card 6d08cf7e).
 
   `TalesForge.Board.link_pr/1` marks a PR as waiting. A PR can also come to a
   card as a plain `pr` link (`TalesForge.Board.add_link/3`), for example a

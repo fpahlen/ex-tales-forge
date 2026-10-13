@@ -41,9 +41,9 @@ defmodule TalesForge.Board.ArchiveTest do
 
     {:ok, r} = Board.restore(a, "ada@example.com")
     assert r.column == "ideas"
-    kinds = r |> History.entries() |> Enum.map(& &1.kind)
+    kinds = r |> then(&History.entries(Workflow.Team.Source.team(), &1)) |> Enum.map(& &1.kind)
     assert :archived in kinds and :restored in kinds
-    texts = r |> History.entries() |> Enum.map(& &1.text)
+    texts = r |> then(&History.entries(Workflow.Team.Source.team(), &1)) |> Enum.map(& &1.text)
     assert "archived this card from Ideas" in texts
     assert "restored this card to Ideas" in texts
   end

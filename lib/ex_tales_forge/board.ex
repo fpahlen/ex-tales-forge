@@ -1,19 +1,24 @@
 defmodule TalesForge.Board do
   @moduledoc """
-  The founders' idea board on `/team` (tales-forge-docs
+  The founders' idea board on `/team` (docs repo
   `docs/design-idea-board.md`, decisions 2026-10-10). Production only
   (`TalesForge.AppRole.here?(:board)`).
 
   Founders add ideas and vote them up or down (one vote each, +1 or -1,
   changeable; `vote/3`); the Ideas column is ranked by
-  `TalesForge.Board.Ranking`. Case refines, founders check and comment, a
-  founder moves the card to Building (the OK, which writes the decision log
-  entry), Bobby builds, Gentry checks and Bobby moves it to Done. Who may move
+  `TalesForge.Board.Ranking`. The refiner bot refines, founders check and
+  comment, a founder moves the card to Building (the OK, which writes the
+  decision log entry), the builder bot builds, the checker bot checks and the
+  builder moves it to Done. The bot roles and names are in the team config
+  (`Workflow.Team`). Who may move
   what is `TalesForge.Board.Transitions`; every move is a `board_transitions` row,
   and what it sets off (bot pings, the decision commit) is queued in the same
   transaction (`TalesForge.Board.Events`).
 
   Changes are broadcast on `topic/0` as `{:board, :changed}`.
+
+  This module does IO (`TalesForge.Repo`), so it is an edge: it reads the
+  team config from `Workflow.Team.Source` and gives it to the pure modules.
   """
 
   import Ecto.Query
@@ -22,6 +27,7 @@ defmodule TalesForge.Board do
 
   alias Ecto.Multi
   alias TalesForge.WorkLog
+  alias Workflow.Team
 
   alias TalesForge.Board.{
     Answer,
@@ -45,7 +51,6 @@ defmodule TalesForge.Board do
   alias TalesForge.Repo
 
   @topic "board:ideas"
-  @gentry_pass "Gentry check: pass"
 
   @typedoc "Who acts (see `TalesForge.Board.Transitions`)."
   @type actor :: Transitions.actor()
@@ -123,7 +128,11 @@ defmodule TalesForge.Board do
     %{
       columns:
         Enum.map(Idea.columns(), fn column ->
-          %{id: column, label: Transitions.label(column), count: Map.get(counts, column, 0)}
+          %{
+            id: column,
+            label: Transitions.label(team(), column),
+            count: Map.get(counts, column, 0)
+          }
         end),
       totals: %{
         cards: counts |> Map.values() |> Enum.sum(),
@@ -212,18 +221,34 @@ defmodule TalesForge.Board do
     Enum.find_value(votes, &(&1.founder == founder && &1.value))
   end
 
-  @doc "True when Gentry has passed the card (a comment starting #{inspect(@gentry_pass)})."
-  @spec gentry_ok?(Idea.t()) :: boolean()
-  def gentry_ok?(%Idea{comments: comments}),
+  @doc """
+  True when the checker bot has passed the card (a comment by the checker
+  that starts with `check_pass/1`).
+
+      iex> team = Workflow.Team.example()
+      iex> pass = %TalesForge.Board.Comment{author: "bot:quill", body: "Quill check: pass. All good."}
+      iex> TalesForge.Board.check_passed?(team, %TalesForge.Board.Idea{comments: [pass]})
+      true
+      iex> TalesForge.Board.check_passed?(team, %TalesForge.Board.Idea{comments: []})
+      false
+  """
+  @spec check_passed?(Team.t(), Idea.t()) :: boolean()
+  def check_passed?(%Team{} = team, %Idea{comments: comments}),
     do:
       Enum.any?(
         comments,
-        &(&1.author == "bot:gentry" and String.starts_with?(&1.body, @gentry_pass))
+        &(&1.author == Team.actor(team, :checker) and
+            String.starts_with?(&1.body, check_pass(team)))
       )
 
-  @doc "The text a Gentry comment starts with when the check passed."
-  @spec gentry_pass() :: String.t()
-  def gentry_pass, do: @gentry_pass
+  @doc """
+  The text a checker comment starts with when the check passed.
+
+      iex> TalesForge.Board.check_pass(Workflow.Team.example())
+      "Quill check: pass"
+  """
+  @spec check_pass(Team.t()) :: String.t()
+  def check_pass(%Team{} = team), do: "#{Team.bot_name(team, :checker)} check: pass"
 
   @doc """
   Adds an idea to the Ideas column, by `founder` (an email, or `bot:<name>`
@@ -243,7 +268,7 @@ defmodule TalesForge.Board do
   defp new_tags(nil, _author), do: {:ok, []}
 
   defp new_tags(tags, author) when is_list(tags) do
-    founder_tag = Tags.founder_tag(author)
+    founder_tag = Tags.founder_tag(team(), author)
 
     Enum.reduce_while(tags, {:ok, []}, fn text, {:ok, acc} ->
       case Tags.normalize(text) do
@@ -318,18 +343,19 @@ defmodule TalesForge.Board do
           other
       end
     else
-      {:error, "Votes are closed once a card is in #{Transitions.label(idea.column)}."}
+      {:error, "Votes are closed once a card is in #{Transitions.label(team(), idea.column)}."}
     end
   end
 
   def vote(_idea, _founder, _value, _reason), do: {:error, "A vote is +1 or -1."}
 
   @doc """
-  Adds a comment by `author` (a founder email or `bot:<name>`). `@case`,
-  `@bobby`, `@gentry` wake that bot. `@devops` wakes each of the three bots
-  that has a webhook, once (see `TalesForge.Board.Mentions.wakes/2`). Only a
+  Adds a comment by `author` (a founder email or `bot:<name>`). `@<bot id>`
+  wakes that bot. `@devops` wakes each bot of the team that has a webhook,
+  once (see `TalesForge.Board.Mentions.wakes/3`). Only a
   comment by a founder wakes bots, as in the team chat: a comment by a bot
-  wakes no bot, so a bot also never wakes itself (`comment_wakes/2`). `@fredrik`, `@hakan`, ... and
+  wakes no bot, so a bot also never wakes itself (`comment_wakes/3`).
+  `@<founder handle>` and
   `@founders` add an unread ping for each founder named, except the author
   (see `TalesForge.Board.Mentions`). On an archived card a comment wakes
   no bot and pings nobody. `opts[:login]` is the author's GitHub
@@ -341,9 +367,10 @@ defmodule TalesForge.Board do
     changeset = Comment.changeset(%Comment{}, %{idea_id: idea.id, author: author, body: body})
     # A comment on an archived card stays on the card but wakes nobody.
     archived? = idea.column == "archived"
-    %{founders: mentioned} = if archived?, do: %{founders: []}, else: Mentions.parse(body)
-    founders = mentioned -- [Mentions.handle_for(opts[:login])]
-    bots = if archived?, do: [], else: comment_wakes(author, body)
+    team = team()
+    %{founders: mentioned} = if archived?, do: %{founders: []}, else: Mentions.parse(team, body)
+    founders = mentioned -- [Mentions.handle_for(team, opts[:login])]
+    bots = if archived?, do: [], else: comment_wakes(team, author, body)
 
     Multi.new()
     |> Multi.insert(:comment, changeset)
@@ -378,22 +405,22 @@ defmodule TalesForge.Board do
   bot's comment wakes no bot, so a bot never wakes itself (the team chat rule,
   `TalesForge.Chat`).
 
-      iex> TalesForge.Board.comment_wakes("bot:case", "@case and @bobby, look")
+      iex> TalesForge.Board.comment_wakes(Workflow.Team.example(), "bot:rita", "@rita and @bram, look")
       []
   """
-  @spec comment_wakes(String.t(), String.t()) :: [:case | :bobby | :gentry]
-  def comment_wakes(author, body) do
-    if TalesForge.Chat.founder?(author), do: Mentions.wakes(body), else: []
+  @spec comment_wakes(Team.t(), String.t(), String.t()) :: [atom()]
+  def comment_wakes(%Team{} = team, author, body) do
+    if TalesForge.Chat.founder?(author), do: Mentions.wakes(team, body), else: []
   end
 
   @doc """
   The bots mentioned in a comment.
 
-      iex> TalesForge.Board.mentions("@Case can you look? cc @gentry, not @bobbyx")
-      [:case, :gentry]
+      iex> TalesForge.Board.mentions(Workflow.Team.example(), "@Rita can you look? cc @quill, not @bramx")
+      [:rita, :quill]
   """
-  @spec mentions(String.t()) :: [:case | :bobby | :gentry]
-  def mentions(body), do: Mentions.parse(body, []).bots
+  @spec mentions(Team.t(), String.t()) :: [atom()]
+  def mentions(%Team{} = team, body), do: Mentions.parse(team, body, []).bots
 
   @doc """
   The unread pings of a founder (by GitHub login), one entry for each card, newest
@@ -401,7 +428,7 @@ defmodule TalesForge.Board do
   """
   @spec unread_pings(String.t()) :: [map()]
   def unread_pings(login) do
-    case Mentions.handle_for(login) do
+    case Mentions.handle_for(team(), login) do
       nil ->
         []
 
@@ -425,7 +452,7 @@ defmodule TalesForge.Board do
   @doc "Marks a founder's pings on a card as read (they opened the card)."
   @spec read_pings(String.t(), String.t()) :: non_neg_integer()
   def read_pings(idea_id, login) do
-    with handle when is_binary(handle) <- Mentions.handle_for(login),
+    with handle when is_binary(handle) <- Mentions.handle_for(team(), login),
          {n, _} when n > 0 <-
            from(p in Ping,
              where: p.idea_id == ^idea_id and p.handle == ^handle and is_nil(p.read_at)
@@ -440,8 +467,8 @@ defmodule TalesForge.Board do
 
   @doc """
   Adds a link (`kind`: pr, playtest, decision, doc, other). Only bots add
-  links (`added_by` is `bot:<name>`, through the bot API): Bobby the PR,
-  Gentry or Bobby the playtest run. Links wake nobody.
+  links (`added_by` is `bot:<name>`, through the bot API): the builder the
+  PR, the checker or the builder the playtest run. Links wake nobody.
   """
   @spec add_link(Idea.t(), String.t(), map()) :: {:ok, Idea.t()} | error()
   def add_link(%Idea{} = idea, "bot:" <> _ = added_by, attrs) do
@@ -462,8 +489,12 @@ defmodule TalesForge.Board do
     |> check_done_after(attrs["kind"] == "pr")
   end
 
-  def add_link(%Idea{}, _added_by, _attrs),
-    do: {:error, "Bots add the links: Bobby the PR, Gentry or Bobby the playtest run."}
+  def add_link(%Idea{}, _added_by, _attrs) do
+    team = team()
+    builder = Team.bot_name(team, :builder)
+    checker = Team.bot_name(team, :checker)
+    {:error, "Bots add the links: #{builder} the PR, #{checker} or #{builder} the playtest run."}
+  end
 
   @doc """
   Adds a free-text tag to a card (`TalesForge.Board.Tags`: trimmed, lower
@@ -475,7 +506,7 @@ defmodule TalesForge.Board do
 
   def add_tag(%Idea{} = idea, _founder, text) do
     with {:ok, tag} <- Tags.normalize(text) do
-      if tag in Tags.of(idea),
+      if tag in Tags.of(team(), idea),
         do: {:ok, idea},
         else:
           idea
@@ -543,17 +574,19 @@ defmodule TalesForge.Board do
   @costs ~w(S M L)
 
   @doc """
-  Case's refinement of a card in Refining: `details` (text), `open_questions`
+  The refiner's refinement of a card in Refining: `details` (text), `open_questions`
   (a list of strings), `rough_cost` (S, M or L) and `verdict` (feasible,
   feasible_with_caveats or not_feasible). Merged into what is there.
 
   `author` is the founder email or `"bot:<name>"` that makes the edit. The
-  default is Case, the bot that refines cards. The
+  default is the refiner, the bot that refines cards. The
   same transaction writes one `TalesForge.Board.Edit` row with the author,
   the time and the changed fields.
   """
-  @spec refine(Idea.t(), map(), String.t()) :: {:ok, Idea.t()} | error()
-  def refine(idea, attrs, author \\ "bot:case")
+  @spec refine(Idea.t(), map(), String.t() | nil) :: {:ok, Idea.t()} | error()
+  def refine(idea, attrs, author \\ nil)
+
+  def refine(idea, attrs, nil), do: refine(idea, attrs, Team.actor(team(), :refiner))
 
   def refine(%Idea{column: "refining"} = idea, attrs, author) when is_binary(author) do
     attrs = attrs |> Map.new(fn {k, v} -> {to_string(k), v} end) |> Map.take(@refinement_keys)
@@ -629,8 +662,8 @@ defmodule TalesForge.Board do
   end
 
   @doc """
-  The open questions of Case's refinement, each with its answer (or nil),
-  in Case's order (answers loaded).
+  The open questions of the refinement, each with its answer (or nil),
+  in the refiner's order (answers loaded).
   """
   @spec questions(Idea.t()) :: [{String.t(), Answer.t() | nil}]
   def questions(%Idea{} = idea) do
@@ -649,8 +682,8 @@ defmodule TalesForge.Board do
   A founder answers one open question (`attrs`: `"answer"`), or defers it
   (`"deferred"`: true / false). Any founder may defer or undefer; an answer
   can be changed only by the founder who wrote it. Writes a line in the
-  card's history; while the card is in Refining it wakes Case
-  (`question.answered`, see `TalesForge.Board.Transitions.event_wakes/2`).
+  card's history; while the card is in Refining it wakes the refiner
+  (`question.answered`, see `TalesForge.Board.Transitions.event_wakes/3`).
   """
   @spec answer_question(Idea.t(), String.t(), String.t(), map()) :: {:ok, Idea.t()} | error()
   def answer_question(%Idea{}, "bot:" <> _, _question, _attrs),
@@ -777,7 +810,7 @@ defmodule TalesForge.Board do
   def pr_waiting?(%Idea{} = idea), do: pr_state(idea) == :awaiting
 
   @doc """
-  The card's PR number (links loaded): the one Bobby linked for approval,
+  The card's PR number (links loaded): the one the builder linked for approval,
   else the first `pr` link that points at a pull request; nil for none.
   """
   @spec pr_number_of(Idea.t()) :: pos_integer() | nil
@@ -824,7 +857,7 @@ defmodule TalesForge.Board do
         do: Map.put(base_facts, :pr_on_prod, TalesForge.Board.OnProd.check(pr_number_of(idea))),
         else: base_facts
 
-    with :ok <- Transitions.allowed?(facts, idea.column, to, actor) do
+    with :ok <- Transitions.allowed?(team(), facts, idea.column, to, actor) do
       Multi.new()
       |> Multi.update(:idea, Idea.update_changeset(idea, %{column: to}))
       |> Multi.insert(
@@ -930,7 +963,7 @@ defmodule TalesForge.Board do
     q = query |> to_string() |> String.trim() |> String.downcase()
 
     cards
-    |> Tags.filter(tags)
+    |> then(&Tags.filter(team(), &1, tags))
     |> Enum.filter(fn card ->
       q == "" or
         String.contains?(String.downcase(card.title || ""), q) or
@@ -940,7 +973,7 @@ defmodule TalesForge.Board do
 
   @doc """
   Archives a card in Ideas or Parked for a founder, with a short `reason`
-  (necessary). Bots and the Gentry QA session cannot archive. The move is a
+  (necessary). Bots and the QA session cannot archive. The move is a
   transition, so it is in the card's history.
   """
   @spec archive(Idea.t(), String.t(), String.t() | nil) :: {:ok, Idea.t()} | error()
@@ -959,7 +992,7 @@ defmodule TalesForge.Board do
 
   @doc """
   Deletes an archived card for good (spam or a duplicate), for a founder
-  only: not a bot, not the Gentry QA session. `confirm_title` must be the
+  only: not a bot, not the QA session. `confirm_title` must be the
   card's title (trimmed, any case). The card's votes, comments, history and
   images go with it. A `board_deletions` row and a server log line record
   the delete.
@@ -1128,10 +1161,10 @@ defmodule TalesForge.Board do
   def collab_imported?, do: TalesForge.Collab.read_only?()
 
   @doc """
-  Bobby puts a PR up for a founder's merge OK (decision 2026-10-10; only
+  The builder puts a PR up for a founder's merge OK (decision 2026-10-10; only
   normal-lane PRs, fast-lane PRs need no OK). `attrs`: `number`, `url`,
   `head_sha`, `player_note` (one line: what changes for players), and either
-  `idea_id` (an existing card) or `title` (a new card, which Bobby makes in
+  `idea_id` (an existing card) or `title` (a new card, which the builder makes in
   Building). The card gets the PR fields and a `pr` link and stays in
   Building with "PR waiting for approval" (decision 2026-10-10, 15:08), with a
   line in the move log.
@@ -1143,7 +1176,7 @@ defmodule TalesForge.Board do
     keeps its one approval request.
   - After an Approve: the approval is kept for the new head sha (a new
     `TalesForge.Board.Approval` row for the same founder), the history gets
-    "New commit <sha> after approval; approval kept", and Bobby gets
+    "New commit <sha> after approval; approval kept", and the builder gets
     `pr.approved` again with the newest head, so the merge uses that head.
   - With `player_change: true` (the change alters what the PR does for
     players), or after Request changes: the PR waits for a founder's OK
@@ -1196,12 +1229,16 @@ defmodule TalesForge.Board do
     end
   end
 
-  # Bobby builds a PR that has no card yet: a new card, made in Building.
+  # The builder builds a PR that has no card yet: a new card, made in Building.
   defp create_building_card(title, body) do
     Multi.new()
     |> Multi.insert(
       :idea,
-      Idea.create_changeset(%Idea{}, %{"title" => title, "body" => body, "author" => "bot:bobby"})
+      Idea.create_changeset(%Idea{}, %{
+        "title" => title,
+        "body" => body,
+        "author" => Team.actor(team(), :builder)
+      })
     )
     |> Multi.update(:building, fn %{idea: idea} ->
       Idea.update_changeset(idea, %{column: "building"})
@@ -1210,8 +1247,8 @@ defmodule TalesForge.Board do
       Transition.changeset(%Transition{}, %{
         idea_id: idea.id,
         to: "building",
-        actor: "bot:bobby",
-        note: "Bobby made this card for a PR."
+        actor: Team.actor(team(), :builder),
+        note: "#{Team.bot_name(team(), :builder)} made this card for a PR."
       })
     end)
     |> run()
@@ -1224,7 +1261,7 @@ defmodule TalesForge.Board do
   defp put_pr(idea, _number, _attrs),
     do:
       {:error,
-       "Bobby links a PR to a card in Building. This card is in #{Transitions.label(idea.column)}."}
+       "#{Team.bot_name(team(), :builder)} links a PR to a card in Building. This card is in #{Transitions.label(team(), idea.column)}."}
 
   defp write_pr(idea, number, attrs) do
     note = String.trim(attrs["player_note"])
@@ -1246,7 +1283,7 @@ defmodule TalesForge.Board do
         idea_id: idea.id,
         from: idea.column,
         to: idea.column,
-        actor: "bot:bobby",
+        actor: Team.actor(team(), :builder),
         note: relink_note(relink, number, sha, note)
       })
     end)
@@ -1263,7 +1300,7 @@ defmodule TalesForge.Board do
               kind: "pr",
               url: attrs["url"],
               label: "PR ##{number}",
-              added_by: "bot:bobby"
+              added_by: Team.actor(team(), :builder)
             })
           )
     end)
@@ -1304,7 +1341,7 @@ defmodule TalesForge.Board do
     do: "New commit #{short(sha)} after approval; approval kept."
 
   # The approval stays with the newest head: a new approval row for the same
-  # founder, and pr.approved wakes Bobby with the newest head for the merge.
+  # founder, and pr.approved wakes the builder with the newest head for the merge.
   defp keep_approval(multi, {:kept, approval}, idea, number, url, sha) do
     multi
     |> Multi.insert(
@@ -1363,12 +1400,12 @@ defmodule TalesForge.Board do
   def mark_pr_waiting(%Idea{} = idea, _number, _url, _head_sha),
     do:
       {:error,
-       "A PR waits for approval on a card in Building. This card is in #{Transitions.label(idea.column)}."}
+       "A PR waits for approval on a card in Building. This card is in #{Transitions.label(team(), idea.column)}."}
 
   @doc """
   A founder answers the PR on a card: `:approve` or `:request_changes`, with
   an optional `comment`. Records who, when, the PR number and its head sha
-  (`TalesForge.Board.Approval`), writes a line in the history and wakes Bobby
+  (`TalesForge.Board.Approval`), writes a line in the history and wakes the builder
   (`pr.approved` / `pr.changes_requested`). Approving also moves the card from
   Founder check to Building (`TalesForge.Board.Transitions`: Approve is the
   gate). Request changes keeps the card in Founder check.
@@ -1433,7 +1470,7 @@ defmodule TalesForge.Board do
   end
 
   defp answer_allowed(idea, founder, _approve?),
-    do: Transitions.pr_answer(facts(idea), idea.column, actor_of(founder))
+    do: Transitions.pr_answer(team(), facts(idea), idea.column, actor_of(founder))
 
   defp actor_of("bot:" <> bot), do: {:bot, bot}
   defp actor_of(founder), do: {:founder, founder}
@@ -1471,4 +1508,7 @@ defmodule TalesForge.Board do
 
   defp normalize("bot:" <> _ = bot), do: bot
   defp normalize(email) when is_binary(email), do: email |> String.trim() |> String.downcase()
+
+  # The team config: this module is an edge (it does IO).
+  defp team, do: Workflow.Team.Source.team()
 end

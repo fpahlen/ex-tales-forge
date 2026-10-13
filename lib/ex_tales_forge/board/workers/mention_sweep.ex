@@ -1,7 +1,7 @@
 defmodule TalesForge.Board.Workers.MentionSweep do
   @moduledoc """
   Finds unanswered bot mentions (bot cost cut, decision 2026-10-13 "Bot work
-  in Elixir"; it replaces Case's sweep every 15 minutes). Every 15 minutes
+  in Elixir"; it replaces the refiner's sweep every 15 minutes). Every 15 minutes
   (`Oban.Plugins.Cron`, config), production only (`TalesForge.AppRole`).
 
   A mention is unanswered when a founder mentions a bot in a board comment or
@@ -10,12 +10,14 @@ defmodule TalesForge.Board.Workers.MentionSweep do
   card, or the chat).
 
   When the count is above 0, one `TalesForge.Board.Workers.Notify` job wakes
-  Case with the list (event `mention.unanswered`). When the count is 0, no bot
-  wakes. The same list wakes Case only once in 24 hours (Oban `unique` on the
+  the refiner bot (team config, `Workflow.Team`) with the list (event
+  `mention.unanswered`). When the count is 0, no bot wakes. The same list
+  wakes the refiner only once in 24 hours (Oban `unique` on the
   mention ids).
 
   `unanswered/3` is the pure decision over plain `%Mention{}` and `%Reply{}`
-  structs. `run/1` reads the rows and adds the job.
+  structs. `run/1` is the edge: it reads the rows and the team config, and
+  adds the job.
   """
   use Oban.Worker, queue: :board, max_attempts: 3, unique: [period: 300]
 
@@ -57,12 +59,12 @@ defmodule TalesForge.Board.Workers.MentionSweep do
   old or older, and with no later reply by that bot in the same place.
 
       iex> alias TalesForge.Board.Workers.MentionSweep.{Mention, Reply}
-      iex> m = %Mention{id: "c1", place: "card1", bot: :bobby, author: "ada@x.se",
+      iex> m = %Mention{id: "c1", place: "card1", bot: :bram, author: "ada@x.se",
       ...>   at: ~U[2026-10-13 07:00:00Z]}
       iex> now = ~U[2026-10-13 08:00:00Z]
       iex> TalesForge.Board.Workers.MentionSweep.unanswered([m], [], now) |> length()
       1
-      iex> reply = %Reply{place: "card1", author: "bot:bobby", at: ~U[2026-10-13 07:05:00Z]}
+      iex> reply = %Reply{place: "card1", author: "bot:bram", at: ~U[2026-10-13 07:05:00Z]}
       iex> TalesForge.Board.Workers.MentionSweep.unanswered([m], [reply], now)
       []
   """
@@ -78,15 +80,15 @@ defmodule TalesForge.Board.Workers.MentionSweep do
     do: r.place == m.place and r.author == "bot:#{m.bot}" and DateTime.compare(r.at, m.at) == :gt
 
   @doc "The wake job for a list of unanswered mentions, or nil for an empty list."
-  @spec job([Mention.t()]) :: Oban.Job.changeset() | nil
-  def job([]), do: nil
+  @spec job(Workflow.Team.t(), [Mention.t()]) :: Oban.Job.changeset() | nil
+  def job(_team, []), do: nil
 
-  def job(mentions) do
+  def job(team, mentions) do
     ids = mentions |> Enum.map(& &1.id) |> Enum.sort()
 
     Notify.new(
       %{
-        "bot" => "case",
+        "bot" => team |> Workflow.Team.bot(:refiner) |> Atom.to_string(),
         "event" => "mention.unanswered",
         "delivery_id" => Ecto.UUID.generate(),
         "ids" => ids,
@@ -117,10 +119,11 @@ defmodule TalesForge.Board.Workers.MentionSweep do
   @spec run(DateTime.t()) :: {:ok, non_neg_integer()}
   def run(now) do
     since = DateTime.add(now, -@window_s)
-    {mentions, replies} = read(since)
+    team = Workflow.Team.Source.team()
+    {mentions, replies} = read(team, since)
     found = unanswered(mentions, replies, now)
 
-    case job(found) do
+    case job(team, found) do
       nil -> :ok
       job -> {:ok, _} = Oban.insert(job)
     end
@@ -128,7 +131,7 @@ defmodule TalesForge.Board.Workers.MentionSweep do
     {:ok, length(found)}
   end
 
-  defp read(since) do
+  defp read(team, since) do
     comments =
       Repo.all(
         from(c in Comment,
@@ -149,7 +152,7 @@ defmodule TalesForge.Board.Workers.MentionSweep do
 
     mentions =
       for row <- rows,
-          bot <- Mentions.parse(row.body || "", []).bots,
+          bot <- Mentions.parse(team, row.body || "", []).bots,
           do: %Mention{
             id: "#{row.id}:#{bot}",
             place: row.place,

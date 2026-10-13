@@ -157,8 +157,8 @@ defmodule TalesForge.Board.OutboxTest do
     {:ok, _} = Board.add_comment(idea, "bot:case", "@bobby how big is this? cc @case")
     {:ok, _} = Board.add_comment(idea, "bot:bobby", "@bobby I start now. @devops")
     refute_receive {:request, _, _, _, _}
-    assert Board.comment_wakes("bot:case", "@case") == []
-    assert Board.comment_wakes(@ada, "@case") == [:case]
+    assert Board.comment_wakes(Workflow.Team.Source.team(), "bot:case", "@case") == []
+    assert Board.comment_wakes(Workflow.Team.Source.team(), @ada, "@case") == [:case]
   end
 
   test "a @mention wakes that bot" do

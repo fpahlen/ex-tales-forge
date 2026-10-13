@@ -114,7 +114,7 @@ defmodule TalesForge.PrFeed do
 
   @doc "The repo the feed follows, `owner/name` (config `TalesForge.PrFeed`, `:repo`)."
   @spec repo() :: String.t()
-  def repo, do: config(:repo, "whyse-ab/ex-tales-forge")
+  def repo, do: config(:repo, Workflow.Team.repo(Workflow.Team.Source.team()))
 
   @doc "The GitHub token (`GITHUB_FEED_TOKEN`), or nil when unset or blank."
   @spec token() :: String.t() | nil
@@ -232,7 +232,7 @@ defmodule TalesForge.PrFeed do
   has `:commits`, which the poller gives only when both the pull requests and
   the commits of main were read in full; otherwise it is nil.
 
-      iex> pr = %{number: 7, title: "Add the inn", author: "bobby", url: nil, state: :merged,
+      iex> pr = %{number: 7, title: "Add the inn", author: "bram", url: nil, state: :merged,
       ...>   draft: false, head_sha: "h7", merge_sha: "m7", created_at: ~U[2026-10-08 08:00:00Z],
       ...>   merged_at: ~U[2026-10-09 09:00:00Z], closed_at: ~U[2026-10-09 09:00:00Z],
       ...>   updated_at: ~U[2026-10-09 09:00:00Z]}

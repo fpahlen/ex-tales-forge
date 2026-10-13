@@ -17,13 +17,13 @@ defmodule TalesForgeWeb.TeamLive do
   The crew cards moved to the presentation (decision 2026-10-10). Old links
   still work: the `TeamAnchorRedirect` hook (`assets/js/team_hooks.js`)
   replaces `/team#playtests` and the other
-  `TalesForgeWeb.TeamPresentationLive.anchors/0` with the same anchor on the
+  `TalesForgeWeb.TeamPresentationLive.anchors/1` with the same anchor on the
   presentation, and the old crew anchors (`aliases/0`, e.g. `#crew`,
   `#crew-case`) with the crew on the presentation.
 
   Behind the GitHub team sign-in like every page (router `:browser` pipeline
   plus the `:require_team_member` mount hook). Read-only; copy follows
-  tales-forge-docs `docs/team-page/content.md`; numbers come from
+  the docs repo `docs/team-page/content.md`; numbers come from
   `TalesForge.TeamPage`.
   """
 
@@ -61,16 +61,17 @@ defmodule TalesForgeWeb.TeamLive do
   The old crew anchors of this page and where they land now: the crew on the
   presentation (the section, or that member's card).
 
-      iex> TalesForgeWeb.TeamLive.aliases()["crew"]
+      iex> team = Workflow.Team.example()
+      iex> TalesForgeWeb.TeamLive.aliases(team)["crew"]
       "/team/presentation#team"
-      iex> TalesForgeWeb.TeamLive.aliases()["presentation"]
+      iex> TalesForgeWeb.TeamLive.aliases(team)["presentation"]
       "/team/presentation"
-      iex> TalesForgeWeb.TeamLive.aliases()["crew-case"]
-      "/team/presentation#member-case"
+      iex> TalesForgeWeb.TeamLive.aliases(team)["crew-rita"]
+      "/team/presentation#member-rita"
   """
-  @spec aliases() :: %{String.t() => String.t()}
-  def aliases do
-    members = ~w(founders case bobby gentry)
+  @spec aliases(Workflow.Team.t()) :: %{String.t() => String.t()}
+  def aliases(%Workflow.Team{} = team) do
+    members = ["founders" | Workflow.Team.bot_handles(team)]
 
     Map.new(
       [
@@ -93,8 +94,9 @@ defmodule TalesForgeWeb.TeamLive do
      |> tap(fn s -> if connected?(s) and board_here?(), do: TalesForge.Board.subscribe() end)
      |> assign(:d, TeamPage.data())
      |> assign(:nav, @nav)
-     |> assign(:anchors, Jason.encode!(TeamPresentationLive.anchors()))
-     |> assign(:aliases, Jason.encode!(aliases()))
+     |> assign(:anchors, Jason.encode!(TeamPresentationLive.anchors(Workflow.Team.Source.team())))
+     |> assign(:team, Workflow.Team.Source.team())
+     |> assign(:aliases, Jason.encode!(aliases(Workflow.Team.Source.team())))
      |> assign_stats()}
   end
 
@@ -156,14 +158,18 @@ defmodule TalesForgeWeb.TeamLive do
       >
         Skip to content
       </a>
-      <TeamLayout.header socket={assigns[:socket]} page={:landing} items={@nav} />
+      <TeamLayout.header team={@team} socket={assigns[:socket]} page={:landing} items={@nav} />
 
       <main
         id="team-main"
         tabindex="-1"
         class="mx-auto max-w-6xl space-y-16 px-4 pb-16 pt-8 sm:px-6 sm:pt-12"
       >
-        <TeamLayout.qa_banner qa={assigns[:qa] == true} read_only={assigns[:read_only] == true} />
+        <TeamLayout.qa_banner
+          team={@team}
+          qa={assigns[:qa] == true}
+          read_only={assigns[:read_only] == true}
+        />
         <TeamWorkspace.header stats={assigns[:stats]} />
         <.going_to_do
           board?={assigns[:board?] || false}
@@ -179,7 +185,7 @@ defmodule TalesForgeWeb.TeamLive do
         <.presentation />
       </main>
 
-      <TeamLayout.footer d={@d} />
+      <TeamLayout.footer team={@team} d={@d} />
       <Layouts.flash_group flash={@flash} />
     </div>
     """

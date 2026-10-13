@@ -51,8 +51,8 @@ defmodule TalesForge.Board.MentionSweepTest do
   end
 
   test "no job when the count is 0; one Case job with the list otherwise" do
-    assert MentionSweep.job([]) == nil
-    job = MentionSweep.job([mention(%{})])
+    assert MentionSweep.job(Workflow.Team.Source.team(), []) == nil
+    job = MentionSweep.job(Workflow.Team.Source.team(), [mention(%{})])
     assert job.changes.args["bot"] == "case"
     assert job.changes.args["event"] == "mention.unanswered"
     assert job.changes.args["ids"] == ["c1"]

@@ -8,13 +8,14 @@ defmodule TalesForge.BoardApi do
   The implementing module is config `:ex_tales_forge, :board_api`. `impl/0`
   returns it only when it is loaded; otherwise the API is off (404).
 
-  Bots are `:case`, `:bobby` and `:gentry`. Each has its own bearer token,
+  The bots are the bots of the team config (`Workflow.Team`). Each has its
+  own bearer token,
   config `:ex_tales_forge, :board_bots` (`BOARD_BOT_TOKEN_<BOT>`), read by
   `bot_for_token/1`.
   """
 
   @typedoc "A bot that may call the board API."
-  @type bot :: :case | :bobby | :gentry
+  @type bot :: atom()
 
   @typedoc "An API action, one per route."
   @type action :: :index | :show | :create | :refine | :move | :link | :comment | :pr
@@ -25,11 +26,9 @@ defmodule TalesForge.BoardApi do
   @doc "Handles one API call by `bot` with the request `params` (path and body merged)."
   @callback handle(action(), bot(), map()) :: answer()
 
-  @bots [:case, :bobby, :gentry]
-
-  @doc "The bots, in order."
+  @doc "The bots, in order (the team config, `Workflow.Team.bot_ids/1`)."
   @spec bots() :: [bot()]
-  def bots, do: @bots
+  def bots, do: Workflow.Team.bot_ids(Workflow.Team.Source.team())
 
   @doc "The board module when it is configured and loaded, else nil."
   @spec impl() :: module() | nil
@@ -56,7 +55,7 @@ defmodule TalesForge.BoardApi do
       token ->
         given = :crypto.hash(:sha256, token)
 
-        Enum.find(@bots, &token_matches?(&1, given))
+        Enum.find(bots(), &token_matches?(&1, given))
     end
   end
 

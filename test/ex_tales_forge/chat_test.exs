@@ -29,7 +29,7 @@ defmodule TalesForge.ChatTest do
   end
 
   test "founder mentions give an unread badge until the founder opens the chat" do
-    # Handles come from GitHub logins (config :board_founder_handles).
+    # Handles come from GitHub logins (the team config, priv/team/data.json).
     {:ok, _} = Chat.post(@fredrik, "@max can you look? cc @fredrik", login: "fpahlen")
     {:ok, _} = Chat.post(@fredrik, "@founders standup at 16", login: "fpahlen")
 

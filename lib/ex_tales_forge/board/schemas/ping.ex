@@ -1,6 +1,6 @@
 defmodule TalesForge.Board.Ping do
   @moduledoc """
-  A ping to a founder (`board_pings`): a comment named them (`@hakan`) or
+  A ping to a founder (`board_pings`): a comment named them (`@<handle>`) or
   all founders (`@founders`). It stays unread until the founder opens the card.
   """
   use Ecto.Schema

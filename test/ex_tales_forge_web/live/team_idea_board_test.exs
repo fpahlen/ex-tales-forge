@@ -1213,7 +1213,10 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
       assert has_element?(view, "#board-col-ideas #tile-#{b.id}")
 
       texts =
-        b.id |> Board.get_idea() |> TalesForge.Board.History.entries() |> Enum.map(& &1.text)
+        b.id
+        |> Board.get_idea()
+        |> then(&TalesForge.Board.History.entries(Workflow.Team.Source.team(), &1))
+        |> Enum.map(& &1.text)
 
       assert "archived this card from Ideas" in texts
       assert "restored this card to Ideas" in texts

@@ -1,7 +1,7 @@
 defmodule TalesForge.WorkLog do
   @moduledoc """
   The founders' work log (board card "Work time auto log"; decision
-  2026-10-12 "Work time auto log" in tales-forge-docs).
+  2026-10-12 "Work time auto log" in the docs repo).
 
   Each founder action writes one `TalesForge.WorkLog.Event` in the same
   transaction as the action. The v1 actions are in `kinds/0`. Bots and

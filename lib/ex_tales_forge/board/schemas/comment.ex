@@ -1,5 +1,5 @@
 defmodule TalesForge.Board.Comment do
-  @moduledoc "A comment on a card (`board_comments`), by a founder (email) or a bot (`bot:case`)."
+  @moduledoc "A comment on a card (`board_comments`), by a founder (email) or a bot (`bot:<id>`)."
   use Ecto.Schema
   import Ecto.Changeset
 

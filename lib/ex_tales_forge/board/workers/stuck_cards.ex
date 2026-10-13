@@ -1,7 +1,7 @@
 defmodule TalesForge.Board.Workers.StuckCards do
   @moduledoc """
   Reminds about stuck cards (bot cost cut, decision 2026-10-13 "Bot work in
-  Elixir"; it replaces Case's hourly stuck card check). Hourly
+  Elixir"; it replaces the refiner's hourly stuck card check). Hourly
   (`Oban.Plugins.Cron`, config), production only (`TalesForge.AppRole`).
 
   A card is stuck when it is in Building for 1 hour or more and has no linked

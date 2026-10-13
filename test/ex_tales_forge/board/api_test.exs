@@ -76,7 +76,7 @@ defmodule TalesForge.Board.ApiTest do
                "body" => "Clean."
              })
 
-    assert body =~ Board.gentry_pass()
+    assert body =~ Board.check_pass(Workflow.Team.Source.team())
   end
 
   describe "POST /ideas (create)" do

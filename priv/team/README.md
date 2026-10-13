@@ -12,9 +12,14 @@ no file or network IO on a request, a broken file fails the build and CI
 instead of the page, and the tests check the exact file that ships. A `null`
 or missing value shows as "not measured yet"; never put a guess in.
 
-To refresh the numbers, copy the docs file and open a PR:
+To refresh the numbers, copy the docs file, put back the `workflow` block
+(see "Team config" below) and open a PR:
 
-    cp ../tales-forge-docs/docs/team-page/data.json priv/team/data.json
+    jq --slurpfile w <(jq .workflow priv/team/data.json) '. + {workflow: $w[0]}' \
+      ../tales-forge-docs/docs/team-page/data.json > /tmp/data.json
+    mv /tmp/data.json priv/team/data.json
+
+A plain `cp` removes the `workflow` block, and then the build stops.
 
 Both pages show `_about.as_of` in their footer ("Numbers as of ...").
 
@@ -49,3 +54,29 @@ to it:
 
 Like every file under `priv/static/images`, they can be fetched without
 signing in (the page itself still needs the team sign-in).
+
+## Team config (Workflow)
+
+The Workflow code (the idea board, the team pages, mentions, chat, the work
+log and `TalesForge.TeamOnline`) has no team names in it. It gets them from
+one plain struct, `Workflow.Team`, that the edge reads once
+(`Workflow.Team.Source`, at compile time) and gives to each pure function as
+an argument.
+
+- `data.json`, key `workflow`: the product name, the repo URL, the docs
+  repo, the founders (name and GitHub login), the bots (id, name and role:
+  `refiner`, `builder` or `checker`), the labels of the seven board columns
+  and the goals. All teams use the same seven columns; only the labels
+  change.
+- `content.json`: the presentation text that names the product or the
+  team, by key (`Workflow.Team.text/2`). `{product}` in a text becomes the
+  product name.
+- `workflow-files.txt`: the Workflow `lib/` files. CI runs
+  `mix workflow.check_names`, which reads only these files and stops when
+  one of them has a name from the team config. The module names
+  `TalesForge` and `TalesForgeWeb` and the app name `:ex_tales_forge` are
+  shared wiring and stay for now.
+
+A bot portrait is a file pair in `priv/static/images/team/`
+(`<bot id>-avatar-192.jpg` and `<bot id>-960.jpg`, see "Illustrations"); its
+alt text is the content key `art.alt.<bot id>`.

@@ -97,6 +97,13 @@ jobs:
       - name: Admin boundary (game code never depends on admin code)
         run: mix deploy.check_boundaries
 
+      # The Workflow code (board, team pages, mentions, TeamOnline) has no
+      # team names: they are in the team config (priv/team/data.json
+      # "workflow", Workflow.Team). Reads the lib/ files in
+      # priv/team/workflow-files.txt.
+      - name: Team names (Workflow code reads them from the team config)
+        run: mix workflow.check_names
+
       - name: Credo
         run: mix credo --strict
 

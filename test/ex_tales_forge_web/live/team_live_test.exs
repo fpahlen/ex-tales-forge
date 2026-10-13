@@ -13,7 +13,14 @@ defmodule TalesForgeWeb.TeamLiveTest do
   defp render_with(data),
     do:
       rendered_to_string(
-        TeamLive.render(%{d: data, nav: [], anchors: "[]", aliases: "{}", flash: %{}})
+        TeamLive.render(%{
+          d: data,
+          nav: [],
+          anchors: "[]",
+          aliases: "{}",
+          flash: %{},
+          team: Workflow.Team.Source.team()
+        })
       )
 
   defp ids(html) do
@@ -251,7 +258,7 @@ defmodule TalesForgeWeb.TeamLiveTest do
         |> LazyHTML.query("#team-anchor-redirect")
         |> LazyHTML.attribute("data-anchors")
 
-      assert Jason.decode!(anchors) == TeamPresentationLive.anchors()
+      assert Jason.decode!(anchors) == TeamPresentationLive.anchors(Workflow.Team.Source.team())
 
       [aliases] =
         html
@@ -259,13 +266,13 @@ defmodule TalesForgeWeb.TeamLiveTest do
         |> LazyHTML.query("#team-anchor-redirect")
         |> LazyHTML.attribute("data-aliases")
 
-      assert Jason.decode!(aliases) == TeamLive.aliases()
+      assert Jason.decode!(aliases) == TeamLive.aliases(Workflow.Team.Source.team())
     end
 
     test "the old crew anchors land on the crew in the presentation" do
-      presentation = MapSet.new(TeamPresentationLive.anchors())
+      presentation = MapSet.new(TeamPresentationLive.anchors(Workflow.Team.Source.team()))
 
-      for {old, "/team/presentation#" <> anchor} <- TeamLive.aliases() do
+      for {old, "/team/presentation#" <> anchor} <- TeamLive.aliases(Workflow.Team.Source.team()) do
         assert anchor in presentation, old
         refute old in TeamLive.anchors(), old
       end
@@ -273,17 +280,25 @@ defmodule TalesForgeWeb.TeamLiveTest do
 
     test "every section and named part of the old /team maps to the presentation" do
       for {id, _label} <- TeamPresentationLive.sections(),
-          do: assert(TeamPresentationLive.presentation_path(id) == "/team/presentation##{id}")
+          do:
+            assert(
+              TeamPresentationLive.presentation_path(Workflow.Team.Source.team(), id) ==
+                "/team/presentation##{id}"
+            )
 
       for id <- ~w(team how infrastructure playtests pace together hero flow architecture
                    shadow-test eval-set gentry hostile-play ai-spend member-case
                    the-call-type-rule-one-turn-three-call-types) do
-        assert TeamPresentationLive.presentation_path(id) == "/team/presentation##{id}", id
+        assert TeamPresentationLive.presentation_path(Workflow.Team.Source.team(), id) ==
+                 "/team/presentation##{id}",
+               id
       end
 
-      assert TeamPresentationLive.presentation_path("board") == "/team/presentation#board"
-      assert TeamPresentationLive.presentation_path("nope") == nil
-      assert TeamPresentationLive.presentation_path("") == nil
+      assert TeamPresentationLive.presentation_path(Workflow.Team.Source.team(), "board") ==
+               "/team/presentation#board"
+
+      assert TeamPresentationLive.presentation_path(Workflow.Team.Source.team(), "nope") == nil
+      assert TeamPresentationLive.presentation_path(Workflow.Team.Source.team(), "") == nil
     end
 
     test "the landing page's own anchors are never redirected", %{conn: conn} do
@@ -292,10 +307,15 @@ defmodule TalesForgeWeb.TeamLiveTest do
 
       for anchor <- TeamLive.anchors() do
         assert anchor in landing_ids, anchor
-        assert TeamPresentationLive.presentation_path(anchor) == nil, anchor
+
+        assert TeamPresentationLive.presentation_path(Workflow.Team.Source.team(), anchor) == nil,
+               anchor
       end
 
-      assert MapSet.disjoint?(MapSet.new(landing_ids), MapSet.new(TeamPresentationLive.anchors()))
+      assert MapSet.disjoint?(
+               MapSet.new(landing_ids),
+               MapSet.new(TeamPresentationLive.anchors(Workflow.Team.Source.team()))
+             )
     end
 
     test "the hook only forwards known anchors and replaces the URL" do

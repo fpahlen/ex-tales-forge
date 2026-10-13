@@ -5,7 +5,7 @@ defmodule TalesForge.TeamPage do
   `TalesForgeWeb.TeamPresentationLive`), and the small helpers that turn them
   into text.
 
-  The numbers live in tales-forge-docs `docs/team-page/data.json`. A snapshot
+  The numbers live in the docs repo `docs/team-page/data.json`. A snapshot
   of that file is kept in `priv/team/data.json` and read **at compile time**
   (`@external_resource`), so the page does no file or network IO on a request,
   a broken file fails the build and CI instead of the page, and the tests read
@@ -251,8 +251,8 @@ defmodule TalesForge.TeamPage do
   The crew (`team.members`): the founders first, then the bots. An empty list
   when the data has none.
 
-      iex> TalesForge.TeamPage.members(%{"team" => %{"members" => [%{"id" => "case"}]}})
-      [%{"id" => "case"}]
+      iex> TalesForge.TeamPage.members(%{"team" => %{"members" => [%{"id" => "rita"}]}})
+      [%{"id" => "rita"}]
       iex> TalesForge.TeamPage.members(%{})
       []
   """

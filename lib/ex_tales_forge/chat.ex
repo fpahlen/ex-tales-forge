@@ -8,20 +8,23 @@ defmodule TalesForge.Chat do
     (`subscribe/0`). History stays (how long we keep it is a deferred
     question on the card).
   - Mentions use the board's one parser, `TalesForge.Board.Mentions`:
-    `@fredrik`, `@founders` and `@case`, `@bobby`, `@gentry`, `@devops`
-    (all three bots).
+    `@<founder handle>`, `@founders`, `@<bot id>` and `@devops` (all bots of
+    the team config, `Workflow.Team`).
   - A founder mention gives that founder an unread badge on the chat button
     (`unread/1`, by GitHub login) until they open the chat (`mark_read/1`). No email or push
-    (Fredrik's answer on the card).
+    (the founder's answer on the card).
   - A bot mention **by a founder** wakes the bot through the board's webhook
     outbox (`TalesForge.Board.Workers.Notify`, event `chat.mention`), in the
     same transaction as the message. A bot that mentions a bot wakes nobody,
-    to keep bot costs under control (Fredrik's answer on the card).
+    to keep bot costs under control (the founder's answer on the card).
   - A message can carry images (`TalesForge.Images`): pasted, dropped,
     picked, or one still from "Capture screen". The text is then the note
     and can be empty. The bots get the image links in the JSON (`images`).
   - Bots read and write through `GET`/`POST /internal/chat` with their board
     tokens (`TalesForgeWeb.ChatApiController`, `api/3`).
+
+  This module does IO, so it is an edge: it reads the team config from
+  `Workflow.Team.Source`.
   """
 
   import Ecto.Query
@@ -98,9 +101,10 @@ defmodule TalesForge.Chat do
   end
 
   defp insert(author, body, images, opts) do
-    %{bots: bots, founders: mentioned} = Mentions.parse(body)
-    founders = mentioned -- [Mentions.handle_for(opts[:login])]
-    wakes = if founder?(author), do: Mentions.wakes(body), else: []
+    team = team()
+    %{bots: bots, founders: mentioned} = Mentions.parse(team, body)
+    founders = mentioned -- [Mentions.handle_for(team, opts[:login])]
+    wakes = if founder?(author), do: Mentions.wakes(team, body), else: []
 
     changeset =
       Message.changeset(
@@ -146,9 +150,9 @@ defmodule TalesForge.Chat do
   @doc """
   True for a founder author (an email), false for a bot.
 
-      iex> TalesForge.Chat.founder?("fredrik@whyse.se")
+      iex> TalesForge.Chat.founder?("ada@example.com")
       true
-      iex> TalesForge.Chat.founder?("bot:case")
+      iex> TalesForge.Chat.founder?("bot:rita")
       false
   """
   @spec founder?(String.t()) :: boolean()
@@ -201,7 +205,7 @@ defmodule TalesForge.Chat do
   @doc "How many messages mention the founder with this GitHub `login` since they last opened the chat."
   @spec unread(String.t() | nil) :: non_neg_integer()
   def unread(login) do
-    case Mentions.handle_for(login) do
+    case Mentions.handle_for(team(), login) do
       nil ->
         0
 
@@ -217,7 +221,7 @@ defmodule TalesForge.Chat do
   @doc "Marks the chat as read for the founder with this GitHub `login` (they opened it)."
   @spec mark_read(String.t() | nil) :: :ok
   def mark_read(login) do
-    case Mentions.handle_for(login) do
+    case Mentions.handle_for(team(), login) do
       nil ->
         :ok
 
@@ -233,20 +237,20 @@ defmodule TalesForge.Chat do
 
   @doc "The handle of a founder's GitHub login, or nil (`TalesForge.Board.Mentions`)."
   @spec handle_for(String.t() | nil) :: String.t() | nil
-  def handle_for(login), do: Mentions.handle_for(login)
+  def handle_for(login), do: Mentions.handle_for(team(), login)
 
   @doc """
   The handle to start a message to a founder with, from their email (the
   who-is-online list knows emails, not logins): the first part of the email
   when it is a founder handle, else nil.
 
-      iex> TalesForge.Chat.handle_for_email("max@example.com", ~w(fredrik max))
-      "max"
-      iex> TalesForge.Chat.handle_for_email("hawkan.f@gmail.com", ~w(fredrik hakan))
+      iex> TalesForge.Chat.handle_for_email("lin@example.com", ~w(ada lin))
+      "lin"
+      iex> TalesForge.Chat.handle_for_email("orjan.gh@example.com", ~w(ada orjangh))
       nil
   """
   @spec handle_for_email(String.t() | nil, [String.t()]) :: String.t() | nil
-  def handle_for_email(email, handles \\ Mentions.handles())
+  def handle_for_email(email, handles \\ Mentions.handles(team()))
 
   def handle_for_email(email, handles) when is_binary(email) do
     first = email |> String.downcase() |> String.split(["@", ".", "+"]) |> hd()
@@ -257,11 +261,11 @@ defmodule TalesForge.Chat do
 
   @doc "Text and mentions of a message body, to highlight the mentions."
   @spec segments(String.t()) :: [{:text | :mention, String.t()}]
-  def segments(body), do: Mentions.segments(body)
+  def segments(body), do: Mentions.segments(team(), body)
 
   @doc "The handles the message box suggests."
   @spec suggestions() :: [String.t()]
-  def suggestions, do: Mentions.suggestions()
+  def suggestions, do: Mentions.suggestions(team())
 
   @doc """
   The bots' API (`TalesForgeWeb.ChatApiController`): `:index` gives the
@@ -277,4 +281,6 @@ defmodule TalesForge.Chat do
       {:error, cs} -> {422, %{"errors" => Ecto.Changeset.traverse_errors(cs, &elem(&1, 0))}}
     end
   end
+
+  defp team, do: Workflow.Team.Source.team()
 end
