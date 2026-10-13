@@ -11,6 +11,24 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Workflow split 2/5: Team config, how it is built (ex-tales-forge#243)
+
+- **Decision (founder picks for card 2/5, built in [ex-tales-forge#243](https://github.com/whyse-ab/ex-tales-forge/pull/243), open):**
+  1. One Workflow app per team. The data has no team id column.
+  2. All teams use the same seven board columns. The team config holds only the column labels.
+  3. The presentation text stays in repo files under `priv/team/` (`content.json`).
+  4. A CI check (`mix workflow.check_names`) stops the build when a Workflow `lib/` file has a team name. It reads only the Workflow `lib/` files in `priv/team/workflow-files.txt`.
+  5. `Workflow.Team` is a plain struct: product name, repo URL, founders, bots, column labels, goals and presentation content. Each Workflow function gets it as an argument. Only the edge reads the source (`Workflow.Team.Source`). The first source is `priv/team/data.json`, key `workflow`.
+  6. Card 6/6 (Team setup) is a separate card.
+- **Why:** another team can use Workflow with a new config and no code change. The board and the team pages show the same data as before: a render test compares `/team`, `/team/presentation` and an open card with the text from `main`.
+- **How:**
+  - Each bot has a role: refiner, builder or checker. The code asks for a role, and the config gives the bot. The bot ids and the stored `bot:<id>` actors stay the same, so the database does not change.
+  - The founder handles come from the GitHub logins in the config. The `:board_founder_handles` config entry is removed.
+  - The module names `TalesForge` and `TalesForgeWeb` and the app name stay as shared wiring until cards 3 to 5.
+- **Deploy lane: normal.** The PR changes shared board code, config and CI, so it is not admin-only. (The refinement above expected the admin lane.)
+- **Note:** a refresh of `priv/team/data.json` from `docs/team-page/data.json` must keep the `workflow` block. The command is in `priv/team/README.md` in ex-tales-forge.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-4dbf0bfc-d0ac-4673-86b1-e3e515996f31), [ex-tales-forge#243](https://github.com/whyse-ab/ex-tales-forge/pull/243)
+
 ## 2026-10-13: Workflow split 2/5: Team config
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Goal: G7, our shared workspace.
