@@ -1,7 +1,7 @@
 defmodule TalesForge.WorkflowClient do
   @moduledoc """
   The client that the product app uses to send data to Workflow. The
-  product app sends only work-log turn events (`push_turn/1`).
+  product app sends only work-log turn events.
 
   The adapter does the I/O. `TalesForge.WorkflowClient.Local` calls Workflow
   in the same release. `TalesForge.WorkflowClient.Http` posts to the
