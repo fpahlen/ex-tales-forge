@@ -28,7 +28,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
   @doc "Writes `outcome`."
   @spec apply(Turn.t()) :: Turn.t()
   def apply(%Turn{} = turn) do
-    {handler, mechanical, ruled} = Steps.time(:rules, fn -> rules(turn) end)
+    {handler, mechanical, ruled, played} = Steps.time(:rules, fn -> rules(turn) end)
     agents = agents(turn, ruled)
     {price_lines, board} = prices(turn, agents, ruled)
 
@@ -39,7 +39,8 @@ defmodule TalesForge.Game.Turn.Mechanics do
           mechanical: mechanical,
           board: board,
           agents: agents,
-          price_lines: price_lines
+          price_lines: price_lines,
+          played: played
         }
     }
   end
@@ -81,7 +82,8 @@ defmodule TalesForge.Game.Turn.Mechanics do
     # example the short sleep after a failed room payment.
     handler = if apply?, do: board.handler, else: ruled
 
-    {handler, %{rolled | improvements: board.improvements, training: board.training}, board}
+    {handler, %{rolled | improvements: board.improvements, training: board.training}, board,
+     board_action}
   end
 
   # SKILL_SPLIT=on: the split request of the player rolls each part
@@ -155,7 +157,8 @@ defmodule TalesForge.Game.Turn.Mechanics do
   defp apply_outcomes({handler, played}, _world, false), do: {played, handler}
 
   defp apply_outcomes({handler, played}, world, true) do
-    {bought, served} = TurnApply.service_buy(played, handler, world)
+    {listed, item} = TurnApply.item_buy(played, handler, world)
+    {bought, served} = TurnApply.service_buy(listed, item, world)
     {paid, priced} = TurnApply.put_spend_amount(bought, served)
 
     moved =

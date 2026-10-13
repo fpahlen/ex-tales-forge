@@ -38,7 +38,7 @@ defmodule TalesForge.IntentJev do
 
   alias TalesForge.AICalls
   alias TalesForge.Config
-  alias TalesForge.Game.{Intent, IntentClarification, JevIntent, NpcReactions, PlayerQuote}
+  alias TalesForge.Game.{Intent, IntentClarification, JevIntent, NpcReactions, PlayerQuote, Rest}
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
 
   @model "jev-1.13.0"
@@ -281,6 +281,16 @@ defmodule TalesForge.IntentJev do
     end
   end
 
+  # "I pay for a room and go to sleep" is clear: the payment now and the sleep
+  # later (JevIntent.decode/3 reads it so). The game plays it with no
+  # question. Gentry's playtest session 141e1b85 on 2026-10-13: Jev read it
+  # as wait 0.83, spend 0.10, and the game asked "wait, or pay?".
+  defp clear_lodging(:ask, %{action: action}, raw_action) when action in [:spend, :buy] do
+    if Rest.lodging_then_sleep?(raw_action), do: :act, else: :ask
+  end
+
+  defp clear_lodging(band, _reading, _raw_action), do: band
+
   @doc """
   The decision for a Jev `reading` (see `resolve/3`): pure apart from the
   clarification id. Exposed for tests and the eval.
@@ -305,6 +315,7 @@ defmodule TalesForge.IntentJev do
         :ask -> if(Keyword.get(opts, :never_ask, false), do: :best_guess, else: :ask)
         other -> other
       end
+      |> clear_lodging(reading, raw_action)
 
     safety = safety(reading)
     base_meta = reading_meta(reading, band, latency_ms)

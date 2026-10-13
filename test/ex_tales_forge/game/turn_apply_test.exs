@@ -19,7 +19,9 @@ defmodule TalesForge.Game.TurnApplyTest do
 
     adapters = %Adapters{
       npc: fn _id, world, _n, _raw, _mech, _findings -> {[], world} end,
-      gm: fn _m, _a, _h, _n, _o ->
+      gm: fn messages, _a, _h, _n, _o ->
+        send(me, {:gm_prompt, messages |> Enum.map_join("\n", &to_string(&1.content))})
+
         {:ok, %GMStructuredResponse{narrative: "The night passes."}}
       end,
       stream: fn _id, _chunk -> :ok end,
@@ -218,6 +220,95 @@ defmodule TalesForge.Game.TurnApplyTest do
                copper(s.world_state["character"]["coins"]) - @room_copper
 
       assert world["world_tick"] == tick + 32
+    end
+  end
+
+  defp gm_prompt do
+    assert_received {:gm_prompt, text}
+    text
+  end
+
+  describe "Gentry's v195 retest sessions 141e1b85 and 1c82f268 (2026-10-13), Jev readings as recorded" do
+    test "141e1b85 turn 1: 'old mill' from the inn (Jev: square) is rejected, and the GM gets the exits" do
+      s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
+      move = %SingleAction{action_type: :move, target: "crossroads_square", parameters: %{}}
+
+      {world, handler} = play(s, "I walk to the old mill by the creek", move, @on)
+      prompt = gm_prompt()
+
+      assert world["location_id"] == "weary_pilgrim"
+      assert handler.state_hints["move_rejected"] == true
+      assert prompt =~ "There is no place called old mill near here."
+      assert prompt =~ "The exits from The Weary Pilgrim are: Crossroads Square"
+      assert prompt =~ "Rejected: move"
+      assert prompt =~ "Location: weary_pilgrim (no move)."
+    end
+
+    test "1c82f268 turn 2: 'old mill' from the square (Jev: kings_road) is rejected" do
+      s = session("crossroads_ledger", "crossroads_square", ["worried_merchant"])
+      move = %SingleAction{action_type: :move, target: "kings_road", parameters: %{}}
+
+      {world, _handler} = play(s, "I walk to the old mill by the creek", move, @on)
+      prompt = gm_prompt()
+
+      assert world["location_id"] == "crossroads_square"
+      assert prompt =~ "There is no place called old mill near here."
+      assert prompt =~ "The Weary Pilgrim"
+    end
+
+    test "141e1b85 turn 2: 'into the Weary Pilgrim inn' in the inn (Jev: square) stays, with no walk" do
+      s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
+      move = %SingleAction{action_type: :move, target: "crossroads_square", parameters: %{}}
+
+      {world, handler} = play(s, "I go into the Weary Pilgrim inn", move, @on)
+      prompt = gm_prompt()
+
+      assert world["location_id"] == "weary_pilgrim"
+      assert handler.state_hints["same_place"] == true
+      assert prompt =~ "Narrate no walk."
+      assert prompt =~ "Location: weary_pilgrim (no move)."
+    end
+
+    test "1c82f268 turn 1: 'I walk out to Crossroads Square' from the inn moves" do
+      s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
+      move = %SingleAction{action_type: :move, target: "crossroads_square", parameters: %{}}
+
+      {world, _handler} = play(s, "I walk out to Crossroads Square", move, @on)
+
+      assert world["location_id"] == "crossroads_square"
+    end
+
+    test "turn 3 / turn 4: 'I buy an ale' (Jev: target ale_mug) costs the stock price 2c, and the GM gets it" do
+      s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
+      buy = %SingleAction{action_type: :buy, target: "ale_mug", parameters: %{}}
+
+      {world, _handler} = play(s, "I buy an ale", buy, @on)
+
+      assert copper(world["character"]["coins"]) ==
+               copper(s.world_state["character"]["coins"]) - 2
+
+      assert gm_prompt() =~ "Coins: -2 copper"
+    end
+
+    test "141e1b85 turn 4: 'I buy a meal' (Jev: no target) costs 5c, and the GM gets it" do
+      s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
+      buy = %SingleAction{action_type: :buy, target: nil, parameters: %{}}
+
+      {world, _handler} = play(s, "I buy a meal", buy, @on)
+
+      assert copper(world["character"]["coins"]) ==
+               copper(s.world_state["character"]["coins"]) - 5
+
+      assert gm_prompt() =~ "Coins: -5 copper"
+    end
+
+    test "141e1b85 turn 5: room and sleep give the GM the clock after the sleep" do
+      s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
+      pay = %SingleAction{action_type: :spend, target: "marta_kellen", parameters: %{}}
+
+      {world, _handler} = play(s, "I pay for a room and go to sleep", pay, @on)
+
+      assert gm_prompt() =~ "Time: #{world["world_clock"]}."
     end
   end
 end

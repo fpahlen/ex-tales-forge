@@ -358,12 +358,17 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
   end
 
   defp handler_payload(%HandlerResult{} = handler) do
-    %{
+    payload = %{
       "handler" => handler.handler,
       "skill" => handler.skill,
       "target" => handler.target,
       "notes" => handler.notes
     }
+
+    case handler.state_hints do
+      %{"reason" => reason} when is_binary(reason) -> Map.put(payload, "reason", reason)
+      _ -> payload
+    end
   end
 end
 

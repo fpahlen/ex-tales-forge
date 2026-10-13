@@ -156,7 +156,7 @@ defmodule TalesForge.Game.OutcomeRecord do
       "handler" => Map.get(handler || %{}, :handler)
     }
 
-    case inventory_result do
+    case rejection(handler, inventory_result) do
       {:error, reason} ->
         reason = to_string(reason)
 
@@ -170,6 +170,14 @@ defmodule TalesForge.Game.OutcomeRecord do
         Map.merge(base, %{"status" => "accepted", "reason" => nil, "code" => nil})
     end
   end
+
+  # Stage 3 can reject an action before the inventory step (for example a
+  # move to a place that the world does not have, TalesForge.Game.TurnApply).
+  defp rejection(%{state_hints: %{"rejected" => true, "reason" => reason}}, nil)
+       when is_binary(reason),
+       do: {:error, reason}
+
+  defp rejection(_handler, inventory_result), do: inventory_result
 
   defp action_line(%{"status" => "rejected"} = a),
     do: "Rejected: #{a["type"]}#{target_words(a)}. Reason: #{a["reason"]}"
