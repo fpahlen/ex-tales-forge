@@ -11,6 +11,68 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Workflow split 4/5: Game API
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Goal: G7, our shared workspace.
+- **Why:** **Problem.** Workflow code still calls game modules directly. Some calls also go the other way, from the game into Workflow. This card removes these calls. After this card, Workflow and the game talk only through an API.
+
+**Goal.** Workflow gets all game data through an API. Workflow uses no game module. Each API call is data in and data out. HTTP and database calls stay at the edges.
+
+**Verdict.** Feasible with caveats. The peer pattern exists already, but it connects production and playtest, not Workflow and the game.
+
+**What we already have (high confidence).**
+1. `TalesForge.Costs.Peer`, `TalesForge.Online.Peer` and `TalesForge.WorkLog.Peer` read data from the other app over HTTP. They use a short timeout and no retries.
+2. `CostsPeerController`, `VersionPeerController`, `OnlinePeerController` and `WorkLogPeerController` serve `/internal/costs`, `/internal/version`, `/internal/online` and `/internal/work-log/events`.
+3. `TalesForgeWeb.PeerToken` checks one shared token, `COSTS_PEER_TOKEN`, for all four routes.
+4. `TalesForge.PrFeed.Poller` gets the PR data from GitHub. It does not need the game.
+5. `TalesForge.PrFeed.Versions` reads the running commit of the other app from `/internal/version`. It uses the token from `TalesForge.Costs.Peer.token/0`.
+
+These peers connect production and playtest. Both apps run the same code. This card uses the same pattern between Workflow and the game.
+
+**Direct calls between Workflow and the game (Case checked main at `f8ce0f4` on 2026-10-13).**
+1. `TalesForgeWeb.TeamLiveNumbers` reads the game tables of `AICall`, `PlaytestRun` and `PlaytestScore` through the game `Repo`. It also calls `TalesForge.Playtest.JevHeadline`.
+2. `TalesForge.TeamOnline`, `OnlineHeaderLive` and `TalesForgeWeb.LiveAuth` call `TalesForge.Online`.
+3. `Board.OnProd`, `Board.Workers.AutoDone` and `PrFeed.Versions` call `TalesForge.Playtest.RunMeta.git_sha/0` for the running commit.
+4. `Board.Similar` calls `TalesForge.LLM.complete_board_similar/3`.
+5. `Board.Workers.PrBackfill` calls `TalesForge.DeployLanes`.
+6. `TalesForge.Board`, `Board.Goals` and `TeamWorkLogLive` call `TalesForge.QaLogin`.
+7. Many Workflow modules call `TalesForge.AppRole` for the app role and the base URLs.
+8. In the other direction, `TalesForge.Game.TurnProcessor` writes work log events with `WorkLog.add/3` in the turn transaction.
+
+Card 1 decides the owner of the shared modules: `AppRole`, `QaLogin`, `LLM`, `DeployLanes` and `Playtest.RunMeta`. A module that stays in the game needs an API call or a copy in Workflow.
+
+**What this card builds.**
+1. Game routes under `/internal/*` for each data kind that Workflow pulls. Examples are the live numbers, the founders online and the running commit.
+2. A Workflow route for each data kind that the game pushes. An example is the turn events for the work log.
+3. One Workflow client for each data kind, with the pattern of `TalesForge.Costs.Peer`.
+4. Pure functions that change each answer into plain structs for the Workflow pages.
+
+Case proposes one behaviour for each client, with two adapters. Until card 5, the local adapter calls the game in the same app. After card 5, the HTTP adapter calls the game over the network. Each step then stays small. We can deploy and test each step.
+
+**Steps.**
+1. List each call from Workflow to a game module. Use the list above as the start.
+2. Choose push or pull for each data kind.
+3. Add a game route for each pull data kind. Use the token check of `TalesForgeWeb.PeerToken`.
+4. Add a Workflow client for each route, with a local adapter and an HTTP adapter.
+5. Add a Workflow route for each push data kind.
+6. Change `TeamLiveNumbers`, `TeamOnline`, `Board.OnProd`, `AutoDone` and `PrFeed.Versions` to use the clients.
+7. Change `TurnProcessor` to send work log events through the API, not through `WorkLog.add/3`.
+8. Extend the boundary check of card 3. The check must fail when Workflow code calls a game module.
+9. Test that `/team`, the board and the presentation show the same data as before.
+
+**Done when.** Workflow uses no game module. All data from the game comes through the API. The boundary check passes in CI. The Workflow pages show the same data as before.
+
+**Risks and caveats.**
+- Now the work log turn event is part of the turn transaction. An HTTP push can fail. Mitigation: send the event with an Oban job that retries.
+- The live numbers of the presentation need three game tables. When the game is down, the page must say "unavailable", like the costs page does now.
+- If card 1 keeps many shared modules in the game, this card needs more API calls. Then the cost can grow from M to L.
+- This card must start after card 3, because card 3 gives Workflow its own repo.
+
+**Confidence.** Medium. The peer pattern works now between production and playtest. The scope depends on cards 1 and 3 and on the answers to the open questions. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-6d9d6fd5-3286-45f2-b6ab-fe96f926bcdc)
+
+<!-- board:idea:6d9d6fd5-3286-45f2-b6ab-fe96f926bcdc -->
+
 ## 2026-10-13: Workflow split 5/5: Extraction to own repo and Fly app
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Goal: G7, our shared workspace.
