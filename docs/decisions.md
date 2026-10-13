@@ -11,6 +11,57 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Character creation
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. We need to have different models for character creation. where you can choose if you want a click-through creation or totally manually with dice rolls or just to give a description and a mix of these of course.
+- **Why:** **Problem.** Today a player can make a character in one way only: the click-through screen with the 75-point buy. Some players want full control with dice. Other players want to describe the character in text and start fast.
+
+**Goal.** After the world choice, the player selects a creation model. The models are click-through, manual with dice rolls, or description based. The player can mix the models. Each model makes a character that is legal for the world.
+
+**Rules from the comments.**
+- The player selects the world first. Then the player makes the character (Håkan). The game already uses this order.
+- Solo play and group play use the same creation rules (Fredrik and Håkan, 2026-10-12).
+
+**Founder answers (Håkan, 2026-10-12).**
+- Dice rolls use 4d6 and remove the lowest die.
+- Dice rolls permit one re-roll.
+- In description mode, the player must approve the AI draft before play starts.
+- Creation models are the same in every world by default. A new world may set its own model list.
+
+**Proposed approach.**
+1. One engine. All models make the same `TalesForge.CharacterCreation.Draft` in `lib/ex_tales_forge/character_creation/draft.ex`. All models end with `CharacterCreation.validate/1` and `finalize/1` in `lib/ex_tales_forge/character_creation.ex`.
+2. Dice rolls. Add a `roll_stats/2` function to `CharacterCreation`. The server rolls 4d6 and removes the lowest die. The server stores the result in the draft. Put the roll method and the one-re-roll rule in a new `stat_roll` block in `priv/characters/creation.json`, next to `point_buy`. The stat range stays 3 to 18. Add a mode switch (point buy or roll) to `lib/ex_tales_forge_web/live/create_character_live.ex`.
+3. Description based. Add a module `TalesForge.CharacterCreation.FromText` in `lib/ex_tales_forge/character_creation/from_text.ex`. It sends the text to the model through `TalesForge.LLM` in `lib/ex_tales_forge/llm.ex`. It gets back labels with a confidence value: race, class, occupation and skills. Where confidence is low, the AI asks one or two short questions. Where confidence stays low, the rules defaults fill the value. Then the code calls the normal `choose_race/2`, `choose_class/2`, `set_stat/3` and `set_skills/2` functions. Thus the rules check is the same. The player must approve the draft before play starts.
+4. Mix. Each model opens the draft in the click-through screen. The player can change values before the game starts.
+5. World defaults. All worlds permit all three models by default. A world may override the model list in its own data.
+6. Tests. Add tests in `test/ex_tales_forge/character_creation_test.exs` for the roll and for the text step with the mock LLM. Run the playtest personas (`lib/ex_tales_forge/playtest/persona_characters.ex`) on each model.
+
+**Acceptance criteria.**
+- The player sees the creation models only after the world choice.
+- Click-through works as it does today.
+- In dice mode, the server rolls 4d6 and removes the lowest die for each stat. Each stat is from 3 to 18. The player may use one re-roll. A page reload does not give a new roll.
+- In description mode, a text gives a full draft. The AI asks at most two questions. The player must approve the draft before play starts.
+- Each draft passes `CharacterCreation.validate/1` before the game starts.
+- The player can edit each draft in the click-through screen.
+- Solo and group games use the same rules.
+- All worlds share the same model list unless a world overrides it.
+- Tests for each model pass in CI.
+
+**Size: L.** Split it into three PRs: dice rolls (S), description based (M), mix and edit flow (S).
+
+**Risks.**
+- Each AI draft costs money. Mitigation: one AI call for each draft, and the mock LLM in tests.
+- The AI can read the text wrong. Mitigation: the confidence value, the questions, the approve step and the edit step.
+- Dice can give a weak character. Mitigation: one re-roll in `creation.json`.
+- A longer flow can lose the draft on a page reload. Mitigation: keep the draft on the server.
+
+**Deploy lane: normal.** The change is game code. Thus it goes to playtest first. Then a founder approves production.
+
+**Confidence.** We have high confidence for dice rolls and the mix, because the engine has the functions now. We have medium confidence for the AI step. We will test that step with the personas. Verdict: feasible. Rough cost: L.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-f9683a5d-ad23-48f3-89c4-b9b188e1366d)
+
+<!-- board:idea:f9683a5d-ad23-48f3-89c4-b9b188e1366d -->
+
 ## 2026-10-13: Skill split
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it.
