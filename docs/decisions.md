@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Character creation PR 1, dice rolls
+
+- **Decision:** The player can roll the stats with dice. The first creation screen has the choice "Point buy" (the default) or "Roll the dice". The server rolls 4d6 for each stat and drops the lowest die, so each stat is 3 to 18. The player gets exactly one re-roll. The rolled stats are fixed, and the 75-point budget applies to point buy only. A race modifier on a rolled stat stops at 3 and 18. The draft keeps the roll when the player goes back to point buy. From the first roll, the server keeps the draft, so a reload keeps the roll. A point-buy draft without a roll stays in the screen, as before. Both models end with the same validate and finalize step. Solo and group play use the same rules. This entry adds to the 2026-10-13 "Character creation" entry below.
+- **Why:** Some players want dice. The race clamp gives a legal character for every roll and every race. The kept roll and the stored draft make sure that the player gets one re-roll only.
+- **Details:** [ex-tales-forge#232](https://github.com/whyse-ab/ex-tales-forge/pull/232), board card `f9683a5d-ad23-48f3-89c4-b9b188e1366d`, slug `2026-10-13-character-creation`.
+
 ## 2026-10-13: Skill split is built now on d100 numbers, behind SKILL_SPLIT
 
 - **Decision (Fredrik, 2026-10-13 08:09):** Build the skill split now, before the D100 switch card. Use d100-scale numbers. Keep the thresholds in one settings place: split start 100, triple threshold 150, and uneven part 25 or more. Put the split behind the flag `SKILL_SPLIT`, default off. Turn the flag on after the D100 switch. This entry adds to the 2026-10-13 "Skill split" entry below. The uneven part minimum 25 is the d100 form of Håkan's answer 5.
