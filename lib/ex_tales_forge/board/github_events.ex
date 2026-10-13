@@ -1,7 +1,9 @@
 defmodule TalesForge.Board.GitHubEvents do
   @moduledoc """
   The board follows GitHub webhooks (`TalesForge.GitEvents`, topic
-  `"github"`). `plan/1` (pure) says what one event means for the board; this
+  `"github"`).
+
+  A pure plan (`plan/1`) says what one event means for the board. This
   process does it, for the cards with that PR or head commit only:
 
   - A pull request opened, reopened or ready for review: queue
