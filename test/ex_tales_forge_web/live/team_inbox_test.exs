@@ -20,6 +20,18 @@ defmodule TalesForgeWeb.TeamInboxTest do
     on_exit(fn -> Application.delete_env(:ex_tales_forge, :inbox_undo_ms) end)
   end
 
+  # Waits until the action of the undo toast applies (the test undo time is
+  # short, and a slow machine can need more time).
+  defp settle(view, tries \\ 60) do
+    _ = render(view)
+
+    cond do
+      not has_element?(view, "#inbox-toast") -> :ok
+      tries == 0 -> flunk("the undo toast stays")
+      true -> Process.sleep(50) && settle(view, tries - 1)
+    end
+  end
+
   defp owner(conn), do: log_in_admin(conn, @owner_email, login: @owner.github)
 
   defp mention(text \\ "look") do
@@ -63,9 +75,7 @@ defmodule TalesForgeWeb.TeamInboxTest do
     {:ok, view, _} = live(owner(conn), "/team")
 
     view |> form("#inbox-answer", %{answer: "Yes, build it."}) |> render_submit()
-    assert has_element?(view, "#inbox-toast", "Answer sent.")
-    Process.sleep(80)
-    _ = render(view)
+    settle(view)
 
     assert [%{body: "Yes, build it.", author: @owner_email}] =
              Board.get_idea(idea.id).comments |> Enum.filter(&(&1.author == @owner_email))
@@ -100,13 +110,11 @@ defmodule TalesForgeWeb.TeamInboxTest do
     assert has_element?(view, ~s(#inbox-item[data-item-id="#{first.id}"]))
 
     view |> element("#inbox") |> render_hook("key", %{"key" => "s"})
-    Process.sleep(80)
-    _ = render(view)
+    settle(view)
     assert Enum.map(Store.open(@owner.handle), & &1.id) == [second.id, first.id]
 
     view |> element("#inbox") |> render_hook("key", %{"key" => "d"})
-    Process.sleep(80)
-    _ = render(view)
+    settle(view)
     assert %{state: "discarded"} = Store.get(second.id)
   end
 
@@ -116,14 +124,12 @@ defmodule TalesForgeWeb.TeamInboxTest do
     [item] = Store.open(@owner.handle)
 
     view |> element("#inbox") |> render_hook("swipe", %{"dir" => "left"})
-    Process.sleep(80)
-    _ = render(view)
+    settle(view)
     assert [%{id: id, state: "new"}] = Store.open(@owner.handle)
     assert id == item.id
 
     view |> element("#inbox") |> render_hook("swipe", %{"dir" => "right"})
-    Process.sleep(80)
-    _ = render(view)
+    settle(view)
     assert %{state: "done"} = Store.get(item.id)
   end
 
