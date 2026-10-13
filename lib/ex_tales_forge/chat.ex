@@ -505,6 +505,17 @@ defmodule TalesForge.Chat do
     :ok
   end
 
+  @doc """
+  The title of `thread` for `viewer`: the subject of a subject thread, or
+  the name of the other founder of a direct thread.
+  """
+  @spec title(Thread.t(), ThreadRules.viewer()) :: String.t()
+  def title(%Thread{} = thread, viewer), do: ThreadRules.title(team(), thread, viewer)
+
+  @doc "The founders that the founder `viewer` can start a 1:1 with, as `{handle, name}`."
+  @spec direct_choices(ThreadRules.viewer()) :: [{String.t(), String.t()}]
+  def direct_choices(viewer), do: ThreadRules.direct_choices(team(), viewer)
+
   @doc "The handle of a founder's GitHub login, or nil (`TalesForge.Board.Mentions`)."
   @spec handle_for(String.t() | nil) :: String.t() | nil
   def handle_for(login), do: Mentions.handle_for(team(), login)

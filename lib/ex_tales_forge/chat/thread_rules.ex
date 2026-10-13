@@ -247,4 +247,46 @@ defmodule TalesForge.Chat.ThreadRules do
     do: members |> List.delete(me) |> List.first()
 
   def other_member(_thread, _viewer), do: nil
+
+  @doc """
+  The title of `thread` for `viewer`: the subject of a subject thread, or
+  the name of the other founder of a direct thread.
+
+      iex> alias TalesForge.Chat.{Thread, ThreadRules}
+      iex> team = Workflow.Team.example()
+      iex> ThreadRules.title(team, %Thread{kind: "direct", members: ["ada", "lin"]}, {:founder, "ada"})
+      "Lin"
+      iex> ThreadRules.title(team, %Thread{kind: "subject", subject: "Release"}, {:founder, "ada"})
+      "Release"
+  """
+  @spec title(Team.t(), Thread.t(), viewer()) :: String.t()
+  def title(%Team{} = team, %Thread{kind: "direct"} = thread, viewer) do
+    thread
+    |> other_member(viewer)
+    |> then(&Enum.find(team.founders, fn f -> f.handle == &1 end))
+    |> case do
+      %{name: name} -> name
+      nil -> "1:1"
+    end
+  end
+
+  def title(_team, %Thread{subject: subject}, _viewer), do: subject
+
+  @doc """
+  The founders that the founder `viewer` can start a 1:1 with, as
+  `{handle, name}`. Other viewers get an empty list.
+
+      iex> TalesForge.Chat.ThreadRules.direct_choices(Workflow.Team.example(), {:founder, "ada"})
+      [{"orjan", "Örjan"}, {"lin", "Lin"}]
+      iex> TalesForge.Chat.ThreadRules.direct_choices(Workflow.Team.example(), {:bot, :rita})
+      []
+  """
+  @spec direct_choices(Team.t(), viewer()) :: [{String.t(), String.t()}]
+  def direct_choices(%Team{founders: founders}, {:founder, me}) when is_binary(me) do
+    founders
+    |> Enum.reject(&(&1.handle == me))
+    |> Enum.map(&{&1.handle, &1.name})
+  end
+
+  def direct_choices(_team, _viewer), do: []
 end
