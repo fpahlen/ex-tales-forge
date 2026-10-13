@@ -12,6 +12,14 @@ config :ex_tales_forge,
   ecto_repos: [TalesForge.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Skill split (TalesForge.Game.SkillSplit, SKILL_SPLIT=on). This is the one
+# place for the thresholds. The numbers use the d100 scale. Keep the flag off
+# until the D100 switch is in.
+config :ex_tales_forge, :skill_split,
+  start: 100,
+  triple: 150,
+  min_uneven_part: 25
+
 config :ex_tales_forge, TalesForge.Jido,
   max_tasks: 1000,
   agent_pools: []

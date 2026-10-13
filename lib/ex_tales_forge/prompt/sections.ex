@@ -19,7 +19,12 @@ defmodule TalesForge.Prompt.Sections.Rules do
   use TalesForge.Prompt.Section, id: :rules, slot: :static
 
   @impl true
-  def render(ctx), do: ctx.data.rules
+  def render(ctx),
+    do:
+      TalesForge.Game.SkillSplit.rules_text(
+        ctx.data.rules,
+        TalesForge.Prompt.Ctx.flag?(ctx, :skill_split)
+      )
 end
 
 defmodule TalesForge.Prompt.Sections.Task do
@@ -301,6 +306,18 @@ defmodule TalesForge.Prompt.Sections.Premise do
     #{lines}
     """
   end
+end
+
+defmodule TalesForge.Prompt.Sections.SkillSplit do
+  @moduledoc """
+  The parts of a skill split, with the level, the roll and the result of
+  each part (`TalesForge.Game.SkillSplit.prompt_section/1`). Only with
+  `SKILL_SPLIT=on`.
+  """
+  use TalesForge.Prompt.Section, id: :skill_split, slot: :turn
+
+  @impl true
+  def render(ctx), do: TalesForge.Game.SkillSplit.prompt_section(Map.get(ctx.data, :mechanical))
 end
 
 defmodule TalesForge.Prompt.Sections.RestGrowth do

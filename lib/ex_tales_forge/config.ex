@@ -106,6 +106,33 @@ defmodule TalesForge.Config do
   def skill_detail_level?, do: System.get_env("SKILL_DETAIL_LEVEL", "off") in ~w(on true 1)
 
   @doc """
+  Skill split (`TalesForge.Game.SkillSplit`): a player splits one skill action
+  into two or three parts, and the server rolls each part. SKILL_SPLIT=on.
+  Default off. With the flag off, the prompts and the rolls do not change.
+  """
+  @spec skill_split?() :: boolean()
+  def skill_split?, do: System.get_env("SKILL_SPLIT", "off") in ~w(on true 1)
+
+  @doc """
+  The skill split thresholds (d100 scale): `start`, `triple` and
+  `min_uneven_part`, from `config :ex_tales_forge, :skill_split`.
+  """
+  @spec skill_split_settings() :: %{
+          start: pos_integer(),
+          triple: pos_integer(),
+          min_uneven_part: pos_integer()
+        }
+  def skill_split_settings do
+    settings = Application.get_env(:ex_tales_forge, :skill_split, [])
+
+    %{
+      start: Keyword.get(settings, :start, 100),
+      triple: Keyword.get(settings, :triple, 150),
+      min_uneven_part: Keyword.get(settings, :min_uneven_part, 25)
+    }
+  end
+
+  @doc """
   Turn pipeline PR 2: the premise check runs first, before the mechanics and
   the NPCs. A claim that the state contradicts blocks the action
   (`TalesForge.Game.TurnProcessor`): TURN_PREMISE_FIRST=on. Default off.

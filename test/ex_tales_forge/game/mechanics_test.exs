@@ -6,7 +6,13 @@ defmodule TalesForge.Game.MechanicsTest do
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction, SingleAction}
 
   doctest Mechanics,
-    only: [growth_lp: 1, lp_stat_bonus: 1, normalize_skill_name: 1, resolve_check_skill: 3]
+    only: [
+      growth_lp: 1,
+      lp_stat_bonus: 1,
+      normalize_skill_name: 1,
+      resolve_check_skill: 3,
+      split_levels: 3
+    ]
 
   # The #64 rule, kept for the baseline variant only.
   doctest Tiered

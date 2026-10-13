@@ -334,4 +334,104 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
     {"/play/" <> id, _} = assert_redirect(view)
     assert Repo.get!(GameSession, id).world_state["character"]["id"] == "elara_voss"
   end
+
+  describe "the dice model" do
+    @stats ~w(STR DEX CON INT WIS CHA)
+
+    defp base(view, stat), do: view |> element("#base-#{stat}") |> render() |> text_int()
+    defp bases(view), do: Map.new(@stats, &{&1, base(view, &1)})
+
+    defp roll(conn) do
+      {:ok, view, _html} = live(conn, ~p"/new/tin_valley")
+      view |> element("#model-stat_roll") |> render_click()
+      to_stats(view)
+    end
+
+    test "point buy is the default and the click-through is unchanged", %{conn: conn} do
+      {:ok, view, html} = live(conn, ~p"/new/tin_valley")
+
+      assert html =~ "How you make your stats"
+      assert has_element?(view, ~s(#model-point_buy[aria-checked="true"]))
+      to_stats(view)
+      assert points(view) == 3
+      refute has_element?(view, "#stat-roll")
+
+      view |> element("#inc-STR") |> render_click()
+      assert points(view) == 2
+    end
+
+    test "the roll shows each stat from 3 to 18 and the player cannot set them", %{conn: conn} do
+      view = roll(conn)
+
+      assert has_element?(view, "#stat-roll")
+      refute has_element?(view, "#points-left")
+      refute has_element?(view, "#inc-STR")
+      assert Enum.all?(Map.values(bases(view)), &(&1 in 3..18))
+    end
+
+    test "exactly one re-roll", %{conn: conn} do
+      view = roll(conn)
+
+      view |> element("#reroll") |> render_click()
+      refute has_element?(view, "#reroll")
+      assert has_element?(view, "#reroll-used")
+
+      assert render_click(view, "reroll", %{}) =~ "You used your re-roll"
+      assert Enum.all?(Map.values(bases(view)), &(&1 in 3..18))
+    end
+
+    test "a reload keeps the roll and the used re-roll", %{conn: conn} do
+      view = roll(conn)
+      view |> element("#reroll") |> render_click()
+      rolled = bases(view)
+
+      {:ok, reloaded, _html} = live(conn, ~p"/new/tin_valley")
+      assert has_element?(reloaded, ~s(#model-stat_roll[aria-checked="true"]))
+      to_stats(reloaded)
+
+      assert bases(reloaded) == rolled
+      assert has_element?(reloaded, "#reroll-used")
+    end
+
+    test "a change to point buy and back gives the same roll", %{conn: conn} do
+      view = roll(conn)
+      rolled = bases(view)
+
+      view |> element("#step-origin") |> render_click()
+      view |> element("#model-point_buy") |> render_click()
+      view |> element("#model-stat_roll") |> render_click()
+      to_stats(view)
+
+      assert bases(view) == rolled
+    end
+
+    test "a point-buy draft without a roll stays out of the store", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/new/tin_valley")
+      view |> element("#class-warrior") |> render_click()
+
+      assert TalesForge.CharacterDrafts.get("tf-tester", "tin_valley") == nil
+      {:ok, _view, html} = live(conn, ~p"/new/tin_valley")
+      assert html =~ ~s(id="class-none")
+      assert TalesForge.CharacterDrafts.get("tf-tester", "tin_valley") == nil
+    end
+
+    test "a rolled character ends with validate and finalize", %{conn: conn} do
+      view = roll(conn)
+      rolled = bases(view)
+      to_name(view)
+
+      view |> form("#name-form", %{"name" => "Dice Wren"}) |> render_submit()
+      {"/play/" <> id, _} = assert_redirect(view)
+
+      pc = Repo.get!(GameSession, id).world_state["character"]
+      assert pc["name"] == "Dice Wren"
+      assert Enum.all?(Map.values(pc["stats"]), &(&1 in 3..18))
+
+      row = Repo.get_by!(Character, game_session_id: id, slug: "pc_dice_wren")
+      assert row.controller == "player"
+
+      assert TalesForge.CharacterDrafts.get("tf-tester", "tin_valley") == nil
+      assert map_size(rolled) == 6
+    end
+  end
 end

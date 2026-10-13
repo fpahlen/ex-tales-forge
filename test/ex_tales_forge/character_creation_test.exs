@@ -521,4 +521,133 @@ defmodule TalesForge.CharacterCreationTest do
       end
     end
   end
+
+  describe "dice model (stat_roll)" do
+    @stats ~w(STR DEX CON INT WIS CHA)
+    @roll_rules %{"dice" => 4, "sides" => 6, "keep" => 3}
+
+    # Returns the faces in order, then starts again.
+    defp seq_rng(faces) do
+      {:ok, agent} = Agent.start_link(fn -> faces end)
+      fn 6 -> Agent.get_and_update(agent, fn [h | t] -> {h, t ++ [h]} end) end
+    end
+
+    test "creation.json has stat_roll next to point_buy" do
+      creation = CC.rules(@adventure)["creation"]
+      assert creation["point_buy"] == %{"budget" => 75, "min" => 3, "max" => 18}
+
+      assert Map.take(creation["stat_roll"], ~w(dice sides keep min max rerolls)) ==
+               %{"dice" => 4, "sides" => 6, "keep" => 3, "min" => 3, "max" => 18, "rerolls" => 1}
+
+      assert CC.options(@adventure).stat_roll["rerolls"] == 1
+    end
+
+    test "each stat is 3 to 18 for many random rolls" do
+      for _ <- 1..500 do
+        stats = CC.roll_stats(@roll_rules, &:rand.uniform/1)
+        assert Map.keys(stats) |> Enum.sort() == Enum.sort(@stats)
+        assert Enum.all?(Map.values(stats), &(&1 in 3..18))
+      end
+    end
+
+    test "the lowest die drops" do
+      assert CC.roll_stats(@roll_rules, fn 6 -> 1 end) |> Map.values() |> Enum.uniq() == [3]
+      assert CC.roll_stats(@roll_rules, fn 6 -> 6 end) |> Map.values() |> Enum.uniq() == [18]
+
+      assert CC.roll_stats(@roll_rules, seq_rng([1, 6, 6, 6])) |> Map.values() |> Enum.uniq() == [
+               18
+             ]
+
+      assert CC.roll_stats(@roll_rules, seq_rng([2, 5, 1, 4])) |> Map.values() |> Enum.uniq() == [
+               11
+             ]
+    end
+
+    test "the same rng gives the same roll (the function is pure)" do
+      faces = Enum.map(1..24, &(rem(&1 * 7, 6) + 1))
+
+      assert CC.roll_stats(@roll_rules, seq_rng(faces)) ==
+               CC.roll_stats(@roll_rules, seq_rng(faces))
+    end
+
+    test "choosing the dice rolls once and fixes the stats" do
+      d = draft() |> CC.choose_model("stat_roll", fn 6 -> 4 end) |> ok!()
+
+      assert d.model == "stat_roll"
+      assert d.rolled_stats == Map.new(@stats, &{&1, 12})
+      assert d.base_stats == d.rolled_stats
+      assert d.rerolls_left == 1
+      assert {:error, {:stats, _}} = CC.set_stat(d, "STR", 13)
+    end
+
+    test "the player gets exactly one re-roll" do
+      d = draft() |> CC.choose_model("stat_roll", fn 6 -> 2 end) |> ok!()
+      d = d |> CC.reroll_stats(fn 6 -> 5 end) |> ok!()
+
+      assert d.base_stats == Map.new(@stats, &{&1, 15})
+      assert d.rerolls_left == 0
+      assert {:error, {:stats, message}} = CC.reroll_stats(d, fn 6 -> 6 end)
+      assert message =~ "re-roll"
+    end
+
+    test "point buy has no re-roll" do
+      assert {:error, {:stats, _}} = CC.reroll_stats(draft(), fn 6 -> 6 end)
+    end
+
+    test "a change back to the dice keeps the old roll" do
+      d = draft() |> CC.choose_model("stat_roll", fn 6 -> 3 end) |> ok!()
+      d = d |> CC.choose_model("point_buy") |> ok!()
+
+      assert d.base_stats == draft().base_stats
+      assert CC.points_left(d) >= 0
+
+      d = d |> CC.choose_model("stat_roll", fn 6 -> 6 end) |> ok!()
+      assert d.base_stats == Map.new(@stats, &{&1, 9})
+      assert d.rerolls_left == 1
+    end
+
+    test "an unknown model is an error" do
+      assert {:error, {:model, _}} = CC.choose_model(draft(), "free_form")
+    end
+
+    test "a high roll ignores the budget and finalizes through validate" do
+      d = draft() |> CC.choose_model("stat_roll", fn 6 -> 6 end) |> ok!() |> named()
+
+      assert CC.points_spent(d) == 108
+      assert CC.validate(d) == :ok
+      assert {:ok, c} = CC.finalize(d)
+      assert c["creation"]["model"] == "stat_roll"
+      assert Enum.all?(Map.values(c["stats"]), &(&1 in 3..18))
+    end
+
+    test "a race bonus on a rolled stat stops at 3 and 18" do
+      for race <- Enum.map(CC.options(@adventure).races, & &1.id) do
+        for face <- [1, 6] do
+          d = draft() |> CC.choose_model("stat_roll", fn 6 -> face end) |> ok!()
+          d = d |> CC.choose_race(race) |> ok!() |> named()
+
+          assert d.base_stats == d.rolled_stats, race
+          assert Enum.all?(Map.values(CC.final_stats(d)), &(&1 in 3..18)), race
+          assert {:ok, _} = CC.finalize(d), race
+        end
+      end
+    end
+
+    test "a tampered base stat fails validate" do
+      d = draft() |> CC.choose_model("stat_roll", fn 6 -> 3 end) |> ok!() |> named()
+      d = %Draft{d | base_stats: Map.put(d.base_stats, "STR", 18)}
+
+      assert {:error, errors} = CC.validate(d)
+      assert {:stats, "the stats must be the rolled stats"} in errors
+    end
+
+    test "point buy is unchanged: the budget still applies" do
+      d = draft()
+      assert d.model == "point_buy"
+      d = Enum.reduce(@stats, d, fn s, acc -> acc |> CC.set_stat(s, 18) |> ok!() end) |> named()
+
+      assert {:error, errors} = CC.validate(d)
+      assert {:stats, "75 points at most; 108 spent"} in errors
+    end
+  end
 end

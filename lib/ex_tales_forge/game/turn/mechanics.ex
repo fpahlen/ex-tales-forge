@@ -16,6 +16,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
+  alias TalesForge.Game.SkillSplit
   alias TalesForge.Game.Turn
   alias TalesForge.Game.TurnApply
   alias TalesForge.Game.TurnProcessor
@@ -69,7 +70,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
     # payment amount). Off: the board gets the action of the intent step.
     board_action = if apply?, do: played, else: player_action
 
-    {character, rolled} = TurnProcessor.apply_mechanics(turn.session.world_state, played, ruled)
+    {character, rolled} = roll(turn, played, ruled)
 
     board =
       TurnProcessor.apply_board(turn.session, character, ruled, board_action, rolled,
@@ -81,6 +82,25 @@ defmodule TalesForge.Game.Turn.Mechanics do
     handler = if apply?, do: board.handler, else: ruled
 
     {handler, %{rolled | improvements: board.improvements, training: board.training}, board}
+  end
+
+  # SKILL_SPLIT=on: the split request of the player rolls each part
+  # (TalesForge.Game.SkillSplit). Off: one roll, as before.
+  defp roll(turn, played, ruled) do
+    if Turn.flag?(turn, :skill_split) do
+      world = turn.session.world_state || %{}
+
+      SkillSplit.apply(
+        Map.get(world, "character", %{}),
+        played,
+        ruled,
+        turn.raw_action,
+        Variant.of(world),
+        rolls: Keyword.get(turn.opts, :rolls, [])
+      )
+    else
+      TurnProcessor.apply_mechanics(turn.session.world_state, played, ruled)
+    end
   end
 
   # A claim that the state contradicts blocks the action: the turn narrates,

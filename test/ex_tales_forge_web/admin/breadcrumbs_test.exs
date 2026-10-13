@@ -71,6 +71,7 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
 
     paths = %{
       "/admin/founders/decisions/:slug" => "/admin/founders/decisions/d-001-elixir-foundation",
+      "/admin/founders/canon-review/:id" => "/admin/founders/canon-review/#{session.id}",
       "/admin/play/sessions/:id" => "/admin/play/sessions/#{session.id}",
       "/admin/play/sessions/:id/npcs" => "/admin/play/sessions/#{session.id}/npcs",
       "/admin/play/sessions/:id/npcs/:npc_id" =>
