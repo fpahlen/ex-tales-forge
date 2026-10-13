@@ -317,6 +317,13 @@ if config_env() != :test do
   config :ex_tales_forge, :pr_feed_token, System.get_env("GITHUB_FEED_TOKEN")
 end
 
+# GitHub webhook (POST /webhooks/github, TalesForge.GitEvents): GITHUB_WEBHOOK_SECRET
+# (secret), the same value as in the repo's webhook settings. Unset = the
+# endpoint answers 404. Setup: docs/github-webhooks.md. Not read in test.
+if config_env() != :test do
+  config :ex_tales_forge, :github_webhook_secret, System.get_env("GITHUB_WEBHOOK_SECRET")
+end
+
 # AI spending caps in decimal USD (e.g. "2.50"). Unset or empty = that cap is off,
 # except AI_CAP_PERSONA_RUN_USD (persona bot spend per playtest run), which then
 # defaults to 0.50; "0" stops those calls. Read by TalesForge.AICalls.check_spend_caps/3.

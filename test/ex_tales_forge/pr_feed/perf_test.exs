@@ -48,8 +48,18 @@ defmodule TalesForge.PrFeed.PerfTest do
     end
   end
 
-  test "the feed polls GitHub every 5 minutes" do
-    assert Application.fetch_env!(:ex_tales_forge, TalesForge.PrFeed)[:interval_ms] == 300_000
+  test "the feed has no poll interval and reconciles every 30 minutes" do
+    refute Keyword.has_key?(
+             Application.fetch_env!(:ex_tales_forge, TalesForge.PrFeed),
+             :interval_ms
+           )
+
+    config = Config.Reader.read!("config/config.exs", env: :prod)
+
+    {_, cron} =
+      Enum.find(config[:ex_tales_forge][Oban][:plugins], &match?({Oban.Plugins.Cron, _}, &1))
+
+    assert {"*/30 * * * *", TalesForge.PrFeed.Reconcile} in cron[:crontab]
   end
 
   test "Oban stages scheduled jobs every 30 seconds" do

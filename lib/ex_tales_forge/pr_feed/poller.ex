@@ -1,11 +1,17 @@
 defmodule TalesForge.PrFeed.Poller do
   @moduledoc """
-  Polls GitHub for the live PR feed (`TalesForge.PrFeed`) and publishes each
-  new snapshot: stored in a public ETS table it owns (read by `TalesForge.PrFeed.snapshot/0`
-  without a call to this process) and broadcast on PubSub.
+  Holds the live PR feed (`TalesForge.PrFeed`) and publishes each new
+  snapshot: stored in a public ETS table it owns (read by
+  `TalesForge.PrFeed.snapshot/0` without a call to this process) and
+  broadcast on PubSub.
 
-  - Every `:interval_ms` (config `TalesForge.PrFeed`, default 5 min), plus once
-    right after start. `:poll` false (tests) starts the table but never polls.
+  - GitHub webhooks drive the feed: the process subscribes to `"github"`
+    (`TalesForge.GitEvents`) and applies each event of the feed's repo to
+    its model (`TalesForge.PrFeed.Live.apply/3`). No full rebuild per event.
+  - A full read of GitHub (`poll/2`) builds the model: once right after
+    start, and on each reconcile signal (`TalesForge.PrFeed.Reconcile`,
+    every 30 min), the backup for missed webhooks. `:poll` false (tests)
+    starts the table but reads nothing.
   - Per resource (and per page) it keeps the last `ETag` and the parsed
     answer, so an unchanged answer (304) is reused and costs no rate limit.
   - The pull requests and main's commits are read in full, page by page
@@ -16,23 +22,24 @@ defmodule TalesForge.PrFeed.Poller do
   - No token: nothing is fetched, the snapshot is `:not_configured`.
   - The pull requests can't be fetched: `:unavailable`. CI or main's commits
     missing only blank out the CI badges or the deploy status.
-  - After each poll, `TalesForge.PrFeed.Extras.refresh/2` (at most every 10
-    min): the test counts of main's latest CI run and the decision log.
-  - Each poll is one pass in this process; a crash restarts it under the
-    application supervisor with an empty feed.
+  - After each full read, `TalesForge.PrFeed.Extras.refresh/2` (at most every
+    10 min): the test counts of main's latest CI run and the decision log.
+  - A crash restarts it under the application supervisor with an empty feed.
   """
 
   use GenServer
 
   require Logger
 
+  alias TalesForge.GitEvents
   alias TalesForge.PrFeed
   alias TalesForge.PrFeed.Extras
   alias TalesForge.PrFeed.GitHub
+  alias TalesForge.PrFeed.Live
   alias TalesForge.PrFeed.Parse
+  alias TalesForge.PrFeed.Reconcile
   alias TalesForge.PrFeed.Versions
 
-  @default_interval_ms 300_000
   @default_max_pages 30
 
   @typedoc "The last ETag and parsed answer per resource, or per page of a paged one."
@@ -45,18 +52,23 @@ defmodule TalesForge.PrFeed.Poller do
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
+  @typedoc "The ETag cache and the feed model (nil before the first full read)."
+  @type state :: %{cache: cache(), model: Live.t() | nil}
+
   @impl true
-  @spec init(keyword()) :: {:ok, cache()}
+  @spec init(keyword()) :: {:ok, state()}
   def init(_opts) do
     :ets.new(__MODULE__, [:named_table, :public, :set, read_concurrency: true])
-    if PrFeed.config(:poll, true), do: send(self(), :poll)
-    {:ok, %{}}
+    GitEvents.subscribe()
+    Phoenix.PubSub.subscribe(TalesForge.PubSub, Reconcile.topic())
+    if PrFeed.config(:poll, true), do: send(self(), :reconcile)
+    {:ok, %{cache: %{}, model: nil}}
   end
 
   @impl true
-  def handle_info(:poll, cache) do
+  def handle_info(:reconcile, state) do
     now = DateTime.utc_now()
-    {snapshot, cache} = poll(cache, now)
+    {snapshot, cache, inputs} = read(state.cache, now)
     # The presentation's other GitHub numbers (tests, decisions): at most every
     # 10 min, stored before the snapshot goes out so subscribers see both.
     if PrFeed.configured?() do
@@ -64,8 +76,39 @@ defmodule TalesForge.PrFeed.Poller do
     end
 
     PrFeed.publish(snapshot)
-    Process.send_after(self(), :poll, PrFeed.config(:interval_ms, @default_interval_ms))
-    {:noreply, cache}
+    {:noreply, %{cache: cache, model: inputs && Live.new(inputs, now)}}
+  end
+
+  def handle_info({:git_event, event}, state) do
+    {:noreply, handle_event(state, event, DateTime.utc_now())}
+  end
+
+  @doc """
+  Applies one GitHub event to the state and publishes the new snapshot when
+  it changed. Events of another repo, and events before the first full
+  read, change nothing.
+  """
+  @spec handle_event(state(), GitEvents.GitEvent.t(), DateTime.t()) :: state()
+  def handle_event(%{model: nil} = state, _event, _now), do: state
+
+  def handle_event(state, event, now) do
+    if event.repo == PrFeed.repo() do
+      case Live.apply(state.model, event, now) do
+        {:changed, model} ->
+          PrFeed.publish(model.snapshot)
+          %{state | model: model}
+
+        {:refresh_running, model} ->
+          model = Live.put_running(model, Versions.running(), now)
+          PrFeed.publish(model.snapshot)
+          %{state | model: model}
+
+        :unchanged ->
+          state
+      end
+    else
+      state
+    end
   end
 
   @doc """
@@ -74,10 +117,17 @@ defmodule TalesForge.PrFeed.Poller do
   """
   @spec poll(cache(), DateTime.t()) :: {PrFeed.snapshot(), cache()}
   def poll(cache, %DateTime{} = now) do
+    {snapshot, cache, _inputs} = read(cache, now)
+    {snapshot, cache}
+  end
+
+  # The snapshot, the cache and the inputs it was built from (nil when there
+  # are no pull requests to build from).
+  defp read(cache, now) do
     if PrFeed.configured?() do
       fetch_all(cache, now)
     else
-      {PrFeed.empty(:not_configured, now), %{}}
+      {PrFeed.empty(:not_configured, now), %{}, nil}
     end
   end
 
@@ -95,11 +145,11 @@ defmodule TalesForge.PrFeed.Poller do
           running: Versions.running()
         }
 
-        {PrFeed.build(inputs, now), cache}
+        {PrFeed.build(inputs, now), cache, inputs}
 
       {:error, reason} ->
         Logger.warning("PR feed: GitHub pull requests unavailable (#{inspect(reason)})")
-        {PrFeed.empty(:unavailable, now), cache}
+        {PrFeed.empty(:unavailable, now), cache, nil}
     end
   end
 

@@ -52,7 +52,10 @@ config :ex_tales_forge, Oban,
     {Oban.Plugins.Cron,
      crontab: [
        {"7 * * * *", TalesForge.Board.Workers.StuckCards},
-       {"*/15 * * * *", TalesForge.Board.Workers.MentionSweep}
+       {"*/15 * * * *", TalesForge.Board.Workers.MentionSweep},
+       # The live PR feed follows GitHub webhooks; this full read every 30 min
+       # is the backup for missed ones (TalesForge.PrFeed.Reconcile).
+       {"*/30 * * * *", TalesForge.PrFeed.Reconcile}
      ]}
   ]
 
@@ -127,7 +130,6 @@ config :ex_tales_forge, TalesForge.AppRole,
 # GITHUB_FEED_TOKEN (config/runtime.exs); without it the feed says unavailable.
 config :ex_tales_forge, TalesForge.PrFeed,
   repo: "whyse-ab/ex-tales-forge",
-  interval_ms: 300_000,
   poll: true
 
 # Admin costs page (/admin/costs). Edit cost figures HERE, in one place.

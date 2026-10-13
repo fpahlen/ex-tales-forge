@@ -64,6 +64,8 @@ defmodule TalesForgeWeb.Endpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
+    # Keeps the raw body of POST /webhooks/github for its signature check.
+    body_reader: {TalesForgeWeb.RawBodyReader, :read_body, []},
     json_decoder: Phoenix.json_library()
 
   plug Plug.MethodOverride

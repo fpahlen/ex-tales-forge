@@ -46,7 +46,7 @@ defmodule TalesForge.PrFeed.Deploys do
   def status(merge_sha, main, running_sha) when is_list(main),
     do: status(merge_sha, index(main), running_sha)
 
-  def status(merge_sha, %{} = main, running_sha)
+  def status(merge_sha, %{shas: _} = main, running_sha)
       when is_binary(merge_sha) and is_binary(running_sha) do
     case position(main, running_sha) do
       nil ->
@@ -64,10 +64,14 @@ defmodule TalesForge.PrFeed.Deploys do
   def status(_merge_sha, _main, _running_sha), do: :unknown
 
   @typedoc """
-  Main's commits as a lookup: the first #{@prefix} characters of each sha
-  (or the whole sha when it is shorter) point to its shas and positions.
+  Main's commits as a lookup. `shas`: the first #{@prefix} characters of
+  each sha (or the whole sha when it is shorter) point to its shas and
+  positions. A smaller position is a newer commit; `newest` is the smallest.
   """
-  @type index :: %{optional(String.t()) => [{String.t(), non_neg_integer()}]}
+  @type index :: %{
+          shas: %{optional(String.t()) => [{String.t(), integer()}]},
+          newest: integer()
+        }
 
   @doc """
   Builds the lookup of `main` (commit shas, newest first) once, so
@@ -78,23 +82,44 @@ defmodule TalesForge.PrFeed.Deploys do
       :pending
   """
   @spec index([String.t()]) :: index()
-  def index(main) when is_list(main) do
-    main
-    |> Enum.with_index()
-    |> Enum.reduce(%{}, fn {sha, at}, acc ->
-      sha = String.downcase(sha)
-      Map.update(acc, key(sha), [{sha, at}], &[{sha, at} | &1])
+  def index(main) when is_list(main), do: prepend(%{shas: %{}, newest: 0}, main)
+
+  @doc """
+  Adds new commits of main (newest first) in front of `index`, without a
+  rebuild. Shas the index has already are skipped.
+
+      iex> alias TalesForge.PrFeed.Deploys
+      iex> main = Deploys.index(["c2c2c2c2"]) |> Deploys.prepend(["c4c4c4c4", "c3c3c3c3"])
+      iex> {Deploys.status("c3c3c3c3", main, "c4c4c4c4"), Deploys.status("c4c4c4c4", main, "c2c2c2c2")}
+      {:deployed, :pending}
+  """
+  @spec prepend(index(), [String.t()]) :: index()
+  def prepend(%{shas: _, newest: newest} = index, shas) when is_list(shas) do
+    new =
+      shas
+      |> Enum.map(&String.downcase/1)
+      |> Enum.reject(&(position(index, &1) != nil))
+      |> Enum.uniq()
+
+    first = newest - length(new)
+
+    new
+    |> Enum.with_index(first)
+    |> Enum.reduce(%{index | newest: min(first, newest)}, fn {sha, at}, acc ->
+      %{acc | shas: Map.update(acc.shas, key(sha), [{sha, at}], &[{sha, at} | &1])}
     end)
-    |> Map.new(fn {key, entries} -> {key, Enum.reverse(entries)} end)
   end
 
   # Full and abbreviated shas match each other (GIT_SHA may be either).
   defp position(main, sha) do
     sha = String.downcase(sha)
 
-    Enum.find_value(Map.get(main, key(sha), []), fn {candidate, at} ->
-      if same_sha?(candidate, sha), do: at
-    end)
+    # The newest match, as on the list (the smallest position).
+    for {candidate, at} <- Map.get(main.shas, key(sha), []),
+        same_sha?(candidate, sha),
+        reduce: nil do
+      best -> if best == nil or at < best, do: at, else: best
+    end
   end
 
   defp key(sha) when byte_size(sha) >= @prefix, do: binary_part(sha, 0, @prefix)

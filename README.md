@@ -100,7 +100,8 @@ GITHUB_DOCS_TOKEN=...
 Then open http://localhost:4000/ (you are sent to `/admin/login`). See `docs/DEPLOY-FLY.md`.
 
 The founders' page (`/team`) has a live PR feed ("Live: what we're shipping",
-`TalesForge.PrFeed`), polled from GitHub on the server every minute. It needs
+`TalesForge.PrFeed`). GitHub webhooks update it (`docs/github-webhooks.md`,
+secret `GITHUB_WEBHOOK_SECRET`), and a full read every 30 min is the backup. It needs
 `GITHUB_FEED_TOKEN`, a fine-grained read-only token for `whyse-ab/ex-tales-forge`
 (Pull requests, Contents and Actions: read). Without it the section says
 "Live feed unavailable" and the rest of the page works as usual.

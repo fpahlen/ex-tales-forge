@@ -52,7 +52,9 @@ defmodule TalesForgeWeb.AccessControlTest do
     {:post, "/internal/chat"},
     # The bots open card and chat images with the same bot tokens
     # (TeamImageController); 401 without a token.
-    {:get, "/internal/images/:id"}
+    {:get, "/internal/images/:id"},
+    # GitHub's webhook: signed with GITHUB_WEBHOOK_SECRET (GitHubWebhookController).
+    {:post, "/webhooks/github"}
   ]
 
   @id Ecto.UUID.generate()
