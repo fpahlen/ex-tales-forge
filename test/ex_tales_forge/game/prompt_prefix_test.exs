@@ -132,6 +132,9 @@ defmodule TalesForge.Game.PromptPrefixTest do
     assert per_turn.content =~ "Validated player action (turn 3)"
   end
 
+  defp rules_text(adventure_id),
+    do: adventure_id |> Prompts.load_rules() |> TalesForge.Game.SkillSplit.rules_text(false)
+
   test "narrator text is the same across adventures; the adventure's rules follow it", %{a: a} do
     {:ok, tin} = GameSessions.create_session(%{name: "Prefix Tin", adventure_id: "tin_valley"})
 
@@ -140,8 +143,9 @@ defmodule TalesForge.Game.PromptPrefixTest do
 
     assert narrator_a == narrator_t
     assert narrator_a.content == Prompts.narrator_system()
-    assert rules_a.content == Prompts.load_rules(a.world_state["adventure_id"])
-    assert rules_t.content == Prompts.load_rules("tin_valley")
+    # The rules files hold the SKILL_SPLIT blocks; the flag is off here.
+    assert rules_a.content == rules_text(a.world_state["adventure_id"])
+    assert rules_t.content == rules_text("tin_valley")
   end
 
   describe "on the wire" do

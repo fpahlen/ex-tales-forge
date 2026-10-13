@@ -170,7 +170,7 @@ defmodule TalesForge.IntentJev do
 
     timeout = Keyword.get(opts, :timeout_ms) || Config.intent_jev_timeout_ms()
     state = JevIntent.state(context, text)
-    questions = JevIntent.questions(candidates)
+    questions = JevIntent.questions(candidates, JevIntent.catalogue(), Config.skill_split?())
     result = post_within(state, questions, timeout)
 
     elapsed = System.monotonic_time(:millisecond) - started
