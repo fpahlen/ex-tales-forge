@@ -24,7 +24,8 @@ defmodule TalesForgeWeb.TeamInbox do
   reverts a change that woke a bot.
 
   An answer goes through the source: `TalesForge.Board.add_comment/4` for a
-  card and `TalesForge.Chat.post/3` for the team chat. An approval goes
+  card, `TalesForge.Board.answer_question/4` for a Founder check question
+  and `TalesForge.Chat.post/3` for the team chat. An approval goes
   through `TalesForge.Board.answer_pr/4`, the same as Approve on the card.
   The answer or the approval closes the item (`Workflow.Inbox.closes/2`).
   """
@@ -167,6 +168,11 @@ defmodule TalesForgeWeb.TeamInbox do
   defp send_answer(assigns, %{source: :chat}, text),
     do: Chat.post(assigns.founder, text, login: assigns.login)
 
+  defp send_answer(assigns, %{source: :question, idea_id: idea_id, body: question}, text) do
+    with %Board.Idea{} = idea <- Board.get_idea(idea_id),
+         do: Board.answer_question(idea, assigns.founder, question, %{"answer" => text})
+  end
+
   defp send_answer(assigns, %{source: :comment, idea_id: idea_id}, text) do
     with %Board.Idea{} = idea <- Board.get_idea(idea_id),
          do: Board.add_comment(idea, assigns.founder, text, login: assigns.login)
@@ -194,10 +200,16 @@ defmodule TalesForgeWeb.TeamInbox do
       "Card: Dark mode"
       iex> TalesForgeWeb.TeamInbox.chip(%{source: :pr, title: "Dark mode"})
       "PR on card: Dark mode"
+      iex> TalesForgeWeb.TeamInbox.chip(%{source: :question, title: "Dark mode"})
+      "Founder check: Dark mode"
   """
   @spec chip(map()) :: String.t()
   def chip(%{source: :chat}), do: "Team chat"
   def chip(%{source: :pr, title: title}) when is_binary(title), do: "PR on card: " <> title
+
+  def chip(%{source: :question, title: title}) when is_binary(title),
+    do: "Founder check: " <> title
+
   def chip(%{title: title}) when is_binary(title), do: "Card: " <> title
   def chip(_item), do: "Card"
 

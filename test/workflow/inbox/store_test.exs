@@ -122,4 +122,40 @@ defmodule Workflow.Inbox.StoreTest do
       assert [%{source_id: "pr-301-beef000"}] = Store.open(@owner.handle)
     end
   end
+
+  describe "rule founder_check" do
+    defp check_card(questions) do
+      idea = card()
+
+      {:ok, idea} = Board.vote(idea, @other_email, 1)
+      {:ok, idea} = Board.move(idea, {:founder, @other_email}, "refining")
+
+      {:ok, idea} =
+        Board.refine(idea, %{
+          "open_questions" => questions,
+          "rough_cost" => "S",
+          "verdict" => "feasible"
+        })
+
+      {:ok, idea} = Board.move(idea, {:bot, Workflow.Team.bot(@team, :refiner)}, "check")
+      idea
+    end
+
+    test "a move to Founder check makes one item for each open question" do
+      idea = check_card(["How big?", "Which page?"])
+
+      assert [one, two] = Store.open(@owner.handle)
+      assert {one.kind, one.source, one.body} == {:answer, :question, "How big?"}
+      assert two.body == "Which page?"
+      assert one.idea_id == idea.id
+      assert Store.open(@other.handle) == []
+    end
+
+    test "an answer on the card closes the item of that question" do
+      idea = check_card(["How big?", "Which page?"])
+      {:ok, _} = Board.answer_question(idea, @other_email, "How big?", %{"answer" => "Small"})
+
+      assert [%{body: "Which page?"}] = Store.open(@owner.handle)
+    end
+  end
 end

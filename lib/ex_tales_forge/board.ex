@@ -907,13 +907,19 @@ defmodule TalesForge.Board do
 
   defp clean_up_images(multi, _idea, _to), do: multi
 
+  # The open questions go to the inbox (Workflow.Inbox rule founder_check).
+  defp check_extra(idea, extra) do
+    questions = for {q, a} <- questions(idea), not Answer.settled?(a), do: q
+    Map.put(extra, :questions, questions)
+  end
+
   defp add_move_events(multi, idea, to, actor) do
     extra = %{from: idea.column, to: to, actor: Transitions.actor_name(actor)}
 
     case {idea.column, to} do
       {"ideas", "refining"} -> Events.add(multi, :idea_to_refining, idea, extra)
       {_, "refining"} -> Events.add(multi, :idea_back_to_refining, idea, extra)
-      {_, "check"} -> Events.add(multi, :idea_to_check, idea, extra)
+      {_, "check"} -> Events.add(multi, :idea_to_check, idea, check_extra(idea, extra))
       {_, "building"} -> Events.add(multi, :idea_to_building, idea, extra)
       {_, "done"} -> Events.add(multi, :idea_to_done, idea, extra)
       {_, "archived"} -> Events.add(multi, :idea_to_archived, idea, extra)

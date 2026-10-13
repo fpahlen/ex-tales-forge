@@ -165,4 +165,32 @@ defmodule TalesForgeWeb.TeamInboxTest do
 
     assert Store.open(@owner.handle) == []
   end
+
+  test "Enter in a Founder check item answers the question on the card", %{conn: conn} do
+    {:ok, idea} = Board.create_idea(@other_email, %{"title" => "Check card"})
+
+    {:ok, idea} = Board.vote(idea, @other_email, 1)
+    {:ok, idea} = Board.move(idea, {:founder, @other_email}, "refining")
+
+    {:ok, idea} =
+      Board.refine(idea, %{
+        "open_questions" => ["How big?"],
+        "rough_cost" => "S",
+        "verdict" => "feasible"
+      })
+
+    {:ok, _} = Board.move(idea, {:bot, Workflow.Team.bot(@team, :refiner)}, "check")
+
+    {:ok, view, _} = live(owner(conn), "/team")
+    assert has_element?(view, "#inbox-chip summary", "Founder check: Check card")
+    assert has_element?(view, "#inbox-item-body", "How big?")
+
+    view |> form("#inbox-answer", %{answer: "Small, one PR."}) |> render_submit()
+    settle(view)
+
+    assert [{"How big?", %{answer: "Small, one PR."}}] =
+             Board.questions(Board.get_idea!(idea.id))
+
+    assert Store.open(@owner.handle) == []
+  end
 end
