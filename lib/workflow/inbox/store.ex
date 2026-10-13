@@ -62,6 +62,12 @@ defmodule Workflow.Inbox.Store do
   defp where_scope(q, :chat), do: where(q, [r], r.source == :chat)
   defp where_scope(q, {:idea, id}), do: where(q, [r], r.idea_id == ^id)
 
+  defp where_scope(q, {:idea_rule, id, rule}),
+    do: where(q, [r], r.idea_id == ^id and r.rule == ^rule)
+
+  defp where_scope(q, {:source, source, source_id}),
+    do: where(q, [r], r.source == ^source and r.source_id == ^source_id)
+
   @doc "The open items of `handle`, in queue order."
   @spec open(String.t() | nil) :: [Record.t()]
   def open(nil), do: []

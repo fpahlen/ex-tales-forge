@@ -1056,7 +1056,7 @@
       {
         "name": "Fredrik",
         "github": "fpahlen",
-        "inbox": ["mention"]
+        "inbox": ["mention", "founder_check"]
       },
       {
         "name": "Thobias",

@@ -14,6 +14,7 @@ defmodule Workflow.Inbox do
   | Rule | Event | Kind | Item |
   |---|---|---|---|
   | `mention` | a comment or a chat message names the founder | answer | one item for each named founder |
+  | `founder_check` | a card moves to Founder check with open questions | answer | one item for each open question |
 
   ## Close
 
@@ -22,6 +23,9 @@ defmodule Workflow.Inbox do
     * The recipient comments on the card of the item.
     * The recipient posts in the team chat (for a chat item).
     * The card moves to Done or to the Archive.
+    * A founder answers or defers a Founder check question. This closes the
+      item of that question for all recipients.
+    * The card leaves Founder check. This closes its `founder_check` items.
 
   ## Queue
 
@@ -39,7 +43,14 @@ defmodule Workflow.Inbox do
   A close: the items of `recipient` (or of all recipients, `:all`) for the
   card `idea_id`, or for the team chat (`:chat`).
   """
-  @type close :: %{recipient: String.t() | :all, scope: {:idea, String.t()} | :chat}
+  @type close :: %{
+          recipient: String.t() | :all,
+          scope:
+            {:idea, String.t()}
+            | {:idea_rule, String.t(), String.t()}
+            | {:source, :question, String.t()}
+            | :chat
+        }
 
   @typedoc "An action on the current item."
   @type action :: :approve | :answer | :done | :discard | :skip | :next | :prev
@@ -50,6 +61,12 @@ defmodule Workflow.Inbox do
       kind: :answer,
       events: [:comment, :chat],
       about: "A comment or a chat message names the founder."
+    },
+    %{
+      id: "founder_check",
+      kind: :answer,
+      events: [:check_questions],
+      about: "A card moves to Founder check with open questions."
     }
   ]
 
@@ -57,7 +74,7 @@ defmodule Workflow.Inbox do
   The rules, in order. Each rule is one entry.
 
       iex> Workflow.Inbox.rules() |> Enum.map(& &1.id)
-      ["mention"]
+      ["mention", "founder_check"]
   """
   @spec rules() :: [rule()]
   def rules, do: @rules
@@ -103,8 +120,9 @@ defmodule Workflow.Inbox do
         event.type in rule.events,
         founder <- team.founders,
         rule.id in rule_ids(team, founder.handle),
-        rule_match?(rule, event, founder.handle) do
-      item(rule, event, founder.handle)
+        rule_match?(rule, event, founder.handle),
+        item <- items(rule, event, founder.handle) do
+      item
     end
     |> Enum.uniq_by(&{&1.recipient, &1.source, &1.source_id})
   end
@@ -112,6 +130,33 @@ defmodule Workflow.Inbox do
   # One clause for each rule id.
   defp rule_match?(%{id: "mention"}, %Event{mentions: mentions, author_handle: author}, handle),
     do: handle in mentions and handle != author
+
+  defp rule_match?(%{id: "founder_check"}, %Event{idea_id: id}, _handle), do: is_binary(id)
+
+  # One item for each open question; one item for the other rules.
+  defp items(%{id: "founder_check"} = rule, %Event{} = event, handle) do
+    for question <- event.questions do
+      %{
+        item(rule, event, handle)
+        | source: :question,
+          source_id: question_id(event.idea_id, question),
+          body: question
+      }
+    end
+  end
+
+  defp items(rule, event, handle), do: [item(rule, event, handle)]
+
+  @doc """
+  The source id of a Founder check question on a card.
+
+      iex> Workflow.Inbox.question_id("i1", "How big?") == Workflow.Inbox.question_id("i1", "How big?")
+      true
+  """
+  @spec question_id(String.t(), String.t()) :: String.t()
+  def question_id(idea_id, question),
+    do:
+      "q-#{idea_id}-#{:crypto.hash(:sha256, question) |> Base.encode16(case: :lower) |> binary_part(0, 16)}"
 
   defp item(rule, event, handle) do
     %Item{
@@ -153,6 +198,17 @@ defmodule Workflow.Inbox do
   @spec closes(Team.t(), Event.t()) :: [close()]
   def closes(_team, %Event{type: :card_closed, idea_id: id}) when is_binary(id),
     do: [%{recipient: :all, scope: {:idea, id}}]
+
+  def closes(_team, %Event{type: :question_answered, idea_id: id, questions: questions})
+      when is_binary(id),
+      do:
+        for(
+          q <- questions,
+          do: %{recipient: :all, scope: {:source, :question, question_id(id, q)}}
+        )
+
+  def closes(_team, %Event{type: :check_left, idea_id: id}) when is_binary(id),
+    do: [%{recipient: :all, scope: {:idea_rule, id, "founder_check"}}]
 
   def closes(team, %Event{type: type, author_handle: handle} = event)
       when type in [:comment, :chat] and is_binary(handle) do
