@@ -14,6 +14,12 @@ defmodule Workflow.Inbox do
   | Rule | Event | Kind | Item |
   |---|---|---|---|
   | `mention` | a comment or a chat message names the founder | answer | one item for each named founder |
+  | `ci_failed` | the `CI` workflow fails on main | ack | one item for each founder with the rule |
+  | `deploy_failed` | a `Deploy to ...` workflow fails on main | ack | one item for each founder with the rule |
+
+  The `ci_failed` and `deploy_failed` events have no tag: they name no card
+  and no person. A failed CI run on the head of a PR on a card wakes the
+  builder (`TalesForge.Board.GitHubEvents`), so it makes no inbox item.
 
   ## Close
 
@@ -22,6 +28,8 @@ defmodule Workflow.Inbox do
     * The recipient comments on the card of the item.
     * The recipient posts in the team chat (for a chat item).
     * The card moves to Done or to the Archive.
+    * The same workflow passes on main. This closes the open items of that
+      workflow for all recipients.
 
   ## Queue
 
@@ -39,7 +47,10 @@ defmodule Workflow.Inbox do
   A close: the items of `recipient` (or of all recipients, `:all`) for the
   card `idea_id`, or for the team chat (`:chat`).
   """
-  @type close :: %{recipient: String.t() | :all, scope: {:idea, String.t()} | :chat}
+  @type close :: %{
+          recipient: String.t() | :all,
+          scope: {:idea, String.t()} | {:workflow, String.t()} | :chat
+        }
 
   @typedoc "An action on the current item."
   @type action :: :approve | :answer | :done | :discard | :skip | :next | :prev
@@ -50,6 +61,18 @@ defmodule Workflow.Inbox do
       kind: :answer,
       events: [:comment, :chat],
       about: "A comment or a chat message names the founder."
+    },
+    %{
+      id: "ci_failed",
+      kind: :ack,
+      events: [:workflow_failed],
+      about: "The CI workflow fails on main."
+    },
+    %{
+      id: "deploy_failed",
+      kind: :ack,
+      events: [:workflow_failed],
+      about: "A deploy workflow fails on main."
     }
   ]
 
@@ -57,7 +80,7 @@ defmodule Workflow.Inbox do
   The rules, in order. Each rule is one entry.
 
       iex> Workflow.Inbox.rules() |> Enum.map(& &1.id)
-      ["mention"]
+      ["mention", "ci_failed", "deploy_failed"]
   """
   @spec rules() :: [rule()]
   def rules, do: @rules
@@ -113,20 +136,29 @@ defmodule Workflow.Inbox do
   defp rule_match?(%{id: "mention"}, %Event{mentions: mentions, author_handle: author}, handle),
     do: handle in mentions and handle != author
 
+  defp rule_match?(%{id: "ci_failed"}, %Event{workflow: workflow}, _handle),
+    do: workflow == "CI"
+
+  defp rule_match?(%{id: "deploy_failed"}, %Event{workflow: workflow}, _handle),
+    do: is_binary(workflow) and String.starts_with?(workflow, "Deploy")
+
   defp item(rule, event, handle) do
     %Item{
       recipient: handle,
       rule: rule.id,
       kind: rule.kind,
-      source: event.type,
+      source: source(event.type),
       source_id: event.source_id,
       idea_id: event.idea_id,
-      title: event.title,
+      title: event.title || event.workflow,
       author: event.author,
       body: event.body,
       url: url(event)
     }
   end
+
+  defp source(type) when type in [:workflow_failed, :workflow_passed], do: :github
+  defp source(type), do: type
 
   @doc """
   The source link of an event: the card on `/team`, or the team chat.
@@ -135,6 +167,7 @@ defmodule Workflow.Inbox do
       "/team#chat"
   """
   @spec url(Event.t()) :: String.t()
+  def url(%Event{url: url}) when is_binary(url), do: url
   def url(%Event{type: :chat}), do: "/team#chat"
   def url(%Event{idea_id: id}) when is_binary(id), do: "/team#idea-" <> id
   def url(%Event{}), do: "/team"
@@ -153,6 +186,9 @@ defmodule Workflow.Inbox do
   @spec closes(Team.t(), Event.t()) :: [close()]
   def closes(_team, %Event{type: :card_closed, idea_id: id}) when is_binary(id),
     do: [%{recipient: :all, scope: {:idea, id}}]
+
+  def closes(_team, %Event{type: :workflow_passed, workflow: workflow}) when is_binary(workflow),
+    do: [%{recipient: :all, scope: {:workflow, workflow}}]
 
   def closes(team, %Event{type: type, author_handle: handle} = event)
       when type in [:comment, :chat] and is_binary(handle) do

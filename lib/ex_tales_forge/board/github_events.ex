@@ -16,6 +16,9 @@ defmodule TalesForge.Board.GitHubEvents do
     card whose waiting PR has that head commit.
   - `Deploy to production` passed: queue `TalesForge.Board.Workers.AutoDone`,
     so cards whose PR is now on prod move to Done.
+  - A workflow run on main ended: give it to the inbox (`Workflow.Inbox`,
+    rules `ci_failed` and `deploy_failed`) as an event with no tag. A failed
+    run makes items; a passed run of the same workflow closes them.
 
   Production only (`TalesForge.AppRole`), as the board, or with
   `:board_github_events_anywhere`.
@@ -38,6 +41,7 @@ defmodule TalesForge.Board.GitHubEvents do
           | {:wake_pr, :pr_merged, pos_integer()}
           | {:wake_sha, :ci_failed, String.t()}
           | :auto_done
+          | {:inbox, Workflow.Inbox.Event.t()}
 
   @doc "Starts the subscriber (named `#{inspect(__MODULE__)}`)."
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -75,34 +79,73 @@ defmodule TalesForge.Board.GitHubEvents do
       iex> GitHubEvents.plan(%GitEvent{type: :workflow_run, repo: "o/r", action: "completed",
       ...>   workflow: "CI", ci: :failed, sha: "abc"})
       [{:wake_sha, :ci_failed, "abc"}]
+      iex> [{:inbox, event}] = GitHubEvents.plan(%GitEvent{type: :workflow_run, repo: "o/r",
+      ...>   action: "completed", workflow: "CI", ci: :failed, sha: "abc", branch: "main"}) |> Enum.drop(1)
+      iex> {event.type, event.workflow, event.url}
+      {:workflow_failed, "CI", "https://github.com/o/r/commit/abc"}
       iex> GitHubEvents.plan(%GitEvent{type: :workflow_run, repo: "o/r", action: "completed",
       ...>   workflow: "Deploy to production", ci: :passed})
       [:auto_done]
+      iex> GitHubEvents.plan(%GitEvent{type: :workflow_run, repo: "o/r", action: "completed",
+      ...>   workflow: "Deploy to production", ci: :passed, sha: "abc", branch: "main"}) |> Enum.drop(1)
+      ...> |> Enum.map(fn {:inbox, e} -> e.type end)
+      [:workflow_passed]
       iex> GitHubEvents.plan(%GitEvent{type: :push, repo: "o/r"})
       []
   """
   @spec plan(GitEvent.t()) :: [step()]
-  def plan(%GitEvent{type: :pull_request, action: action, pr: n})
-      when action in ["opened", "reopened", "ready_for_review"] and is_integer(n),
-      do: [{:backfill, n}]
+  def plan(%GitEvent{} = event), do: board_plan(event) ++ inbox_plan(event)
 
-  def plan(%GitEvent{type: :pull_request, action: "closed", pr: n, pull: %{state: :merged}})
-      when is_integer(n),
-      do: [{:wake_pr, :pr_merged, n}]
+  defp board_plan(%GitEvent{type: :pull_request, action: action, pr: n})
+       when action in ["opened", "reopened", "ready_for_review"] and is_integer(n),
+       do: [{:backfill, n}]
 
-  def plan(%GitEvent{type: :workflow_run, action: "completed", workflow: "CI", ci: :failed} = e)
-      when is_binary(e.sha),
-      do: [{:wake_sha, :ci_failed, e.sha}]
+  defp board_plan(%GitEvent{
+         type: :pull_request,
+         action: "closed",
+         pr: n,
+         pull: %{state: :merged}
+       })
+       when is_integer(n),
+       do: [{:wake_pr, :pr_merged, n}]
 
-  def plan(%GitEvent{
-        type: :workflow_run,
-        action: "completed",
-        workflow: "Deploy to production",
-        ci: :passed
-      }),
-      do: [:auto_done]
+  defp board_plan(
+         %GitEvent{type: :workflow_run, action: "completed", workflow: "CI", ci: :failed} = e
+       )
+       when is_binary(e.sha),
+       do: [{:wake_sha, :ci_failed, e.sha}]
 
-  def plan(%GitEvent{}), do: []
+  defp board_plan(%GitEvent{
+         type: :workflow_run,
+         action: "completed",
+         workflow: "Deploy to production",
+         ci: :passed
+       }),
+       do: [:auto_done]
+
+  defp board_plan(%GitEvent{}), do: []
+
+  # A run on main names no card and no person: the inbox gets it with no tag.
+  defp inbox_plan(%GitEvent{type: :workflow_run, action: "completed", branch: "main", ci: ci} = e)
+       when ci in [:failed, :passed] and is_binary(e.workflow) and is_binary(e.sha) do
+    url = "https://github.com/#{e.repo}/commit/#{e.sha}"
+
+    [
+      {:inbox,
+       %Workflow.Inbox.Event{
+         type: if(ci == :failed, do: :workflow_failed, else: :workflow_passed),
+         source_id: "run-#{e.workflow}-#{e.sha}",
+         workflow: e.workflow,
+         sha: e.sha,
+         url: url,
+         author: e.actor,
+         body:
+           "#{e.workflow} #{if ci == :failed, do: "failed", else: "passed"} on main at #{String.slice(e.sha, 0, 7)}."
+       }}
+    ]
+  end
+
+  defp inbox_plan(%GitEvent{}), do: []
 
   # The job reads the Building cards with a PR link and no PR waiting.
   defp run({:backfill, _number}), do: PrBackfill.schedule()
@@ -120,6 +163,11 @@ defmodule TalesForge.Board.GitHubEvents do
   end
 
   defp run(:auto_done), do: AutoDone.schedule()
+
+  defp run({:inbox, event}) do
+    {:ok, _count} = Workflow.Inbox.Store.record(Workflow.Team.Source.team(), event)
+    :ok
+  end
 
   defp wake(%Idea{} = idea, event) do
     pr = %{"number" => idea.pr_number, "url" => idea.pr_url, "head_sha" => idea.pr_head_sha}

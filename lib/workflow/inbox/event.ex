@@ -7,16 +7,21 @@ defmodule Workflow.Inbox.Event do
   Fields:
 
     * `type`: `:comment` (a comment on a card), `:chat` (a team chat
-      message) or `:card_closed` (a card moved to Done or the Archive)
+      message), `:card_closed` (a card moved to Done or the Archive),
+      `:workflow_failed` or `:workflow_passed` (a GitHub Actions run on
+      main ended; no card and no person is tagged)
     * `source_id`: the id of the comment or the chat message
     * `idea_id`, `title`: the card and its title, or nil for the chat
     * `author`: a founder email or `bot:<id>`
     * `author_handle`: the founder handle of the author, or nil
     * `mentions`: the founder handles that the body names, without the author
     * `body`: the text of the comment or the message
+    * `workflow`: for a run, the workflow name (`"CI"`, `"Deploy to playtest"`)
+    * `sha`: for a run, the head commit
+    * `url`: for a run, the link to the commit on GitHub
   """
 
-  @type type :: :comment | :chat | :card_closed
+  @type type :: :comment | :chat | :card_closed | :workflow_failed | :workflow_passed
 
   @type t :: %__MODULE__{
           type: type(),
@@ -26,7 +31,10 @@ defmodule Workflow.Inbox.Event do
           author: String.t() | nil,
           author_handle: String.t() | nil,
           mentions: [String.t()],
-          body: String.t()
+          body: String.t(),
+          workflow: String.t() | nil,
+          sha: String.t() | nil,
+          url: String.t() | nil
         }
 
   defstruct type: :comment,
@@ -36,5 +44,8 @@ defmodule Workflow.Inbox.Event do
             author: nil,
             author_handle: nil,
             mentions: [],
-            body: ""
+            body: "",
+            workflow: nil,
+            sha: nil,
+            url: nil
 end

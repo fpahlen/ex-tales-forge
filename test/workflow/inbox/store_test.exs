@@ -90,4 +90,38 @@ defmodule Workflow.Inbox.StoreTest do
     assert [%{count: 1}] = Board.unread_pings(@other.github)
     assert Chat.unread(@other.github) == 1
   end
+
+  describe "rules ci_failed and deploy_failed (GitHub runs on main)" do
+    alias TalesForge.Board.GitHubEvents
+    alias TalesForge.GitEvents.GitEvent
+
+    defp run_on_main(workflow, ci, sha) do
+      %GitEvent{type: :workflow_run, repo: "o/r", action: "completed", branch: "main"}
+      |> Map.merge(%{workflow: workflow, ci: ci, sha: sha, actor: "someone"})
+      |> GitHubEvents.plan()
+      |> Enum.each(fn
+        {:inbox, event} -> {:ok, _} = Store.record(@team, event)
+        _step -> :ok
+      end)
+    end
+
+    test "a failed CI run makes one ack item, and a passed CI run closes it" do
+      run_on_main("CI", :failed, "abc1234")
+
+      assert [item] = Store.open(@owner.handle)
+      assert {item.kind, item.source, item.rule, item.title} == {:ack, :github, "ci_failed", "CI"}
+      assert item.url == "https://github.com/o/r/commit/abc1234"
+      assert Store.open(@other.handle) == []
+
+      run_on_main("Deploy to playtest", :failed, "abc1234")
+      run_on_main("CI", :passed, "def5678")
+      assert [%{rule: "deploy_failed"}] = Store.open(@owner.handle)
+    end
+
+    test "the same failed run twice makes one item" do
+      run_on_main("CI", :failed, "abc1234")
+      run_on_main("CI", :failed, "abc1234")
+      assert [_one] = Store.open(@owner.handle)
+    end
+  end
 end

@@ -185,11 +185,21 @@ defmodule TalesForgeWeb.TeamInbox do
       "Team chat"
       iex> TalesForgeWeb.TeamInbox.chip(%{source: :comment, title: "Dark mode"})
       "Card: Dark mode"
+      iex> TalesForgeWeb.TeamInbox.chip(%{source: :github, title: "CI"})
+      "GitHub: CI"
   """
   @spec chip(map()) :: String.t()
   def chip(%{source: :chat}), do: "Team chat"
+
+  def chip(%{source: :github, title: workflow}) when is_binary(workflow),
+    do: "GitHub: " <> workflow
+
   def chip(%{title: title}) when is_binary(title), do: "Card: " <> title
   def chip(_item), do: "Card"
+
+  defp link_label(:chat), do: "Open the team chat"
+  defp link_label(:github), do: "Open the commit on GitHub"
+  defp link_label(_source), do: "Open the card"
 
   defp who("bot:" <> bot), do: String.capitalize(bot)
   defp who(email) when is_binary(email), do: email |> String.split("@") |> hd()
@@ -243,7 +253,7 @@ defmodule TalesForgeWeb.TeamInbox do
           <div id="inbox-chip-body" class="mt-2 grid gap-1 rounded border p-2 text-sm">
             <p class="whitespace-pre-line">{@item.body}</p>
             <a href={@item.url} class="underline">
-              {if @item.source == :chat, do: "Open the team chat", else: "Open the card"}
+              {link_label(@item.source)}
             </a>
           </div>
         </details>
