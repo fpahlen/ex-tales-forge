@@ -57,7 +57,10 @@ defmodule TalesForge.Chat.Thread do
     |> update_change(:subject, &String.trim/1)
     |> validate_required([:subject, :kind, :last_message_at], message: "Write a subject first.")
     |> validate_inclusion(:kind, ["subject", "direct"])
-    |> validate_length(:subject, max: @max_subject, message: "Write #{@max_subject} characters or fewer.")
+    |> validate_length(:subject,
+      max: @max_subject,
+      message: "Write #{@max_subject} characters or fewer."
+    )
     |> unique_constraint(:members, name: :team_chat_threads_direct_members_index)
     |> check_constraint(:members, name: :direct_has_two_members)
   end
