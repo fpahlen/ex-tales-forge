@@ -38,6 +38,14 @@ defmodule TalesForgeWeb.TeamWorkLogLiveTest do
 
     assert render(view) =~ "Design meeting"
     assert has_element?(view, ~s(#work-log-total-founder\\@example\\.com), "1.50 h")
+    assert has_element?(view, ~s(#work-log-pie-founder\\@example\\.com), "1.50")
+    assert has_element?(view, ~s(#work-log-pie svg path))
+    assert has_element?(view, "#work-log-pie", "%")
+  end
+
+  test "an empty log shows no pie", %{conn: conn} do
+    {:ok, view, _html} = live(log_in_admin(conn), ~p"/team/work-log")
+    assert has_element?(view, "#work-log-pie-empty")
   end
 
   test "a bad entry shows the errors and saves nothing", %{conn: conn} do
