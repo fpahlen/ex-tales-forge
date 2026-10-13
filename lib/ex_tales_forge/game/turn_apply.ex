@@ -215,38 +215,48 @@ defmodule TalesForge.Game.TurnApply do
 
   @doc """
   Adds the sleep of "I pay for a room and go to sleep" to the handler as
-  `"sleep_ticks"`: eight hours at a rest place, one hour elsewhere. A
+  `"sleep_ticks"`: until the next morning at a rest place
+  (`WorldClock.ticks_to_morning/1`), one hour elsewhere. A
   rejected payment also gets one hour, because the character sleeps without
   a bed. Other actions do not change.
 
   ## Examples
 
       iex> alias TalesForge.Game.Schemas.HandlerResult
-      iex> world = %{"location_id" => "inn", "locations" => %{"inn" => %{"name" => "The Inn"}}}
+      iex> world = %{"location_id" => "inn", "world_tick" => 41, "locations" => %{"inn" => %{"name" => "The Inn"}}}
       iex> h = %HandlerResult{handler: "inventory", state_hints: %{}}
       iex> TalesForge.Game.TurnApply.sleep_after_lodging(h, world, "I pay for a room and go to sleep").state_hints["sleep_ticks"]
-      32
+      63
       iex> TalesForge.Game.TurnApply.sleep_after_lodging(h, world, "I pay for an ale").state_hints
       %{}
   """
   @spec sleep_after_lodging(HandlerResult.t(), map(), String.t() | nil) :: HandlerResult.t()
   def sleep_after_lodging(%HandlerResult{} = handler, world, text) do
     if Rest.lodging_then_sleep?(text) do
+      now = world["world_tick"] || WorldClock.default_start_tick()
+
       ticks =
         if Rest.rest_place?(world, world["location_id"]) and
              handler.state_hints["rejected"] != true,
-           do: WorldClock.parse_duration("sleep"),
+           do: WorldClock.ticks_to_morning(now),
            else: WorldClock.ticks_per_hour()
 
       %{
         handler
-        | notes: handler.notes <> " " <> sleep_note(ticks),
+        | notes: handler.notes <> " " <> sleep_note(ticks) <> wake_note(now + ticks),
           state_hints: Map.put(handler.state_hints || %{}, "sleep_ticks", ticks)
       }
     else
       handler
     end
   end
+
+  # The GM narrates the time of day at which the character wakes: the clock
+  # of the sheet. Gentry's playtest session 11f60fb5 on 2026-10-13: the prose
+  # said dawn and the clock said witching hour.
+  defp wake_note(tick),
+    do:
+      " The character wakes at #{WorldClock.format(tick)}. Narrate this time of day, not another."
 
   @doc """
   The sleep after a failed payment: one hour, with no paid bed. A handler
@@ -267,7 +277,7 @@ defmodule TalesForge.Game.TurnApply do
 
   defp sleep_note(ticks) do
     if ticks > WorldClock.ticks_per_hour(),
-      do: "Then the character sleeps for eight hours in the paid bed.",
+      do: "Then the character sleeps in the paid bed until the morning.",
       else: "The character has no paid bed. Narrate a short rest of about one hour."
   end
 
@@ -394,7 +404,9 @@ defmodule TalesForge.Game.TurnApply do
     %HandlerResult{
       handler: "narrate",
       target: name,
-      notes: "Move rejected: the place does not exist. The character stays here.",
+      notes:
+        "Move rejected: the place does not exist. The character stays here. " <>
+          "Give the exits as a plain list, in the words of the reason.",
       state_hints: %{
         "move_rejected" => true,
         "rejected" => true,
