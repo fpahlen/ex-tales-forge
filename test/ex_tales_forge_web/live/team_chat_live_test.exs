@@ -253,7 +253,7 @@ defmodule TalesForgeWeb.TeamChatLiveTest do
       assert {:ok, [%{body: "Just us"}]} = Chat.recent({:founder, "max"}, direct.id)
     end
 
-    test "another founder cannot see, open or post in a 1:1", %{conn: conn} do
+    test "another founder cannot see, open or post in a 1:1" do
       {:ok, direct} = Chat.start_direct({:founder, "fredrik"}, "max")
 
       {:ok, _} =
