@@ -157,6 +157,15 @@ defmodule TalesForge.Game.JevIntent do
     quietly: "Quietly, softly or trying not to be heard."
   }
 
+  # Skill split (SKILL_SPLIT=on): how many parts the player splits the main
+  # skill action into. The uneven part levels come from the player text in
+  # Elixir (TalesForge.Game.SkillSplit), not from the model.
+  @split_labels %{
+    one: "One action. The player asks for no split.",
+    two: "The player splits the main skill action into two parts, for example two attacks.",
+    three: "The player splits the main skill action into three parts, for example three attacks."
+  }
+
   @safety_labels %{
     benign:
       "An ordinary in-character action, even if it is rude, violent or a lie inside the story.",
@@ -379,6 +388,22 @@ defmodule TalesForge.Game.JevIntent do
     with_targets(base, candidates)
   end
 
+  @doc """
+  The Jev questions with the `split` question added when `split?` is true
+  (`SKILL_SPLIT=on`). With `split?` false, the questions are the questions of
+  `questions/2`.
+  """
+  @spec questions([candidate()], :v1 | :v2, boolean()) :: keyword()
+  def questions(candidates, catalogue, false), do: questions(candidates, catalogue)
+
+  def questions(candidates, catalogue, true) do
+    questions(candidates, catalogue) ++
+      [
+        split:
+          {"Does the player split the main skill action into parts this turn?", @split_labels}
+      ]
+  end
+
   @doc "The catalogue of the Jev read: `:v2` with `JEV_CATALOGUE_V2=on`, else `:v1`."
   @spec catalogue() :: :v1 | :v2
   def catalogue, do: if(TalesForge.Config.jev_catalogue_v2?(), do: :v2, else: :v1)
@@ -514,7 +539,7 @@ defmodule TalesForge.Game.JevIntent do
           text,
           context,
           confidence,
-          manner(reply[:manner])
+          {manner(reply[:manner]), split(reply[:split])}
         ),
       action: action,
       target: target,
@@ -731,12 +756,13 @@ defmodule TalesForge.Game.JevIntent do
          text,
          context,
          confidence,
-         manner
+         {manner, split}
        ) do
     primary = %SingleAction{
       action_type: action,
       target: target,
-      parameters: parameters(action, skill, text, context, target, manner)
+      parameters:
+        action |> parameters(skill, text, context, target, manner) |> put_split(split, skill)
     }
 
     deferred =
@@ -760,6 +786,15 @@ defmodule TalesForge.Game.JevIntent do
     |> put_skill(skill, action)
     |> put_numbers(action, text, context, target)
   end
+
+  defp split(:two), do: 2
+  defp split(:three), do: 3
+  defp split(_split), do: nil
+
+  # The split needs a skill to split.
+  defp put_split(params, nil, _skill), do: params
+  defp put_split(params, _split, nil), do: params
+  defp put_split(params, split, _skill), do: Map.put(params, "split", split)
 
   defp put_manner(params, nil), do: params
   defp put_manner(params, manner), do: Map.put(params, "manner", Atom.to_string(manner))

@@ -27,7 +27,12 @@ This combat system, adapted from Savage Worlds' wound-based mechanics, is design
   - Combat skills and dodge are physical: their LP are resolved at the end of the turn of the miss, not on a rest: ceil(skill / 3) LP per roll, d20 ≥ 11 and ≥ skill level: +1, at most +1 per skill between two long rests; from skill 10 only after reflecting on it. Other skills rolled in a fight (deception, intimidation) wait for sleep.
 
 ## Additional Features
+<!-- skill_split:off -->
 - **Multi-Actions**: Multiple actions per round (e.g., attack twice) at -2 skill per extra action, granting LP on failures.
+<!-- /skill_split:off -->
+<!-- skill_split:on -->
+- **Skill split**: To attack more than one time in a round, split the combat skill. See `core_mechanics.md`, "Skill split".
+<!-- /skill_split:on -->
 - **Tactical Options**:
   - Reckless: +2 attack skill, -2 Parry next round.
   - Defensive: +2 Parry, -2 attack skill.

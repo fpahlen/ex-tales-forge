@@ -16,6 +16,12 @@ defmodule TalesForge.CharacterCreation do
     and each final stat (after the race modifier) must be within the range. A
     race bonus that would push a stat past the maximum is an error, not a
     silent clamp.
+  * **Dice model** (`creation.json` `stat_roll`): the player can choose the
+    dice instead of the point buy. `roll_stats/2` rolls 4d6 for each stat and
+    drops the lowest die, so each stat is 3 to 18. The player gets one
+    re-roll. The rolled stats are fixed and the budget does not apply. A race
+    modifier on a rolled stat stops at 3 and 18. Solo and group play use the
+    same rules.
   * **Skills** (`creation.json` `skills`):
     a 25-point skill budget where levels 1–3 cost 1 each and levels 4–5 cost 2
     each, a normal cap of 5 and at least 5 skills. One or two **signature
@@ -115,6 +121,7 @@ defmodule TalesForge.CharacterCreation do
           }
         end),
       point_buy: creation["point_buy"],
+      stat_roll: Map.delete(creation["stat_roll"], "_doc"),
       skills: Map.delete(creation["skills"], "_doc"),
       skill_list:
         Mechanics.skill_stat_map()
@@ -189,6 +196,9 @@ defmodule TalesForge.CharacterCreation do
     %{"min" => lo, "max" => hi} = rules(draft.adventure_id)["creation"]["point_buy"]
 
     cond do
+      draft.model == "stat_roll" ->
+        {:error, {:stats, "rolled stats are fixed; choose point buy to set them"}}
+
       stat not in @stats ->
         {:error, {:stats, "unknown stat #{inspect(stat)}"}}
 
@@ -302,6 +312,104 @@ defmodule TalesForge.CharacterCreation do
     }
   end
 
+  # --- dice model -----------------------------------------------------------------
+
+  @typedoc "Returns one die face from 1 to `sides`. `&:rand.uniform/1` is the default."
+  @type rng :: (pos_integer() -> pos_integer())
+
+  @doc """
+  Rolls the six stats with the `stat_roll` rules (`creation.json`). For each
+  stat, the function rolls `dice` dice with `sides` sides and adds the highest
+  `keep` dice. With 4d6 and keep 3, each stat is 3 to 18.
+
+  The function is pure: `rng` gives each die face. Inject a fixed `rng` to get
+  a known roll. Returns `%{"STR" => value, ...}`.
+  """
+  @spec roll_stats(map(), rng()) :: %{optional(String.t()) => pos_integer()}
+  def roll_stats(%{"dice" => dice, "sides" => sides, "keep" => keep}, rng)
+      when is_function(rng, 1) do
+    Map.new(@stats, fn stat ->
+      faces = for _ <- 1..dice, do: rng.(sides)
+      {stat, faces |> Enum.sort(:desc) |> Enum.take(keep) |> Enum.sum()}
+    end)
+  end
+
+  @doc """
+  Chooses the creation model for the stats: `"point_buy"` or `"stat_roll"`.
+
+  The first change to `"stat_roll"` rolls the stats with `rng` and gives the
+  re-rolls from the rules. A draft that has a roll keeps it: a change back to
+  `"stat_roll"` uses the same roll again. A change to `"point_buy"` gives the
+  suggested point-buy stats again. Race picks and skills follow the new stats
+  when the player has not set them.
+  """
+  @spec choose_model(Draft.t(), String.t(), rng()) :: {:ok, Draft.t()} | {:error, error()}
+  def choose_model(draft, model, rng \\ &:rand.uniform/1)
+
+  def choose_model(%Draft{model: model} = draft, model, _rng), do: {:ok, draft}
+
+  def choose_model(%Draft{} = draft, "point_buy", _rng) do
+    rules = rules(draft.adventure_id)
+    draft = %{draft | model: "point_buy", edited: MapSet.delete(draft.edited, :stats)}
+    {:ok, suggest(draft, rules)}
+  end
+
+  def choose_model(%Draft{} = draft, "stat_roll", rng) do
+    rules = rules(draft.adventure_id)
+    roll_rules = rules["creation"]["stat_roll"]
+
+    draft =
+      case draft.rolled_stats do
+        nil ->
+          %{
+            draft
+            | rolled_stats: roll_stats(roll_rules, rng),
+              rerolls_left: roll_rules["rerolls"]
+          }
+
+        _rolled ->
+          draft
+      end
+
+    {:ok, apply_roll(%{draft | model: "stat_roll"}, rules)}
+  end
+
+  def choose_model(%Draft{}, model, _rng),
+    do: {:error, {:model, "unknown creation model #{inspect(model)}"}}
+
+  @doc """
+  Uses one re-roll: rolls all six stats again with `rng`. The new roll
+  replaces the old roll. Returns an error in the point-buy model or when the
+  player has used all re-rolls.
+  """
+  @spec reroll_stats(Draft.t(), rng()) :: {:ok, Draft.t()} | {:error, error()}
+  def reroll_stats(draft, rng \\ &:rand.uniform/1)
+
+  def reroll_stats(%Draft{model: "stat_roll", rerolls_left: left} = draft, rng) when left > 0 do
+    rules = rules(draft.adventure_id)
+    rolled = roll_stats(rules["creation"]["stat_roll"], rng)
+    {:ok, apply_roll(%{draft | rolled_stats: rolled, rerolls_left: left - 1}, rules)}
+  end
+
+  def reroll_stats(%Draft{model: "stat_roll"}, _rng),
+    do: {:error, {:stats, "you used your re-roll; the stats stay as rolled"}}
+
+  def reroll_stats(%Draft{}, _rng),
+    do: {:error, {:stats, "choose the dice to roll the stats"}}
+
+  # The rolled stats become the base stats. Picks and skills follow them.
+  defp apply_roll(draft, rules) do
+    %{draft | base_stats: draft.rolled_stats, edited: MapSet.put(draft.edited, :stats)}
+    |> then(fn d ->
+      if MapSet.member?(d.edited, :race_picks),
+        do: d,
+        else: %{d | race_picks: suggested_picks(d, rules)}
+    end)
+    |> then(fn d ->
+      if MapSet.member?(d.edited, :skills), do: d, else: %{d | skills: suggested_skills(d, rules)}
+    end)
+  end
+
   # --- reading a draft ------------------------------------------------------------
 
   @doc "Points spent on the base stats."
@@ -388,7 +496,10 @@ defmodule TalesForge.CharacterCreation do
     errors =
       [
         draft.name == "" && {:name, "type a name"},
-        spent > budget && {:stats, "#{budget} points at most; #{spent} spent"},
+        (draft.model == "point_buy" and spent > budget) &&
+          {:stats, "#{budget} points at most; #{spent} spent"},
+        (draft.model == "stat_roll" and draft.base_stats != draft.rolled_stats) &&
+          {:stats, "the stats must be the rolled stats"},
         race_picks_error(draft, rules)
       ] ++
         Enum.map(final_stats(draft, rules), fn {stat, value} ->
@@ -445,6 +556,7 @@ defmodule TalesForge.CharacterCreation do
          "concerns" => derived["concerns"],
          "creation" => %{
            "seed_key" => draft.seed_key,
+           "model" => draft.model,
            "base_stats" => draft.base_stats,
            "race_picks" => draft.race_picks,
            "points_spent" => points_spent(draft),
@@ -540,6 +652,16 @@ defmodule TalesForge.CharacterCreation do
         |> Enum.reduce(without, fn stat, acc -> Map.update(acc, stat, amount, &(&1 + amount)) end)
         |> Map.reject(fn {_stat, value} -> value == 0 end)
     end
+  end
+
+  defp final_stats(%Draft{model: "stat_roll"} = draft, rules) do
+    %{"min" => lo, "max" => hi} = rules["creation"]["stat_roll"]
+    modifiers = race_modifiers(draft, rules)
+
+    Map.new(@stats, fn stat ->
+      {stat,
+       (Map.get(draft.base_stats, stat, 0) + Map.get(modifiers, stat, 0)) |> max(lo) |> min(hi)}
+    end)
   end
 
   defp final_stats(draft, rules) do

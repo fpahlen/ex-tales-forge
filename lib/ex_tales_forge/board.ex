@@ -327,7 +327,9 @@ defmodule TalesForge.Board do
   @doc """
   Adds a comment by `author` (a founder email or `bot:<name>`). `@case`,
   `@bobby`, `@gentry` wake that bot. `@devops` wakes each of the three bots
-  that has a webhook, once (see `TalesForge.Board.Mentions.wakes/2`). `@fredrik`, `@hakan`, ... and
+  that has a webhook, once (see `TalesForge.Board.Mentions.wakes/2`). Only a
+  comment by a founder wakes bots, as in the team chat: a comment by a bot
+  wakes no bot, so a bot also never wakes itself (`comment_wakes/2`). `@fredrik`, `@hakan`, ... and
   `@founders` add an unread ping for each founder named, except the author
   (see `TalesForge.Board.Mentions`). On an archived card a comment wakes
   no bot and pings nobody. `opts[:login]` is the author's GitHub
@@ -341,7 +343,7 @@ defmodule TalesForge.Board do
     archived? = idea.column == "archived"
     %{founders: mentioned} = if archived?, do: %{founders: []}, else: Mentions.parse(body)
     founders = mentioned -- [Mentions.handle_for(opts[:login])]
-    bots = if archived?, do: [], else: Mentions.wakes(body)
+    bots = if archived?, do: [], else: comment_wakes(author, body)
 
     Multi.new()
     |> Multi.insert(:comment, changeset)
@@ -369,6 +371,19 @@ defmodule TalesForge.Board do
       end)
     end)
     |> run(idea.id)
+  end
+
+  @doc """
+  The bots a comment by `author` wakes. A founder's mention wakes the bot. A
+  bot's comment wakes no bot, so a bot never wakes itself (the team chat rule,
+  `TalesForge.Chat`).
+
+      iex> TalesForge.Board.comment_wakes("bot:case", "@case and @bobby, look")
+      []
+  """
+  @spec comment_wakes(String.t(), String.t()) :: [:case | :bobby | :gentry]
+  def comment_wakes(author, body) do
+    if TalesForge.Chat.founder?(author), do: Mentions.wakes(body), else: []
   end
 
   @doc """

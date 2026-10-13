@@ -91,3 +91,6 @@ config :jev,
 # The shadow Jev read runs inline in tests (async in dev and prod), so the
 # sandbox owns its queries and tests can assert on its ai_calls row.
 config :ex_tales_forge, :intent_jev_shadow, :sync
+
+# Session versus canon: tests stub the Jev labeller (TalesForge.Canon.Classifier).
+config :ex_tales_forge, TalesForge.Canon, classifier: TalesForge.Canon.ClassifierStub

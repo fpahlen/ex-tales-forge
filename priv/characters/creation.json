@@ -5,6 +5,15 @@
     "min": 3,
     "max": 18
   },
+  "stat_roll": {
+    "_doc": "The dice model for TalesForge.CharacterCreation.roll_stats/2: roll `dice` six-sided dice for each stat and keep the highest `keep`. The player gets `rerolls` new rolls of all six stats. A race modifier on a rolled stat stops at min and max.",
+    "dice": 4,
+    "sides": 6,
+    "keep": 3,
+    "min": 3,
+    "max": 18,
+    "rerolls": 1
+  },
   "suggested_base": 12,
   "race_choices": {
     "human": {
