@@ -22,14 +22,14 @@ defmodule TalesForgeWeb.TeamLayout do
 
   @doc """
   The header (sticky from 640 px; it scrolls away on a phone): the Tales Forge link, Admin and the theme toggle, then the
-  in-page nav. `page` is the page being shown (`:landing` or `:presentation`);
+  in-page nav. `page` is the page being shown (`:landing`, `:presentation` or `:details`);
   `items` are the `{anchor, label}` pairs of that page. An item that starts
   with `/` is a path to its own page (for example `/team/presentation`), not an
   anchor. The presentation's nav
   starts with the way back to the overview; the landing page links the
   presentation once, from its own card (`#presentation-cta`).
   """
-  attr :page, :atom, required: true, values: [:landing, :presentation]
+  attr :page, :atom, required: true, values: [:landing, :presentation, :details]
   attr :items, :list, required: true, doc: "`{anchor, label}` pairs"
 
   attr :socket, :any,
@@ -66,7 +66,7 @@ defmodule TalesForgeWeb.TeamLayout do
           id="team-nav-list"
           class="flex flex-wrap items-center gap-x-0.5 gap-y-0.5 text-[0.8rem] sm:gap-x-1 sm:text-sm"
         >
-          <li :if={@page == :presentation}>
+          <li :if={@page in [:presentation, :details]}>
             <.link
               id="team-nav-overview"
               navigate={~p"/team"}

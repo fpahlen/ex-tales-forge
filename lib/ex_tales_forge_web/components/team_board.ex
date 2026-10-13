@@ -1,7 +1,11 @@
 defmodule TalesForgeWeb.TeamBoard do
   @moduledoc """
   Part 4 of the founders' presentation (`/team/presentation`,
-  `TalesForgeWeb.TeamPresentationLive`): "How we work: the board". The idea board is live on `/team` (`#idea-board`, since
+  `TalesForgeWeb.TeamPresentationLive`): "How we work: the board". The slide
+  (the `section` component) has the short text and the live board; the
+  `details` component has the long text for `/team/details`
+  (`TalesForgeWeb.TeamDetailsLive`). The idea board is live on `/team`
+  (`#idea-board`, since
   2026-10-10), and founders and bots use it every day. This section explains
   how a card travels and shows the live board: the real columns with their
   card counts, and the team totals (cards, votes, founder comments, PR
@@ -14,14 +18,14 @@ defmodule TalesForgeWeb.TeamBoard do
 
   The rules follow tales-forge-docs `docs/design-board-states.md` (approved
   2026-10-10), and the copy follows `docs/team-page/content.md` part 4.
-  The presentation puts "How a change flows" at the end of this section,
+  The details page puts "How a change flows" at the end of the `details` component,
   through the `inner_block` slot.
   The "How a card travels" steps come from `shared_board.columns` in
   `data.json` (`id`, `label`, `owner`); a column that the data does not name
   keeps the label from the brief. Without stats (where the board is not, or a
   render with data only), each count reads "not measured yet", never a zero.
-  The columns stack two per row on a phone (three from 640 px, all six from
-  1024 px), so nothing scrolls sideways.
+  The columns show three per row (all six from 1024 px), so nothing scrolls
+  sideways and the slide fits a phone screen.
   """
 
   use TalesForgeWeb, :html
@@ -89,7 +93,88 @@ defmodule TalesForgeWeb.TeamBoard do
 
   defp fill_column(_other), do: %{}
 
-  @doc "The whole section: badge, intro, how a card travels, the live board and why it works."
+  @doc """
+  Slide 4a of the presentation: the short intro and how a card moves, in five
+  bullets. Slide 4b (`live_slide/1`) has the live board. The long text is in
+  the `details` component on `/team/details`.
+  """
+  attr :d, :map, required: true
+
+  attr :live, :map,
+    default: nil,
+    doc: "`TalesForge.Board.stats/0`, or `nil` where the board is not"
+
+  @spec section(map()) :: Phoenix.LiveView.Rendered.t()
+  def section(assigns) do
+    assigns = assign(assigns, anchor: @anchor, total_labels: @total_labels)
+
+    ~H"""
+    <section
+      id={@anchor}
+      class="team-section space-y-6"
+      aria-labelledby={"#{@anchor}-title"}
+      data-reveal
+    >
+      <.section_head id={@anchor} title="4a. How we work: the board">
+        The idea board is where founders and bots work together. Every change starts as a card. You add an idea. The bots do the work. You decide what gets built.
+      </.section_head>
+      <ul id="board-steps" class="team-bullets space-y-1.5 text-base leading-relaxed">
+        <li>Ideas: any founder adds a card. An upvote moves it on.</li>
+        <li>Refining: Case adds details, questions and a rough cost.</li>
+        <li>Founder check: a founder sends it to Building. That is the OK to build.</li>
+        <li>Building: Bobby builds it as a PR. A founder approves the PR on the card.</li>
+        <li>Playtest, then production. Admin-only changes take the fast lane.</li>
+      </ul>
+    </section>
+    """
+  end
+
+  @doc "Slide 4b of the presentation: the live board (column counts and team totals) and the links."
+  attr :live, :map,
+    default: nil,
+    doc: "`TalesForge.Board.stats/0`, or `nil` where the board is not"
+
+  @spec live_slide(map()) :: Phoenix.LiveView.Rendered.t()
+  def live_slide(assigns) do
+    assigns = assign(assigns, total_labels: @total_labels)
+
+    ~H"""
+    <section
+      id="board-live"
+      class="team-section space-y-4"
+      aria-labelledby="board-live-title"
+      data-reveal
+    >
+      <.section_head id="board-live" title="4b. How we work: the board, live" />
+      <.live_board live={@live} total_labels={@total_labels} />
+      <p class="flex flex-wrap gap-x-4">
+        <.link
+          id="board-open"
+          href="/team#idea-board"
+          class="inline-flex min-h-9 items-center text-sm font-semibold text-[var(--paper-accent)] underline"
+        >
+          Open the idea board →
+        </.link>
+        <a
+          id="flow"
+          href="/team/details#flow"
+          class="inline-flex min-h-9 items-center text-sm font-semibold text-[var(--paper-accent)] underline"
+        >
+          How a change flows →
+        </a>
+        <a
+          id="board-more"
+          href="/team/details#board"
+          class="inline-flex min-h-9 items-center text-sm font-semibold text-[var(--paper-accent)] underline"
+        >
+          More about the board →
+        </a>
+      </p>
+    </section>
+    """
+  end
+
+  @doc "The long text for `/team/details`: badge, intro, how a card travels, what is new, why it works and the small print, then the inner block (how a change flows)."
   attr :d, :map, required: true
 
   attr :live, :map,
@@ -98,8 +183,8 @@ defmodule TalesForgeWeb.TeamBoard do
 
   slot :inner_block, doc: "more content at the end of the section, such as how a change flows"
 
-  @spec section(map()) :: Phoenix.LiveView.Rendered.t()
-  def section(assigns) do
+  @spec details(map()) :: Phoenix.LiveView.Rendered.t()
+  def details(assigns) do
     columns = columns(assigns.d)
 
     assigns =
@@ -114,7 +199,6 @@ defmodule TalesForgeWeb.TeamBoard do
       id={@anchor}
       class="team-section space-y-8"
       aria-labelledby={"#{@anchor}-title"}
-      data-reveal
     >
       <p id="board-badge" class="team-badge">
         <.icon name="hero-check-circle-micro" class="size-4" /> Live on
@@ -148,8 +232,6 @@ defmodule TalesForgeWeb.TeamBoard do
         </ol>
       </div>
 
-      <.live_board live={@live} total_labels={@total_labels} />
-
       <.new_on_board />
 
       <ul id="board-why" class="grid gap-3 lg:grid-cols-3" aria-label="Three things that make it work">
@@ -173,7 +255,7 @@ defmodule TalesForgeWeb.TeamBoard do
           <.icon name="hero-key" class="size-7 text-[var(--paper-accent)]" />
           <h3 class="font-semibold">Every founder decides.</h3>
           <p class="text-sm leading-snug">
-            Any founder can send a card to Building, and that move is the founder OK. Any founder also approves the PR on the card. The approved change goes to playtest, Gentry checks it, and then it ships to production by itself.
+            Any founder can send a card to Building, and that move is the founder OK. Any founder also approves the PR on the card. The approved change goes to production after a playtest pass and a founder's OK.
           </p>
         </li>
       </ul>
@@ -280,10 +362,10 @@ defmodule TalesForgeWeb.TeamBoard do
 
   defp live_board(assigns) do
     ~H"""
-    <figure id="team-board" class="team-board team-card space-y-4 p-4 sm:p-6">
+    <figure id="team-board" class="team-board team-card space-y-3 p-3 sm:space-y-4 sm:p-6">
       <ol
         id="team-board-columns"
-        class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+        class="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6"
         aria-label="Cards in each column of the idea board now"
       >
         <li
@@ -300,7 +382,7 @@ defmodule TalesForgeWeb.TeamBoard do
       </ol>
       <div id="board-totals" class="space-y-2">
         <h3 class="font-serif text-lg font-bold">What we did together on the board</h3>
-        <dl class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <dl class="grid grid-cols-3 gap-2 sm:gap-3 sm:grid-cols-5">
           <div
             :for={{key, label} <- @total_labels}
             id={"board-total-#{key}"}

@@ -29,7 +29,7 @@
         "does": [
           "Shape what we build: ideas, surveys, playtesting",
           "Make the decisions, written down in one shared log",
-          "Approve PRs on the board (every founder; an approved change ships to production by itself after playtest and Gentry)"
+          "Approve PRs on the board (every founder; an approved change goes to production after a playtest pass and a founder's OK)"
         ],
         "schedule": null,
         "approval_key": {
@@ -60,7 +60,7 @@
         "does": [
           "Writes code as pull requests",
           "Runs playtests and evals",
-          "Ships admin-only changes through the fast lane when the checks pass; other changes ship to production by themselves after a founder's Approve, playtest and Gentry",
+          "Ships admin-only changes through the fast lane when the checks pass; other changes go to production after a playtest pass and a founder's OK",
           "Hourly Fly log check"
         ],
         "schedule": "hourly Fly log check"
@@ -84,7 +84,7 @@
       "source": "gh api orgs/whyse-ab/teams/tales-forge/members (count only)",
       "note": "Members of the GitHub team, not the number of founders (team.members[0].people.count)"
     },
-    "framing": "How we work today, and we shape it together. Founders and bots are one crew. Every founder approves PRs on the board; an approved change goes to playtest, Gentry checks it, and then it ships to production by itself."
+    "framing": "How we work today, and we shape it together. Founders and bots are one crew. Every founder approves PRs on the board; an approved change goes to production after a playtest pass and a founder's OK."
   },
   "change_flow": {
     "as_of": "2026-10-10",
@@ -144,7 +144,7 @@
       },
       {
         "id": "ok_prod",
-        "label": "Ships to production by itself",
+        "label": "Goes to production after a playtest pass and a founder's OK",
         "who": "GitHub Actions, after Gentry"
       },
       {
@@ -161,7 +161,7 @@
     "note": "Any founder approves on the idea board: send a card to Building, then approve its PR. Admin-only changes take the fast lane. A card moves to Done only when its PR's merge commit runs on production.",
     "lanes": {
       "fast": "Admin-only changes (every changed file is on the admin list in .github/deploy-lanes.txt): after playtest, production deploys by itself. No batch and no second OK.",
-      "normal": "Every other change: Gentry and the persona batch on playtest, then production deploys by itself."
+      "normal": "Every other change goes to production after a playtest pass and a founder's OK."
     }
   },
   "decisions": {
