@@ -11,6 +11,46 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Workflow split 3/5: Data boundary
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Goal: G7, our shared workspace.
+- **Why:** **Goal.** Workflow keeps its data in its own Ecto repo. No game code reads or writes Workflow tables directly. Workflow code does not read game tables. Both repos still use the current Postgres database. This card comes after card 2 and before card 4.
+
+**What we already have (high confidence).**
+1. The Workflow tables have their own schemas: `board_*`, `team_chat_*`, `team_images` and `work_log_*`.
+2. No query joins a Workflow table to a game table. The only `join` in `TalesForge.Board` joins `board_*` tables.
+3. The associations (`belongs_to`, `has_many`) stay inside Workflow tables.
+4. About 60 `Repo` calls in `Board`, `Chat`, `Images` and `WorkLog` change to the new repo.
+
+**Coupling that this card must remove.**
+1. A game turn writes a work-log row. `TurnProcessor` calls `WorkLog.add` in the same `Ecto.Multi` as the turn.
+2. The board and the chat queue bot wake-ups with `Oban.insert` in their `Ecto.Multi`. Oban uses the game `Repo`.
+3. `board_ideas.collab_decision_id` has a foreign key to `collab_decisions`. `Board.import_collab/0` reads the old decision queue.
+4. `TalesForge.Release.migrate` and the test sandbox in `DataCase` know only one repo.
+
+**Steps.**
+1. Add `TalesForge.Workflow.Repo` with the same database URL and its own pool.
+2. Change the `Repo` calls in `Board`, `Chat`, `Images` and `WorkLog` to the new repo.
+3. Start a second Oban instance on the new repo for the bot wake-ups. Then a wake-up job and its change stay in one transaction.
+4. Remove `WorkLog.add` from the turn `Ecto.Multi`. The turn returns the event. `TurnProcessor` records it after the commit, at the edge.
+5. Remove the foreign key to `collab_decisions`. Keep `collab_decision_id` as a plain id, or move `collab_*` to Workflow (open question 1).
+6. Put new Workflow migrations in `priv/workflow_repo/migrations`. Let `Release.migrate` and `DataCase` run both repos.
+7. Extend `mix deploy.check_boundaries`. The check fails when game code calls `Workflow.Repo` or a Workflow schema. It also fails when Workflow code calls a game schema.
+
+**Done when.** Workflow reads and writes only through `TalesForge.Workflow.Repo`. The boundary check passes in CI. The board, the chat, the work log and the bot wake-ups work as before on prod.
+
+**Architecture.** A turn stays a pipe of pure functions. The work-log write moves out of the turn transaction to the edge. Card 4 later changes this call to an API call. Case recommends a separate Postgres schema `workflow` for the Workflow tables. Then card 5 copies only one schema.
+
+**Risks.**
+- One more pool of 10 connections. Mitigation: check the connection limit on Fly Postgres before the deploy.
+- A work-log row for a turn can be lost when the app stops after the commit. Mitigation: this is one log row, not game data.
+- Old wake-up jobs stay in the game Oban queue during the switch. Mitigation: deploy when that queue is empty.
+
+**Confidence.** High confidence in the steps. Medium confidence in the cost of the Oban change. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-695edb70-7af9-4b75-bb2c-52507e5da3e9)
+
+<!-- board:idea:695edb70-7af9-4b75-bb2c-52507e5da3e9 -->
+
 ## 2026-10-13: Workflow split 4/5: Game API
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Goal: G7, our shared workspace.
