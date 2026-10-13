@@ -35,6 +35,11 @@ config :ex_tales_forge, Oban,
   # finish, inside fly.toml's 30 s kill_timeout (so the old blue-green machine
   # does not die with a job still 'executing').
   shutdown_grace_period: :timer.seconds(20),
+  # Staging moves scheduled and retryable jobs to 'available', in one
+  # transaction with an update_all. The default is every second (about 60k
+  # writes in a 15.6 h playtest). A new job goes to its queue at once through
+  # the notifier, so only scheduled jobs and retries wait up to 30 s.
+  stage_interval: :timer.seconds(30),
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
     # A job left 'executing' by a machine that was killed anyway (OOM, a hard
@@ -122,7 +127,7 @@ config :ex_tales_forge, TalesForge.AppRole,
 # GITHUB_FEED_TOKEN (config/runtime.exs); without it the feed says unavailable.
 config :ex_tales_forge, TalesForge.PrFeed,
   repo: "whyse-ab/ex-tales-forge",
-  interval_ms: 60_000,
+  interval_ms: 300_000,
   poll: true
 
 # Admin costs page (/admin/costs). Edit cost figures HERE, in one place.

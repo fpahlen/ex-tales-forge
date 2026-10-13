@@ -242,7 +242,7 @@ defmodule TalesForge.PrFeed do
   @spec build(inputs(), DateTime.t()) :: snapshot()
   def build(%{pulls: pulls} = inputs, %DateTime{} = now) do
     ci = Map.get(inputs, :ci) || %{}
-    main = Map.get(inputs, :main)
+    main = if is_list(inputs[:main]), do: Deploys.index(inputs[:main])
     running = Map.get(inputs, :running) || %{}
     {today, week} = day_and_week_start(now)
 

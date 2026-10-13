@@ -84,13 +84,27 @@ defmodule TalesForge.PrFeed.Pace do
     }
   end
 
+  # Counts per UTC hour first, then names the day of each hour once: the
+  # Stockholm offset changes only on a full UTC hour, so all instants of one
+  # UTC hour fall on one local day. This calls `day/1` once per hour, not
+  # once per entry.
   defp count_by_day(list, at) do
-    Enum.reduce(list, %{}, fn entry, acc ->
+    list
+    |> Enum.reduce(%{}, fn entry, acc ->
       case at.(entry) do
-        %DateTime{} = dt -> Map.update(acc, day(dt), 1, &(&1 + 1))
+        %DateTime{} = dt -> Map.update(acc, utc_hour(dt), 1, &(&1 + 1))
         _missing -> acc
       end
     end)
+    |> Enum.reduce(%{}, fn {hour, n}, acc ->
+      Map.update(acc, day(hour), n, &(&1 + n))
+    end)
+  end
+
+  defp utc_hour(%DateTime{} = dt) do
+    dt
+    |> DateTime.shift_zone!("Etc/UTC")
+    |> Map.merge(%{minute: 0, second: 0, microsecond: {0, 0}})
   end
 
   @doc """

@@ -17,6 +17,8 @@ defmodule TalesForge.PrFeed.Deploys do
   whenever the running commit is in the list.
   """
 
+  @prefix 7
+
   @typedoc "Where a pull request stands on one app."
   @type status :: :deployed | :pending | :unknown | :not_merged
 
@@ -40,15 +42,18 @@ defmodule TalesForge.PrFeed.Deploys do
       iex> TalesForge.PrFeed.Deploys.status("c2", nil, "c3")
       :unknown
   """
-  @spec status(String.t() | nil, [String.t()] | nil, String.t() | nil) :: status()
-  def status(merge_sha, main, running_sha)
-      when is_binary(merge_sha) and is_list(main) and is_binary(running_sha) do
-    case index(main, running_sha) do
+  @spec status(String.t() | nil, [String.t()] | index() | nil, String.t() | nil) :: status()
+  def status(merge_sha, main, running_sha) when is_list(main),
+    do: status(merge_sha, index(main), running_sha)
+
+  def status(merge_sha, %{} = main, running_sha)
+      when is_binary(merge_sha) and is_binary(running_sha) do
+    case position(main, running_sha) do
       nil ->
         :unknown
 
       running ->
-        case index(main, merge_sha) do
+        case position(main, merge_sha) do
           nil -> :deployed
           merged when merged >= running -> :deployed
           _newer -> :pending
@@ -58,13 +63,44 @@ defmodule TalesForge.PrFeed.Deploys do
 
   def status(_merge_sha, _main, _running_sha), do: :unknown
 
-  # Full and abbreviated shas match each other (GIT_SHA may be either).
-  defp index(main, sha) do
-    sha = String.downcase(sha)
-    Enum.find_index(main, &same_sha?(&1, sha))
+  @typedoc """
+  Main's commits as a lookup: the first #{@prefix} characters of each sha
+  (or the whole sha when it is shorter) point to its shas and positions.
+  """
+  @type index :: %{optional(String.t()) => [{String.t(), non_neg_integer()}]}
+
+  @doc """
+  Builds the lookup of `main` (commit shas, newest first) once, so
+  `status/3` finds each sha in one map read.
+
+      iex> main = TalesForge.PrFeed.Deploys.index(["c3c3c3c3", "c2c2c2c2"])
+      iex> TalesForge.PrFeed.Deploys.status("c3c3c3c", main, "c2c2c2c2aaaa")
+      :pending
+  """
+  @spec index([String.t()]) :: index()
+  def index(main) when is_list(main) do
+    main
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {sha, at}, acc ->
+      sha = String.downcase(sha)
+      Map.update(acc, key(sha), [{sha, at}], &[{sha, at} | &1])
+    end)
+    |> Map.new(fn {key, entries} -> {key, Enum.reverse(entries)} end)
   end
 
-  defp same_sha?(a, b) when byte_size(a) >= 7 and byte_size(b) >= 7,
+  # Full and abbreviated shas match each other (GIT_SHA may be either).
+  defp position(main, sha) do
+    sha = String.downcase(sha)
+
+    Enum.find_value(Map.get(main, key(sha), []), fn {candidate, at} ->
+      if same_sha?(candidate, sha), do: at
+    end)
+  end
+
+  defp key(sha) when byte_size(sha) >= @prefix, do: binary_part(sha, 0, @prefix)
+  defp key(sha), do: sha
+
+  defp same_sha?(a, b) when byte_size(a) >= @prefix and byte_size(b) >= @prefix,
     do: String.starts_with?(a, b) or String.starts_with?(b, a)
 
   defp same_sha?(a, b), do: a == b
