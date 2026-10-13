@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Character creation PR 2, description model
+
+- **Decision:** The player can describe the character in text. This is the third creation model, next to point buy and dice. One AI call reads the description and returns labels, each with a confidence from 0 to 1. The AI asks at most 2 questions, and the call after the answers asks none. Elixir fills the draft through the normal creation functions. A label below confidence 0.5 keeps the rules default. Elixir fits the stats to the point-buy budget and range. The player must approve the AI draft. Before approval, validate gives an error, so finalize and play need the approval. Each call writes one ai_calls row (purpose `character_text`). The server keeps the AI draft, so a reload makes no new AI call. This entry adds to the 2026-10-13 "Character creation" entry.
+- **Why:** New players get the fastest start. The confidence, the questions and the approve step catch a wrong reading. Elixir keeps the character legal, so the AI never sets the mechanics.
+- **Details:** [ex-tales-forge#238](https://github.com/whyse-ab/ex-tales-forge/pull/238), board card `f9683a5d-ad23-48f3-89c4-b9b188e1366d`.
+
 ## 2026-10-13: Bot work in Elixir
 
 - **Decision (Fredrik, 2026-10-13):** Move recurring bot work into deterministic Elixir code to keep the bot costs in the budget. Four small PRs, each merges only with Fredrik's OK:
