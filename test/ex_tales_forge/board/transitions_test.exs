@@ -31,7 +31,13 @@ defmodule TalesForge.Board.TransitionsTest do
     for from <- Transitions.states(), to <- Transitions.states(), actor <- @actors do
       ok? =
         Enum.any?([:awaiting, :approved, nil], fn pr ->
-          Transitions.allowed?(Map.put(@open, :pr, pr), from, to, actor) == :ok
+          Transitions.allowed?(
+            Workflow.Team.Source.team(),
+            Map.put(@open, :pr, pr),
+            from,
+            to,
+            actor
+          ) == :ok
         end)
 
       expected? = Enum.any?(@rows, fn {f, t, who} -> f == from and t == to and actor in who end)
@@ -42,7 +48,13 @@ defmodule TalesForge.Board.TransitionsTest do
   test "archive needs a reason; only a founder deletes, and only from Archived" do
     for from <- ~w(ideas parked) do
       assert {:error, "Write a short reason for the archive."} =
-               Transitions.allowed?(%{comment: nil}, from, "archived", @founder)
+               Transitions.allowed?(
+                 Workflow.Team.Source.team(),
+                 %{comment: nil},
+                 from,
+                 "archived",
+                 @founder
+               )
     end
 
     for from <- Transitions.states(), actor <- @actors do
@@ -50,7 +62,10 @@ defmodule TalesForge.Board.TransitionsTest do
       assert elem_or_ok(Transitions.delete_allowed?(from, actor)) == expected
     end
 
-    refute "archived" in Enum.map(Transitions.options(@open, "ideas", @founder), &elem(&1, 0))
+    refute "archived" in Enum.map(
+             Transitions.options(Workflow.Team.Source.team(), @open, "ideas", @founder),
+             &elem(&1, 0)
+           )
   end
 
   defp elem_or_ok(:ok), do: :ok

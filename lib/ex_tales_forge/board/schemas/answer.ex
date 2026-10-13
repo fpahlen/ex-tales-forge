@@ -1,8 +1,8 @@
 defmodule TalesForge.Board.Answer do
   @moduledoc """
-  A founder's answer to one open question of Case's refinement
+  A founder's answer to one open question of the refinement
   (`board_answers`), or its deferral. Keyed by the card and the question
-  text, so a question that Case rewrites starts open again.
+  text, so a question that the refiner bot rewrites starts open again.
   """
   use Ecto.Schema
   import Ecto.Changeset

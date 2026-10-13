@@ -5,8 +5,10 @@ defmodule TalesForgeWeb.TeamLayout do
   (`TalesForgeWeb.TeamPresentationLive`): the header (sticky from 640 px) with its in-page
   nav, and the "Numbers as of" footer.
 
+  Each component gets the team config (`Workflow.Team`) as the `team` attr.
+
   The in-page nav wraps onto a second (or third) line on a phone instead of
-  running off the side: Gentry measured the presentation's sub-nav at about
+  running off the side: the QA bot measured the presentation's sub-nav at about
   568 px on a 390 px phone when it was one unbroken row. Nothing in it scrolls
   sideways, so the page never does either.
   """
@@ -21,7 +23,7 @@ defmodule TalesForgeWeb.TeamLayout do
   @type nav_item :: {String.t(), String.t()}
 
   @doc """
-  The header (sticky from 640 px; it scrolls away on a phone): the Tales Forge link, Admin and the theme toggle, then the
+  The header (sticky from 640 px; it scrolls away on a phone): the product link, Admin and the theme toggle, then the
   in-page nav. `page` is the page being shown (`:landing` or `:presentation`);
   `items` are the `{anchor, label}` pairs of that page. An item that starts
   with `/` is a path to its own page (for example `/team/presentation`), not an
@@ -29,6 +31,7 @@ defmodule TalesForgeWeb.TeamLayout do
   starts with the way back to the overview; the landing page links the
   presentation once, from its own card (`#presentation-cta`).
   """
+  attr :team, Workflow.Team, required: true, doc: "the team config"
   attr :page, :atom, required: true, values: [:landing, :presentation]
   attr :items, :list, required: true, doc: "`{anchor, label}` pairs"
 
@@ -44,7 +47,7 @@ defmodule TalesForgeWeb.TeamLayout do
       class="z-30 border-b sm:sticky sm:top-0 border-[var(--paper-rule)] bg-[var(--paper-panel)]/95 backdrop-blur"
     >
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-2 sm:px-6">
-        <.link navigate={~p"/"} class="font-serif text-base font-semibold sm:text-lg">Tales Forge</.link>
+        <.link navigate={~p"/"} class="font-serif text-base font-semibold sm:text-lg">{@team.product_name}</.link>
         <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
           {@socket &&
             live_render(@socket, TalesForgeWeb.OnlineHeaderLive,
@@ -98,9 +101,10 @@ defmodule TalesForgeWeb.TeamLayout do
   end
 
   @doc """
-  The QA banner: shown when Gentry (QA) is signed in, on /team and on
-  /team/presentation.
+  The QA banner: shown when the QA session (the checker bot) is signed in, on
+  /team and on /team/presentation.
   """
+  attr :team, Workflow.Team, required: true
   attr :qa, :boolean, default: false
   attr :read_only, :boolean, default: false
 
@@ -113,7 +117,7 @@ defmodule TalesForgeWeb.TeamLayout do
       role="status"
       class="rounded-box border border-[var(--paper-line)] px-4 py-2 text-sm"
     >
-      Signed in as Gentry (QA). {if @read_only,
+      Signed in as {Workflow.Team.bot_name(@team, :checker)} (QA). {if @read_only,
         do: "This session can view the page. It cannot change it.",
         else: "Writes are on for this session (playtest only)."}
     </p>
@@ -122,6 +126,7 @@ defmodule TalesForgeWeb.TeamLayout do
 
   @doc "The footer: the date the numbers are from, and where they come from."
   attr :d, :map, required: true
+  attr :team, Workflow.Team, required: true
 
   @spec footer(map()) :: Phoenix.LiveView.Rendered.t()
   def footer(assigns) do
@@ -135,7 +140,7 @@ defmodule TalesForgeWeb.TeamLayout do
         Pull requests, commits, tests, decisions, AI spend, Jev latency and persona scores come live (from GitHub and from the app) when a source is up.
         Each group says “live” or “as of” its date. The other numbers come from
         <code>docs/team-page/data.json</code>
-        in tales-forge-docs. Where we have no number, it says “{TeamPage.not_measured()}”.
+        in {@team.docs_repo |> String.split("/") |> List.last()}. Where we have no number, it says “{TeamPage.not_measured()}”.
       </p>
     </footer>
     """

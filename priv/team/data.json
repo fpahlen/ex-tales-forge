@@ -1042,5 +1042,89 @@
       "hourly_check": "Every hour, Case looks at the Building column and reminds Bobby about each card with no PR after more than one hour.",
       "source": "ex-tales-forge #167 (Ideas lane tags); TalesForge.Board.Api 'Approve once' (decision 2026-10-10)"
     }
+  },
+  "workflow": {
+    "what": "The team config of Workflow (the team tools): product, repo, founders, bots, column labels and goals. Read by Workflow.Team.Source. The presentation text is in content.json.",
+    "as_of": "2026-10-13",
+    "source": "Board card 'Workflow split 2/5: Team config'; config :board_founder_handles and the bot lists in the code before the move",
+    "product_name": "Tales Forge",
+    "repo_url": "https://github.com/whyse-ab/ex-tales-forge",
+    "docs_repo": "whyse-ab/tales-forge-docs",
+    "user_agent": "tales-forge-idea-board",
+    "decision_email": "board@tales-forge.invalid",
+    "founders": [
+      {
+        "name": "Fredrik",
+        "github": "fpahlen"
+      },
+      {
+        "name": "Thobias",
+        "github": "tsjokvist"
+      },
+      {
+        "name": "Håkan",
+        "github": "hawkan-fredriksson"
+      },
+      {
+        "name": "Jeanette",
+        "github": "jpa71"
+      },
+      {
+        "name": "Max",
+        "github": "maxpahlen"
+      }
+    ],
+    "bots": [
+      {
+        "id": "case",
+        "name": "Case",
+        "role": "refiner"
+      },
+      {
+        "id": "bobby",
+        "name": "Bobby",
+        "role": "builder"
+      },
+      {
+        "id": "gentry",
+        "name": "Gentry",
+        "role": "checker"
+      }
+    ],
+    "column_labels": {
+      "ideas": "Ideas",
+      "refining": "Refining (Case)",
+      "check": "Founder check",
+      "building": "Building (Bobby)",
+      "done": "Done",
+      "parked": "Parked",
+      "archived": "Archive"
+    },
+    "goals": [
+      {
+        "key": "G2",
+        "title": "Playable game on the Elixir rewrite"
+      },
+      {
+        "key": "G3",
+        "title": "Bot loop runs safely"
+      },
+      {
+        "key": "G4",
+        "title": "We can take money"
+      },
+      {
+        "key": "G5",
+        "title": "Closed beta and growth"
+      },
+      {
+        "key": "G6",
+        "title": "Old app retired"
+      },
+      {
+        "key": "G7",
+        "title": "Our shared workspace (team tools)"
+      }
+    ]
   }
 }

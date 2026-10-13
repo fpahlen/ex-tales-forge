@@ -5,11 +5,11 @@ defmodule TalesForge.Board.Events do
 
   | Event | Job |
   |---|---|
-  | `:idea_to_refining`, `:idea_back_to_refining` | wake Case |
-  | `:idea_to_building` | write the decision log entry, wake Bobby |
-  | `:mention` (`@case`, `@bobby`, `@gentry` in a comment) | wake that bot |
-  | `:pr_approved`, `:pr_changes_requested` (a founder answers a PR) | wake Bobby |
-  | `:question_answered` (an answer or a deferral) | wake Case while the card is in Refining |
+  | `:idea_to_refining`, `:idea_back_to_refining` | wake the refiner |
+  | `:idea_to_building` | write the decision log entry, wake the builder |
+  | `:mention` (`@<bot id>` in a comment) | wake that bot |
+  | `:pr_approved`, `:pr_changes_requested` (a founder answers a PR) | wake the builder |
+  | `:question_answered` (an answer or a deferral) | wake the refiner while the card is in Refining |
   | `:idea_to_check`, `:idea_to_done` | nothing (founders see the board) |
 
   Only moves (the "Wakes" column of `TalesForge.Board.Transitions`) and
@@ -20,11 +20,15 @@ defmodule TalesForge.Board.Events do
 
   Bot wake-ups are `TalesForge.Board.Workers.Notify` jobs (signed webhook
   POSTs); the decision log entry is `TalesForge.Board.Workers.LogDecision`.
+
+  `add/4` queues jobs, so it is an edge: it reads the team config
+  (`Workflow.Team.Source`) and gives it to the pure `bots/3`.
   """
 
   alias Ecto.Multi
   alias TalesForge.Board.{Idea, WakeMerge}
   alias TalesForge.Board.Workers.{LogDecision, Notify}
+  alias Workflow.Team
 
   @typedoc "A board event."
   @type event ::
@@ -51,7 +55,7 @@ defmodule TalesForge.Board.Events do
           ),
         else: multi
 
-    Enum.reduce(bots(event, extra), multi, fn bot, acc ->
+    Enum.reduce(bots(Workflow.Team.Source.team(), event, extra), multi, fn bot, acc ->
       Multi.run(acc, {:notify, bot, event, System.unique_integer([:positive])}, fn repo, _ ->
         notify(repo, bot, event, idea, extra)
       end)
@@ -61,26 +65,29 @@ defmodule TalesForge.Board.Events do
   @doc """
   The bots an event wakes.
 
-      iex> TalesForge.Board.Events.bots(:idea_to_building, %{})
-      [:bobby]
-      iex> TalesForge.Board.Events.bots(:mention, %{bot: :gentry})
-      [:gentry]
-      iex> TalesForge.Board.Events.bots(:idea_to_done, %{})
+      iex> team = Workflow.Team.example()
+      iex> TalesForge.Board.Events.bots(team, :idea_to_building, %{})
+      [:bram]
+      iex> TalesForge.Board.Events.bots(team, :mention, %{bot: :quill})
+      [:quill]
+      iex> TalesForge.Board.Events.bots(team, :idea_to_done, %{})
       []
   """
-  @spec bots(event(), map()) :: [TalesForge.BoardApi.bot()]
-  def bots(event, _extra)
+  @spec bots(Team.t(), event(), map()) :: [TalesForge.BoardApi.bot()]
+  def bots(team, event, _extra)
       when event in [:idea_to_refining, :idea_back_to_refining],
-      do: [:case]
+      do: [Team.bot(team, :refiner)]
 
-  def bots(:idea_to_building, _extra), do: [:bobby]
-  def bots(:mention, %{bot: bot}), do: [bot]
-  def bots(event, _extra) when event in [:pr_approved, :pr_changes_requested], do: [:bobby]
+  def bots(team, :idea_to_building, _extra), do: [Team.bot(team, :builder)]
+  def bots(_team, :mention, %{bot: bot}), do: [bot]
 
-  def bots(:question_answered, extra),
-    do: TalesForge.Board.Transitions.event_wakes(:question_answered, extra[:column])
+  def bots(team, event, _extra) when event in [:pr_approved, :pr_changes_requested],
+    do: [Team.bot(team, :builder)]
 
-  def bots(_event, _extra), do: []
+  def bots(team, :question_answered, extra),
+    do: TalesForge.Board.Transitions.event_wakes(team, :question_answered, extra[:column])
+
+  def bots(_team, _event, _extra), do: []
 
   # One wake for each bot and card in 2 minutes (WakeMerge); a later event merges.
   defp notify(repo, bot, event, idea, extra) do

@@ -24,7 +24,15 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
   @data "priv/team/data.json" |> File.read!() |> Jason.decode!()
 
   defp render_with(data),
-    do: rendered_to_string(TeamPresentationLive.render(%{d: data, sections: [], flash: %{}}))
+    do:
+      rendered_to_string(
+        TeamPresentationLive.render(%{
+          d: data,
+          sections: [],
+          flash: %{},
+          team: Workflow.Team.Source.team()
+        })
+      )
 
   describe "sign-in" do
     test "signed out, /team/presentation redirects to the login page" do
@@ -951,7 +959,11 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       {:ok, view, _html} = live(conn, ~p"/team/presentation")
 
       for col <- TalesForge.Board.Idea.columns() do
-        assert has_element?(view, "#board-col-#{col}", TalesForge.Board.Transitions.label(col))
+        assert has_element?(
+                 view,
+                 "#board-col-#{col}",
+                 TalesForge.Board.Transitions.label(Workflow.Team.Source.team(), col)
+               )
       end
 
       assert has_element?(view, ~s(#board-col-ideas [data-count="2"]), "2")
@@ -1102,8 +1114,11 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
         |> LazyHTML.query("[id]")
         |> Enum.map(&(&1 |> LazyHTML.attribute("id") |> hd()))
 
-      for anchor <- TeamPresentationLive.anchors(), do: assert(anchor in ids, anchor)
-      assert TeamPresentationLive.anchors() == Enum.uniq(TeamPresentationLive.anchors())
+      for anchor <- TeamPresentationLive.anchors(Workflow.Team.Source.team()),
+          do: assert(anchor in ids, anchor)
+
+      assert TeamPresentationLive.anchors(Workflow.Team.Source.team()) ==
+               Enum.uniq(TeamPresentationLive.anchors(Workflow.Team.Source.team()))
     end
   end
 
@@ -1491,7 +1506,8 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       facts = LazyHTML.query(doc, "#wired-flow #wired-facts > li[data-flow-fact]")
       assert Enum.count(facts) == 7
 
-      for {{head, text}, li} <- Enum.zip(TeamPresentationLive.wired_facts(), facts) do
+      for {{head, text}, li} <-
+            Enum.zip(TeamPresentationLive.wired_facts(Workflow.Team.Source.team()), facts) do
         assert li |> LazyHTML.text() |> String.split() |> Enum.join(" ") == head <> " " <> text
       end
     end

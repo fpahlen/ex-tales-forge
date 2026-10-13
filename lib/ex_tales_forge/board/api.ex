@@ -13,20 +13,21 @@ defmodule TalesForge.Board.Api do
   - `GET /ideas/:id`: one card with refinement, votes, comments, links,
     images, history. Each image has `url` (signed-in team members) and
     `api_url` (bots, with the board token; `TalesForgeWeb.TeamImageController`).
-  - `POST /ideas/:id/refinement` (Case): `details`, `open_questions`,
+  - `POST /ideas/:id/refinement` (the refiner): `details`, `open_questions`,
     `rough_cost` (S/M/L), `verdict`.
   - `POST /ideas/:id/move`: `to` (a column), optional `note`. Gates as in
     `TalesForge.Board.Transitions`.
   - `POST /ideas/:id/links`: `kind` (pr, playtest, doc, other), `url`, `label`.
-  - `POST /ideas/:id/comments`: `body`. Gentry passes a card with
-    `"verdict": "pass"` (the comment then starts "Gentry check: pass").
+  - `POST /ideas/:id/comments`: `body`. The checker passes a card with
+    `"verdict": "pass"` (the comment then starts with
+    `TalesForge.Board.check_pass/1`, "<checker name> check: pass").
 
-  `POST /internal/board/prs` (Bobby only, 403 for the others): a normal-lane
+  `POST /internal/board/prs` (the builder only, 403 for the others): a normal-lane
   PR that needs a founder's merge OK. JSON `number`, `url`, `head_sha`,
   `player_note` (one line: what changes for players) and `idea_id` (an existing
   card) or `title` (a new card), and optional `player_change`. The card stays
   in Building with the PR waiting; the founder's Approve / Request changes
-  wakes Bobby with `pr.approved` / `pr.changes_requested`. Fast-lane PRs need
+  wakes the builder with `pr.approved` / `pr.changes_requested`. Fast-lane PRs need
   no OK: post only normal-lane PRs.
 
   Approve once (decision 2026-10-10): post the PR again after each new commit.
@@ -36,12 +37,16 @@ defmodule TalesForge.Board.Api do
   again.
 
   Errors: 404 unknown card, 422 with `{"error": "..."}` for a refused change.
+
+  The bot roles and names come from the team config. This module is an edge:
+  it reads `Workflow.Team.Source`.
   """
 
   @behaviour TalesForge.BoardApi
 
   alias TalesForge.Board
   alias TalesForge.Board.{Idea, Transitions}
+  alias Workflow.Team
 
   @impl TalesForge.BoardApi
   @spec handle(TalesForge.BoardApi.action(), TalesForge.BoardApi.bot(), map()) ::
@@ -73,10 +78,15 @@ defmodule TalesForge.Board.Api do
     end
   end
 
-  def handle(:pr, :bobby, params), do: params |> Board.link_pr() |> answer()
+  def handle(:pr, bot, params) do
+    team = team()
 
-  def handle(:pr, _bot, _params),
-    do: {403, %{"error" => "Only Bobby puts PRs up for a founder's OK."}}
+    if bot == Team.bot(team, :builder),
+      do: params |> Board.link_pr() |> answer(),
+      else:
+        {403,
+         %{"error" => "Only #{Team.bot_name(team, :builder)} puts PRs up for a founder's OK."}}
+  end
 
   def handle(action, bot, %{"id" => id} = params) do
     case Board.get_idea(id) do
@@ -89,14 +99,17 @@ defmodule TalesForge.Board.Api do
 
   defp act(:show, _bot, idea, _params), do: {200, card(idea)}
 
-  defp act(:refine, :case, idea, params),
-    do:
-      params
-      |> Map.take(~w(details open_questions rough_cost verdict))
-      |> then(&Board.refine(idea, &1, "bot:case"))
-      |> answer()
+  defp act(:refine, bot, idea, params) do
+    team = team()
 
-  defp act(:refine, _bot, _idea, _params), do: {422, %{"error" => "Only Case refines cards."}}
+    if bot == Team.bot(team, :refiner),
+      do:
+        params
+        |> Map.take(~w(details open_questions rough_cost verdict))
+        |> then(&Board.refine(idea, &1, Team.actor(team, :refiner)))
+        |> answer(),
+      else: {422, %{"error" => "Only #{Team.bot_name(team, :refiner)} refines cards."}}
+  end
 
   defp act(:move, bot, idea, params),
     do: idea |> Board.move({:bot, bot}, to_string(params["to"]), params["note"]) |> answer()
@@ -106,8 +119,8 @@ defmodule TalesForge.Board.Api do
 
   defp act(:comment, bot, idea, params) do
     body =
-      if bot == :gentry and params["verdict"] == "pass",
-        do: Board.gentry_pass() <> ". " <> to_string(params["body"] || ""),
+      if bot == Team.bot(team(), :checker) and params["verdict"] == "pass",
+        do: Board.check_pass(team()) <> ". " <> to_string(params["body"] || ""),
         else: params["body"]
 
     idea |> Board.add_comment("bot:#{bot}", to_string(body || "")) |> answer()
@@ -145,11 +158,11 @@ defmodule TalesForge.Board.Api do
       "title" => idea.title,
       "body" => idea.body,
       "column" => idea.column,
-      "column_label" => Transitions.label(idea.column),
+      "column_label" => Transitions.label(team(), idea.column),
       "state" => idea.column,
       "archived" => archived_json(idea),
       "author" => idea.author,
-      "tags" => TalesForge.Board.Tags.of(idea),
+      "tags" => TalesForge.Board.Tags.of(team(), idea),
       "free_tags" => idea.tags || [],
       "goal" => TalesForge.Board.Goals.to_json(if(Ecto.assoc_loaded?(idea.goal), do: idea.goal)),
       "score" => Float.round(idea.score * 1.0, 3),
@@ -213,4 +226,6 @@ defmodule TalesForge.Board.Api do
         )
     }
   end
+
+  defp team, do: Workflow.Team.Source.team()
 end

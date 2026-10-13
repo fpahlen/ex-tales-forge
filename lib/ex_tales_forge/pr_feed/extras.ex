@@ -9,7 +9,7 @@ defmodule TalesForge.PrFeed.Extras do
     (`GITHUB_FEED_TOKEN`, which has Actions: read). Fetched again only when a
     newer run appears.
   - **Decisions** (`:decisions`): the dated entries (second-level headings) of
-    tales-forge-docs `docs/decisions.md` on GitHub (`GITHUB_DOCS_TOKEN`, the
+    the docs repo (`docs_repo` in the team config, `Workflow.Team`) `docs/decisions.md` on GitHub (`GITHUB_DOCS_TOKEN`, the
     token the docs sync already uses), total and per Stockholm day. Sent with
     the last ETag, so an unchanged file costs no rate limit.
 
@@ -23,7 +23,6 @@ defmodule TalesForge.PrFeed.Extras do
   alias TalesForge.PrFeed
 
   @api "https://api.github.com"
-  @docs_repo "whyse-ab/tales-forge-docs"
   @decisions_path "docs/decisions.md"
   @refresh_ms 600_000
   @timeout_ms 10_000
@@ -190,7 +189,11 @@ defmodule TalesForge.PrFeed.Extras do
         prev
 
       token ->
-        case get_raw(token, "/repos/#{@docs_repo}/contents/#{@decisions_path}", etag) do
+        case get_raw(
+               token,
+               "/repos/#{Workflow.Team.Source.team().docs_repo}/contents/#{@decisions_path}",
+               etag
+             ) do
           {:ok, body, new_etag} ->
             body |> parse_decisions() |> Map.merge(%{etag: new_etag, fetched_at: now})
 

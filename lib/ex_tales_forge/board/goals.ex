@@ -1,6 +1,6 @@
 defmodule TalesForge.Board.Goals do
   @moduledoc """
-  Goals on the founders' idea board (tales-forge-docs `docs/design-idea-board.md`,
+  Goals on the founders' idea board (docs repo `docs/design-idea-board.md`,
   "Goals").
 
   - A goal has a title, an outcome line, an optional target date and a sort

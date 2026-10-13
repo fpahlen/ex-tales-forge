@@ -170,7 +170,9 @@ defmodule TalesForge.Board.AutoDoneTest do
   end
 
   test "Done wakes no bot" do
-    assert TalesForge.Board.Transitions.wakes("building", "done") == [:founders]
-    assert TalesForge.Board.Events.bots(:idea_to_done, %{}) == []
+    assert TalesForge.Board.Transitions.wakes(Workflow.Team.Source.team(), "building", "done") ==
+             [:founders]
+
+    assert TalesForge.Board.Events.bots(Workflow.Team.Source.team(), :idea_to_done, %{}) == []
   end
 end

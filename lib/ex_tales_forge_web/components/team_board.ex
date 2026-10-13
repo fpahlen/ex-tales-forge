@@ -9,15 +9,15 @@ defmodule TalesForgeWeb.TeamBoard do
   approvals and how many founders take part) from `TalesForge.Board.stats/0`.
   It also lists what is new on the board (`#board-new`): the Ideas
   lane's sort toggle, tags, tag cloud and Pings for you, the column portraits,
-  Bobby's pickup note, approve once and Case's hourly check. It shows team totals only, with no founder names (board card
+  the builder's pickup note, approve once and the refiner's hourly check. It shows team totals only, with no founder names (board card
   "update presentation after shared workarea", answered 2026-10-10). The
   section reads; it has nothing to drag and sends no events.
 
-  The rules follow tales-forge-docs `docs/design-board-states.md` (approved
+  The rules follow the docs repo `docs/design-board-states.md` (approved
   2026-10-10), and the copy follows `docs/team-page/content.md` section 7.
   The "How a card travels" steps come from `shared_board.columns` in
   `data.json` (`id`, `label`, `owner`); a column that the data does not name
-  keeps the label from the brief. Without stats (where the board is not, or a
+  keeps the label from the team config (`Workflow.Team`). Without stats (where the board is not, or a
   render with data only), each count reads "not measured yet", never a zero.
   The columns stack two per row on a phone (three from 640 px, all six from
   1024 px), so nothing scrolls sideways.
@@ -31,17 +31,27 @@ defmodule TalesForgeWeb.TeamBoard do
   alias TalesForge.Board.Idea
   alias TalesForge.Board.Transitions
   alias TalesForge.TeamPage
+  alias Workflow.Team
 
   @anchor "board"
 
-  # The five columns as the brief names them, used where the data is silent.
-  @default_columns [
-    %{"id" => "ideas", "label" => "Ideas", "owner" => "any founder"},
-    %{"id" => "refining", "label" => "Refining (Case)", "owner" => "case"},
-    %{"id" => "founder_check", "label" => "Founder check", "owner" => "founders"},
-    %{"id" => "building", "label" => "Building (Bobby)", "owner" => "bobby", "approval" => true},
-    %{"id" => "done", "label" => "Done", "owner" => "crew"}
-  ]
+  # The five columns with the team's labels, used where the data is silent.
+  defp default_columns(team) do
+    id = &(team |> Team.bot(&1) |> Atom.to_string())
+
+    [
+      %{"id" => "ideas", "label" => Team.label(team, "ideas"), "owner" => "any founder"},
+      %{"id" => "refining", "label" => Team.label(team, "refining"), "owner" => id.(:refiner)},
+      %{"id" => "founder_check", "label" => Team.label(team, "check"), "owner" => "founders"},
+      %{
+        "id" => "building",
+        "label" => Team.label(team, "building"),
+        "owner" => id.(:builder),
+        "approval" => true
+      },
+      %{"id" => "done", "label" => Team.label(team, "done"), "owner" => "crew"}
+    ]
+  end
 
   # The team totals under the live board, in order.
   @total_labels [
@@ -63,33 +73,37 @@ defmodule TalesForgeWeb.TeamBoard do
 
   @doc """
   The board's columns: `shared_board.columns` from the data, each filled in
-  from the brief's five columns where a value is missing; the brief's five
+  from the team's five columns where a value is missing; the team's five
   when the data has none.
 
-      iex> [first | _] = TalesForgeWeb.TeamBoard.columns(%{})
-      iex> first["label"]
-      "Ideas"
+      iex> team = Workflow.Team.example()
+      iex> [_, second | _] = TalesForgeWeb.TeamBoard.columns(team, %{})
+      iex> {second["label"], second["owner"]}
+      {"Refining (Rita)", "rita"}
       iex> cols = %{"shared_board" => %{"columns" => [%{"id" => "ideas", "label" => nil}]}}
-      iex> TalesForgeWeb.TeamBoard.columns(cols) |> Enum.map(& &1["label"])
+      iex> TalesForgeWeb.TeamBoard.columns(team, cols) |> Enum.map(& &1["label"])
       ["Ideas"]
   """
-  @spec columns(map()) :: [map()]
-  def columns(data) do
+  @spec columns(Team.t(), map()) :: [map()]
+  def columns(%Team{} = team, data) do
+    defaults = default_columns(team)
+
     case get(data, ["shared_board", "columns"]) do
-      [_ | _] = cols -> Enum.map(cols, &fill_column/1)
-      _missing -> @default_columns
+      [_ | _] = cols -> Enum.map(cols, &fill_column(&1, defaults))
+      _missing -> defaults
     end
   end
 
-  defp fill_column(%{} = col) do
-    default = Enum.find(@default_columns, %{}, &(&1["id"] == col["id"]))
+  defp fill_column(%{} = col, defaults) do
+    default = Enum.find(defaults, %{}, &(&1["id"] == col["id"]))
     Map.merge(default, col, fn _key, old, new -> if is_nil(new), do: old, else: new end)
   end
 
-  defp fill_column(_other), do: %{}
+  defp fill_column(_other, _defaults), do: %{}
 
   @doc "The whole section: badge, intro, how a card travels, the live board and why it works."
   attr :d, :map, required: true
+  attr :team, Workflow.Team, required: true, doc: "the team config (`Workflow.Team`)"
 
   attr :live, :map,
     default: nil,
@@ -97,7 +111,7 @@ defmodule TalesForgeWeb.TeamBoard do
 
   @spec section(map()) :: Phoenix.LiveView.Rendered.t()
   def section(assigns) do
-    columns = columns(assigns.d)
+    columns = columns(assigns.team, assigns.d)
 
     assigns =
       assign(assigns,
@@ -140,21 +154,24 @@ defmodule TalesForgeWeb.TeamBoard do
             <p class="flex items-center gap-2 font-semibold leading-tight">
               <span class="team-board-num">{i}</span> {col["label"] || TeamPage.not_measured()}
             </p>
-            <p class="text-sm leading-snug"><.travel id={col["id"]} /></p>
+            <p class="text-sm leading-snug"><.travel team={@team} id={col["id"]} /></p>
           </li>
         </ol>
       </div>
 
-      <.live_board live={@live} total_labels={@total_labels} />
+      <.live_board team={@team} live={@live} total_labels={@total_labels} />
 
-      <.new_on_board />
+      <.new_on_board team={@team} />
 
       <ul id="board-why" class="grid gap-3 lg:grid-cols-3" aria-label="Three things that make it work">
         <li class="team-card flex flex-col gap-2 p-4">
           <.icon name="hero-bell-alert" class="size-7 text-[var(--paper-accent)]" />
           <h3 class="font-semibold">Moving a card pings the right bot.</h3>
           <p class="text-sm leading-snug">
-            A card in Refining wakes Case, and a card in Building wakes Bobby. When a comment names a bot, that bot wakes too.
+            A card in Refining wakes {Team.bot_name(@team, :refiner)}, and a card in Building wakes {Team.bot_name(
+              @team,
+              :builder
+            )}. When a comment names a bot, that bot wakes too.
             Nobody has to keep checking, bots or people.
           </p>
         </li>
@@ -170,7 +187,10 @@ defmodule TalesForgeWeb.TeamBoard do
           <.icon name="hero-key" class="size-7 text-[var(--paper-accent)]" />
           <h3 class="font-semibold">Every founder decides.</h3>
           <p class="text-sm leading-snug">
-            Any founder can send a card to Building, and that move is the founder OK. Any founder also approves the PR on the card. The approved change goes to playtest, Gentry checks it, and then it ships to production by itself.
+            Any founder can send a card to Building, and that move is the founder OK. Any founder also approves the PR on the card. The approved change goes to playtest, {Team.bot_name(
+              @team,
+              :checker
+            )} checks it, and then it ships to production by itself.
           </p>
         </li>
       </ul>
@@ -185,7 +205,9 @@ defmodule TalesForgeWeb.TeamBoard do
   end
 
   # What is new on the board (live since 2026-10-10): the Ideas lane tools,
-  # the column portraits, Bobby's pickup note, approve once and the hourly check.
+  # the column portraits, the builder's pickup note, approve once and the hourly check.
+  attr :team, Team, required: true
+
   defp new_on_board(assigns) do
     ~H"""
     <div id="board-new" class="space-y-3">
@@ -205,14 +227,20 @@ defmodule TalesForgeWeb.TeamBoard do
           <.icon name="hero-user-circle" class="size-7 text-[var(--paper-accent)]" />
           <h4 class="font-semibold">Each bot column shows its bot.</h4>
           <p class="text-sm leading-snug">
-            Case's portrait is behind Refining, and Bobby's portrait is behind Building. You see at a glance who works on a card.
+            {Team.bot_name(@team, :refiner)}'s portrait is behind Refining, and {Team.bot_name(
+              @team,
+              :builder
+            )}'s portrait is behind Building. You see at a glance who works on a card.
           </p>
         </li>
         <li id="board-new-pickup" class="team-card flex flex-col gap-2 p-4">
           <.icon name="hero-wrench-screwdriver" class="size-7 text-[var(--paper-accent)]" />
-          <h4 class="font-semibold">Bobby says when the work starts.</h4>
+          <h4 class="font-semibold">{Team.bot_name(@team, :builder)} says when the work starts.</h4>
           <p class="text-sm leading-snug">
-            When a card moves to Building, Bobby writes “Picked up by Bobby. ETA ...” on the card at once.
+            When a card moves to Building, {Team.bot_name(@team, :builder)} writes “Picked up by {Team.bot_name(
+              @team,
+              :builder
+            )}. ETA ...” on the card at once.
           </p>
         </li>
         <li id="board-new-approve-once" class="team-card flex flex-col gap-2 p-4">
@@ -227,7 +255,10 @@ defmodule TalesForgeWeb.TeamBoard do
           <.icon name="hero-clock" class="size-7 text-[var(--paper-accent)]" />
           <h4 class="font-semibold">An hourly check keeps Building moving.</h4>
           <p class="text-sm leading-snug">
-            Every hour, Case looks at the Building column. When a card has no PR after more than one hour, Case reminds Bobby.
+            Every hour, {Team.bot_name(@team, :refiner)} looks at the Building column. When a card has no PR after more than one hour, {Team.bot_name(
+              @team,
+              :refiner
+            )} reminds {Team.bot_name(@team, :builder)}.
           </p>
         </li>
       </ul>
@@ -236,6 +267,7 @@ defmodule TalesForgeWeb.TeamBoard do
   end
 
   attr :id, :string, default: nil
+  attr :team, Team, required: true
 
   defp travel(%{id: "ideas"} = assigns) do
     ~H"""
@@ -246,7 +278,10 @@ defmodule TalesForgeWeb.TeamBoard do
 
   defp travel(%{id: "refining"} = assigns) do
     ~H"""
-    Case fills in the card: the details, the open questions and a rough cost. Then Case sends it to Founder check. Case's portrait is behind this column.
+    {Team.bot_name(@team, :refiner)} fills in the card: the details, the open questions and a rough cost. Then {Team.bot_name(
+      @team,
+      :refiner
+    )} sends it to Founder check. {Team.bot_name(@team, :refiner)}'s portrait is behind this column.
     """
   end
 
@@ -259,19 +294,23 @@ defmodule TalesForgeWeb.TeamBoard do
 
   defp travel(%{id: "building"} = assigns) do
     ~H"""
-    Bobby writes “Picked up by Bobby. ETA ...” on the card at once, builds it and links the PR to the card. The PR's status (open, merged, on production) shows on the card, so you can follow along and try it. Bobby's portrait is behind this column.
+    {Team.bot_name(@team, :builder)} writes “Picked up by {Team.bot_name(@team, :builder)}. ETA ...” on the card at once, builds it and links the PR to the card. The PR's status (open, merged, on production) shows on the card, so you can follow along and try it. {Team.bot_name(
+      @team,
+      :builder
+    )}'s portrait is behind this column.
     """
   end
 
   defp travel(%{id: "done"} = assigns) do
     ~H"""
-    On production. Bobby can move a card to Done only when the PR's merge commit runs on production. The card keeps the whole story.
+    On production. {Team.bot_name(@team, :builder)} can move a card to Done only when the PR's merge commit runs on production. The card keeps the whole story.
     """
   end
 
   defp travel(assigns), do: ~H""
 
   attr :live, :map, default: nil
+  attr :team, Workflow.Team, required: true
   attr :total_labels, :list, required: true
 
   defp live_board(assigns) do
@@ -283,7 +322,7 @@ defmodule TalesForgeWeb.TeamBoard do
         aria-label="Cards in each column of the idea board now"
       >
         <li
-          :for={col <- columns_now(@live)}
+          :for={col <- columns_now(@team, @live)}
           id={"board-col-#{col.id}"}
           class="team-board-col flex flex-col justify-between gap-1 rounded-lg p-3"
           data-column={col.id}
@@ -334,16 +373,17 @@ defmodule TalesForgeWeb.TeamBoard do
   The columns of the live board: the columns of `TalesForge.Board.stats/0`,
   or the board's columns with no count (`nil`) when there are no stats.
 
-      iex> TalesForgeWeb.TeamBoard.columns_now(nil) |> Enum.map(& &1.count) |> Enum.uniq()
+      iex> team = Workflow.Team.example()
+      iex> TalesForgeWeb.TeamBoard.columns_now(team, nil) |> Enum.map(& &1.count) |> Enum.uniq()
       [nil]
-      iex> TalesForgeWeb.TeamBoard.columns_now(%{columns: [%{id: "ideas", label: "Ideas", count: 3}]})
+      iex> TalesForgeWeb.TeamBoard.columns_now(team, %{columns: [%{id: "ideas", label: "Ideas", count: 3}]})
       [%{id: "ideas", label: "Ideas", count: 3}]
   """
-  @spec columns_now(TalesForge.Board.stats() | nil) :: [map()]
-  def columns_now(%{columns: columns}), do: columns
+  @spec columns_now(Workflow.Team.t(), TalesForge.Board.stats() | nil) :: [map()]
+  def columns_now(_team, %{columns: columns}), do: columns
 
-  def columns_now(_none) do
-    Enum.map(Idea.columns(), &%{id: &1, label: Transitions.label(&1), count: nil})
+  def columns_now(team, _none) do
+    Enum.map(Idea.columns(), &%{id: &1, label: Transitions.label(team, &1), count: nil})
   end
 
   defp total(%{totals: totals}, key), do: Map.get(totals, key)

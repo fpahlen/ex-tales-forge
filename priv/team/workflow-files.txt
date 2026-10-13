@@ -1,0 +1,30 @@
+# Workflow lib/ files: the team tools (priv/team/product-boundary.md, "Workflow
+# owns"). `mix workflow.check_names` reads only these files. A file here has no
+# team name (product, repo, founder or bot). Team names live in the team config
+# (priv/team/data.json `workflow`, priv/team/content.json; Workflow.Team).
+#
+# One glob for each line (Path.wildcard/1, relative to the repo root). `#`
+# starts a comment. Module names (TalesForge.*, TalesForgeWeb.*) and the
+# :ex_tales_forge app name are shared wiring. Cards 3 to 5 move them.
+lib/workflow/**/*.ex
+lib/workflow/*.ex
+lib/ex_tales_forge/board.ex
+lib/ex_tales_forge/board/**/*.ex
+lib/ex_tales_forge/board_api.ex
+lib/ex_tales_forge/chat.ex
+lib/ex_tales_forge/chat/*.ex
+lib/ex_tales_forge/work_log.ex
+lib/ex_tales_forge/work_log/*.ex
+lib/ex_tales_forge/pr_feed.ex
+lib/ex_tales_forge/pr_feed/*.ex
+lib/ex_tales_forge/team_online.ex
+lib/ex_tales_forge/team_pace.ex
+lib/ex_tales_forge/team_page.ex
+lib/ex_tales_forge_web/live/team_*.ex
+lib/ex_tales_forge_web/components/team_*.ex
+lib/ex_tales_forge_web/controllers/board_api_controller.ex
+lib/ex_tales_forge_web/controllers/chat_api_controller.ex
+lib/ex_tales_forge_web/controllers/team_image_controller.ex
+lib/ex_tales_forge_web/controllers/work_log_export_controller.ex
+lib/ex_tales_forge_web/controllers/work_log_peer_controller.ex
+lib/mix/tasks/workflow.check_names.ex

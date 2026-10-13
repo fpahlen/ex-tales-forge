@@ -115,7 +115,7 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
   # ── Decisions (decisions.md on GitHub) ───────────────────────────────────
 
   @doc """
-  The decision log: live from tales-forge-docs `docs/decisions.md` on GitHub
+  The decision log: live from the docs repo `docs/decisions.md` on GitHub
   (the PR feed's extras), else `data.json`'s `decisions`. `:total` counts
   every entry; `:by_date` is per day.
 

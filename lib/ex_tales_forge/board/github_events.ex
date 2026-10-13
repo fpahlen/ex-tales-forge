@@ -10,9 +10,9 @@ defmodule TalesForge.Board.GitHubEvents do
     `TalesForge.Board.Workers.PrBackfill`. It marks the PR of each Building
     card that links a PR with no PR waiting yet, so the card gets its
     Approve button.
-  - A pull request merged: wake Bobby (`pr.merged`) for each card in
+  - A pull request merged: wake the builder bot (`pr.merged`) for each card in
     Building or Founder check with that PR.
-  - The `CI` workflow failed on a commit: wake Bobby (`ci.failed`) for each
+  - The `CI` workflow failed on a commit: wake the builder (`ci.failed`) for each
     card whose waiting PR has that head commit.
   - `Deploy to production` passed: queue `TalesForge.Board.Workers.AutoDone`,
     so cards whose PR is now on prod move to Done.
@@ -124,7 +124,8 @@ defmodule TalesForge.Board.GitHubEvents do
   defp wake(%Idea{} = idea, event) do
     pr = %{"number" => idea.pr_number, "url" => idea.pr_url, "head_sha" => idea.pr_head_sha}
     extra = %{actor: "bot:board", from: idea.column, to: idea.column, pr: pr}
-    {:ok, _job} = :bobby |> Notify.job(event, idea, extra) |> Oban.insert()
+    builder = Workflow.Team.bot(Workflow.Team.Source.team(), :builder)
+    {:ok, _job} = builder |> Notify.job(event, idea, extra) |> Oban.insert()
     :ok
   end
 end

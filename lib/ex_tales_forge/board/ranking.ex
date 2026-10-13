@@ -1,12 +1,12 @@
 defmodule TalesForge.Board.Ranking do
   @moduledoc """
-  How the Ideas column is ranked (tales-forge-docs `docs/design-idea-board.md`,
-  kept by Fredrik on 2026-10-10): net votes with time decay,
+  How the Ideas column is ranked (docs repo `docs/design-idea-board.md`,
+  kept by a founder on 2026-10-10): net votes with time decay,
 
       score = net_votes / (age_days + 2) ^ 0.8
 
   The card shows this score. The backlog order is net votes, then total
-  votes (tales-forge-docs `docs/design-board-states.md`, 2026-10-10; see
+  votes (docs repo `docs/design-board-states.md`, 2026-10-10; see
   `TalesForge.Board.board/1`). Votes do not move cards and do not wake bots.
   """
 

@@ -18,10 +18,10 @@ defmodule TalesForge.PrFeed.Parse do
   `:merged`. Entries without a number are skipped.
 
       iex> [pr] = TalesForge.PrFeed.Parse.pulls([%{"number" => 3, "title" => "Inn", "state" => "closed",
-      ...>   "merged_at" => "2026-10-09T09:00:00Z", "merge_commit_sha" => "abc", "user" => %{"login" => "bobby"},
+      ...>   "merged_at" => "2026-10-09T09:00:00Z", "merge_commit_sha" => "abc", "user" => %{"login" => "bram"},
       ...>   "head" => %{"sha" => "def"}, "html_url" => "https://github.com/x/y/pull/3"}])
       iex> {pr.number, pr.state, pr.author, pr.merge_sha, pr.merged_at}
-      {3, :merged, "bobby", "abc", ~U[2026-10-09 09:00:00Z]}
+      {3, :merged, "bram", "abc", ~U[2026-10-09 09:00:00Z]}
       iex> TalesForge.PrFeed.Parse.pulls(%{"message" => "Not Found"})
       []
   """

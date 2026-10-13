@@ -266,13 +266,3 @@ config :phoenix, :json_library, Jason
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
-
-# Founder handles for @mentions on the idea board, by GitHub login in lower
-# case (founders sign in with GitHub; TalesForge.Board.Mentions).
-config :ex_tales_forge, :board_founder_handles, %{
-  "fpahlen" => "fredrik",
-  "jpa71" => "jeanette",
-  "tsjokvist" => "thobias",
-  "hawkan-fredriksson" => "hakan",
-  "maxpahlen" => "max"
-}

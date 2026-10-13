@@ -12,7 +12,7 @@ defmodule TalesForgeWeb.TeamCallTypes do
   (`TalesForgeWeb.TeamPeek`) showing what that call type looks like: code,
   data in and out, or result in and prose out.
 
-  Copy follows tales-forge-docs `docs/team-page/content.md` (commit 404e421; unchanged since, through d118917).
+  Copy follows the docs repo `docs/team-page/content.md` (commit 404e421; unchanged since, through d118917).
   The turn's numbers (the typed intent, the roll, the price) come from
   `call_types.walkthrough` in `data.json`, the read latency and cost from
   `intent_shadow`; a missing or `null` value reads "not measured yet".
@@ -161,6 +161,7 @@ defmodule TalesForgeWeb.TeamCallTypes do
   and the three-lane animation.
   """
   attr :d, :map, required: true
+  attr :team, Workflow.Team, required: true, doc: "the team config (`Workflow.Team`)"
 
   @spec walkthrough(map()) :: Phoenix.LiveView.Rendered.t()
   def walkthrough(assigns) do
@@ -314,8 +315,7 @@ defmodule TalesForgeWeb.TeamCallTypes do
               </li>
               <li>
                 <strong>Learning:</strong>
-                a success earns nothing to learn from. In Tales Forge you learn from your failures,
-                and only in the skill you failed. Persuasion is not a physical skill, so a failed haggle
+                {Workflow.Team.text(@team, "call_types.learning")} and only in the skill you failed. Persuasion is not a physical skill, so a failed haggle
                 would improve it during the next sleep.
               </li>
               <li>

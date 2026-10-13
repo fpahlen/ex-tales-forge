@@ -67,7 +67,7 @@ defmodule TalesForgeWeb.TeamComponents do
 
   @doc """
   Who the founders are, from `team.members[0].people`: "We're five founders:
-  Fredrik, ..., Jeanette and Max." All founders are equals, so no name gets a
+  A, B, C, D and E." All founders are equals, so no name gets a
   title. Nothing shows when the data has no names. A missing count reads "not
   measured yet".
   """

@@ -5,7 +5,7 @@ defmodule TalesForgeWeb.TeamArt do
   crew avatars, the persona tokens, the founders' wax seal and the d20 token of
   the change-flow animation, plus the painted illustrations.
 
-  The painted art (`picture/1`, from tales-forge-docs `docs/team-page/images/`)
+  The painted art (`picture/1`, from the docs repo `docs/team-page/images/`)
   is the hero, the bots' portraits on their cards and the wax seal on the
   "A founder's OK" steps of the flow; it is served as static files from
   `priv/static/images/team`.
@@ -17,11 +17,21 @@ defmodule TalesForgeWeb.TeamArt do
 
   use Phoenix.Component
 
+  @images Path.expand("../../../priv/static/images/team", __DIR__)
+  @portraits for(
+               f <- Path.wildcard(Path.join(@images, "*-avatar-192.jpg")),
+               id = f |> Path.basename() |> String.replace_suffix("-avatar-192.jpg", ""),
+               File.exists?(Path.join(@images, id <> "-960.jpg")),
+               do: id
+             )
+             |> Enum.sort()
+  for id <- @portraits, do: @external_resource(Path.join(@images, id <> "-avatar-192.jpg"))
+
   @skins %{a: "#e9bb92", b: "#c48a5f", c: "#8e5b3d", d: "#f2cdb0"}
 
   @doc """
-  A round crew avatar. `id` is `founders`, `case`, `bobby` or `gentry`;
-  anything else draws a neutral circle. The three bots show their painted
+  A round crew avatar. `id` is `founders` or a bot id; anything else draws a
+  neutral circle. A bot with a portrait file (see `portrait?/1`) shows its painted
   portrait (`priv/static/images/team/<id>-avatar-<96|192>`, WebP with a JPEG
   fallback, square crops of the Grok Imagine portraits). The founders show the
   drawn group of three.
@@ -31,7 +41,7 @@ defmodule TalesForgeWeb.TeamArt do
   attr :label, :string, default: nil
 
   @spec avatar(map()) :: Phoenix.LiveView.Rendered.t()
-  def avatar(%{id: id} = assigns) when id in ~w(case bobby gentry) do
+  def avatar(%{id: id} = assigns) when id in @portraits do
     ~H"""
     <picture class={["team-avatar block shrink-0 overflow-hidden rounded-full", @class]}>
       <source
@@ -290,8 +300,8 @@ defmodule TalesForgeWeb.TeamArt do
     """
   end
 
-  # The painted illustrations (tales-forge-docs docs/team-page/images/, approved
-  # by Fredrik), served from priv/static/images/team as `<name>-<width>.webp` with
+  # The painted illustrations (the docs repo docs/team-page/images/, approved
+  # by the founders), served from priv/static/images/team as `<name>-<width>.webp` with
   # a `.jpg` fallback of the same width. Generated once with ImageMagick and
   # cwebp (commands in priv/team/README.md) and committed; there is no build
   # step. `width`/`height` are the intrinsic size of the largest file, so the
@@ -301,31 +311,7 @@ defmodule TalesForgeWeb.TeamArt do
       widths: [480, 960, 1280],
       width: 1280,
       height: 720,
-      alt:
-        "The five founders, Fredrik, Thobias, Håkan, Jeanette and Max, " <>
-          "as stylised Nordic adventurers " <>
-          "with the three bots, Case, Bobby and Gentry the owl, around one round tavern table, " <>
-          "leaning over a painted map of Tin Valley, with empty chairs left open"
-    },
-    "case" => %{
-      widths: [320, 640, 960],
-      width: 960,
-      height: 720,
-      alt:
-        "Case, a brass bot with a glowing lantern for a head and a blue cloak, holding a map and a quill"
-    },
-    "bobby" => %{
-      widths: [320, 640, 960],
-      width: 960,
-      height: 720,
-      alt:
-        "Bobby, a copper bot with a glowing furnace in his chest and tools on his belt, holding up a glowing gear"
-    },
-    "gentry" => %{
-      widths: [320, 640, 960],
-      width: 960,
-      height: 720,
-      alt: "Gentry, a silver owl in armour with a monocle, holding a clipboard and a quill"
+      alt: nil
     },
     "founders-seal" => %{
       widths: [96, 192],
@@ -335,25 +321,41 @@ defmodule TalesForgeWeb.TeamArt do
     }
   }
 
+  # Each bot portrait has the same sizes; the caller gives the alt text
+  # (`Workflow.Team.text/2`, key `art.alt.<id>`).
+  @pictures Map.merge(
+              @pictures,
+              Map.new(
+                @portraits,
+                &{&1, %{widths: [320, 640, 960], width: 960, height: 720, alt: nil}}
+              )
+            )
+
   @doc """
   The names of the painted illustrations `picture/1` can show.
 
-      iex> TalesForgeWeb.TeamArt.pictures()
-      ["bobby", "case", "founders-seal", "gentry", "hero"]
+      iex> pictures = TalesForgeWeb.TeamArt.pictures()
+      iex> {"hero" in pictures, "founders-seal" in pictures}
+      {true, true}
   """
   @spec pictures() :: [String.t()]
   def pictures, do: @pictures |> Map.keys() |> Enum.sort()
 
   @doc """
-  Whether `id` (a crew member) has a painted portrait: the three bots do.
+  Whether `id` (a crew member) has a painted portrait: a bot with the files
+  `priv/static/images/team/<id>-avatar-192.jpg` and `<id>-960.jpg`.
 
-      iex> TalesForgeWeb.TeamArt.portrait?("gentry")
-      true
       iex> TalesForgeWeb.TeamArt.portrait?("founders")
       false
+      iex> Enum.all?(TalesForgeWeb.TeamArt.portraits(), &TalesForgeWeb.TeamArt.portrait?/1)
+      true
   """
   @spec portrait?(String.t() | nil) :: boolean()
-  def portrait?(id), do: id in ~w(case bobby gentry)
+  def portrait?(id), do: id in @portraits
+
+  @doc "The ids that have a painted portrait (see `portrait?/1`)."
+  @spec portraits() :: [String.t()]
+  def portraits, do: @portraits
 
   @doc """
   One painted illustration as a responsive `<picture>`: WebP with a JPEG

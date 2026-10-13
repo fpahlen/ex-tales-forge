@@ -17,7 +17,7 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
 
   The log counts actions, not open pages. Reading a card is not work time in v1.
 
-  The Gentry (QA) session (`TalesForge.QaLogin`) sees the range form, the
+  The QA session (`TalesForge.QaLogin`) sees the range form, the
   totals and the table. It gets no CSV link and no manual form, and the
   server refuses `add_entry` for it.
   """
@@ -40,6 +40,7 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
     {:ok,
      socket
      |> assign(:page_title, "Work log")
+     |> assign(:team, Workflow.Team.Source.team())
      |> assign_new(:qa, fn -> false end)
      |> assign(:d, TalesForge.TeamPage.data())
      |> assign(:from, Date.add(to, -(@default_days - 1)))
@@ -114,7 +115,7 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
 
     ~H"""
     <div id="team-work-log-page" class="team-page paper-themed paper-home min-h-dvh">
-      <TeamLayout.header socket={assigns[:socket]} page={:presentation} items={[]} />
+      <TeamLayout.header team={@team} socket={assigns[:socket]} page={:presentation} items={[]} />
 
       <main id="work-log" class="mx-auto max-w-6xl space-y-10 px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
         <header class="max-w-3xl space-y-2">
@@ -236,7 +237,7 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
         </section>
       </main>
 
-      <TeamLayout.footer d={@d} />
+      <TeamLayout.footer team={@team} d={@d} />
       <Layouts.flash_group flash={@flash} />
     </div>
     """

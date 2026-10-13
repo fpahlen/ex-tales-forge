@@ -19,7 +19,7 @@ defmodule TalesForgeWeb.TeamWorkspace do
       at 0 the stat is plain text, not a link.
 
   Every founder can approve, so the copy names no one role. Copy follows
-  tales-forge-docs `docs/team-page/content.md`.
+  the docs repo `docs/team-page/content.md`.
   """
 
   use Phoenix.Component

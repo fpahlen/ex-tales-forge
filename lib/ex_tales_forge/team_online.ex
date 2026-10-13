@@ -6,11 +6,15 @@ defmodule TalesForge.TeamOnline do
   - **Founders**: everyone with a page open on production or playtest right
     now (`TalesForge.Online.people/1`, Phoenix Presence plus playtest's
     list), one entry per person with each page and app once.
-  - **Bots** (Case, Bobby, Gentry) do not keep a page open. Each shows their
-    latest activity and when it was: a board API call (each wake-up reads the
-    board), a comment, a card move or a link on the board, and for Bobby the
-    latest pull request in the live PR feed (Bobby writes the pull requests).
+  - **Bots** (the bots of the team config, `Workflow.Team`) do not keep a
+    page open. Each shows their latest activity and when it was: a board API
+    call (each wake-up reads the board), a comment, a card move or a link on
+    the board, and for the builder the latest pull request in the live PR
+    feed (the builder writes the pull requests).
     A bot counts as online when that was less than `online_minutes/0` ago.
+
+  `snapshot/1` is the edge: it reads the team config and the activity. `bots/3`
+  and `name/3` are pure and get the team config as an argument.
   """
 
   import Ecto.Query
@@ -21,9 +25,8 @@ defmodule TalesForge.TeamOnline do
   alias TalesForge.Online
   alias TalesForge.PrFeed
   alias TalesForge.Repo
-  alias TalesForge.TeamPage
+  alias Workflow.Team
 
-  @bots [{:case, "Case"}, {:bobby, "Bobby"}, {:gentry, "Gentry"}]
   @online_minutes 10
 
   @typedoc "A founder as shown: `t:TalesForge.Online.person/0` plus the display name and @handle."
@@ -56,12 +59,17 @@ defmodule TalesForge.TeamOnline do
   @doc "Founders and bots now."
   @spec snapshot(DateTime.t()) :: t()
   def snapshot(now \\ DateTime.utc_now()) do
+    team = Workflow.Team.Source.team()
+
     %{
       founders:
         Enum.map(Online.people(), fn p ->
-          Map.merge(p, %{name: name(p.email, p.login), handle: Mentions.handle_for(p.login)})
+          Map.merge(p, %{
+            name: name(team, p.email, p.login),
+            handle: Mentions.handle_for(team, p.login)
+          })
         end),
-      bots: bots(activity(), now)
+      bots: bots(team, activity(team), now)
     }
   end
 
@@ -71,21 +79,23 @@ defmodule TalesForge.TeamOnline do
   active bot comes first; bots with no activity come last, in their usual
   order.
 
+      iex> team = Workflow.Team.example()
       iex> now = ~U[2026-10-10 12:00:00Z]
-      iex> [c, b, g] = TalesForge.TeamOnline.bots([{:case, ~U[2026-10-10 11:55:00Z], "Read the board"},
-      ...>   {:case, ~U[2026-10-10 10:00:00Z], "Commented on a card"},
-      ...>   {:bobby, ~U[2026-10-10 09:00:00Z], "Pull request #7"}], now)
-      iex> {c.doing, c.online, b.online, g.at}
-      {"Read the board", true, false, nil}
+      iex> [r, b, q] = TalesForge.TeamOnline.bots(team, [{:rita, ~U[2026-10-10 11:55:00Z], "Read the board"},
+      ...>   {:rita, ~U[2026-10-10 10:00:00Z], "Commented on a card"},
+      ...>   {:bram, ~U[2026-10-10 09:00:00Z], "Pull request #7"}], now)
+      iex> {r.name, r.doing, r.online, b.online, q.at}
+      {"Rita", "Read the board", true, false, nil}
 
+      iex> team = Workflow.Team.example()
       iex> now = ~U[2026-10-10 23:00:00Z]
-      iex> TalesForge.TeamOnline.bots([{:case, ~U[2026-10-10 20:33:00Z], "Read the board"},
-      ...>   {:bobby, ~U[2026-10-10 22:19:00Z], "Pull request #7"}], now) |> Enum.map(& &1.id)
-      ["bobby", "case", "gentry"]
+      iex> TalesForge.TeamOnline.bots(team, [{:rita, ~U[2026-10-10 20:33:00Z], "Read the board"},
+      ...>   {:bram, ~U[2026-10-10 22:19:00Z], "Pull request #7"}], now) |> Enum.map(& &1.id)
+      ["bram", "rita", "quill"]
   """
-  @spec bots([{atom(), DateTime.t(), String.t()}], DateTime.t()) :: [bot()]
-  def bots(events, %DateTime{} = now) do
-    for {id, name} <- @bots do
+  @spec bots(Team.t(), [{atom(), DateTime.t(), String.t()}], DateTime.t()) :: [bot()]
+  def bots(%Team{} = team, events, %DateTime{} = now) do
+    for %{id: id, name: name} <- team.bots do
       latest =
         events
         |> Enum.filter(&(elem(&1, 0) == id and match?(%DateTime{}, elem(&1, 1))))
@@ -109,65 +119,55 @@ defmodule TalesForge.TeamOnline do
   end
 
   @doc """
-  A founder's display name from the team data (accents kept). First the
-  handle of their GitHub login (`TalesForge.Board.Mentions`, config
-  `:board_founder_handles`), so "Hawkan-Fredriksson" is "Håkan"; then the
-  login that the whole email local part spells (letters only, so
-  "hawkan.fredriksson@…" is the login "hawkan-fredriksson", "Håkan"); then the
-  first part of the email; else that first part, capitalised.
+  A founder's display name from the team config (accents kept). First the
+  handle of their GitHub login (`TalesForge.Board.Mentions.handle_for/2`), so
+  "Orjan-GH" is "Örjan"; then the login that the whole email local part
+  spells (letters only, so "orjan.gh@…" is the login "orjan-gh", "Örjan");
+  then the first part of the email; else that first part, capitalised.
 
-      iex> TalesForge.TeamOnline.name("hawkan.fredriksson@gmail.com", "Hawkan-Fredriksson")
-      "Håkan"
-      iex> TalesForge.TeamOnline.name("fredrik@whyse.se")
-      "Fredrik"
-      iex> TalesForge.TeamOnline.name("hakan.x@whyse.se", "unknown-login")
-      "Håkan"
-      iex> TalesForge.TeamOnline.name("sam@example.com")
+      iex> team = Workflow.Team.example()
+      iex> TalesForge.TeamOnline.name(team, "orjan.gh@example.com", "Orjan-GH")
+      "Örjan"
+      iex> TalesForge.TeamOnline.name(team, "ada@example.com")
+      "Ada"
+      iex> TalesForge.TeamOnline.name(team, "orjan.x@example.com", "unknown-login")
+      "Örjan"
+      iex> TalesForge.TeamOnline.name(team, "sam@example.com")
       "Sam"
   """
-  @spec name(String.t(), String.t() | nil) :: String.t()
-  def name(email, login \\ nil) do
+  @spec name(Team.t(), String.t(), String.t() | nil) :: String.t()
+  def name(%Team{} = team, email, login \\ nil) do
     first = email |> String.split(["@", ".", "+"]) |> hd() |> String.downcase()
-    handle = Mentions.handle_for(login) || handle_of_email(email) || plain(first)
 
-    Enum.find(founder_names(), &(plain(&1) == handle)) ||
-      Enum.find(founder_names(), String.capitalize(first), &(plain(&1) == plain(first)))
+    handle =
+      Mentions.handle_for(team, login) || handle_of_email(team, email) || Team.plain(first)
+
+    names = Team.founder_names(team)
+
+    Enum.find(names, &(Team.plain(&1) == handle)) ||
+      Enum.find(names, String.capitalize(first), &(Team.plain(&1) == Team.plain(first)))
   end
 
   # The founder handle whose GitHub login spells the email local part.
-  defp handle_of_email(email) do
-    local = email |> String.split("@") |> hd() |> plain()
+  defp handle_of_email(team, email) do
+    local = email |> String.split("@") |> hd() |> Team.plain()
 
-    :ex_tales_forge
-    |> Application.get_env(:board_founder_handles, %{})
-    |> Enum.find_value(fn {login, handle} -> plain(login) == local && handle end)
-  end
-
-  defp founder_names do
-    TeamPage.data()
-    |> TeamPage.members()
-    |> Enum.find_value([], fn m -> m["kind"] == "humans" && get_in(m, ["people", "names"]) end)
-    |> List.wrap()
-  end
-
-  defp plain(name) do
-    name
-    |> String.downcase()
-    |> :unicode.characters_to_nfd_binary()
-    |> String.replace(~r/[^a-z]/u, "")
+    team
+    |> Team.github_handles()
+    |> Enum.find_value(fn {login, handle} -> Team.plain(login) == local && handle end)
   end
 
   # Every bot activity we know of, as {bot, at, doing}.
-  defp activity do
+  defp activity(team) do
     calls = for {bot, at} <- Online.bot_calls(), do: {bot, at, "Read the board"}
-    calls ++ board_activity() ++ pr_activity()
+    calls ++ board_activity(team) ++ pr_activity(team)
   end
 
-  defp board_activity do
+  defp board_activity(team) do
     if AppRole.here?(:board) do
-      latest(Comment, :author, "Commented on a card") ++
-        latest(Transition, :actor, "Moved a card") ++
-        latest(Link, :added_by, "Linked a card")
+      latest(team, Comment, :author, "Commented on a card") ++
+        latest(team, Transition, :actor, "Moved a card") ++
+        latest(team, Link, :added_by, "Linked a card")
     else
       []
     end
@@ -175,33 +175,33 @@ defmodule TalesForge.TeamOnline do
     _ -> []
   end
 
-  defp latest(schema, field, doing) do
+  defp latest(team, schema, field, doing) do
     from(r in schema,
       where: like(field(r, ^field), "bot:%"),
       group_by: field(r, ^field),
       select: {field(r, ^field), max(r.inserted_at)}
     )
     |> Repo.all()
-    |> Enum.flat_map(&bot_activity(&1, doing))
+    |> Enum.flat_map(&bot_activity(team, &1, doing))
   end
 
-  defp bot_activity({"bot:" <> bot, at}, doing) do
-    case Enum.find(@bots, fn {id, _} -> Atom.to_string(id) == bot end) do
-      {id, _} -> [{id, to_utc(at), doing}]
+  defp bot_activity(team, {actor, at}, doing) do
+    case Team.bot_id(team, actor) do
       nil -> []
+      id -> [{id, to_utc(at), doing}]
     end
   end
 
   defp to_utc(%DateTime{} = at), do: at
   defp to_utc(%NaiveDateTime{} = at), do: DateTime.from_naive!(at, "Etc/UTC")
 
-  # Bobby writes the pull requests: the newest one in the feed.
-  defp pr_activity do
+  # The builder writes the pull requests: the newest one in the feed.
+  defp pr_activity(team) do
     case PrFeed.snapshot() do
       %{items: [_ | _] = items} ->
         items
         |> Enum.filter(&match?(%DateTime{}, &1.at))
-        |> Enum.map(fn i -> {:bobby, i.at, "Pull request ##{i.number}"} end)
+        |> Enum.map(fn i -> {Team.bot(team, :builder), i.at, "Pull request ##{i.number}"} end)
 
       _ ->
         []

@@ -40,11 +40,24 @@ defmodule TalesForge.Board.DevopsMentionTest do
   end
 
   test "@devops expands to the three bots, in highlighting and in autocomplete" do
-    assert Mentions.parse("@devops please", []).bots == [:case, :bobby, :gentry]
-    assert Mentions.parse("@DevOps and @Bobby", []).bots == [:case, :bobby, :gentry]
-    assert {:mention, "@devops"} in Mentions.segments("Hi @devops", [])
-    assert Mentions.suggestions() |> Enum.take(-5) == ~w(founders devops case bobby gentry)
-    assert Chat.suggestions() == Mentions.suggestions()
+    assert Mentions.parse(Workflow.Team.Source.team(), "@devops please", []).bots == [
+             :case,
+             :bobby,
+             :gentry
+           ]
+
+    assert Mentions.parse(Workflow.Team.Source.team(), "@DevOps and @Bobby", []).bots == [
+             :case,
+             :bobby,
+             :gentry
+           ]
+
+    assert {:mention, "@devops"} in Mentions.segments(Workflow.Team.Source.team(), "Hi @devops")
+
+    assert Mentions.suggestions(Workflow.Team.Source.team()) |> Enum.take(-5) ==
+             ~w(founders devops case bobby gentry)
+
+    assert Chat.suggestions() == Mentions.suggestions(Workflow.Team.Source.team())
   end
 
   test "on a board card, one @devops wakes each bot with a webhook once, and skips Gentry quietly" do

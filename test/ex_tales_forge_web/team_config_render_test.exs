@@ -118,13 +118,25 @@ defmodule TalesForgeWeb.TeamConfigRenderTest do
     )
   end
 
+  # The words are compared, not the line breaks: a change in how the HEEx
+  # source wraps a sentence is not a change on the page. The online counts
+  # come from presence, which other tests also use, so they are masked here.
   defp assert_same(want, got) do
+    {want, got} = {words(want), words(got)}
+
     if want != got do
       diff =
-        List.myers_difference(String.split(want, "\n"), String.split(got, "\n"))
+        want
+        |> List.myers_difference(got)
         |> Enum.reject(&match?({:eq, _}, &1))
 
       flunk("The page text changed:\n" <> inspect(diff, pretty: true, limit: :infinity))
     end
+  end
+
+  defp words(text) do
+    text
+    |> String.replace(~r/(Founders|Bots): \d+/, "\\1: <n>")
+    |> String.split()
   end
 end

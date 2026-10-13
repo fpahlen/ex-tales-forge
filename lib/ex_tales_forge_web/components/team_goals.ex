@@ -21,6 +21,7 @@ defmodule TalesForgeWeb.TeamGoals do
   import TalesForgeWeb.CoreComponents, only: [icon: 1]
 
   attr :strip, :map, required: true
+  attr :team, Workflow.Team, required: true, doc: "the team config (`Workflow.Team`)"
   attr :founder, :string, default: nil
   attr :myself, :any, required: true
   attr :downvote_for, :any, default: nil
@@ -204,6 +205,7 @@ defmodule TalesForgeWeb.TeamGoals do
           </div>
           <.goal_cards
             :if={@open_id == row.goal.id and @open_cards != nil}
+            team={@team}
             row={row}
             cards={@open_cards}
             can_edit={@can_vote}
@@ -217,6 +219,7 @@ defmodule TalesForgeWeb.TeamGoals do
   end
 
   attr :row, :map, required: true
+  attr :team, Workflow.Team, required: true
   attr :cards, :map, required: true
   attr :can_edit, :boolean, required: true
   attr :error, :string, default: nil
@@ -268,7 +271,7 @@ defmodule TalesForgeWeb.TeamGoals do
           <span class="min-w-0">
             <span class="block break-words text-sm">{card.title}</span>
             <span data-role="column" class="text-xs text-[var(--paper-muted)]">
-              {TalesForge.Board.Transitions.label(card.column)}
+              {TalesForge.Board.Transitions.label(@team, card.column)}
             </span>
           </span>
           <button
@@ -298,7 +301,7 @@ defmodule TalesForgeWeb.TeamGoals do
           <select name="card_id" class="select select-sm min-h-11 w-full bg-[var(--paper-panel)]">
             <option value="">Select a card</option>
             <option :for={card <- @cards.unassigned} value={card.id}>
-              {card.title} ({TalesForge.Board.Transitions.label(card.column)})
+              {card.title} ({TalesForge.Board.Transitions.label(@team, card.column)})
             </option>
           </select>
         </label>

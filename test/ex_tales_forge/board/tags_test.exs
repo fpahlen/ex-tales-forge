@@ -12,11 +12,11 @@ defmodule TalesForge.Board.TagsTest do
     {:ok, b} = Board.create_idea("bot:case", %{"title" => "Maps"})
     {:ok, b} = Board.add_tag(b, "max@example.com", "sea")
 
-    assert Tags.of(a) == ["max", "sea"]
-    assert Tags.of(b) == ["sea"]
-    assert Tags.filter([a, b], ["sea"]) == [a, b]
-    assert Tags.filter([a, b], ["sea", "max"]) == [a]
-    assert Tags.in_use([a, b]) == ["max", "sea"]
+    assert Tags.of(Workflow.Team.Source.team(), a) == ["max", "sea"]
+    assert Tags.of(Workflow.Team.Source.team(), b) == ["sea"]
+    assert Tags.filter(Workflow.Team.Source.team(), [a, b], ["sea"]) == [a, b]
+    assert Tags.filter(Workflow.Team.Source.team(), [a, b], ["sea", "max"]) == [a]
+    assert Tags.in_use(Workflow.Team.Source.team(), [a, b]) == ["max", "sea"]
   end
 
   test "tags are deduplicated and bots add no tags" do

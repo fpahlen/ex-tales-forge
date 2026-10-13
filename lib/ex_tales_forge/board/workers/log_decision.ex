@@ -2,7 +2,7 @@ defmodule TalesForge.Board.Workers.LogDecision do
   @moduledoc """
   Writes the decision log entry when a founder moves a card to Building (the
   founder OK): one commit to `docs/decisions.md` on `main` of
-  whyse-ab/tales-forge-docs through the GitHub Contents API, as the board's
+  the docs repo of the team config (`Workflow.Team`) through the GitHub Contents API, as the board's
   GitHub App (`TalesForge.Board.GitHubApp`). Never a force push: the update
   names the file's blob sha, so a concurrent change makes GitHub answer 409
   and the job retries on the new file.
@@ -29,7 +29,6 @@ defmodule TalesForge.Board.Workers.LogDecision do
   alias TalesForge.Board
   alias TalesForge.Board.{GitHubApp, Idea}
 
-  @repo "whyse-ab/tales-forge-docs"
   @path "docs/decisions.md"
 
   @impl Oban.Worker
@@ -84,7 +83,7 @@ defmodule TalesForge.Board.Workers.LogDecision do
 
   defp get_file(token) do
     case Req.get(
-           "#{GitHubApp.api()}/repos/#{@repo}/contents/#{@path}?ref=main",
+           "#{GitHubApp.api()}/repos/#{repo()}/contents/#{@path}?ref=main",
            [headers: GitHubApp.headers(token), retry: false] ++ GitHubApp.req_options()
          ) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
@@ -95,7 +94,7 @@ defmodule TalesForge.Board.Workers.LogDecision do
 
   defp latest_commit(token) do
     case Req.get(
-           "#{GitHubApp.api()}/repos/#{@repo}/commits?path=#{@path}&sha=main&per_page=1",
+           "#{GitHubApp.api()}/repos/#{repo()}/commits?path=#{@path}&sha=main&per_page=1",
            [headers: GitHubApp.headers(token), retry: false] ++ GitHubApp.req_options()
          ) do
       {:ok, %{status: 200, body: [%{"sha" => sha} | _]}} -> {:ok, sha}
@@ -114,7 +113,7 @@ defmodule TalesForge.Board.Workers.LogDecision do
     }
 
     case Req.put(
-           "#{GitHubApp.api()}/repos/#{@repo}/contents/#{@path}",
+           "#{GitHubApp.api()}/repos/#{repo()}/contents/#{@path}",
            [json: body, headers: GitHubApp.headers(token), retry: false] ++
              GitHubApp.req_options()
          ) do
@@ -130,12 +129,14 @@ defmodule TalesForge.Board.Workers.LogDecision do
   end
 
   defp record(idea, slug, sha) do
-    url = "https://github.com/#{@repo}/commit/#{sha}"
+    url = "https://github.com/#{repo()}/commit/#{sha}"
     with {:ok, _} <- Board.record_decision(idea, slug, sha, url), do: :ok
   end
 
   defp author_email(founder),
-    do: if(String.contains?(founder, "@"), do: founder, else: "board@tales-forge.invalid")
+    do: if(String.contains?(founder, "@"), do: founder, else: team().decision_email)
+
+  defp repo, do: team().docs_repo
 
   @doc "The marker that makes the entry idempotent."
   @spec marker(Idea.t()) :: String.t()
@@ -211,4 +212,6 @@ defmodule TalesForge.Board.Workers.LogDecision do
         String.trim_trailing(text) <> "\n\n" <> entry
     end
   end
+
+  defp team, do: Workflow.Team.Source.team()
 end

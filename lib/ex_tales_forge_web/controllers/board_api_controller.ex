@@ -1,7 +1,7 @@
 defmodule TalesForgeWeb.BoardApiController do
   @moduledoc """
   The bots' API for the founders' idea board, `/internal/board/*` (router):
-  list and read cards, add a card to Ideas, write Case's refinement, move a card, add a link (PR,
+  list and read cards, add a card to Ideas, write the refinement, move a card, add a link (PR,
   playtest) and comment. JSON in and out.
 
   - Production only, like the board (`TalesForge.AppRole.here?(:board)`):
