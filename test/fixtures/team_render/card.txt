@@ -1,0 +1,101 @@
+✕
+Golden card in Refining
+by Founder
+Waits for Case's refinement: verdict, cost and questions.
+10
+Back to Ideas
+Case's refinement
+Edit
+Case has not written it yet.
+GoalGoal of this cardUnassigned
+G2 Playable game on the Elixir rewrite
+G3 Bot loop runs safely
+G4 We can take money
+G5 Closed beta and growth
+G6 Old app retired
+G7 Our shared workspace (team tools)
+Tags
+founder
+New tagAdd tagLinks
+No links yet. Bobby and Gentry add the PR and the playtest run.
+ImagesAdd imageCapture screen
+Note (optional). Paste or drop an image here, too.
+Add to card
+CommentsCase<ago>Refinement started. @bobby please read.
+Comment. Write @ and a name to ping a founder, or @founders to ping all founders. @case, @bobby or @gentry wakes that bot. @devops wakes all three bots.
+CommentHistoryFounder added this card to Ideas
+· <time>Founder moved Ideas → Refining
+· <time>Case commented
+· <time>
+title=Your upvote. Click to take it back.
+title=Downvote (needs a reason)
+title=<date> <time> CEST
+aria-label=Close card
+aria-label=Votes on Golden card in Refining
+aria-label=Upvote: 1
+aria-label=Downvote: 0
+aria-label=Move the card
+aria-label=Case's refinement
+aria-label=Edit Case's refinement
+aria-label=Goal
+aria-label=Tags
+aria-label=Links
+aria-label=Images
+aria-label=Comments
+aria-label=Names to mention
+aria-label=History
+placeholder=Add a tag
+✕
+Golden card in Founder check
+by Founder
+Answer or defer the 1 open question.
+10
+Back to Refining
+Start building
+Put on hold
+Start building: Answer or defer the 1 open question.
+Open questions
+1 open
+Your answers save when you move or close the card.
+Is this the golden question?
+Your answer to: Is this the golden question?
+Defer
+Case's refinementDetailsDetails of the golden card.Open questions
+Is this the golden question?
+Rough costSVerdictfeasibleGoalGoal of this cardUnassigned
+G2 Playable game on the Elixir rewrite
+G3 Bot loop runs safely
+G4 We can take money
+G5 Closed beta and growth
+G6 Old app retired
+G7 Our shared workspace (team tools)
+Tags
+founder
+New tagAdd tagLinks
+No links yet. Bobby and Gentry add the PR and the playtest run.
+ImagesAdd imageCapture screen
+Note (optional). Paste or drop an image here, too.
+Add to card
+Comments
+Comment. Write @ and a name to ping a founder, or @founders to ping all founders. @case, @bobby or @gentry wakes that bot. @devops wakes all three bots.
+CommentHistoryFounder added this card to Ideas
+· <time>Founder moved Ideas → Refining
+· <time>Case wrote the refinement and moved Refining → Founder check
+· <time>
+title=Your upvote. Click to take it back.
+title=Downvote (needs a reason)
+aria-label=Close card
+aria-label=Votes on Golden card in Founder check
+aria-label=Upvote: 1
+aria-label=Downvote: 0
+aria-label=Move the card
+aria-label=Case's refinement
+aria-label=Goal
+aria-label=Tags
+aria-label=Links
+aria-label=Images
+aria-label=Comments
+aria-label=Names to mention
+aria-label=History
+placeholder=Your answer
+placeholder=Add a tag
