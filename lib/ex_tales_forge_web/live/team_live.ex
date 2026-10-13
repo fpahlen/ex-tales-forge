@@ -89,6 +89,7 @@ defmodule TalesForgeWeb.TeamLive do
      socket
      |> assign(:page_title, "Team")
      |> assign(:board?, board_here?())
+     |> assign(:connected, connected?(socket))
      |> tap(fn s -> if connected?(s) and board_here?(), do: TalesForge.Board.subscribe() end)
      |> assign(:d, TeamPage.data())
      |> assign(:nav, @nav)
@@ -166,6 +167,7 @@ defmodule TalesForgeWeb.TeamLive do
         <TeamWorkspace.header stats={assigns[:stats]} />
         <.going_to_do
           board?={assigns[:board?] || false}
+          connected={assigns[:connected] == true}
           founder={assigns[:admin_email]}
           login={assigns[:admin_github_login]}
           qa={assigns[:qa] == true}
@@ -239,6 +241,7 @@ defmodule TalesForgeWeb.TeamLive do
   # where it lives (production, local). Playtest redirects /team to
   # production (TalesForgeWeb.Plugs.HomeApp), so there is no placeholder.
   attr :board?, :boolean, default: false
+  attr :connected, :boolean, default: false
   attr :founder, :string, default: nil
   attr :login, :string, default: nil
   attr :qa, :boolean, default: false
@@ -261,6 +264,7 @@ defmodule TalesForgeWeb.TeamLive do
         :if={@board? and is_binary(@founder)}
         module={TalesForgeWeb.TeamIdeaBoard}
         id="idea-board-live"
+        connected={@connected}
         founder={@founder}
         login={@login}
         qa={@qa}

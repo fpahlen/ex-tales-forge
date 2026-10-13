@@ -746,6 +746,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         can_vote={assigns[:qa] != true}
         open_id={@goal_open}
         open_cards={@goal_cards}
+        connected={assigns[:connected] == true}
       />
       <section
         :if={@pings != []}
