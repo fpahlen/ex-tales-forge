@@ -1569,6 +1569,24 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
   end
 
+  describe "slide 8: the live goals" do
+    test "the goals strip shows read-only, with progress bars and countdowns", %{conn: conn} do
+      {:ok, view, _html} = live(log_in_admin(conn), ~p"/team/presentation")
+      assert has_element?(view, "#pace #pace-goals #board-goals")
+      assert has_element?(view, "#pace #board-goals-list li [role=progressbar]")
+      assert has_element?(view, ~s(#pace #board-goals-list [data-role="countdown"]))
+      refute has_element?(view, "#pace #board-goals button")
+      refute has_element?(view, "#pace #board-goals form")
+    end
+
+    test "without the board, a short line shows instead of the strip" do
+      html = render_with(@data)
+      doc = LazyHTML.from_fragment(html)
+      assert doc |> LazyHTML.query("#pace-goals-none") |> Enum.count() == 1
+      assert doc |> LazyHTML.query("#board-goals") |> Enum.count() == 0
+    end
+  end
+
   describe "the order of 12 Oct 2026" do
     test "eleven slides in the new order, and every old anchor still lands" do
       assert Enum.map(TeamPresentationLive.sections(), &elem(&1, 0)) ==

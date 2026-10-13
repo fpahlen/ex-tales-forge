@@ -172,6 +172,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
      |> assign(:pace, TeamPace.current(PrFeed.snapshot(), d))
      |> assign(:live, TeamLiveNumbers.all(d, Extras.current()))
      |> assign(:board_live, board_live(socket))
+     |> assign(:goals, goals_live())
      |> assign(:sections, @sections)}
   end
 
@@ -179,7 +180,9 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   # the PR pace, the GitHub extras and this app's database numbers.
   @impl true
   def handle_info({:board, :changed}, socket),
-    do: {:noreply, assign(socket, :board_live, TalesForge.Board.stats())}
+    do:
+      {:noreply,
+       socket |> assign(:board_live, TalesForge.Board.stats()) |> assign(:goals, goals_live())}
 
   def handle_info({:pr_feed, snapshot}, socket) do
     d = socket.assigns.d
@@ -202,6 +205,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       |> Map.put_new_lazy(:pace, fn -> TeamPace.from_data(d) end)
       |> Map.put_new_lazy(:live, fn -> TeamLiveNumbers.fallback(d) end)
       |> Map.put_new(:board_live, nil)
+      |> Map.put_new(:goals, nil)
 
     ~H"""
     <div
@@ -237,7 +241,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         <.infra_section d={@d} />
         <.playtests_section d={@d} live={@live} />
         <.quality_section d={@d} live={@live} />
-        <.pace_section d={@d} pace={@pace} live={@live} />
+        <.pace_section d={@d} pace={@pace} live={@live} goals={@goals} />
         <.together_section d={@d} />
       </main>
 
@@ -248,6 +252,12 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   end
 
   # The live board's team totals where the board is, else `nil`.
+  # The founders' goals strip (`TalesForge.Board.Goals.strip/0`) where the
+  # board is, else `nil`. The board topic (see `board_live/1`) refreshes it.
+  defp goals_live do
+    if AppRole.here?(:board), do: TalesForge.Board.Goals.strip()
+  end
+
   defp board_live(socket) do
     if AppRole.here?(:board) do
       if connected?(socket), do: TalesForge.Board.subscribe()
@@ -1707,6 +1717,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   attr :pace, :map, required: true, doc: "`TalesForge.TeamPace.current/0`"
   attr :live, :map, required: true, doc: "`TalesForgeWeb.TeamLiveNumbers.all/3`"
 
+  attr :goals, :map,
+    default: nil,
+    doc: "`TalesForge.Board.Goals.strip/0`, or `nil` where the board is not"
+
   defp pace_section(assigns) do
     {current, earlier} = split_prs_since_inception(assigns.pace)
     {commit_days, _earlier} = TeamLiveNumbers.since_inception(assigns.pace.commits_by_day)
@@ -1753,6 +1767,14 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           <.group_source id="stat-source-decisions" what="Decisions" group={@live.decisions} />
           <.group_source id="stat-source-tests" what="Tests" group={@live.tests} />
         </div>
+      </div>
+
+      <div id="pace-goals" class="space-y-2">
+        <h3 class="font-serif text-xl font-bold sm:text-2xl">Our goals, live</h3>
+        <TalesForgeWeb.TeamGoals.strip :if={@goals} strip={@goals} read_only />
+        <p :if={!@goals} id="pace-goals-none" class="text-sm text-[var(--paper-muted)]">
+          The live goals show on the app with the idea board.
+        </p>
       </div>
 
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
