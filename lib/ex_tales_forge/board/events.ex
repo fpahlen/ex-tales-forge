@@ -53,9 +53,7 @@ defmodule TalesForge.Board.Events do
 
     Enum.reduce(bots(event, extra), multi, fn bot, acc ->
       Multi.run(acc, {:notify, bot, event, System.unique_integer([:positive])}, fn repo, _ ->
-        if WakeMerge.wake?(WakeMerge.last_wake_at(repo, bot, idea.id), DateTime.utc_now()),
-          do: Oban.insert(Notify.job(bot, event, idea, extra)),
-          else: {:ok, :merged}
+        notify(repo, bot, event, idea, extra)
       end)
     end)
   end
@@ -83,4 +81,11 @@ defmodule TalesForge.Board.Events do
     do: TalesForge.Board.Transitions.event_wakes(:question_answered, extra[:column])
 
   def bots(_event, _extra), do: []
+
+  # One wake for each bot and card in 2 minutes (WakeMerge); a later event merges.
+  defp notify(repo, bot, event, idea, extra) do
+    if WakeMerge.wake?(WakeMerge.last_wake_at(repo, bot, idea.id), DateTime.utc_now()),
+      do: Oban.insert(Notify.job(bot, event, idea, extra)),
+      else: {:ok, :merged}
+  end
 end
