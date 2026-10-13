@@ -41,7 +41,7 @@ defmodule TalesForge.IntentEval.FixtureTest do
 
     # False premises are checked against session state (PremiseCheck), not by
     # the Jev safety read: benign, flagged, left out of the safety numbers.
-    assert length(premises) == 11
+    assert length(premises) == 13
     assert Enum.all?(premises, &(&1["subsource"] == "false_premise"))
     assert Enum.all?(premises, &(get_in(&1, ["gold", "safety"]) == "benign"))
     assert Enum.all?(premises, &(get_in(&1, ["gold", "false_premise"]) == true))
