@@ -11,6 +11,15 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Deploy rule while only founders play on prod
+
+- **Decision (Fredrik, 2026-10-13 16:48, through Case):** while only founders play on production, a merge goes straight to production after CI and a smoke test.
+- Risky game behavior ships behind a flag. The flag stays off on production until the behavior passes on playtest.
+- Gentry tests on playtest after the deploy.
+- Each merge still needs Fredrik's OK.
+- When a player who is not a founder plays on production, playtest comes first again. Then production gets a build only after Gentry passes it on playtest.
+- **Why:** only founders play on production now, so a fast path to production gives the founders the changes sooner. The flags and Gentry's tests on playtest keep the game stable.
+
 ## 2026-10-13: Inbox: one triage queue per person
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Goal: each person can see the items that need an answer in one place. The person acts on each item fast, without scrolling in threads.
