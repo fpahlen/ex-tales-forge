@@ -11,6 +11,69 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Workflow split 1/5: Product boundary
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Goal: G7, our shared workspace.
+- **Why:** **Problem.** The team tools and the game share one product boundary. Founders chose Workflow as the name for the team tools product. The parent card is archived.
+
+**Goal.** Founders record the product boundary in `decisions.md`. Each module has one owner: Workflow or game.
+
+**Locked rules from the parent card (Fredrik, 2026-10-13).**
+- The product name is Workflow for now.
+- Workflow owns the board, the team page, the chat, the presentation, the work log, the PR feed and the goals.
+- About 90% of the presentation is Workflow content. The Tales Forge text becomes team content.
+- The game owns the costs pages and the online-players pages.
+- The game becomes a client of Workflow.
+- Sign-in stays open. Founders deferred that question for card 5.
+
+**Module owners (high confidence).**
+
+Workflow owns these modules and pages:
+1. `ExTalesForge.Board` and `/internal/board/*`
+2. `ExTalesForge.Chat` and `TeamChatLive`
+3. `ExTalesForge.WorkLog` and `TeamWorkLogLive`
+4. `ExTalesForge.PrFeed` and `TeamPrFeedLive`
+5. `ExTalesForge.Board.Goals` and the goals UI
+6. `TeamLive`, `TeamPresentationLive` and the team components
+7. `ExTalesForge.TeamOnline` for founders on `/team`
+8. Team images under `ExTalesForge.Images` that the team page stores
+
+Game owns these modules and pages:
+1. `ExTalesForge.Costs` and `/admin/operate/costs`
+2. `ExTalesForge.Online` for players in the game
+3. Play and test pages under `/admin/play`
+4. Game sessions, characters, NPCs, world packs and turn code
+5. LLM and AI call modules that serve the game
+
+Shared wiring for now (cards 3 to 5 move these):
+1. `ExTalesForge.Repo`
+2. The router and `application.ex`
+3. `ExTalesForge.AdminAuth` and GitHub team sign-in
+4. `ExTalesForge.AppRole` home map
+
+**Proposed approach.**
+1. Write the product boundary into `decisions.md` when a founder moves this card to Building. The board already logs that entry.
+2. Keep the module list on this card as the source of truth for cards 2 to 5.
+3. Mark each presentation slide that is Tales Forge text. Card 2 moves that text into team content.
+4. Do not move code in this card. This card only records the boundary.
+
+**Acceptance criteria.**
+- `decisions.md` states that Workflow is the team tools product.
+- `decisions.md` states that the game is a client of Workflow.
+- This card lists each module as Workflow, game or shared wiring.
+- Cards 2 to 5 can use this list without a new boundary debate.
+
+**Size: S.** The work is a decision entry and a module list. Bobby does not change runtime code here.
+
+**Risks.**
+- Founders tools outside the locked list stay unclear. Mitigation: the open questions below.
+- A later card can disagree with this list. Mitigation: change this card first, then update the later cards.
+
+**Confidence.** High confidence in the locked list. Medium confidence for Collab, surveys and admin docs until founders answer. Verdict: feasible with caveats. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-20e31daf-4c74-4bc9-b7c9-c2cf819161f9)
+
+<!-- board:idea:20e31daf-4c74-4bc9-b7c9-c2cf819161f9 -->
+
 ## 2026-10-13: Character creation PR 2, description model
 
 - **Decision:** The player can describe the character in text. This is the third creation model, next to point buy and dice. One AI call reads the description and returns labels, each with a confidence from 0 to 1. The AI asks at most 2 questions, and the call after the answers asks none. Elixir fills the draft through the normal creation functions. A label below confidence 0.5 keeps the rules default. Elixir fits the stats to the point-buy budget and range. The player must approve the AI draft. Before approval, validate gives an error, so finalize and play need the approval. Each call writes one ai_calls row (purpose `character_text`). The server keeps the AI draft, so a reload makes no new AI call. This entry adds to the 2026-10-13 "Character creation" entry.
