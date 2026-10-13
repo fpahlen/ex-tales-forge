@@ -12,10 +12,6 @@ defmodule TalesForgeWeb.TeamGoals do
   a card without a goal, removes a card from the goal, or creates a new Idea
   card with the goal set. The QA session sees the list but gets no controls.
   On a phone the open goal is a full-screen sheet.
-
-  With `read_only` (the presentation, `TalesForgeWeb.TeamPresentationLive`)
-  the strip only shows, in a short form: no outcome text, no score, no votes, no "Show
-  cards" button and no events, so `myself` can stay `nil`.
   """
   use Phoenix.Component
 
@@ -23,8 +19,7 @@ defmodule TalesForgeWeb.TeamGoals do
 
   attr :strip, :map, required: true
   attr :founder, :string, default: nil
-  attr :myself, :any, default: nil
-  attr :read_only, :boolean, default: false
+  attr :myself, :any, required: true
   attr :downvote_for, :any, default: nil
   attr :error, :string, default: nil
   attr :can_vote, :boolean, default: true
@@ -74,22 +69,18 @@ defmodule TalesForgeWeb.TeamGoals do
           id={"goal-#{row.goal.id}"}
           data-key={row.goal.key}
           data-score={row.score}
-          class={[
-            "grid gap-2 rounded-lg border border-[var(--paper-rule)] bg-[var(--paper-panel)]",
-            if(@read_only, do: "p-2", else: "p-3")
-          ]}
+          class="grid gap-2 rounded-lg border border-[var(--paper-rule)] bg-[var(--paper-panel)] p-3"
         >
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
               <p class="font-semibold">
                 <span class="text-xs text-[var(--paper-muted)]">{row.goal.key}</span> {row.goal.title}
               </p>
-              <p :if={!@read_only} class="text-xs text-[var(--paper-muted)]">{row.goal.outcome}</p>
-              <p :if={!@read_only} data-role="score" class="text-xs">
+              <p class="text-xs text-[var(--paper-muted)]">{row.goal.outcome}</p>
+              <p data-role="score" class="text-xs">
                 Score: <span class="font-semibold tabular-nums">{format_score(row.score)}</span>
               </p>
               <button
-                :if={!@read_only}
                 type="button"
                 id={"goal-#{row.goal.id}-toggle"}
                 phx-click="goal_toggle"
@@ -107,7 +98,7 @@ defmodule TalesForgeWeb.TeamGoals do
               </button>
             </div>
             <div
-              :if={@can_vote and !@read_only}
+              :if={@can_vote}
               class="flex shrink-0 items-center gap-1"
               role="group"
               aria-label={"Votes on #{row.goal.title}"}
@@ -150,7 +141,7 @@ defmodule TalesForgeWeb.TeamGoals do
             </div>
           </div>
           <form
-            :if={!@read_only and @downvote_for == row.goal.id}
+            :if={@downvote_for == row.goal.id}
             id={"goal-#{row.goal.id}-downvote"}
             phx-submit="goal_downvote"
             phx-target={@myself}
@@ -207,7 +198,7 @@ defmodule TalesForgeWeb.TeamGoals do
             </p>
           </div>
           <.goal_cards
-            :if={!@read_only and @open_id == row.goal.id and @open_cards != nil}
+            :if={@open_id == row.goal.id and @open_cards != nil}
             row={row}
             cards={@open_cards}
             can_edit={@can_vote}

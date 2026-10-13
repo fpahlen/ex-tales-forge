@@ -23,32 +23,8 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
   # The file the page is built from, read independently of TalesForge.TeamPage.
   @data "priv/team/data.json" |> File.read!() |> Jason.decode!()
 
-  # The slides, then the long text of /team/details: together they hold
-  # every fact of the team presentation.
-  defp render_with(data), do: render_slides(data) <> render_details(data)
-
-  # Both live pages: the presentation view, the details view and their HTML.
-  defp live_both(conn) do
-    {:ok, slides, slides_html} = live(conn, ~p"/team/presentation")
-    {:ok, details, details_html} = live(conn, ~p"/team/details")
-    {slides, details, slides_html <> details_html}
-  end
-
-  defp render_both(slides, details), do: render(slides) <> render(details)
-
-  defp render_slides(data),
+  defp render_with(data),
     do: rendered_to_string(TeamPresentationLive.render(%{d: data, sections: [], flash: %{}}))
-
-  defp render_details(data) do
-    rendered_to_string(
-      TeamPresentationLive.details(%{
-        d: data,
-        pace: TalesForge.TeamPace.from_data(data),
-        live: TalesForgeWeb.TeamLiveNumbers.fallback(data),
-        board_live: nil
-      })
-    )
-  end
 
   describe "sign-in" do
     test "signed out, /team/presentation redirects to the login page" do
@@ -66,7 +42,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     test "a team member sees the whole presentation, with a way back to /team", %{conn: conn} do
       conn = log_in_admin(conn)
       {:ok, view, html} = live(conn, ~p"/team/presentation")
-      assert html =~ "1. What Tales Forge is and why"
+      assert html =~ "How Tales Forge gets built"
       assert page_title(view) =~ "presentation"
 
       for {id, label} <- TeamPresentationLive.sections() do
@@ -85,7 +61,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
 
   describe "peeks: hover cards on the call-type pills" do
     setup %{conn: conn} do
-      {:ok, view, html} = live(log_in_admin(conn), ~p"/team/details")
+      {:ok, view, html} = live(log_in_admin(conn), ~p"/team/presentation")
       {:ok, view: view, doc: LazyHTML.from_document(html)}
     end
 
@@ -162,9 +138,9 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       buttons =
         LazyHTML.query(doc, "[data-flow-replay], [data-lanes-replay]")
 
-      # On the details page: the flow and the call-type lanes. The wired
-      # path's Replay is on the slide.
-      assert Enum.count(buttons) == 2
+      # The flow, the call-type lanes and the wired path; the live board has
+      # no animation.
+      assert Enum.count(buttons) == 3
 
       for button <- buttons do
         [label] = LazyHTML.attribute(button, "aria-label")
@@ -238,7 +214,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     test "live: the headline and section 6 show the same live numbers, and follow the feed",
          %{conn: conn} do
       PrFeed.publish(snapshot([], pace: pace()))
-      {view, details, html} = live_both(conn)
+      {:ok, view, html} = live(conn, ~p"/team/presentation")
 
       n = pace_numbers(html)
       assert n.headline == n.section
@@ -246,22 +222,19 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert n.headline.source == "Pull request and commit numbers: live from GitHub."
       assert {n.total, n.open, n.commits} == {"1,234", "77", "4,321"}
       assert has_element?(view, "#stat-source-prs[data-source=live]")
-      assert has_element?(details, "#pace-source[data-source=live]")
+      assert has_element?(view, "#pace-source[data-source=live]")
       # PRs per day come from the same live count: the earlier month is one chip.
-      assert has_element?(details, "#prs-earlier-chip", "+5 PRs before")
+      assert has_element?(view, "#prs-earlier-chip", "+5 PRs before")
 
       # A new feed broadcast updates both places at once.
-      for v <- [view, details],
-          do:
-            send(v.pid, {:pr_feed, snapshot([], pace: pace(%{prs_merged: 1200, commits: 4400}))})
-
-      n = render_both(view, details) |> pace_numbers()
+      send(view.pid, {:pr_feed, snapshot([], pace: pace(%{prs_merged: 1200, commits: 4400}))})
+      n = view |> render() |> pace_numbers()
       assert n.headline == n.section
       assert {n.headline.merged, n.commits} == {"1,200", "4,400"}
     end
 
     test "fallback: no live count, both show data.json, labelled 'as of <date>'", %{conn: conn} do
-      {view, details, html} = live_both(conn)
+      {:ok, view, html} = live(conn, ~p"/team/presentation")
 
       as_of =
         "Pull request and commit numbers: as of #{TeamPage.date_label(@data["pace"]["as_of"])}."
@@ -273,18 +246,13 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert n.total == TeamPage.number(@data["pace"]["prs_total"])
       assert n.commits == TeamPage.number(@data["pace"]["commits_main_ex_tales_forge"])
       assert has_element?(view, "#stat-source-prs[data-source=fallback]")
-      assert has_element?(details, "#pace-source[data-source=fallback]")
+      assert has_element?(view, "#pace-source[data-source=fallback]")
 
       # The feed going down after a live count drops both back together.
-      for v <- [view, details], do: send(v.pid, {:pr_feed, snapshot([], pace: pace())})
-
-      assert render_both(view, details) |> pace_numbers() |> get_in([:section, :merged]) ==
-               "1,111"
-
-      for v <- [view, details],
-          do: send(v.pid, {:pr_feed, PrFeed.empty(:unavailable, DateTime.utc_now())})
-
-      n = render_both(view, details) |> pace_numbers()
+      send(view.pid, {:pr_feed, snapshot([], pace: pace())})
+      assert view |> render() |> pace_numbers() |> get_in([:section, :merged]) == "1,111"
+      send(view.pid, {:pr_feed, PrFeed.empty(:unavailable, DateTime.utc_now())})
+      n = view |> render() |> pace_numbers()
       assert n.headline == n.section
       assert n.headline.source == as_of
     end
@@ -301,16 +269,11 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
 
     test "the page shows the values in the file", %{conn: conn} do
-      {slides, view, _html} = live_both(conn)
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
 
-      assert has_element?(
-               slides,
-               "#stat-prs-merged",
-               TeamPage.number(@data["pace"]["prs_merged"])
-             )
-
-      assert has_element?(slides, "#stat-decisions", TeamPage.number(@data["decisions"]["total"]))
-      assert has_element?(slides, "#stat-tests", TeamPage.number(@data["pace"]["tests"]["total"]))
+      assert has_element?(view, "#stat-prs-merged", TeamPage.number(@data["pace"]["prs_merged"]))
+      assert has_element?(view, "#stat-decisions", TeamPage.number(@data["decisions"]["total"]))
+      assert has_element?(view, "#stat-tests", TeamPage.number(@data["pace"]["tests"]["total"]))
 
       assert has_element?(
                view,
@@ -381,10 +344,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
                "Every founder can add ideas, vote, answer the open questions and approve PRs on the board."
 
       assert html =~ "This is how we work today, and we shape it together."
-
-      assert html =~
-               "approved change goes to production after a playtest pass and a founder's OK."
-
+      assert html =~ "then it ships to production by itself."
       assert html =~ "Changes that only touch admin pages ship straight away."
       refute html =~ "Ada pushes"
       refute html =~ ~r/Fredrik pushes/i
@@ -403,7 +363,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
 
     test "the full batch is filled in; the empty holdout says so", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
       assert @data["playtest_series"]["full_batch"]["weighted"]["paul"] == 4.54
       assert has_element?(view, "#full-batch", ~r/Paul:\s+4.5\/5/)
       assert has_element?(view, "#full-batch", ~r/Runs:\s+25/)
@@ -431,7 +391,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
 
     test "an empty data file still renders, every number unmeasured" do
       html = render_with(%{})
-      assert html =~ "1. What Tales Forge is and why"
+      assert html =~ "How Tales Forge gets built"
       assert html =~ "not measured yet"
 
       assert html =~
@@ -448,10 +408,8 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       |> Map.fetch!("detail")
     end
 
-    test "the call-type rule links to the walkthrough, which sits under it in part 6b", %{
-      conn: conn
-    } do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+    test "rule 3 links to the walkthrough, which sits under it in 'How we work'", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
       anchor = TeamCallTypes.anchor()
 
       assert has_element?(
@@ -462,7 +420,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
 
       assert has_element?(
                view,
-               "#infrastructure ##{anchor} h3",
+               "#how ##{anchor} h3",
                "The call-type rule: one turn, three call types"
              )
 
@@ -472,7 +430,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     test "the rule in one breath: three pills in the call-type colours, with the why", %{
       conn: conn
     } do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
 
       for kind <- ~w(elixir jev llm) do
         css_var = @data["call_types"]["colours"][kind]["css_var"]
@@ -511,7 +469,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
 
     test "one turn, start to finish, from the walkthrough data", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
       jev = walkthrough_detail(@data, "jev")
       elixir = walkthrough_detail(@data, "elixir")
 
@@ -588,7 +546,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
 
     test "examples per type and the closing line", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
 
       for module <-
             ~w(Game.Mechanics Game.Progression World.Prices Game.PremiseCheck Game.WorldClock Game.Gestures) do
@@ -612,7 +570,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
 
     test "one turn, three lanes: Jev on top, then Elixir, then the GM, in the page's colours",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
       elixir = walkthrough_detail(@data, "elixir")
 
       assert has_element?(view, ~s(#team-lanes[phx-hook="TeamLanes"][data-lanes="static"]))
@@ -742,7 +700,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
 
     test "the page renders the static diagram; motion is decided client-side", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
 
       assert has_element?(view, ~s(#team-page[phx-hook="TeamPage"][data-motion="auto"]))
       assert has_element?(view, ~s(#team-flow[phx-hook="TeamFlow"][data-flow="static"]))
@@ -857,7 +815,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
 
     test "the bots' cards show their portraits, lazily; the founders keep their avatar",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
 
       for bot <- ~w(case bobby gentry) do
         assert has_element?(
@@ -879,7 +837,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
 
     test "the founder's OK steps of the flow stamp the painted seal", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
 
       seal =
         ~s([data-approval="true"] img.team-seal[src="/images/team/founders-seal-192.jpg"][srcset*="founders-seal-96.jpg 96w"])
@@ -906,15 +864,14 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
   end
 
-  describe "4. how we work: the board (live on /team)" do
+  describe "7. one shared board (live on /team)" do
     setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
 
-    test "is part 4, after the game, badged as live, with the brief's copy", %{
+    test "sits between pace and together, badged as live, with the brief's copy", %{
       conn: conn
     } do
-      {view, details, html} = live_both(conn)
+      {:ok, view, html} = live(conn, ~p"/team/presentation")
       anchor = TeamBoard.anchor()
-      html = String.split(html, "</html>") |> hd()
 
       ids =
         html
@@ -922,54 +879,44 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
         |> LazyHTML.query("main > section")
         |> Enum.map(&(&1 |> LazyHTML.attribute("id") |> hd()))
 
-      assert ids == Enum.map(TeamPresentationLive.sections(), &elem(&1, 0))
-      assert Enum.slice(ids, 2, 4) == ["game", anchor, "board-live", "how"]
+      assert ids == ["hero" | Enum.map(TeamPresentationLive.sections(), &elem(&1, 0))]
+      assert Enum.drop(ids, 6) == ["pace", anchor, "together"]
 
-      assert has_element?(view, "##{anchor} h2", "4a. How we work: the board")
-      assert has_element?(view, ~s(#board-live a#flow[href="/team/details#flow"]))
-      assert has_element?(view, ~s(#board-live a#board-open[href="/team#idea-board"]))
-
-      assert has_element?(
-               view,
-               "#board-steps li",
-               "Founder check: a founder sends it to Building."
-             )
-
-      assert has_element?(view, "#together h2", "9a. Next steps, together")
-      assert has_element?(details, "##{anchor} #flow h3", "How a change flows")
-      assert has_element?(details, "#board-badge", "Live on")
-      assert has_element?(details, ~s(#board-badge a[href="/team#idea-board"]))
-      assert has_element?(details, "##{anchor}", "Every feature lives there")
+      assert has_element?(view, "##{anchor} h2", "7. How we work together: one shared board")
+      assert has_element?(view, "#together h2", "8. Where we go from here, together")
+      assert has_element?(view, "#board-badge", "Live on")
+      assert has_element?(view, ~s(#board-badge a[href="/team#idea-board"]))
+      assert has_element?(view, "##{anchor}", "Every feature lives there")
 
       assert has_element?(
                view,
-               "#board-live #board-caption",
+               "#board-caption",
                "One board, the whole crew, from idea to done."
              )
 
-      assert has_element?(details, "#board-why", "Moving a card pings the right bot.")
-      assert has_element?(details, "#board-why", "One place for each thing.")
+      assert has_element?(view, "#board-why", "Moving a card pings the right bot.")
+      assert has_element?(view, "#board-why", "One place for each thing.")
 
       assert has_element?(
-               details,
+               view,
                "#board-why",
-               "approved change goes to production after a playtest pass and a founder's OK."
+               "Gentry checks it, and then it ships to production by itself."
              )
 
-      assert has_element?(details, ~s(#board-small-print a[href="/admin/founders/decisions"]))
-      assert has_element?(details, "#board-small-print", "docs/design-board-states.md")
-      assert has_element?(details, "#board-step-founder_check", "That move is the founder's OK.")
-      assert has_element?(details, "#board-step-done", "merge commit runs on production")
-      assert has_element?(details, "#board-travel", "Parked")
+      assert has_element?(view, ~s(#board-small-print a[href="/admin/founders/decisions"]))
+      assert has_element?(view, "#board-small-print", "docs/design-board-states.md")
+      assert has_element?(view, "#board-step-founder_check", "That move is the founder's OK.")
+      assert has_element?(view, "#board-step-done", "merge commit runs on production")
+      assert has_element?(view, "#board-travel", "Parked")
 
       assert has_element?(
-               details,
+               view,
                ~s(#involve-board a[href="/team#idea-board"]),
                "The idea board"
              )
 
-      assert has_element?(details, "#involve-board", "Start on the board.")
-      assert has_element?(details, "#involve-board", "the first place to take part")
+      assert has_element?(view, "#involve-board", "Start on the board.")
+      assert has_element?(view, "#involve-board", "the first place to take part")
 
       # The board comes first in section 8, and the approval key is live.
       assert view
@@ -979,13 +926,13 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
              |> Enum.at(0)
              |> LazyHTML.attribute("id") == ["involve-board"]
 
-      assert has_element?(details, "#involve-approve h3", "Approve on the board yourself.")
-      refute has_element?(details, "#involve h3", "Soon")
-      assert has_element?(details, "#involve-archive", "keeps the ideas from before the board")
+      assert has_element?(view, "#involve-approve h3", "Approve on the board yourself.")
+      refute has_element?(view, "#involve h3", "Soon")
+      assert has_element?(view, "#involve-archive", "keeps the ideas from before the board")
     end
 
     test "the steps of a card's travel come from shared_board in data.json", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
 
       for col <- @data["shared_board"]["columns"],
           do: assert(has_element?(view, "#board-step-#{col["id"]}", col["label"]))
@@ -1040,7 +987,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       refute render(view) =~ "mock"
 
       # Stacked on a phone, six across from 1024 px: no sideways scroll.
-      assert has_element?(view, "#team-board-columns.grid.grid-cols-3.lg\\:grid-cols-6")
+      assert has_element?(view, "#team-board-columns.grid.grid-cols-2.lg\\:grid-cols-6")
       refute File.read!("assets/js/app.js") =~ "TeamBoard"
     end
 
@@ -1061,14 +1008,14 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       html = render_with(%{})
       doc = LazyHTML.from_document(html)
 
-      assert html =~ "4. How we work: the board"
+      assert html =~ "7. How we work together: one shared board"
       assert doc |> LazyHTML.query("#board-travel li") |> Enum.count() == 5
 
       assert doc |> LazyHTML.query("#team-board .team-board-col[data-column]") |> Enum.count() ==
                6
 
       assert doc |> LazyHTML.query("#board-why") |> LazyHTML.text() =~
-               "approved change goes to production after a playtest pass and a founder's OK"
+               "then it ships to production by itself"
     end
   end
 
@@ -1102,7 +1049,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
 
     test "the founders' card names all five as equals, with no title for anyone", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
       people = hd(@data["team"]["members"])["people"]
 
       assert people["count"] == 5
@@ -1193,7 +1140,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     test "nothing live: every group says 'as of' its date and charts name their window", %{
       conn: conn
     } do
-      {_slides, _details, html} = live_both(conn)
+      {:ok, _view, html} = live(conn, ~p"/team/presentation")
       d = TeamPage.data()
 
       for id <- ~w(stat-source-tests stat-source-decisions pace-source-tests pace-source-decisions
@@ -1238,7 +1185,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
         refreshed_at: ~U[2026-10-10 03:00:00Z]
       })
 
-      {_slides, view, html} = live_both(conn)
+      {:ok, view, html} = live(conn, ~p"/team/presentation")
 
       assert text(html, "#stat-tests") =~ "1,405"
       assert text(html, "#pace-tests") =~ "1,234 + 171"
@@ -1299,7 +1246,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
         })
       end
 
-      {_slides, _details, html} = live_both(conn)
+      {:ok, _view, html} = live(conn, ~p"/team/presentation")
 
       assert source(html, "#spend-days-source") == "live"
       assert text(html, "#spend-days-source") =~ "live · last 7 days"
@@ -1332,10 +1279,10 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     test "on production, persona scores link to playtest runs and latency to each app's costs page",
          %{conn: conn} do
       Application.put_env(:ex_tales_forge, :app_name, "tales-forge")
-      {slides, view, html} = live_both(conn)
+      {:ok, view, html} = live(conn, ~p"/team/presentation")
 
       assert has_element?(
-               slides,
+               view,
                ~s(#persona-scores-live-link a[href="https://tales-forge-playtest.fly.dev/admin/playtest"]),
                "playtest runs ↗"
              )
@@ -1360,17 +1307,10 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       end
     end
 
-    test "the part 5 rules are numbered 1, 2, 3 in page order", %{conn: conn} do
-      {view, _details, html} = live_both(conn)
+    test "the section 2 rules are numbered 1, 2, 3, 4 in page order", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/team/presentation")
       numbers = Regex.scan(~r/>\s*([1-4])\. (?:Decisions|Docs|Code|The call-type)/, html)
-      assert Enum.map(numbers, &List.last/1) == ["1", "2", "3"]
-      refute has_element?(view, "#how #rule-call-types")
-
-      assert has_element?(
-               view,
-               "#infrastructure ul#rule-call-types li",
-               "never ask the LLM for data"
-             )
+      assert Enum.map(numbers, &List.last/1) == ["1", "2", "3", "4"]
     end
 
     test "the header is sticky only from the sm breakpoint", %{conn: conn} do
@@ -1380,7 +1320,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
 
     test "the commits heat strip shows each day's number, not colour only", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team/details")
+      {:ok, view, _html} = live(conn, ~p"/team/presentation")
       assert has_element?(view, "#chart-commits .team-heat-num")
     end
   end
@@ -1419,9 +1359,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       html = render_with(@data)
       text = html |> LazyHTML.from_fragment() |> LazyHTML.text()
 
-      assert text =~
-               "approved change goes to production after a playtest pass and a founder's OK"
-
+      assert text =~ "then it ships to production by itself"
       assert text =~ "Changes that only touch admin pages ship straight away."
       refute text =~ ~r/Fredrik pushes/i
       refute text =~ ~r/Deploy to production/
@@ -1432,9 +1370,9 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     test "Gentry's #166 findings stay fixed" do
       html = render_with(@data)
       doc = LazyHTML.from_fragment(html)
-      headings = doc |> LazyHTML.query("#rules article h3") |> Enum.map(&LazyHTML.text/1)
+      headings = doc |> LazyHTML.query("#how article h3") |> Enum.map(&LazyHTML.text/1)
       nums = headings |> Enum.map(&String.trim/1) |> Enum.map(&String.first/1)
-      assert nums == ~w(1 2 3)
+      assert Enum.take(nums, 4) == ~w(1 2 3 4)
       assert html =~ ~s(id="skip-to-content")
       assert html =~ ~s(href="#team-main")
       assert html =~ "Six columns."
@@ -1443,13 +1381,12 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
   end
 
   describe "Gentry on prod 0415def (wording)" do
-    test "the hero shows at once, and the starting-point callout is in part 9" do
+    test "the starting-point callout shows at once in the hero, not hidden behind a reveal" do
       html = render_with(@data)
       doc = LazyHTML.from_fragment(html)
       assert doc |> LazyHTML.query("#hero[data-reveal]") |> Enum.count() == 0
-      assert doc |> LazyHTML.query("#hero #starting-point") |> Enum.count() == 0
 
-      assert doc |> LazyHTML.query("#together #starting-point") |> LazyHTML.text() =~
+      assert doc |> LazyHTML.query("#hero #starting-point") |> LazyHTML.text() =~
                "This is how we work today, and we shape it together."
     end
 
@@ -1468,41 +1405,39 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
     end
   end
 
-  describe "6a. how it's wired" do
-    test "the section is in the nav, as 6a before Infrastructure (6b)" do
+  describe "4. how it's wired" do
+    test "the section is in the nav, after Infrastructure" do
       ids = Enum.map(TeamPresentationLive.sections(), &elem(&1, 0))
 
-      assert Enum.drop_while(ids, &(&1 != "wired")) |> Enum.take(2) == [
-               "wired",
-               "infrastructure"
+      assert Enum.drop_while(ids, &(&1 != "infrastructure")) |> Enum.take(2) == [
+               "infrastructure",
+               "wired"
              ]
 
-      assert {"wired", "Wiring"} in TeamPresentationLive.sections()
+      assert {"wired", "How it's wired"} in TeamPresentationLive.sections()
     end
 
     test "the wording follows the founders' summary and the rest of the page" do
       html = render_with(@data)
-      assert html =~ "6a. How it&#39;s wired: the path"
+      assert html =~ "4. How it&#39;s wired"
       assert html =~ "Tales Forge runs as two apps on Fly.io in Stockholm."
-      assert html =~ "Only team members can sign in, with GitHub."
       assert html =~ "Three bots work with us. Case refines ideas and reviews work."
       assert html =~ "Gentry tries to break things on playtest."
       assert html =~ "One founder OK is enough."
-      assert html =~ "Normal changes need a pass and an OK."
+      assert html =~ "Normal changes ship after Gentry&#39;s check."
 
       assert html =~
-               "A normal change goes to production after a playtest pass and a founder&#39;s OK. No founder pushes anything."
+               "Bobby then deploys the approved commit to production. No founder pushes anything."
 
       assert html =~ "Admin-page changes and safe security fixes ship without a manual OK."
       assert html =~ "A card moves to Done when its change is live on production."
-      refute html =~ "Bobby deploys"
-      refute html =~ "ships to production by itself"
+      assert html =~ "Bobby deploys the approved commit to production."
       # A founder approves. No founder deploys.
       refute html =~ ~r/(?<!No )founder (pushes|deploys|triggers)/i
     end
   end
 
-  describe "6a. how it's wired, animated" do
+  describe "4. how it's wired, animated" do
     setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
 
     test "the path reuses the TeamFlow hook, static until the hook plays it", %{conn: conn} do
@@ -1527,7 +1462,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
                "1. The idea board wakes Case or Bobby.",
                "2. Bobby builds the change as a PR. GitHub checks it.",
                "3. The change goes to playtest. Gentry checks it.",
-               "4. The change goes to production after a playtest pass and a founder's OK."
+               "4. Bobby deploys the approved commit to production."
              ]
 
       assert LazyHTML.attribute(steps, "data-bots") == ["case bobby", "bobby", "gentry", "bobby"]
@@ -1551,9 +1486,9 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert Enum.empty?(LazyHTML.query(doc, "#wired-steps #wired-fast-lane"))
     end
 
-    test "the seven facts are on the details page, word for word" do
-      doc = @data |> render_details() |> LazyHTML.from_fragment()
-      facts = LazyHTML.query(doc, "#wired #wired-facts > li")
+    test "the seven facts appear one at a time, word for word" do
+      doc = @data |> render_with() |> LazyHTML.from_fragment()
+      facts = LazyHTML.query(doc, "#wired-flow #wired-facts > li[data-flow-fact]")
       assert Enum.count(facts) == 7
 
       for {{head, text}, li} <- Enum.zip(TeamPresentationLive.wired_facts(), facts) do
@@ -1625,132 +1560,6 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
 
       assert html =~ css
       refute html =~ ~r/\[data-flow-fact\]:not\(\[data-shown\]\) \{ opacity: 0;/
-    end
-  end
-
-  describe "slide 8: the live goals" do
-    test "the goals strip shows read-only, with progress bars and countdowns", %{conn: conn} do
-      {:ok, view, _html} = live(log_in_admin(conn), ~p"/team/presentation")
-      assert has_element?(view, "#goals #pace-goals #board-goals")
-      assert has_element?(view, "#goals #board-goals-list li [role=progressbar]")
-      assert has_element?(view, ~s(#goals #board-goals-list [data-role="countdown"]))
-      refute has_element?(view, "#goals #board-goals button")
-      refute has_element?(view, "#goals #board-goals form")
-    end
-
-    test "without the board, a short line shows instead of the strip" do
-      html = render_with(@data)
-      doc = LazyHTML.from_fragment(html)
-      assert doc |> LazyHTML.query("#pace-goals-none") |> Enum.count() == 1
-      assert doc |> LazyHTML.query("#board-goals") |> Enum.count() == 0
-    end
-  end
-
-  describe "the order of 12 Oct 2026" do
-    test "eleven slides in the new order, and every old anchor still lands" do
-      assert Enum.map(TeamPresentationLive.sections(), &elem(&1, 0)) ==
-               ~w(hero team game board board-live how wired infrastructure turn playtests quality pace goals together together-close)
-
-      for old <-
-            ~w(team how infrastructure wired playtests pace board together hero starting-point flow gentry shadow-test eval-set) do
-        assert TeamPresentationLive.presentation_path(old) == "/team/presentation#" <> old
-      end
-    end
-
-    test "the four long slides are split, so each slide fits one screen", %{conn: conn} do
-      {:ok, _view, html} = live(log_in_admin(conn), ~p"/team/presentation")
-
-      for {id, title} <- [
-            {"board", "4a. How we work: the board"},
-            {"board-live", "4b. How we work: the board, live"},
-            {"infrastructure", "the call-type rule"},
-            {"turn", "how a turn works"},
-            {"goals", "8b. Status: our goals, live"},
-            {"together-close", "9b. Let"}
-          ] do
-        doc = LazyHTML.from_fragment(html)
-        assert doc |> LazyHTML.query("section#" <> id) |> Enum.count() == 1
-        assert html =~ title
-      end
-
-      assert html =~ ~s(id="architecture")
-    end
-
-    test "parts 1 and 3 carry the approved text and a screenshot slot" do
-      html = render_with(@data)
-      doc = LazyHTML.from_fragment(html)
-
-      assert doc |> LazyHTML.query("#hero #hero-pitch") |> LazyHTML.text() =~
-               "Tales Forge is an online role-playing game. An AI game master tells the story."
-
-      assert doc |> LazyHTML.query("#game h2") |> LazyHTML.text() =~
-               "3. The game and how it plays"
-
-      assert doc |> LazyHTML.query("#game #game-turn") |> LazyHTML.text() =~
-               "It describes only what really happened."
-
-      assert doc
-             |> LazyHTML.query(~s(#game-screenshot [data-placeholder="screenshot"]))
-             |> Enum.count() == 1
-    end
-
-    test "each slide has the short text; each moved anchor links to the details page" do
-      html = render_slides(@data)
-      doc = LazyHTML.from_fragment(html)
-      assert doc |> LazyHTML.query("#team #flow") |> Enum.count() == 0
-      assert doc |> LazyHTML.query("#pace #stat-prs-merged") |> Enum.count() == 1
-      assert html =~ "7a. Playtests: Gentry and the personas"
-      assert html =~ "7b. Quality: Jev under test"
-      assert html =~ "8a. Status: pace and cost"
-      assert html =~ "One crew builds Tales Forge: five founders and three bots."
-
-      for {id, target} <- [
-            {"flow", "flow"},
-            {"stack", "stack"},
-            {"hosting", "hosting"},
-            {TeamCallTypes.anchor(), "call-types"},
-            {"gentry", "gentry"},
-            {"hostile-play", "hostile-play"},
-            {"intent-compare", "intent-compare"},
-            {"eval-set", "eval-set"},
-            {"ai-spend", "ai-spend"}
-          ] do
-        assert doc |> LazyHTML.query(~s(a##{id}[href="/team/details##{target}"])) |> Enum.count() ==
-                 1,
-               "#{id} links to the details"
-      end
-
-      for old <- TeamPresentationLive.anchors() do
-        assert doc |> LazyHTML.query("#" <> old) |> Enum.count() >= 1,
-               "#{old} is still on the slides"
-      end
-
-      refute html =~ "ships to production by itself"
-      refute html =~ "Bobby deploys"
-    end
-
-    test "/team/details has one section for each slide, with the long text", %{conn: conn} do
-      {:ok, view, html} = live(log_in_admin(conn), ~p"/team/details")
-      assert page_title(view) =~ "details"
-
-      ids =
-        html
-        |> LazyHTML.from_document()
-        |> LazyHTML.query("main > section")
-        |> Enum.map(&(&1 |> LazyHTML.attribute("id") |> hd()))
-
-      assert ids == Enum.map(TeamPresentationLive.details_sections(), &elem(&1, 0))
-
-      for id <-
-            ~w(flow stack hosting call-types gentry hostile-play intent-compare eval-set ai-spend) do
-        assert has_element?(view, "#" <> id), "#{id} is on the details page"
-      end
-
-      assert has_element?(view, ~s(#team-nav a#team-nav-overview[href="/team"]))
-    end
-
-    test "signed out, /team/details redirects to the login page" do
-      assert redirected_to(get(build_conn(), ~p"/team/details")) =~ ~r{^/admin/login(\?|$)}
     end
   end
 

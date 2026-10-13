@@ -104,7 +104,7 @@ defmodule TalesForge.TeamPageTest do
     end
   end
 
-  test "the change flow goes from the board to playtest to production, through two founder approvals, then goes to production after a playtest pass and a founder's OK" do
+  test "the change flow goes from the board to playtest to production, through two founder approvals, then ships by itself" do
     ids = TeamPage.data() |> TeamPage.get(["change_flow", "steps"]) |> Enum.map(& &1["id"])
     index = &Enum.find_index(ids, fn id -> id == &1 end)
 

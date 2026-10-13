@@ -78,9 +78,9 @@ test/ex_tales_forge/playtest/summary_test.exs
 test/ex_tales_forge/playtest/character_changes_test.exs
 test/ex_tales_forge_web/admin/playtest_live_test.exs
 
-# Founders' pages: /team, /team/presentation, /team/details and the live PR
-# feed (the routes are in the router and the signed-out GET /internal/version
-# is a controller, both shared)
+# Founders' pages: /team, /team/presentation and the live PR feed (the routes
+# are in the router and the signed-out GET /internal/version is a controller,
+# both shared)
 lib/ex_tales_forge/team_page.ex
 lib/ex_tales_forge/team_pace.ex
 lib/ex_tales_forge/team_online.ex
@@ -88,7 +88,6 @@ lib/ex_tales_forge/pr_feed.ex
 lib/ex_tales_forge/pr_feed/
 lib/ex_tales_forge_web/live/team_live.ex
 lib/ex_tales_forge_web/live/team_presentation_live.ex
-lib/ex_tales_forge_web/live/team_details_live.ex
 lib/ex_tales_forge_web/live/team_pr_feed_live.ex
 lib/ex_tales_forge_web/live/team_work_log_live.ex
 # Team chat (production only; card 'Team chat with mentions'). Its migration,

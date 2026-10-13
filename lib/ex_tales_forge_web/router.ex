@@ -90,7 +90,6 @@ defmodule TalesForgeWeb.Router do
     live_session :team, on_mount: [{Hooks, :require_team_member}] do
       live "/team", TeamLive, :index
       live "/team/presentation", TeamPresentationLive, :index
-      live "/team/details", TeamDetailsLive, :index
       live "/team/work-log", TeamWorkLogLive, :index
     end
 
