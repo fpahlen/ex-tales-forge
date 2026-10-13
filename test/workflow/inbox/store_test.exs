@@ -91,6 +91,74 @@ defmodule Workflow.Inbox.StoreTest do
     assert Chat.unread(@other.github) == 1
   end
 
+  describe "rule pr_approval" do
+    @pr %{
+      "number" => 301,
+      "url" => "https://github.com/whyse-ab/ex-tales-forge/pull/301",
+      "head_sha" => "abc1234def",
+      "player_note" => "Nothing changes for players.",
+      "title" => "Inbox approve test"
+    }
+
+    test "a PR that waits for an OK makes one approve item, and Approve closes it" do
+      {:ok, idea} = Board.link_pr(@pr)
+
+      assert [item] = Store.open(@owner.handle)
+      assert item.kind == :approve
+      assert item.rule == "pr_approval"
+      assert item.source == :pr
+      assert item.idea_id == idea.id
+      assert item.body =~ "PR #301 (abc1234) waits for a founder's OK"
+      assert Store.open(@other.handle) == []
+
+      {:ok, _} = Board.answer_pr(idea, @other_email, :approve, nil)
+      assert Store.open(@owner.handle) == []
+    end
+
+    test "a new head replaces the open approve item" do
+      {:ok, _} = Board.link_pr(@pr)
+      {:ok, _} = Board.link_pr(%{@pr | "head_sha" => "beef000"})
+
+      assert [%{source_id: "pr-301-beef000"}] = Store.open(@owner.handle)
+    end
+  end
+
+  describe "rule founder_check" do
+    defp check_card(questions) do
+      idea = card()
+
+      {:ok, idea} = Board.vote(idea, @other_email, 1)
+      {:ok, idea} = Board.move(idea, {:founder, @other_email}, "refining")
+
+      {:ok, idea} =
+        Board.refine(idea, %{
+          "open_questions" => questions,
+          "rough_cost" => "S",
+          "verdict" => "feasible"
+        })
+
+      {:ok, idea} = Board.move(idea, {:bot, Workflow.Team.bot(@team, :refiner)}, "check")
+      idea
+    end
+
+    test "a move to Founder check makes one item for each open question" do
+      idea = check_card(["How big?", "Which page?"])
+
+      assert [one, two] = Store.open(@owner.handle)
+      assert {one.kind, one.source, one.body} == {:answer, :question, "How big?"}
+      assert two.body == "Which page?"
+      assert one.idea_id == idea.id
+      assert Store.open(@other.handle) == []
+    end
+
+    test "an answer on the card closes the item of that question" do
+      idea = check_card(["How big?", "Which page?"])
+      {:ok, _} = Board.answer_question(idea, @other_email, "How big?", %{"answer" => "Small"})
+
+      assert [%{body: "Which page?"}] = Store.open(@owner.handle)
+    end
+  end
+
   describe "rules ci_failed and deploy_failed (GitHub runs on main)" do
     alias TalesForge.Board.GitHubEvents
     alias TalesForge.GitEvents.GitEvent

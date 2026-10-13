@@ -907,13 +907,19 @@ defmodule TalesForge.Board do
 
   defp clean_up_images(multi, _idea, _to), do: multi
 
+  # The open questions go to the inbox (Workflow.Inbox rule founder_check).
+  defp check_extra(idea, extra) do
+    questions = for {q, a} <- questions(idea), not Answer.settled?(a), do: q
+    Map.put(extra, :questions, questions)
+  end
+
   defp add_move_events(multi, idea, to, actor) do
     extra = %{from: idea.column, to: to, actor: Transitions.actor_name(actor)}
 
     case {idea.column, to} do
       {"ideas", "refining"} -> Events.add(multi, :idea_to_refining, idea, extra)
       {_, "refining"} -> Events.add(multi, :idea_back_to_refining, idea, extra)
-      {_, "check"} -> Events.add(multi, :idea_to_check, idea, extra)
+      {_, "check"} -> Events.add(multi, :idea_to_check, idea, check_extra(idea, extra))
       {_, "building"} -> Events.add(multi, :idea_to_building, idea, extra)
       {_, "done"} -> Events.add(multi, :idea_to_done, idea, extra)
       {_, "archived"} -> Events.add(multi, :idea_to_archived, idea, extra)
@@ -1301,6 +1307,7 @@ defmodule TalesForge.Board do
       })
     end)
     |> keep_approval(relink, idea, number, attrs["url"], sha)
+    |> pr_waiting(relink in [:request, :new_commit], idea, number, attrs["url"], sha, note)
     |> then(fn multi ->
       if Enum.any?(idea.links, &(&1.kind == "pr" and &1.url == attrs["url"])),
         do: multi,
@@ -1380,6 +1387,20 @@ defmodule TalesForge.Board do
 
   defp keep_approval(multi, _relink, _idea, _number, _url, _sha), do: multi
 
+  # A PR that waits for a founder's OK goes to the inbox (Workflow.Inbox rule
+  # pr_approval) as an approve item.
+  defp pr_waiting(multi, false, _idea, _number, _url, _sha, _note), do: multi
+
+  defp pr_waiting(multi, true, idea, number, url, sha, note),
+    do:
+      Events.add(multi, :pr_waiting, idea, %{
+        actor: Team.actor(team(), :builder),
+        from: idea.column,
+        to: idea.column,
+        note: note,
+        pr: %{"number" => number, "url" => url, "head_sha" => sha}
+      })
+
   @doc """
   Marks the open PR `number` (head `head_sha`, at `url`) on a Building card as
   waiting for a founder's OK, for a PR that came to the card as a plain `pr`
@@ -1407,6 +1428,7 @@ defmodule TalesForge.Board do
         note: "PR ##{number} (#{short(head_sha)}) waits for a founder's OK."
       })
     end)
+    |> pr_waiting(true, idea, number, url, head_sha, idea.player_note)
     |> run(idea.id)
   end
 

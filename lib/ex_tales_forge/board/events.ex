@@ -50,6 +50,7 @@ defmodule TalesForge.Board.Events do
           | :comment
           | :mention
           | :pr_approved
+          | :pr_waiting
           | :question_answered
           | :pr_changes_requested
 
@@ -85,7 +86,9 @@ defmodule TalesForge.Board.Events do
       iex> idea = %TalesForge.Board.Idea{id: "i1", title: "T"}
       iex> TalesForge.Board.Events.inbox_event(:idea_to_done, idea, %{}, %{}).type
       :card_closed
-      iex> TalesForge.Board.Events.inbox_event(:idea_to_check, idea, %{}, %{})
+      iex> TalesForge.Board.Events.inbox_event(:idea_to_check, idea, %{questions: ["How big?"]}, %{}).questions
+      ["How big?"]
+      iex> TalesForge.Board.Events.inbox_event(:idea_to_refining, idea, %{}, %{})
       nil
   """
   @spec inbox_event(event(), Idea.t(), map(), map()) :: InboxEvent.t() | nil
@@ -105,7 +108,53 @@ defmodule TalesForge.Board.Events do
       body: comment.body || ""
     }
 
+  def inbox_event(event, %Idea{id: id, title: title}, extra, _changes)
+      when event in [:pr_waiting, :pr_approved, :pr_changes_requested] do
+    pr = extra[:pr] || %{}
+
+    %InboxEvent{
+      type: if(event == :pr_waiting, do: :pr_waiting, else: :pr_answered),
+      idea_id: id,
+      title: title,
+      author: extra[:actor],
+      body: pr_body(pr, extra[:note]),
+      pr: %{number: pr["number"], url: pr["url"], head_sha: pr["head_sha"]}
+    }
+  end
+
+  def inbox_event(:idea_to_check, %Idea{id: id, title: title}, extra, _changes),
+    do: %InboxEvent{
+      type: :check_questions,
+      idea_id: id,
+      title: title,
+      author: extra[:actor],
+      questions: extra[:questions] || []
+    }
+
+  def inbox_event(:question_answered, %Idea{id: id, title: title}, extra, _changes),
+    do: %InboxEvent{
+      type: :question_answered,
+      idea_id: id,
+      title: title,
+      author: extra[:actor],
+      questions: [get_in(extra, [:question, "text"])] |> Enum.filter(&is_binary/1)
+    }
+
+  def inbox_event(event, %Idea{id: id, title: title}, %{from: "check"}, _changes)
+      when event in [:idea_to_building, :idea_back_to_refining],
+      do: %InboxEvent{type: :check_left, idea_id: id, title: title}
+
   def inbox_event(_event, _idea, _extra, _changes), do: nil
+
+  defp pr_body(pr, note) do
+    sha = pr["head_sha"] |> to_string() |> String.slice(0, 7)
+    line = "PR ##{pr["number"]} (#{sha}) waits for a founder's OK. The OK also ships it."
+
+    case note |> to_string() |> String.trim() do
+      "" -> line
+      note -> line <> "\nPlayer note: " <> note
+    end
+  end
 
   @doc """
   The bots an event wakes.

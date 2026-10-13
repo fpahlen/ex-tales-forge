@@ -9,7 +9,8 @@ defmodule Workflow.Inbox.Item do
     * `recipient`: the founder handle that gets the item
     * `rule`: the id of the rule that made the item
     * `kind`: `:approve`, `:answer` or `:ack`
-    * `source`: `:comment`, `:chat` or `:github` (a GitHub Actions run)
+    * `source`: `:comment`, `:chat`, `:pr`, `:question` (the body is the
+      question) or `:github` (a GitHub Actions run)
     * `source_id`, `idea_id`, `title`, `author`, `body`: from the event
     * `url`: the source link
   """
@@ -20,7 +21,7 @@ defmodule Workflow.Inbox.Item do
           recipient: String.t(),
           rule: String.t(),
           kind: kind(),
-          source: :comment | :chat | :github,
+          source: :comment | :chat | :pr | :question | :github,
           source_id: String.t() | nil,
           idea_id: String.t() | nil,
           title: String.t() | nil,

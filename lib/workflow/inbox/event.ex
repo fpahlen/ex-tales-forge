@@ -8,6 +8,11 @@ defmodule Workflow.Inbox.Event do
 
     * `type`: `:comment` (a comment on a card), `:chat` (a team chat
       message), `:card_closed` (a card moved to Done or the Archive),
+      `:pr_waiting` (a PR on a card waits for a founder's OK),
+      `:pr_answered` (a founder approved the PR or asked for changes),
+      `:check_questions` (a card moved to Founder check with open
+      questions), `:question_answered` (a founder answered or deferred a
+      question), `:check_left` (a card left Founder check), or
       `:workflow_failed` or `:workflow_passed` (a GitHub Actions run on
       main ended; no card and no person is tagged)
     * `source_id`: the id of the comment or the chat message
@@ -16,12 +21,25 @@ defmodule Workflow.Inbox.Event do
     * `author_handle`: the founder handle of the author, or nil
     * `mentions`: the founder handles that the body names, without the author
     * `body`: the text of the comment or the message
+    * `pr`: for a PR event, `%{number, url, head_sha}`
+    * `questions`: the open questions of the card, for `:check_questions`;
+      the one question, for `:question_answered`
     * `workflow`: for a run, the workflow name (`"CI"`, `"Deploy to playtest"`)
     * `sha`: for a run, the head commit
     * `url`: for a run, the link to the commit on GitHub
   """
 
-  @type type :: :comment | :chat | :card_closed | :workflow_failed | :workflow_passed
+  @type type ::
+          :comment
+          | :chat
+          | :card_closed
+          | :pr_waiting
+          | :pr_answered
+          | :check_questions
+          | :question_answered
+          | :check_left
+          | :workflow_failed
+          | :workflow_passed
 
   @type t :: %__MODULE__{
           type: type(),
@@ -32,6 +50,8 @@ defmodule Workflow.Inbox.Event do
           author_handle: String.t() | nil,
           mentions: [String.t()],
           body: String.t(),
+          pr: %{number: pos_integer(), url: String.t() | nil, head_sha: String.t() | nil} | nil,
+          questions: [String.t()],
           workflow: String.t() | nil,
           sha: String.t() | nil,
           url: String.t() | nil
@@ -45,6 +65,8 @@ defmodule Workflow.Inbox.Event do
             author_handle: nil,
             mentions: [],
             body: "",
+            pr: nil,
+            questions: [],
             workflow: nil,
             sha: nil,
             url: nil
