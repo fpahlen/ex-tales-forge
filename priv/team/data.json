@@ -1056,7 +1056,7 @@
       {
         "name": "Fredrik",
         "github": "fpahlen",
-        "inbox": ["mention"]
+        "inbox": ["mention", "pr_approval"]
       },
       {
         "name": "Thobias",

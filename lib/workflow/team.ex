@@ -138,7 +138,7 @@ defmodule Workflow.Team do
         "repo_url" => "https://example.com/org/product",
         "docs_repo" => "org/product-docs",
         "founders" => [
-          %{"name" => "Ada", "github" => "ada-gh", "inbox" => ["mention"]},
+          %{"name" => "Ada", "github" => "ada-gh", "inbox" => ["mention", "pr_approval"]},
           %{"name" => "Örjan", "github" => "orjan-gh"},
           %{"name" => "Lin"}
         ],

@@ -7,16 +7,19 @@ defmodule Workflow.Inbox.Event do
   Fields:
 
     * `type`: `:comment` (a comment on a card), `:chat` (a team chat
-      message) or `:card_closed` (a card moved to Done or the Archive)
+      message), `:card_closed` (a card moved to Done or the Archive),
+      `:pr_waiting` (a PR on a card waits for a founder's OK) or
+      `:pr_answered` (a founder approved the PR or asked for changes)
     * `source_id`: the id of the comment or the chat message
     * `idea_id`, `title`: the card and its title, or nil for the chat
     * `author`: a founder email or `bot:<id>`
     * `author_handle`: the founder handle of the author, or nil
     * `mentions`: the founder handles that the body names, without the author
     * `body`: the text of the comment or the message
+    * `pr`: for a PR event, `%{number, url, head_sha}`
   """
 
-  @type type :: :comment | :chat | :card_closed
+  @type type :: :comment | :chat | :card_closed | :pr_waiting | :pr_answered
 
   @type t :: %__MODULE__{
           type: type(),
@@ -26,7 +29,8 @@ defmodule Workflow.Inbox.Event do
           author: String.t() | nil,
           author_handle: String.t() | nil,
           mentions: [String.t()],
-          body: String.t()
+          body: String.t(),
+          pr: %{number: pos_integer(), url: String.t() | nil, head_sha: String.t() | nil} | nil
         }
 
   defstruct type: :comment,
@@ -36,5 +40,6 @@ defmodule Workflow.Inbox.Event do
             author: nil,
             author_handle: nil,
             mentions: [],
-            body: ""
+            body: "",
+            pr: nil
 end
