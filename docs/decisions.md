@@ -11,6 +11,35 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Parked cards up/down voting
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. parked cards should be able to up/down vote also
+- **Why:** **Goal.** Founders can vote +1 or -1 on cards in Parked. The votes show which parked cards to bring back first. Goal: G7, our shared workspace.
+
+**What we already have (high confidence).**
+1. `TalesForge.Board.vote/4` accepts a vote only in the columns `ideas`, `refining` and `check`.
+2. The card already shows the vote row with thumbs up and thumbs down.
+3. A downvote asks for a reason.
+
+**Steps.**
+1. Add `parked` to the list of columns that accept a vote in `Board.vote/4`.
+2. Show the vote row on parked cards in `TeamIdeaBoard`.
+3. Keep the rule that a -1 vote blocks the move to Building. A card that leaves Parked keeps its votes.
+4. If the founders agree, sort the Parked column by net votes, then by total votes (open question 1).
+5. Add tests for a vote on a parked card and for the column order.
+
+**Done when.** A founder can vote +1 or -1 on a parked card. The counts show on the card. A vote in Done or Archived stays closed.
+
+**Architecture.** One change in the vote rule and one change in the view. No new table and no migration.
+
+**Risks.**
+- Old votes from before the park can stay on a card. Mitigation: we keep them. They show the old view of the founders.
+
+**Confidence.** High confidence in the steps and the cost. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-dbd33ca0-ff29-4e47-a492-ffe3963a9c9a)
+
+<!-- board:idea:dbd33ca0-ff29-4e47-a492-ffe3963a9c9a -->
+
 ## 2026-10-13: Inbox: how it is built (ex-tales-forge#245)
 
 - **Decision (Fredrik, 2026-10-13, answers on the idea board card):** the inbox is a panel on `/team` under New idea, not a new page. The inbox has no snooze: skip puts the item at the end of the queue. For a founder with inbox rules, the inbox replaces the board pings and the chat badge. The other founders keep the pings and the badge. At first, only Fredrik has rules.
