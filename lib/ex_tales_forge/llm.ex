@@ -294,6 +294,100 @@ defmodule TalesForge.LLM do
     }
   end
 
+  @label_schema %{
+    "type" => "object",
+    "required" => ["value", "confidence"],
+    "properties" => %{
+      "value" => %{"type" => "string"},
+      "confidence" => %{"type" => "number"}
+    }
+  }
+  @character_text_schema %{
+    "type" => "object",
+    "required" => [
+      "name",
+      "race",
+      "class",
+      "occupation",
+      "stats",
+      "stats_confidence",
+      "skills",
+      "skills_confidence",
+      "questions"
+    ],
+    "properties" => %{
+      "name" => @label_schema,
+      "race" => @label_schema,
+      "class" => @label_schema,
+      "occupation" => @label_schema,
+      "stats" => %{
+        "type" => "array",
+        "items" => %{
+          "type" => "object",
+          "required" => ["stat", "value"],
+          "properties" => %{"stat" => %{"type" => "string"}, "value" => %{"type" => "integer"}}
+        }
+      },
+      "stats_confidence" => %{"type" => "number"},
+      "skills" => %{
+        "type" => "array",
+        "items" => %{
+          "type" => "object",
+          "required" => ["skill", "level"],
+          "properties" => %{"skill" => %{"type" => "string"}, "level" => %{"type" => "integer"}}
+        }
+      },
+      "skills_confidence" => %{"type" => "number"},
+      "questions" => %{"type" => "array", "items" => %{"type" => "string"}}
+    }
+  }
+  @character_text_max_tokens 600
+
+  @doc """
+  Character creation from a description (`TalesForge.CharacterCreation.FromText`):
+  labels with a confidence (0 to 1) and at most two questions. Purpose
+  `character_text`, no session, temperature 0. Each call writes one ai_calls
+  row, also the mock call. The mock reply has low confidence for each label.
+  """
+  @spec complete_character_text(String.t(), String.t(), keyword()) :: result(map())
+  def complete_character_text(system, user, _opts \\ []) do
+    model = tier1_model()
+
+    if mock?(model) do
+      AICalls.record(%{
+        purpose: "character_text",
+        model: "mock",
+        status: "ok",
+        latency_ms: 0,
+        call_type: "llm",
+        conv_id: "tales-forge-character_text"
+      })
+
+      {:ok, mock_character_text()}
+    else
+      complete_json(model, simple_messages(system, user), @character_text_schema, 0.0,
+        tier: :character_text,
+        max_tokens: @character_text_max_tokens
+      )
+    end
+  end
+
+  defp mock_character_text do
+    low = %{"value" => "", "confidence" => 0.0}
+
+    %{
+      "name" => low,
+      "race" => low,
+      "class" => low,
+      "occupation" => low,
+      "stats" => [],
+      "stats_confidence" => 0.0,
+      "skills" => [],
+      "skills_confidence" => 0.0,
+      "questions" => []
+    }
+  end
+
   @board_similar_schema %{
     "type" => "object",
     "required" => ["title", "matches"],

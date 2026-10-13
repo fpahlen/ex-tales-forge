@@ -434,4 +434,96 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
       assert map_size(rolled) == 6
     end
   end
+
+  describe "the description model" do
+    alias TalesForge.CharacterTextStub, as: Stub
+
+    defp describe(conn, text \\ "Mira is an elf ranger who hunted deer.") do
+      {:ok, view, _html} = live(conn, ~p"/new/tin_valley")
+      view |> element("#model-from_text") |> render_click()
+      view |> form("#describe-form", %{"description" => text}) |> render_submit()
+      render_async(view)
+      view
+    end
+
+    test "it is a third model next to point buy and the dice", %{conn: conn} do
+      {:ok, view, html} = live(conn, ~p"/new/tin_valley")
+
+      assert html =~ "Describe your character"
+      assert has_element?(view, "#model-point_buy")
+      assert has_element?(view, "#model-stat_roll")
+      view |> element("#model-from_text") |> render_click()
+      assert has_element?(view, "#describe-form")
+      refute has_element?(view, "#step-stats")
+    end
+
+    test "the AI draft shows labels with confidence, and approval leads to play", %{conn: conn} do
+      Stub.put(Stub.reply())
+      view = describe(conn)
+
+      assert has_element?(view, "#ai-draft")
+      assert view |> element("#label-race") |> render() =~ "Elf"
+      assert view |> element("#label-race") |> render() =~ "confidence 90%"
+      refute render(view) =~ ~r/unsure|uncertain/i
+
+      view |> element("#approve") |> render_click()
+      assert has_element?(view, "#name-step")
+      assert has_element?(view, ~s(#character-name[value="Mira Vale"]))
+
+      view |> form("#name-form", %{"name" => "Mira Vale"}) |> render_submit()
+      {"/play/" <> id, _} = assert_redirect(view)
+      pc = Repo.get!(GameSession, id).world_state["character"]
+      assert {pc["race"], pc["class"]} == {"elf", "ranger"}
+      assert TalesForge.CharacterDrafts.get("tf-tester", "tin_valley") == nil
+    end
+
+    test "play needs approval: the name step stays closed", %{conn: conn} do
+      Stub.put(Stub.reply())
+      view = describe(conn)
+
+      render_click(view, "go", %{"step" => "name"})
+      refute has_element?(view, "#name-step")
+      assert has_element?(view, "#ai-draft")
+    end
+
+    test "at most 2 questions, then the draft", %{conn: conn} do
+      Stub.put(fn _s, user ->
+        if user =~ "Answers",
+          do: {:ok, Stub.reply()},
+          else: {:ok, Stub.reply(%{"questions" => ["Q one?", "Q two?", "Q three?"]}, 0.3)}
+      end)
+
+      view = describe(conn)
+      assert has_element?(view, "#answer_0")
+      assert has_element?(view, "#answer_1")
+      refute has_element?(view, "#answer_2")
+
+      view
+      |> form("#questions-form", %{"answer_0" => "Elf", "answer_1" => "Hunter"})
+      |> render_submit()
+
+      render_async(view)
+      assert has_element?(view, "#ai-draft")
+      assert_received {:character_text_call, _}
+      assert_received {:character_text_call, _}
+    end
+
+    test "a reload keeps the AI draft and makes no new AI call", %{conn: conn} do
+      Stub.put(Stub.reply())
+      describe(conn)
+      assert_received {:character_text_call, _}
+
+      {:ok, reloaded, _html} = live(conn, ~p"/new/tin_valley")
+      assert has_element?(reloaded, "#ai-draft")
+      refute_received {:character_text_call, _}
+    end
+
+    test "an AI error shows a message and keeps the form", %{conn: conn} do
+      Stub.put(fn _s, _u -> {:error, :timeout} end)
+      view = describe(conn)
+
+      assert has_element?(view, "#text-error")
+      assert has_element?(view, "#describe-form")
+    end
+  end
 end
