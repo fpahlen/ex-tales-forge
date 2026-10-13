@@ -11,6 +11,58 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Workflow split 5/5: Extraction to own repo and Fly app
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Goal: G7, our shared workspace.
+- **Why:** **Goal.** Bobby moves Workflow to its own repo and Fly app. A Workflow deploy does not restart the game. A game deploy does not restart Workflow. The Workflow database holds no game tables.
+
+**Order.** Do this card last. Cards 1 to 4 must finish first. Card 1 sets which modules belong to Workflow. Card 2 moves team names into config. Card 3 gives Workflow its own Ecto repo. Card 4 adds the game API for PR, deploy, cost and online data.
+
+**What we already have (high confidence).**
+1. Fly apps `tales-forge` and `tales-forge-playtest` each use their own database.
+2. Workflow tables already exist: `board_*`, `team_chat`, `team_images` and `work_log_*`.
+3. The bot API serves `/internal/board/*` and `/internal/chat` with `BOARD_BOT_TOKEN_*`.
+4. Webhooks use `BOARD_WEBHOOK_URL_*` and `BOARD_WEBHOOK_KEY_*` on production.
+5. Peer APIs already read costs, online status, version and work-log events between apps.
+6. Sign-in uses GitHub team checks in `TalesForge.AdminAuth` with `ADMIN_GITHUB_TEAM`.
+7. The admin fast lane and `mix deploy.check_boundaries` exist. They still share one release per Fly app.
+
+**Hard couplings (high confidence).**
+1. One `Application` tree starts board, PR feed and game processes together.
+2. Board and game share `TalesForge.Repo` and one `DATABASE_URL`.
+3. The router mounts `/team`, `/admin`, game play and the bot API in one endpoint.
+4. Bot tokens and webhooks sit on the game Fly app today.
+5. `PrFeed.Poller` and board auto-done run inside the game release.
+6. QA login (`GENTRY_QA_TOKEN`) and founder sign-in share the game session.
+
+**Plan.**
+1. Create a new repo under `whyse-ab` for Workflow.
+2. Create a new Fly app with its own Postgres database.
+3. Copy the Workflow tables with a script.
+4. Compare the row counts before the switch.
+5. Move the bot tokens, the webhooks and the GitHub team sign-in to the new app.
+6. Keep a redirect from the old `/team` and `/internal/board` URLs for one release.
+7. Update the bot docs in `tales-forge-docs/docs/bots/`.
+8. Remove Workflow modules from the game app.
+9. Confirm that game and Workflow deploys stay independent.
+
+**Done when.**
+- A Workflow deploy does not restart the game.
+- A game deploy does not restart Workflow.
+- The Workflow database has no game tables.
+- Bots call the new host. Old URLs redirect for one release.
+
+**Risks.**
+- A table copy can miss rows. Mitigation: compare counts before the switch.
+- Bots can call the old host. Mitigation: redirect for one release and update docs.
+- Founders deferred the sign-in question. Case proposes GitHub team sign-in for now (medium confidence).
+- Cards 1 to 4 may leave a shared process. Then extraction stays blocked (medium confidence).
+
+**Confidence.** High confidence that extraction is feasible after cards 1 to 4. Medium confidence on cutover time and on the deferred sign-in. Verdict: feasible with caveats. Rough cost: L.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-84f426a1-8a9c-4929-981e-b3888e7bb6d5)
+
+<!-- board:idea:84f426a1-8a9c-4929-981e-b3888e7bb6d5 -->
+
 ## 2026-10-13: The Slicing Pie comes in two PRs, hours first
 
 - **Decision:** The first PR shows the hours pie on the work-log page. Each contributor has one slice. A table shows the total hours and the percentage for each contributor. The pie uses all time since the start, as the founders answered. The date range of the page changes only the table and the totals. The cash part (cash payments and costs that a founder pays) comes in a second PR. That PR starts when the founders select the rate per hour and the multipliers (2 for time, 4 for cash).
