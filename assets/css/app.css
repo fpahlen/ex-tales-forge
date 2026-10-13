@@ -862,3 +862,12 @@
 .team-page[data-presenting] #team-main > * {
   margin-block: 0;
 }
+
+/* The open goal sheet on a phone (TalesForgeWeb.TeamGoals): lock the page
+   scroll behind the sheet. From the sm breakpoint the sheet is a panel. */
+@media (max-width: 639.98px) {
+  body.team-sheet-open {
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+}

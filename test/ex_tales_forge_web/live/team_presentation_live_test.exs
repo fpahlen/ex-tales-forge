@@ -358,6 +358,20 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       end
     end
 
+    test "hostile play: the turn count of each run matches its list" do
+      for %{"turns" => turns} = run <- @data["gentry_findings"]["hostile_play_results"]["runs"],
+          is_integer(turns) do
+        assert length(run["attacks"]) == turns, "#{run["id"]}: #{turns} turns"
+      end
+
+      html = render_with(@data)
+      assert html =~ "6 hostile turns"
+      assert html =~ "All six held"
+      assert html =~ "Gentry started the playtest runs on 9 Oct 2026."
+      refute html =~ "this week"
+      assert html =~ "Picky adversarial QA (playtest, and read-only prod /team)"
+    end
+
     test "a changed number in the data changes the page (nothing is hard-coded)" do
       data =
         @data
@@ -1636,6 +1650,24 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert has_element?(view, ~s(#goals #board-goals-list [data-role="countdown"]))
       refute has_element?(view, "#goals #board-goals button")
       refute has_element?(view, "#goals #board-goals form")
+    end
+
+    test "each goal shows its score next to the key, as on /team (G7 +1)", %{conn: conn} do
+      goal = TalesForge.Board.Goals.list() |> Enum.find(&(&1.key == "G7"))
+      {:ok, _} = TalesForge.Board.Goals.vote(goal, "fredrik", 1)
+
+      {:ok, view, _html} = live(log_in_admin(conn), ~p"/team/presentation")
+      html = render(view)
+      doc = LazyHTML.from_fragment(html)
+
+      score =
+        doc
+        |> LazyHTML.query(~s(#goals #goal-#{goal.id} [data-role="score"]))
+        |> LazyHTML.text()
+        |> String.trim()
+
+      assert score == "+1"
+      assert html =~ ~r/G7<\/span>\s*<span[^>]*data-role="score"/
     end
 
     test "without the board, a short line shows instead of the strip" do

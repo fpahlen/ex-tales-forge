@@ -1618,7 +1618,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         <h3 class="font-serif text-2xl font-bold">Gentry's findings so far</h3>
       </div>
       <p class="max-w-3xl leading-relaxed text-[var(--paper-muted)]">
-        Gentry started on playtest this week. The first catch was not an exploit but something every phone player would have hit.
+        Gentry started the playtest runs on 9 Oct 2026. The first catch was not an exploit but something every phone player would have hit.
       </p>
       <div class="grid gap-4 lg:grid-cols-2">
         <div class="team-card space-y-2 p-4">

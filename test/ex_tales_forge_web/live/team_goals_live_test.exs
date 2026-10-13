@@ -70,6 +70,23 @@ defmodule TalesForgeWeb.TeamGoalsLiveTest do
   end
 
   describe "an open goal" do
+    test "Show cards is disabled in the static render and enabled when the LiveView connects",
+         %{conn: conn} do
+      g = g2()
+      static = conn |> get("/team") |> html_response(200)
+      assert static =~ ~r/id="goal-#{g.id}-toggle"[^>]*disabled/
+
+      {:ok, view, _} = live(conn, "/team")
+      assert has_element?(view, "#goal-#{g.id}-toggle:not([disabled])")
+    end
+
+    test "the phone sheet has the scroll-lock hook", %{conn: conn} do
+      g = g2()
+      {:ok, view, _} = live(conn, "/team")
+      view |> element("#goal-#{g.id}-toggle") |> render_click()
+      assert has_element?(view, ~s(#goal-#{g.id}-cards[phx-hook$="GoalSheetScrollLock"]))
+    end
+
     test "lists its cards with the column; Done cards are not listed", %{conn: conn} do
       g = g2()
       {:ok, parked} = Board.create_idea("bo@example.com", %{"title" => "Parked card"})

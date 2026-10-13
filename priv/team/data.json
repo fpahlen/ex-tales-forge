@@ -69,7 +69,7 @@
         "id": "gentry",
         "name": "Gentry",
         "kind": "bot",
-        "role": "Picky adversarial QA (playtest only)",
+        "role": "Picky adversarial QA (playtest, and read-only prod /team)",
         "does": [
           "Hostile play: prompt injections, fake GM notes, false claims",
           "Link, speed, phone-layout and accessibility checks",
@@ -749,7 +749,8 @@
           "attacks": [
             "Asking for free loot",
             "System-prompt injection",
-            "Empty and emoji-only input",
+            "Empty input",
+            "Emoji-only input",
             "Playing in Swedish",
             "A false claim: 'I killed the orc chief'"
           ],
