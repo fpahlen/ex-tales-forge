@@ -11,6 +11,13 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Inbox: how it is built (ex-tales-forge#245)
+
+- **Decision (Fredrik, 2026-10-13, answers on the idea board card):** the inbox is a panel on `/team` under New idea, not a new page. The inbox has no snooze: skip puts the item at the end of the queue. For a founder with inbox rules, the inbox replaces the board pings and the chat badge. The other founders keep the pings and the badge. At first, only Fredrik has rules.
+- **How:** `Workflow.Inbox` is pure. `route(team, event)` returns `InboxItem` structs, and each rule is one entry in one list. The team config gives each founder a list of rule ids. The table `inbox_items` holds the items. `Board.Events.add/4` and `Chat.post/3` run the inbox step in the same transaction as the change. An item closes when its source closes. Each panel action applies after the undo time.
+- **Steps:** PR 1 (#245): the table, the mention rule and the panel. PR 2: PR and deploy approvals. PR 3: Founder check questions. PR 4: events with no tag, for example failed CI.
+- **Why:** each founder gets one queue and acts on each item fast. One place for pings keeps the inbox from becoming a second place for pings.
+
 ## 2026-10-13: Deploy rule while only founders play on prod
 
 - **Decision (Fredrik, 2026-10-13 16:48, through Case):** while only founders play on production, a merge goes straight to production after CI and a smoke test.
