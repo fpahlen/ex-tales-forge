@@ -43,6 +43,26 @@ defmodule TalesForge.Game.WorldClock do
     |> Map.put("world_clock", format(tick))
   end
 
+  @morning_slot 8
+
+  @doc """
+  The ticks from `tick` to the start of the next morning: a full sleep ends
+  at the morning. When the morning is less than 4 hours away (the character
+  goes to bed in the deep night), the sleep is 8 hours.
+
+      iex> TalesForge.Game.WorldClock.ticks_to_morning(41)
+      63
+      iex> TalesForge.Game.WorldClock.format(41 + 63)
+      "Day 2 · morning"
+      iex> TalesForge.Game.WorldClock.ticks_to_morning(2)
+      32
+  """
+  @spec ticks_to_morning(non_neg_integer()) :: pos_integer()
+  def ticks_to_morning(tick) when is_integer(tick) and tick >= 0 do
+    ticks = Integer.mod(@morning_slot - rem(tick, @ticks_per_day), @ticks_per_day)
+    if ticks < @ticks_per_hour * 4, do: @ticks_per_hour * 8, else: ticks
+  end
+
   def format(tick) when is_integer(tick) and tick >= 0 do
     day = div(tick, @ticks_per_day) + 1
     "Day #{day} · #{time_of_day(rem(tick, @ticks_per_day))}"

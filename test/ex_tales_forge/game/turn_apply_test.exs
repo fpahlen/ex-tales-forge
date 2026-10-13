@@ -10,7 +10,10 @@ defmodule TalesForge.Game.TurnApplyTest do
   alias TalesForge.Game.Turn.Adapters
   alias TalesForge.GameSessions
 
+  alias TalesForge.Game.WorldClock
+
   doctest TalesForge.Game.TurnApply
+  doctest TalesForge.Game.WorldClock, only: [ticks_to_morning: 1]
 
   @room_copper 30
 
@@ -78,7 +81,7 @@ defmodule TalesForge.Game.TurnApplyTest do
       assert copper(world["character"]["coins"]) ==
                copper(s.world_state["character"]["coins"]) - @room_copper
 
-      assert world["world_tick"] == tick + 32
+      assert world["world_tick"] == tick + WorldClock.ticks_to_morning(tick)
     end
 
     test "in the square: the payment is rejected and the clock moves 1 hour" do
@@ -219,7 +222,7 @@ defmodule TalesForge.Game.TurnApplyTest do
       assert copper(world["character"]["coins"]) ==
                copper(s.world_state["character"]["coins"]) - @room_copper
 
-      assert world["world_tick"] == tick + 32
+      assert world["world_tick"] == tick + WorldClock.ticks_to_morning(tick)
     end
   end
 
@@ -310,5 +313,26 @@ defmodule TalesForge.Game.TurnApplyTest do
 
       assert gm_prompt() =~ "Time: #{world["world_clock"]}."
     end
+  end
+
+  test "session 11f60fb5 turn 7: room and sleep at dusk (tick 41) wake in the morning, and the GM gets that time" do
+    s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
+
+    s = %{
+      s
+      | world_state:
+          s.world_state
+          |> Map.put("world_tick", 41)
+          |> Map.put("world_clock", WorldClock.format(41))
+    }
+
+    pay = %SingleAction{action_type: :spend, target: "marta_kellen", parameters: %{}}
+
+    {world, _handler} = play(s, "I pay for a room and go to sleep", pay, @on)
+    prompt = gm_prompt()
+
+    assert world["world_clock"] == "Day 2 · morning"
+    assert prompt =~ "The character wakes at Day 2 · morning."
+    assert prompt =~ "Time: Day 2 · morning."
   end
 end
