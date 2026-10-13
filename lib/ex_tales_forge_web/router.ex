@@ -10,7 +10,7 @@ defmodule TalesForgeWeb.Router do
 
   The only public routes are the login page, the GitHub OAuth request/callback,
   logout, Gentry's token sign-in at `/team/qa-login` (`TalesForge.QaLogin`), the Fly health check (`/health`) and the token-guarded machine-to-machine
-  `/internal/costs`, `/internal/version` and the bots' `/internal/board/*`. Static assets are served by the endpoint before the router.
+  `/internal/costs`, `/internal/version`, the bots' `/internal/board/*` and the signed GitHub webhook `/webhooks/github`. Static assets are served by the endpoint before the router.
   """
 
   use TalesForgeWeb, :router
@@ -217,6 +217,13 @@ defmodule TalesForgeWeb.Router do
     get "/version", VersionPeerController, :show
     get "/online", OnlinePeerController, :show
     get "/work-log/events", WorkLogPeerController, :show
+  end
+
+  # GitHub's repository webhook (both apps). Signed with GITHUB_WEBHOOK_SECRET
+  # (X-Hub-Signature-256); off (404) while the secret is unset. See
+  # GitHubWebhookController and docs/github-webhooks.md.
+  scope "/webhooks", TalesForgeWeb do
+    post "/github", GitHubWebhookController, :create
   end
 
   # The founders' idea board's bot API (Case, Bobby and Gentry; production only).

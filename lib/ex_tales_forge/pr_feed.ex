@@ -5,10 +5,13 @@ defmodule TalesForge.PrFeed do
   one is deployed (playtest, production) and how many were merged today and
   this week.
 
-  - `TalesForge.PrFeed.Poller` polls GitHub server-side (every 60 s by default,
-    with `If-None-Match`, so an unchanged answer costs no rate limit), builds a
-    `t:snapshot/0` with `build/2`, stores it (`snapshot/0`) and broadcasts it on
-    PubSub (`subscribe/0`). Browsers never call GitHub.
+  - `TalesForge.PrFeed.Poller` holds the feed. GitHub webhooks
+    (`TalesForge.GitEvents`, topic `"github"`) update it event by event
+    (`TalesForge.PrFeed.Live`). A full read of GitHub (with `If-None-Match`,
+    so an unchanged answer costs no rate limit) builds it at boot and every
+    30 min (`TalesForge.PrFeed.Reconcile`). Each new snapshot is stored
+    (`snapshot/0`) and broadcast on PubSub (`subscribe/0`). Browsers never
+    call GitHub.
   - The token is the Fly secret `GITHUB_FEED_TOKEN` (config `:pr_feed_token`):
     a fine-grained, read-only token for the repo. Unset or blank: nothing is
     fetched and the snapshot's status is `:not_configured`.
@@ -97,6 +100,10 @@ defmodule TalesForge.PrFeed do
           }
         }
 
+  @doc "How many pull requests the feed shows."
+  @spec shown() :: pos_integer()
+  def shown, do: @shown
+
   @doc "The PubSub topic the poller broadcasts `{:pr_feed, snapshot}` on."
   @spec topic() :: String.t()
   def topic, do: @topic
@@ -175,7 +182,7 @@ defmodule TalesForge.PrFeed do
 
   One poll that can't read every page (a timeout, a rate limit, GitHub down)
   thus doesn't flip the pages to the bundled `data.json`; the poller keeps
-  refreshing the count in the background every interval.
+  refreshing the count in each reconcile.
   """
   @spec pace(DateTime.t()) :: Pace.t() | nil
   def pace(now \\ DateTime.utc_now()) do
@@ -267,7 +274,12 @@ defmodule TalesForge.PrFeed do
   defp pace(pulls, commits, now) when is_list(commits), do: Pace.build(pulls, commits, now)
   defp pace(_pulls, _commits, _now), do: nil
 
-  defp item(pr, ci, main, running) do
+  @doc """
+  One shown item from a pull request, CI by head commit, main (a list or a
+  `TalesForge.PrFeed.Deploys.index/1`) and the commit each app runs.
+  """
+  @spec item(pr(), map(), [String.t()] | Deploys.index() | nil, map()) :: item()
+  def item(pr, ci, main, running) do
     %{
       number: pr.number,
       title: pr.title,
@@ -295,7 +307,11 @@ defmodule TalesForge.PrFeed do
   defp event_at(%{state: :closed, closed_at: at}) when not is_nil(at), do: at
   defp event_at(pr), do: pr.created_at || pr.updated_at
 
-  defp event_unix(pr) do
+  @doc "The Unix time a pull request is listed by (0 when unknown)."
+  @spec event_unix(pr() | item()) :: integer()
+  def event_unix(%{at: at}), do: if(at, do: DateTime.to_unix(at), else: 0)
+
+  def event_unix(pr) do
     case event_at(pr) do
       nil -> 0
       at -> DateTime.to_unix(at)

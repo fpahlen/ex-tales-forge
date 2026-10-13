@@ -84,6 +84,91 @@ defmodule TalesForge.PrFeed.Pace do
     }
   end
 
+  @doc """
+  Updates `pace` for one pull request that changed (`old` is its earlier
+  version, or nil when it is new), at `now`. No full recount.
+
+      iex> alias TalesForge.PrFeed.Pace
+      iex> pace = Pace.build([], [], ~U[2026-10-09 12:00:00Z])
+      iex> open = %{number: 1, state: :open, created_at: ~U[2026-10-09 08:00:00Z], merged_at: nil}
+      iex> pace = Pace.put_pr(pace, nil, open, ~U[2026-10-09 12:00:00Z])
+      iex> merged = %{open | state: :merged, merged_at: ~U[2026-10-09 10:00:00Z]}
+      iex> pace = Pace.put_pr(pace, open, merged, ~U[2026-10-09 12:00:00Z])
+      iex> {pace.prs_total, pace.prs_open, pace.prs_merged, pace.prs_by_day}
+      {1, 0, 1, [%{"date" => "2026-10-09", "created" => 1, "merged" => 1}]}
+  """
+  @spec put_pr(t(), map() | nil, map(), DateTime.t()) :: t()
+  def put_pr(pace, old, new, %DateTime{} = now) do
+    pace
+    |> Map.update!(:prs_total, &(&1 + if(old, do: 0, else: 1)))
+    |> count_state(old, -1)
+    |> count_state(new, 1)
+    |> bump_pr_day("created", if(old == nil, do: new.created_at))
+    |> bump_pr_day("merged", newly_merged(old, new))
+    |> Map.merge(%{as_of: day(now), fetched_at: now})
+  end
+
+  @doc """
+  Adds new commits of main (each `%{sha, at}`) to `pace`, at `now`.
+
+      iex> alias TalesForge.PrFeed.Pace
+      iex> pace = Pace.build([], [], ~U[2026-10-09 12:00:00Z])
+      iex> pace = Pace.add_commits(pace, [%{sha: "a", at: ~U[2026-10-09 08:00:00Z]}], ~U[2026-10-09 12:00:00Z])
+      iex> {pace.commits, pace.commits_by_day, pace.first_commit}
+      {1, [%{"date" => "2026-10-09", "count" => 1}], "2026-10-09"}
+  """
+  @spec add_commits(t(), [commit()], DateTime.t()) :: t()
+  def add_commits(pace, commits, %DateTime{} = now) do
+    by_day = count_by_day(commits, & &1.at)
+
+    days =
+      Enum.reduce(by_day, pace.commits_by_day, fn {date, n}, days ->
+        bump(days, date, "count", n, %{"date" => date, "count" => 0})
+      end)
+
+    %{
+      pace
+      | commits: pace.commits + length(commits),
+        commits_by_day: days,
+        first_commit: days |> List.first() |> then(&(&1 && &1["date"])),
+        as_of: day(now),
+        fetched_at: now
+    }
+  end
+
+  defp count_state(pace, nil, _n), do: pace
+  defp count_state(pace, %{state: :merged}, n), do: Map.update!(pace, :prs_merged, &(&1 + n))
+  defp count_state(pace, %{state: :open}, n), do: Map.update!(pace, :prs_open, &(&1 + n))
+
+  defp count_state(pace, %{state: :closed}, n),
+    do: Map.update!(pace, :prs_closed_unmerged, &(&1 + n))
+
+  defp count_state(pace, _other, _n), do: pace
+
+  defp newly_merged(%{state: :merged}, _new), do: nil
+  defp newly_merged(_old, %{state: :merged, merged_at: at}), do: at
+  defp newly_merged(_old, _new), do: nil
+
+  defp bump_pr_day(pace, _key, nil), do: pace
+
+  defp bump_pr_day(pace, key, %DateTime{} = at) do
+    date = day(at)
+    empty = %{"date" => date, "created" => 0, "merged" => 0}
+    %{pace | prs_by_day: bump(pace.prs_by_day, date, key, 1, empty)}
+  end
+
+  # Adds `n` to `key` of the entry for `date` in a list sorted by date, or
+  # puts a new entry in its place.
+  defp bump(days, date, key, n, empty) do
+    case Enum.split_while(days, &(&1["date"] < date)) do
+      {before, [%{"date" => ^date} = entry | rest]} ->
+        before ++ [Map.update!(entry, key, &(&1 + n)) | rest]
+
+      {before, rest} ->
+        before ++ [Map.update!(empty, key, &(&1 + n)) | rest]
+    end
+  end
+
   # Counts per UTC hour first, then names the day of each hour once: the
   # Stockholm offset changes only on a full UTC hour, so all instants of one
   # UTC hour fall on one local day. This calls `day/1` once per hour, not

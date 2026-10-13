@@ -26,6 +26,8 @@ defmodule TalesForge.Application do
       TalesForge.AdminAuth.MembershipCache,
       TalesForge.Survey.Cache,
       TalesForge.PrFeed.Poller,
+      # Production: the board follows GitHub webhooks (topic "github").
+      TalesForge.Board.GitHubEvents,
       TalesForgeWeb.Endpoint,
       # Playtest only: the hourly code heat map sample (TalesForge.CodeHeat).
       TalesForge.CodeHeat.Sampler,
