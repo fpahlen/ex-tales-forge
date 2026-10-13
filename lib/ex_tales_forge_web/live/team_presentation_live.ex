@@ -112,7 +112,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     "playtest" =>
       "Our separate copy of the game for testing. Every merge goes here first, by itself.",
     "prod" =>
-      "Where players are. Admin-only changes (the fast lane) go here by themselves after playtest. Other changes go here by themselves after a founder's Approve and Gentry's check.",
+      "Where players are. Admin-only changes (the fast lane) go here by themselves after playtest. Other changes go to production after a playtest pass and a founder's OK.",
     "done" =>
       "Bobby moves the card to Done. The board allows it only when the merge commit runs on production."
   }
