@@ -227,7 +227,9 @@ defmodule TalesForge.Game.Schemas do
               lp_awarded: nil,
               notes: nil,
               improvements: [],
-              training: nil
+              training: nil,
+              parts: nil,
+              split: nil
 
     def decode(map) when is_map(map) do
       %__MODULE__{
@@ -238,7 +240,9 @@ defmodule TalesForge.Game.Schemas do
         lp_awarded: Map.get(map, "lp_awarded"),
         notes: Map.get(map, "notes"),
         improvements: Map.get(map, "improvements") || [],
-        training: Map.get(map, "training")
+        training: Map.get(map, "training"),
+        parts: Map.get(map, "parts"),
+        split: Map.get(map, "split")
       }
     end
 
@@ -251,7 +255,9 @@ defmodule TalesForge.Game.Schemas do
         "lp_awarded" => res.lp_awarded,
         "notes" => res.notes,
         "improvements" => res.improvements || [],
-        "training" => res.training
+        "training" => res.training,
+        "parts" => res.parts,
+        "split" => res.split
       }
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
       |> Map.new()

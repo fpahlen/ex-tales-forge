@@ -243,6 +243,7 @@ defmodule TalesForge.Game.Intent do
     parameters =
       %{}
       |> maybe_put_skill(skill, action_type)
+      |> maybe_put_split(raw_action, TalesForge.Config.skill_split?())
       |> maybe_put_wait_ticks(raw_action, action_type)
       |> maybe_put_train_skill(raw_action, action_type)
       |> Map.merge(infer_inventory_parameters(raw_action, action_type, context, target_npc))
@@ -606,6 +607,17 @@ defmodule TalesForge.Game.Intent do
       lowered
     )
   end
+
+  # SKILL_SPLIT=on: the Elixir backup of the Jev split field ("twice",
+  # "two attacks"). The split needs a skill to split.
+  defp maybe_put_split(%{"skill" => _} = params, raw_action, true) do
+    case TalesForge.Game.SkillSplit.count_from_text(raw_action) do
+      1 -> params
+      count -> Map.put(params, "split", count)
+    end
+  end
+
+  defp maybe_put_split(params, _raw_action, _on), do: params
 
   defp inventory_target(action_type, target_location, target_npc, target_fixture, parameters) do
     case action_type do

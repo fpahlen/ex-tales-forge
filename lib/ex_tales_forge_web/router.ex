@@ -114,6 +114,9 @@ defmodule TalesForgeWeb.Router do
       live "/play/sessions/:id/npcs", NpcLive.Index, :index
       live "/play/sessions/:id/npcs/:npc_id", NpcLive.Show, :show
       live "/play/sessions/:id/turns", TurnLive.Index, :index
+      # Founders: session versus canon (a review per session, on a button)
+      live "/founders/canon-review", CanonReviewLive.Index, :index
+      live "/founders/canon-review/:id", CanonReviewLive.Show, :show
       # Operate
       live "/operate/costs", CostsLive, :index
       live "/operate/code-heat", CodeHeatLive, :index

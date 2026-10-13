@@ -139,6 +139,20 @@ High skill levels in a domain grant **contextual stat bonuses** when performing 
 
 ---
 
+<!-- skill_split:on -->
+## Skill Split by Skill Family
+
+The rule is in `core_mechanics.md`, "Skill split". This table gives the meaning of each part for a skill family.
+
+| Skill family | Meaning of a split |
+|--------------|--------------------|
+| Combat (melee, ranged, unarmed) | Each part is one attack. One foe parries one attack at most, so the other attacks get no parry. |
+| Climbing | Each part is one stretch of the climb. Two successful parts give double climb speed. |
+| Lockpicking | Each part is one lock. |
+| Persuasion | Each part is one listener. |
+| Default (a skill with no entry) | Each part is a separate attempt in the same turn. |
+
+<!-- /skill_split:on -->
 ## LP Progression: Learn From Failure, Sleep On It (Physical Skills: Right Away)
 
 A failed or partial roll banks one Learning Point for the skill rolled; a success banks nothing, and nothing spills to other skills. Banked LP are resolved on the next long rest (sleep, or six hours or more of rest). One improvement roll costs ceil(level / 3) LP; roll 1d20, and at least 11 and at least the current level raises the skill by 1. The rolls stop at the first success, at most +1 per skill per night, and then the skill's LP are gone, success or not. From level 10 the character must also reflect on the skill (think it over, practise or study it deliberately, or train with a trainer) before a rest resolves it; until then its LP stay banked.

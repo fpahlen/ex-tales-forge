@@ -97,6 +97,7 @@ defmodule TalesForge.Prompt.Profile do
       Sections.OutcomeRecord,
       Sections.NoticedDetails,
       Sections.Premise,
+      Sections.SkillSplit,
       Sections.RestGrowth,
       Sections.PlayerRequest
     ]
@@ -112,6 +113,7 @@ defmodule TalesForge.Prompt.Profile do
   defp include?(Sections.NpcMemory, ctx), do: Ctx.flag?(ctx, :npc_dialogue_memory)
   defp include?(Sections.OutcomeRecord, ctx), do: Ctx.flag?(ctx, :turn_outcome_record)
   defp include?(Sections.NoticedDetails, ctx), do: Ctx.flag?(ctx, :skill_detail_level)
+  defp include?(Sections.SkillSplit, ctx), do: Ctx.flag?(ctx, :skill_split)
   defp include?(section, ctx) when section in @default_only, do: not Ctx.baseline?(ctx)
   defp include?(_section, _ctx), do: true
 end

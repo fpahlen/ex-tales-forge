@@ -152,6 +152,15 @@ defmodule TalesForge.Board.OutboxTest do
     refute_receive {:request, _, _, _, _}
   end
 
+  test "a comment by a bot wakes no bot, and a bot never wakes itself" do
+    {:ok, idea} = Board.create_idea(@ada, %{"title" => "Brenna remembers regulars"})
+    {:ok, _} = Board.add_comment(idea, "bot:case", "@bobby how big is this? cc @case")
+    {:ok, _} = Board.add_comment(idea, "bot:bobby", "@bobby I start now. @devops")
+    refute_receive {:request, _, _, _, _}
+    assert Board.comment_wakes("bot:case", "@case") == []
+    assert Board.comment_wakes(@ada, "@case") == [:case]
+  end
+
   test "a @mention wakes that bot" do
     {:ok, idea} = Board.create_idea(@ada, %{"title" => "Brenna remembers regulars"})
     {:ok, _} = Board.add_comment(idea, @ada, "@bobby how big is this?")

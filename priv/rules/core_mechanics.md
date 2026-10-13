@@ -33,6 +33,23 @@ This is a skill-based fantasy RPG system where character progress is measured by
   - **Knowledge/Magic**: Arcana, History, Herbalism, Spellcasting, Ritual Magic.
   - **Craft/Utility**: Crafting, Lockpicking, Animal Handling, Alchemy, First Aid.
 
+<!-- skill_split:on -->
+## Skill split
+
+A character with a high skill can split one skill action into parts in one turn. The server rolls each part. The thresholds use the d100 scale.
+
+- **Unlock**: The raw skill level unlocks the split. The stat bonus does not count for the unlock. The split starts at raw level 100.
+- **Two even parts**: From raw level 100, the player splits the action into two even parts. Example: level 100 gives two parts at 50.
+- **Three parts or uneven parts**: From raw level 150, the player can also split into three even parts, or into two uneven parts. Each uneven part is 25 or more. Example: level 150 gives three parts at 50, or two parts at 95 and 55.
+- **Sum**: The parts always sum to the skill level. When the level does not divide evenly, the first parts get 1 more.
+- **Rolls**: Each part rolls as a normal skill roll at its part level. The natural 1, natural 20 and partial success rules apply to each part.
+- **Learning**: A split action banks one learning chance at most, also when more than one part fails.
+- **Every skill**: Every skill can split. The skill table in `skills.md` gives the meaning of a split for each skill family. A skill with no entry in the table: the parts are separate attempts in the same turn.
+- **Foes**: A foe can split Dodge and parry more than one attack. In v1 this is rules text only; the server rolls no foe split.
+- **Refusal**: Below the start level, or below level 150 for three parts or uneven parts, the server rolls one normal attempt. The story tells the player that the split needs more skill.
+- **Combat**: The split replaces the old Multi-Actions rule (-2 for each extra action).
+
+<!-- /skill_split:on -->
 ## Trainers and Adventures
 
 - **Trainers**: NPCs with skill level ≥5 above the character's. A training session is one free improvement attempt (no LP) with +5 to the roll (1d20 + 5 ≥ 11 and ≥ skill).

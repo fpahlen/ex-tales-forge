@@ -326,6 +326,13 @@ defmodule TalesForge.BoardTest do
       Oban.Testing.with_testing_mode(:manual, fn ->
         q = "After how many visits?"
         idea = idea!() |> refined!()
+
+        # The move to Refining woke Case. An answer within 2 minutes merges into
+        # that wake (TalesForge.Board.WakeMerge); later, it wakes Case again.
+        {:ok, _} = Board.answer_question(idea, @ada, q, %{"answer" => "One."})
+        assert wakes("question.answered") == []
+        age_jobs!(180)
+
         {:ok, idea} = Board.answer_question(idea, @ada, q, %{"answer" => "Two."})
 
         assert [job] = wakes("question.answered")
@@ -335,6 +342,7 @@ defmodule TalesForge.BoardTest do
                  job.args["payload"]["question"]
 
         {:ok, idea} = Board.move(idea, {:bot, :case}, "check")
+        age_jobs!(180)
 
         {:ok, idea} =
           Board.answer_question(idea, @bo, "After how many visits?", %{"deferred" => true})
@@ -349,5 +357,13 @@ defmodule TalesForge.BoardTest do
       |> TalesForge.Repo.all()
       |> Enum.filter(&(&1.args["event"] == event))
     end
+  end
+
+  # Makes every job `seconds` older, so the 2 minute wake merge window is over.
+  defp age_jobs!(seconds) do
+    TalesForge.Repo.query!(
+      "UPDATE oban_jobs SET inserted_at = inserted_at - make_interval(secs => $1)",
+      [seconds]
+    )
   end
 end

@@ -46,7 +46,8 @@ defmodule TalesForge.Prompt.Ctx do
       npc_dialogue_memory: TalesForge.Config.npc_dialogue_memory?(),
       npc_reactions: TalesForge.Config.npc_reactions?(),
       world_agents: TalesForge.Config.world_agents?(),
-      skill_detail_level: TalesForge.Config.skill_detail_level?()
+      skill_detail_level: TalesForge.Config.skill_detail_level?(),
+      skill_split: TalesForge.Config.skill_split?()
     }
   end
 

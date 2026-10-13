@@ -74,6 +74,13 @@ defmodule TalesForgeWeb.AdminSections do
           nav: true
         },
         %{label: "Decision log (doc)", path: "/admin/docs/decisions.md", kind: :live},
+        %{
+          label: "Session versus canon",
+          path: "/admin/founders/canon-review",
+          kind: :live,
+          key: "canon_review",
+          nav: true
+        },
         %{label: "Roadmap 2027", path: "/admin/docs/roadmap-2027.md", kind: :live}
       ]
     },
