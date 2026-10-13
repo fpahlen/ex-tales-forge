@@ -11,6 +11,50 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Session versus canon
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part 5 of 5 from the World building card. Rough cost: M.
+- **Why:** **Problem.** Session play writes new facts into the database. Canon stays in the world seed files. Founders have no review list that compares one session with canon.
+
+**Goal.** A founder opens a review list for one session. The list shows each difference with canon. For each difference, the founder selects Keep as session-only, Add to canon, or Mark as an error. Only a founder can change canon.
+
+**Rules from the card and the parent.**
+- Canon is the world seed in the repo. Each game session lives in the database.
+- Founders promote good session facts into the world seed.
+- This card is part 5 of 5 from World building. Build it after World definition, World seed format, Continuity check and Founder world editor.
+
+**Existing code (high confidence).**
+1. `session_events` stores play facts per session. Kind `world_fact` holds facts from `TalesForge.World.Extract`.
+2. `TalesForge.World` loads pack facts from `priv/adventures/<id>/world_agents.json`. Agents hold pack facts and session facts.
+3. The ADR `design-game-data-vs-sessions.md` already sets game data in git and sessions in Postgres. It also allows export of a session back toward a seed.
+4. Continuity check (card 3) blocks bad writes at edit time. This card reviews what play already wrote.
+
+**Plan.**
+1. Add one pure function that diffs one session against its pinned seed. Inputs are plain structs. Output is a list of difference structs.
+2. For structured facts, Elixir does the diff. It compares entity ids, places and typed `world_fact` rows with the seed.
+3. For free text that has no clear entity, one Jev call assigns a fixed label to each leftover. Labels are new_npc, changed_place, conflict or other. Jev does not write prose.
+4. Show the list in the founder tools, next to the world editor. Each row has the three actions from the card.
+5. Keep as session-only stores a founder decision on that difference. The session stays as it is.
+6. Add to canon writes a seed change through the same path as the world editor. A founder must confirm the write.
+7. Mark as an error records the error. See open question 3 for the session side.
+8. Put model calls and file writes at the edges. The turn pipe does not run this review.
+
+**Call-type rule.** Structured session rows versus structured seed fields are a function call. Classification of leftover free text is a Jev call. An LLM does not invent canon text.
+
+**Architecture.** Data, then pure transforms, then data. One module owns the diff. One module owns the founder decision write.
+
+**Risks.**
+- A large session can flood the list. Mitigation: group by entity and cap the first page.
+- Add to canon needs the seed schema and the editor write path. Mitigation: ship this card last in the agreed order.
+- A bad promote can break Tin Valley. Mitigation: founder confirm, and prefer a pull request for the first version.
+
+**Confidence.** High confidence in the split of canon and session, and in reuse of `session_events` and `TalesForge.World`. Medium confidence in the cost until the seed write path is fixed on the editor card.
+
+**Verdict.** feasible_with_caveats. The pieces exist. The caveats are seed format, editor write path, and a clear hybrid of Elixir plus Jev. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-9616b9a0-7656-407b-bb02-da4aba208908)
+
+<!-- board:idea:9616b9a0-7656-407b-bb02-da4aba208908 -->
+
 ## 2026-10-13: World building
 
 - **Decision (hawkan.fredriksson@gmail.com, 2026-10-13, on the idea board):** build it. We need to create some world building tool. How we create a world, what should be created, what should automatically be added. How we extend the world later on.
