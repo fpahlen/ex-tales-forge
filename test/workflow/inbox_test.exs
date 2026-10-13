@@ -9,7 +9,7 @@ defmodule Workflow.InboxTest do
   @team Workflow.Team.example()
 
   test "each rule has a test in this file" do
-    tested = ~w(mention pr_approval founder_check)
+    tested = ~w(mention pr_approval founder_check ci_failed deploy_failed)
     assert Enum.map(Inbox.rules(), & &1.id) == tested
   end
 
@@ -126,6 +126,51 @@ defmodule Workflow.InboxTest do
     test "a card that leaves Founder check closes its question items" do
       assert Inbox.closes(@team, %Event{type: :check_left, idea_id: "i1"}) ==
                [%{recipient: :all, scope: {:idea_rule, "i1", "founder_check"}}]
+    end
+  end
+
+  # Ada has the run rules here; Örjan and Lin have no rules.
+  defp run_team do
+    [ada | rest] = @team.founders
+    %{@team | founders: [%{ada | inbox: ["mention", "ci_failed", "deploy_failed"]} | rest]}
+  end
+
+  defp run(type, workflow),
+    do: %Event{
+      type: type,
+      source_id: "run-#{workflow}-abc",
+      workflow: workflow,
+      sha: "abc",
+      url: "https://github.com/o/r/commit/abc",
+      body: "#{workflow} failed on main at abc."
+    }
+
+  describe "rule ci_failed" do
+    test "a failed CI run on main makes one ack item for each founder with the rule" do
+      assert [item] = Inbox.route(run_team(), run(:workflow_failed, "CI"))
+
+      assert {item.recipient, item.rule, item.kind, item.source} ==
+               {"ada", "ci_failed", :ack, :github}
+
+      assert item.title == "CI"
+      assert item.url == "https://github.com/o/r/commit/abc"
+      assert Inbox.route(@team, run(:workflow_failed, "CI")) == []
+    end
+
+    test "a passed CI run on main closes the CI items for all founders" do
+      assert Inbox.closes(@team, run(:workflow_passed, "CI")) ==
+               [%{recipient: :all, scope: {:workflow, "CI"}}]
+    end
+  end
+
+  describe "rule deploy_failed" do
+    test "a failed deploy run on main makes one ack item" do
+      assert [%{rule: "deploy_failed", title: "Deploy to playtest"}] =
+               Inbox.route(run_team(), run(:workflow_failed, "Deploy to playtest"))
+    end
+
+    test "a failed run of another workflow makes no item" do
+      assert Inbox.route(run_team(), run(:workflow_failed, "Dialyzer")) == []
     end
   end
 

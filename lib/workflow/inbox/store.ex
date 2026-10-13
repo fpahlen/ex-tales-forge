@@ -68,6 +68,23 @@ defmodule Workflow.Inbox.Store do
   defp where_scope(q, {:source, source, source_id}),
     do: where(q, [r], r.source == ^source and r.source_id == ^source_id)
 
+  defp where_scope(q, {:workflow, workflow}),
+    do: where(q, [r], r.source == :github and r.title == ^workflow)
+
+  @doc """
+  Stores the items of one event that has no change of its own (a GitHub
+  run), in one transaction, and tells the subscribers. Gives the number of
+  new items.
+  """
+  @spec record(Team.t(), Event.t()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def record(%Team{} = team, %Event{} = event) do
+    TalesForge.Repo.transaction(fn repo ->
+      {:ok, n} = apply_event(event, repo, team)
+      n
+    end)
+    |> tap(fn _ -> broadcast() end)
+  end
+
   @doc "The open items of `handle`, in queue order."
   @spec open(String.t() | nil) :: [Record.t()]
   def open(nil), do: []

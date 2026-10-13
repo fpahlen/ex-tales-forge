@@ -16,10 +16,16 @@ defmodule Workflow.Inbox do
   | `mention` | a comment or a chat message names the founder | answer | one item for each named founder |
   | `pr_approval` | a PR on a card waits for a founder's OK | approve | one item for each founder with the rule |
   | `founder_check` | a card moves to Founder check with open questions | answer | one item for each open question |
+  | `ci_failed` | the `CI` workflow fails on main | ack | one item for each founder with the rule |
+  | `deploy_failed` | a `Deploy to ...` workflow fails on main | ack | one item for each founder with the rule |
 
   The OK on a PR is also the deploy approval: in the normal deploy lane, the
   founder's Approve ships the merge to production after playtest
   (`docs/DEPLOY-FLY.md`). Thus one rule gives the PR and deploy approvals.
+
+  The `ci_failed` and `deploy_failed` events have no tag: they name no card
+  and no person. A failed CI run on the head of a PR on a card wakes the
+  builder (`TalesForge.Board.GitHubEvents`), so it makes no inbox item.
 
   ## Close
 
@@ -34,6 +40,8 @@ defmodule Workflow.Inbox do
     * A founder answers or defers a Founder check question. This closes the
       item of that question for all recipients.
     * The card leaves Founder check. This closes its `founder_check` items.
+    * The same workflow passes on main. This closes the open items of that
+      workflow for all recipients.
 
   ## Queue
 
@@ -57,6 +65,7 @@ defmodule Workflow.Inbox do
             {:idea, String.t()}
             | {:idea_rule, String.t(), String.t()}
             | {:source, :question, String.t()}
+            | {:workflow, String.t()}
             | :chat
         }
 
@@ -81,6 +90,18 @@ defmodule Workflow.Inbox do
       kind: :answer,
       events: [:check_questions],
       about: "A card moves to Founder check with open questions."
+    },
+    %{
+      id: "ci_failed",
+      kind: :ack,
+      events: [:workflow_failed],
+      about: "The CI workflow fails on main."
+    },
+    %{
+      id: "deploy_failed",
+      kind: :ack,
+      events: [:workflow_failed],
+      about: "A deploy workflow fails on main."
     }
   ]
 
@@ -88,7 +109,7 @@ defmodule Workflow.Inbox do
   The rules, in order. Each rule is one entry.
 
       iex> Workflow.Inbox.rules() |> Enum.map(& &1.id)
-      ["mention", "pr_approval", "founder_check"]
+      ["mention", "pr_approval", "founder_check", "ci_failed", "deploy_failed"]
   """
   @spec rules() :: [rule()]
   def rules, do: @rules
@@ -145,6 +166,12 @@ defmodule Workflow.Inbox do
   defp rule_match?(%{id: "mention"}, %Event{mentions: mentions, author_handle: author}, handle),
     do: handle in mentions and handle != author
 
+  defp rule_match?(%{id: "ci_failed"}, %Event{workflow: workflow}, _handle),
+    do: workflow == "CI"
+
+  defp rule_match?(%{id: "deploy_failed"}, %Event{workflow: workflow}, _handle),
+    do: is_binary(workflow) and String.starts_with?(workflow, "Deploy")
+
   defp rule_match?(%{id: "pr_approval"}, %Event{pr: %{number: n}, idea_id: id}, _handle),
     do: is_integer(n) and is_binary(id)
 
@@ -183,7 +210,7 @@ defmodule Workflow.Inbox do
       source: source(event),
       source_id: source_id(event),
       idea_id: event.idea_id,
-      title: event.title,
+      title: event.title || event.workflow,
       author: event.author,
       body: event.body,
       url: url(event)
@@ -191,6 +218,7 @@ defmodule Workflow.Inbox do
   end
 
   defp source(%Event{type: :pr_waiting}), do: :pr
+  defp source(%Event{type: type}) when type in [:workflow_failed, :workflow_passed], do: :github
   defp source(%Event{type: type}), do: type
 
   # One approve item for each PR head: a new head that waits again makes a new item.
@@ -204,6 +232,7 @@ defmodule Workflow.Inbox do
       "/team#chat"
   """
   @spec url(Event.t()) :: String.t()
+  def url(%Event{url: url}) when is_binary(url), do: url
   def url(%Event{type: :chat}), do: "/team#chat"
   def url(%Event{idea_id: id}) when is_binary(id), do: "/team#idea-" <> id
   def url(%Event{}), do: "/team"
@@ -239,6 +268,9 @@ defmodule Workflow.Inbox do
 
   def closes(_team, %Event{type: :check_left, idea_id: id}) when is_binary(id),
     do: [%{recipient: :all, scope: {:idea_rule, id, "founder_check"}}]
+
+  def closes(_team, %Event{type: :workflow_passed, workflow: workflow}) when is_binary(workflow),
+    do: [%{recipient: :all, scope: {:workflow, workflow}}]
 
   def closes(team, %Event{type: type, author_handle: handle} = event)
       when type in [:comment, :chat] and is_binary(handle) do

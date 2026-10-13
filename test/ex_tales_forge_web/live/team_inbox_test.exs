@@ -193,4 +193,31 @@ defmodule TalesForgeWeb.TeamInboxTest do
 
     assert Store.open(@owner.handle) == []
   end
+
+  test "a failed run on main shows as an ack item, and the a key marks it done", %{conn: conn} do
+    {:ok, _} =
+      Store.record(@team, %Workflow.Inbox.Event{
+        type: :workflow_failed,
+        source_id: "run-CI-abc1234",
+        workflow: "CI",
+        sha: "abc1234",
+        url: "https://github.com/o/r/commit/abc1234",
+        body: "CI failed on main at abc1234."
+      })
+
+    {:ok, view, _} = live(owner(conn), "/team")
+    assert has_element?(view, "#inbox-chip summary", "GitHub: CI")
+
+    assert has_element?(
+             view,
+             ~s(#inbox-chip-body a[href="https://github.com/o/r/commit/abc1234"])
+           )
+
+    refute has_element?(view, "#inbox-answer")
+
+    view |> element("#inbox") |> render_hook("key", %{"key" => "a"})
+    assert has_element?(view, "#inbox-toast", "Marked done.")
+    settle(view)
+    assert Store.open(@owner.handle) == []
+  end
 end
