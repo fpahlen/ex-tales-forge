@@ -7,7 +7,9 @@ defmodule TalesForgeWeb.TeamLive do
      `/team/presentation`);
   2. **What we're going to do** (`#idea-board`): the founders' idea board
      (`TalesForgeWeb.TeamIdeaBoard`, live over `TalesForge.Board`'s PubSub) on
-     production and locally. `/team` lives on production only
+     production and locally. For a founder with inbox rules, the inbox panel
+     (`TalesForgeWeb.TeamInbox`) is under New idea, live over the inbox
+     PubSub (`Workflow.Inbox.Store`). `/team` lives on production only
      (`TalesForge.AppRole`, area `:board`): playtest redirects it there;
   3. **What we're doing now** (`#live`): the live GitHub PR, CI and deploy feed,
      the nested `TalesForgeWeb.TeamPrFeedLive` (`TalesForge.PrFeed`, polled on
@@ -92,6 +94,10 @@ defmodule TalesForgeWeb.TeamLive do
      |> assign(:board?, board_here?())
      |> assign(:connected, connected?(socket))
      |> tap(fn s -> if connected?(s) and board_here?(), do: TalesForge.Board.subscribe() end)
+     |> assign(:inbox?, inbox?(socket))
+     |> tap(fn s ->
+       if connected?(s) and s.assigns.inbox?, do: Workflow.Inbox.Store.subscribe()
+     end)
      |> assign(:d, TeamPage.data())
      |> assign(:nav, @nav)
      |> assign(:anchors, Jason.encode!(TeamPresentationLive.anchors(Workflow.Team.Source.team())))
@@ -120,6 +126,16 @@ defmodule TalesForgeWeb.TeamLive do
        |> assign(:ideas_sort, TalesForgeWeb.TeamIdeaBoard.sort_key(params["sort"]))
        |> assign(:ideas_tags, TalesForge.Board.Tags.parse(params["tags"]))}
 
+  # The inbox panel (TalesForgeWeb.TeamInbox) is on the board, for a founder
+  # with inbox rules.
+  defp inbox?(socket),
+    do:
+      board_here?() and
+        Workflow.Inbox.has_inbox?(
+          Workflow.Team.Source.team(),
+          TalesForge.Chat.handle_for(socket.assigns[:admin_github_login])
+        )
+
   # The board lives on production (and locally); playtest keeps the placeholder.
   defp board_here?, do: TalesForge.AppRole.here?(:board)
 
@@ -128,10 +144,18 @@ defmodule TalesForgeWeb.TeamLive do
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_info({:board, :changed}, socket) do
     send_update(TalesForgeWeb.TeamIdeaBoard, id: "idea-board-live", refresh: true)
-    {:noreply, assign_stats(socket)}
+    {:noreply, socket |> refresh_inbox() |> assign_stats()}
   end
 
+  def handle_info({:inbox, :changed}, socket),
+    do: {:noreply, socket |> refresh_inbox() |> assign_stats()}
+
   def handle_info(_msg, socket), do: {:noreply, socket}
+
+  defp refresh_inbox(%{assigns: %{inbox?: true}} = socket),
+    do: tap(socket, fn _ -> send_update(TalesForgeWeb.TeamInbox, id: "inbox", refresh: true) end)
+
+  defp refresh_inbox(socket), do: socket
 
   @impl true
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()

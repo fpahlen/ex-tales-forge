@@ -83,16 +83,19 @@ defmodule TalesForgeWeb.TeamChatLiveTest do
     assert panel_has?(chat, "[role=alert]", "Write a message first.")
   end
 
-  test "a mention of you shows an unread badge until you open the chat", %{conn: conn} do
+  test "a mention of you goes to the inbox, not to the badge, for a founder with rules", %{
+    conn: conn
+  } do
     {:ok, view, _html} = live(conn, "/admin")
     {_header, chat} = chat(view)
     refute has_element?(chat, "#admin-online-chat-unread")
 
     {:ok, _} = Chat.post("max@example.com", "@fredrik look at this")
-    assert has_element?(chat, "#admin-online-chat-unread", "1")
+    # The signed-in founder has inbox rules: the inbox replaces the badge.
+    refute has_element?(chat, "#admin-online-chat-unread")
+    assert [%{source: :chat}] = Workflow.Inbox.Store.open("fredrik")
 
     chat |> element("#admin-online-chat-button") |> render_click()
-    refute has_element?(chat, "#admin-online-chat-unread")
     assert panel_has?(chat, "#admin-online-chat-messages li", "Mentions you")
   end
 

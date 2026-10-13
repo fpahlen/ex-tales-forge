@@ -56,7 +56,9 @@ defmodule TalesForge.Board.PingsTest do
         login: "hawkan-fredriksson"
       )
 
-    assert [%{count: 1}] = Board.unread_pings(@fredrik_gh)
+    # The founder with inbox rules gets an inbox item, not a ping.
+    assert Board.unread_pings(@fredrik_gh) == []
+    assert [%{recipient: "fredrik"}] = Workflow.Inbox.Store.open("fredrik")
     assert [%{count: 1}] = Board.unread_pings("MaxPahlen")
     assert Board.unread_pings(@hakan_gh) == []
     assert Board.unread_pings("tf-tester") == []

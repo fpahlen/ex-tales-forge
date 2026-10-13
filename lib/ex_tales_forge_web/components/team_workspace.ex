@@ -16,7 +16,9 @@ defmodule TalesForgeWeb.TeamWorkspace do
     * **Pings for you**: the signed-in founder's unread pings, the same number
       the board shows (`TalesForge.Board.unread_pings/1`). Links to
       `#board-pings`. The board shows that list only when you have pings, so
-      at 0 the stat is plain text, not a link.
+      at 0 the stat is plain text, not a link. A founder with inbox rules
+      (`Workflow.Inbox`) sees **Inbox items for you** in its place: the open
+      items in the inbox, with a link to `#inbox`.
 
   Every founder can approve, so the copy names no one role. Copy follows
   the docs repo `docs/team-page/content.md`.
@@ -32,7 +34,8 @@ defmodule TalesForgeWeb.TeamWorkspace do
           ideas: non_neg_integer(),
           check: non_neg_integer(),
           prs: non_neg_integer(),
-          pings: non_neg_integer()
+          pings: non_neg_integer(),
+          inbox?: boolean()
         }
 
   @doc """
@@ -42,12 +45,19 @@ defmodule TalesForgeWeb.TeamWorkspace do
   @spec stats(String.t(), String.t() | nil) :: stats()
   def stats(founder, login) do
     board = Board.board()
+    handle = TalesForge.Chat.handle_for(login)
+    inbox? = Workflow.Inbox.has_inbox?(Workflow.Team.Source.team(), handle)
 
     %{
       ideas: length(board["ideas"] || []),
       check: Enum.count(board["check"] || [], &needs_you?(&1, founder)),
       prs: Enum.count(board["building"] || [], &Board.pr_waiting?/1),
-      pings: login |> Board.unread_pings() |> Enum.map(& &1.count) |> Enum.sum()
+      pings:
+        if(inbox?,
+          do: Workflow.Inbox.Store.count(handle),
+          else: login |> Board.unread_pings() |> Enum.map(& &1.count) |> Enum.sum()
+        ),
+      inbox?: inbox?
     }
   end
 
@@ -98,6 +108,14 @@ defmodule TalesForgeWeb.TeamWorkspace do
             label="PRs waiting for approval"
           />
           <.stat
+            :if={@stats[:inbox?]}
+            id="stat-inbox"
+            href="#inbox"
+            n={@stats.pings}
+            label="Inbox items for you"
+          />
+          <.stat
+            :if={!@stats[:inbox?]}
             id="stat-pings"
             href={if @stats.pings > 0, do: "#board-pings"}
             n={@stats.pings}

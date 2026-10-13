@@ -1162,3 +1162,66 @@ const setupCardUrl = hook => {
     hook.el.removeEventListener("scroll", onScroll, {capture: true})
   }
 }
+
+// The inbox panel (TalesForgeWeb.TeamInbox). Keys: a, Enter, d, e, s, j, k
+// go to the server as "key". In the answer field, Enter sends the answer and
+// Shift+Enter adds a new line. A key in another field, or with Ctrl, Alt or
+// Meta, stays with the page. While a card dialog is open, the keys stay with
+// the dialog. On a phone, a swipe right or left on the item goes to the
+// server as "swipe".
+export const INBOX_KEYS = ["a", "Enter", "d", "e", "s", "j", "k"]
+export const SWIPE_MIN_PX = 60
+
+export const inboxKey = (e, dialogOpen = false) => {
+  if (e.ctrlKey || e.altKey || e.metaKey || e.isComposing || dialogOpen) return null
+  const t = e.target
+  if (t && t.matches && t.matches("[data-inbox-answer]")) {
+    return e.key === "Enter" && !e.shiftKey ? "send" : null
+  }
+  if (t && t.closest && t.closest("input, textarea, select, [contenteditable=true]")) return null
+  if (e.shiftKey && e.key !== "Enter") return null
+  return INBOX_KEYS.includes(e.key) && !(e.key === "Enter" && e.shiftKey) ? e.key : null
+}
+
+export const swipeDir = (dx, dy) => {
+  if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 2) return null
+  return dx > 0 ? "right" : "left"
+}
+
+export const TeamInbox = {
+  mounted() {
+    this.onKey = e => {
+      const dialog = document.querySelector("#board-modal-panel, [aria-modal='true']")
+      const key = inboxKey(e, !!dialog)
+      if (!key) return
+      e.preventDefault()
+      if (key === "send") {
+        const box = e.target
+        if (box.value.trim() !== "") box.form.requestSubmit()
+        return
+      }
+      this.pushEventTo(this.el, "key", {key})
+    }
+    this.onStart = e => {
+      if (!e.target.closest("[data-swipe]") || e.target.closest("textarea, a, button, summary")) return
+      const t = e.changedTouches[0]
+      this.start = {x: t.clientX, y: t.clientY}
+    }
+    this.onEnd = e => {
+      if (!this.start) return
+      const t = e.changedTouches[0]
+      const dir = swipeDir(t.clientX - this.start.x, t.clientY - this.start.y)
+      this.start = null
+      if (dir) this.pushEventTo(this.el, "swipe", {dir})
+    }
+    document.addEventListener("keydown", this.onKey)
+    this.el.addEventListener("touchstart", this.onStart, {passive: true})
+    this.el.addEventListener("touchend", this.onEnd, {passive: true})
+    this.handleEvent("inbox:focus", () => this.el.querySelector("[data-inbox-answer]")?.focus())
+  },
+  destroyed() {
+    document.removeEventListener("keydown", this.onKey)
+    this.el.removeEventListener("touchstart", this.onStart)
+    this.el.removeEventListener("touchend", this.onEnd)
+  },
+}

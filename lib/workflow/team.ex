@@ -36,8 +36,17 @@ defmodule Workflow.Team do
   @typedoc "A bot: `id` is the atom of the bot API and the `bot:<id>` actor."
   @type bot :: %{id: atom(), name: String.t(), role: role()}
 
-  @typedoc "A founder: `handle` is the @mention handle, `github` the GitHub login."
-  @type founder :: %{name: String.t(), handle: String.t(), github: String.t() | nil}
+  @typedoc """
+  A founder: `handle` is the @mention handle, `github` the GitHub login.
+  `inbox` holds the ids of the inbox rules for this founder
+  (`Workflow.Inbox.rules/0`). An empty list gives no inbox.
+  """
+  @type founder :: %{
+          name: String.t(),
+          handle: String.t(),
+          github: String.t() | nil,
+          inbox: [String.t()]
+        }
 
   @type t :: %__MODULE__{
           product_name: String.t(),
@@ -86,7 +95,13 @@ defmodule Workflow.Team do
       founders:
         for f <- Map.fetch!(w, "founders") do
           name = Map.fetch!(f, "name")
-          %{name: name, handle: Map.get(f, "handle") || plain(name), github: f["github"]}
+
+          %{
+            name: name,
+            handle: Map.get(f, "handle") || plain(name),
+            github: f["github"],
+            inbox: Map.get(f, "inbox", [])
+          }
         end,
       bots:
         for b <- Map.fetch!(w, "bots") do
@@ -123,7 +138,7 @@ defmodule Workflow.Team do
         "repo_url" => "https://example.com/org/product",
         "docs_repo" => "org/product-docs",
         "founders" => [
-          %{"name" => "Ada", "github" => "ada-gh"},
+          %{"name" => "Ada", "github" => "ada-gh", "inbox" => ["mention"]},
           %{"name" => "Örjan", "github" => "orjan-gh"},
           %{"name" => "Lin"}
         ],
