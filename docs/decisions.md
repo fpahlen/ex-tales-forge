@@ -11,6 +11,13 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Skill split is built now on d100 numbers, behind SKILL_SPLIT
+
+- **Decision (Fredrik, 2026-10-13 08:09):** Build the skill split now, before the D100 switch card. Use d100-scale numbers. Keep the thresholds in one settings place: split start 100, triple threshold 150, and uneven part 25 or more. Put the split behind the flag `SKILL_SPLIT`, default off. Turn the flag on after the D100 switch. This entry adds to the 2026-10-13 "Skill split" entry below. The uneven part minimum 25 is the d100 form of Håkan's answer 5.
+- **Rules:** The raw skill level unlocks the split. Below 150, the parts are even. From 150, the player can split into three even parts, or into two uneven parts. The parts always sum to the level. A split action banks one learning chance at most. A skill with no table entry gives two separate attempts in the same turn. Every skill can split. A foe Dodge split is rules text only in v1. The split replaces Multi-Actions (-2 for each extra action) in `combat.md`.
+- **Why:** The work can start now, and the numbers change one time only. With the flag off, the prompts and the rolls do not change.
+- **Details:** [ex-tales-forge#231](https://github.com/whyse-ab/ex-tales-forge/pull/231), board card `9915480a-3275-4c78-9278-389cd05b9c69`.
+
 ## 2026-10-13: Character creation
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. We need to have different models for character creation. where you can choose if you want a click-through creation or totally manually with dice rolls or just to give a description and a mix of these of course.
