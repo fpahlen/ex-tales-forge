@@ -11,6 +11,10 @@ defmodule TalesForge.Game.TurnApply do
     * `sleep_after_lodging/3` — "I pay for a room and go to sleep" also
       plays the sleep: eight hours with a paid bed, one hour without one.
     * `unpaid_sleep/1` — the payment failed, so the sleep is one hour.
+    * `service_buy/3` — a purchase of a service ("I buy an ale", "I order
+      a meal") with no item becomes a payment at the service price.
+    * `named_move/3` — a move goes to the place that the text names. A move
+      to a named place that the world does not have is rejected.
     * `unknown_move/2` — a move to a place that the world does not have is
       rejected, and the reason names the exits.
 
@@ -113,6 +117,58 @@ defmodule TalesForge.Game.TurnApply do
   def put_spend_amount(player_action, handler), do: {player_action, handler}
 
   @doc """
+  Makes a purchase of a service with no item a payment at the service price.
+  The purchase has no item when it has no `"item_id"` and its target is
+  empty or a person. Other actions do not change.
+
+  Gentry's playtest session f3a7bac0 on 2026-10-13: Jev read "I order a
+  meal" as a purchase from Marta Kellen, and the purchase cost 0c.
+
+  ## Examples
+
+      iex> alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction, SingleAction}
+      iex> world = %{"npc_state" => %{"marta_kellen" => %{"name" => "Marta Kellen"}}}
+      iex> pa = %PlayerAction{overall_intent: "I order a meal.",
+      ...>   action: %SingleAction{action_type: :buy, target: "marta_kellen", parameters: %{}}}
+      iex> h = %HandlerResult{handler: "inventory", state_hints: %{}}
+      iex> {paid, _h} = TalesForge.Game.TurnApply.service_buy(pa, h, world)
+      iex> {paid.action.action_type, paid.action.parameters["amount_copper"]}
+      {:spend, 5}
+  """
+  @spec service_buy(PlayerAction.t(), HandlerResult.t(), map()) ::
+          {PlayerAction.t(), HandlerResult.t()}
+  def service_buy(
+        %PlayerAction{action: %{action_type: :buy} = action} = player_action,
+        %HandlerResult{handler: "inventory"} = handler,
+        world
+      ) do
+    params = action.parameters || %{}
+    price = spend_copper(player_action.overall_intent)
+
+    if params["item_id"] in [nil, ""] and person_or_nil?(world, action.target) and price > 0 do
+      spend = %{action | action_type: :spend, parameters: Map.put(params, "amount_copper", price)}
+
+      hints =
+        (handler.state_hints || %{})
+        |> Map.put("parameters", spend.parameters)
+        |> Map.put("action_type", "spend")
+
+      {%{player_action | action: spend}, %{handler | state_hints: hints}}
+    else
+      {player_action, handler}
+    end
+  end
+
+  def service_buy(player_action, handler, _world), do: {player_action, handler}
+
+  defp person_or_nil?(_world, nil), do: true
+  defp person_or_nil?(_world, ""), do: true
+
+  defp person_or_nil?(world, target) do
+    Map.has_key?(world["npc_state"] || %{}, target) or target in List.wrap(world["present_npcs"])
+  end
+
+  @doc """
   Adds the sleep of "I pay for a room and go to sleep" to the handler as
   `"sleep_ticks"`: eight hours at a rest place, one hour elsewhere. A
   rejected payment also gets one hour, because the character sleeps without
@@ -171,6 +227,121 @@ defmodule TalesForge.Game.TurnApply do
   end
 
   @doc """
+  Makes a move go to the place that `text` names. The place with the most
+  words in common with the text wins (name, id and fixtures). When the text
+  names a place ("to the old mill") that has no word in common with any
+  place or person of the world, the move is rejected. Other handlers do not
+  change.
+
+  Gentry's playtest session f3a7bac0 on 2026-10-13: Jev always gives a move
+  a known place, so "I walk to the old mill" moved the character into the
+  Weary Pilgrim, and "I go into the Weary Pilgrim inn" moved the character
+  into the Pilgrim Cellar.
+
+  ## Examples
+
+      iex> alias TalesForge.Game.Schemas.HandlerResult
+      iex> world = %{"location_id" => "square", "locations" => %{
+      ...>   "square" => %{"name" => "Crossroads Square", "exits" => ["inn"]},
+      ...>   "inn" => %{"name" => "The Weary Pilgrim", "exits" => ["square", "cellar"]},
+      ...>   "cellar" => %{"name" => "Pilgrim Cellar"}}}
+      iex> h = %HandlerResult{handler: "move", target: "cellar", state_hints: %{"location_id" => "cellar"}}
+      iex> TalesForge.Game.TurnApply.named_move(h, world, "I go into the Weary Pilgrim inn.").state_hints["location_id"]
+      "inn"
+      iex> h = %HandlerResult{handler: "move", target: "inn", state_hints: %{"location_id" => "inn"}}
+      iex> TalesForge.Game.TurnApply.named_move(h, world, "I walk to the old mill by the creek.").state_hints["reason"]
+      "There is no place called old mill near here. The exits from Crossroads Square are: The Weary Pilgrim."
+  """
+  @spec named_move(HandlerResult.t(), map(), String.t() | nil) :: HandlerResult.t()
+  def named_move(%HandlerResult{handler: "move"} = handler, world, text) when is_binary(text) do
+    target = handler.state_hints["location_id"] || handler.target
+    words = words(text)
+
+    scores =
+      world
+      |> Map.get("locations", %{})
+      |> Enum.map(fn {id, loc} -> {id, overlap(words, place_words(id, loc))} end)
+      |> Enum.sort()
+
+    target_score = Enum.find_value(scores, 0, fn {id, s} -> if id == target, do: s end)
+    {best, best_score} = Enum.max_by(scores, fn {_id, s} -> s end, fn -> {nil, 0} end)
+    phrase = place_phrase(text)
+
+    cond do
+      best_score > target_score ->
+        %{
+          handler
+          | target: best,
+            notes: "Move to #{best}.",
+            state_hints: Map.put(handler.state_hints || %{}, "location_id", best)
+        }
+
+      target_score == 0 and unknown_phrase?(phrase, world) ->
+        reject_move(phrase, world)
+
+      true ->
+        handler
+    end
+  end
+
+  def named_move(handler, _world, _text), do: handler
+
+  @place_phrase ~r/\b(?:to|into|towards?)\s+the\s+([\p{L}' -]+?)(?=\s+(?:by|near|on|in|at|with|and|beside|of)\b|[,.!?;]|$)/iu
+  @stop ~w(the and inn)
+
+  # A phrase names an unknown place when it has words and none of them is a
+  # word of a person ("to the barkeep"). A general word ("the inn") is no name.
+  defp unknown_phrase?(nil, _world), do: false
+
+  defp unknown_phrase?(phrase, world) do
+    named = words(phrase)
+    named != [] and overlap(named, people_words(world)) == 0
+  end
+
+  defp place_phrase(text) do
+    case Regex.run(@place_phrase, text) do
+      [_, phrase] -> String.trim(phrase)
+      nil -> nil
+    end
+  end
+
+  defp words(text) do
+    text
+    |> to_string()
+    |> String.downcase()
+    |> String.split(~r/[^\p{L}\p{N}]+/u, trim: true)
+    |> Enum.filter(&(String.length(&1) >= 3 and &1 not in @stop))
+    |> Enum.uniq()
+  end
+
+  defp place_words(id, loc) do
+    [id, loc["name"] | List.wrap(loc["fixtures"])]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.flat_map(&words/1)
+  end
+
+  defp people_words(world) do
+    world
+    |> Map.get("npc_state", %{})
+    |> Enum.flat_map(fn {id, npc} -> words("#{id} #{npc["name"]} #{npc["role"]}") end)
+  end
+
+  defp overlap(words, other), do: Enum.count(words, &(&1 in other))
+
+  defp reject_move(name, world) do
+    %HandlerResult{
+      handler: "narrate",
+      target: name,
+      notes: "Move rejected: the place does not exist. The character stays here.",
+      state_hints: %{
+        "move_rejected" => true,
+        "rejected" => true,
+        "reason" => "There is no place called #{name} near here. " <> exits(world)
+      }
+    }
+  end
+
+  @doc """
   Rejects a move to a place that the world does not have. The reason names
   the exits of the current place. Other handlers do not change.
 
@@ -192,15 +363,7 @@ defmodule TalesForge.Game.TurnApply do
     target = handler.state_hints["location_id"] || handler.target
 
     if is_binary(target) and World.runtime_location(world, target) == %{} do
-      reason =
-        "There is no place called #{String.replace(target, "_", " ")} near here. " <> exits(world)
-
-      %HandlerResult{
-        handler: "narrate",
-        target: target,
-        notes: "Move rejected: the place does not exist. The character stays here.",
-        state_hints: %{"move_rejected" => true, "rejected" => true, "reason" => reason}
-      }
+      target |> String.replace("_", " ") |> reject_move(world)
     else
       handler
     end

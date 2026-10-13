@@ -148,14 +148,22 @@ defmodule TalesForge.Game.Turn.Mechanics do
     end
   end
 
-  # TURN_APPLY_OUTCOMES=on: a payment gets its amount, and a move to an
-  # unknown place is rejected (TalesForge.Game.TurnApply).
+  # TURN_APPLY_OUTCOMES=on: a purchase of a service is a payment, a payment
+  # gets its amount, a move goes to the place that the text names, and a move
+  # to an unknown place is rejected (TalesForge.Game.TurnApply).
   # Takes the {handler, action} pair of premise_block/3. Returns {action, handler}.
   defp apply_outcomes({handler, played}, _world, false), do: {played, handler}
 
   defp apply_outcomes({handler, played}, world, true) do
-    {paid, priced} = TurnApply.put_spend_amount(played, handler)
-    {paid, TurnApply.unknown_move(priced, world)}
+    {bought, served} = TurnApply.service_buy(played, handler, world)
+    {paid, priced} = TurnApply.put_spend_amount(bought, served)
+
+    moved =
+      priced
+      |> TurnApply.named_move(world, played.overall_intent)
+      |> TurnApply.unknown_move(world)
+
+    {paid, moved}
   end
 
   # TURN_APPLY_OUTCOMES=on: "pay for a room and go to sleep" also plays the
