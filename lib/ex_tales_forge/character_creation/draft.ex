@@ -6,7 +6,14 @@ defmodule TalesForge.CharacterCreation.Draft do
 
   * `seed_key` seeds the small per-character variation in the derived OCEAN, so
     a draft gives the same character every time it is finalised.
-  * `base_stats` are the point-buy stats before the race modifier.
+  * `model` is the creation model for the stats: `"point_buy"` (the player
+    spends points) or `"stat_roll"` (the server rolls the dice).
+  * `base_stats` are the stats before the race modifier: the point-buy stats,
+    or the rolled stats in the dice model.
+  * `rolled_stats` is the last dice roll (`nil` before the first roll). The
+    draft keeps it when the player goes back to point buy, so a new roll needs
+    the re-roll.
+  * `rerolls_left` is the number of re-rolls that the player can still use.
   * `race_picks` are the stats chosen for a race bonus with a choice (Human: any
     two; Elf: INT or WIS).
   * `occupation` is the past occupation (an id from the `defaults.json`
@@ -28,7 +35,10 @@ defmodule TalesForge.CharacterCreation.Draft do
             race: "human",
             class: "none",
             occupation: nil,
+            model: "point_buy",
             base_stats: %{},
+            rolled_stats: nil,
+            rerolls_left: 0,
             race_picks: [],
             skills: %{},
             edited: MapSet.new()
@@ -40,7 +50,10 @@ defmodule TalesForge.CharacterCreation.Draft do
           race: String.t(),
           class: String.t(),
           occupation: String.t() | nil,
+          model: String.t(),
           base_stats: %{optional(String.t()) => integer()},
+          rolled_stats: %{optional(String.t()) => integer()} | nil,
+          rerolls_left: non_neg_integer(),
           race_picks: [String.t()],
           skills: %{optional(String.t()) => pos_integer()},
           edited: MapSet.t(atom())

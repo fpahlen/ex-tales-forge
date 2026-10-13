@@ -2,23 +2,32 @@ defmodule TalesForgeWeb.CreateCharacterLive do
   @moduledoc """
   Player character creation screen (`/new/:adventure`).
 
-  Four steps on one LiveView: race, class and past occupation; the 75-point
-  stat buy with the race bonus choices; the skill budget (free levels from the
+  Four steps on one LiveView: the creation model for the stats, race, class
+  and past occupation; the stats (the 75-point buy, or a 4d6 dice roll with
+  one re-roll) with the race bonus choices; the skill budget (free levels from the
   class package, race and occupation, a suggested spread build, up to two
   signature skills); then a typed name and "Begin adventure", which starts a
   session with the created character in place of Elara. All rules live in
   `TalesForge.CharacterCreation`; this module only keeps the draft and renders
   it. Creation makes no AI calls, so it costs nothing (the first character is
-  free). The draft lives in the LiveView process and is lost on reload.
+  free). A point-buy draft lives in the LiveView process and a reload starts
+  again. From the first dice roll, the server keeps the draft
+  (`TalesForge.CharacterDrafts`), so a reload keeps the draft and the roll.
   """
 
   use TalesForgeWeb, :live_view
 
   alias TalesForge.CharacterCreation, as: CC
+  alias TalesForge.CharacterDrafts
   alias TalesForge.GameSessions
 
   @adventures %{"tin_valley" => "Tin Valley", "crossroads_ledger" => "Crossroads Hamlet"}
   @steps [{"origin", "Race & class"}, {"stats", "Stats"}, {"skills", "Skills"}, {"name", "Name"}]
+  @models [
+    {"point_buy", "Point buy", "Spend 75 points on your stats, 3 to 18 for each stat."},
+    {"stat_roll", "Roll the dice",
+     "Roll 4d6 for each stat and keep the highest 3. You get one re-roll."}
+  ]
   @later ["Background", "Standing", "Origin", "Personality & concerns", "AI assist"]
   @stats [
     {"STR", "Strength"},
@@ -37,13 +46,17 @@ defmodule TalesForgeWeb.CreateCharacterLive do
   def mount(%{"adventure" => adventure}, _session, socket) do
     case Map.fetch(@adventures, adventure) do
       {:ok, adventure_name} ->
+        owner = socket.assigns[:admin_github_login] || socket.assigns[:admin_email]
+        draft = (owner && CharacterDrafts.get(owner, adventure)) || CC.new(adventure)
+
         {:ok,
          socket
          |> assign(:page_title, "Create a character · #{adventure_name}")
          |> assign(:adventure, adventure)
          |> assign(:adventure_name, adventure_name)
          |> assign(:options, CC.options(adventure))
-         |> assign(:draft, CC.new(adventure))
+         |> assign(:owner, owner)
+         |> assign(:draft, draft)
          |> assign(:step, "origin")
          |> assign(:name_error, nil)
          |> assign(:refused, nil)}
@@ -54,6 +67,12 @@ defmodule TalesForgeWeb.CreateCharacterLive do
   end
 
   @impl true
+  def handle_event("model", %{"id" => model}, socket),
+    do: update_draft(socket, CC.choose_model(socket.assigns.draft, model))
+
+  def handle_event("reroll", _params, socket),
+    do: update_draft(socket, CC.reroll_stats(socket.assigns.draft))
+
   def handle_event("race", %{"id" => race}, socket),
     do: update_draft(socket, CC.choose_race(socket.assigns.draft, race))
 
@@ -86,7 +105,7 @@ defmodule TalesForgeWeb.CreateCharacterLive do
 
   def handle_event("name", %{"name" => name}, socket) do
     case CC.set_name(socket.assigns.draft, name) do
-      {:ok, draft} -> {:noreply, assign(socket, draft: draft, name_error: nil)}
+      {:ok, draft} -> {:noreply, socket |> save(draft) |> assign(draft: draft, name_error: nil)}
       {:error, {:name, message}} -> {:noreply, assign(socket, :name_error, sentence(message))}
     end
   end
@@ -118,6 +137,9 @@ defmodule TalesForgeWeb.CreateCharacterLive do
 
     case GameSessions.create_session(attrs) do
       {:ok, session} ->
+        if socket.assigns.owner,
+          do: CharacterDrafts.delete(socket.assigns.owner, socket.assigns.adventure)
+
         {:noreply, push_navigate(socket, to: ~p"/play/#{session.id}")}
 
       {:error, _reason} ->
@@ -134,10 +156,20 @@ defmodule TalesForgeWeb.CreateCharacterLive do
   end
 
   defp update_draft(socket, {:ok, draft}),
-    do: {:noreply, assign(socket, draft: draft, refused: nil)}
+    do: {:noreply, socket |> save(draft) |> assign(draft: draft, refused: nil)}
 
   defp update_draft(socket, {:error, {_field, message}}),
     do: {:noreply, assign(socket, :refused, sentence(message))}
+
+  # The server keeps a draft from the first dice roll. A point-buy draft without
+  # a roll stays in the LiveView process, as before.
+  defp save(%{assigns: %{owner: nil}} = socket, _draft), do: socket
+  defp save(socket, %{rolled_stats: nil}), do: socket
+
+  defp save(socket, draft) do
+    :ok = CharacterDrafts.put(socket.assigns.owner, draft)
+    socket
+  end
 
   # A two-stat bonus always holds two picks: a new stat replaces the oldest one.
   defp next_picks(_picks, stat, 1), do: [stat]
@@ -255,10 +287,28 @@ defmodule TalesForgeWeb.CreateCharacterLive do
 
   defp origin_step(assigns) do
     class = Enum.find(assigns.options.classes, &(&1.id == assigns.draft.class))
-    assigns = assign(assigns, :default_occupation, class && class.occupation)
+
+    assigns =
+      assigns
+      |> assign(:default_occupation, class && class.occupation)
+      |> assign(:models, @models)
 
     ~H"""
     <section id="origin-step" class="space-y-6">
+      <fieldset id="creation-model" class="space-y-2">
+        <legend class="play-label mb-2">How you make your stats</legend>
+        <div role="radiogroup" aria-label="Creation model" class="grid gap-2 sm:grid-cols-2">
+          <.choice
+            :for={{id, label, description} <- @models}
+            event="model"
+            id={id}
+            label={label}
+            description={description}
+            selected={@draft.model == id}
+          />
+        </div>
+      </fieldset>
+
       <fieldset class="space-y-2">
         <legend class="play-label mb-2">Race</legend>
         <div role="radiogroup" aria-label="Race" class="grid gap-2 sm:grid-cols-2">
@@ -358,10 +408,38 @@ defmodule TalesForgeWeb.CreateCharacterLive do
       |> assign(:final, CC.final_stats(assigns.draft))
       |> assign(:choice, race_choice(assigns.options, assigns.draft.race))
       |> assign(:stat_names, @stats)
+      |> assign(:rolled, assigns.draft.model == "stat_roll")
 
     ~H"""
     <section id="stats-step" class="space-y-4">
-      <div class="play-panel flex items-center justify-between gap-3 rounded-lg px-4 py-3">
+      <div
+        :if={@rolled}
+        id="stat-roll"
+        class="play-panel flex items-center justify-between gap-3 rounded-lg px-4 py-3"
+      >
+        <div>
+          <p class="play-label">Rolled stats</p>
+          <p class="text-xs text-[var(--paper-muted)]">
+            4d6 for each stat, the highest 3 count. A race bonus stops at {@max}.
+          </p>
+        </div>
+        <button
+          :if={@draft.rerolls_left > 0}
+          type="button"
+          id="reroll"
+          phx-click="reroll"
+          class="rounded border border-[var(--paper-rule)] px-3 py-1 text-sm font-medium text-[var(--paper-ink)] hover:opacity-80"
+        >
+          Re-roll all ({@draft.rerolls_left} left)
+        </button>
+        <p :if={@draft.rerolls_left == 0} id="reroll-used" class="text-sm text-[var(--paper-muted)]">
+          You used your re-roll.
+        </p>
+      </div>
+      <div
+        :if={!@rolled}
+        class="play-panel flex items-center justify-between gap-3 rounded-lg px-4 py-3"
+      >
         <div>
           <p class="play-label">Points left</p>
           <p class="text-xs text-[var(--paper-muted)]">
@@ -416,7 +494,7 @@ defmodule TalesForgeWeb.CreateCharacterLive do
       <div class="play-panel rounded-lg">
         <div class="grid grid-cols-[1fr_auto_3rem_3rem] items-center gap-x-3 border-b border-[var(--paper-rule)] px-4 py-2">
           <span class="play-label">Stat</span>
-          <span class="play-label text-center">Points</span>
+          <span class="play-label text-center">{if @rolled, do: "Roll", else: "Points"}</span>
           <span class="play-label text-center">Race</span>
           <span class="play-label text-center">Total</span>
         </div>
@@ -431,6 +509,7 @@ defmodule TalesForgeWeb.CreateCharacterLive do
           </span>
           <span class="flex items-center gap-2">
             <button
+              :if={!@rolled}
               type="button"
               id={"dec-#{stat}"}
               phx-click="stat"
@@ -442,10 +521,11 @@ defmodule TalesForgeWeb.CreateCharacterLive do
             >
               −
             </button>
-            <span class="w-6 text-center font-mono text-[var(--paper-ink)]">
+            <span id={"base-#{stat}"} class="w-6 text-center font-mono text-[var(--paper-ink)]">
               {@draft.base_stats[stat]}
             </span>
             <button
+              :if={!@rolled}
               type="button"
               id={"inc-#{stat}"}
               phx-click="stat"
