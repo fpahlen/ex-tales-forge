@@ -69,7 +69,25 @@ Shared wiring for now (cards 3 to 5 move these):
 - Founders tools outside the locked list stay unclear. Mitigation: the open questions below.
 - A later card can disagree with this list. Mitigation: change this card first, then update the later cards.
 
-**Confidence.** High confidence in the locked list. Medium confidence for Collab, surveys and admin docs until founders answer. Verdict: feasible with caveats. Rough cost: S.
+**Founder answers (fredrik@whyse.se, 2026-10-13, on the idea board).**
+- Collab decisions (`/admin/founders/decisions`) belong to Tales Forge.
+- Founder surveys belong to Tales Forge.
+- `/admin/docs` split by content: RPG game docs stay with the game; Workflow docs belong to Workflow.
+- The admin home shell at `/admin` stays with the game as a hub.
+
+**Module owners after those answers.**
+
+Workflow also owns Workflow docs under `/admin/docs`.
+
+Game also owns:
+1. Collab decisions (`ExTalesForge.Collab`, `/admin/founders/decisions`)
+2. Founder surveys (`ExTalesForge.Surveys`, `/admin/founders/survey*`)
+3. RPG game docs under `/admin/docs`
+4. The admin home shell at `/admin` (`AdminSections`) as the game hub
+
+The same list lives on the board card and in `priv/team/product-boundary.md` on the app repo.
+
+**Confidence.** High confidence in the full module list after the founder answers. Verdict: feasible with caveats. Rough cost: S.
 - **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-20e31daf-4c74-4bc9-b7c9-c2cf819161f9)
 
 <!-- board:idea:20e31daf-4c74-4bc9-b7c9-c2cf819161f9 -->
