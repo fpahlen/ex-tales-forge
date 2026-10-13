@@ -16,6 +16,10 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
     (`TalesForgeWeb.WorkLogExportController`).
 
   The log counts actions, not open pages. Reading a card is not work time in v1.
+
+  The Gentry (QA) session (`TalesForge.QaLogin`) sees the range form, the
+  totals and the table. It gets no CSV link and no manual form, and the
+  server refuses `add_entry` for it.
   """
 
   use TalesForgeWeb, :live_view
@@ -36,6 +40,7 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
     {:ok,
      socket
      |> assign(:page_title, "Work log")
+     |> assign_new(:qa, fn -> false end)
      |> assign(:d, TalesForge.TeamPage.data())
      |> assign(:from, Date.add(to, -(@default_days - 1)))
      |> assign(:to, to)
@@ -71,6 +76,9 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
       _ -> {:noreply, put_flash(socket, :error, "Give a start date on or before the end date.")}
     end
   end
+
+  def handle_event("add_entry", _params, %{assigns: %{qa: true}} = socket),
+    do: {:noreply, put_flash(socket, :error, TalesForge.QaLogin.refused_message())}
 
   def handle_event("add_entry", %{"entry" => params}, socket) do
     case WorkLog.add_entry(socket.assigns.admin_email, params) do
@@ -146,6 +154,7 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
             </label>
             <button type="submit" class="rounded-full border px-4 py-1.5 text-sm font-semibold">Show</button>
             <a
+              :if={!@qa}
               id="work-log-csv"
               href={
                 ~p"/team/work-log.csv?#{[from: Date.to_iso8601(@from), to: Date.to_iso8601(@to)]}"
@@ -199,7 +208,12 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
           </div>
         </section>
 
-        <section id="work-log-add" aria-labelledby="work-log-add-title" class="max-w-xl space-y-3">
+        <section
+          :if={!@qa}
+          id="work-log-add"
+          aria-labelledby="work-log-add-title"
+          class="max-w-xl space-y-3"
+        >
           <h2 id="work-log-add-title" class="font-serif text-xl font-bold">Add a manual entry</h2>
           <p class="text-sm text-[var(--paper-muted)]">
             Add work outside the app, for example code, meetings or planning.

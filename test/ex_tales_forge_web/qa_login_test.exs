@@ -130,6 +130,38 @@ defmodule TalesForgeWeb.QaLoginTest do
       assert has_element?(pres, "#qa-banner", "cannot change it")
     end
 
+    test "opens /team/work-log read-only: no CSV link, no manual form, add_entry refused" do
+      conn = qa_conn()
+      assert conn |> get("/team/work-log") |> html_response(200)
+
+      {:ok, view, _} = live(conn, "/team/work-log")
+      assert has_element?(view, "#work-log-rows")
+      assert has_element?(view, "#work-log-range-form")
+      refute has_element?(view, "#work-log-csv")
+      refute has_element?(view, "#work-log-add")
+      refute has_element?(view, "#work-log-entry-form")
+
+      view
+      |> element("#work-log-range-form")
+      |> render_submit(%{"range" => %{"from" => "2026-10-01", "to" => "2026-10-09"}})
+
+      refute render(view) =~ QaLogin.refused_message()
+
+      assert render_hook(view, "add_entry", %{
+               "entry" => %{
+                 "founder" => "x@example.com",
+                 "date" => "2026-10-09",
+                 "hours" => "1",
+                 "reason" => "x"
+               }
+             }) =~ "read-only"
+
+      assert TalesForge.Repo.aggregate(TalesForge.WorkLog.Entry, :count) == 0
+
+      assert conn |> recycle() |> get("/team/work-log.csv") |> redirected_to() =~
+               ~r{^/admin/login}
+    end
+
     test "opens no other page" do
       conn = qa_conn()
 
