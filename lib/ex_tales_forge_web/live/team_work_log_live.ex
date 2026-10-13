@@ -12,6 +12,8 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
     (`TalesForge.WorkLog.add_entry/2`). The founder field is the signed-in
     founder by default. For the spreadsheet import, use the reason
     "Imported from spreadsheet" and the original date.
+  - The Slicing Pie shows the hours and the percentage of each contributor
+    for all time (`Workflow.SlicingPie`). The range form does not change it.
   - The CSV link downloads one row for each founder and day
     (`TalesForgeWeb.WorkLogExportController`).
 
@@ -28,9 +30,13 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
   alias TalesForge.WorkLog.{Entry, Report, Sessions}
   alias TalesForgeWeb.Layouts
   alias TalesForgeWeb.TeamLayout
+  alias TalesForgeWeb.TeamPie
   alias TalesForgeWeb.TimeAgo
 
   @default_days 30
+
+  # The first day of the pie. The log has no rows before this day.
+  @pie_from ~D[2000-01-01]
 
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
@@ -46,7 +52,8 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
      |> assign(:from, Date.add(to, -(@default_days - 1)))
      |> assign(:to, to)
      |> assign(:entry_form, entry_form(socket.assigns[:admin_email]))
-     |> load()}
+     |> load()
+     |> load_pie()}
   end
 
   defp entry_form(founder, params \\ %{}) do
@@ -63,6 +70,11 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
   defp load(socket) do
     rows = Report.rows(socket.assigns.from, socket.assigns.to)
     socket |> assign(:rows, rows) |> assign(:totals, Report.totals(rows))
+  end
+
+  defp load_pie(socket) do
+    rows = Report.rows(@pie_from, Report.today())
+    assign(socket, :slices, Workflow.SlicingPie.slices(socket.assigns.team, rows))
   end
 
   @impl true
@@ -91,7 +103,8 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
            "The entry is saved: #{Report.hours(entry.minutes)} h for #{entry.founder}."
          )
          |> assign(:entry_form, entry_form(socket.assigns.admin_email))
-         |> load()}
+         |> load()
+         |> load_pie()}
 
       {:error, cs} ->
         {:noreply,
@@ -166,6 +179,8 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
             </a>
           </.form>
         </section>
+
+        <TeamPie.pie slices={@slices} />
 
         <section id="work-log-totals" aria-labelledby="work-log-totals-title" class="space-y-2">
           <h2 id="work-log-totals-title" class="font-serif text-xl font-bold">
