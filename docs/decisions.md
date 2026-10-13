@@ -1,6 +1,6 @@
 ---
 title: Decision log
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 # Decision log
@@ -10,6 +10,54 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
+
+## 2026-10-13: World building
+
+- **Decision (hawkan.fredriksson@gmail.com, 2026-10-13, on the idea board):** build it. We need to create some world building tool. How we create a world, what should be created, what should automatically be added. How we extend the world later on.
+- **Why:** **Problem.** Founders cannot create or extend a world today. A world lives in an adventure pack in `priv/adventures/<id>`. Founders must edit the pack files by hand.
+
+**Goal.** Founders create a world in a World building menu with a clear path. The game checks new content against the world. Founders decide which session facts become canon.
+
+**Rules from the comments.**
+- Founders build worlds first. Paying players build worlds later. This is a business decision (Fredrik).
+- The pack files are the world seed. Each game session is an instance in the database (Fredrik).
+- A world seed holds scenography, main characters with their means and motives, supporting cast, synopsis and hooks (Fredrik).
+- The world type controls what the game can add in play. A murder mystery defines the full cast. A general fantasy world permits the game to add minor NPCs, for example smiths and bakers (Fredrik).
+- We extend Tin Valley first. Tin Valley stays separate from the production tool. Founders can delete Tin Valley or make it inactive later (Håkan).
+- A world has one of three scopes: Adventure, Region or Universe (Håkan, 2026-10-12).
+- The base game has five skill groups: Martial, Finesse, Social, Knowledge and Craft. A world can rename skills and add its own skills (Håkan, 2026-10-12).
+- Races and character types belong to each world.
+- Each world has a theme text. Founders can add to the theme text at any time (Håkan, 2026-10-13).
+- Founders use a review list to promote good session facts into the world seed (Håkan, 2026-10-13).
+
+**Creation path (agreed by Håkan, 2026-10-13).**
+1. Choose a scope: Adventure, Region or Universe.
+2. Describe the setting and write a short theme text.
+3. Choose skills from the five groups. Add races and character types for this world.
+4. Add important NPCs, locations and factions. Founders can add more later.
+5. Save the world seed. The continuity check then uses this seed.
+
+**Proposed split into five cards.**
+1. World definition (S). Each world states its scope.
+2. World seed format (S-M). One schema in one place for the canon files and the theme text. Packs, the editor and the game read the same shape. Tin Valley moves to this format first.
+3. Continuity check (M). A Jev call compares new content with the seed, the newest theme text and a short world summary. The call returns "consistent" or a list of conflicts with reasons.
+4. Founder world editor (M). The creation path above, as a menu on `/admin`.
+5. Session versus canon (M). A Jev call compares one session in the database with canon. A founder approves each change to canon in the review list.
+
+Recommended order: 1, 2, 3, 4, 5. Cards 1 and 2 are the base for the other cards.
+
+**Existing code.** `TalesForge.World`, `TalesForge.World.Extract` and `TalesForge.World.Agent` already hold world facts. `world_agents.json` holds the facts for each place and person. Fronts hold the factions and their plans. The skill groups are in `priv/rules/skills.md`.
+
+**Architecture.** Each step is a pure function over plain structs. The model calls and file writes stay at the edges.
+
+**Risks.**
+- One model call cannot read a large world in full. Mitigation: keep a short world summary and update it after each change.
+- The game can change canon by mistake. Mitigation: a founder approves each change to canon.
+
+**Confidence.** High confidence in the creation path and the split. Medium confidence in the cost of the continuity check for Universe scope. Verdict: feasible with caveats. Rough cost: L.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-eb7c0641-a3ed-4ac2-b002-ddff6dfe3fc2)
+
+<!-- board:idea:eb7c0641-a3ed-4ac2-b002-ddff6dfe3fc2 -->
 
 ## 2026-10-12: high vs low skills storytelling
 
