@@ -178,7 +178,7 @@ defmodule TalesForgeWeb.TeamChatLive do
         {nil, []}
       end
 
-    unless socket.assigns[:qa] or is_nil(thread),
+    unless socket.assigns[:qa] == true or is_nil(thread),
       do: Chat.mark_read(socket.assigns.login, thread.id)
 
     socket
