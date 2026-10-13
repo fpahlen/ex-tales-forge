@@ -1,9 +1,9 @@
 defmodule TalesForge.CharacterTextStub do
   @moduledoc """
   A test adapter for `TalesForge.CharacterCreation.FromText`. Set the reply
-  with `put/1`: a map, or a function of `(system, user)` that returns
+  with the put function: a map, or a function of `(system, user)` that returns
   `{:ok, map}` or `{:error, reason}`. Each call sends
-  `{:character_text_call, user}` to the test process that called `put/1`.
+  `{:character_text_call, user}` to the test process that set the reply.
   """
   @behaviour TalesForge.CharacterCreation.FromText.Adapter
 
