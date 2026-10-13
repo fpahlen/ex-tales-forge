@@ -1,15 +1,13 @@
 defmodule TalesForgeWeb.TeamPresentationLive do
   @moduledoc """
-  The founders' full presentation at `/team/presentation`, in nine parts
-  (Fredrik's order of 12 Oct 2026): 1. what Tales Forge is and why (the
-  hero), 2. the team, 3. the game and how it plays, 4. how we work: the
-  shared board (section `TalesForgeWeb.TeamBoard`, with how a change flows),
-  5. how we work: rules and bots, 6. how it's wired (6a the path, 6b the
-  stack, hosting, one turn and the call-type rule), 7. playtests and quality
-  (7a Gentry and the personas, 7b Jev under test), 8. pace, cost and goals
-  (with the headline stats) and 9. next steps, together. Fredrik presents
-  from it. `/team` (`TalesForgeWeb.TeamLive`) is the light landing page that
-  links here. Part 3 has a screenshot slot that shows a placeholder for now.
+  The founders' full presentation at `/team/presentation`: who the crew is
+  (the founders and three bots), how a change gets from an idea to the game,
+  how we work, what the game runs on and how it is wired, what the persona playtests and Gentry
+  found, the pace and cost so far, the shared board that founders and bots use
+  every day (section 7, live columns, card counts and team totals) and how to
+  take part, with the board first (section 8). Fredrik presents from
+  it. `/team` (`TalesForgeWeb.TeamLive`) is the light landing page that links
+  here.
 
   Old `/team#section` links are forwarded here by the landing page's anchor
   hook, for the anchors in `anchors/0`.
@@ -68,33 +66,26 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   alias TalesForgeWeb.TeamLayout
   alias TalesForgeWeb.TeamLiveNumbers
 
-  # One slide each in Present mode. The anchors of the old order stay, so old
-  # links still land on the same content.
   @sections [
-    {"hero", "What and why"},
     {"team", "Team"},
-    {"game", "The game"},
-    {TeamBoard.anchor(), "The board"},
-    {"how", "Rules and bots"},
-    {"wired", "Wiring"},
-    {"infrastructure", "Stack"},
+    {"how", "How we work"},
+    {"infrastructure", "Infrastructure"},
+    {"wired", "How it's wired"},
     {"playtests", "Playtests"},
-    {"quality", "Quality"},
     {"pace", "Pace and cost"},
+    {TeamBoard.anchor(), "One shared board"},
     {"together", "Together"}
   ]
 
   # Every place on this page an old `/team#...` link could point at: the
   # sections, plus the named parts inside them. The landing page forwards
   # these (and only these) to `/team/presentation#...`.
-  @anchors Enum.uniq(
-             Enum.map(@sections, &elem(&1, 0)) ++
-               ~w(hero starting-point team-cards) ++
-               Enum.map(~w(founders case bobby gentry), &("member-" <> &1)) ++
-               ~w(flow rule-decisions rule-call-types) ++
-               [TeamCallTypes.anchor()] ++
-               ~w(stack hosting architecture persona-cards shadow-test intent-compare eval-set gentry hostile-play ai-spend)
-           )
+  @anchors Enum.map(@sections, &elem(&1, 0)) ++
+             ~w(hero starting-point team-cards) ++
+             Enum.map(~w(founders case bobby gentry), &("member-" <> &1)) ++
+             ~w(flow rule-decisions rule-call-types) ++
+             [TeamCallTypes.anchor()] ++
+             ~w(stack hosting architecture persona-cards shadow-test intent-compare eval-set gentry hostile-play ai-spend)
 
   @flow_detail %{
     "idea" => "A founder adds a card on the idea board. Votes set the order.",
@@ -128,7 +119,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   The sections of the presentation, in order, as `{anchor, nav label}`.
 
       iex> TalesForgeWeb.TeamPresentationLive.sections() |> Enum.map(&elem(&1, 1)) |> Enum.take(-2)
-      ["Pace and cost", "Together"]
+      ["One shared board", "Together"]
   """
   @spec sections() :: [{String.t(), String.t()}]
   def sections, do: @sections
@@ -138,8 +129,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   use: every section of the nav, then the named parts inside them.
 
       iex> anchors = TalesForgeWeb.TeamPresentationLive.anchors()
-      iex> Enum.take(anchors, 11)
-      ["hero", "team", "game", "board", "how", "wired", "infrastructure", "playtests", "quality", "pace", "together"]
+      iex> Enum.take(anchors, 8)
+      ["team", "how", "infrastructure", "wired", "playtests", "pace", "board", "together"]
       iex> "the-call-type-rule-one-turn-three-call-types" in anchors
       true
   """
@@ -226,18 +217,14 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         class="mx-auto max-w-6xl space-y-20 px-4 pb-16 pt-8 sm:px-6 sm:pt-12"
       >
         <TeamLayout.qa_banner qa={assigns[:qa] == true} read_only={assigns[:read_only] == true} />
-        <.hero />
+        <.hero d={@d} pace={@pace} live={@live} />
         <.team_section d={@d} />
-        <.game_section />
-        <TeamBoard.section d={@d} live={@board_live}>
-          <.change_flow d={@d} />
-        </TeamBoard.section>
         <.how_section d={@d} live={@live} />
-        <.wired_section />
         <.infra_section d={@d} />
+        <.wired_section />
         <.playtests_section d={@d} live={@live} />
-        <.quality_section d={@d} live={@live} />
         <.pace_section d={@d} pace={@pace} live={@live} />
+        <TeamBoard.section d={@d} live={@board_live} />
         <.together_section d={@d} />
       </main>
 
@@ -257,8 +244,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   # ── Present mode ───────────────────────────────────────────────────────────
   # The "Present" button shows one section of the nav per slide, in full
-  # screen: eleven slides, the nine parts with 6 and 7 in two (6a and 6b, 7a
-  # and 7b), the same split as tales-forge-docs docs/team-page/content.md. The JS is
+  # screen (the same split as docs/team-page/content.md). The JS is
   # `setupPresent` in assets/js/team_hooks.js: arrow keys, Space, a click or a
   # swipe go forward and back, and Esc exits. The URL is #slide-N, so a link
   # can open a slide. Without JS, the button does nothing and the page stays
@@ -302,24 +288,33 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  # ── 1. What Tales Forge is and why (the hero) ────────────────────────────
-  # Text approved by Fredrik on 12 Oct 2026. The headline stats are in part 8 and the
-  # "starting point" callout in part 9.
+  # ── 0. Hero ────────────────────────────────────────────────────────────────
+
+  attr :d, :map, required: true
+  attr :pace, :map, required: true, doc: "`TalesForge.TeamPace.current/0`"
+  attr :live, :map, required: true, doc: "`TalesForgeWeb.TeamLiveNumbers.all/3`"
 
   defp hero(assigns) do
     ~H"""
     <section
       id="hero"
-      class="team-section grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
-      aria-labelledby="hero-title"
+      class="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
     >
       <div class="space-y-5">
-        <h1 id="hero-title" class="font-serif text-4xl font-bold leading-tight sm:text-5xl">
-          1. What Tales Forge is and why
+        <h1 class="font-serif text-4xl font-bold leading-tight sm:text-5xl">
+          How Tales Forge gets built
         </h1>
-        <p id="hero-pitch" class="text-lg leading-relaxed text-[var(--paper-muted)]">
-          Tales Forge is an online role-playing game. An AI game master tells the story. You write what your character does, in your own words. The game works out what happens, using real rules and dice. Then the game master tells the story of the result. Our goal is a world that feels alive and fair, where your choices matter.
+        <p class="text-lg leading-relaxed text-[var(--paper-muted)]">
+          The founders and {count_word(bot_count(@d))} bots, one crew, taking a lot of small, careful steps.
+          Here's who does what, how a change gets from an idea to the game, and what we've learned from letting bots play it.
         </p>
+        <aside id="starting-point" class="team-callout flex gap-3 p-4">
+          <TeamArt.seal class="size-10 shrink-0" />
+          <p class="text-sm leading-relaxed sm:text-base">
+            <strong>This is how we work today, and we shape it together.</strong>
+            Every founder can add ideas, vote, answer the open questions and approve PRs on the board. An approved change goes to playtest, Gentry checks it, and then it ships to production by itself. Changes that only touch admin pages ship straight away. This page is an invitation to shape the rest with us.
+          </p>
+        </aside>
       </div>
       <div class="team-card overflow-hidden p-3">
         <TeamArt.picture
@@ -331,18 +326,44 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           class="block aspect-video h-auto w-full rounded-lg object-cover"
         />
       </div>
+      <div class="grid gap-3 sm:grid-cols-3 lg:col-span-2">
+        <.stat
+          id="stat-prs-merged"
+          value={number(@pace.prs_merged)}
+          label="pull requests merged"
+        >
+          <.explain text="a pull request, or PR, is one proposed change to the code that someone reviews before it goes in" />
+        </.stat>
+        <.stat
+          id="stat-decisions"
+          value={number(@live.decisions.total)}
+          label="decisions written down"
+        />
+        <.stat
+          id="stat-tests"
+          value={number(tests_total(@live.tests))}
+          label={tests_label(@live.tests)}
+        />
+        <div id="stat-source" class="space-y-0.5 sm:col-span-3">
+          <.pace_source id="stat-source-prs" pace={@pace} />
+          <.group_source id="stat-source-decisions" what="Decisions" group={@live.decisions} />
+          <.group_source id="stat-source-tests" what="Tests" group={@live.tests} />
+        </div>
+      </div>
     </section>
     """
   end
 
-  # ── 2. The team ────────────────────────────────────────────────────────────
+  # ── 1. The team ────────────────────────────────────────────────────────────
 
   attr :d, :map, required: true
 
   defp team_section(assigns) do
+    assigns = assign(assigns, :steps, get(assigns.d, ["change_flow", "steps"]) || [])
+
     ~H"""
     <section id="team" class="team-section space-y-8" aria-labelledby="team-title" data-reveal>
-      <.section_head id="team" title="2. The team">
+      <.section_head id="team" title="1. The team">
         Tales Forge is built by one crew: the founders and {count_word(bot_count(@d))} bots. The bots do a lot of the hands-on work,
         and nothing reaches the game without a founder's yes. Any founder gives that yes on the board.
       </.section_head>
@@ -383,66 +404,26 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       <p class="rounded-lg border border-dashed border-[var(--paper-rule)] px-4 py-3 text-sm text-[var(--paper-muted)]">
         There are also a few helper bots for company admin, like bookkeeping, invoices and mail. They don't work on the game.
       </p>
-    </section>
-    """
-  end
 
-  # ── 3. The game and how it plays ───────────────────────────────────────────
-  # One turn from the player's view (text approved by Fredrik on 12 Oct
-  # 2026). The screenshot slot shows a marked placeholder until we have one.
-
-  defp game_section(assigns) do
-    ~H"""
-    <section id="game" class="team-section space-y-8" aria-labelledby="game-title" data-reveal>
-      <.section_head id="game" title="3. The game and how it plays">
-        One turn of the game, as the player sees it.
-      </.section_head>
-      <div class="grid gap-6 lg:grid-cols-2">
-        <p id="game-turn" class="leading-relaxed">
-          You type an action, for example 'I offer the smith two copper for the knife'. The game first works out what you want to do. It checks that you can do it: do you have two copper? Then it rolls the dice where they are needed, and the NPCs react. Last, the game master writes the scene. It describes only what really happened.
+      <div id="flow" class="space-y-4">
+        <h3 class="font-serif text-xl font-bold sm:text-2xl">How a change flows</h3>
+        <p class="max-w-3xl leading-relaxed text-[var(--paper-muted)]">
+          Every change starts as a card on the idea board and ends on production. Most steps take minutes: the median PR went from opened to merged
+          in about {median_minutes(@d)} minutes in October. Every merge goes to playtest first. Then the lane decides the rest.
+          <strong>Fast lane:</strong>
+          a change that only touches admin pages goes on to production by itself.
+          <strong>Normal lane:</strong>
+          a founder gives the OK twice on the board: the move to Building, then Approve on the PR before the merge. After the merge, Gentry and the persona bots play it on playtest, and then it ships to production by itself.
         </p>
-        <figure id="game-screenshot" class="team-card space-y-2 p-3">
-          <div
-            data-placeholder="screenshot"
-            class="flex aspect-video items-center justify-center rounded-lg border-2 border-dashed border-[var(--paper-accent)] p-4 text-center text-sm text-[var(--paper-muted)]"
-          >
-            Placeholder: a screenshot of one turn
-          </div>
-          <figcaption class="text-xs text-[var(--paper-muted)]">
-            One turn in the game (screenshot to come).
-          </figcaption>
-        </figure>
+        <.flow steps={@steps} d={@d} />
+        <p class="text-xs text-[var(--paper-muted)]">
+          Median time from a PR being opened to merged in October: {number(
+            get(@d, ["pace", "median_hours_open_to_merge_oct"])
+          )} h
+          (about {median_minutes(@d)} min). Deploy order: playtest first, then production (decided 9 Oct 2026). Fast lane since 9 Oct 2026; board rules approved 10 Oct 2026.
+        </p>
       </div>
     </section>
-    """
-  end
-
-  # ── 4. How a change flows (inside the board section) ───────────────────────
-
-  attr :d, :map, required: true
-
-  defp change_flow(assigns) do
-    assigns = assign(assigns, :steps, get(assigns.d, ["change_flow", "steps"]) || [])
-
-    ~H"""
-    <div id="flow" class="space-y-4">
-      <h3 class="font-serif text-xl font-bold sm:text-2xl">How a change flows</h3>
-      <p class="max-w-3xl leading-relaxed text-[var(--paper-muted)]">
-        Every change starts as a card on the idea board and ends on production. Most steps take minutes: the median PR went from opened to merged
-        in about {median_minutes(@d)} minutes in October. Every merge goes to playtest first. Then the lane decides the rest.
-        <strong>Fast lane:</strong>
-        a change that only touches admin pages goes on to production by itself.
-        <strong>Normal lane:</strong>
-        a founder gives the OK twice on the board: the move to Building, then Approve on the PR before the merge. After the merge, Gentry and the persona bots play it on playtest, and then it ships to production by itself.
-      </p>
-      <.flow steps={@steps} d={@d} />
-      <p class="text-xs text-[var(--paper-muted)]">
-        Median time from a PR being opened to merged in October: {number(
-          get(@d, ["pace", "median_hours_open_to_merge_oct"])
-        )} h
-        (about {median_minutes(@d)} min). Deploy order: playtest first, then production (decided 9 Oct 2026). Fast lane since 9 Oct 2026; board rules approved 10 Oct 2026.
-      </p>
-    </div>
     """
   end
 
@@ -698,7 +679,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  # ── 5. How we work: rules and bots ─────────────────────────────────────────
+  # ── 2. How we work ─────────────────────────────────────────────────────────
 
   attr :d, :map, required: true
   attr :live, :map, required: true
@@ -720,8 +701,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
     ~H"""
     <section id="how" class="team-section space-y-8" aria-labelledby="how-title" data-reveal>
-      <.section_head id="how" title="5. How we work: rules and bots">
-        A few simple rules keep the whole crew, founders and bots, working in the same direction.
+      <.section_head id="how" title="2. How we work">
+        A few simple rules keep the whole crew, founders and bots, pulling in the same direction.
       </.section_head>
 
       <div class="grid gap-4 lg:grid-cols-2">
@@ -808,11 +789,58 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           </article>
         </div>
       </div>
+
+      <article id="rule-call-types" class="team-card space-y-4 p-5">
+        <h3 class="font-serif text-lg font-bold">4. The call-type rule.</h3>
+        <p class="text-sm leading-relaxed">
+          Each piece of work in a turn uses the cheapest tool that can do it:
+        </p>
+        <div class="grid gap-3" role="table" aria-label="Call types">
+          <div
+            class="hidden grid-cols-4 gap-3 px-3 text-xs font-semibold uppercase tracking-wide text-[var(--paper-muted)] lg:grid"
+            role="row"
+          >
+            <span role="columnheader">What goes in</span>
+            <span role="columnheader">What comes out</span>
+            <span role="columnheader">We use</span>
+            <span role="columnheader">Why</span>
+          </div>
+          <div
+            :for={row <- get(@d, ["call_types", "rows"]) || []}
+            class={[
+              "team-call-row grid gap-1 rounded-lg border-l-4 bg-[var(--paper-bg)] p-3 text-sm lg:grid-cols-4 lg:gap-3",
+              "team-kind-#{call_kind(row["type"])}"
+            ]}
+            role="row"
+          >
+            <span role="cell"><span class="team-cell-label">In: </span>{io_label(row["input"])}</span>
+            <span role="cell"><span class="team-cell-label">Out: </span>{io_label(row["output"])}</span>
+            <strong role="cell" class="team-kind-text">{tool_label(row["type"])}</strong>
+            <span role="cell" class="text-[var(--paper-muted)]">{row["cost"]}</span>
+          </div>
+        </div>
+        <p class="text-xs leading-relaxed text-[var(--paper-muted)]">
+          <em>Elixir</em>
+          is the programming language the game is written in. <em>Jev</em>
+          is TypeSafe's model that reads text and answers with typed data
+          (a category plus a confidence), not prose. An <em>LLM</em>
+          is a large language model, the kind of AI that writes text.
+        </p>
+        <p id="call-types-walkthrough-link" class="text-sm leading-relaxed">
+          <strong>The call-type rule is the heart of the game engine, so it gets its own walkthrough below:</strong>
+          <a
+            href={"#" <> TeamCallTypes.anchor()}
+            class="text-[var(--paper-accent)] underline underline-offset-2"
+          >one turn, three call types</a>.
+        </p>
+      </article>
+
+      <TeamCallTypes.walkthrough d={@d} />
     </section>
     """
   end
 
-  # ── 6b. Infrastructure ──────────────────────────────────────────────────────
+  # ── 3. Infrastructure ──────────────────────────────────────────────────────
 
   attr :d, :map, required: true
 
@@ -824,7 +852,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       aria-labelledby="infrastructure-title"
       data-reveal
     >
-      <.section_head id="infrastructure" title="6b. How it's wired: stack, hosting and one turn">
+      <.section_head id="infrastructure" title="3. Infrastructure">
         The game is a small, sturdy web app. Here is what it runs on, in plain words.
       </.section_head>
 
@@ -908,53 +936,6 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       </div>
 
       <.architecture d={@d} />
-
-      <article id="rule-call-types" class="team-card space-y-4 p-5">
-        <h3 class="font-serif text-lg font-bold">The call-type rule.</h3>
-        <p class="text-sm leading-relaxed">
-          Each piece of work in a turn uses the cheapest tool that can do it:
-        </p>
-        <div class="grid gap-3" role="table" aria-label="Call types">
-          <div
-            class="hidden grid-cols-4 gap-3 px-3 text-xs font-semibold uppercase tracking-wide text-[var(--paper-muted)] lg:grid"
-            role="row"
-          >
-            <span role="columnheader">What goes in</span>
-            <span role="columnheader">What comes out</span>
-            <span role="columnheader">We use</span>
-            <span role="columnheader">Why</span>
-          </div>
-          <div
-            :for={row <- get(@d, ["call_types", "rows"]) || []}
-            class={[
-              "team-call-row grid gap-1 rounded-lg border-l-4 bg-[var(--paper-bg)] p-3 text-sm lg:grid-cols-4 lg:gap-3",
-              "team-kind-#{call_kind(row["type"])}"
-            ]}
-            role="row"
-          >
-            <span role="cell"><span class="team-cell-label">In: </span>{io_label(row["input"])}</span>
-            <span role="cell"><span class="team-cell-label">Out: </span>{io_label(row["output"])}</span>
-            <strong role="cell" class="team-kind-text">{tool_label(row["type"])}</strong>
-            <span role="cell" class="text-[var(--paper-muted)]">{row["cost"]}</span>
-          </div>
-        </div>
-        <p class="text-xs leading-relaxed text-[var(--paper-muted)]">
-          <em>Elixir</em>
-          is the programming language the game is written in. <em>Jev</em>
-          is TypeSafe's model that reads text and answers with typed data
-          (a category plus a confidence), not prose. An <em>LLM</em>
-          is a large language model, the kind of AI that writes text.
-        </p>
-        <p id="call-types-walkthrough-link" class="text-sm leading-relaxed">
-          <strong>The call-type rule is the heart of the game engine, so it gets its own walkthrough:</strong>
-          <a
-            href={"#" <> TeamCallTypes.anchor()}
-            class="text-[var(--paper-accent)] underline underline-offset-2"
-          >one turn, three call types</a>.
-        </p>
-      </article>
-
-      <TeamCallTypes.walkthrough d={@d} />
     </section>
     """
   end
@@ -1062,7 +1043,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  # ── 6a. How it's wired ─────────────────────────────────────────────────────
+  # ── 4. How it's wired ──────────────────────────────────────────────────────
   # The founders' one-page summary of the infrastructure. Source:
   # tales-forge-docs docs/team-page/infrastructure-summary.md (the full runbook
   # is docs/infrastructure-setup.md there).
@@ -1114,7 +1095,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
     ~H"""
     <section id="wired" class="team-section space-y-8" aria-labelledby="wired-title" data-reveal>
-      <.section_head id="wired" title="6a. How it's wired: the path">
+      <.section_head id="wired" title="4. How it's wired">
         Tales Forge runs as two apps on Fly.io in Stockholm. Playtest gets each change first.
         Production is what players use. GitHub keeps our code and our docs. GitHub also tests
         each change before it ships.
@@ -1131,8 +1112,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
            assets/js/team_hooks.js): the d20 visits each step, the step lights
            up and shows its bot, then the fast-lane note and the seven facts
            appear one at a time. In Present mode each click shows one more.
-           Back shows one less, drawn statically; from the next slide it
-           lands on the last part. Scrolled away mid-play, it settles to the full picture and stays
+           Back shows one less, drawn statically; from slide 5 it lands on
+           the last part. Scrolled away mid-play, it settles to the full picture and stays
            static; only Replay plays it again. Unrevealed facts show dimmed.
            The server renders the full static picture; the styles below hide
            parts only under data-motion="full", while the hook plays. --%>
@@ -1250,7 +1231,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  # ── 7a. Playtests: Gentry first, then the personas ─────────────────────────
+  # ── 5. Playtests ───────────────────────────────────────────────────────────
 
   attr :d, :map, required: true
   attr :live, :map, required: true
@@ -1263,13 +1244,11 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       aria-labelledby="playtests-title"
       data-reveal
     >
-      <.section_head id="playtests" title="7a. Status, playtests and quality: Gentry and the personas">
+      <.section_head id="playtests" title="5. Playtests">
         We can't hire a hundred players yet, so we built {count_word(length(personas(@d)))} pretend ones. Each persona bot plays the game the way
         a real kind of player would, and Jev reads every session and asks: how would <em>this</em>
         player have felt?
       </.section_head>
-
-      <.gentry d={@d} />
 
       <ul id="persona-cards" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <li
@@ -1328,6 +1307,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       </div>
 
       <.persona_scores_now scores={@live.persona_scores} personas={personas(@d)} />
+
+      <.shadow_test d={@d} latency={@live.intent_latency} />
+      <.eval_set d={@d} />
+      <.gentry d={@d} />
     </section>
     """
   end
@@ -1679,29 +1662,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  # ── 7b. Quality: Jev under test ────────────────────────────────────────────
-
-  attr :d, :map, required: true
-  attr :live, :map, required: true
-
-  defp quality_section(assigns) do
-    ~H"""
-    <section
-      id="quality"
-      class="team-section space-y-10"
-      aria-labelledby="quality-title"
-      data-reveal
-    >
-      <.section_head id="quality" title="7b. Status, playtests and quality: Jev under test">
-        Jev reads each player line and decides what the player wants to do. These tests show how well it does that.
-      </.section_head>
-      <.shadow_test d={@d} latency={@live.intent_latency} />
-      <.eval_set d={@d} />
-    </section>
-    """
-  end
-
-  # ── 8. Status: pace, cost and goals (with the headline stats) ──────────────
+  # ── 6. Pace and cost ───────────────────────────────────────────────────────
 
   attr :d, :map, required: true
   attr :pace, :map, required: true, doc: "`TalesForge.TeamPace.current/0`"
@@ -1726,34 +1687,9 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
     ~H"""
     <section id="pace" class="team-section space-y-8" aria-labelledby="pace-title" data-reveal>
-      <.section_head id="pace" title="8. Status: pace, cost and goals">
+      <.section_head id="pace" title="6. Pace and cost">
         Bots are fast. These numbers show how fast, and what it cost.
       </.section_head>
-
-      <div class="grid gap-3 sm:grid-cols-3 lg:col-span-2">
-        <.stat
-          id="stat-prs-merged"
-          value={number(@pace.prs_merged)}
-          label="pull requests merged"
-        >
-          <.explain text="a pull request, or PR, is one proposed change to the code that someone reviews before it goes in" />
-        </.stat>
-        <.stat
-          id="stat-decisions"
-          value={number(@live.decisions.total)}
-          label="decisions written down"
-        />
-        <.stat
-          id="stat-tests"
-          value={number(tests_total(@live.tests))}
-          label={tests_label(@live.tests)}
-        />
-        <div id="stat-source" class="space-y-0.5 sm:col-span-3">
-          <.pace_source id="stat-source-prs" pace={@pace} />
-          <.group_source id="stat-source-decisions" what="Decisions" group={@live.decisions} />
-          <.group_source id="stat-source-tests" what="Tests" group={@live.tests} />
-        </div>
-      </div>
 
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <.stat id="pace-prs" value={number(@pace.prs_total)} label="PRs">
@@ -1894,7 +1830,9 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  # ── 9. Next steps, together (with the "starting point" callout) ───────────
+  # ── 6. One shared board: TalesForgeWeb.TeamBoard ─────────────────────────
+
+  # ── 7. Together ────────────────────────────────────────────────────────────
 
   attr :d, :map, required: true
 
@@ -1907,17 +1845,10 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
     ~H"""
     <section id="together" class="team-section space-y-8" aria-labelledby="together-title" data-reveal>
-      <.section_head id="together" title="9. Next steps, together">
+      <.section_head id="together" title="8. Where we go from here, together">
         Several founders already add, vote, comment and approve on the shared board. The best part is still ahead,
         and it gets better with every founder who joins in. Together we can make something awesome.
       </.section_head>
-      <aside id="starting-point" class="team-callout flex gap-3 p-4">
-        <TeamArt.seal class="size-10 shrink-0" />
-        <p class="text-sm leading-relaxed sm:text-base">
-          <strong>This is how we work today, and we shape it together.</strong>
-          Every founder can add ideas, vote, answer the open questions and approve PRs on the board. An approved change goes to playtest, Gentry checks it, and then it ships to production by itself. Changes that only touch admin pages ship straight away. This page is an invitation to shape the rest with us.
-        </p>
-      </aside>
       <ul id="involve" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <.involve
           id="involve-board"
