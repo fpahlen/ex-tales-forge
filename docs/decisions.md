@@ -11,6 +11,66 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Skill split
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it.
+- **Why:** **Idea (Håkan).** A character with a high skill can split one action into two or more actions in one turn. Each part rolls at a part of the skill level. Example: one sword attack at 100 percent becomes two attacks at 50 percent. A foe can parry only one of them.
+
+**Locked rules from the comments (Håkan, 2026-10-12).**
+1. The split starts at level 20. Below level 30, the parts are always even: two parts at 10 each.
+2. At level 30 or more, the player can split into three even parts. The player can also split into two uneven parts, for example 19 and 11.
+3. The parts always sum to the skill level.
+4. Every skill can split. A foe can split Dodge and parry more than one attack.
+5. The split replaces the Multi-Actions rule (-2 for each extra action) in `combat.md`.
+
+**How the dice work today.**
+- The server rolls 1d20 for each check in `TalesForge.Game.Mechanics.perform_and_apply/4`. A roll equal to or less than the effective level succeeds.
+- The effective level is the skill level plus the stat bonus.
+- A natural 1 always succeeds. A natural 20 always fails, or gives a partial success from level 15.
+- Today, a level above 20 gives no better odds. The split gives those levels a use.
+
+**Proposed approach.** The game uses pure functions over plain data. The server makes all rolls. The GM only narrates them (call-type rule).
+1. Rules text. Add one "Skill split" section to `priv/rules/core_mechanics.md`, because the rule covers all skills. Remove the Multi-Actions line from `combat.md`. Put a link to the new section there.
+2. Thresholds. Keep the start level (20) and the triple level (30) in one setting. Thus the D100 card changes them in one place.
+3. Split levels. Add a pure function `Mechanics.split_levels/2`. It takes the effective level and the split request. It returns the list of part levels, for example `[10, 10]` or `[19, 11]`. It rejects a split below the start level.
+4. Intent. Jev gets a new field `split` with the values 1, 2 or 3. Uneven parts come from the player text, for example "a strong cut and a quick jab". The Elixir rules backup finds "twice" and "two attacks".
+5. Rolls. `apply_server_mechanics/4` maps `perform_and_apply` over the part levels. It returns one resolution for each part. Each part uses the normal natural 1, natural 20 and partial success rules.
+6. Learning. Each failed part banks a learning chance in the same skill. Case proposes a limit of one chance for each split action. Thus a split does not double the learning speed.
+7. Skill meanings. Add a short table to `priv/rules/skills.md`. It gives the meaning of a split for each skill family. Examples: combat gives two attacks. Climb gives double climb speed. Lockpicking gives two locks. Persuasion gives two listeners. A skill with no entry uses the default: two separate attempts in the same turn.
+8. Prompt. Add a prompt section that lists each part, its level and its result. The GM narrates each part. The GM does not invent a part.
+9. Flag. The feature stays off until `SKILL_SPLIT=on` is set. When the flag is off, prompts and rolls stay the same.
+10. Tests. Add doctests for `split_levels/2`. Add a turn test with injected rolls for a two-part attack and a three-part attack. Run the playtest personas with the flag on and off.
+
+**Foe Dodge split.** The code has no parry roll yet. The parry formula is only in `combat.md`. Version 1 writes the foe rule in the rules text. The code follows when the server rolls parry for NPCs. That work is about size S on top of this card.
+
+**Dependencies.**
+- D100 card (`26706846`): Håkan wants skill levels from 1 to 100 on a d100. Then the split starts at 100 and the triple split starts at 150. Two even parts at 100 are 50 each.
+- Case recommends to build this card after the D100 switch. Then Bobby writes all numbers and tests once, on the d100 scale.
+- Bobby works on the Jev-first turn refactor and the prompt refactor now. This card adds one Jev field and one prompt section. Thus it fits after those pull requests.
+
+**Reach.** The improvement roll stops at level 20 without a trainer. With a trainer, a skill can go to 26. A stat bonus of +4 can then give an effective level of 30. Thus the triple split is rare. The founders must choose if the raw level or the effective level unlocks the split.
+
+**Acceptance criteria.**
+- A player at level 20 types "I attack twice". The server rolls two attacks at 10 each. The GM narrates two results.
+- A player below level 20 cannot split. The GM tells the player why in the story.
+- A player at level 30 can split into three even parts or two uneven parts. The parts sum to the level.
+- A split action banks at most one learning chance.
+- When the flag is off, the production prompts and rolls stay the same.
+
+**Size: M.** The rule function and the rolls are small. The Jev field, the skill table and the tests need most of the work.
+
+**Risks.**
+- Jev can see a split where the player wants one action. Mitigation: the GM states the part chances before the roll. A low-confidence split falls back to one action.
+- The split can make high-level fights too strong. Mitigation: run the playtest personas against the parry rule before a founder approves production.
+- Some skills have no clear split meaning. Mitigation: the default rule covers them. Founders add table entries over time.
+
+**Deploy lane: normal.** The change is game code. It goes to playtest first. Then a founder approves production.
+
+**Confidence.** Case has high confidence in the split rule and the rolls. Case has medium confidence in the Jev field, because the split wording varies a lot. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-9915480a-3275-4c78-9278-389cd05b9c69)
+
+<!-- board:idea:9915480a-3275-4c78-9278-389cd05b9c69 -->
+
 ## 2026-10-13: Session versus canon
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part 5 of 5 from the World building card. Rough cost: M.
