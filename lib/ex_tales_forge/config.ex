@@ -142,6 +142,18 @@ defmodule TalesForge.Config do
   def turn_state_from_mechanics?,
     do: System.get_env("TURN_STATE_FROM_MECHANICS", "off") in ~w(on true 1)
 
+  @doc """
+  Stage 3 applies the outcome of sleep, pay and move to the state
+  (`TalesForge.Game.TurnApply`): a payment with no amount uses the coin
+  amount in the text or the service price, "pay for a room and go to sleep"
+  also plays the sleep, and a move to an unknown place is rejected. It also
+  turns on the room-payment rule of `TalesForge.Game.TurnRules`:
+  TURN_APPLY_OUTCOMES=on. Default off.
+  """
+  @spec turn_apply_outcomes?() :: boolean()
+  def turn_apply_outcomes?,
+    do: System.get_env("TURN_APPLY_OUTCOMES", "off") in ~w(on true 1)
+
   @doc "World agents prototype (persons/locations hold facts for the GM): WORLD_AGENTS=on. Default off."
   def world_agents?, do: System.get_env("WORLD_AGENTS", "off") in ~w(on true 1)
 

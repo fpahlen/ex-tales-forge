@@ -176,6 +176,10 @@ defmodule TalesForge.Game.ActionHandler do
     end
   end
 
+  # TURN_APPLY_OUTCOMES=on: a room payment that also plays the sleep
+  # (TalesForge.Game.TurnApply.sleep_after_lodging/3).
+  def tick_delta(%{state_hints: %{"sleep_ticks" => ticks}}), do: WorldClock.clamp_wait(ticks)
+
   def tick_delta(%{handler: handler, state_hints: %{"ticks" => ticks}})
       when handler in ["wait", "train", "work"] do
     WorldClock.clamp_wait(ticks)

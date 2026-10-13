@@ -17,6 +17,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.Turn
+  alias TalesForge.Game.TurnApply
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.Game.TurnRules
   alias TalesForge.Game.Variant
@@ -50,19 +51,34 @@ defmodule TalesForge.Game.Turn.Mechanics do
       |> ActionHandler.resolve(Variant.of(turn.session.world_state))
       |> Rest.apply(world, player_action.overall_intent)
 
-    {premised, played} = premise_block(resolved, player_action, turn.premise.first)
+    apply? = Turn.flag?(turn, :turn_apply_outcomes)
+    lodging? = apply? or Turn.flag?(turn, :turn_state_from_mechanics)
 
-    handler =
+    {played, premised} =
+      resolved
+      |> premise_block(player_action, turn.premise.first)
+      |> apply_outcomes(world, apply?)
+
+    ruled =
       premised
-      |> lodging_block(world, played, Turn.flag?(turn, :turn_state_from_mechanics))
+      |> lodging_block(world, played, lodging?)
+      |> sleep_after_lodging(world, played, apply?)
       |> injection_block(turn.injected)
 
-    {character, rolled} = TurnProcessor.apply_mechanics(turn.session.world_state, played, handler)
+    # TURN_APPLY_OUTCOMES=on: the board books the played action (with the
+    # payment amount). Off: the board gets the action of the intent step.
+    board_action = if apply?, do: played, else: player_action
+
+    {character, rolled} = TurnProcessor.apply_mechanics(turn.session.world_state, played, ruled)
 
     board =
-      TurnProcessor.apply_board(turn.session, character, handler, player_action, rolled,
+      TurnProcessor.apply_board(turn.session, character, ruled, board_action, rolled,
         catalogue_v2: Turn.flag?(turn, :jev_catalogue_v2)
       )
+
+    # TURN_APPLY_OUTCOMES=on: the GM gets the handler after the board, for
+    # example the short sleep after a failed room payment.
+    handler = if apply?, do: board.handler, else: ruled
 
     {handler, %{rolled | improvements: board.improvements, training: board.training}, board}
   end
@@ -111,6 +127,26 @@ defmodule TalesForge.Game.Turn.Mechanics do
       handler
     end
   end
+
+  # TURN_APPLY_OUTCOMES=on: a payment gets its amount, and a move to an
+  # unknown place is rejected (TalesForge.Game.TurnApply).
+  # Takes the {handler, action} pair of premise_block/3. Returns {action, handler}.
+  defp apply_outcomes({handler, played}, _world, false), do: {played, handler}
+
+  defp apply_outcomes({handler, played}, world, true) do
+    {paid, priced} = TurnApply.put_spend_amount(played, handler)
+    {paid, TurnApply.unknown_move(priced, world)}
+  end
+
+  # TURN_APPLY_OUTCOMES=on: "pay for a room and go to sleep" also plays the
+  # sleep. A rejected payment gets the short sleep.
+  defp sleep_after_lodging(handler, _world, _action, false), do: handler
+
+  defp sleep_after_lodging(%{state_hints: %{"premise_rejected" => true}} = handler, _w, _a, true),
+    do: handler
+
+  defp sleep_after_lodging(handler, world, player_action, true),
+    do: TurnApply.sleep_after_lodging(handler, world, player_action.overall_intent)
 
   # HISTORY_STRIP_INJECTION=on: an injection turn plays no action.
   defp injection_block(handler, false), do: handler
