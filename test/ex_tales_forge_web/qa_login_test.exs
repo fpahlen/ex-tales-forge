@@ -12,7 +12,7 @@ defmodule TalesForgeWeb.QaLoginTest do
   alias TalesForge.Board
   alias TalesForge.Chat
   alias TalesForge.QaLogin
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   doctest TalesForge.QaLogin
 
@@ -49,7 +49,7 @@ defmodule TalesForgeWeb.QaLoginTest do
     for table <- @tables, into: %{} do
       %{rows: [[sum]]} =
         Repo.query!(
-          "SELECT md5(coalesce(string_agg(t::text, ',' ORDER BY t::text), '')) FROM #{table} t"
+          "SELECT md5(coalesce(string_agg(t::text, ',' ORDER BY t::text), '')) FROM workflow.#{table} t"
         )
 
       {table, sum}
@@ -156,7 +156,7 @@ defmodule TalesForgeWeb.QaLoginTest do
                }
              }) =~ "read-only"
 
-      assert TalesForge.Repo.aggregate(TalesForge.WorkLog.Entry, :count) == 0
+      assert TalesForge.Workflow.Repo.aggregate(TalesForge.WorkLog.Entry, :count) == 0
 
       assert conn |> recycle() |> get("/team/work-log.csv") |> redirected_to() =~
                ~r{^/admin/login}
@@ -229,7 +229,7 @@ defmodule TalesForgeWeb.QaLoginTest do
     end
 
     test "the QA session opens a goal and sees its cards, without the goal controls" do
-      goal = TalesForge.Repo.get_by!(TalesForge.Board.Goal, key: "G2")
+      goal = TalesForge.Workflow.Repo.get_by!(TalesForge.Board.Goal, key: "G2")
       {:ok, idea} = Board.create_idea("fredrik@whyse.se", %{"title" => "Goal card"})
       {:ok, _} = TalesForge.Board.Goals.set_card_goal(idea, "fredrik@whyse.se", goal.id)
       {:ok, view, _} = live(qa_conn(), "/team")

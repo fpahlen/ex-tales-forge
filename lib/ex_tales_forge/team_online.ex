@@ -24,7 +24,7 @@ defmodule TalesForge.TeamOnline do
   alias TalesForge.Board.Mentions
   alias TalesForge.Online
   alias TalesForge.PrFeed
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
   alias Workflow.Team
 
   @online_minutes 10

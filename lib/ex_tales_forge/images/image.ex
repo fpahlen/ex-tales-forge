@@ -23,6 +23,7 @@ defmodule TalesForge.Images.Image do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @schema_prefix "workflow"
   schema "team_images" do
     field :idea_id, :binary_id
     field :message_id, :binary_id

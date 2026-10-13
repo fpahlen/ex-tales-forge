@@ -36,11 +36,14 @@ defmodule TalesForge.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(TalesForge.Repo, shared: not tags[:async])
+    # Two repos on one database: the game repo and the Workflow repo.
+    pids =
+      for repo <- [TalesForge.Repo, TalesForge.Workflow.Repo],
+          do: Ecto.Adapters.SQL.Sandbox.start_owner!(repo, shared: not tags[:async])
 
     on_exit(fn ->
       stop_jido_agents()
-      Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
+      Enum.each(pids, &Ecto.Adapters.SQL.Sandbox.stop_owner/1)
     end)
   end
 

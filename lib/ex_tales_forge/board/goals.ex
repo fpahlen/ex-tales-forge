@@ -22,7 +22,7 @@ defmodule TalesForge.Board.Goals do
   import Ecto.Query
 
   alias TalesForge.Board.{Goal, GoalVote, Idea}
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @zone "Europe/Stockholm"
 

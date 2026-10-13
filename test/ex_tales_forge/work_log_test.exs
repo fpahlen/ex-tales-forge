@@ -1,7 +1,8 @@
 defmodule TalesForge.WorkLogTest do
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.{Board, Chat, Repo, WorkLog}
+  alias TalesForge.{Board, Chat, WorkLog}
+  alias TalesForge.Workflow.Repo
   alias TalesForge.WorkLog.{Event, Peer}
 
   @ada "ada@example.com"

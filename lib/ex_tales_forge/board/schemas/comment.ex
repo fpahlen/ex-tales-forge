@@ -9,6 +9,8 @@ defmodule TalesForge.Board.Comment do
   @typedoc "A comment."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_comments" do
     field :author, :string
     field :body, :string

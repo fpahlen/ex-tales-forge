@@ -40,6 +40,12 @@ if config_env() == :dev do
       stacktrace: true,
       show_sensitive_data_on_connection_error: true,
       pool_size: 10
+
+    config :ex_tales_forge, TalesForge.Workflow.Repo,
+      url: database_url,
+      stacktrace: true,
+      show_sensitive_data_on_connection_error: true,
+      pool_size: 10
   end
 end
 
@@ -59,6 +65,13 @@ if config_env() == :prod do
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     # For machines with several cores, consider starting multiple pools of `pool_size`
     # pool_count: 4,
+    socket_options: maybe_ipv6
+
+  # Workflow (the team tools) has its own repo on the same database, with its
+  # own pool (TalesForge.Workflow.Repo).
+  config :ex_tales_forge, TalesForge.Workflow.Repo,
+    url: database_url,
+    pool_size: String.to_integer(System.get_env("WORKFLOW_POOL_SIZE") || "5"),
     socket_options: maybe_ipv6
 
   # The secret key base is used to sign/encrypt cookies and other secrets.

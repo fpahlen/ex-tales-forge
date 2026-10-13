@@ -9,6 +9,8 @@ defmodule TalesForge.Collab.Schemas.Interest do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
+  @schema_prefix "workflow"
+
   schema "collab_interests" do
     field :email, :string
 

@@ -48,7 +48,7 @@ defmodule TalesForge.Board do
   }
 
   alias TalesForge.Collab.Schemas.Decision
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @topic "board:ideas"
 

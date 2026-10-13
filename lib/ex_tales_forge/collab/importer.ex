@@ -8,7 +8,7 @@ defmodule TalesForge.Collab.Importer do
   require Logger
 
   alias TalesForge.Collab.Schemas.{Decision, Doc}
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @github_owner "whyse-ab"
   @github_repo "tales-forge-docs"

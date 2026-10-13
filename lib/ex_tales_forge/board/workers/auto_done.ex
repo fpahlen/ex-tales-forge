@@ -28,7 +28,7 @@ defmodule TalesForge.Board.Workers.AutoDone do
   alias TalesForge.Board
   alias TalesForge.Board.{Idea, OnProd}
   alias TalesForge.Playtest.RunMeta
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @doc """
   Queues the run 30 seconds after boot, on production only. Also queues the
@@ -37,7 +37,7 @@ defmodule TalesForge.Board.Workers.AutoDone do
   @spec schedule_on_boot() :: :ok
   def schedule_on_boot do
     if AppRole.role() == :production do
-      {:ok, _} = %{} |> new(schedule_in: 30) |> Oban.insert()
+      {:ok, _} = %{} |> new(schedule_in: 30) |> TalesForge.Workflow.Jobs.insert()
     end
 
     TalesForge.Board.Workers.PrBackfill.schedule_on_boot()
@@ -50,7 +50,7 @@ defmodule TalesForge.Board.Workers.AutoDone do
   @spec schedule() :: :ok
   def schedule do
     if enabled?() do
-      {:ok, _} = %{} |> new(schedule_in: 5, unique: false) |> Oban.insert()
+      {:ok, _} = %{} |> new(schedule_in: 5, unique: false) |> TalesForge.Workflow.Jobs.insert()
     end
 
     :ok

@@ -13,6 +13,8 @@ defmodule TalesForge.Board.Answer do
   @typedoc "An answer."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_answers" do
     field :question, :string
     field :answer, :string

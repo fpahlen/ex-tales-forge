@@ -3,7 +3,7 @@ defmodule TalesForge.Board.AutoDoneTest do
   use TalesForge.DataCase, async: false
 
   alias TalesForge.Board
-  use Oban.Testing, repo: TalesForge.Repo
+  use Oban.Testing, repo: TalesForge.Workflow.Repo, prefix: "workflow"
 
   alias TalesForge.Board.Workers.AutoDone
 

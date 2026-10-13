@@ -6,6 +6,7 @@ defmodule TalesForge.Chat.Read do
   @type t :: %__MODULE__{}
 
   @primary_key {:handle, :string, autogenerate: false}
+  @schema_prefix "workflow"
   schema "team_chat_reads" do
     field :read_at, :utc_datetime_usec
   end

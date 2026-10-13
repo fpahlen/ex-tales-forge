@@ -7,3 +7,4 @@ System.put_env("LLM_PROVIDER", "mock")
 # `mix test --include pending`.
 ExUnit.start(exclude: [:pending])
 Ecto.Adapters.SQL.Sandbox.mode(TalesForge.Repo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(TalesForge.Workflow.Repo, :manual)

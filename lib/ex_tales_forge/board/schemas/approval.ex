@@ -15,6 +15,8 @@ defmodule TalesForge.Board.Approval do
   @typedoc "An approval."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_approvals" do
     field :decision, :string
     field :founder, :string

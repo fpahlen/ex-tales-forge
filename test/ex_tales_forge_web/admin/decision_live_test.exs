@@ -54,16 +54,20 @@ defmodule TalesForgeWeb.AdminLive.DecisionLiveTest do
       d = Collab.get_decision_by_slug!("d-001-elixir-foundation")
       now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-      TalesForge.Repo.insert_all("board_ideas", [
-        %{
-          id: Ecto.UUID.bingenerate(),
-          title: d.title,
-          author: "import",
-          collab_decision_id: Ecto.UUID.dump!(d.id),
-          inserted_at: now,
-          updated_at: now
-        }
-      ])
+      TalesForge.Workflow.Repo.insert_all(
+        "board_ideas",
+        [
+          %{
+            id: Ecto.UUID.bingenerate(),
+            title: d.title,
+            author: "import",
+            collab_decision_id: Ecto.UUID.dump!(d.id),
+            inserted_at: now,
+            updated_at: now
+          }
+        ],
+        prefix: "workflow"
+      )
 
       :ok
     end

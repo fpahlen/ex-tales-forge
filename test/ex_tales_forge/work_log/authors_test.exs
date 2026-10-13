@@ -12,6 +12,7 @@ defmodule TalesForge.WorkLog.AuthorsTest do
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.Schemas.Turn
+  alias TalesForge.Workflow.Repo, as: WorkflowRepo
 
   @founder "hawk@example.com"
 
@@ -24,7 +25,7 @@ defmodule TalesForge.WorkLog.AuthorsTest do
       {:ok, _} = Board.refine(idea, %{"details" => "First text", "rough_cost" => "S"}, @founder)
 
       assert [%Edit{author: @founder, fields: ["details", "rough_cost"], inserted_at: at}] =
-               Repo.all(Edit)
+               WorkflowRepo.all(Edit)
 
       assert %DateTime{} = at
       assert [%Edit{}] = Board.edits_since(DateTime.add(at, -1))
@@ -36,7 +37,7 @@ defmodule TalesForge.WorkLog.AuthorsTest do
       {:ok, idea} = Board.move(idea, {:founder, @founder}, "refining")
       {:ok, _} = Board.refine(idea, %{"details" => "Case text"})
 
-      assert [%Edit{author: "bot:case", fields: ["details"]}] = Repo.all(Edit)
+      assert [%Edit{author: "bot:case", fields: ["details"]}] = WorkflowRepo.all(Edit)
     end
 
     test "a refused refinement writes no edit row" do
@@ -44,7 +45,7 @@ defmodule TalesForge.WorkLog.AuthorsTest do
       {:ok, idea} = Board.vote(idea, @founder, 1)
       {:ok, idea} = Board.move(idea, {:founder, @founder}, "refining")
       assert {:error, _} = Board.refine(idea, %{"rough_cost" => "XL"}, @founder)
-      assert Repo.all(Edit) == []
+      assert WorkflowRepo.all(Edit) == []
     end
   end
 
@@ -85,13 +86,13 @@ defmodule TalesForge.WorkLog.AuthorsTest do
       assert [%Turn{founder: @founder, id: id}] = Repo.all(Turn)
 
       assert [%TalesForge.WorkLog.Event{kind: "turn", ref: ^id}] =
-               Repo.all(TalesForge.WorkLog.Event)
+               WorkflowRepo.all(TalesForge.WorkLog.Event)
     end
 
     test "a turn without a founder stores nil", %{session: session, action: action} do
       assert {:ok, _} = TurnProcessor.run(session.id, "look around", action)
       assert [%Turn{founder: nil}] = Repo.all(Turn)
-      assert Repo.all(TalesForge.WorkLog.Event) == []
+      assert WorkflowRepo.all(TalesForge.WorkLog.Event) == []
     end
   end
 end

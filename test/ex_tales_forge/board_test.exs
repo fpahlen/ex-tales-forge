@@ -4,7 +4,7 @@ defmodule TalesForge.BoardTest do
   alias TalesForge.Board
   alias TalesForge.Board.Idea
   alias TalesForge.Collab
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   doctest TalesForge.Board
 
@@ -354,15 +354,15 @@ defmodule TalesForge.BoardTest do
 
     defp wakes(event) do
       Oban.Job
-      |> TalesForge.Repo.all()
+      |> TalesForge.Workflow.Repo.all(prefix: "workflow")
       |> Enum.filter(&(&1.args["event"] == event))
     end
   end
 
   # Makes every job `seconds` older, so the 2 minute wake merge window is over.
   defp age_jobs!(seconds) do
-    TalesForge.Repo.query!(
-      "UPDATE oban_jobs SET inserted_at = inserted_at - make_interval(secs => $1)",
+    TalesForge.Workflow.Repo.query!(
+      "UPDATE workflow.oban_jobs SET inserted_at = inserted_at - make_interval(secs => $1)",
       [seconds]
     )
   end

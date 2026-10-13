@@ -402,6 +402,7 @@ defmodule TalesForge.Game.TurnProcessor do
 
     with {:ok, %{session: session, turn: turn}} <-
            persist_turn_multi(session, world_after, turn_number, raw_action, ctx),
+         :ok <- record_work_log(turn),
          :ok <-
            NPC.apply_gm_updates(session.id, gm_result, Map.get(world_after, "world_tick")),
          # Double-write to `characters` (nothing reads it yet); never fails the turn.
@@ -422,6 +423,23 @@ defmodule TalesForge.Game.TurnProcessor do
          needs_scene: SceneProcessor.needs_scene?(world_after)
        }}
     end
+  end
+
+  # The work log is Workflow data (TalesForge.Workflow.Repo). The turn
+  # records it after its own transaction commits. A failure here only logs,
+  # and the turn goes on.
+  defp record_work_log(turn) do
+    case WorkLog.record(turn.founder, "turn", turn.id, turn.inserted_at) do
+      {:ok, _} -> :ok
+      {:error, reason} -> log_work_log_error(turn, reason)
+    end
+  rescue
+    error -> log_work_log_error(turn, error)
+  end
+
+  defp log_work_log_error(turn, reason) do
+    Logger.warning("work log: no event for turn #{turn.id}: #{inspect(reason)}")
+    :ok
   end
 
   defp maybe_emit_turn_signals(%{status: "dead"}, _world_after, _handler, _raw_action), do: :ok
@@ -688,7 +706,6 @@ defmodule TalesForge.Game.TurnProcessor do
           GameSession.changeset(session, attrs)
         )
         |> Ecto.Multi.insert(:turn, turn_cs)
-        |> WorkLog.add("turn", :turn, & &1.founder)
         |> GMReasoning.multi_insert(session.id, Map.get(world_state, "world_tick"), gm_result),
         fn {ev, idx}, acc ->
           cs =

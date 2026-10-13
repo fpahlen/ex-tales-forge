@@ -17,6 +17,8 @@ defmodule TalesForge.WorkLog.Event do
   @typedoc "An activity event."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "work_log_events" do
     field :founder, :string
     field :kind, :string

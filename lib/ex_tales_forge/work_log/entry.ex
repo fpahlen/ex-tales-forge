@@ -16,6 +16,8 @@ defmodule TalesForge.WorkLog.Entry do
 
   @max_minutes 24 * 60
 
+  @schema_prefix "workflow"
+
   schema "work_log_entries" do
     field :founder, :string
     field :date, :date

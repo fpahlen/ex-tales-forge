@@ -7,6 +7,8 @@ defmodule TalesForge.Collab.Schemas.Doc do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
+  @schema_prefix "workflow"
+
   schema "collab_docs" do
     field :path, :string
     field :title, :string

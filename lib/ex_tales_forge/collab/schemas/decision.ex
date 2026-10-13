@@ -12,6 +12,8 @@ defmodule TalesForge.Collab.Schemas.Decision do
   @foreign_key_type :binary_id
   @statuses ~w(open discussing decided superseded)
 
+  @schema_prefix "workflow"
+
   schema "collab_decisions" do
     field :slug, :string
     field :title, :string

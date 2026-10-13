@@ -14,6 +14,8 @@ defmodule Workflow.Inbox.Record do
 
   @states ~w(new done discarded)
 
+  @schema_prefix "workflow"
+
   schema "inbox_items" do
     field :recipient, :string
     field :rule, :string

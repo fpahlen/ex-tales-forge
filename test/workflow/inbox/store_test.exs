@@ -1,5 +1,6 @@
 defmodule Workflow.Inbox.StoreTest do
   use TalesForge.DataCase, async: false
+  alias TalesForge.Workflow.Repo
 
   alias TalesForge.Board
   alias TalesForge.Chat

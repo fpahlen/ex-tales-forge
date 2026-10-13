@@ -21,6 +21,8 @@ defmodule TalesForge.Board.Idea do
   @typedoc "A card."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_ideas" do
     field :title, :string
     field :body, :string, default: ""

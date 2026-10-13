@@ -33,11 +33,21 @@ on those cards; change this file and the board card first.
 8. RPG game docs under `/admin/docs`
 9. The admin home shell at `/admin` (`AdminSections`) as the game hub
 
+## Data (card 3)
+
+Workflow keeps its tables in the Postgres schema `workflow` and uses
+`TalesForge.Workflow.Repo` and its own Oban instance. The product app uses
+`TalesForge.Repo`. Both repos use the same database.
+`priv/team/data-boundary.txt` and `mix deploy.check_boundaries` keep the two
+sides apart. The `collab_*` tables are Workflow data (decision 2026-10-13,
+"Workflow split 3/5: Data boundary"). The collab pages stay in the game
+admin and use the `ExTalesForge.Collab` context.
+
 ## Shared wiring for now
 
-Cards 3 to 5 move these:
+Cards 4 and 5 move these:
 
-1. `ExTalesForge.Repo`
+1. The database (card 5 moves the schema `workflow` to its own database)
 2. The router and `application.ex`
 3. `ExTalesForge.AdminAuth` and GitHub team sign-in
 4. `ExTalesForge.AppRole` home map

@@ -7,6 +7,8 @@ defmodule TalesForge.Collab.Schemas.Comment do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
+  @schema_prefix "workflow"
+
   schema "collab_comments" do
     field :author_email, :string
     field :body, :string

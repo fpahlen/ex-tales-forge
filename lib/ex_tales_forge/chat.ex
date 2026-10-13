@@ -39,7 +39,7 @@ defmodule TalesForge.Chat do
   alias TalesForge.Board.Workers.Notify
   alias TalesForge.Chat.{Message, Read}
   alias TalesForge.Images
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
   alias TalesForge.WorkLog
   alias Workflow.Inbox.Event, as: InboxEvent
   alias Workflow.Inbox.Store, as: InboxStore
@@ -101,7 +101,7 @@ defmodule TalesForge.Chat do
 
   # One Oban insert that wakes `bot` about the stored message (with its images).
   defp add_wake(bot, multi) do
-    Oban.insert(multi, {:wake, bot}, fn %{message: m, images: imgs} ->
+    TalesForge.Workflow.Jobs.insert(multi, {:wake, bot}, fn %{message: m, images: imgs} ->
       wake_job(bot, %{m | images: imgs})
     end)
   end

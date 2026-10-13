@@ -19,7 +19,7 @@ defmodule TalesForge.Board.Workers.StuckCards do
   alias TalesForge.AppRole
   alias TalesForge.Board
   alias TalesForge.Board.{Comment, Idea, Transition}
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @author "bot:board"
   @after_s 3600

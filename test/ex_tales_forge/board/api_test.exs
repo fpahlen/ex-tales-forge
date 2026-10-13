@@ -100,7 +100,7 @@ defmodule TalesForge.Board.ApiTest do
       assert card["net_votes"] == 0
       assert [%{"to" => "ideas", "actor" => "bot:case"}] = card["history"]
       assert Board.get_idea(card["id"]).column == "ideas"
-      assert TalesForge.Repo.all(Oban.Job) == []
+      assert TalesForge.Workflow.Repo.all(Oban.Job, prefix: "workflow") == []
     end
 
     test "validation errors: 422 with a message" do

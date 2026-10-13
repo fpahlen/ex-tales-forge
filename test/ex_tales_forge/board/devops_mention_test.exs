@@ -1,6 +1,7 @@
 defmodule TalesForge.Board.DevopsMentionTest do
   # @devops names Case, Bobby and Gentry, like @founders names every founder.
   use TalesForge.DataCase, async: false
+  alias TalesForge.Workflow.Repo
 
   import ExUnit.CaptureLog
 
@@ -22,7 +23,7 @@ defmodule TalesForge.Board.DevopsMentionTest do
 
   defp woken(event) do
     Oban.Job
-    |> Repo.all()
+    |> Repo.all(prefix: "workflow")
     |> Enum.filter(&(&1.args["event"] == event))
     |> Enum.map(& &1.args["bot"])
     |> Enum.sort()

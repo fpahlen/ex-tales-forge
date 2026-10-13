@@ -39,7 +39,7 @@ defmodule TalesForge.Board.Workers.PrBackfill do
   alias TalesForge.Board.{GitHubApp, Idea}
   alias TalesForge.DeployLanes
   alias TalesForge.PrFeed
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @lanes_path ".github/deploy-lanes.txt"
   @page 100
@@ -61,7 +61,7 @@ defmodule TalesForge.Board.Workers.PrBackfill do
 
   defp queue(seconds, opts) do
     if enabled?() do
-      {:ok, _} = %{} |> new([schedule_in: seconds] ++ opts) |> Oban.insert()
+      {:ok, _} = %{} |> new([schedule_in: seconds] ++ opts) |> TalesForge.Workflow.Jobs.insert()
     end
 
     :ok

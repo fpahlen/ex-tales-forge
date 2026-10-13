@@ -14,6 +14,15 @@ config :ex_tales_forge, TalesForge.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
+config :ex_tales_forge, TalesForge.Workflow.Repo,
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  port: String.to_integer(System.get_env("PGPORT", "5432")),
+  database: "ex_tales_forge_test#{System.get_env("MIX_TEST_PARTITION")}",
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: System.schedulers_online() * 2
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :ex_tales_forge, TalesForgeWeb.Endpoint,
@@ -31,6 +40,7 @@ config :swoosh, :api_client, false
 config :logger, level: :warning
 
 config :ex_tales_forge, Oban, testing: :inline, peer: false
+config :ex_tales_forge, TalesForge.Workflow.Oban, testing: :inline, peer: false
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime

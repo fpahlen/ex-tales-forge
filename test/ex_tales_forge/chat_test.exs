@@ -1,5 +1,6 @@
 defmodule TalesForge.ChatTest do
   use TalesForge.DataCase, async: false
+  alias TalesForge.Workflow.Repo
 
   alias TalesForge.Chat
 
@@ -9,7 +10,7 @@ defmodule TalesForge.ChatTest do
   @max "max@example.com"
 
   defp wakes do
-    Oban.Job |> Repo.all() |> Enum.filter(&(&1.args["event"] == "chat.mention"))
+    Oban.Job |> Repo.all(prefix: "workflow") |> Enum.filter(&(&1.args["event"] == "chat.mention"))
   end
 
   test "a message is kept, broadcast and shows in recent/0" do
