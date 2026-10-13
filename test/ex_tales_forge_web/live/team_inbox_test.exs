@@ -11,7 +11,7 @@ defmodule TalesForgeWeb.TeamInboxTest do
 
   @team Workflow.Team.Source.team()
   @owner Enum.find(@team.founders, &(&1.inbox != []))
-  @other Enum.find(@team.founders, &(&1.inbox == []))
+  @other Enum.find(@team.founders, &(&1.inbox == ["mention"]))
   @owner_email "owner@example.com"
   @other_email "other@example.com"
 
@@ -49,14 +49,15 @@ defmodule TalesForgeWeb.TeamInboxTest do
     assert :binary.match(html, ~s(id="board-chat")) < :binary.match(html, ~s(id="inbox"))
   end
 
-  test "a founder with no rules sees no inbox and keeps the pings", %{conn: conn} do
+  test "a founder with only the mention rule sees the item in the inbox, and no pings",
+       %{conn: conn} do
     {:ok, idea} = Board.create_idea(@owner_email, %{"title" => "Ping card"})
     {:ok, _} = Board.add_comment(idea, @owner_email, "@#{@other.handle} look")
 
     {:ok, view, _} = live(log_in_admin(conn, @other_email, login: @other.github), "/team")
-    refute has_element?(view, "#inbox")
-    assert has_element?(view, "#board-pings")
-    assert has_element?(view, "#stat-pings")
+    assert has_element?(view, ~s(#inbox [data-role="inbox-count"]), "1")
+    refute has_element?(view, "#board-pings")
+    refute has_element?(view, "#stat-pings")
   end
 
   test "an item shows the count, the chip and the answer field", %{conn: conn} do

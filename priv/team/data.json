@@ -1060,19 +1060,23 @@
       },
       {
         "name": "Thobias",
-        "github": "tsjokvist"
+        "github": "tsjokvist",
+        "inbox": ["mention"]
       },
       {
         "name": "Håkan",
-        "github": "hawkan-fredriksson"
+        "github": "hawkan-fredriksson",
+        "inbox": ["mention"]
       },
       {
         "name": "Jeanette",
-        "github": "jpa71"
+        "github": "jpa71",
+        "inbox": ["mention"]
       },
       {
         "name": "Max",
-        "github": "maxpahlen"
+        "github": "maxpahlen",
+        "inbox": ["mention"]
       }
     ],
     "bots": [

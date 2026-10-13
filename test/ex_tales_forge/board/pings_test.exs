@@ -26,7 +26,7 @@ defmodule TalesForge.Board.PingsTest do
              ~w(fredrik hakan jeanette max thobias)
   end
 
-  test "a comment pings the founders it names, never the author; opening the card reads them" do
+  test "a comment makes an inbox item for the founders it names, never the author" do
     {:ok, idea} = Board.create_idea(@fredrik, %{"title" => "Fishing"})
 
     {:ok, idea} =
@@ -34,18 +34,17 @@ defmodule TalesForge.Board.PingsTest do
         login: @fredrik_gh
       )
 
-    assert [%{idea_id: id, title: "Fishing", count: 1, from: @fredrik}] =
-             Board.unread_pings(@hakan_gh)
+    # Each founder has inbox rules, so the inbox replaces the pings.
+    assert [%{idea_id: id, title: "Fishing", author: @fredrik}] =
+             Workflow.Inbox.Store.open("hakan")
 
     assert id == idea.id
+    assert Workflow.Inbox.Store.open("fredrik") == []
+    assert Board.unread_pings(@hakan_gh) == []
     assert Board.unread_pings(@fredrik_gh) == []
 
     {:ok, _} = Board.add_comment(idea, "bot:case", "@Håkan one more question.")
-    assert [%{count: 2, from: "bot:case"}] = Board.unread_pings(@hakan_gh)
-
-    assert Board.read_pings(idea.id, @hakan_gh) == 2
-    assert Board.unread_pings(@hakan_gh) == []
-    assert Board.read_pings(idea.id, @hakan_gh) == 0
+    assert [_, _] = Workflow.Inbox.Store.open("hakan")
   end
 
   test "@founders pings every founder except the author; bot mentions add no pings" do
@@ -56,10 +55,14 @@ defmodule TalesForge.Board.PingsTest do
         login: "hawkan-fredriksson"
       )
 
-    # The founder with inbox rules gets an inbox item, not a ping.
+    # Each founder gets an inbox item, not a ping.
+    for handle <- ~w(fredrik jeanette thobias max) do
+      assert [%{recipient: ^handle}] = Workflow.Inbox.Store.open(handle)
+    end
+
+    assert Workflow.Inbox.Store.open("hakan") == []
     assert Board.unread_pings(@fredrik_gh) == []
-    assert [%{recipient: "fredrik"}] = Workflow.Inbox.Store.open("fredrik")
-    assert [%{count: 1}] = Board.unread_pings("MaxPahlen")
+    assert Board.unread_pings("MaxPahlen") == []
     assert Board.unread_pings(@hakan_gh) == []
     assert Board.unread_pings("tf-tester") == []
   end
@@ -83,13 +86,12 @@ defmodule TalesForge.Board.PingsTest do
     assert Enum.count(idea.transitions, &((&1.note || "") =~ "Why?")) == 1
   end
 
-  test "an archived card's pings leave the list and come back on restore" do
+  test "an archived card closes its inbox items" do
     {:ok, idea} = Board.create_idea(@fredrik, %{"title" => "Fishing"})
     {:ok, idea} = Board.add_comment(idea, @fredrik, "@hakan look", login: @fredrik_gh)
-    assert [%{count: 1}] = Board.unread_pings(@hakan_gh)
-    {:ok, idea} = Board.archive(idea, @fredrik, "Duplicate")
+    assert [_] = Workflow.Inbox.Store.open("hakan")
+    {:ok, _} = Board.archive(idea, @fredrik, "Duplicate")
+    assert Workflow.Inbox.Store.open("hakan") == []
     assert Board.unread_pings(@hakan_gh) == []
-    {:ok, _} = Board.restore(idea, @fredrik)
-    assert [%{count: 1}] = Board.unread_pings(@hakan_gh)
   end
 end

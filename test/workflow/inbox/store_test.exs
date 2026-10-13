@@ -5,10 +5,11 @@ defmodule Workflow.Inbox.StoreTest do
   alias TalesForge.Chat
   alias Workflow.Inbox.Store
 
-  # The team config of this app gives the inbox rule "mention" to one founder.
+  # The team config of this app gives every founder the rule "mention". One
+  # founder (the owner) has more rules.
   @team Workflow.Team.Source.team()
   @owner Enum.find(@team.founders, &(&1.inbox != []))
-  @other Enum.find(@team.founders, &(&1.inbox == []))
+  @other Enum.find(@team.founders, &(&1.inbox == ["mention"]))
   @owner_email "owner@example.com"
   @other_email "other@example.com"
 
@@ -73,7 +74,7 @@ defmodule Workflow.Inbox.StoreTest do
     assert %{state: "discarded", acted_at: %DateTime{}} = Store.get(item.id)
   end
 
-  test "the inbox replaces the pings and the chat badge only for a founder with rules" do
+  test "the inbox replaces the pings and the chat badge for each founder with rules" do
     idea = card()
 
     {:ok, _} =
@@ -87,8 +88,10 @@ defmodule Workflow.Inbox.StoreTest do
 
     assert Board.unread_pings(@owner.github) == []
     assert Chat.unread(@owner.github) == 0
-    assert [%{count: 1}] = Board.unread_pings(@other.github)
-    assert Chat.unread(@other.github) == 1
+    assert Board.unread_pings(@other.github) == []
+    assert Chat.unread(@other.github) == 0
+    # The comment of @other on the card closed the card item of @other.
+    assert [%{source: :chat}] = Store.open(@other.handle)
   end
 
   describe "rule pr_approval" do
