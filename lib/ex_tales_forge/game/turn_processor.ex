@@ -55,6 +55,7 @@ defmodule TalesForge.Game.TurnProcessor do
 
   alias TalesForge.Game.Train
   alias TalesForge.Game.Turn
+  alias TalesForge.Game.TurnApply
   alias TalesForge.Game.Variant
   alias TalesForge.Game.World
   alias TalesForge.Game.WorldClock
@@ -202,7 +203,7 @@ defmodule TalesForge.Game.TurnProcessor do
       |> apply_catalogue(session, handler, player_action)
 
     inventory_result = premise_result(handler, traded)
-    handler = mark_rejected(handler, inventory_result)
+    handler = handler |> mark_rejected(inventory_result) |> unpaid_sleep(inventory_result)
 
     world_present =
       world_traded
@@ -246,6 +247,7 @@ defmodule TalesForge.Game.TurnProcessor do
       training: training,
       needs_reflection: needs_reflection,
       turn_growth: if(long_rest?(handler), do: [], else: spent),
+      handler: handler,
       outcome:
         OutcomeRecord.build(world_before, world, player_action.action, handler, inventory_result)
     }
@@ -329,6 +331,9 @@ defmodule TalesForge.Game.TurnProcessor do
     already = Map.get(character, "reflecting", [])
     Map.put(character, "reflecting", Enum.sort(Enum.uniq(already ++ skills)))
   end
+
+  defp long_rest?(%{state_hints: %{"sleep_ticks" => _}} = handler),
+    do: handler |> ActionHandler.tick_delta() |> Progression.long_rest?()
 
   defp long_rest?(%{handler: "wait"} = handler),
     do: handler |> ActionHandler.tick_delta() |> Progression.long_rest?()
@@ -640,6 +645,10 @@ defmodule TalesForge.Game.TurnProcessor do
   end
 
   defp mark_rejected(handler, _result), do: handler
+
+  # A failed room payment gives the short sleep, with no paid bed.
+  defp unpaid_sleep(handler, {:error, _reason}), do: TurnApply.unpaid_sleep(handler)
+  defp unpaid_sleep(handler, _result), do: handler
 
   defp maybe_apply_context_summary(world_state, nil), do: world_state
 

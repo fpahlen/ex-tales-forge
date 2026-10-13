@@ -101,6 +101,7 @@ defmodule TalesForge.Game.Turn do
     Map.merge(TalesForge.Prompt.Ctx.read_flags(), %{
       turn_premise_first: Config.turn_premise_first?(),
       turn_state_from_mechanics: Config.turn_state_from_mechanics?(),
+      turn_apply_outcomes: Config.turn_apply_outcomes?(),
       history_strip_injection: Config.history_strip_injection?(),
       jev_catalogue_v2: Config.jev_catalogue_v2?()
     })
