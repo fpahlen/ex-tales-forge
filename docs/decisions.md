@@ -11,6 +11,12 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: The Slicing Pie comes in two PRs, hours first
+
+- **Decision:** The first PR shows the hours pie on the work-log page. Each contributor has one slice. A table shows the total hours and the percentage for each contributor. The pie uses all time since the start, as the founders answered. The date range of the page changes only the table and the totals. The cash part (cash payments and costs that a founder pays) comes in a second PR. That PR starts when the founders select the rate per hour and the multipliers (2 for time, 4 for cash).
+- **Why:** The hours pie uses the work log only, with no new table (cost M). The cash part needs a new table, an entry form and two founder answers (cost L). Two PRs give the team the hours pie now.
+- **Details:** board card "Visualise slicing pie model"; [ex-tales-forge#252](https://github.com/whyse-ab/ex-tales-forge/pull/252). This entry adds to the entry "Visualise slicing pie model" below. It replaces step 5 of that entry (the pie uses all time).
+
 ## 2026-10-13: Visualise slicing pie model
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. add visualisation of the slicing pie model
