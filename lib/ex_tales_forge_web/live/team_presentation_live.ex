@@ -1,17 +1,15 @@
 defmodule TalesForgeWeb.TeamPresentationLive do
   @moduledoc """
-  The founders' presentation at `/team/presentation`, in nine parts (the
-  order of 12 Oct 2026, trimmed on 13 Oct 2026): 1. what Tales Forge is and
-  why (the hero), 2. the team, 3. the game and how it plays, 4. how we work:
-  the board (4a the flow, 4b the live board, both `TalesForgeWeb.TeamBoard`),
+  The founders' full presentation at `/team/presentation`, in nine parts
+  (Fredrik's order of 12 Oct 2026): 1. what Tales Forge is and why (the
+  hero), 2. the team, 3. the game and how it plays, 4. how we work: the
+  shared board (section `TalesForgeWeb.TeamBoard`, with how a change flows),
   5. how we work: rules and bots, 6. how it's wired (6a the path, 6b the
-  call-type rule, 6c one turn),
-  7. playtests and quality (7a Gentry and the personas, 7b Jev under test),
-  8a. pace and cost (the headline stats), 8b. the live goals strip, and
-  9a. next steps, together, and 9b. the close. Each slide has short text and
-  one widget. The long text is on `/team/details`
-  (`TalesForgeWeb.TeamDetailsLive`), one section for each slide. Fredrik presents from it. `/team`
-  (`TalesForgeWeb.TeamLive`) is the light landing page that links here.
+  stack, hosting, one turn and the call-type rule), 7. playtests and quality
+  (7a Gentry and the personas, 7b Jev under test), 8. pace, cost and goals
+  (with the headline stats) and 9. next steps, together. Fredrik presents
+  from it. `/team` (`TalesForgeWeb.TeamLive`) is the light landing page that
+  links here. Part 3 has a screenshot slot that shows a placeholder for now.
 
   Old `/team#section` links are forwarded here by the landing page's anchor
   hook, for the anchors in `anchors/0`.
@@ -77,17 +75,13 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     {"team", "Team"},
     {"game", "The game"},
     {TeamBoard.anchor(), "The board"},
-    {"board-live", "The board, live"},
     {"how", "Rules and bots"},
     {"wired", "Wiring"},
-    {"infrastructure", "Call types"},
-    {"turn", "One turn"},
+    {"infrastructure", "Stack"},
     {"playtests", "Playtests"},
     {"quality", "Quality"},
     {"pace", "Pace and cost"},
-    {"goals", "Goals"},
-    {"together", "Together"},
-    {"together-close", "Close"}
+    {"together", "Together"}
   ]
 
   # Every place on this page an old `/team#...` link could point at: the
@@ -112,7 +106,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     "playtest" =>
       "Our separate copy of the game for testing. Every merge goes here first, by itself.",
     "prod" =>
-      "Where players are. Admin-only changes (the fast lane) go here by themselves after playtest. Other changes go to production after a playtest pass and a founder's OK.",
+      "Where players are. Admin-only changes (the fast lane) go here by themselves after playtest. Other changes go here by themselves after a founder's Approve and Gentry's check.",
     "done" =>
       "Bobby moves the card to Done. The board allows it only when the merge commit runs on production."
   }
@@ -134,7 +128,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   The sections of the presentation, in order, as `{anchor, nav label}`.
 
       iex> TalesForgeWeb.TeamPresentationLive.sections() |> Enum.map(&elem(&1, 1)) |> Enum.take(-2)
-      ["Together", "Close"]
+      ["Pace and cost", "Together"]
   """
   @spec sections() :: [{String.t(), String.t()}]
   def sections, do: @sections
@@ -144,8 +138,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   use: every section of the nav, then the named parts inside them.
 
       iex> anchors = TalesForgeWeb.TeamPresentationLive.anchors()
-      iex> Enum.take(anchors, 6)
-      ["hero", "team", "game", "board", "board-live", "how"]
+      iex> Enum.take(anchors, 11)
+      ["hero", "team", "game", "board", "how", "wired", "infrastructure", "playtests", "quality", "pace", "together"]
       iex> "the-call-type-rule-one-turn-three-call-types" in anchors
       true
   """
@@ -237,20 +231,18 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       >
         <TeamLayout.qa_banner qa={assigns[:qa] == true} read_only={assigns[:read_only] == true} />
         <.hero />
-        <.team_slide d={@d} />
+        <.team_section d={@d} />
         <.game_section />
-        <TeamBoard.section d={@d} live={@board_live} />
-        <TeamBoard.live_slide live={@board_live} />
-        <.how_slide d={@d} live={@live} />
+        <TeamBoard.section d={@d} live={@board_live}>
+          <.change_flow d={@d} />
+        </TeamBoard.section>
+        <.how_section d={@d} live={@live} />
         <.wired_section />
-        <.infra_slide d={@d} />
-        <.turn_slide d={@d} />
-        <.playtests_slide d={@d} live={@live} />
-        <.quality_slide d={@d} />
-        <.pace_slide d={@d} pace={@pace} live={@live} />
-        <.goals_slide goals={@goals} />
-        <.together_slide />
-        <.together_close d={@d} />
+        <.infra_section d={@d} />
+        <.playtests_section d={@d} live={@live} />
+        <.quality_section d={@d} live={@live} />
+        <.pace_section d={@d} pace={@pace} live={@live} goals={@goals} />
+        <.together_section d={@d} />
       </main>
 
       <TeamLayout.footer d={@d} />
@@ -357,7 +349,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   attr :d, :map, required: true
 
-  defp details_team(assigns) do
+  defp team_section(assigns) do
     ~H"""
     <section id="team" class="team-section space-y-8" aria-labelledby="team-title" data-reveal>
       <.section_head id="team" title="2. The team">
@@ -451,7 +443,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         <strong>Fast lane:</strong>
         a change that only touches admin pages goes on to production by itself.
         <strong>Normal lane:</strong>
-        a founder gives the OK twice on the board: the move to Building, then Approve on the PR before the merge. After the merge, Gentry and the persona bots play it on playtest. The change goes to production after a playtest pass and a founder's OK.
+        a founder gives the OK twice on the board: the move to Building, then Approve on the PR before the merge. After the merge, Gentry and the persona bots play it on playtest, and then it ships to production by itself.
       </p>
       <.flow steps={@steps} d={@d} />
       <p class="text-xs text-[var(--paper-muted)]">
@@ -473,7 +465,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     <li>Make the decisions, written down in one shared log.</li>
     <li>
       Approve PRs on the board.
-      <strong>A founder's Approve starts the ship: the change goes to production after a playtest pass and a founder's OK.</strong>
+      <strong>A founder's Approve ships the change: playtest, then Gentry, then production by itself.</strong>
     </li>
     <li :if={get(@d, ["team", "members", 0, "people", "names"]) not in [nil, []]}>
       <.founders_people id="founders-people" d={@d} />
@@ -506,7 +498,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     <li>
       Ships to Fly
       <.explain text="our hosting" />. Admin-only changes take the fast lane and ship by themselves when the checks pass.
-      Every other change goes to production after a playtest pass and a founder's OK.
+      Every other change goes to playtest after a founder approves it on the board. Gentry checks it, and then it ships to production by itself.
     </li>
     <li>Checks the Fly logs every hour.</li>
     """
@@ -682,7 +674,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   defp step_detail(%{id: "ok_prod"} = assigns) do
     ~H"""
-    <em>Normal lane only. The change goes to production after a playtest pass and a founder's OK.</em>
+    <em>Normal lane only. When Gentry's checks pass, the change ships to production by itself.</em>
     """
   end
 
@@ -721,7 +713,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   attr :d, :map, required: true
   attr :live, :map, required: true
 
-  defp details_rules(assigns) do
+  defp how_section(assigns) do
     decisions = assigns.live.decisions
     all_days = decisions.by_date
     {by_date, _earlier} = TeamLiveNumbers.since_inception(all_days)
@@ -737,8 +729,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       )
 
     ~H"""
-    <section id="rules" class="team-section space-y-8" aria-labelledby="rules-title">
-      <.section_head id="rules" title="5. How we work: rules and bots">
+    <section id="how" class="team-section space-y-8" aria-labelledby="how-title" data-reveal>
+      <.section_head id="how" title="5. How we work: rules and bots">
         A few simple rules keep the whole crew, founders and bots, working in the same direction.
       </.section_head>
 
@@ -797,7 +789,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
             </h3>
             <p class="text-sm leading-relaxed">
               Writing things down should be fast, so docs need no review step. Code always gets a PR and CI. Each change also gets a founder's OK,
-              on the board card. Any founder approves PRs there. An approved change goes to production after a playtest pass and a founder's OK.
+              on the board card. Any founder approves PRs there. An approved change goes to playtest, Gentry checks it, and then it ships to production by itself.
             </p>
           </article>
           <article id="rule-code" class="team-card space-y-2 p-5">
@@ -834,7 +826,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   attr :d, :map, required: true
 
-  defp details_infra(assigns) do
+  defp infra_section(assigns) do
     ~H"""
     <section
       id="infrastructure"
@@ -842,7 +834,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       aria-labelledby="infrastructure-title"
       data-reveal
     >
-      <.section_head id="infrastructure" title="6b. How it's wired: stack and the call-type rule">
+      <.section_head id="infrastructure" title="6b. How it's wired: stack, hosting and one turn">
         The game is a small, sturdy web app. Here is what it runs on, in plain words.
       </.section_head>
 
@@ -927,54 +919,52 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
       <.architecture d={@d} />
 
-      <div id="call-types" class="space-y-8">
-        <article id="rule-call-types" class="team-card space-y-4 p-5">
-          <h3 class="font-serif text-lg font-bold">The call-type rule.</h3>
-          <p class="text-sm leading-relaxed">
-            Each piece of work in a turn uses the cheapest tool that can do it:
-          </p>
-          <div class="grid gap-3" role="table" aria-label="Call types">
-            <div
-              class="hidden grid-cols-4 gap-3 px-3 text-xs font-semibold uppercase tracking-wide text-[var(--paper-muted)] lg:grid"
-              role="row"
-            >
-              <span role="columnheader">What goes in</span>
-              <span role="columnheader">What comes out</span>
-              <span role="columnheader">We use</span>
-              <span role="columnheader">Why</span>
-            </div>
-            <div
-              :for={row <- get(@d, ["call_types", "rows"]) || []}
-              class={[
-                "team-call-row grid gap-1 rounded-lg border-l-4 bg-[var(--paper-bg)] p-3 text-sm lg:grid-cols-4 lg:gap-3",
-                "team-kind-#{call_kind(row["type"])}"
-              ]}
-              role="row"
-            >
-              <span role="cell"><span class="team-cell-label">In: </span>{io_label(row["input"])}</span>
-              <span role="cell"><span class="team-cell-label">Out: </span>{io_label(row["output"])}</span>
-              <strong role="cell" class="team-kind-text">{tool_label(row["type"])}</strong>
-              <span role="cell" class="text-[var(--paper-muted)]">{row["cost"]}</span>
-            </div>
+      <article id="rule-call-types" class="team-card space-y-4 p-5">
+        <h3 class="font-serif text-lg font-bold">The call-type rule.</h3>
+        <p class="text-sm leading-relaxed">
+          Each piece of work in a turn uses the cheapest tool that can do it:
+        </p>
+        <div class="grid gap-3" role="table" aria-label="Call types">
+          <div
+            class="hidden grid-cols-4 gap-3 px-3 text-xs font-semibold uppercase tracking-wide text-[var(--paper-muted)] lg:grid"
+            role="row"
+          >
+            <span role="columnheader">What goes in</span>
+            <span role="columnheader">What comes out</span>
+            <span role="columnheader">We use</span>
+            <span role="columnheader">Why</span>
           </div>
-          <p class="text-xs leading-relaxed text-[var(--paper-muted)]">
-            <em>Elixir</em>
-            is the programming language the game is written in. <em>Jev</em>
-            is TypeSafe's model that reads text and answers with typed data
-            (a category plus a confidence), not prose. An <em>LLM</em>
-            is a large language model, the kind of AI that writes text.
-          </p>
-          <p id="call-types-walkthrough-link" class="text-sm leading-relaxed">
-            <strong>The call-type rule is the heart of the game engine, so it gets its own walkthrough:</strong>
-            <a
-              href={"#" <> TeamCallTypes.anchor()}
-              class="text-[var(--paper-accent)] underline underline-offset-2"
-            >one turn, three call types</a>.
-          </p>
-        </article>
+          <div
+            :for={row <- get(@d, ["call_types", "rows"]) || []}
+            class={[
+              "team-call-row grid gap-1 rounded-lg border-l-4 bg-[var(--paper-bg)] p-3 text-sm lg:grid-cols-4 lg:gap-3",
+              "team-kind-#{call_kind(row["type"])}"
+            ]}
+            role="row"
+          >
+            <span role="cell"><span class="team-cell-label">In: </span>{io_label(row["input"])}</span>
+            <span role="cell"><span class="team-cell-label">Out: </span>{io_label(row["output"])}</span>
+            <strong role="cell" class="team-kind-text">{tool_label(row["type"])}</strong>
+            <span role="cell" class="text-[var(--paper-muted)]">{row["cost"]}</span>
+          </div>
+        </div>
+        <p class="text-xs leading-relaxed text-[var(--paper-muted)]">
+          <em>Elixir</em>
+          is the programming language the game is written in. <em>Jev</em>
+          is TypeSafe's model that reads text and answers with typed data
+          (a category plus a confidence), not prose. An <em>LLM</em>
+          is a large language model, the kind of AI that writes text.
+        </p>
+        <p id="call-types-walkthrough-link" class="text-sm leading-relaxed">
+          <strong>The call-type rule is the heart of the game engine, so it gets its own walkthrough:</strong>
+          <a
+            href={"#" <> TeamCallTypes.anchor()}
+            class="text-[var(--paper-accent)] underline underline-offset-2"
+          >one turn, three call types</a>.
+        </p>
+      </article>
 
-        <TeamCallTypes.walkthrough d={@d} />
-      </div>
+      <TeamCallTypes.walkthrough d={@d} />
     </section>
     """
   end
@@ -1000,35 +990,28 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   end
 
   attr :d, :map, required: true
-  attr :heading, :boolean, default: true
 
   defp architecture(assigns) do
     ~H"""
-    <figure id="architecture" class="team-card space-y-3 p-3 sm:space-y-4 sm:p-6">
-      <h3 :if={@heading} class="font-serif text-xl font-bold">How a turn works</h3>
-      <ol class="flex flex-col items-stretch gap-1 lg:flex-row lg:items-start lg:gap-2">
+    <figure id="architecture" class="team-card space-y-4 p-4 sm:p-6">
+      <h3 class="font-serif text-xl font-bold">How a turn works</h3>
+      <ol class="flex flex-col items-stretch gap-2 lg:flex-row lg:items-start">
         <%= for {node, i} <- Enum.with_index(get(@d, ["infrastructure", "architecture_nodes"]) || []) do %>
           <li :if={i > 0} class="flex justify-center lg:mt-6 lg:items-center" aria-hidden="true">
-            <.icon name="hero-arrow-down" class="size-4 text-[var(--paper-muted)] lg:hidden" />
+            <.icon name="hero-arrow-down" class="size-5 text-[var(--paper-muted)] lg:hidden" />
             <.icon name="hero-arrow-right" class="hidden size-5 text-[var(--paper-muted)] lg:block" />
           </li>
           <li class={[
-            "team-arch-node flex flex-1 items-center gap-2 rounded-lg border-2 p-2 text-left",
-            "lg:block lg:p-3 lg:text-center",
+            "team-arch-node flex-1 rounded-lg border-2 p-3 text-center",
             "team-kind-#{node_kind(node)}"
           ]}>
-            <span class="team-kind-text flex size-8 shrink-0 items-center justify-center lg:mx-auto lg:mb-1 lg:size-9">
+            <span class="team-kind-text mx-auto mb-1 flex size-9 items-center justify-center">
               <.node_icon node={node} />
             </span>
-            <span class="min-w-0">
-              <span class="block text-sm font-semibold leading-tight">{node}</span>
-              <span
-                :if={node_note(node, @d)}
-                class="mt-1 block text-xs italic text-[var(--paper-muted)]"
-              >
-                {node_note(node, @d)}
-              </span>
-            </span>
+            <p class="text-sm font-semibold leading-tight">{node}</p>
+            <p :if={node_note(node, @d)} class="mt-1 text-xs italic text-[var(--paper-muted)]">
+              {node_note(node, @d)}
+            </p>
           </li>
         <% end %>
       </ol>
@@ -1098,7 +1081,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     "The idea board wakes Case or Bobby.",
     "Bobby builds the change as a PR. GitHub checks it.",
     "The change goes to playtest. Gentry checks it.",
-    "The change goes to production after a playtest pass and a founder's OK.",
+    "Bobby deploys the approved commit to production.",
     "Admin and security fixes ship by themselves."
   ]
 
@@ -1107,8 +1090,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
      "Playtest and production each have their own database. A test never touches player data."},
     {"Playtest first.", "Every change goes to playtest before production."},
     {"One founder OK is enough.", "Any founder approves a PR on its board card."},
-    {"Normal changes need a pass and an OK.",
-     "A normal change goes to production after a playtest pass and a founder's OK. No founder pushes anything."},
+    {"Normal changes ship after Gentry's check.",
+     "Bobby then deploys the approved commit to production. No founder pushes anything."},
     {"Fast lanes.", "Admin-page changes and safe security fixes ship without a manual OK."},
     {"Cards finish by themselves.",
      "A card moves to Done when its change is live on production."},
@@ -1135,14 +1118,24 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     assigns =
       assign(assigns,
         path: Enum.zip(path, @wired_bots),
-        fast_lane: fast_lane
+        fast_lane: fast_lane,
+        facts: @wired_facts
       )
 
     ~H"""
-    <section id="wired" class="team-section space-y-6" aria-labelledby="wired-title" data-reveal>
+    <section id="wired" class="team-section space-y-8" aria-labelledby="wired-title" data-reveal>
       <.section_head id="wired" title="6a. How it's wired: the path">
-        Tales Forge runs as two apps on Fly.io in Stockholm. Playtest gets each change first. Players use production. Each app has its own database, so a test never touches player data. Only team members can sign in, with GitHub.
+        Tales Forge runs as two apps on Fly.io in Stockholm. Playtest gets each change first.
+        Production is what players use. GitHub keeps our code and our docs. GitHub also tests
+        each change before it ships.
       </.section_head>
+
+      <p id="wired-bots" class="max-w-3xl">
+        Three bots work with us. Case refines ideas and reviews work. Bobby builds and ships.
+        Gentry tries to break things on playtest. When you move a card on the idea board, the
+        board wakes the right bot. When you move a card to Building, the board writes the
+        decision in our decision log.
+      </p>
 
       <%!-- The path from the idea board to production (TeamFlow hook in
            assets/js/team_hooks.js): the d20 visits each step, the step lights
@@ -1217,6 +1210,16 @@ defmodule TalesForgeWeb.TeamPresentationLive do
             <span class="font-semibold text-[var(--paper-muted)]">Fast lane:</span> {@fast_lane}
           </span>
         </p>
+        <ul id="wired-facts" class="grid gap-3 sm:grid-cols-2">
+          <li
+            :for={{{head, text}, i} <- Enum.with_index(@facts, 1)}
+            id={"wired-fact-#{i}"}
+            class="team-card p-4"
+            data-flow-fact
+          >
+            <strong>{head}</strong> {text}
+          </li>
+        </ul>
         <button
           type="button"
           id="replay-wired"
@@ -1228,8 +1231,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         </button>
       </figure>
 
-      <p id="wired-runbook" class="text-sm">
-        <a href="/admin/docs/infrastructure-setup.md" class="underline">The full runbook (docs/infrastructure-setup.md) →</a>
+      <p id="wired-runbook" class="text-sm opacity-80">
+        The full runbook is "Infrastructure setup" in our docs (docs/infrastructure-setup.md).
       </p>
     </section>
     """
@@ -1262,7 +1265,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   attr :d, :map, required: true
   attr :live, :map, required: true
 
-  defp details_playtests(assigns) do
+  defp playtests_section(assigns) do
     ~H"""
     <section
       id="playtests"
@@ -1270,7 +1273,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       aria-labelledby="playtests-title"
       data-reveal
     >
-      <.section_head id="playtests" title="7a. Playtests: Gentry and the personas">
+      <.section_head id="playtests" title="7a. Status, playtests and quality: Gentry and the personas">
         We can't hire a hundred players yet, so we built {count_word(length(personas(@d)))} pretend ones. Each persona bot plays the game the way
         a real kind of player would, and Jev reads every session and asks: how would <em>this</em>
         player have felt?
@@ -1333,6 +1336,8 @@ defmodule TalesForgeWeb.TeamPresentationLive do
           </p>
         </div>
       </div>
+
+      <.persona_scores_now scores={@live.persona_scores} personas={personas(@d)} />
     </section>
     """
   end
@@ -1689,7 +1694,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   attr :d, :map, required: true
   attr :live, :map, required: true
 
-  defp details_quality(assigns) do
+  defp quality_section(assigns) do
     ~H"""
     <section
       id="quality"
@@ -1697,7 +1702,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
       aria-labelledby="quality-title"
       data-reveal
     >
-      <.section_head id="quality" title="7b. Quality: Jev under test">
+      <.section_head id="quality" title="7b. Status, playtests and quality: Jev under test">
         Jev reads each player line and decides what the player wants to do. These tests show how well it does that.
       </.section_head>
       <.shadow_test d={@d} latency={@live.intent_latency} />
@@ -1712,7 +1717,11 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   attr :pace, :map, required: true, doc: "`TalesForge.TeamPace.current/0`"
   attr :live, :map, required: true, doc: "`TalesForgeWeb.TeamLiveNumbers.all/3`"
 
-  defp details_pace(assigns) do
+  attr :goals, :map,
+    default: nil,
+    doc: "`TalesForge.Board.Goals.strip/0`, or `nil` where the board is not"
+
+  defp pace_section(assigns) do
     {current, earlier} = split_prs_since_inception(assigns.pace)
     {commit_days, _earlier} = TeamLiveNumbers.since_inception(assigns.pace.commits_by_day)
     as_of = assigns.pace.as_of
@@ -1731,9 +1740,42 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
     ~H"""
     <section id="pace" class="team-section space-y-8" aria-labelledby="pace-title" data-reveal>
-      <.section_head id="pace" title="8a. Status: pace and cost">
+      <.section_head id="pace" title="8. Status: pace, cost and goals">
         Bots are fast. These numbers show how fast, and what it cost.
       </.section_head>
+
+      <div class="grid gap-3 sm:grid-cols-3 lg:col-span-2">
+        <.stat
+          id="stat-prs-merged"
+          value={number(@pace.prs_merged)}
+          label="pull requests merged"
+        >
+          <.explain text="a pull request, or PR, is one proposed change to the code that someone reviews before it goes in" />
+        </.stat>
+        <.stat
+          id="stat-decisions"
+          value={number(@live.decisions.total)}
+          label="decisions written down"
+        />
+        <.stat
+          id="stat-tests"
+          value={number(tests_total(@live.tests))}
+          label={tests_label(@live.tests)}
+        />
+        <div id="stat-source" class="space-y-0.5 sm:col-span-3">
+          <.pace_source id="stat-source-prs" pace={@pace} />
+          <.group_source id="stat-source-decisions" what="Decisions" group={@live.decisions} />
+          <.group_source id="stat-source-tests" what="Tests" group={@live.tests} />
+        </div>
+      </div>
+
+      <div id="pace-goals" class="space-y-2">
+        <h3 class="font-serif text-xl font-bold sm:text-2xl">Our goals, live</h3>
+        <TalesForgeWeb.TeamGoals.strip :if={@goals} strip={@goals} read_only />
+        <p :if={!@goals} id="pace-goals-none" class="text-sm text-[var(--paper-muted)]">
+          The live goals show on the app with the idea board.
+        </p>
+      </div>
 
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <.stat id="pace-prs" value={number(@pace.prs_total)} label="PRs">
@@ -1878,7 +1920,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   attr :d, :map, required: true
 
-  defp details_together(assigns) do
+  defp together_section(assigns) do
     assigns =
       assign(assigns,
         survey_url: AppRole.link(:surveys, "/admin/founders/survey"),
@@ -1887,7 +1929,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
     ~H"""
     <section id="together" class="team-section space-y-8" aria-labelledby="together-title" data-reveal>
-      <.section_head id="together" title="9a. Next steps, together">
+      <.section_head id="together" title="9. Next steps, together">
         Several founders already add, vote, comment and approve on the shared board. The best part is still ahead,
         and it gets better with every founder who joins in. Together we can make something awesome.
       </.section_head>
@@ -1895,7 +1937,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
         <TeamArt.seal class="size-10 shrink-0" />
         <p class="text-sm leading-relaxed sm:text-base">
           <strong>This is how we work today, and we shape it together.</strong>
-          Every founder can add ideas, vote, answer the open questions and approve PRs on the board. An approved change goes to production after a playtest pass and a founder's OK. Changes that only touch admin pages ship straight away. This page is an invitation to shape the rest with us.
+          Every founder can add ideas, vote, answer the open questions and approve PRs on the board. An approved change goes to playtest, Gentry checks it, and then it ships to production by itself. Changes that only touch admin pages ship straight away. This page is an invitation to shape the rest with us.
         </p>
       </aside>
       <ul id="involve" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -1964,475 +2006,12 @@ defmodule TalesForgeWeb.TeamPresentationLive do
 
   defp involve(assigns) do
     ~H"""
-    <li id={@id} class="team-card flex flex-col gap-1.5 p-3 sm:gap-2 sm:p-4">
-      <.icon name={@icon} class="size-6 text-[var(--paper-accent)] sm:size-7" />
+    <li id={@id} class="team-card flex flex-col gap-2 p-4">
+      <.icon name={@icon} class="size-7 text-[var(--paper-accent)]" />
       <h3 class="font-semibold">{@title}</h3>
       <p class="flex-1 text-sm leading-snug">{render_slot(@inner_block)}</p>
       <a :if={@href} href={@href} class="text-sm font-semibold text-[var(--paper-accent)] underline">{@link} →</a>
     </li>
-    """
-  end
-
-  # ── Slides: the short text (Fredrik's trimmed draft, 13 Oct 2026) ─────────
-  # Each slide keeps one widget. The long text is on /team/details
-  # (`details/1`, `TalesForgeWeb.TeamDetailsLive`). Each anchor of the old
-  # long page stays on the slide, as the link to its detail.
-
-  attr :id, :string, required: true
-  attr :href, :string, required: true
-  slot :inner_block, required: true
-
-  defp more(assigns) do
-    ~H"""
-    <a
-      id={@id}
-      href={@href}
-      class="inline-flex min-h-9 items-center text-sm font-semibold text-[var(--paper-accent)] underline underline-offset-2"
-    >
-      {render_slot(@inner_block)} →
-    </a>
-    """
-  end
-
-  @team_lines %{
-    "founders" =>
-      "Jeanette, Thobias, Håkan, Max, Fredrik: we decide what we build and approve every change on the board.",
-    "case" => "Refines ideas and reviews the architecture.",
-    "bobby" => "Writes all the code as PRs and ships it.",
-    "gentry" => "Tries to break the game on playtest. Never touches production."
-  }
-
-  attr :d, :map, required: true
-
-  defp team_slide(assigns) do
-    assigns = assign(assigns, :lines, @team_lines)
-
-    ~H"""
-    <section id="team" class="team-section space-y-6" aria-labelledby="team-title" data-reveal>
-      <.section_head id="team" title="2. The team">
-        One crew builds Tales Forge: five founders and {count_word(bot_count(@d))} bots. The bots do most hands-on work. Nothing reaches the game without a founder's yes.
-      </.section_head>
-      <ul id="team-cards" class="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-        <li
-          :for={member <- get(@d, ["team", "members"]) || []}
-          id={"member-#{member["id"]}"}
-          class="team-card flex flex-col gap-2 p-3"
-        >
-          <div class="flex items-center gap-3">
-            <TeamArt.avatar id={member["id"]} class="size-12 shrink-0" label={"#{member["name"]}"} />
-            <h3 class="font-serif text-lg font-bold leading-tight">{member["name"]}</h3>
-          </div>
-          <p class="flex-1 text-sm leading-snug">{@lines[member["id"]]}</p>
-          <.member_badge member={member} />
-        </li>
-      </ul>
-      <.more id="team-more" href="/team/details#team">More about the team</.more>
-    </section>
-    """
-  end
-
-  attr :d, :map, required: true
-  attr :live, :map, required: true
-
-  defp how_slide(assigns) do
-    decisions = assigns.live.decisions
-    {by_date, _earlier} = TeamLiveNumbers.since_inception(decisions.by_date)
-    assigns = assign(assigns, decisions: decisions, by_date: by_date, as_of: decisions.as_of)
-
-    ~H"""
-    <section id="how" class="team-section space-y-6" aria-labelledby="how-title" data-reveal>
-      <.section_head id="how" title="5. How we work: rules and bots">
-        A few simple rules keep founders and bots going the same way.
-      </.section_head>
-      <div class="grid gap-6 lg:grid-cols-2">
-        <ul class="team-bullets space-y-2 text-base leading-relaxed">
-          <li id="rule-decisions">
-            We write every decision in one log (docs/decisions.md). We add, we never edit history.
-          </li>
-          <li id="rule-docs">Docs go straight to main. Code always goes through a PR and CI.</li>
-          <li id="rule-code">Code explains itself: docs, type specs and tests on every module.</li>
-          <li id="rule-tools">
-            The tools check each PR: doctests, Dialyzer, Credo, the formatter. Dialyzer warnings: {number(
-              get(@d, ["code_standards", "dialyzer_warnings"])
-            )}. Coverage: {pct(get(@d, ["code_standards", "coverage_pct"]))}.
-          </li>
-        </ul>
-        <div class="team-card space-y-2 p-4">
-          <h3 class="text-sm font-semibold">
-            {number(@decisions.total)} decisions · per day, {TeamLiveNumbers.window_label(
-              :since_inception
-            )}
-          </h3>
-          <.column_chart
-            id="chart-decisions"
-            label="Decisions logged per day since 2026-10-07"
-            items={
-              Enum.map(
-                @by_date,
-                &%{
-                  label: day_label(&1["date"], @as_of),
-                  value: &1["count"],
-                  display: number(&1["count"])
-                }
-              )
-            }
-          />
-          <.group_source id="decisions-source" what="Decision numbers" group={@decisions} />
-        </div>
-      </div>
-      <.more id="how-more" href="/team/details#rules">More about our rules</.more>
-    </section>
-    """
-  end
-
-  attr :d, :map, required: true
-
-  defp infra_slide(assigns) do
-    ~H"""
-    <section
-      id="infrastructure"
-      class="team-section space-y-6"
-      aria-labelledby="infrastructure-title"
-      data-reveal
-    >
-      <.section_head id="infrastructure" title="6b. How it's wired: the call-type rule">
-        Each job in a turn goes to the cheapest tool that can do it.
-      </.section_head>
-      <ul id="rule-call-types" class="team-bullets space-y-1.5 text-base leading-relaxed">
-        <li>Elixir code: known data in, known data out. Exact, free and fast.</li>
-        <li>Jev: player words in, typed data out. Fast and cheap.</li>
-        <li>The LLM (Grok): writes the story. Slowest and most expensive, so it goes last.</li>
-        <li>Rule: never ask the LLM for data. The rules decide; the AI only tells the story.</li>
-      </ul>
-      <p class="flex flex-wrap gap-x-4">
-        <.more id="stack" href="/team/details#stack">The stack</.more>
-        <.more id="hosting" href="/team/details#hosting">Hosting and access</.more>
-        <.more id={TeamCallTypes.anchor()} href="/team/details#call-types">
-          One turn, three call types
-        </.more>
-      </p>
-    </section>
-    """
-  end
-
-  attr :d, :map, required: true
-
-  defp turn_slide(assigns) do
-    ~H"""
-    <section
-      id="turn"
-      class="team-section space-y-4 sm:space-y-6"
-      aria-labelledby="turn-title"
-      data-reveal
-    >
-      <.section_head id="turn" title="6c. How it's wired: how a turn works" />
-      <.architecture d={@d} heading={false} />
-    </section>
-    """
-  end
-
-  attr :d, :map, required: true
-  attr :live, :map, required: true
-
-  defp playtests_slide(assigns) do
-    ~H"""
-    <section
-      id="playtests"
-      class="team-section space-y-6"
-      aria-labelledby="playtests-title"
-      data-reveal
-    >
-      <.section_head id="playtests" title="7a. Playtests: Gentry and the personas">
-        We built five pretend players. Each persona bot plays like one kind of real player. Jev reads each session and scores how that player felt, from 1 to 5. Gentry attacks the game on playtest.
-      </.section_head>
-      <ul id="persona-cards" class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        <li
-          :for={p <- personas(@d)}
-          id={"persona-#{p["id"]}"}
-          class={["team-card flex items-center gap-2 p-2", p["id"] == "ronny" && "team-anti"]}
-        >
-          <TeamArt.persona_token id={p["id"]} class="size-9 shrink-0" />
-          <div class="min-w-0">
-            <h3 class="font-serif font-bold leading-tight">{p["name"]}</h3>
-            <p class="text-xs font-semibold text-[var(--paper-accent)]">{p["style"]}</p>
-          </div>
-        </li>
-      </ul>
-      <.persona_scores_now scores={@live.persona_scores} personas={personas(@d)} />
-      <p class="flex flex-wrap gap-x-4">
-        <.more id="gentry" href="/team/details#gentry">Gentry's findings</.more>
-        <.more id="hostile-play" href="/team/details#hostile-play">Hostile play</.more>
-        <.more id="playtests-more" href="/team/details#playtests">More about the playtests</.more>
-      </p>
-    </section>
-    """
-  end
-
-  attr :d, :map, required: true
-
-  defp quality_slide(assigns) do
-    assigns = assign(assigns, :s, get(assigns.d, ["intent_shadow"]) || %{})
-
-    ~H"""
-    <section id="quality" class="team-section space-y-6" aria-labelledby="quality-title" data-reveal>
-      <.section_head id="quality" title="7b. Quality: Jev under test">
-        Before Jev decided anything, it read every playtest turn in shadow, without changing the game. Then we tested it on a fixed exam of player lines. Some lines are kept unseen until the end.
-      </.section_head>
-      <div id="shadow-test" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <.stat id="shadow-reads" value={number(@s["reads"])} label="turns read" />
-        <.stat id="shadow-latency" value={ms(@s["p50_ms"])} label={"median, #{ms(@s["p95_ms"])} p95"} />
-        <.stat
-          id="shadow-within"
-          value={within_text(@s["within_timeout"], @s["reads"])}
-          label={"inside the #{seconds(@s["timeout_ms"])} limit"}
-        />
-        <.stat id="shadow-cost" value={usd(@s["cost_usd"])} label="total" />
-      </div>
-      <p class="flex flex-wrap gap-x-4">
-        <.more id="intent-compare" href="/team/details#intent-compare">
-          Jev against the old guesser
-        </.more>
-        <.more id="eval-set" href="/team/details#eval-set">The eval set</.more>
-      </p>
-    </section>
-    """
-  end
-
-  attr :d, :map, required: true
-  attr :pace, :map, required: true, doc: "`TalesForge.TeamPace.current/0`"
-  attr :live, :map, required: true, doc: "`TalesForgeWeb.TeamLiveNumbers.all/3`"
-
-  defp pace_slide(assigns) do
-    ~H"""
-    <section id="pace" class="team-section space-y-6" aria-labelledby="pace-title" data-reveal>
-      <.section_head id="pace" title="8a. Status: pace and cost">
-        Bots are fast. Here is how fast, what it cost, and where we aim.
-      </.section_head>
-
-      <div class="grid gap-3 sm:grid-cols-3 lg:col-span-2">
-        <.stat
-          id="stat-prs-merged"
-          value={number(@pace.prs_merged)}
-          label="pull requests merged"
-        >
-          <.explain text="a pull request, or PR, is one proposed change to the code that someone reviews before it goes in" />
-        </.stat>
-        <.stat
-          id="stat-decisions"
-          value={number(@live.decisions.total)}
-          label="decisions written down"
-        />
-        <.stat
-          id="stat-tests"
-          value={number(tests_total(@live.tests))}
-          label={tests_label(@live.tests)}
-        />
-        <div id="stat-source" class="space-y-0.5 sm:col-span-3">
-          <.pace_source id="stat-source-prs" pace={@pace} />
-          <.group_source id="stat-source-decisions" what="Decisions" group={@live.decisions} />
-          <.group_source id="stat-source-tests" what="Tests" group={@live.tests} />
-        </div>
-      </div>
-
-      <.more id="ai-spend" href="/team/details#ai-spend">Pace and AI spend in detail</.more>
-    </section>
-    """
-  end
-
-  attr :goals, :map,
-    default: nil,
-    doc: "`TalesForge.Board.Goals.strip/0`, or `nil` where the board is not"
-
-  defp goals_slide(assigns) do
-    ~H"""
-    <section id="goals" class="team-section space-y-4" aria-labelledby="goals-title" data-reveal>
-      <.section_head id="goals" title="8b. Status: our goals, live" />
-      <div id="pace-goals" class="space-y-2">
-        <TalesForgeWeb.TeamGoals.strip :if={@goals} strip={@goals} read_only />
-        <p :if={!@goals} id="pace-goals-none" class="text-sm text-[var(--paper-muted)]">
-          The live goals show on the app with the idea board.
-        </p>
-      </div>
-    </section>
-    """
-  end
-
-  defp together_slide(assigns) do
-    assigns =
-      assign(assigns,
-        survey_url: AppRole.link(:surveys, "/admin/founders/survey"),
-        playtest_url: AppRole.base_url(:playtest)
-      )
-
-    ~H"""
-    <section id="together" class="team-section space-y-6" aria-labelledby="together-title" data-reveal>
-      <.section_head id="together" title="9a. Next steps, together">
-        <span id="starting-point">
-          This is how we work today, and we shape it together. Several founders already use the board. It gets better with each founder who joins in.
-        </span>
-      </.section_head>
-      <ul id="involve" class="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
-        <.involve
-          id="involve-board"
-          icon="hero-view-columns"
-          title="Start on the board"
-          href="/team#idea-board"
-          link="The idea board"
-        >
-          Add ideas, vote and comment.
-        </.involve>
-        <.involve
-          id="involve-approve"
-          icon="hero-key"
-          title="Approve on the board"
-          href="/team#idea-board"
-          link="Approve"
-        >
-          Send a card to Building, approve its PR.
-        </.involve>
-        <.involve
-          icon="hero-clipboard-document-check"
-          title="Answer the surveys"
-          href={@survey_url}
-          link="The survey"
-        >
-          They set what we test for.
-        </.involve>
-        <.involve
-          icon="hero-puzzle-piece"
-          title="Play the playtest"
-          href={@playtest_url}
-          link={URI.parse(@playtest_url).host}
-        >
-          Your sessions show next to the bots'.
-        </.involve>
-        <.involve
-          id="involve-archive"
-          icon="hero-archive-box"
-          title="Read the idea archive"
-          href="/admin/docs/future-ideas.md"
-          link="docs/future-ideas.md"
-        >
-          The ideas from before the board.
-        </.involve>
-      </ul>
-    </section>
-    """
-  end
-
-  attr :d, :map, required: true
-
-  defp together_close(assigns) do
-    ~H"""
-    <section
-      id="together-close"
-      class="team-section space-y-6"
-      aria-labelledby="together-close-title"
-      data-reveal
-    >
-      <.section_head id="together-close" title="9b. Let's build it together" />
-      <div class="team-callout flex flex-col items-center gap-3 p-5 text-center sm:flex-row sm:text-left">
-        <TeamArt.seal class="size-12 shrink-0" />
-        <p class="font-serif text-lg leading-relaxed sm:text-xl">
-          A founder's yes on every change, {count_word(bot_count(@d))} bots that never get tired, a paper trail for every decision,
-          and room at the table for all of us. Let's build it together.
-        </p>
-      </div>
-    </section>
-    """
-  end
-
-  # ── The details page (/team/details) ───────────────────────────────────────
-
-  @details_sections [
-    {"hero", "What and why"},
-    {"team", "Team"},
-    {"game", "The game"},
-    {"board", "The board"},
-    {"rules", "Rules"},
-    {"wired", "Wiring"},
-    {"infrastructure", "Stack"},
-    {"playtests", "Playtests"},
-    {"quality", "Quality"},
-    {"pace", "Pace and cost"},
-    {"together", "Together"}
-  ]
-
-  @doc """
-  The sections of `/team/details`, one for each slide, as `{anchor, nav label}`.
-
-      iex> TalesForgeWeb.TeamPresentationLive.details_sections() |> length()
-      11
-  """
-  @spec details_sections() :: [{String.t(), String.t()}]
-  def details_sections, do: @details_sections
-
-  @doc """
-  The body of `/team/details` (`TalesForgeWeb.TeamDetailsLive`): the long text
-  of each slide, one section for each slide, in slide order.
-  """
-  attr :d, :map, required: true
-  attr :pace, :map, required: true
-  attr :live, :map, required: true
-  attr :board_live, :map, default: nil
-
-  @spec details(map()) :: Phoenix.LiveView.Rendered.t()
-  def details(assigns) do
-    ~H"""
-    <section id="hero" class="team-section space-y-2" aria-labelledby="hero-title">
-      <.section_head id="hero" title="1. What Tales Forge is and why">
-        The slide has the full text.
-        <a href="/team/presentation#hero" class="underline">Open the slide →</a>
-      </.section_head>
-    </section>
-    <.details_team d={@d} />
-    <section id="game" class="team-section space-y-2" aria-labelledby="game-title">
-      <.section_head id="game" title="3. The game and how it plays">
-        The slide has the full text.
-        <a href="/team/presentation#game" class="underline">Open the slide →</a>
-      </.section_head>
-    </section>
-    <TeamBoard.details d={@d} live={@board_live}>
-      <.change_flow d={@d} />
-    </TeamBoard.details>
-    <.details_rules d={@d} live={@live} />
-    <.details_wired />
-    <.details_infra d={@d} />
-    <.details_playtests d={@d} live={@live} />
-    <.details_quality d={@d} live={@live} />
-    <.details_pace d={@d} pace={@pace} live={@live} />
-    <.details_together d={@d} />
-    """
-  end
-
-  defp details_wired(assigns) do
-    assigns = assign(assigns, :facts, @wired_facts)
-
-    ~H"""
-    <section id="wired" class="team-section space-y-6" aria-labelledby="wired-title">
-      <.section_head id="wired" title="6a. How it's wired: the path" />
-      <p id="wired-bots" class="max-w-3xl">
-        Three bots work with us. Case refines ideas and reviews work. Bobby builds and ships.
-        Gentry tries to break things on playtest. When you move a card on the idea board, the
-        board wakes the right bot. When you move a card to Building, the board writes the
-        decision in our decision log.
-      </p>
-      <ul id="wired-facts" class="grid gap-3 sm:grid-cols-2">
-        <li
-          :for={{{head, text}, i} <- Enum.with_index(@facts, 1)}
-          id={"wired-fact-#{i}"}
-          class="team-card p-4"
-        >
-          <strong>{head}</strong> {text}
-        </li>
-      </ul>
-      <p id="wired-runbook" class="text-sm">
-        The full runbook is "Infrastructure setup" in our docs (<a
-          href="/admin/docs/infrastructure-setup.md"
-          class="underline"
-        >docs/infrastructure-setup.md</a>).
-      </p>
-    </section>
     """
   end
 
@@ -2444,9 +2023,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
   defp bot_count(d), do: TeamPage.bot_count(d)
 
   # The caption under a founder's-OK seal in the change flow.
-  defp seal_caption("ok_prod", _d),
-    do: "Goes to production after a playtest pass and a founder's OK."
-
+  defp seal_caption("ok_prod", _d), do: "Ships by itself after Gentry."
   defp seal_caption(_id, _d), do: "Any founder, on the board."
 
   defp kind_label(%{"kind" => "humans"}), do: "humans"

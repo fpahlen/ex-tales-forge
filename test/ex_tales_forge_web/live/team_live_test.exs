@@ -168,7 +168,7 @@ defmodule TalesForgeWeb.TeamLiveTest do
       assert {:ok, _presentation, html} =
                view |> element("#presentation-link") |> render_click() |> follow_redirect(conn)
 
-      assert html =~ "4a. How we work: the board"
+      assert html =~ "4. How we work: the board"
     end
 
     test "the nav link opens /team/presentation, with its Present button", %{conn: conn} do
