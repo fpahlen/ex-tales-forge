@@ -90,9 +90,26 @@ defmodule TalesForge.LLM.Stream do
   defp read_string(<<?\\>>, acc), do: finish(acc)
   defp read_string(<<>>, acc), do: finish(acc)
 
-  defp read_string(<<c::utf8, rest::binary>>, acc), do: read_string(rest, [<<c::utf8>> | acc])
-  # An incomplete UTF-8 sequence at the end of the chunk: wait for more bytes.
-  defp read_string(_partial, acc), do: finish(acc)
+  # Plain text up to the next quote or backslash: take it in one binary split.
+  defp read_string(content, acc) do
+    {plain, rest} =
+      case :binary.match(content, ["\"", "\\"]) do
+        {at, _len} ->
+          {binary_part(content, 0, at), binary_part(content, at, byte_size(content) - at)}
+
+        :nomatch ->
+          {content, ""}
+      end
+
+    if String.valid?(plain),
+      do: read_string(rest, [plain | acc]),
+      else: read_utf8(plain, acc)
+  end
+
+  # Plain text with a broken or incomplete UTF-8 sequence: keep the valid
+  # characters before it and stop (wait for more bytes).
+  defp read_utf8(<<c::utf8, rest::binary>>, acc), do: read_utf8(rest, [<<c::utf8>> | acc])
+  defp read_utf8(_partial, acc), do: finish(acc)
 
   defp unicode(hex, rest, acc) do
     case Integer.parse(hex, 16) do

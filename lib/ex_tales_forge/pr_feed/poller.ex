@@ -4,7 +4,7 @@ defmodule TalesForge.PrFeed.Poller do
   new snapshot: stored in a public ETS table it owns (read by `TalesForge.PrFeed.snapshot/0`
   without a call to this process) and broadcast on PubSub.
 
-  - Every `:interval_ms` (config `TalesForge.PrFeed`, default 60 s), plus once
+  - Every `:interval_ms` (config `TalesForge.PrFeed`, default 5 min), plus once
     right after start. `:poll` false (tests) starts the table but never polls.
   - Per resource (and per page) it keeps the last `ETag` and the parsed
     answer, so an unchanged answer (304) is reused and costs no rate limit.
@@ -32,7 +32,7 @@ defmodule TalesForge.PrFeed.Poller do
   alias TalesForge.PrFeed.Parse
   alias TalesForge.PrFeed.Versions
 
-  @default_interval_ms 60_000
+  @default_interval_ms 300_000
   @default_max_pages 30
 
   @typedoc "The last ETag and parsed answer per resource, or per page of a paged one."
