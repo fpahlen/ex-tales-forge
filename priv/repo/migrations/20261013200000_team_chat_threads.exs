@@ -33,9 +33,7 @@ defmodule TalesForge.Repo.Migrations.TeamChatThreads do
              name: :team_chat_threads_direct_members_index
            )
 
-    create constraint(:team_chat_threads, :kind_is_known,
-             check: "kind IN ('subject', 'direct')"
-           )
+    create constraint(:team_chat_threads, :kind_is_known, check: "kind IN ('subject', 'direct')")
 
     create constraint(:team_chat_threads, :direct_has_two_members,
              check: "kind <> 'direct' OR cardinality(members) = 2"

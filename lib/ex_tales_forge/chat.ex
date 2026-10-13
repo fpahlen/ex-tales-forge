@@ -424,9 +424,10 @@ defmodule TalesForge.Chat do
 
   @doc """
   The unread count on the chat button of the founder with this GitHub
-  `login`: the mentions of them in subject threads and all messages to them
-  in direct threads, since they last opened each thread. A founder with an
-  inbox (`Workflow.Inbox`) gets 0, because the inbox shows the mentions.
+  `login`, since they last opened each thread: all messages to them in
+  direct threads, and the mentions of them in subject threads. For a
+  founder with an inbox (`Workflow.Inbox`), the inbox shows the mentions,
+  so the count has only the direct messages.
   """
   @spec unread(String.t() | nil) :: non_neg_integer()
   def unread(login) do
@@ -437,10 +438,10 @@ defmodule TalesForge.Chat do
         0
 
       handle ->
-        if Workflow.Inbox.has_inbox?(team, handle),
-          do: 0,
-          else:
-            {:founder, handle} |> unread_query() |> badge_filter(handle) |> Repo.aggregate(:count)
+        {:founder, handle}
+        |> unread_query()
+        |> badge_filter(handle, Workflow.Inbox.has_inbox?(team, handle))
+        |> Repo.aggregate(:count)
     end
   end
 
@@ -480,7 +481,10 @@ defmodule TalesForge.Chat do
     )
   end
 
-  defp badge_filter(query, handle),
+  defp badge_filter(query, _handle, true = _inbox?),
+    do: where(query, [m, t], t.kind == "direct")
+
+  defp badge_filter(query, handle, false = _inbox?),
     do: where(query, [m, t], ^handle in m.mentions or t.kind == "direct")
 
   @doc """

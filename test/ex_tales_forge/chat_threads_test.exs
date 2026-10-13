@@ -232,13 +232,14 @@ defmodule TalesForge.ChatThreadsTest do
       assert counts[t.id] == 1
       # The author has read their own messages.
       assert Chat.unread_by_thread(v(@max), @max.email) == %{}
-      # The direct message counts on the chat button; subject messages count
-      # only when they mention the founder.
+      # The direct message counts on the chat button. Each founder has an
+      # inbox, so a mention goes to the inbox and not to the button.
+      {:ok, _} = post(@max, "@thobias look", a)
       assert Chat.unread(@thobias.login) == 1
 
       :ok = Chat.mark_read(@thobias.login, t.id)
       assert Chat.unread_by_thread(v(@thobias), @thobias.email)[t.id] == nil
-      assert Chat.unread_by_thread(v(@thobias), @thobias.email)[a.id] == 2
+      assert Chat.unread_by_thread(v(@thobias), @thobias.email)[a.id] == 3
       assert Chat.unread(@thobias.login) == 0
       assert Chat.unread_by_thread({:bot, :case}, nil) == %{}
     end
