@@ -15,12 +15,15 @@ defmodule TalesForge.Board.Events do
   Only moves (the "Wakes" column of `TalesForge.Board.Transitions`) and
   `@mentions` wake bots. Votes and links wake nobody.
 
+  At most one wake goes to a bot for a card in 2 minutes
+  (`TalesForge.Board.WakeMerge`); a second event in that time adds no job.
+
   Bot wake-ups are `TalesForge.Board.Workers.Notify` jobs (signed webhook
   POSTs); the decision log entry is `TalesForge.Board.Workers.LogDecision`.
   """
 
   alias Ecto.Multi
-  alias TalesForge.Board.Idea
+  alias TalesForge.Board.{Idea, WakeMerge}
   alias TalesForge.Board.Workers.{LogDecision, Notify}
 
   @typedoc "A board event."
@@ -49,11 +52,11 @@ defmodule TalesForge.Board.Events do
         else: multi
 
     Enum.reduce(bots(event, extra), multi, fn bot, acc ->
-      Oban.insert(
-        acc,
-        {:notify, bot, event, System.unique_integer([:positive])},
-        Notify.job(bot, event, idea, extra)
-      )
+      Multi.run(acc, {:notify, bot, event, System.unique_integer([:positive])}, fn repo, _ ->
+        if WakeMerge.wake?(WakeMerge.last_wake_at(repo, bot, idea.id), DateTime.utc_now()),
+          do: Oban.insert(Notify.job(bot, event, idea, extra)),
+          else: {:ok, :merged}
+      end)
     end)
   end
 
