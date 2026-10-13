@@ -164,4 +164,60 @@ defmodule TalesForge.Game.TurnApplyTest do
       assert world["location_id"] == "weary_pilgrim"
     end
   end
+
+  describe "Gentry's live session f3a7bac0 (2026-10-13), Jev readings as recorded" do
+    test "turn 3: 'old mill' read as a move to the Weary Pilgrim is rejected" do
+      s = session("crossroads_ledger", "crossroads_square", ["worried_merchant"])
+      move = %SingleAction{action_type: :move, target: "weary_pilgrim", parameters: %{}}
+
+      {world, handler} = play(s, "I walk to the old mill by the creek.", move, @on)
+
+      assert world["location_id"] == "crossroads_square"
+      assert handler.state_hints["move_rejected"] == true
+      assert handler.state_hints["reason"] =~ "old mill"
+    end
+
+    test "turn 4: 'the Weary Pilgrim inn' read as the cellar goes to the Weary Pilgrim" do
+      s = session("crossroads_ledger", "crossroads_square", ["worried_merchant"])
+      move = %SingleAction{action_type: :move, target: "pilgrim_cellar", parameters: %{}}
+
+      {world, _handler} = play(s, "I go into the Weary Pilgrim inn.", move, @on)
+
+      assert world["location_id"] == "weary_pilgrim"
+      assert "marta_kellen" in world["present_npcs"]
+    end
+
+    test "turn 5: 'I buy an ale' read as a purchase costs 2c" do
+      s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
+      buy = %SingleAction{action_type: :buy, target: nil, parameters: %{}}
+
+      {world, _handler} = play(s, "I buy an ale.", buy, @on)
+
+      assert copper(world["character"]["coins"]) ==
+               copper(s.world_state["character"]["coins"]) - 2
+    end
+
+    test "turn 6: 'I order a meal' read as a purchase from Marta costs 5c" do
+      s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
+      buy = %SingleAction{action_type: :buy, target: "marta_kellen", parameters: %{}}
+
+      {world, _handler} = play(s, "I order a meal.", buy, @on)
+
+      assert copper(world["character"]["coins"]) ==
+               copper(s.world_state["character"]["coins"]) - 5
+    end
+
+    test "turn 8: a room payment to Marta at the inn costs the room and 8 hours" do
+      s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
+      tick = s.world_state["world_tick"]
+      pay = %SingleAction{action_type: :spend, target: "marta_kellen", parameters: %{}}
+
+      {world, _handler} = play(s, "I pay for a room and go to sleep.", pay, @on)
+
+      assert copper(world["character"]["coins"]) ==
+               copper(s.world_state["character"]["coins"]) - @room_copper
+
+      assert world["world_tick"] == tick + 32
+    end
+  end
 end
