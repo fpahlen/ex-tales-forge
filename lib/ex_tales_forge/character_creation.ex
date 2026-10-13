@@ -22,6 +22,10 @@ defmodule TalesForge.CharacterCreation do
     re-roll. The rolled stats are fixed and the budget does not apply. A race
     modifier on a rolled stat stops at 3 and 18. Solo and group play use the
     same rules.
+  * **Description model** (`TalesForge.CharacterCreation.FromText`): the AI
+    reads the player's description and fills the draft through the functions
+    in this module. The point-buy rules apply. The player must approve the
+    draft (`approve/1`) before `finalize/1`.
   * **Skills** (`creation.json` `skills`):
     a 25-point skill budget where levels 1–3 cost 1 each and levels 4–5 cost 2
     each, a normal cap of 5 and at least 5 skills. One or two **signature
@@ -335,7 +339,8 @@ defmodule TalesForge.CharacterCreation do
   end
 
   @doc """
-  Chooses the creation model for the stats: `"point_buy"` or `"stat_roll"`.
+  Chooses the creation model for the stats: `"point_buy"`, `"stat_roll"` or
+  `"from_text"`. `"from_text"` uses the point-buy rules and needs approval.
 
   The first change to `"stat_roll"` rolls the stats with `rng` and gives the
   re-rolls from the rules. A draft that has a roll keeps it: a change back to
@@ -348,9 +353,16 @@ defmodule TalesForge.CharacterCreation do
 
   def choose_model(%Draft{model: model} = draft, model, _rng), do: {:ok, draft}
 
-  def choose_model(%Draft{} = draft, "point_buy", _rng) do
+  def choose_model(%Draft{} = draft, model, _rng) when model in ["point_buy", "from_text"] do
     rules = rules(draft.adventure_id)
-    draft = %{draft | model: "point_buy", edited: MapSet.delete(draft.edited, :stats)}
+
+    draft = %{
+      draft
+      | model: model,
+        approved: false,
+        edited: MapSet.delete(draft.edited, :stats)
+    }
+
     {:ok, suggest(draft, rules)}
   end
 
@@ -376,6 +388,14 @@ defmodule TalesForge.CharacterCreation do
 
   def choose_model(%Draft{}, model, _rng),
     do: {:error, {:model, "unknown creation model #{inspect(model)}"}}
+
+  @doc """
+  The player approves the AI draft of the description model. Returns an error
+  for the other models, because they need no approval.
+  """
+  @spec approve(Draft.t()) :: {:ok, Draft.t()} | {:error, error()}
+  def approve(%Draft{model: "from_text"} = draft), do: {:ok, %{draft | approved: true}}
+  def approve(%Draft{}), do: {:error, {:approval, "only an AI draft needs approval"}}
 
   @doc """
   Uses one re-roll: rolls all six stats again with `rng`. The new roll
@@ -484,7 +504,7 @@ defmodule TalesForge.CharacterCreation do
   @doc """
   Checks a draft against the rules. Returns `:ok` or `{:error, errors}`, each
   error a `{field, message}` pair (`:name`, `:stats`, `:race_picks`,
-  `:skills`).
+  `:skills`, `:approval`).
   """
   @spec validate(Draft.t()) :: :ok | {:error, [error()]}
   def validate(%Draft{} = draft) do
@@ -496,11 +516,13 @@ defmodule TalesForge.CharacterCreation do
     errors =
       [
         draft.name == "" && {:name, "type a name"},
-        (draft.model == "point_buy" and spent > budget) &&
+        (draft.model in ["point_buy", "from_text"] and spent > budget) &&
           {:stats, "#{budget} points at most; #{spent} spent"},
         (draft.model == "stat_roll" and draft.base_stats != draft.rolled_stats) &&
           {:stats, "the stats must be the rolled stats"},
-        race_picks_error(draft, rules)
+        race_picks_error(draft, rules),
+        (draft.model == "from_text" and not draft.approved) &&
+          {:approval, "approve the AI draft before play"}
       ] ++
         Enum.map(final_stats(draft, rules), fn {stat, value} ->
           (value < lo or value > hi) &&
