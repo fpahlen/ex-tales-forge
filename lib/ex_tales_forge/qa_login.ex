@@ -33,12 +33,13 @@ defmodule TalesForge.QaLogin do
   @email "gentry-qa@qa.tales-forge.invalid"
   @name "Gentry (QA)"
 
-  @allowed_paths ["/team", "/team/presentation"]
+  @allowed_paths ["/team", "/team/presentation", "/team/details"]
   @allowed_prefixes ["/team/images/"]
 
   # By name, so this sign-in code does not depend on the team pages (they are
   # in the admin deploy lane, .github/deploy-lanes.txt).
   @allowed_views ~w(TalesForgeWeb.TeamLive TalesForgeWeb.TeamPresentationLive
+                    TalesForgeWeb.TeamDetailsLive
                     TalesForgeWeb.TeamPrFeedLive TalesForgeWeb.OnlineHeaderLive
                     TalesForgeWeb.TeamChatLive)
 

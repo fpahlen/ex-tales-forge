@@ -852,3 +852,13 @@
   .team-flow-token, .team-replay { display: none !important; }
   .team-lanes [data-at] { opacity: 1 !important; transform: none !important; }
 }
+
+/* Present mode (/team/presentation): less padding around the slide, so one
+   slide fits one screen. The bottom keeps room for the slide counter. */
+.team-page[data-presenting] #team-main {
+  padding-top: 0.5rem;
+  padding-bottom: 3rem;
+}
+.team-page[data-presenting] #team-main > * {
+  margin-block: 0;
+}

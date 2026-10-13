@@ -14,8 +14,8 @@ defmodule TalesForgeWeb.TeamGoals do
   On a phone the open goal is a full-screen sheet.
 
   With `read_only` (the presentation, `TalesForgeWeb.TeamPresentationLive`)
-  the strip only shows: no votes, no "Show cards" button and no events, so
-  `myself` can stay `nil`.
+  the strip only shows, in a short form: no outcome text, no score, no votes, no "Show
+  cards" button and no events, so `myself` can stay `nil`.
   """
   use Phoenix.Component
 
@@ -74,15 +74,18 @@ defmodule TalesForgeWeb.TeamGoals do
           id={"goal-#{row.goal.id}"}
           data-key={row.goal.key}
           data-score={row.score}
-          class="grid gap-2 rounded-lg border border-[var(--paper-rule)] bg-[var(--paper-panel)] p-3"
+          class={[
+            "grid gap-2 rounded-lg border border-[var(--paper-rule)] bg-[var(--paper-panel)]",
+            if(@read_only, do: "p-2", else: "p-3")
+          ]}
         >
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
               <p class="font-semibold">
                 <span class="text-xs text-[var(--paper-muted)]">{row.goal.key}</span> {row.goal.title}
               </p>
-              <p class="text-xs text-[var(--paper-muted)]">{row.goal.outcome}</p>
-              <p data-role="score" class="text-xs">
+              <p :if={!@read_only} class="text-xs text-[var(--paper-muted)]">{row.goal.outcome}</p>
+              <p :if={!@read_only} data-role="score" class="text-xs">
                 Score: <span class="font-semibold tabular-nums">{format_score(row.score)}</span>
               </p>
               <button
