@@ -6,8 +6,15 @@ defmodule TalesForgeWeb.TeamChatLive do
   Nested in `TalesForgeWeb.OnlineHeaderLive`, which loads it through config
   `:team_chat_live` on production and locally.
 
-  - The chat button shows the number of unread mentions of you (your handle
-    comes from your GitHub login, `TalesForge.Board.Mentions`).
+  - The chat button shows the unread count of `TalesForge.Chat.unread/1`
+    (your handle comes from your GitHub login, `TalesForge.Board.Mentions`).
+  - Threads: the thread list is on the left, sorted by the last message, with
+    the unread count of each thread. The open thread is on the right. On a
+    phone, the panel shows the list or the open thread, and "Threads" goes
+    back to the list. "New thread" starts a subject thread, and "1:1"
+    starts a direct thread with one other founder.
+  - The server keeps the open thread. Each event checks the thread again
+    (`TalesForge.Chat.thread/2`), and a post goes only to the open thread.
   - Accessible: the panel is a `role="dialog"` with a title; focus moves to
     the message box when it opens; Esc or "Close" closes it and moves focus
     back to the chat button. New messages are announced (`aria-live`).
@@ -53,6 +60,10 @@ defmodule TalesForgeWeb.TeamChatLive do
      |> assign(:me, Chat.handle_for(login))
      |> assign(:viewer, viewer)
      |> assign(:thread, nil)
+     |> assign(:threads, [])
+     |> assign(:counts, %{})
+     |> assign(:pane, :thread)
+     |> assign(:subject_form, to_form(%{"subject" => ""}, as: :thread))
      |> assign(:open, false)
      |> assign(:draft, "")
      |> assign(:messages, [])
@@ -65,6 +76,33 @@ defmodule TalesForgeWeb.TeamChatLive do
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("open", _params, socket), do: {:noreply, open(socket, nil)}
+
+  def handle_event("open_thread", %{"id" => id}, socket), do: {:noreply, view_thread(socket, id)}
+  def handle_event("threads", _params, socket), do: {:noreply, assign(socket, :pane, :list)}
+
+  def handle_event("new_subject", params, socket) do
+    case Chat.start_subject(socket.assigns.viewer, get_in(params, ["thread", "subject"])) do
+      {:ok, thread} ->
+        {:noreply,
+         socket
+         |> assign(:subject_form, to_form(%{"subject" => ""}, as: :thread))
+         |> view_thread(thread.id)}
+
+      {:error, %Ecto.Changeset{} = cs} ->
+        {:noreply, assign(socket, :subject_form, to_form(cs, as: :thread))}
+
+      {:error, :forbidden} ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("new_direct", %{"handle" => handle}, socket) do
+    case Chat.start_direct(socket.assigns.viewer, handle) do
+      {:ok, thread} -> {:noreply, view_thread(socket, thread.id)}
+      {:error, :forbidden} -> {:noreply, socket}
+    end
+  end
+
   def handle_event("close", _params, socket), do: {:noreply, assign(socket, :open, false)}
 
   def handle_event("validate", _params, socket), do: {:noreply, socket}
@@ -76,17 +114,25 @@ defmodule TalesForgeWeb.TeamChatLive do
     body = get_in(params, ["chat", "body"]) || ""
     images = TeamImages.read_all(socket, :chat_images)
 
-    case Chat.post(socket.assigns.admin_email, body, login: socket.assigns.login, images: images) do
+    opts = [login: socket.assigns.login, images: images, thread_id: thread_id(socket)]
+
+    case Chat.post(socket.assigns.admin_email, body, opts) do
       {:ok, _message} ->
         {:noreply,
          socket
          |> assign(:form, to_form(%{"body" => ""}, as: :chat))
          |> push_event("team_chat:sent", %{})}
 
-      {:error, changeset} ->
+      {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset, as: :chat))}
+
+      {:error, :not_found} ->
+        {:noreply, view_thread(socket, nil)}
     end
   end
+
+  defp thread_id(%{assigns: %{thread: %{id: id}}}), do: id
+  defp thread_id(_socket), do: nil
 
   @impl true
   @spec handle_info(term(), Phoenix.LiveView.Socket.t()) ::
@@ -95,12 +141,14 @@ defmodule TalesForgeWeb.TeamChatLive do
 
   def handle_info({:team_chat, %Message{} = m}, socket) do
     if socket.assigns.open and open_thread?(socket, m) do
-      unless socket.assigns[:qa], do: Chat.mark_read(socket.assigns.login)
-      {:noreply, assign(socket, :messages, socket.assigns.messages ++ [m])}
+      unless socket.assigns[:qa], do: Chat.mark_read(socket.assigns.login, m.thread_id)
+      {:noreply, socket |> assign(:messages, socket.assigns.messages ++ [m]) |> load_threads()}
     else
-      {:noreply, assign(socket, :unread, Chat.unread(socket.assigns.login))}
+      {:noreply, socket |> assign(:unread, Chat.unread(socket.assigns.login)) |> load_threads()}
     end
   end
+
+  def handle_info({:team_chat_thread, _thread}, socket), do: {:noreply, load_threads(socket)}
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
@@ -111,21 +159,46 @@ defmodule TalesForgeWeb.TeamChatLive do
   defp open_thread?(_socket, _message), do: false
 
   defp open(socket, to) do
-    # The QA session never marks the chat as read for anyone.
-    unless socket.assigns[:qa], do: Chat.mark_read(socket.assigns.login)
     body = if to, do: "@#{mention(to)} ", else: ""
 
+    socket
+    |> assign(:open, true)
+    |> view_thread(nil)
+    |> assign(:form, to_form(%{"body" => body}, as: :chat))
+  end
+
+  # Opens the thread `id` (nil is General) when the viewer can read it, else
+  # General. The QA session never marks a thread as read for anyone.
+  defp view_thread(socket, id) do
+    viewer = socket.assigns.viewer
+
     {thread, messages} =
-      with {:ok, thread} <- Chat.thread(socket.assigns.viewer, nil),
-           {:ok, messages} <- Chat.recent(socket.assigns.viewer, thread.id) do
-        {thread, messages}
-      else
-        {:error, :not_found} -> {nil, []}
+      with {:error, :not_found} <- load(viewer, id),
+           {:error, :not_found} <- load(viewer, nil) do
+        {nil, []}
       end
 
+    unless socket.assigns[:qa] or is_nil(thread),
+      do: Chat.mark_read(socket.assigns.login, thread.id)
+
     socket
-    |> assign(open: true, unread: 0, thread: thread, messages: messages)
-    |> assign(:form, to_form(%{"body" => body}, as: :chat))
+    |> assign(thread: thread, messages: messages, pane: :thread)
+    |> assign(:unread, Chat.unread(socket.assigns.login))
+    |> load_threads()
+  end
+
+  defp load(viewer, id) do
+    with {:ok, thread} <- Chat.thread(viewer, id),
+         {:ok, messages} <- Chat.recent(viewer, thread.id),
+         do: {thread, messages}
+  end
+
+  defp load_threads(%{assigns: %{open: false}} = socket), do: socket
+
+  defp load_threads(%{assigns: %{viewer: viewer}} = socket) do
+    socket
+    |> assign(:threads, Chat.threads(viewer))
+    |> assign(:counts, Chat.unread_by_thread(viewer, socket.assigns.email))
   end
 
   # The handle to start a message with: "bot:<name>", a founder's @handle
@@ -183,11 +256,21 @@ defmodule TalesForgeWeb.TeamChatLive do
             JS.push("close", target: "##{@id_prefix}-root") |> JS.focus(to: "##{@id_prefix}-button")
           }
           phx-key="Escape"
-          class="team-chat-panel fixed inset-y-0 right-0 z-[100] flex h-dvh w-full flex-col bg-[var(--paper-panel)] text-left text-[var(--paper-ink)] shadow-2xl sm:w-[26rem] sm:border-l sm:border-[var(--paper-rule)]"
+          class="team-chat-panel fixed inset-y-0 right-0 z-[100] flex h-dvh w-full flex-col bg-[var(--paper-panel)] text-left text-[var(--paper-ink)] shadow-2xl sm:w-[44rem] sm:border-l sm:border-[var(--paper-rule)]"
           style="background-color: var(--paper-panel, #fbf6ec);"
         >
           <header class="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--paper-rule)] px-4 py-2">
             <h2 id={"#{@id_prefix}-title"} class="font-serif text-lg font-semibold">Team chat</h2>
+            <button
+              :if={@pane == :thread}
+              id={"#{@id_prefix}-threads-button"}
+              type="button"
+              phx-click="threads"
+              phx-target={"##{@id_prefix}-root"}
+              class="min-h-11 rounded-full border border-[var(--paper-rule)] px-3 text-sm font-semibold sm:hidden"
+            >
+              Threads
+            </button>
             <button
               id={"#{@id_prefix}-close"}
               type="button"
@@ -202,125 +285,242 @@ defmodule TalesForgeWeb.TeamChatLive do
             </button>
           </header>
 
-          <ol
-            id={"#{@id_prefix}-messages"}
-            data-chat-scroll
-            aria-live="polite"
-            aria-label="Messages"
-            class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-4"
-          >
-            <li
-              :if={@messages == []}
-              id={"#{@id_prefix}-empty"}
-              class="grid h-full place-items-center text-sm text-[var(--paper-muted)]"
+          <div class="flex min-h-0 flex-1">
+            <nav
+              id={"#{@id_prefix}-threads"}
+              aria-label="Threads"
+              class={[
+                "min-h-0 w-full shrink-0 flex-col overflow-y-auto border-[var(--paper-rule)] sm:flex sm:w-56 sm:border-r",
+                if(@pane == :list, do: "flex", else: "hidden")
+              ]}
             >
-              No messages yet
-            </li>
-            <li
-              :for={m <- @messages}
-              id={"#{@id_prefix}-msg-#{m.id}"}
-              class={["flex items-end gap-2", mine?(m, @email) && "flex-row-reverse"]}
-            >
-              <.avatar author={m.author} />
-              <div class={[
-                "max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-sm",
-                if(mine?(m, @email),
-                  do: "rounded-br-sm bg-[#f3dcae] text-[#2b1d0e]",
-                  else: "rounded-bl-sm border border-[var(--paper-rule)] bg-[var(--paper-bg)]"
-                ),
-                @me && @me in m.mentions && "ring-2 ring-[var(--paper-accent)]"
-              ]}>
-                <p class="flex flex-wrap items-baseline gap-x-2 text-xs">
-                  <span class="font-semibold">{author(m.author)}</span>
-                  <TalesForgeWeb.TeamTime.ago at={m.inserted_at} class="text-[var(--paper-muted)]" />
-                  <span
-                    :if={@me && @me in m.mentions}
-                    class="font-semibold text-[var(--paper-accent)]"
+              <ul class="flex-1">
+                <li :for={t <- @threads}>
+                  <button
+                    id={"#{@id_prefix}-thread-#{t.id}"}
+                    type="button"
+                    phx-click="open_thread"
+                    phx-value-id={t.id}
+                    phx-target={"##{@id_prefix}-root"}
+                    aria-current={if(@thread && @thread.id == t.id, do: "true")}
+                    class={[
+                      "flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--paper-bg)]",
+                      @thread && @thread.id == t.id && "bg-[var(--paper-bg)] font-semibold"
+                    ]}
                   >
-                    Mentions you
-                  </span>
-                </p>
-                <p :if={m.body != ""} class="whitespace-pre-wrap break-words">{body(m.body)}</p>
-                <TeamImages.thumbnails
-                  images={images(m)}
-                  id={"#{@id_prefix}-msg-#{m.id}-images"}
-                  class="mt-1"
-                />
-              </div>
-            </li>
-          </ol>
-
-          <.form
-            for={@form}
-            id={"#{@id_prefix}-form"}
-            data-draft="chat"
-            phx-submit={JS.push("send", target: "##{@id_prefix}-root")}
-            phx-change="validate"
-            phx-target={"##{@id_prefix}-root"}
-            phx-drop-target={@uploads.chat_images.ref}
-            phx-hook="ImageInput"
-            class="shrink-0 border-t border-[var(--paper-rule)] bg-[var(--paper-panel)] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2"
-          >
-            <p
-              :for={msg <- Enum.map(@form[:body].errors, &elem(&1, 0))}
-              class="pb-1 text-sm text-red-700"
-              role="alert"
-            >
-              {msg}
-            </p>
-            <TeamImages.picker
-              upload={@uploads.chat_images}
-              id={"#{@id_prefix}-images"}
-              target={"##{@id_prefix}-root"}
-            />
-            <div class="relative mt-2 flex items-end gap-2">
-              <label for={"#{@id_prefix}-body"} class="sr-only">Message</label>
-              <textarea
-                id={"#{@id_prefix}-body"}
-                phx-update="ignore"
-                name="chat[body]"
-                rows="1"
-                maxlength={Message.max_length()}
-                placeholder="Message or image note (@ to mention)"
-                phx-mounted={JS.focus()}
-                phx-hook="MentionSuggest"
-                data-handles={Jason.encode!(Chat.suggestions())}
-                data-chat-input
-                aria-autocomplete="list"
-                aria-controls={"#{@id_prefix}-mention-list"}
-                aria-describedby={"#{@id_prefix}-hint"}
-                class="max-h-40 min-h-11 flex-1 resize-none rounded-2xl border border-[var(--paper-rule)] bg-[var(--paper-bg)] px-3 py-2.5 text-base leading-snug"
-              >{Phoenix.HTML.Form.normalize_value("textarea", @form[:body].value)}</textarea>
-              <ul
-                id={"#{@id_prefix}-mention-list"}
-                role="listbox"
-                aria-label="Names to mention"
-                phx-update="ignore"
-                hidden
-                class="absolute bottom-full left-0 z-10 mb-1 max-h-48 overflow-y-auto rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] text-sm shadow"
-              >
+                    <.icon
+                      name={if(t.kind == "direct", do: "hero-user", else: "hero-hashtag")}
+                      class="size-4 shrink-0"
+                    />
+                    <span class="min-w-0 flex-1 truncate">{Chat.title(t, @viewer)}</span>
+                    <span
+                      :if={Map.get(@counts, t.id, 0) > 0}
+                      id={"#{@id_prefix}-thread-#{t.id}-unread"}
+                      class="rounded-full bg-[var(--paper-accent)] px-1.5 text-[0.7rem] leading-5 text-white"
+                    >
+                      {Map.get(@counts, t.id)}<span class="sr-only"> unread</span>
+                    </span>
+                  </button>
+                </li>
               </ul>
-              <button
-                id={"#{@id_prefix}-send"}
-                type="submit"
-                aria-label="Send"
-                class="team-cta inline-flex size-11 shrink-0 items-center justify-center rounded-full"
+              <.form
+                :if={match?({:founder, _}, @viewer)}
+                for={@subject_form}
+                id={"#{@id_prefix}-new-thread"}
+                phx-submit="new_subject"
+                phx-target={"##{@id_prefix}-root"}
+                class="border-t border-[var(--paper-rule)] p-2"
               >
-                <.icon name="hero-paper-airplane" class="size-5" />
-              </button>
-            </div>
-            <p
-              id={"#{@id_prefix}-draft-hint"}
-              data-draft-hint
-              aria-live="polite"
-              phx-update="ignore"
-              class="text-xs font-semibold text-[var(--paper-accent)] empty:hidden"
+                <label for={"#{@id_prefix}-subject"} class="text-xs font-semibold">New thread</label>
+                <div class="mt-1 flex gap-1">
+                  <input
+                    id={"#{@id_prefix}-subject"}
+                    name="thread[subject]"
+                    value={@subject_form[:subject].value}
+                    maxlength={TalesForge.Chat.Thread.max_subject()}
+                    placeholder="Subject"
+                    class="min-h-11 min-w-0 flex-1 rounded border border-[var(--paper-rule)] bg-[var(--paper-bg)] px-2 text-base"
+                  />
+                  <button
+                    type="submit"
+                    aria-label="Start the thread"
+                    class="team-cta min-h-11 rounded px-3"
+                  >
+                    <.icon name="hero-plus" class="size-4" />
+                  </button>
+                </div>
+                <p
+                  :for={msg <- Enum.map(@subject_form[:subject].errors, &elem(&1, 0))}
+                  class="pt-1 text-sm text-red-700"
+                  role="alert"
+                >
+                  {msg}
+                </p>
+              </.form>
+              <div
+                :if={Chat.direct_choices(@viewer) != []}
+                id={"#{@id_prefix}-new-direct"}
+                class="border-t border-[var(--paper-rule)] p-2"
+              >
+                <p class="text-xs font-semibold">1:1</p>
+                <div class="mt-1 flex flex-wrap gap-1">
+                  <button
+                    :for={{handle, name} <- Chat.direct_choices(@viewer)}
+                    id={"#{@id_prefix}-direct-#{handle}"}
+                    type="button"
+                    phx-click="new_direct"
+                    phx-value-handle={handle}
+                    phx-target={"##{@id_prefix}-root"}
+                    class="min-h-11 rounded-full border border-[var(--paper-rule)] px-3 text-sm"
+                  >
+                    {name}
+                  </button>
+                </div>
+              </div>
+            </nav>
+
+            <section
+              id={"#{@id_prefix}-open-thread"}
+              aria-labelledby={"#{@id_prefix}-thread-title"}
+              class={[
+                "min-h-0 min-w-0 flex-1 flex-col sm:flex",
+                if(@pane == :thread, do: "flex", else: "hidden")
+              ]}
             >
-            </p>
-            <p id={"#{@id_prefix}-hint"} class="sr-only">
-              Enter sends, Shift and Enter adds a new line. Write @ to mention a founder or a bot. Paste or drop an image to add it.
-            </p>
-          </.form>
+              <h3
+                :if={@thread}
+                id={"#{@id_prefix}-thread-title"}
+                class="shrink-0 border-b border-[var(--paper-rule)] px-4 py-1.5 text-sm font-semibold"
+              >
+                {Chat.title(@thread, @viewer)}
+                <span :if={@thread.kind == "direct"} class="font-normal text-[var(--paper-muted)]">
+                  · only the two of you can read this 1:1
+                </span>
+              </h3>
+              <ol
+                id={"#{@id_prefix}-messages"}
+                data-chat-scroll
+                aria-live="polite"
+                aria-label="Messages"
+                class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-4"
+              >
+                <li
+                  :if={@messages == []}
+                  id={"#{@id_prefix}-empty"}
+                  class="grid h-full place-items-center text-sm text-[var(--paper-muted)]"
+                >
+                  No messages yet
+                </li>
+                <li
+                  :for={m <- @messages}
+                  id={"#{@id_prefix}-msg-#{m.id}"}
+                  class={["flex items-end gap-2", mine?(m, @email) && "flex-row-reverse"]}
+                >
+                  <.avatar author={m.author} />
+                  <div class={[
+                    "max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-sm",
+                    if(mine?(m, @email),
+                      do: "rounded-br-sm bg-[#f3dcae] text-[#2b1d0e]",
+                      else: "rounded-bl-sm border border-[var(--paper-rule)] bg-[var(--paper-bg)]"
+                    ),
+                    @me && @me in m.mentions && "ring-2 ring-[var(--paper-accent)]"
+                  ]}>
+                    <p class="flex flex-wrap items-baseline gap-x-2 text-xs">
+                      <span class="font-semibold">{author(m.author)}</span>
+                      <TalesForgeWeb.TeamTime.ago
+                        at={m.inserted_at}
+                        class="text-[var(--paper-muted)]"
+                      />
+                      <span
+                        :if={@me && @me in m.mentions}
+                        class="font-semibold text-[var(--paper-accent)]"
+                      >
+                        Mentions you
+                      </span>
+                    </p>
+                    <p :if={m.body != ""} class="whitespace-pre-wrap break-words">{body(m.body)}</p>
+                    <TeamImages.thumbnails
+                      images={images(m)}
+                      id={"#{@id_prefix}-msg-#{m.id}-images"}
+                      class="mt-1"
+                    />
+                  </div>
+                </li>
+              </ol>
+
+              <.form
+                for={@form}
+                id={"#{@id_prefix}-form"}
+                data-draft="chat"
+                phx-submit={JS.push("send", target: "##{@id_prefix}-root")}
+                phx-change="validate"
+                phx-target={"##{@id_prefix}-root"}
+                phx-drop-target={@uploads.chat_images.ref}
+                phx-hook="ImageInput"
+                class="shrink-0 border-t border-[var(--paper-rule)] bg-[var(--paper-panel)] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2"
+              >
+                <p
+                  :for={msg <- Enum.map(@form[:body].errors, &elem(&1, 0))}
+                  class="pb-1 text-sm text-red-700"
+                  role="alert"
+                >
+                  {msg}
+                </p>
+                <TeamImages.picker
+                  upload={@uploads.chat_images}
+                  id={"#{@id_prefix}-images"}
+                  target={"##{@id_prefix}-root"}
+                />
+                <div class="relative mt-2 flex items-end gap-2">
+                  <label for={"#{@id_prefix}-body"} class="sr-only">Message</label>
+                  <textarea
+                    id={"#{@id_prefix}-body"}
+                    phx-update="ignore"
+                    name="chat[body]"
+                    rows="1"
+                    maxlength={Message.max_length()}
+                    placeholder="Message or image note (@ to mention)"
+                    phx-mounted={JS.focus()}
+                    phx-hook="MentionSuggest"
+                    data-handles={Jason.encode!(Chat.suggestions())}
+                    data-chat-input
+                    aria-autocomplete="list"
+                    aria-controls={"#{@id_prefix}-mention-list"}
+                    aria-describedby={"#{@id_prefix}-hint"}
+                    class="max-h-40 min-h-11 flex-1 resize-none rounded-2xl border border-[var(--paper-rule)] bg-[var(--paper-bg)] px-3 py-2.5 text-base leading-snug"
+                  >{Phoenix.HTML.Form.normalize_value("textarea", @form[:body].value)}</textarea>
+                  <ul
+                    id={"#{@id_prefix}-mention-list"}
+                    role="listbox"
+                    aria-label="Names to mention"
+                    phx-update="ignore"
+                    hidden
+                    class="absolute bottom-full left-0 z-10 mb-1 max-h-48 overflow-y-auto rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] text-sm shadow"
+                  >
+                  </ul>
+                  <button
+                    id={"#{@id_prefix}-send"}
+                    type="submit"
+                    aria-label="Send"
+                    class="team-cta inline-flex size-11 shrink-0 items-center justify-center rounded-full"
+                  >
+                    <.icon name="hero-paper-airplane" class="size-5" />
+                  </button>
+                </div>
+                <p
+                  id={"#{@id_prefix}-draft-hint"}
+                  data-draft-hint
+                  aria-live="polite"
+                  phx-update="ignore"
+                  class="text-xs font-semibold text-[var(--paper-accent)] empty:hidden"
+                >
+                </p>
+                <p id={"#{@id_prefix}-hint"} class="sr-only">
+                  Enter sends, Shift and Enter adds a new line. Write @ to mention a founder or a bot. Paste or drop an image to add it.
+                </p>
+              </.form>
+            </section>
+          </div>
         </div>
       </.portal>
     </div>
