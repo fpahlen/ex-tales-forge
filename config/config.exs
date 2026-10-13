@@ -46,7 +46,8 @@ config :ex_tales_forge, Oban,
     # "Bot work in Elixir"). Each worker runs on production only.
     {Oban.Plugins.Cron,
      crontab: [
-       {"7 * * * *", TalesForge.Board.Workers.StuckCards}
+       {"7 * * * *", TalesForge.Board.Workers.StuckCards},
+       {"*/15 * * * *", TalesForge.Board.Workers.MentionSweep}
      ]}
   ]
 
