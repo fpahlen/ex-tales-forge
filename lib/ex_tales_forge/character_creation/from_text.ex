@@ -77,12 +77,12 @@ defmodule TalesForge.CharacterCreation.FromText do
   def build(%Draft{} = draft, %{labels: labels}) do
     new = CC.new(draft.adventure_id, seed_key: draft.seed_key)
 
-    {:ok, built} =
+    {:ok, chosen} =
       %{new | rolled_stats: draft.rolled_stats, rerolls_left: draft.rerolls_left}
       |> CC.choose_model("from_text")
 
     built =
-      built
+      chosen
       |> apply_label(labels["race"], &CC.choose_race/2)
       |> apply_label(labels["class"], &CC.choose_class/2)
       |> apply_label(labels["occupation"], &CC.choose_occupation/2)
