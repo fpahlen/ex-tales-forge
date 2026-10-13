@@ -141,6 +141,31 @@ defmodule TalesForgeWeb.TeamInboxTest do
     assert has_element?(view, "#inbox-chip summary", "Team chat")
   end
 
+  test "the a key approves a PR through the card Approve after the undo time", %{conn: conn} do
+    {:ok, idea} =
+      Board.link_pr(%{
+        "number" => 302,
+        "url" => "https://github.com/whyse-ab/ex-tales-forge/pull/302",
+        "head_sha" => "cafe1234",
+        "player_note" => "Nothing changes for players.",
+        "title" => "Inbox approve card"
+      })
+
+    {:ok, view, _} = live(owner(conn), "/team")
+    assert has_element?(view, "#inbox-chip summary", "PR on card: Inbox approve card")
+    assert has_element?(view, "#inbox-approve")
+
+    view |> element("#inbox") |> render_hook("key", %{"key" => "a"})
+    assert has_element?(view, "#inbox-toast", "Approved.")
+    settle(view)
+
+    assert [%{decision: "approved", founder: @owner_email, pr_number: 302}] =
+             TalesForge.Repo.all(TalesForge.Board.Approval)
+             |> Enum.filter(&(&1.idea_id == idea.id))
+
+    assert Store.open(@owner.handle) == []
+  end
+
   test "Enter in a Founder check item answers the question on the card", %{conn: conn} do
     {:ok, idea} = Board.create_idea(@other_email, %{"title" => "Check card"})
 

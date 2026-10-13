@@ -14,7 +14,12 @@ defmodule Workflow.Inbox do
   | Rule | Event | Kind | Item |
   |---|---|---|---|
   | `mention` | a comment or a chat message names the founder | answer | one item for each named founder |
+  | `pr_approval` | a PR on a card waits for a founder's OK | approve | one item for each founder with the rule |
   | `founder_check` | a card moves to Founder check with open questions | answer | one item for each open question |
+
+  The OK on a PR is also the deploy approval: in the normal deploy lane, the
+  founder's Approve ships the merge to production after playtest
+  (`docs/DEPLOY-FLY.md`). Thus one rule gives the PR and deploy approvals.
 
   ## Close
 
@@ -23,6 +28,9 @@ defmodule Workflow.Inbox do
     * The recipient comments on the card of the item.
     * The recipient posts in the team chat (for a chat item).
     * The card moves to Done or to the Archive.
+    * A founder answers the PR (Approve or Request changes), or a new head
+      of the PR waits. This closes the `pr_approval` items of the card for
+      all recipients. A new head then makes a new item.
     * A founder answers or defers a Founder check question. This closes the
       item of that question for all recipients.
     * The card leaves Founder check. This closes its `founder_check` items.
@@ -63,6 +71,12 @@ defmodule Workflow.Inbox do
       about: "A comment or a chat message names the founder."
     },
     %{
+      id: "pr_approval",
+      kind: :approve,
+      events: [:pr_waiting],
+      about: "A PR on a card waits for a founder's OK. The OK also ships it in the normal lane."
+    },
+    %{
       id: "founder_check",
       kind: :answer,
       events: [:check_questions],
@@ -74,7 +88,7 @@ defmodule Workflow.Inbox do
   The rules, in order. Each rule is one entry.
 
       iex> Workflow.Inbox.rules() |> Enum.map(& &1.id)
-      ["mention", "founder_check"]
+      ["mention", "pr_approval", "founder_check"]
   """
   @spec rules() :: [rule()]
   def rules, do: @rules
@@ -131,6 +145,9 @@ defmodule Workflow.Inbox do
   defp rule_match?(%{id: "mention"}, %Event{mentions: mentions, author_handle: author}, handle),
     do: handle in mentions and handle != author
 
+  defp rule_match?(%{id: "pr_approval"}, %Event{pr: %{number: n}, idea_id: id}, _handle),
+    do: is_integer(n) and is_binary(id)
+
   defp rule_match?(%{id: "founder_check"}, %Event{idea_id: id}, _handle), do: is_binary(id)
 
   # One item for each open question; one item for the other rules.
@@ -163,8 +180,8 @@ defmodule Workflow.Inbox do
       recipient: handle,
       rule: rule.id,
       kind: rule.kind,
-      source: event.type,
-      source_id: event.source_id,
+      source: source(event),
+      source_id: source_id(event),
       idea_id: event.idea_id,
       title: event.title,
       author: event.author,
@@ -172,6 +189,13 @@ defmodule Workflow.Inbox do
       url: url(event)
     }
   end
+
+  defp source(%Event{type: :pr_waiting}), do: :pr
+  defp source(%Event{type: type}), do: type
+
+  # One approve item for each PR head: a new head that waits again makes a new item.
+  defp source_id(%Event{type: :pr_waiting, pr: pr}), do: "pr-#{pr.number}-#{pr.head_sha}"
+  defp source_id(%Event{source_id: id}), do: id
 
   @doc """
   The source link of an event: the card on `/team`, or the team chat.
@@ -192,12 +216,18 @@ defmodule Workflow.Inbox do
       [%{recipient: "ada", scope: {:idea, "i1"}}]
       iex> Workflow.Inbox.closes(team, %Workflow.Inbox.Event{type: :card_closed, idea_id: "i1"})
       [%{recipient: :all, scope: {:idea, "i1"}}]
+      iex> Workflow.Inbox.closes(team, %Workflow.Inbox.Event{type: :pr_answered, idea_id: "i1"})
+      [%{recipient: :all, scope: {:idea_rule, "i1", "pr_approval"}}]
       iex> Workflow.Inbox.closes(team, %Workflow.Inbox.Event{type: :chat, author_handle: "lin"})
       []
   """
   @spec closes(Team.t(), Event.t()) :: [close()]
   def closes(_team, %Event{type: :card_closed, idea_id: id}) when is_binary(id),
     do: [%{recipient: :all, scope: {:idea, id}}]
+
+  def closes(_team, %Event{type: type, idea_id: id})
+      when type in [:pr_waiting, :pr_answered] and is_binary(id),
+      do: [%{recipient: :all, scope: {:idea_rule, id, "pr_approval"}}]
 
   def closes(_team, %Event{type: :question_answered, idea_id: id, questions: questions})
       when is_binary(id),

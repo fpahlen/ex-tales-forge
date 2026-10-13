@@ -91,6 +91,38 @@ defmodule Workflow.Inbox.StoreTest do
     assert Chat.unread(@other.github) == 1
   end
 
+  describe "rule pr_approval" do
+    @pr %{
+      "number" => 301,
+      "url" => "https://github.com/whyse-ab/ex-tales-forge/pull/301",
+      "head_sha" => "abc1234def",
+      "player_note" => "Nothing changes for players.",
+      "title" => "Inbox approve test"
+    }
+
+    test "a PR that waits for an OK makes one approve item, and Approve closes it" do
+      {:ok, idea} = Board.link_pr(@pr)
+
+      assert [item] = Store.open(@owner.handle)
+      assert item.kind == :approve
+      assert item.rule == "pr_approval"
+      assert item.source == :pr
+      assert item.idea_id == idea.id
+      assert item.body =~ "PR #301 (abc1234) waits for a founder's OK"
+      assert Store.open(@other.handle) == []
+
+      {:ok, _} = Board.answer_pr(idea, @other_email, :approve, nil)
+      assert Store.open(@owner.handle) == []
+    end
+
+    test "a new head replaces the open approve item" do
+      {:ok, _} = Board.link_pr(@pr)
+      {:ok, _} = Board.link_pr(%{@pr | "head_sha" => "beef000"})
+
+      assert [%{source_id: "pr-301-beef000"}] = Store.open(@owner.handle)
+    end
+  end
+
   describe "rule founder_check" do
     defp check_card(questions) do
       idea = card()

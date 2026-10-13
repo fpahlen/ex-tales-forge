@@ -20,7 +20,7 @@ defmodule Workflow.Inbox.Record do
     field :kind, Ecto.Enum, values: Workflow.Inbox.Item.kinds()
     field :state, :string, default: "new"
     field :position, :integer
-    field :source, Ecto.Enum, values: [:comment, :chat, :question]
+    field :source, Ecto.Enum, values: [:comment, :chat, :pr, :question]
     field :source_id, :string
     field :idea_id, :binary_id
     field :url, :string

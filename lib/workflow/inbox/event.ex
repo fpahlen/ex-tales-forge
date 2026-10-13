@@ -8,6 +8,8 @@ defmodule Workflow.Inbox.Event do
 
     * `type`: `:comment` (a comment on a card), `:chat` (a team chat
       message), `:card_closed` (a card moved to Done or the Archive),
+      `:pr_waiting` (a PR on a card waits for a founder's OK),
+      `:pr_answered` (a founder approved the PR or asked for changes),
       `:check_questions` (a card moved to Founder check with open
       questions), `:question_answered` (a founder answered or deferred a
       question) or `:check_left` (a card left Founder check)
@@ -17,12 +19,20 @@ defmodule Workflow.Inbox.Event do
     * `author_handle`: the founder handle of the author, or nil
     * `mentions`: the founder handles that the body names, without the author
     * `body`: the text of the comment or the message
+    * `pr`: for a PR event, `%{number, url, head_sha}`
     * `questions`: the open questions of the card, for `:check_questions`;
       the one question, for `:question_answered`
   """
 
   @type type ::
-          :comment | :chat | :card_closed | :check_questions | :question_answered | :check_left
+          :comment
+          | :chat
+          | :card_closed
+          | :pr_waiting
+          | :pr_answered
+          | :check_questions
+          | :question_answered
+          | :check_left
 
   @type t :: %__MODULE__{
           type: type(),
@@ -33,6 +43,7 @@ defmodule Workflow.Inbox.Event do
           author_handle: String.t() | nil,
           mentions: [String.t()],
           body: String.t(),
+          pr: %{number: pos_integer(), url: String.t() | nil, head_sha: String.t() | nil} | nil,
           questions: [String.t()]
         }
 
@@ -44,5 +55,6 @@ defmodule Workflow.Inbox.Event do
             author_handle: nil,
             mentions: [],
             body: "",
+            pr: nil,
             questions: []
 end
