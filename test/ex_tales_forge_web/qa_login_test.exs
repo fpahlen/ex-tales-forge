@@ -254,7 +254,7 @@ defmodule TalesForgeWeb.QaLoginTest do
       assert Chat.recent() == []
     end
 
-    test "viewing a card never clears anyone's pings" do
+    test "viewing a card never clears anyone's inbox items" do
       {:ok, idea} = Board.create_idea("fredrik@whyse.se", %{"title" => "Fishing"})
 
       {:ok, _} =
@@ -262,14 +262,14 @@ defmodule TalesForgeWeb.QaLoginTest do
           login: "fpahlen"
         )
 
-      [_] = Board.unread_pings("Hawkan-Fredriksson")
+      [_] = Workflow.Inbox.Store.open("hakan")
       {:ok, view, _} = live(qa_conn(), "/team")
       before = snapshot()
 
       view |> with_target("#idea-board-live") |> render_click("open", %{"card_id" => idea.id})
       assert has_element?(view, "#board-modal")
 
-      assert [_] = Board.unread_pings("Hawkan-Fredriksson")
+      assert [_] = Workflow.Inbox.Store.open("hakan")
       assert snapshot() == before
     end
 

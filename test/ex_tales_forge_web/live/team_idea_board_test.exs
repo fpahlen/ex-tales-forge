@@ -766,7 +766,7 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
     assert {:error, {:redirect, %{to: "https://tales-forge.fly.dev/team"}}} = live(conn, "/team")
   end
 
-  test "pings: a mention shows under 'Pings for you' until the founder opens the card",
+  test "a mention shows in the inbox of the named founder, not under 'Pings for you'",
        %{conn: conn} do
     {:ok, idea} = Board.create_idea("fredrik@whyse.se", %{"title" => "Fishing"})
 
@@ -779,13 +779,9 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
         "/team"
       )
 
-    assert has_element?(view, "#board-pings [data-role=ping-count]", "1")
-    assert has_element?(view, "#ping-#{idea.id}", "Fishing")
-
-    view |> element("#ping-#{idea.id}") |> render_click()
-    assert has_element?(view, "#board-modal mark", "@hakan")
-    assert has_element?(view, "#card-#{idea.id}-comment-body[phx-hook=MentionSuggest]")
     refute has_element?(view, "#board-pings")
+    assert has_element?(view, ~s(#inbox [data-role="inbox-count"]), "1")
+    assert has_element?(view, "#inbox-chip summary", "Card: Fishing")
     assert Board.unread_pings("Hawkan-Fredriksson") == []
   end
 
