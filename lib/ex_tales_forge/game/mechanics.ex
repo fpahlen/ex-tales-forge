@@ -301,9 +301,122 @@ defmodule TalesForge.Game.Mechanics do
         modifier \\ 0
       ) do
     normalized = normalize_skill_name(skill) || "insight"
-    raw_level = character |> get_in(["skills", normalized]) |> to_int(0)
     # Catalogue v2: the manner adverb's roll modifier (PROVISIONAL table).
     effective = max(0, effective_skill_level(character, normalized) + modifier)
+    roll_at(character, normalized, effective, injected_roll, variant)
+  end
+
+  @doc """
+  Rolls one part of a skill split at the part `level`. The rules are the
+  rules of `perform_and_apply/5`: natural 1, natural 20 and the partial
+  success. Inject `injected_roll` in tests.
+  """
+  @spec perform_part(map(), String.t(), non_neg_integer(), 1..20 | nil, String.t()) ::
+          {map(), MechanicalResolution.t()}
+  def perform_part(character, skill, level, injected_roll \\ nil, variant \\ "default")
+      when is_integer(level) do
+    normalized = normalize_skill_name(skill) || "insight"
+    roll_at(character, normalized, max(0, level), injected_roll, variant)
+  end
+
+  @doc """
+  The effective level of `skill` for `character`: the raw level plus the
+  linked stat bonus, or the untrained floor at level 0.
+  """
+  @spec effective_level(map(), String.t()) :: non_neg_integer()
+  def effective_level(character, skill),
+    do: effective_skill_level(character, normalize_skill_name(skill) || "insight")
+
+  @doc "The raw level of `skill` for `character` (0 when untrained)."
+  @spec raw_level(map(), String.t()) :: integer()
+  def raw_level(character, skill),
+    do: character |> get_in(["skills", normalize_skill_name(skill) || "insight"]) |> to_int(0)
+
+  @doc """
+  The part levels of a skill split. `level` is the skill level, or
+  `{raw, effective}`. The raw level unlocks the split. The parts sum to the
+  effective level. `request` is `1`, `2`, `3` or a list of two uneven parts
+  (one number gives the first part; the second part is the remainder).
+
+  The thresholds come from `settings` (default
+  `TalesForge.Config.skill_split_settings/0`, d100 scale):
+
+    * from `start`, the player can split into two even parts;
+    * from `triple`, the player can also split into three even parts, or into
+      two uneven parts with each part at least `min_uneven_part`.
+
+  Even parts differ by 1 at most, because the parts always sum to the level.
+
+      iex> TalesForge.Game.Mechanics.split_levels(120, 1)
+      {:ok, [120]}
+      iex> TalesForge.Game.Mechanics.split_levels(100, 2)
+      {:ok, [50, 50]}
+      iex> TalesForge.Game.Mechanics.split_levels(101, 2)
+      {:ok, [51, 50]}
+      iex> TalesForge.Game.Mechanics.split_levels(99, 2)
+      {:error, :below_start}
+      iex> TalesForge.Game.Mechanics.split_levels(120, 3)
+      {:error, :below_triple}
+      iex> TalesForge.Game.Mechanics.split_levels(150, 3)
+      {:ok, [50, 50, 50]}
+      iex> TalesForge.Game.Mechanics.split_levels(150, [95, 55])
+      {:ok, [95, 55]}
+      iex> TalesForge.Game.Mechanics.split_levels(160, [120])
+      {:ok, [120, 40]}
+      iex> TalesForge.Game.Mechanics.split_levels(150, [130, 20])
+      {:error, :part_below_minimum}
+      iex> TalesForge.Game.Mechanics.split_levels(150, [90, 70])
+      {:error, :parts_do_not_sum}
+      iex> TalesForge.Game.Mechanics.split_levels(140, [90, 50])
+      {:error, :below_triple}
+      iex> TalesForge.Game.Mechanics.split_levels({100, 104}, 2)
+      {:ok, [52, 52]}
+  """
+  @spec split_levels(integer() | {integer(), integer()}, 1..3 | [integer()], map() | nil) ::
+          {:ok, [non_neg_integer()]} | {:error, atom()}
+  def split_levels(level, request, settings \\ nil)
+
+  def split_levels(level, request, settings) when is_integer(level),
+    do: split_levels({level, level}, request, settings)
+
+  def split_levels({raw, effective}, request, nil),
+    do: split_levels({raw, effective}, request, TalesForge.Config.skill_split_settings())
+
+  def split_levels({_raw, effective}, 1, _settings), do: {:ok, [effective]}
+
+  def split_levels({raw, _effective}, _request, %{start: start}) when raw < start,
+    do: {:error, :below_start}
+
+  def split_levels({_raw, effective}, 2, _settings), do: {:ok, even_parts(effective, 2)}
+
+  def split_levels({raw, _effective}, request, %{triple: triple})
+      when (request == 3 or is_list(request)) and raw < triple,
+      do: {:error, :below_triple}
+
+  def split_levels({_raw, effective}, 3, _settings), do: {:ok, even_parts(effective, 3)}
+
+  def split_levels({_raw, effective}, [first], settings) when is_integer(first),
+    do: split_levels({effective, effective}, [first, effective - first], settings)
+
+  def split_levels({_raw, effective}, [a, b], %{min_uneven_part: min})
+      when is_integer(a) and is_integer(b) do
+    cond do
+      a + b != effective -> {:error, :parts_do_not_sum}
+      min(a, b) < min -> {:error, :part_below_minimum}
+      true -> {:ok, [a, b]}
+    end
+  end
+
+  def split_levels(_level, _request, _settings), do: {:error, :bad_request}
+
+  defp even_parts(level, count) do
+    base = div(level, count)
+    extra = rem(level, count)
+    for i <- 1..count, do: if(i <= extra, do: base + 1, else: base)
+  end
+
+  defp roll_at(character, normalized, effective, injected_roll, variant) do
+    raw_level = character |> get_in(["skills", normalized]) |> to_int(0)
     roll = injected_roll || :rand.uniform(20)
     outcome = resolve_outcome(roll, effective, raw_level)
     baseline? = variant == "baseline"
