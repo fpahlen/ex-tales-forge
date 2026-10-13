@@ -1055,7 +1055,8 @@
     "founders": [
       {
         "name": "Fredrik",
-        "github": "fpahlen"
+        "github": "fpahlen",
+        "inbox": ["mention"]
       },
       {
         "name": "Thobias",

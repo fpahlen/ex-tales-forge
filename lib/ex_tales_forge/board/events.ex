@@ -10,7 +10,14 @@ defmodule TalesForge.Board.Events do
   | `:mention` (`@<bot id>` in a comment) | wake that bot |
   | `:pr_approved`, `:pr_changes_requested` (a founder answers a PR) | wake the builder |
   | `:question_answered` (an answer or a deferral) | wake the refiner while the card is in Refining |
-  | `:idea_to_check`, `:idea_to_done` | nothing (founders see the board) |
+  | `:idea_to_check`, `:idea_to_done`, `:idea_to_archived` | no wake (founders see the board) |
+  | `:comment` (a comment on a card) | no wake (the `:mention` event wakes the bots) |
+
+  Each event also goes to the inbox (`Workflow.Inbox.route/2`, through
+  `Workflow.Inbox.Store.add/3`) in the same Multi. A comment that names a
+  founder makes an inbox item. A comment by a founder closes the items of
+  that founder for the card. A move to Done or to the Archive closes all
+  items of the card.
 
   Only moves (the "Wakes" column of `TalesForge.Board.Transitions`) and
   `@mentions` wake bots. Votes and links wake nobody.
@@ -28,6 +35,8 @@ defmodule TalesForge.Board.Events do
   alias Ecto.Multi
   alias TalesForge.Board.{Idea, WakeMerge}
   alias TalesForge.Board.Workers.{LogDecision, Notify}
+  alias Workflow.Inbox.Event, as: InboxEvent
+  alias Workflow.Inbox.Store, as: InboxStore
   alias Workflow.Team
 
   @typedoc "A board event."
@@ -37,6 +46,8 @@ defmodule TalesForge.Board.Events do
           | :idea_to_check
           | :idea_to_building
           | :idea_to_done
+          | :idea_to_archived
+          | :comment
           | :mention
           | :pr_approved
           | :question_answered
@@ -45,6 +56,8 @@ defmodule TalesForge.Board.Events do
   @doc "Adds the jobs of `event` on `idea` (with `extra` details) to `multi`."
   @spec add(Multi.t(), event(), Idea.t(), map()) :: Multi.t()
   def add(multi, event, %Idea{} = idea, extra) do
+    team = Workflow.Team.Source.team()
+
     multi =
       if event == :idea_to_building,
         do:
@@ -55,12 +68,44 @@ defmodule TalesForge.Board.Events do
           ),
         else: multi
 
-    Enum.reduce(bots(Workflow.Team.Source.team(), event, extra), multi, fn bot, acc ->
+    team
+    |> bots(event, extra)
+    |> Enum.reduce(multi, fn bot, acc ->
       Multi.run(acc, {:notify, bot, event, System.unique_integer([:positive])}, fn repo, _ ->
         notify(repo, bot, event, idea, extra)
       end)
     end)
+    |> InboxStore.add(team, &inbox_event(event, idea, extra, &1))
   end
+
+  @doc """
+  The inbox event of a board event, or nil. `changes` are the Multi changes
+  so far: a `:comment` event reads the stored comment there.
+
+      iex> idea = %TalesForge.Board.Idea{id: "i1", title: "T"}
+      iex> TalesForge.Board.Events.inbox_event(:idea_to_done, idea, %{}, %{}).type
+      :card_closed
+      iex> TalesForge.Board.Events.inbox_event(:idea_to_check, idea, %{}, %{})
+      nil
+  """
+  @spec inbox_event(event(), Idea.t(), map(), map()) :: InboxEvent.t() | nil
+  def inbox_event(event, %Idea{id: id, title: title}, _extra, _changes)
+      when event in [:idea_to_done, :idea_to_archived],
+      do: %InboxEvent{type: :card_closed, idea_id: id, title: title}
+
+  def inbox_event(:comment, %Idea{id: id, title: title}, extra, %{comment: comment}),
+    do: %InboxEvent{
+      type: :comment,
+      source_id: comment.id,
+      idea_id: id,
+      title: title,
+      author: comment.author,
+      author_handle: extra[:author_handle],
+      mentions: extra[:mentions] || [],
+      body: comment.body || ""
+    }
+
+  def inbox_event(_event, _idea, _extra, _changes), do: nil
 
   @doc """
   The bots an event wakes.

@@ -109,6 +109,14 @@ test/ex_tales_forge/pr_feed_test.exs
 test/ex_tales_forge_web/live/team_pr_feed_live_test.exs
 test/ex_tales_forge_web/live/team_work_log_live_test.exs
 test/support/pr_feed_fixtures.ex
+# The inbox (board card 'Inbox: one triage queue per person'): the pure rules,
+# the store and the panel (the panel matches team_*.ex above). Its migration is
+# shared, and Workflow.Team stays shared.
+lib/workflow/inbox.ex
+lib/workflow/inbox/
+test/workflow/inbox_test.exs
+test/workflow/inbox/
+test/ex_tales_forge_web/live/team_inbox_test.exs
 # The idea board's UI test (the board component is on the list above, and so
 # are the board's server modules and their tests, near the top)
 test/ex_tales_forge_web/live/team_idea_board_test.exs

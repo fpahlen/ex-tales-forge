@@ -397,7 +397,12 @@ defmodule TalesForge.Board do
         Events.add(acc, :mention, idea, %{bot: bot, body: body, author: author})
       end)
     end)
+    |> Events.add(:comment, idea, %{
+      author_handle: Mentions.handle_for(team, opts[:login]),
+      mentions: founders
+    })
     |> run(idea.id)
+    |> tap(fn _ -> Workflow.Inbox.Store.broadcast() end)
   end
 
   @doc """
@@ -424,29 +429,36 @@ defmodule TalesForge.Board do
 
   @doc """
   The unread pings of a founder (by GitHub login), one entry for each card, newest
-  first: `%{idea_id, title, count, from, at}`.
+  first: `%{idea_id, title, count, from, at}`. A founder with inbox rules
+  (`Workflow.Inbox.has_inbox?/2`) gets no pings: the inbox replaces them.
   """
   @spec unread_pings(String.t()) :: [map()]
   def unread_pings(login) do
-    case Mentions.handle_for(team(), login) do
+    team = team()
+
+    case Mentions.handle_for(team, login) do
       nil ->
         []
 
       handle ->
-        from(p in Ping,
-          join: i in Idea,
-          on: i.id == p.idea_id,
-          where: p.handle == ^handle and is_nil(p.read_at) and i.column != "archived",
-          order_by: [desc: p.inserted_at],
-          select: {i.id, i.title, p.author, p.inserted_at}
-        )
-        |> Repo.all()
-        |> Enum.group_by(&elem(&1, 0))
-        |> Enum.map(fn {id, [{_, title, from, at} | _] = all} ->
-          %{idea_id: id, title: title, count: length(all), from: from, at: at}
-        end)
-        |> Enum.sort_by(& &1.at, {:desc, DateTime})
+        if Workflow.Inbox.has_inbox?(team, handle), do: [], else: pings_of(handle)
     end
+  end
+
+  defp pings_of(handle) do
+    from(p in Ping,
+      join: i in Idea,
+      on: i.id == p.idea_id,
+      where: p.handle == ^handle and is_nil(p.read_at) and i.column != "archived",
+      order_by: [desc: p.inserted_at],
+      select: {i.id, i.title, p.author, p.inserted_at}
+    )
+    |> Repo.all()
+    |> Enum.group_by(&elem(&1, 0))
+    |> Enum.map(fn {id, [{_, title, from, at} | _] = all} ->
+      %{idea_id: id, title: title, count: length(all), from: from, at: at}
+    end)
+    |> Enum.sort_by(& &1.at, {:desc, DateTime})
   end
 
   @doc "Marks a founder's pings on a card as read (they opened the card)."
@@ -904,6 +916,7 @@ defmodule TalesForge.Board do
       {_, "check"} -> Events.add(multi, :idea_to_check, idea, extra)
       {_, "building"} -> Events.add(multi, :idea_to_building, idea, extra)
       {_, "done"} -> Events.add(multi, :idea_to_done, idea, extra)
+      {_, "archived"} -> Events.add(multi, :idea_to_archived, idea, extra)
       _ -> multi
     end
   end

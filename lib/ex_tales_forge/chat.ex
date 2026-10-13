@@ -17,6 +17,10 @@ defmodule TalesForge.Chat do
     outbox (`TalesForge.Board.Workers.Notify`, event `chat.mention`), in the
     same transaction as the message. A bot that mentions a bot wakes nobody,
     to keep bot costs under control (the founder's answer on the card).
+  - A message that names a founder with inbox rules makes an item in that
+    founder's inbox (`Workflow.Inbox`), in the same transaction. For that
+    founder the inbox replaces the unread badge: `unread/1` gives 0. A
+    message by that founder closes the chat items of that founder.
   - A message can carry images (`TalesForge.Images`): pasted, dropped,
     picked, or one still from "Capture screen". The text is then the note
     and can be empty. The bots get the image links in the JSON (`images`).
@@ -37,6 +41,8 @@ defmodule TalesForge.Chat do
   alias TalesForge.Images
   alias TalesForge.Repo
   alias TalesForge.WorkLog
+  alias Workflow.Inbox.Event, as: InboxEvent
+  alias Workflow.Inbox.Store, as: InboxStore
 
   @topic "team_chat"
   @shown 100
@@ -123,11 +129,13 @@ defmodule TalesForge.Chat do
     |> WorkLog.add("chat", :message, & &1.author)
     |> Multi.run(:images, fn _repo, %{message: m} -> store_images(m, author, images) end)
     |> then(fn multi -> Enum.reduce(wakes, multi, &add_wake/2) end)
+    |> InboxStore.add(team, &inbox_event(&1, Mentions.handle_for(team, opts[:login])))
     |> Repo.transaction()
     |> case do
       {:ok, %{message: message, images: stored}} ->
         message = %{message | images: stored}
         Phoenix.PubSub.broadcast(TalesForge.PubSub, @topic, {:team_chat, message})
+        InboxStore.broadcast()
         {:ok, message}
 
       {:error, :message, changeset, _} ->
@@ -137,6 +145,19 @@ defmodule TalesForge.Chat do
         {:error, image_changeset(author, body, message)}
     end
   end
+
+  # The inbox event of a stored message (Workflow.Inbox): a message that names
+  # a founder makes an item, and a message by a founder closes the chat items
+  # of that founder.
+  defp inbox_event(%{message: %Message{} = m}, author_handle),
+    do: %InboxEvent{
+      type: :chat,
+      source_id: m.id,
+      author: m.author,
+      author_handle: author_handle,
+      mentions: m.mentions,
+      body: m.body
+    }
 
   defp store_images(message, author, images) do
     Enum.reduce_while(images, {:ok, []}, fn data, {:ok, acc} ->
@@ -205,17 +226,23 @@ defmodule TalesForge.Chat do
   @doc "How many messages mention the founder with this GitHub `login` since they last opened the chat."
   @spec unread(String.t() | nil) :: non_neg_integer()
   def unread(login) do
-    case Mentions.handle_for(team(), login) do
+    team = team()
+
+    case Mentions.handle_for(team, login) do
       nil ->
         0
 
       handle ->
-        read_at = Repo.one(from r in Read, where: r.handle == ^handle, select: r.read_at)
-
-        from(m in Message, where: ^handle in m.mentions)
-        |> then(&if(read_at, do: where(&1, [m], m.inserted_at > ^read_at), else: &1))
-        |> Repo.aggregate(:count)
+        if Workflow.Inbox.has_inbox?(team, handle), do: 0, else: unread_count(handle)
     end
+  end
+
+  defp unread_count(handle) do
+    read_at = Repo.one(from r in Read, where: r.handle == ^handle, select: r.read_at)
+
+    from(m in Message, where: ^handle in m.mentions)
+    |> then(&if(read_at, do: where(&1, [m], m.inserted_at > ^read_at), else: &1))
+    |> Repo.aggregate(:count)
   end
 
   @doc "Marks the chat as read for the founder with this GitHub `login` (they opened it)."

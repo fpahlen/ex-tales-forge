@@ -174,6 +174,8 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       board: board,
       prs: prs(),
       pings: Board.unread_pings(socket.assigns[:login]),
+      inbox?:
+        Workflow.Inbox.has_inbox?(team(), Mentions.handle_for(team(), socket.assigns[:login])),
       goals_strip: Goals.strip(),
       goal_cards: goal_cards(socket.assigns[:goal_open]),
       goals: Goals.list() |> Enum.sort_by(&{&1.sort, &1.title}),
@@ -901,6 +903,15 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           >{@notice.title}</a>
         </.flash>
       </section>
+      <.live_component
+        :if={@inbox?}
+        module={TalesForgeWeb.TeamInbox}
+        id="inbox"
+        founder={@founder}
+        login={@login}
+        qa={assigns[:qa] == true}
+        read_only={assigns[:read_only] == true}
+      />
 
       <%!-- Desktop: Ideas left, the three active columns in the middle with
            Parked under them, Done right. Phone: the areas stack. Each area

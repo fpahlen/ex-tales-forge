@@ -140,13 +140,15 @@ defmodule TalesForgeWeb.TeamLiveTest do
       assert has_element?(view, "#stat-ideas [data-count]", "2")
       assert has_element?(view, "#stat-check [data-count]", "2")
       assert has_element?(view, "#stat-prs [data-count]", "1")
-      assert has_element?(view, "#stat-pings [data-count]", "0")
+      # This founder has inbox rules: the inbox stat replaces the pings stat.
+      assert has_element?(view, "#stat-inbox [data-count]", "0")
+      refute has_element?(view, "#stat-pings")
 
       {:ok, _} = Board.add_comment(Board.get_idea!(voted.id), "bot:case", "@fredrik a look?")
       send(view.pid, {:board, :changed})
-      assert has_element?(view, "#stat-pings [data-count]", "1")
-      assert has_element?(view, ~s(a#stat-pings[href="#board-pings"]))
-      assert has_element?(view, "#board-pings")
+      assert has_element?(view, "#stat-inbox [data-count]", "1")
+      assert has_element?(view, ~s(a#stat-inbox[href="#inbox"]))
+      refute has_element?(view, "#board-pings")
     end
 
     test "the crew section is gone: it lives on the presentation", %{conn: conn} do
