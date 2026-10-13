@@ -11,6 +11,43 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Threaded chat like Messenger/WhatsApp
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. we need to thread the chat like messenger or whatsapp
+- **Why:** **Goal.** The team chat has threads like Messenger or WhatsApp. A thread is about one subject. Two founders can also have a private 1:1 chat. Tsjokvist decided this on the card. Goal: G7, our shared workspace.
+
+**What we already have (high confidence).**
+1. `TalesForge.Chat` keeps all messages in one table, `team_chat_messages`. All messages are in one stream.
+2. A message has an author, a body, mentions and bots to wake.
+3. Unread counts use `TalesForge.Chat.Read`, one row per founder.
+4. Mentions, pop-ups, images and bot wake-ups already work.
+
+**Steps.**
+1. Add a table `team_chat_threads`. A thread has a subject, a kind (`subject` or `direct`), the members and the time of the last message.
+2. Add a `thread_id` to `team_chat_messages`.
+3. Move all old messages to one thread with the name "General".
+4. Change unread counts to one count per founder and thread.
+5. Show a list of threads on the left side. Sort by the last message. Show the open thread on the right side.
+6. Let a founder start a subject thread with a subject.
+7. Let a founder start a 1:1 chat with one other founder. Show it only to the two members.
+8. Check the members on each read and each post in a direct thread. Do not trust the client.
+9. Add `thread_id` to the chat API in `/internal/chat`. Bots answer in the thread of the message that woke them.
+10. Add tests for each step, mainly for the access rule in direct threads.
+
+**Done when.** Founders can start and use subject threads. Two founders can chat 1:1, and other founders cannot see that chat. Unread counts and mentions work per thread. The bots answer in the correct thread.
+
+**Architecture.** The thread rules are pure functions in `TalesForge.Chat`. The access check is at the edge, in the context functions. The chat tables stay inside the Workflow boundary.
+
+**Risks.**
+- A private chat leaks to the wrong founder. Mitigation: one access function and tests for it.
+- The bots post in the wrong thread. Mitigation: the wake-up job carries the `thread_id`.
+- The migration of old messages fails on prod. Mitigation: test it on a copy of the prod data first.
+
+**Confidence.** High confidence in the data model. Medium confidence in the cost of the UI, mainly on mobile. Verdict: feasible with caveats. Rough cost: L.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-7615972d-3fb6-4d04-ad1b-7bb4dc99fabc)
+
+<!-- board:idea:7615972d-3fb6-4d04-ad1b-7bb4dc99fabc -->
+
 ## 2026-10-13: Parked cards up/down voting
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. parked cards should be able to up/down vote also
