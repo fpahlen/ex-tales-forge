@@ -687,7 +687,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     socket
     |> assign(:typed, Map.delete(socket.assigns.typed, id))
     |> with_idea(id, &comment_in_thread(&1, socket, body, params))
-    |> confirm(id, ["body", "subject"])
+    |> confirm(id, ["body"])
   end
 
   # Typing in the comment box: the others see "<name> is typing…" (a hint,
@@ -2341,7 +2341,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
                   class="min-h-11 rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2"
                 >
                   <option value="">General</option>
-                  <option :for={t <- TalesForge.Chat.card_threads(@idea.id)} value={t.id}>
+                  <option :for={t <- card_threads(@idea)} value={t.id}>
                     {t.subject}
                   </option>
                 </select>
@@ -2748,14 +2748,18 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
   defp comment_thread(_idea, _founder, _login, params), do: {:ok, params["thread_id"]}
 
+  # The whole card is the argument, so the options render again on each
+  # change of the card (LiveView change tracking).
+  defp card_threads(%Idea{id: id}), do: TalesForge.Chat.card_threads(id)
+
   # The comments of a card in their threads: General first, then each
   # thread of the card, newest comment first.
   defp comment_groups(idea) do
     groups = Enum.group_by(idea.comments, & &1.thread_id)
 
     [{nil, Map.get(groups, nil, [])}] ++
-      (idea.id
-       |> TalesForge.Chat.card_threads()
+      (idea
+       |> card_threads()
        |> Enum.map(&{&1, Map.get(groups, &1.id, [])}))
   end
 
