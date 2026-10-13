@@ -42,7 +42,14 @@ defmodule TalesForge.Board.Workers.Notify do
             "url" => Board.url(idea)
           },
           "transition" => Map.take(stringify(extra), ~w(from to actor)),
-          "comment" => if(extra[:body], do: %{"author" => extra[:author], "body" => extra[:body]})
+          "comment" =>
+            if(extra[:body],
+              do: %{
+                "author" => extra[:author],
+                "body" => extra[:body],
+                "thread_id" => extra[:thread_id]
+              }
+            )
         }
         |> Map.merge(pr_fields(extra))
     })
