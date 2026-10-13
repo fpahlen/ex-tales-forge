@@ -14,7 +14,7 @@ defmodule Workflow.Inbox.FoundersTest do
   @author "author@example.com"
 
   test "the team config gives the rule mention to each founder" do
-    assert @team.founders != []
+    assert Enum.map(@team.founders, & &1.handle) == ~w(fredrik thobias hakan jeanette max)
     assert Enum.all?(@team.founders, &("mention" in &1.inbox))
   end
 
