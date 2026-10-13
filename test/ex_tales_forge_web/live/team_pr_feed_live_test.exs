@@ -138,6 +138,12 @@ defmodule TalesForgeWeb.TeamPrFeedListTest do
   @prod %{playtest: :deployed, production: :deployed}
   @waiting %{playtest: :deployed, production: :pending}
 
+  # Each test publishes its own feed. The cache is empty again after each test,
+  # so a later test on /team sees no feed of this module.
+  setup do
+    isolate_cache()
+  end
+
   defp child(conn) do
     {:ok, view, _} = live(log_in_admin(conn), "/team")
     find_live_child(view, "team-pr-feed") || view
