@@ -135,6 +135,15 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 
 <!-- board:idea:9915480a-3275-4c78-9278-389cd05b9c69 -->
 
+## 2026-10-13: Session versus canon, v1 defaults for the three open questions
+
+- **Decision (v1 defaults on the build of the card; Fredrik can change them with a new entry):** the session review ships with these three defaults.
+  1. **Add to canon** records the approved change and stores a proposed seed patch for a pull request. The app does not write seed files at runtime. A person opens the pull request with the patch.
+  2. **Mark as error** records the decision only. The session stays as it is.
+  3. **When the review runs:** a founder opens the review of one session and clicks "Start the review". The turn pipeline never runs it.
+- **Why:** Cards 2 to 4 (seed format, continuity check, world editor) are not built yet, so there is no seed write path. A pull request keeps each canon change visible and easy to revert, and keeps Tin Valley safe. A session that stays as it is keeps play history auditable. A button keeps the Jev call off the turn path and gives the founder control of the cost.
+- **Details:** canon is read through one module (`TalesForge.Canon.Seed`), so card 2 can replace the reader. The diff is a pure Elixir function. One Jev call labels the leftover free text with new_npc, changed_place, conflict or other, and writes no prose. See [ex-tales-forge #233](https://github.com/whyse-ab/ex-tales-forge/pull/233) and the [card](https://tales-forge.fly.dev/team#idea-9616b9a0-7656-407b-bb02-da4aba208908).
+
 ## 2026-10-13: Session versus canon
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part 5 of 5 from the World building card. Rough cost: M.
