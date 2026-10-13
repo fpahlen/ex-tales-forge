@@ -54,10 +54,18 @@ defmodule Workflow.InboxTest do
   describe "rule pr_approval" do
     @pr %{number: 7, url: "https://example.com/pull/7", head_sha: "abc1234"}
 
-    test "a PR that waits for an OK makes one approve item for each founder with the rule" do
+    # Ada has the rule pr_approval here; Örjan and Lin have no rules.
+    setup do
+      [ada | rest] = @team.founders
+      %{team: %{@team | founders: [%{ada | inbox: ["mention", "pr_approval"]} | rest]}}
+    end
+
+    test "a PR that waits for an OK makes one approve item for each founder with the rule",
+         %{team: team} do
       event = %Event{type: :pr_waiting, idea_id: "i1", title: "Dark mode", pr: @pr, body: "PR #7"}
 
-      assert [item] = Inbox.route(@team, event)
+      assert [item] = Inbox.route(team, event)
+      assert Inbox.route(@team, event) == []
       assert item.recipient == "ada"
       assert item.rule == "pr_approval"
       assert item.kind == :approve
@@ -71,8 +79,8 @@ defmodule Workflow.InboxTest do
                [%{recipient: :all, scope: {:idea_rule, "i1", "pr_approval"}}]
     end
 
-    test "a PR event with no card makes no item" do
-      assert Inbox.route(@team, %Event{type: :pr_waiting, pr: @pr}) == []
+    test "a PR event with no card makes no item", %{team: team} do
+      assert Inbox.route(team, %Event{type: :pr_waiting, pr: @pr}) == []
     end
   end
 

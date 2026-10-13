@@ -83,7 +83,7 @@ defmodule Workflow.Inbox do
   The rule ids of the founder with `handle`. Only ids of known rules count.
 
       iex> Workflow.Inbox.rule_ids(Workflow.Team.example(), "ada")
-      ["mention", "pr_approval"]
+      ["mention"]
       iex> Workflow.Inbox.rule_ids(Workflow.Team.example(), "lin")
       []
   """
