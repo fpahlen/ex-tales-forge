@@ -41,7 +41,13 @@ config :ex_tales_forge, Oban,
     # stop) goes back to 'available' after 5 minutes instead of never. Every
     # worker must finish well within that (the board webhook times out at 30 s,
     # Notify.timeout/1) and be idempotent (Notify keeps its delivery id).
-    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)}
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)},
+    # Scheduled board work in Elixir, not in bot routines (decision 2026-10-13
+    # "Bot work in Elixir"). Each worker runs on production only.
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"7 * * * *", TalesForge.Board.Workers.StuckCards}
+     ]}
   ]
 
 # The founders' idea board on /team (tales-forge-docs docs/design-idea-board.md).
