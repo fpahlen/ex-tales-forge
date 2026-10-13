@@ -29,7 +29,7 @@
         "does": [
           "Shape what we build: ideas, surveys, playtesting",
           "Make the decisions, written down in one shared log",
-          "Approve PRs on the board (every founder; an approved change goes to production after a playtest pass and a founder's OK)"
+          "Approve PRs on the board (every founder; an approved change ships to production by itself after playtest and Gentry)"
         ],
         "schedule": null,
         "approval_key": {
@@ -60,7 +60,7 @@
         "does": [
           "Writes code as pull requests",
           "Runs playtests and evals",
-          "Ships admin-only changes through the fast lane when the checks pass; other changes goes to production after a playtest pass and a founder's OK",
+          "Ships admin-only changes through the fast lane when the checks pass; other changes ship to production by themselves after a founder's Approve, playtest and Gentry",
           "Hourly Fly log check"
         ],
         "schedule": "hourly Fly log check"
@@ -84,7 +84,7 @@
       "source": "gh api orgs/whyse-ab/teams/tales-forge/members (count only)",
       "note": "Members of the GitHub team, not the number of founders (team.members[0].people.count)"
     },
-    "framing": "How we work today, and we shape it together. Founders and bots are one crew. Every founder approves PRs on the board; an approved change goes to production after a playtest pass and a founder's OK."
+    "framing": "How we work today, and we shape it together. Founders and bots are one crew. Every founder approves PRs on the board; an approved change goes to playtest, Gentry checks it, and then it ships to production by itself."
   },
   "change_flow": {
     "as_of": "2026-10-10",
