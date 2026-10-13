@@ -38,9 +38,10 @@ defmodule TalesForgeWeb.TeamChatLive do
           {:ok, Phoenix.LiveView.Socket.t(), keyword()}
   def mount(_params, session, socket) do
     login = socket.assigns[:admin_github_login]
+    viewer = Chat.viewer(socket.assigns[:admin_email], login)
 
     if connected?(socket) do
-      Chat.subscribe()
+      Chat.subscribe(viewer)
       if socket.parent_pid, do: send(socket.parent_pid, {:team_chat_pid, self()})
     end
 
@@ -50,6 +51,8 @@ defmodule TalesForgeWeb.TeamChatLive do
      |> assign(:login, login)
      |> assign(:email, socket.assigns[:admin_email])
      |> assign(:me, Chat.handle_for(login))
+     |> assign(:viewer, viewer)
+     |> assign(:thread, nil)
      |> assign(:open, false)
      |> assign(:draft, "")
      |> assign(:messages, [])
@@ -91,7 +94,7 @@ defmodule TalesForgeWeb.TeamChatLive do
   def handle_info({:open_chat, to}, socket), do: {:noreply, open(socket, to)}
 
   def handle_info({:team_chat, %Message{} = m}, socket) do
-    if socket.assigns.open do
+    if socket.assigns.open and open_thread?(socket, m) do
       unless socket.assigns[:qa], do: Chat.mark_read(socket.assigns.login)
       {:noreply, assign(socket, :messages, socket.assigns.messages ++ [m])}
     else
@@ -101,13 +104,27 @@ defmodule TalesForgeWeb.TeamChatLive do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
+  # The server checks the thread again on each PubSub message.
+  defp open_thread?(%{assigns: %{thread: %{id: id}, viewer: viewer}}, %Message{thread_id: id}),
+    do: match?({:ok, _}, Chat.thread(viewer, id))
+
+  defp open_thread?(_socket, _message), do: false
+
   defp open(socket, to) do
     # The QA session never marks the chat as read for anyone.
     unless socket.assigns[:qa], do: Chat.mark_read(socket.assigns.login)
     body = if to, do: "@#{mention(to)} ", else: ""
 
+    {thread, messages} =
+      with {:ok, thread} <- Chat.thread(socket.assigns.viewer, nil),
+           {:ok, messages} <- Chat.recent(socket.assigns.viewer, thread.id) do
+        {thread, messages}
+      else
+        {:error, :not_found} -> {nil, []}
+      end
+
     socket
-    |> assign(open: true, unread: 0, messages: Chat.recent())
+    |> assign(open: true, unread: 0, thread: thread, messages: messages)
     |> assign(:form, to_form(%{"body" => body}, as: :chat))
   end
 
