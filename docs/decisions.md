@@ -11,6 +11,17 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Bot work in Elixir
+
+- **Decision (Fredrik, 2026-10-13):** Move recurring bot work into deterministic Elixir code to keep the bot costs in the budget. Four small PRs, each merges only with Fredrik's OK:
+  - (a) A board comment by a bot wakes no bot, and a bot never wakes itself. This is the team chat rule. [ex-tales-forge#234](https://github.com/whyse-ab/ex-tales-forge/pull/234)
+  - (d) One webhook wake for each bot and card in 2 minutes. A second event in that time merges into the first wake. [ex-tales-forge#235](https://github.com/whyse-ab/ex-tales-forge/pull/235)
+  - (b) `Oban.Plugins.Cron` and an hourly stuck card job: a card in Building with no linked PR after 1 hour gets one fixed reminder comment (no LLM, one time for each card). [ex-tales-forge#236](https://github.com/whyse-ab/ex-tales-forge/pull/236)
+  - (c) A mention sweep job every 15 minutes: it wakes Case only when founder mentions of bots have no answer. [ex-tales-forge#237](https://github.com/whyse-ab/ex-tales-forge/pull/237)
+- **Why:** Most scheduled bot runs find no work (the mention sweep finds work in less than 5 % of its runs). Code does these checks for free. The bots then start only when there is work.
+- **After the deploy:** Case deletes its stuck card routine and its mention sweep routine.
+- **Details:** analysis in the bot cost review of 2026-10-13. Admin/infra work, no board card. Lane: normal.
+
 ## 2026-10-13: Character creation PR 1, dice rolls
 
 - **Decision:** The player can roll the stats with dice. The first creation screen has the choice "Point buy" (the default) or "Roll the dice". The server rolls 4d6 for each stat and drops the lowest die, so each stat is 3 to 18. The player gets exactly one re-roll. The rolled stats are fixed, and the 75-point budget applies to point buy only. A race modifier on a rolled stat stops at 3 and 18. The draft keeps the roll when the player goes back to point buy. From the first roll, the server keeps the draft, so a reload keeps the roll. A point-buy draft without a roll stays in the screen, as before. Both models end with the same validate and finalize step. Solo and group play use the same rules. This entry adds to the 2026-10-13 "Character creation" entry below.
