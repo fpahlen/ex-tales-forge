@@ -11,6 +11,48 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Workflow split 2/5: Team config
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Goal: G7, our shared workspace.
+- **Why:** **Problem.** The team tools have Tales Forge names in the code. Another team cannot use Workflow without a code change.
+
+**Goal.** Workflow code has no Tales Forge names. Team config holds them. The board and the team page show the same data as before.
+
+**What the code has today (main, `f8ce0f4`).**
+- `priv/team/data.json` already holds the team members. `TalesForge.TeamPage` reads this file.
+- `config/config.exs` has `:board_founder_handles`. `config/runtime.exs` builds `:board_bots` from the `BOARD_BOT_TOKEN_<BOT>` secrets.
+- Goals are rows in the database (`TalesForge.Board.Goal`). Goals do not need a move to config.
+- `TalesForge.TeamOnline` has a fixed bot list: Case, Bobby and Gentry.
+- `TalesForge.Board.Transitions` has the column labels "Refining (Case)" and "Building (Bobby)".
+- `team_layout.ex` shows a "Tales Forge" link in the header.
+- `team_presentation_live.ex` has 2244 lines. Most of the Tales Forge text is in this file.
+- `TalesForge.Board.Mentions` reads the handles from `priv/team/data.json`. Only its doc examples have founder names.
+
+**Plan.**
+1. Make one module for the team config, for example `Workflow.Team`. This follows our rule of one place for each thing.
+2. Put the bot list, the column labels and the product name in `priv/team/data.json`.
+3. Read the file at the edge. Give the team config to each function as a plain struct.
+4. Change `TeamOnline`, `Transitions` and `team_layout.ex` to use the team config.
+5. Move the Tales Forge text of the presentation to content files under `priv/team/`. Keep the layout and the components in code.
+6. Add a CI check, for example `mix workflow.check_names`. The check fails when a Workflow file in `lib/` has a team name.
+7. Add a test that renders /team and the board. The test compares the text before and after the change.
+
+**Cost: M.** Steps 1 to 4 are small. Step 5 is the largest step, because the presentation file is long. Step 6 needs a short list of allowed files.
+
+**Risks.**
+- Card 1 decides which modules belong to Workflow. Mitigation: Bobby starts this card after card 1 merges.
+- The presentation move can break links such as `#slide-2a`. Mitigation: keep the slide ids in the content files. Test the old links.
+- The name check can block a valid name in a test or a doc example. Mitigation: the check reads only Workflow files in `lib/`.
+
+**Deploy lane: admin.** Only the team tools change. The game does not change.
+
+**Verdict: feasible with caveats.** Most team data is already in data files. Card 1 must come first. The presentation move is the largest step.
+
+**Confidence.** High confidence that the change is feasible. Medium confidence in the cost of step 5 until Bobby splits the presentation text. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-4dbf0bfc-d0ac-4673-86b1-e3e515996f31)
+
+<!-- board:idea:4dbf0bfc-d0ac-4673-86b1-e3e515996f31 -->
+
 ## 2026-10-13: Workflow split 1/5: Product boundary
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Goal: G7, our shared workspace.
