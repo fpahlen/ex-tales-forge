@@ -16,7 +16,7 @@ defmodule TalesForge.QaLogin do
   - The token compare is timing safe (`Plug.Crypto.secure_compare/2` on
     SHA-256 digests, so the length does not leak either).
   - The QA session can open the `/team` pages only (`allowed_path?/1`,
-    `allowed_view?/1`): `/team`, the presentation, `/team/details` and
+    `allowed_view?/1`): `/team`, the presentation and
     `/team/work-log` (Fredrik's OK, 2026-10-13). The work log CSV
     (`/team/work-log.csv`) stays closed to it. It is read-only: every write is refused on the server
     (`read_only?/0`, `read_event?/1`). It does not show in "Online now" and it
