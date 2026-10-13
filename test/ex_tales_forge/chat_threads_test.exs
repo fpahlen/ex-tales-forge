@@ -127,7 +127,9 @@ defmodule TalesForge.ChatThreadsTest do
         assert {:error, :not_found} = Chat.post("bot:#{bot}", "hi", thread_id: t.id)
       end
 
-      {200, %{"messages" => messages}} = Chat.api(:index, :case, %{"thread_id" => t.id})
+      assert {404, _} = Chat.api(:index, :case, %{"thread_id" => t.id})
+      assert {404, _} = Chat.api(:create, :case, %{"thread_id" => t.id, "body" => "hi"})
+      {200, %{"messages" => messages}} = Chat.api(:index, :case, %{})
       refute Enum.any?(messages, &(&1["body"] == "private note"))
     end
 
