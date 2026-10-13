@@ -63,7 +63,7 @@ defmodule TalesForge.OnlineTest do
   end
 
   test "board API calls are noted per bot" do
-    :ok = Online.bot_seen(:gentry)
-    assert %DateTime{} = Online.bot_calls()[:gentry]
+    :ok = Workflow.BotCalls.seen(:gentry)
+    assert %DateTime{} = Workflow.BotCalls.calls()[:gentry]
   end
 end

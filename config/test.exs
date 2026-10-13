@@ -77,7 +77,10 @@ config :ex_tales_forge, :costs_peer_req_options, plug: {Req.Test, TalesForge.Cos
 config :ex_tales_forge, TalesForge.PrFeed, poll: false
 config :ex_tales_forge, :pr_feed_token, nil
 config :ex_tales_forge, :pr_feed_req_options, plug: {Req.Test, TalesForge.PrFeed.GitHub}
-config :ex_tales_forge, :version_peer_req_options, plug: {Req.Test, TalesForge.PrFeed.Versions}
+
+config :ex_tales_forge, :version_peer_req_options,
+  plug: {Req.Test, TalesForge.ProductApi.RunningCommits}
+
 config :ex_tales_forge, :online_peer_req_options, plug: {Req.Test, TalesForge.Online.Peer}
 
 # Docs viewer images from GitHub go to Req.Test stubs (TalesForge.Collab.Files).
@@ -104,3 +107,9 @@ config :ex_tales_forge, :intent_jev_shadow, :sync
 
 # Session versus canon: tests stub the Jev labeller (TalesForge.Canon.Classifier).
 config :ex_tales_forge, TalesForge.Canon, classifier: TalesForge.Canon.ClassifierStub
+
+# The HTTP adapters of the Workflow split (card 4) call Req.Test stubs.
+config :ex_tales_forge, :product_app_req_options, plug: {Req.Test, Workflow.ProductApp.Http}
+
+config :ex_tales_forge, :workflow_client_req_options,
+  plug: {Req.Test, TalesForge.WorkflowClient.Http}

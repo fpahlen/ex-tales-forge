@@ -43,6 +43,16 @@ sides apart. The `collab_*` tables are Workflow data (decision 2026-10-13,
 "Workflow split 3/5: Data boundary"). The collab pages stay in the game
 admin and use the `ExTalesForge.Collab` context.
 
+## Product-app API (card 4)
+
+Workflow uses no product-app module. It reads costs, online players and
+the running commit through `Workflow.ProductApp` (`GET /internal/product/*`,
+`PRODUCT_APP_API_TOKEN`). The product app pushes work-log turn events to
+Workflow with a retryable Oban job (`TalesForge.Workers.PushWorkLogTurn`,
+`POST /internal/workflow/work-log/turns`, `WORKFLOW_API_TOKEN`). The PR feed
+stays in Workflow. No other data goes between them. Both clients use their
+local adapter until card 5.
+
 ## Shared wiring for now
 
 Cards 4 and 5 move these:

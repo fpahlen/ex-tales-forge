@@ -13,7 +13,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
   alias TalesForge.PrFeed
   alias TalesForge.PrFeed.Extras
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{AICall, PlaytestRun, PlaytestScore}
+  alias TalesForge.Schemas.AICall
   alias TalesForge.TeamPage
   alias TalesForgeWeb.TeamBoard
   alias TalesForgeWeb.TeamCallTypes
@@ -1219,7 +1219,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert render(view) |> text("#pace-decisions") =~ "98"
     end
 
-    test "database groups go live: costs (last 7 days), intent latency (last 7 days), persona scores",
+    test "product-app groups go live: costs (last 7 days), intent latency (last 7 days); persona scores stay on data.json",
          %{conn: conn} do
       now = DateTime.utc_now()
 
@@ -1235,32 +1235,6 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
         })
       end
 
-      {:ok, session} =
-        TalesForge.GameSessions.create_session(%{name: "Live", adventure_id: "tin_valley"})
-
-      run =
-        Repo.insert!(%PlaytestRun{
-          game_session_id: session.id,
-          persona: "hawk",
-          module: "tin_valley",
-          build: "x",
-          status: "finished",
-          turn_limit: 2,
-          started_at: DateTime.truncate(now, :second)
-        })
-
-      for {turn, score, conf} <- [{1, 4.0, 0.8}, {2, 2.0, 0.8}] do
-        Repo.insert!(%PlaytestScore{
-          playtest_run_id: run.id,
-          kind: "turn_affect",
-          turn_number: turn,
-          overall: score,
-          confidence: conf,
-          model: "jev",
-          rubric_version: "x"
-        })
-      end
-
       {:ok, _view, html} = live(conn, ~p"/team/presentation")
 
       assert source(html, "#spend-days-source") == "live"
@@ -1269,9 +1243,8 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert source(html, "#latency-source") == "live"
       assert text(html, "#chart-latency-window") == "last 7 days"
       assert text(html, "#latency-source") =~ "live · last 7 days"
-      assert source(html, "#persona-scores-source") == "live"
-      assert text(html, "#persona-scores-window") == "since 2026-10-07"
-      assert text(html, "#persona-now-hawk") =~ "3.00/5"
+      # The product app gives Workflow no playtest scores.
+      assert source(html, "#persona-scores-source") == "fallback"
       # No live source for the eval set: still labelled.
       assert source(html, "#eval-source") == "fallback"
     end

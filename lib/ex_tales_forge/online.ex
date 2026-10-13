@@ -14,9 +14,8 @@ defmodule TalesForge.Online do
     shared `COSTS_PEER_TOKEN`), the same pull model as the costs page. The
     reader is `TalesForge.Online.Peer`, which keeps the last answer for
     `TalesForge.Online.Peer.ttl_ms/0`; an older answer counts as empty.
-  - **Bots** do not keep a page open. `bot_seen/1` notes each authorised call to
-    the board API (`TalesForgeWeb.BoardApiController`); the team page adds the
-    bots' other activity (`TalesForge.TeamOnline`).
+  - **Bots** do not keep a page open. Workflow notes their API calls
+    (`Workflow.BotCalls`, `TalesForge.TeamOnline`).
   """
 
   alias TalesForge.AppRole
@@ -231,14 +230,6 @@ defmodule TalesForge.Online do
     end)
     |> Enum.sort_by(& &1.key)
   end
-
-  @doc "Notes that `bot` (`:case`, `:bobby`, `:gentry`) made a board API call now."
-  @spec bot_seen(atom()) :: :ok
-  def bot_seen(bot) when is_atom(bot), do: Peer.bot_seen(bot, DateTime.utc_now())
-
-  @doc "The time of each bot's latest board API call since this app started."
-  @spec bot_calls() :: %{optional(atom()) => DateTime.t()}
-  def bot_calls, do: Peer.bot_calls()
 
   @doc """
   Everyone online for the header counter (`TalesForgeWeb.OnlineHeaderLive`):

@@ -8,9 +8,6 @@ defmodule TalesForge.Online.Peer do
   no redirects) and keeps the answer. An answer older than `ttl_ms/0` counts as
   empty, so a founder never stays "online" when playtest is down. On playtest
   and locally it never polls.
-
-  It also owns a small ETS table with each bot's latest board API call
-  (`TalesForge.Online.bot_seen/1`).
   """
 
   use GenServer
@@ -58,21 +55,6 @@ defmodule TalesForge.Online.Peer do
   end
 
   defp strip(list), do: Enum.map(list, &Map.take(&1, [:email, :page, :app]))
-
-  @doc false
-  @spec bot_seen(atom(), DateTime.t()) :: :ok
-  def bot_seen(bot, at) do
-    insert({{:bot, bot}, at})
-    :ok
-  end
-
-  @doc false
-  @spec bot_calls() :: %{optional(atom()) => DateTime.t()}
-  def bot_calls do
-    if :ets.whereis(@table) == :undefined,
-      do: %{},
-      else: Map.new(:ets.match(@table, {{:bot, :"$1"}, :"$2"}), fn [b, at] -> {b, at} end)
-  end
 
   @doc """
   Fetches playtest's list once. `{:ok, founders}`, or `{:error, reason}` when

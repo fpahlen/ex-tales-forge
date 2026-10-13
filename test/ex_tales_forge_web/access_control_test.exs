@@ -53,6 +53,14 @@ defmodule TalesForgeWeb.AccessControlTest do
     # The bots open card and chat images with the same bot tokens
     # (TeamImageController); 401 without a token.
     {:get, "/internal/images/:id"},
+    # The product-app API that Workflow reads, bearer token PRODUCT_APP_API_TOKEN
+    # (ProductApiController); decision 2026-10-13 "Workflow split 4/5".
+    {:get, "/internal/product/costs"},
+    {:get, "/internal/product/online"},
+    {:get, "/internal/product/running-commits"},
+    # Workflow receives work-log turn events, bearer token WORKFLOW_API_TOKEN
+    # (WorkflowWorkLogController); the same decision.
+    {:post, "/internal/workflow/work-log/turns"},
     # GitHub's webhook: signed with GITHUB_WEBHOOK_SECRET (GitHubWebhookController).
     {:post, "/webhooks/github"}
   ]

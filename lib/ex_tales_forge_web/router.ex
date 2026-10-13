@@ -219,6 +219,24 @@ defmodule TalesForgeWeb.Router do
     get "/work-log/events", WorkLogPeerController, :show
   end
 
+  # The product-app API that Workflow reads (costs, online, running commits;
+  # PRODUCT_APP_API_TOKEN, 404 while unset); see ProductApiController. Workflow
+  # receives work-log turn events from the product app (WORKFLOW_API_TOKEN,
+  # 404 while unset); see WorkflowWorkLogController. None of them calls an LLM.
+  scope "/internal/product", TalesForgeWeb do
+    pipe_through :api
+
+    get "/costs", ProductApiController, :costs
+    get "/online", ProductApiController, :online
+    get "/running-commits", ProductApiController, :running_commits
+  end
+
+  scope "/internal/workflow", TalesForgeWeb do
+    pipe_through :api
+
+    post "/work-log/turns", WorkflowWorkLogController, :create
+  end
+
   # GitHub's repository webhook (both apps). Signed with GITHUB_WEBHOOK_SECRET
   # (X-Hub-Signature-256); off (404) while the secret is unset. See
   # GitHubWebhookController and docs/github-webhooks.md.

@@ -2,7 +2,7 @@ defmodule TalesForgeWeb.AdminLive.CostsLive do
   @moduledoc """
   Admin costs page (`/admin/operate/costs`), read-only, USD with SEK alongside at the
   configured rate. The Jev intent latency of this app's last 7 days is at the
-  bottom (`TalesForgeWeb.TeamLiveNumbers.intent_latency/2`). Scope: AI calls only (xAI/Grok, TypeSafe Jev). What it shows
+  bottom (`TalesForge.ProductApi.Costs.intent_latency/1`). Scope: AI calls only (xAI/Grok, TypeSafe Jev). What it shows
   depends on the app's role (`TalesForge.AppRole`):
 
   - **Playtest:** only playtest-run spend (`TalesForge.Costs.PlaytestRuns`):
@@ -29,6 +29,7 @@ defmodule TalesForgeWeb.AdminLive.CostsLive do
   alias TalesForge.Costs
   alias TalesForge.Costs.Peer
   alias TalesForge.Costs.PlaytestRuns
+  alias TalesForge.ProductApi
   alias TalesForge.TeamPage
   alias TalesForgeWeb.TeamLiveNumbers
 
@@ -52,7 +53,10 @@ defmodule TalesForgeWeb.AdminLive.CostsLive do
 
     {:ok,
      socket
-     |> assign(:latency, TeamLiveNumbers.intent_latency(TeamPage.data(), now))
+     |> assign(
+       :latency,
+       TeamLiveNumbers.latency_group(ProductApi.Costs.intent_latency(now), TeamPage.data())
+     )
      |> mount_role(AppRole.role(), now)}
   end
 
@@ -801,7 +805,7 @@ defmodule TalesForgeWeb.AdminLive.CostsLive do
     end
   end
 
-  attr :latency, :map, required: true, doc: "`TalesForgeWeb.TeamLiveNumbers.intent_latency/2`"
+  attr :latency, :map, required: true, doc: "`TalesForgeWeb.TeamLiveNumbers.latency_group/2`"
 
   # Jev intent latency on this app, last 7 days (moved here from the founders'
   # presentation, admin split 2026-10-10: it is a property of each app's calls).

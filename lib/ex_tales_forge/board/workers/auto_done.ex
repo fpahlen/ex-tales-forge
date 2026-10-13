@@ -27,7 +27,6 @@ defmodule TalesForge.Board.Workers.AutoDone do
   alias TalesForge.AppRole
   alias TalesForge.Board
   alias TalesForge.Board.{Idea, OnProd}
-  alias TalesForge.Playtest.RunMeta
   alias TalesForge.Workflow.Repo
 
   @doc """
@@ -127,7 +126,7 @@ defmodule TalesForge.Board.Workers.AutoDone do
   """
   @spec note(pos_integer()) :: String.t()
   def note(number) do
-    sha = (RunMeta.git_sha() || "unknown") |> String.slice(0, 7)
+    sha = (Workflow.ProductApp.running_commits().current || "unknown") |> String.slice(0, 7)
 
     image =
       case System.get_env("FLY_IMAGE_REF") do

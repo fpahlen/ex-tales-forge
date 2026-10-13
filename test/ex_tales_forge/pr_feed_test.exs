@@ -10,13 +10,14 @@ defmodule TalesForge.PrFeedTest do
   alias TalesForge.PrFeed
   alias TalesForge.PrFeed.GitHub
   alias TalesForge.PrFeed.Poller
-  alias TalesForge.PrFeed.Versions
+  alias TalesForge.ProductApi.RunningCommits
 
   doctest TalesForge.PrFeed
   doctest TalesForge.PrFeed.Parse
   doctest TalesForge.PrFeed.Deploys
   doctest TalesForge.PrFeed.GitHub
   doctest TalesForge.PrFeed.Versions
+  doctest TalesForge.ProductApi.RunningCommits
   doctest TalesForge.PrFeed.Pace
 
   @now ~U[2026-10-09 12:00:00Z]
@@ -135,7 +136,7 @@ defmodule TalesForge.PrFeedTest do
         main: json(commits(~w(4444444 3333333 abcdef0 1111111)))
       })
 
-      Req.Test.stub(Versions, fn conn ->
+      Req.Test.stub(RunningCommits, fn conn ->
         assert conn.host == "tales-forge.fly.dev"
         assert conn.request_path == "/internal/version"
         assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer peer-token"]
@@ -192,7 +193,7 @@ defmodule TalesForge.PrFeedTest do
         end
       end)
 
-      Req.Test.stub(Versions, &Plug.Conn.send_resp(&1, 404, ""))
+      Req.Test.stub(RunningCommits, &Plug.Conn.send_resp(&1, 404, ""))
 
       {snapshot, cache} = Poller.poll(%{}, @now)
 
@@ -236,7 +237,7 @@ defmodule TalesForge.PrFeedTest do
         end
       end)
 
-      Req.Test.stub(Versions, &Plug.Conn.send_resp(&1, 404, ""))
+      Req.Test.stub(RunningCommits, &Plug.Conn.send_resp(&1, 404, ""))
 
       {snapshot, cache} = Poller.poll(%{}, @now)
       assert snapshot.status == :ok
@@ -258,7 +259,7 @@ defmodule TalesForge.PrFeedTest do
         main: &Plug.Conn.send_resp(&1, 500, "")
       })
 
-      Req.Test.stub(Versions, &Plug.Conn.send_resp(&1, 404, ""))
+      Req.Test.stub(RunningCommits, &Plug.Conn.send_resp(&1, 404, ""))
 
       assert {%{status: :ok, items: [%{number: 5}], pace: nil}, _cache} = Poller.poll(%{}, @now)
     end
@@ -278,7 +279,7 @@ defmodule TalesForge.PrFeedTest do
         end
       end)
 
-      Req.Test.stub(Versions, &Plug.Conn.send_resp(&1, 404, ""))
+      Req.Test.stub(RunningCommits, &Plug.Conn.send_resp(&1, 404, ""))
 
       {first, cache} = Poller.poll(%{}, @now)
       assert [%{number: 9}] = first.items
@@ -302,24 +303,24 @@ defmodule TalesForge.PrFeedTest do
       System.put_env("GIT_SHA", "AbCdEf1234567")
       Application.put_env(:ex_tales_forge, :costs_peer, token: "peer-token")
 
-      Req.Test.stub(Versions, fn conn ->
+      Req.Test.stub(RunningCommits, fn conn ->
         assert conn.host == "tales-forge-playtest.fly.dev"
         Req.Test.json(conn, %{"app" => "playtest", "git_sha" => "702cf6f"})
       end)
 
-      assert Versions.running() == %{production: "AbCdEf1234567", playtest: "702cf6f"}
+      assert RunningCommits.running() == %{production: "AbCdEf1234567", playtest: "702cf6f"}
     end
 
     test "no peer token, a down peer or a bad answer: nil" do
       Application.put_env(:ex_tales_forge, :app_name, "tales-forge")
-      assert Versions.fetch(:playtest) == nil
+      assert RunningCommits.fetch(:playtest) == nil
 
       Application.put_env(:ex_tales_forge, :costs_peer, token: "peer-token")
-      Req.Test.stub(Versions, &Req.Test.transport_error(&1, :timeout))
-      assert Versions.fetch(:playtest) == nil
+      Req.Test.stub(RunningCommits, &Req.Test.transport_error(&1, :timeout))
+      assert RunningCommits.fetch(:playtest) == nil
 
-      Req.Test.stub(Versions, &Req.Test.json(&1, %{"git_sha" => "<script>"}))
-      assert Versions.fetch(:playtest) == nil
+      Req.Test.stub(RunningCommits, &Req.Test.json(&1, %{"git_sha" => "<script>"}))
+      assert RunningCommits.fetch(:playtest) == nil
     end
   end
 

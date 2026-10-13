@@ -72,7 +72,7 @@ defmodule TalesForgeWeb.OnlineHeaderLiveTest do
       now
     )
 
-    TalesForge.Online.bot_seen(:case)
+    Workflow.BotCalls.seen(:case)
 
     {:ok, view, _html} = live(conn, "/admin")
     header = find_live_child(view, "admin-online")

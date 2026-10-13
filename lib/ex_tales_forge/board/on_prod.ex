@@ -2,15 +2,14 @@ defmodule TalesForge.Board.OnProd do
   @moduledoc """
   Is a card's PR in the running prod release? The gate of Building → Done
   (docs repo `docs/design-board-states.md`). The board runs only on
-  production, so the running release is this app's own commit (`GIT_SHA`, the
-  same commit `/internal/version` gives). GitHub tells the PR's merge commit
+  production. The product app gives the commit that production runs
+  (`Workflow.ProductApp.running_commits/0`). GitHub tells the PR's merge commit
   (`GET /repos/:repo/pulls/:number`) and whether it is an ancestor of the
   running commit (`GET /repos/:repo/compare/<merge>...<running>`: `ahead` or
   `identical`). The token is `GITHUB_FEED_TOKEN` (read-only).
   """
 
   alias TalesForge.Board.GitHubApp
-  alias TalesForge.Playtest.RunMeta
   alias TalesForge.PrFeed
 
   @doc """
@@ -27,7 +26,7 @@ defmodule TalesForge.Board.OnProd do
 
   @doc """
   Like `check/1`, but tells "not in the release (yet)" (`:not_included`)
-  from "cannot tell now" (`:unavailable`: GitHub or `GIT_SHA` missing; try
+  from "cannot tell now" (`:unavailable`: GitHub or the running commit missing; try
   again later).
   """
   @spec status(pos_integer() | nil) ::
@@ -36,7 +35,8 @@ defmodule TalesForge.Board.OnProd do
 
   def status(number) do
     with {:token, token} when is_binary(token) <- {:token, PrFeed.token()},
-         {:running, running} when is_binary(running) <- {:running, RunMeta.git_sha()},
+         {:running, running} when is_binary(running) <-
+           {:running, Workflow.ProductApp.running_commits().current},
          {:ok, merge} <- merge_sha(token, number),
          {:ok, status} <- compare(token, merge, running) do
       if status in ["ahead", "identical"],
@@ -49,7 +49,7 @@ defmodule TalesForge.Board.OnProd do
         {:unavailable, "The board cannot read GitHub now (no GITHUB_FEED_TOKEN)."}
 
       {:running, _} ->
-        {:unavailable, "The board cannot see the prod release (no GIT_SHA)."}
+        {:unavailable, "The board cannot see the prod release now."}
 
       {:not_merged, reason} ->
         {:not_included, reason}

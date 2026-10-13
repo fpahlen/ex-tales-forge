@@ -69,7 +69,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent}
   alias TalesForge.Schemas.Turn, as: TurnRow
-  alias TalesForge.WorkLog
+  alias TalesForge.Workers.PushWorkLogTurn
 
   @doc """
   Runs one turn. The main steps (rules, prompt build, GM call, persistence)
@@ -402,7 +402,6 @@ defmodule TalesForge.Game.TurnProcessor do
 
     with {:ok, %{session: session, turn: turn}} <-
            persist_turn_multi(session, world_after, turn_number, raw_action, ctx),
-         :ok <- record_work_log(turn),
          :ok <-
            NPC.apply_gm_updates(session.id, gm_result, Map.get(world_after, "world_tick")),
          # Double-write to `characters` (nothing reads it yet); never fails the turn.
@@ -423,23 +422,6 @@ defmodule TalesForge.Game.TurnProcessor do
          needs_scene: SceneProcessor.needs_scene?(world_after)
        }}
     end
-  end
-
-  # The work log is Workflow data (TalesForge.Workflow.Repo). The turn
-  # records it after its own transaction commits. A failure here only logs,
-  # and the turn goes on.
-  defp record_work_log(turn) do
-    case WorkLog.record(turn.founder, "turn", turn.id, turn.inserted_at) do
-      {:ok, _} -> :ok
-      {:error, reason} -> log_work_log_error(turn, reason)
-    end
-  rescue
-    error -> log_work_log_error(turn, error)
-  end
-
-  defp log_work_log_error(turn, reason) do
-    Logger.warning("work log: no event for turn #{turn.id}: #{inspect(reason)}")
-    :ok
   end
 
   defp maybe_emit_turn_signals(%{status: "dead"}, _world_after, _handler, _raw_action), do: :ok
@@ -706,6 +688,7 @@ defmodule TalesForge.Game.TurnProcessor do
           GameSession.changeset(session, attrs)
         )
         |> Ecto.Multi.insert(:turn, turn_cs)
+        |> push_work_log(Map.get(ctx, :founder))
         |> GMReasoning.multi_insert(session.id, Map.get(world_state, "world_tick"), gm_result),
         fn {ev, idx}, acc ->
           cs =
@@ -732,6 +715,14 @@ defmodule TalesForge.Game.TurnProcessor do
       {:error, _step, reason, _} -> {:error, reason}
     end
   end
+
+  # A founder's turn queues one work-log push to Workflow in the turn
+  # transaction (TalesForge.Workers.PushWorkLogTurn). The turn makes no HTTP call.
+  defp push_work_log(multi, founder) when is_binary(founder) and founder != "" do
+    Oban.insert(multi, :work_log_push, fn %{turn: turn} -> PushWorkLogTurn.job(turn) end)
+  end
+
+  defp push_work_log(multi, _founder), do: multi
 
   defp session_attrs(world_state) do
     attrs = %{world_state: world_state}

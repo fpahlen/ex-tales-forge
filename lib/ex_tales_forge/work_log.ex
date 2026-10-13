@@ -88,6 +88,56 @@ defmodule TalesForge.WorkLog do
     end
   end
 
+  @doc """
+  Stores one turn event that the product app sends (`founder`, `ref`, `at`
+  and `app`, string keys). The same event two times stores one row.
+  Returns `{:ok, :stored}`, `{:ok, :skipped}` for a bot or a row that exists,
+  or `{:error, :invalid}`.
+  """
+  @spec receive_turn(map()) :: {:ok, :stored | :skipped} | {:error, :invalid}
+  def receive_turn(%{"founder" => founder, "ref" => ref, "at" => at, "app" => app})
+      when is_binary(ref) and ref != "" and app in ~w(production playtest local) do
+    with {:ok, at, _} <- DateTime.from_iso8601(to_string(at)) do
+      if founder?(founder) do
+        n =
+          put_events(
+            [
+              %{
+                "founder" => founder,
+                "kind" => "turn",
+                "ref" => ref,
+                "at" => DateTime.to_iso8601(at)
+              }
+            ],
+            app
+          )
+
+        {:ok, if(n == 1, do: :stored, else: :skipped)}
+      else
+        {:ok, :skipped}
+      end
+    else
+      _ -> {:error, :invalid}
+    end
+  end
+
+  def receive_turn(_params), do: {:error, :invalid}
+
+  @doc """
+  The bearer token of the Workflow receive route (the secret
+  `WORKFLOW_API_TOKEN`, config `:workflow_api`), or nil when unset or blank.
+  """
+  @spec api_token() :: String.t() | nil
+  def api_token do
+    case Application.get_env(:ex_tales_forge, :workflow_api, [])[:token] do
+      token when is_binary(token) ->
+        if String.trim(token) == "", do: nil, else: String.trim(token)
+
+      _ ->
+        nil
+    end
+  end
+
   @doc "The name of this app in the `app` field."
   @spec app() :: String.t()
   def app, do: Atom.to_string(AppRole.role())
@@ -124,7 +174,9 @@ defmodule TalesForge.WorkLog do
   them). Rows that exist already stay as they are. Returns the count of new rows.
   """
   @spec put_peer_events([map()], String.t()) :: non_neg_integer()
-  def put_peer_events(list, app) when is_list(list) do
+  def put_peer_events(list, app) when is_list(list), do: put_events(list, app)
+
+  defp put_events(list, app) do
     now = DateTime.utc_now()
 
     rows =

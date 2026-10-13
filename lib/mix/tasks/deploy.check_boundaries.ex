@@ -20,8 +20,8 @@ defmodule Mix.Tasks.Deploy.CheckBoundaries do
   It also checks the data boundary between Workflow and the product app
   (`TalesForge.DeployLanes.DataBoundary`, `priv/team/data-boundary.txt`):
   product-app code does not call `TalesForge.Workflow.Repo` or a Workflow
-  schema, and Workflow code does not call `TalesForge.Repo` or a product-app
-  schema. CI runs it in the Test job.
+  schema, and Workflow code does not call `TalesForge.Repo`, a product-app
+  schema or a product-app module on `[product]`. CI runs it in the Test job.
   """
 
   use Mix.Task
@@ -77,9 +77,12 @@ defmodule Mix.Tasks.Deploy.CheckBoundaries do
     %{
       workflow: expand(read_globs(@workflow_files) ++ boundary.workflow),
       wiring: expand(boundary.wiring),
-      pending: expand(boundary.pending),
+      pending: expand(boundary.pending ++ boundary.adapter),
       workflow_data: MapSet.union(workflow_schemas, MapSet.new(@workflow_data)),
-      product_data: MapSet.union(product_schemas, MapSet.new(@product_data))
+      product_data:
+        product_schemas
+        |> MapSet.union(MapSet.new(@product_data))
+        |> MapSet.union(expand(boundary.product))
     }
   end
 

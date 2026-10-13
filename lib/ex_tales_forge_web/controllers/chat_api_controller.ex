@@ -20,7 +20,6 @@ defmodule TalesForgeWeb.ChatApiController do
 
   alias TalesForge.AppRole
   alias TalesForge.BoardApi
-  alias TalesForge.Online
   alias TalesForgeWeb.PeerToken
 
   @doc "The latest messages, for an authorised bot."
@@ -39,7 +38,7 @@ defmodule TalesForgeWeb.ChatApiController do
           PeerToken.unauthorized(conn)
 
         bot ->
-          :ok = Online.bot_seen(bot)
+          :ok = Workflow.BotCalls.seen(bot)
           {status, body} = mod.api(action, bot, params)
 
           conn

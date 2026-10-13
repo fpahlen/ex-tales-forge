@@ -91,18 +91,18 @@ defmodule TalesForge.BoardTest do
   end
 
   # GitHub for TalesForge.Board.OnProd: PR 1 merged as m1, which is in the
-  # running release run1 unless the test says otherwise.
+  # running release abc0001 unless the test says otherwise.
   defp github!(compare_status \\ "ahead") do
     Application.put_env(:ex_tales_forge, :pr_feed_token, "feed-token")
     Application.put_env(:ex_tales_forge, :board_req_options, plug: {Req.Test, __MODULE__})
-    System.put_env("GIT_SHA", "run1")
+    System.put_env("GIT_SHA", "abc0001")
 
     Req.Test.stub(__MODULE__, fn conn ->
       case conn.request_path do
         "/repos/whyse-ab/ex-tales-forge/pulls/1" ->
           Req.Test.json(conn, %{"merged" => true, "merge_commit_sha" => "m1abcdef"})
 
-        "/repos/whyse-ab/ex-tales-forge/compare/m1abcdef...run1" ->
+        "/repos/whyse-ab/ex-tales-forge/compare/m1abcdef...abc0001" ->
           Req.Test.json(conn, %{"status" => compare_status})
       end
     end)
@@ -142,7 +142,7 @@ defmodule TalesForge.BoardTest do
           "url" => "https://github.com/x/y/pull/1"
         })
 
-      assert {:error, "PR #1 (m1abcde) is not in the prod release (run1) yet."} =
+      assert {:error, "PR #1 (m1abcde) is not in the prod release (abc0001) yet."} =
                Board.move(idea, {:bot, :bobby}, "done")
 
       github!("identical")
