@@ -11,6 +11,37 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Visualise slicing pie model
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. add visualisation of the slicing pie model
+- **Why:** **Goal.** The team sees the Slicing Pie split as a pie chart. Each contributor has one slice. Each slice shows the total hours and the percentage of all hours. Goal: G7, our shared workspace.
+
+**What we already have (high confidence).**
+1. The work log has the hours per founder and day. `TalesForge.WorkLog.Report` gives auto sessions and manual entries.
+2. The CSV export for the Slicing Pie spreadsheet uses the same rows.
+3. The work-log page `/team/log` already has a date range.
+
+**Steps.**
+1. Add one pure function in `TalesForge.WorkLog.Report`. It takes the rows and returns one total per founder: minutes, hours and percentage.
+2. Round the percentages so that the sum is 100.
+3. Show a pie chart on the work-log page. Draw it as an SVG in a function component. Do not add a chart library.
+4. Show a table next to the pie. Each row has the name, the total hours and the percentage. Tsjokvist asked for both numbers.
+5. Use the date range of the page for the pie.
+6. Add tests for the totals, the percentages and an empty range.
+
+**Done when.** The pie and the table show the hours and the percentage for each contributor. The sum of the percentages is 100. The numbers agree with the CSV export.
+
+**Architecture.** The totals are a pure function. The LiveView only shows the result. No new table and no migration.
+
+**Risks.**
+- Founders can read the pie as the final equity split. Mitigation: show a short note. The note says that the pie shows logged hours only.
+- Missed log time gives a wrong split. Mitigation: the card "Log extra non-workflow time" adds manual time.
+
+**Confidence.** High confidence in the steps. Medium confidence in the cost, because the weighting question can add work. Verdict: feasible. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-0eb1ccff-318b-40f2-bfbf-7a66f184cfb8)
+
+<!-- board:idea:0eb1ccff-318b-40f2-bfbf-7a66f184cfb8 -->
+
 ## 2026-10-13: Threaded chat like Messenger/WhatsApp
 
 - **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. we need to thread the chat like messenger or whatsapp
