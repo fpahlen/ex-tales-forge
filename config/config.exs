@@ -199,6 +199,12 @@ config :ex_tales_forge, TalesForge.Costs,
       env: :shared,
       amount: {:sek_per_year, 400.0},
       source: "SEK 400/year, from Fredrik 2026-10-06"
+    },
+    %{
+      name: "Grok Bot (AI team bots Case, Bobby, Gentry)",
+      env: :shared,
+      amount: {:usd_per_month, 225.0},
+      source: "~$225/month, rough estimate, from Fredrik 2026-10-13"
     }
   ],
   usd_sek: %{

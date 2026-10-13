@@ -196,6 +196,10 @@ defmodule TalesForge.CostsTest do
       assert Costs.fixed_micro_usd(fly) == 6_950_000
       refute Costs.sek_per_year?(fly)
 
+      grok = Enum.find(Costs.fixed_costs(), &(&1.name =~ "Grok Bot"))
+      assert Costs.fixed_micro_usd(grok) == 225_000_000
+      refute Costs.sek_per_year?(grok)
+
       assert Costs.fixed_micro_usd(%{amount: :unknown}) == :unknown
       assert Costs.playtest_warn_usd() == 15.0
     end
