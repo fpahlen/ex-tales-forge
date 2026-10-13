@@ -852,3 +852,12 @@
   .team-flow-token, .team-replay { display: none !important; }
   .team-lanes [data-at] { opacity: 1 !important; transform: none !important; }
 }
+
+/* The open goal sheet on a phone (TalesForgeWeb.TeamGoals): lock the page
+   scroll behind the sheet. From the sm breakpoint the sheet is a panel. */
+@media (max-width: 639.98px) {
+  body.team-sheet-open {
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+}

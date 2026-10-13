@@ -410,8 +410,20 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
 
   defp tile_id(key), do: key |> String.replace(~r/[^A-Za-z0-9_-]+/, "-") |> String.trim("-")
 
-  defp tile_title(tile),
-    do: "#{tile.label}: #{tile.calls} calls, #{tile.time_us} µs total, heat #{tile.heat}"
+  @doc """
+  The tooltip of a tile, in the same format as the tile.
+
+      iex> TalesForgeWeb.AdminLive.CodeHeatLive.tile_title(%{label: "Repo.all/2", calls: 12_400, time_us: 6_571_234, heat: 0.8912})
+      "Repo.all/2: 12.4k calls, 6.57 s total, heat 0.89"
+  """
+  @spec tile_title(map()) :: String.t()
+  def tile_title(tile),
+    do:
+      "#{tile.label}: #{format_int(tile.calls)} calls, #{format_us(tile.time_us)} total, " <>
+        "heat #{format_heat(tile.heat)}"
+
+  defp format_heat(heat) when is_float(heat), do: :erlang.float_to_binary(heat, decimals: 2)
+  defp format_heat(heat), do: to_string(heat)
 
   # Light yellow (cold) to dark red (hot). Dark text on light tiles.
   defp tile_style(heat) do

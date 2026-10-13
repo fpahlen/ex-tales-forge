@@ -144,4 +144,11 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLiveTest do
     assert CodeHeatLive.format_us(2500) == "2.5 ms"
     assert CodeHeatLive.format_us(2_500_000) == "2.5 s"
   end
+
+  doctest CodeHeatLive, only: [tile_title: 1]
+
+  test "the tooltip uses the tile format, not raw microseconds" do
+    tile = %{label: "IntentJev.read/2", calls: 40, time_us: 6_570_000, heat: 0.8912}
+    assert CodeHeatLive.tile_title(tile) == "IntentJev.read/2: 40 calls, 6.57 s total, heat 0.89"
+  end
 end

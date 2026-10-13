@@ -11,7 +11,10 @@ defmodule TalesForgeWeb.TeamGoals do
   that are not Done, with the title and column of each card. A founder adds
   a card without a goal, removes a card from the goal, or creates a new Idea
   card with the goal set. The QA session sees the list but gets no controls.
-  On a phone the open goal is a full-screen sheet.
+  On a phone the open goal is a full-screen sheet, and the page behind it
+  stays locked (the `.GoalSheetScrollLock` hook sets `team-sheet-open` on
+  the body). "Show cards" stays disabled until the LiveView connects
+  (`connected`), so a click always reaches the board component.
   """
   use Phoenix.Component
 
@@ -25,6 +28,7 @@ defmodule TalesForgeWeb.TeamGoals do
   attr :can_vote, :boolean, default: true
   attr :open_id, :string, default: nil
   attr :open_cards, :map, default: nil
+  attr :connected, :boolean, default: false
 
   @spec strip(map()) :: Phoenix.LiveView.Rendered.t()
   def strip(assigns) do
@@ -86,9 +90,10 @@ defmodule TalesForgeWeb.TeamGoals do
                 phx-click="goal_toggle"
                 phx-value-goal_id={row.goal.id}
                 phx-target={@myself}
+                disabled={!@connected}
                 aria-expanded={to_string(@open_id == row.goal.id)}
                 aria-controls={"goal-#{row.goal.id}-cards"}
-                class="mt-1 inline-flex min-h-11 items-center gap-1 rounded px-2 text-sm font-semibold underline"
+                class="mt-1 inline-flex min-h-11 items-center gap-1 rounded px-2 text-sm font-semibold underline disabled:cursor-wait disabled:opacity-50"
               >
                 <.icon
                   name={if @open_id == row.goal.id, do: "hero-chevron-up", else: "hero-chevron-down"}
@@ -223,6 +228,7 @@ defmodule TalesForgeWeb.TeamGoals do
     ~H"""
     <section
       id={"goal-#{@row.goal.id}-cards"}
+      phx-hook=".GoalSheetScrollLock"
       role="region"
       aria-labelledby={"goal-#{@row.goal.id}-cards-title"}
       class="fixed inset-0 z-50 grid content-start gap-3 overflow-y-auto bg-[var(--paper-panel)] p-4 sm:static sm:z-auto sm:overflow-visible sm:border-t sm:border-[var(--paper-rule)] sm:p-0 sm:pt-2"
@@ -319,6 +325,12 @@ defmodule TalesForgeWeb.TeamGoals do
         <button type="submit" class="min-h-11 rounded border px-3 font-semibold">Create</button>
       </form>
     </section>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".GoalSheetScrollLock">
+      export default {
+        mounted() { document.body.classList.add("team-sheet-open") },
+        destroyed() { document.body.classList.remove("team-sheet-open") }
+      }
+    </script>
     """
   end
 

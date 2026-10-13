@@ -16,7 +16,9 @@ defmodule TalesForge.QaLogin do
   - The token compare is timing safe (`Plug.Crypto.secure_compare/2` on
     SHA-256 digests, so the length does not leak either).
   - The QA session can open the `/team` pages only (`allowed_path?/1`,
-    `allowed_view?/1`). It is read-only: every write is refused on the server
+    `allowed_view?/1`): `/team`, the presentation and
+    `/team/work-log` (Fredrik's OK, 2026-10-13). The work log CSV
+    (`/team/work-log.csv`) stays closed to it. It is read-only: every write is refused on the server
     (`read_only?/0`, `read_event?/1`). It does not show in "Online now" and it
     never marks pings or chat messages as read.
   - QA_ALLOW_WRITES=true lets the QA session write, on playtest only, for
@@ -33,12 +35,13 @@ defmodule TalesForge.QaLogin do
   @email "gentry-qa@qa.tales-forge.invalid"
   @name "Gentry (QA)"
 
-  @allowed_paths ["/team", "/team/presentation"]
+  @allowed_paths ["/team", "/team/presentation", "/team/work-log"]
   @allowed_prefixes ["/team/images/"]
 
   # By name, so this sign-in code does not depend on the team pages (they are
   # in the admin deploy lane, .github/deploy-lanes.txt).
   @allowed_views ~w(TalesForgeWeb.TeamLive TalesForgeWeb.TeamPresentationLive
+                    TalesForgeWeb.TeamWorkLogLive
                     TalesForgeWeb.TeamPrFeedLive TalesForgeWeb.OnlineHeaderLive
                     TalesForgeWeb.TeamChatLive)
 
@@ -49,7 +52,7 @@ defmodule TalesForge.QaLogin do
                   toggle_sort toggle_tag clear_tags cancel_comment cancel_downvote
                   edit_refinement cancel_refinement draft_change
                   open_archive close_archive archive_filter archive_tag cancel_archive
-                  cancel_delete goal_toggle)
+                  cancel_delete goal_toggle range)
 
   @refused "This QA session is read-only. Gentry (QA) can view the page but cannot change it."
 
