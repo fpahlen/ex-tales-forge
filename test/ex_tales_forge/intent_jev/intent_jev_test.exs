@@ -289,6 +289,29 @@ defmodule TalesForge.IntentJevTest do
       assert opt_meta["source"] == "clarification_option"
     end
 
+    test "room and sleep (session 141e1b85 turn 5, wait 0.83 / spend 0.10) plays with no question" do
+      context = intent_context()
+      candidates = JevIntent.candidates(context)
+      text = "I pay for a room and go to sleep"
+
+      reply = %{
+        action: :wait,
+        target: :none,
+        skill: :none,
+        later: :none,
+        safety: :benign,
+        confidence: %{action: 0.02, target: 0.9, safety: 0.97},
+        probabilities: %{action: %{wait: 0.83, spend: 0.10, speak: 0.07}}
+      }
+
+      reading = JevIntent.decode(reply, candidates, text: text, context: context)
+
+      assert {:act, %PlayerAction{action: %SingleAction{action_type: :spend}}, _gm, meta} =
+               IntentJev.decide(reading, candidates, context, text, 12)
+
+      refute meta["asked"]
+    end
+
     test "a free-text answer never asks again: the best guess plays" do
       context = intent_context()
       {reading, candidates} = unsure_reading(context)

@@ -34,7 +34,7 @@ defmodule TalesForge.Game.Turn.Prompt do
         Prompts.gm_messages(
           context,
           outcome.mechanical,
-          gm_action(turn.intent, turn.opts[:gm_quote]),
+          gm_action(Map.get(outcome, :played) || turn.intent, turn.opts[:gm_quote]),
           outcome.handler,
           turn.number,
           flags: turn.flags,

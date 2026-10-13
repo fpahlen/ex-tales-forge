@@ -111,7 +111,10 @@ defmodule TalesForge.Prompt.Profile do
     do: Ctx.flag?(ctx, :npc_reactions) or Ctx.flag?(ctx, :world_agents)
 
   defp include?(Sections.NpcMemory, ctx), do: Ctx.flag?(ctx, :npc_dialogue_memory)
-  defp include?(Sections.OutcomeRecord, ctx), do: Ctx.flag?(ctx, :turn_outcome_record)
+
+  defp include?(Sections.OutcomeRecord, ctx),
+    do: Ctx.flag?(ctx, :turn_outcome_record) or Ctx.flag?(ctx, :turn_apply_outcomes)
+
   defp include?(Sections.NoticedDetails, ctx), do: Ctx.flag?(ctx, :skill_detail_level)
   defp include?(Sections.SkillSplit, ctx), do: Ctx.flag?(ctx, :skill_split)
   defp include?(section, ctx) when section in @default_only, do: not Ctx.baseline?(ctx)

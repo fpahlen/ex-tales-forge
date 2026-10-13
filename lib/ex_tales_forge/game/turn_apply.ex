@@ -11,9 +11,12 @@ defmodule TalesForge.Game.TurnApply do
     * `sleep_after_lodging/3` — "I pay for a room and go to sleep" also
       plays the sleep: eight hours with a paid bed, one hour without one.
     * `unpaid_sleep/1` — the payment failed, so the sleep is one hour.
+    * `item_buy/3` — a purchase whose target is an item ("ale_mug") gets
+      that item, and the seller is the person here who has it in stock.
     * `service_buy/3` — a purchase of a service ("I buy an ale", "I order
       a meal") with no item becomes a payment at the service price.
     * `named_move/3` — a move goes to the place that the text names. A move
+      to the place where the character is plays no walk. A move
       to a named place that the world does not have is rejected.
     * `unknown_move/2` — a move to a place that the world does not have is
       rejected, and the reason names the exits.
@@ -115,6 +118,48 @@ defmodule TalesForge.Game.TurnApply do
   end
 
   def put_spend_amount(player_action, handler), do: {player_action, handler}
+
+  @doc """
+  Makes the target of a purchase its item when the target is not a person.
+  Jev gives a purchase the item as its target ("ale_mug"), and the inventory
+  step reads the target as the seller. The seller is then the person here
+  who has the item in stock. Other actions do not change.
+
+  Gentry's playtest sessions 141e1b85 and 1c82f268 on 2026-10-13: "I buy an
+  ale" was a purchase with target `ale_mug`, and it cost 0c.
+
+  ## Examples
+
+      iex> alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction, SingleAction}
+      iex> pa = %PlayerAction{overall_intent: "I buy an ale",
+      ...>   action: %SingleAction{action_type: :buy, target: "ale_mug", parameters: %{}}}
+      iex> h = %HandlerResult{handler: "inventory", target: "ale_mug", state_hints: %{}}
+      iex> {listed, _h} = TalesForge.Game.TurnApply.item_buy(pa, h, %{"present_npcs" => ["marta_kellen"]})
+      iex> {listed.action.target, listed.action.parameters["item_id"]}
+      {nil, "ale_mug"}
+  """
+  @spec item_buy(PlayerAction.t(), HandlerResult.t(), map()) ::
+          {PlayerAction.t(), HandlerResult.t()}
+  def item_buy(
+        %PlayerAction{action: %{action_type: :buy, target: target} = action} = player_action,
+        %HandlerResult{handler: "inventory"} = handler,
+        world
+      )
+      when is_binary(target) and target != "" do
+    params = action.parameters || %{}
+
+    if params["item_id"] in [nil, ""] and not person_or_nil?(world, target) do
+      params = Map.put(params, "item_id", target)
+      hints = Map.put(handler.state_hints || %{}, "parameters", params)
+
+      {%{player_action | action: %{action | target: nil, parameters: params}},
+       %{handler | state_hints: hints}}
+    else
+      {player_action, handler}
+    end
+  end
+
+  def item_buy(player_action, handler, _world), do: {player_action, handler}
 
   @doc """
   Makes a purchase of a service with no item a payment at the service price.
@@ -268,6 +313,9 @@ defmodule TalesForge.Game.TurnApply do
     phrase = place_phrase(text)
 
     cond do
+      best_score > target_score and best == world["location_id"] ->
+        stay(world, best)
+
       best_score > target_score ->
         %{
           handler
@@ -285,6 +333,20 @@ defmodule TalesForge.Game.TurnApply do
   end
 
   def named_move(handler, _world, _text), do: handler
+
+  # The text names the place where the character is ("I go into the Weary
+  # Pilgrim inn" in the inn). The character stays, and the GM narrates no
+  # walk. Gentry's playtest session 141e1b85 on 2026-10-13.
+  defp stay(world, here_id) do
+    name = World.runtime_location(world, here_id)["name"] || String.replace(here_id, "_", " ")
+
+    %HandlerResult{
+      handler: "narrate",
+      target: here_id,
+      notes: "The character is already in #{name}. The character stays here. Narrate no walk.",
+      state_hints: %{"same_place" => true}
+    }
+  end
 
   @place_phrase ~r/\b(?:to|into|towards?)\s+the\s+([\p{L}' -]+?)(?=\s+(?:by|near|on|in|at|with|and|beside|of)\b|[,.!?;]|$)/iu
   @stop ~w(the and inn)
