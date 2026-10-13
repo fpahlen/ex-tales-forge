@@ -11,6 +11,55 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-13: Inbox: one triage queue per person
+
+- **Decision (fredrik@whyse.se, 2026-10-13, on the idea board):** build it. Goal: each person can see the items that need an answer in one place. The person acts on each item fast, without scrolling in threads.
+- **Why:** **Problem.** Today a founder finds the items that need an answer in many places. The places are card comments, card pings, the team chat badge, PR approvals and Founder check questions. The founder must scroll threads to find each item.
+
+**Goal.** Each person has one queue. The person acts on each item fast: one click to approve, or type and press Enter to answer.
+
+**What the code has today (main, `295faf7`).**
+- `TalesForge.Board.Events.add/4` adds the jobs of each board change to the same `Ecto.Multi` as the change. The inbox can add its items in this Multi too. Thus an item exists only when the change exists.
+- `board_pings` (`TalesForge.Board.Ping`) already holds a ping for each founder @mention on a card. A ping stays unread until the founder opens the card.
+- `TalesForge.Chat` gives an unread badge for a founder @mention in the team chat.
+- `TalesForge.Board.Mentions` is the one mention parser. It gets the team config (`Workflow.Team`) as its first argument.
+- `Board.answer_pr/4` and `Board.answer_question/4` already do approvals and answers.
+- The Workflow split (PR 2 of 5, #243) is in progress. New team tools code goes under `Workflow`.
+
+**Proposed approach.**
+1. Add `Workflow.Inbox` with a pure `route(team, event)`. It gets the team config as its first argument, as the Workflow rule tells. It returns a list of `InboxItem` structs.
+2. Write each rule as one entry in one list in `Workflow.Inbox`, with one test for each rule. `route/2` and `has_inbox?/2` read the same list. Thus the rules are in one place.
+3. Add the table `inbox_items`: recipient, kind, state, source link, created_at and acted_at. Kind is approve, answer or ack. State is new, snoozed, done or discarded.
+4. Call `route/2` in the same Multi as the event. Use the existing Multi in `Board.Events.add/4` and in `Chat.post/3`.
+5. Send each action through the existing functions: `Board.answer_pr/4`, `Board.answer_question/4` and `Board.add_comment/4`. The inbox has no copy of the board logic.
+6. Close an item when its source is closed. For example, an answer on the card itself closes the item.
+7. Add the triage screen as a LiveView. It shows one item at a time, with the keys from the card body. Shift+Enter adds a new line in an answer.
+8. Apply each action after the undo time. Thus undo does not need to revert an approval that already woke a bot.
+9. Add the inbox files to the `[admin]` list in `.github/deploy-lanes.txt`. Today `lib/workflow/` is not in this list.
+
+**Steps, one PR each.**
+1. The table, `route/2` with one rule (@mentions of Fredrik), and the triage screen. Cost: M.
+2. Approvals for PRs and deploys. Cost: S.
+3. Founder check questions. Cost: S.
+4. Events with no tag, such as failed CI, with one rule for each event. Cost: S.
+
+**Acceptance criteria.**
+- Only a person with at least one rule sees the inbox.
+- An @mention of Fredrik on a card or in the chat makes one item in his inbox.
+- Fredrik approves an item with one click or the a key.
+- Fredrik answers an item with text and Enter. The answer shows on the card as a normal comment.
+- An answer on the card itself closes the item in the inbox.
+- The board and the threads show the same data as before.
+
+**Deploy lane: admin.** Only the team tools change. The game does not change.
+
+**Verdict: feasible with caveats.** The outbox, the mention parser and the answer functions exist. The inbox must not become a second place for pings. Thus it must replace `board_pings` and the chat badge, or read them.
+
+**Confidence.** High confidence that the change is feasible. Medium confidence in the cost of step 1, because the keys, swipes and undo need UI tests. Verdict: feasible with caveats. Rough cost: L.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-0cc406d0-a637-4458-964d-44e8488103ca)
+
+<!-- board:idea:0cc406d0-a637-4458-964d-44e8488103ca -->
+
 ## 2026-10-13: Workflow split 2/5: Team config, how it is built (ex-tales-forge#243)
 
 - **Decision (founder picks for card 2/5, built in [ex-tales-forge#243](https://github.com/whyse-ab/ex-tales-forge/pull/243), open):**
