@@ -24,8 +24,9 @@ defmodule TalesForgeWeb.TeamInbox do
   reverts a change that woke a bot.
 
   An answer goes through the source: `TalesForge.Board.add_comment/4` for a
-  card and `TalesForge.Chat.post/3` for the team chat. The answer closes the
-  item (`Workflow.Inbox.closes/2`).
+  card and `TalesForge.Chat.post/3` for the team chat. An approval goes
+  through `TalesForge.Board.answer_pr/4`, the same as Approve on the card.
+  The answer or the approval closes the item (`Workflow.Inbox.closes/2`).
   """
 
   use TalesForgeWeb, :live_component
@@ -154,6 +155,12 @@ defmodule TalesForgeWeb.TeamInbox do
     Store.close_item(item.id, assigns.handle, :answer)
   end
 
+  defp apply_action(assigns, %{action: :approve, item: item}) do
+    with %Board.Idea{} = idea <- Board.get_idea(item.idea_id),
+         {:ok, _} <- Board.answer_pr(idea, assigns.founder, :approve, nil),
+         do: Store.close_item(item.id, assigns.handle, :approve)
+  end
+
   defp apply_action(%{handle: handle}, %{id: id, action: action}),
     do: Store.close_item(id, handle, action)
 
@@ -185,11 +192,18 @@ defmodule TalesForgeWeb.TeamInbox do
       "Team chat"
       iex> TalesForgeWeb.TeamInbox.chip(%{source: :comment, title: "Dark mode"})
       "Card: Dark mode"
+      iex> TalesForgeWeb.TeamInbox.chip(%{source: :pr, title: "Dark mode"})
+      "PR on card: Dark mode"
   """
   @spec chip(map()) :: String.t()
   def chip(%{source: :chat}), do: "Team chat"
+  def chip(%{source: :pr, title: title}) when is_binary(title), do: "PR on card: " <> title
   def chip(%{title: title}) when is_binary(title), do: "Card: " <> title
   def chip(_item), do: "Card"
+
+  defp ask(:answer), do: "asks for an answer"
+  defp ask(:approve), do: "asks for your OK"
+  defp ask(_kind), do: "for you"
 
   defp who("bot:" <> bot), do: String.capitalize(bot)
   defp who(email) when is_binary(email), do: email |> String.split("@") |> hd()
@@ -251,7 +265,7 @@ defmodule TalesForgeWeb.TeamInbox do
         <p class="text-sm">
           <span class="font-semibold">{who(@item.author)}</span>
           <span class="text-[var(--paper-muted)]">
-            {if @item.kind == :answer, do: "asks for an answer", else: "for you"}
+            {ask(@item.kind)}
           </span>
         </p>
         <p id="inbox-item-body" class="line-clamp-3 whitespace-pre-line text-sm">{@item.body}</p>

@@ -50,6 +50,7 @@ defmodule TalesForge.Board.Events do
           | :comment
           | :mention
           | :pr_approved
+          | :pr_waiting
           | :question_answered
           | :pr_changes_requested
 
@@ -105,7 +106,31 @@ defmodule TalesForge.Board.Events do
       body: comment.body || ""
     }
 
+  def inbox_event(event, %Idea{id: id, title: title}, extra, _changes)
+      when event in [:pr_waiting, :pr_approved, :pr_changes_requested] do
+    pr = extra[:pr] || %{}
+
+    %InboxEvent{
+      type: if(event == :pr_waiting, do: :pr_waiting, else: :pr_answered),
+      idea_id: id,
+      title: title,
+      author: extra[:actor],
+      body: pr_body(pr, extra[:note]),
+      pr: %{number: pr["number"], url: pr["url"], head_sha: pr["head_sha"]}
+    }
+  end
+
   def inbox_event(_event, _idea, _extra, _changes), do: nil
+
+  defp pr_body(pr, note) do
+    sha = pr["head_sha"] |> to_string() |> String.slice(0, 7)
+    line = "PR ##{pr["number"]} (#{sha}) waits for a founder's OK. The OK also ships it."
+
+    case note |> to_string() |> String.trim() do
+      "" -> line
+      note -> line <> "\nPlayer note: " <> note
+    end
+  end
 
   @doc """
   The bots an event wakes.

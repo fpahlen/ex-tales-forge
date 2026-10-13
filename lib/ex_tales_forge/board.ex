@@ -1301,6 +1301,7 @@ defmodule TalesForge.Board do
       })
     end)
     |> keep_approval(relink, idea, number, attrs["url"], sha)
+    |> pr_waiting(relink in [:request, :new_commit], idea, number, attrs["url"], sha, note)
     |> then(fn multi ->
       if Enum.any?(idea.links, &(&1.kind == "pr" and &1.url == attrs["url"])),
         do: multi,
@@ -1380,6 +1381,20 @@ defmodule TalesForge.Board do
 
   defp keep_approval(multi, _relink, _idea, _number, _url, _sha), do: multi
 
+  # A PR that waits for a founder's OK goes to the inbox (Workflow.Inbox rule
+  # pr_approval) as an approve item.
+  defp pr_waiting(multi, false, _idea, _number, _url, _sha, _note), do: multi
+
+  defp pr_waiting(multi, true, idea, number, url, sha, note),
+    do:
+      Events.add(multi, :pr_waiting, idea, %{
+        actor: Team.actor(team(), :builder),
+        from: idea.column,
+        to: idea.column,
+        note: note,
+        pr: %{"number" => number, "url" => url, "head_sha" => sha}
+      })
+
   @doc """
   Marks the open PR `number` (head `head_sha`, at `url`) on a Building card as
   waiting for a founder's OK, for a PR that came to the card as a plain `pr`
@@ -1407,6 +1422,7 @@ defmodule TalesForge.Board do
         note: "PR ##{number} (#{short(head_sha)}) waits for a founder's OK."
       })
     end)
+    |> pr_waiting(true, idea, number, url, head_sha, idea.player_note)
     |> run(idea.id)
   end
 
