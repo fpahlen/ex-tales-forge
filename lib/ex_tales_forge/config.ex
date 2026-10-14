@@ -181,6 +181,15 @@ defmodule TalesForge.Config do
   def turn_apply_outcomes?,
     do: System.get_env("TURN_APPLY_OUTCOMES", "off") in ~w(on true 1)
 
+  @doc """
+  Opposed combat (`TalesForge.Game.Combat`): the player attacks against the
+  defender's Parry, the NPC may counterattack, NPCs keep wounds in the
+  session, and the GM gets the exchange: COMBAT_OPPOSED=on. Default off.
+  """
+  @spec combat_opposed?() :: boolean()
+  def combat_opposed?,
+    do: System.get_env("COMBAT_OPPOSED", "off") in ~w(on true 1)
+
   @doc "World agents prototype (persons/locations hold facts for the GM): WORLD_AGENTS=on. Default off."
   def world_agents?, do: System.get_env("WORLD_AGENTS", "off") in ~w(on true 1)
 

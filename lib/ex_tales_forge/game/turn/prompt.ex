@@ -28,6 +28,7 @@ defmodule TalesForge.Game.Turn.Prompt do
         |> Map.put(:outcome_record, Map.get(outcome.board, :outcome))
         |> Map.put(:rest_growth, rest_growth(outcome))
         |> Map.put(:noticed, turn.notice)
+        |> Map.put(:combat, Map.get(outcome, :combat))
         |> put_player_request(turn.opts[:gm_note])
 
       messages =

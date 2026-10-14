@@ -47,7 +47,8 @@ defmodule TalesForge.Prompt.Ctx do
       npc_reactions: TalesForge.Config.npc_reactions?(),
       world_agents: TalesForge.Config.world_agents?(),
       skill_detail_level: TalesForge.Config.skill_detail_level?(),
-      skill_split: TalesForge.Config.skill_split?()
+      skill_split: TalesForge.Config.skill_split?(),
+      combat_opposed: TalesForge.Config.combat_opposed?()
     }
   end
 
