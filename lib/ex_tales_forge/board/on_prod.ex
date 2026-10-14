@@ -59,6 +59,21 @@ defmodule TalesForge.Board.OnProd do
     end
   end
 
+  @doc """
+  Is PR `number` still open on GitHub? `:open`, `:closed` (merged or closed)
+  or `{:unavailable, reason}`.
+  """
+  @spec open?(pos_integer()) :: :open | :closed | {:unavailable, String.t()}
+  def open?(number) do
+    with {:token, token} when is_binary(token) <- {:token, PrFeed.token()},
+         {:ok, pr} <- get(token, "/repos/#{PrFeed.repo()}/pulls/#{number}") do
+      if pr["state"] == "open" and pr["merged"] != true, do: :open, else: :closed
+    else
+      {:token, _} -> {:unavailable, "The board cannot read GitHub now (no GITHUB_FEED_TOKEN)."}
+      :error -> {:unavailable, "GitHub did not answer for PR ##{number}. Try again later."}
+    end
+  end
+
   defp merge_sha(token, number) do
     case get(token, "/repos/#{PrFeed.repo()}/pulls/#{number}") do
       {:ok, %{"merged" => true, "merge_commit_sha" => sha}} when is_binary(sha) -> {:ok, sha}

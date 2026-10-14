@@ -12,8 +12,13 @@ defmodule TalesForge.Board.Workers.AutoDone do
     job 30 seconds after boot. `schedule/0` queues one more job when a PR
     link comes to a Building card or a card with a PR link moves to Building
     (`TalesForge.Board`), so a link added after the deploy also moves the card.
+  - Multi-PR cards: a card moves only when its PR on prod is final
+    (`pr_final`, the optional `final` flag of `POST /prs`, default true) and
+    no other PR linked to the card is still open on GitHub.
   - Idempotent: a card in Done is no longer in Building; a second run moves
-    nothing.
+    nothing. Two runs at the same time make one move: the move is a
+    conditional update on `column = 'building'` in one transaction
+    (`TalesForge.Board.move/4`).
   - GitHub down (or `GIT_SHA` unknown): the cards that can't be checked stay;
     the job fails and Oban tries again (backoff 1 min, doubling, up to 4 h).
   """
@@ -99,18 +104,38 @@ defmodule TalesForge.Board.Workers.AutoDone do
   defp try_card(idea) do
     number = Board.pr_number_of(idea)
 
-    case number && OnProd.status(number) do
-      :included ->
-        case Board.move(idea, {:bot, :board}, "done", note(number)) do
-          {:ok, _} -> {:moved, idea.id}
-          {:error, reason} -> {:unavailable, to_string(reason)}
-        end
+    with true <- idea.pr_final != false,
+         :none <- open_other_pr(idea, number),
+         :included <- number && OnProd.status(number) do
+      move(idea, number)
+    else
+      {:unavailable, reason} -> {:unavailable, reason}
+      _ -> :stays
+    end
+  end
 
-      {:unavailable, reason} ->
-        {:unavailable, reason}
+  # Another PR linked to the card that is still open keeps the card in
+  # Building: :none, :open or {:unavailable, reason}.
+  defp open_other_pr(idea, number) do
+    idea
+    |> Board.pr_link_numbers()
+    |> Enum.reject(&(&1 == number))
+    |> Enum.reduce_while(:none, fn n, :none ->
+      case OnProd.open?(n) do
+        :closed -> {:cont, :none}
+        :open -> {:halt, :open}
+        unavailable -> {:halt, unavailable}
+      end
+    end)
+  end
 
-      _ ->
-        :stays
+  defp move(idea, number) do
+    moved_already = Board.moved_already()
+
+    case Board.move(idea, {:bot, :board}, "done", note(number)) do
+      {:ok, _} -> {:moved, idea.id}
+      {:error, ^moved_already} -> :stays
+      {:error, reason} -> {:unavailable, to_string(reason)}
     end
   end
 
