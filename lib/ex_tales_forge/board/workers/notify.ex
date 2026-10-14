@@ -57,6 +57,26 @@ defmodule TalesForge.Board.Workers.Notify do
     })
   end
 
+  @doc """
+  The job that wakes `bot` about a GitHub Actions run that names no card
+  (`run.failed`: a failed run on main). Body: `event`, `delivery_id`, `bot`,
+  `transition` (actor `bot:board`) and `run` (repo, workflow, branch, sha, url,
+  actor).
+
+      iex> job = TalesForge.Board.Workers.Notify.run_job(:bobby, :run_failed, %{"workflow" => "CI"})
+      iex> {job.changes.args["bot"], job.changes.args["event"], job.changes.args["payload"]["run"]}
+      {"bobby", "run.failed", %{"workflow" => "CI"}}
+  """
+  @spec run_job(BoardApi.bot(), atom(), map()) :: Oban.Job.changeset()
+  def run_job(bot, event, run) when is_map(run) do
+    new(%{
+      "bot" => Atom.to_string(bot),
+      "event" => event_name(event),
+      "delivery_id" => Ecto.UUID.generate(),
+      "payload" => %{"transition" => %{"actor" => "bot:board"}, "run" => run}
+    })
+  end
+
   # pr.approved / pr.changes_requested: the PR, the founder and the comment.
   defp pr_fields(%{pr: pr} = extra),
     do: %{"pr" => pr, "approver" => extra[:approver], "comment" => extra[:comment]}

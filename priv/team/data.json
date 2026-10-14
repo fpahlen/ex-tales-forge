@@ -1057,7 +1057,7 @@
         "name": "Fredrik",
         "github": "fpahlen",
         "emails": ["fredrik@whyse.se"],
-        "inbox": ["mention", "thread_message", "pr_approval", "founder_check", "ci_failed", "deploy_failed"]
+        "inbox": ["mention", "thread_message", "pr_approval", "founder_check"]
       },
       {
         "name": "Thobias",

@@ -5,6 +5,8 @@ defmodule TalesForge.Board.NotifyTest do
 
   alias TalesForge.Board.Workers.Notify
 
+  doctest Notify, only: [run_job: 3]
+
   setup do
     test_pid = self()
     {:ok, calls} = Agent.start_link(fn -> 0 end)
