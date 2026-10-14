@@ -11,6 +11,45 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Choose and order team page panels
+
+- **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. Add a Panels area to the team settings. Each founder selects which /team panels to show and sets their order (drag or up/down). The choice is saved per founder. New panels show by default at the end. Fits next to the Notifications settings card. Requested by Fredrik on 2026-10-14.
+- **Why:** **The goal.** Each founder chooses which panels show on `/team` and in which order. The choice is saved for that founder only. The other founders keep their own layout.
+
+**What we have now (main, `e6ae50a`, high confidence).**
+1. `/team` (`TalesForgeWeb.TeamLive`) shows four parts in a fixed order. They are What have we done, the quick stats header, What we're going to do, and What we're doing now. The board and the inbox are in What we're going to do.
+2. The order is written in `render/1`. The top nav is a separate fixed list (`@nav`).
+3. There is no team settings page yet. The Notifications card (still in Ideas) also needs one.
+4. There is no table for settings per founder. Workflow tables use `TalesForge.Workflow.Repo`.
+5. The board already has drag code (`setupBoardDrag` in `assets/js/team_hooks.js`).
+6. Card 5 of the Workflow split moves the team page to `whyse-ab/workflow` today (Bobby's ETA is 18:00).
+
+**Plan.**
+1. Make one list of panels in one place, for example `Workflow.TeamPage.Panels`. Each entry has an id, a label and its default place. A new panel (for example the Upcoming panel) is one new entry.
+2. Add one pure function: it takes the list and the founder's saved choice and gives the panels to show, in order. A saved id that no longer exists is ignored. A panel that is not in the saved choice shows at the end.
+3. Add a table `founder_settings` in the Workflow repo: one row for each founder, keyed by the founder handle from the team config. The row holds the panel order and the hidden panels. The Notifications card can add its rules to the same row later.
+4. `TeamLive` renders the panels from that function. The top nav uses the same list, so a hidden panel also has no nav link.
+5. Add a settings page at `/team/settings` with a link in the nav. Its first area is Panels: one row for each panel, with a checkbox, Up and Down buttons, and a Reset to default button. Each change saves at once and shows a short "Saved" pop-up.
+6. When a founder saves, other open `/team` tabs of that founder update live over PubSub.
+7. A founder with no saved row sees the default layout, the same as today. Gentry's QA sign-in and read-only mode always see the default and cannot save.
+
+**Tests.** Unit tests for the pure function (default, hidden panel, new panel, removed panel). A LiveView test that a hidden panel and its nav link do not show, and that the order follows the saved choice.
+
+**Cost: M.** One small table and migration, one pure module, the settings page, and the change to `TeamLive` and the nav.
+
+**Risks.**
+- A hidden board breaks card links. Links from chat, the inbox and the pings open the card on the board. See question 1.
+- Card 5 moves the same files today. If we build in the old repo first, Bobby must port it. See question 5.
+
+**Deploy lane.** Team tools: straight to prod after CI and a smoke test. No feature flag is necessary, because a founder with no saved choice sees the same page as today.
+
+**Verdict: feasible.** The page has only four parts, and the data per founder is small. The main work is the first settings page, which the Notifications card can use too.
+
+**Confidence.** High. I read the code on main. I did not try the change. Verdict: feasible. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-782327f7-6b27-4909-b7e4-e3c499eb1136)
+
+<!-- board:idea:782327f7-6b27-4909-b7e4-e3c499eb1136 -->
+
 ## 2026-10-14: Show new chat messages in the top chat bar
 
 - **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. When a founder has a new chat message, show it in the chat bar at the top of the page. Show an unread count and a short preview of the latest message (author and first words). Click the bar to open that thread. The unread state clears when the founder opens the thread. Use the same participant rule as thread notifications. Update live with PubSub. Requested by Fredrik on 2026-10-14.
