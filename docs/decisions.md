@@ -11,6 +11,55 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Completly new layout for mobile
+
+- **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it.
+- **Why:** **Problem.** On a phone, `/team` shows the parts in the desktop order. What have we done is at the top, and the inbox is far down. Fredrik uses the phone to triage first, then to add ideas. Also, a long list of PR links in What have we done runs outside the screen. See the image on this card.
+
+**Goal.** On a phone, the order is: inbox, New idea, the boards, the PR summary. The order is the same for each founder. Desktop does not change.
+
+**What the code has today (main, `fc9ca4b`, high confidence).**
+- `TalesForgeWeb.TeamLive` renders four parts in a fixed order: What have we done, the quick stats header, What we're going to do, and What we're doing now.
+- The inbox (`TeamInbox`) and New idea are inside the board component (`TeamIdeaBoard`). Today New idea is above the inbox. The goals strip and "Pings for you" are above New idea.
+- The board columns stack below the `lg` width (1024 px). Above it, the board uses its desktop grid.
+- The text overflow has one cause. In `TeamWhatWeDid`, all PR links of a bullet are in one `whitespace-nowrap` span. A bullet with 14 PRs is wider than the phone screen. Thus the full page gets wider than the screen.
+- Card 5 of the Workflow split (#259, open) moves the team page to `whyse-ab/workflow`.
+
+**Proposed approach.**
+1. Fix the overflow: let the PR link list wrap between links. Keep each `#123` link on one line.
+2. Below `lg`, set the order with CSS `order` classes. Above `lg`, keep the order of today. The HTML order stays the same, so desktop, links and tests do not change.
+3. In `TeamIdeaBoard`, put the inbox before New idea below `lg`.
+4. In `TeamLive`, put What have we done after the board below `lg`. The quick stats header and What we're doing now go after it.
+5. Keep the mobile order in one place: one short list in `TeamLive`, with a comment. The card [Choose and order team page panels](https://tales-forge.fly.dev/team#idea-782327f7-6b27-4909-b7e4-e3c499eb1136) later takes this list as the default order for phones.
+
+**Order on a phone (proposal).**
+1. Inbox (only for a founder with inbox rules), with Pings for you directly under it
+2. New idea
+3. The boards: the goals strip, then the columns
+4. What have we done (the PR summary)
+5. The quick stats header
+6. What we're doing now (the live PR feed)
+
+**Acceptance criteria.**
+- On a phone (390 px wide), the page does not scroll to the side. No text runs outside the screen.
+- On a phone, the order is the order above.
+- A founder without inbox rules sees New idea first.
+- On a desktop (1280 px wide), the page looks the same as today.
+- Card links (`/team#idea-…`) still open the card.
+
+**Tests.** A LiveView test that the inbox and New idea come before What have we done on a phone. A smoke test on a real phone after deploy.
+
+**Cost: S.** CSS classes in two files and one small fix in `TeamWhatWeDid`. No new data and no new table.
+
+**Deploy lane: team tools.** While only founders use prod, it goes to prod after CI and a smoke test. No feature flag is necessary. If card 5 merges first, Bobby builds this in `whyse-ab/workflow`.
+
+**Verdict: feasible.** This is a change of order and one CSS fix. The data and the components exist.
+
+**Confidence.** High. I read the code on main. I did not try the change on a phone. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-9a3dfce1-58b2-4f13-bc6e-2ca65d3c9a78)
+
+<!-- board:idea:9a3dfce1-58b2-4f13-bc6e-2ca65d3c9a78 -->
+
 ## 2026-10-14: Choose and order team page panels
 
 - **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. Add a Panels area to the team settings. Each founder selects which /team panels to show and sets their order (drag or up/down). The choice is saved per founder. New panels show by default at the end. Fits next to the Notifications settings card. Requested by Fredrik on 2026-10-14.
