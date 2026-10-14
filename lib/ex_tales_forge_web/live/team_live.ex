@@ -2,18 +2,18 @@ defmodule TalesForgeWeb.TeamLive do
   @moduledoc """
   The founders' landing page at `/team`, top to bottom:
 
-  1. the compact shared-workspace header with quick stats
+  1. **What have we done** (`#done`, at the top): the pull requests merged
+     in the last 3 days as short theme bullets, the nested
+     `TalesForgeWeb.TeamWhatWeDidLive` (`TalesForge.PrFeed.WhatWeDid`);
+  2. the compact shared-workspace header with quick stats
      (`TalesForgeWeb.TeamWorkspace`; the crew picture and how we work live on
      `/team/presentation`);
-  2. **What we're going to do** (`#idea-board`): the founders' idea board
+  3. **What we're going to do** (`#idea-board`): the founders' idea board
      (`TalesForgeWeb.TeamIdeaBoard`, live over `TalesForge.Board`'s PubSub) on
      production and locally. For a founder with inbox rules, the inbox panel
      (`TalesForgeWeb.TeamInbox`) is under New idea, live over the inbox
      PubSub (`Workflow.Inbox.Store`). `/team` lives on production only
      (`TalesForge.AppRole`, area `:board`): playtest redirects it there;
-  3. **What have we done** (`#done`): the pull requests merged in the last
-     3 days as short theme bullets, the nested
-     `TalesForgeWeb.TeamWhatWeDidLive` (`TalesForge.PrFeed.WhatWeDid`);
   4. **What we're doing now** (`#live`): the live GitHub PR, CI and deploy feed,
      the nested `TalesForgeWeb.TeamPrFeedLive` (`TalesForge.PrFeed`, polled on
      the server and pushed over PubSub);
@@ -45,8 +45,8 @@ defmodule TalesForgeWeb.TeamLive do
   alias TalesForgeWeb.TeamWorkspace
 
   @nav [
-    {"idea-board", "Going to do"},
     {"done", "Done"},
+    {"idea-board", "Going to do"},
     {"live", "Doing now"},
     {"/team/work-log", "Work log"},
     {"/team/presentation", "Presentation"}
@@ -57,7 +57,7 @@ defmodule TalesForgeWeb.TeamLive do
   presentation anchor, so the redirect hook leaves them alone.
 
       iex> TalesForgeWeb.TeamLive.anchors()
-      ["idea-board", "done", "live", "presentation-cta", "workspace"]
+      ["done", "idea-board", "live", "presentation-cta", "workspace"]
   """
   @spec anchors() :: [String.t()]
   def anchors,
@@ -200,6 +200,7 @@ defmodule TalesForgeWeb.TeamLive do
           qa={assigns[:qa] == true}
           read_only={assigns[:read_only] == true}
         />
+        <.what_we_did socket={assigns[:socket]} />
         <TeamWorkspace.header stats={assigns[:stats]} />
         <.going_to_do
           board?={assigns[:board?] || false}
@@ -211,7 +212,6 @@ defmodule TalesForgeWeb.TeamLive do
           ideas_sort={assigns[:ideas_sort] || "newest"}
           ideas_tags={assigns[:ideas_tags] || []}
         />
-        <.what_we_did socket={assigns[:socket]} />
         <.live_section socket={assigns[:socket]} />
         <.presentation />
       </main>

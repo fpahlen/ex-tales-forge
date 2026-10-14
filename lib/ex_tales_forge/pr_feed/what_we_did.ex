@@ -29,11 +29,14 @@ defmodule TalesForge.PrFeed.WhatWeDid do
   line, as "#<number> <title>".
 
   Write #{@max_bullets} or fewer short theme bullets. Each bullet joins related pull
-  requests into one plain sentence about what the team made or improved.
+  requests into one plain sentence about what is new or better.
   Rules:
   - Write in ASD-STE100 Simplified Technical English: short sentences, active
     voice, simple words, present or past tense.
   - Use positive framing: say what works now and what is new.
+  - Start each bullet with the thing that is new or better, for example
+    "Chat threads notify each participant." Never start with "The team" or
+    "We", and never write "The team".
   - Write no @ handles and no names of people.
   - "Workflow" is the team tools. Never call Workflow a game.
   - Use only facts from the titles. Do not guess.
@@ -171,11 +174,32 @@ defmodule TalesForge.PrFeed.WhatWeDid do
       |> Enum.uniq()
       |> Enum.map(&link(by_number[&1]))
 
-    text = String.trim(text)
+    text = text |> String.trim() |> drop_team_subject()
     if text == "" or links == [], do: [], else: [%{text: text, prs: links}]
   end
 
   defp bullet(_other, _by_number), do: []
+
+  @doc """
+  Removes a leading "The team" that the model can write, and makes the
+  next letter upper case.
+
+      iex> TalesForge.PrFeed.WhatWeDid.drop_team_subject("The team adds chat threads.")
+      "Adds chat threads."
+      iex> TalesForge.PrFeed.WhatWeDid.drop_team_subject("Chat threads are new.")
+      "Chat threads are new."
+  """
+  @spec drop_team_subject(String.t()) :: String.t()
+  def drop_team_subject(text) do
+    case Regex.run(~r/^the team\s+(.*)$/isu, text) do
+      [_, rest] ->
+        {first, rest} = String.split_at(rest, 1)
+        String.upcase(first) <> rest
+
+      nil ->
+        text
+    end
+  end
 
   defp link(pr), do: %{number: pr.number, url: pr.url}
 

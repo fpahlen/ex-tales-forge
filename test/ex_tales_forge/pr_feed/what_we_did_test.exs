@@ -124,6 +124,13 @@ defmodule TalesForge.PrFeed.WhatWeDidTest do
            }
   end
 
+  test "a bullet never starts with \"The team\"" do
+    reply = {:ok, %{"bullets" => [%{"text" => "The team adds chat threads.", "prs" => [261]}]}}
+    summary = WhatWeDid.summary(merged(), @now, repo_url: @repo, llm: llm(reply))
+    assert [%{text: "Adds chat threads."}] = summary.bullets
+    refute WhatWeDid.system_prompt() =~ "what the team made"
+  end
+
   test "the result is cached for the day and the set of pull requests" do
     reply = {:ok, %{"bullets" => [%{"text" => "Work.", "prs" => [261, 260, 257]}]}}
     first = WhatWeDid.summary(merged(), @now, repo_url: @repo, llm: llm(reply))

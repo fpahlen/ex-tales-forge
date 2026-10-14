@@ -221,7 +221,7 @@ defmodule TalesForgeWeb.TeamLiveTest do
       refute html =~ "Hostile play"
     end
 
-    test "sections in order: hero, going to do, done, doing now, the presentation" do
+    test "sections in order: done, hero, going to do, doing now, the presentation" do
       ids =
         @data
         |> render_with()
@@ -229,7 +229,7 @@ defmodule TalesForgeWeb.TeamLiveTest do
         |> LazyHTML.query("main > section")
         |> Enum.map(&(&1 |> LazyHTML.attribute("id") |> hd()))
 
-      assert ids == ~w(workspace idea-board done live presentation-cta)
+      assert ids == ~w(done workspace idea-board live presentation-cta)
     end
 
     test "null and missing numbers still render, never a zero" do
