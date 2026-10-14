@@ -6,7 +6,6 @@ defmodule TalesForge.DeployLanesTest do
   alias TalesForge.DeployLanes.CLI
 
   doctest TalesForge.DeployLanes
-  doctest TalesForge.DeployLanes.DataBoundary
 
   @lanes DeployLanes.load()
 
@@ -106,60 +105,11 @@ defmodule TalesForge.DeployLanesTest do
   }
 
   describe "the real list (.github/deploy-lanes.txt)" do
-    test "admin-only merges take the admin lane: #106 (/team copy and data), #99 (/team hero)" do
-      for pr <- [106, 99] do
-        assert %{lane: :admin, other: []} = DeployLanes.classify(@lanes, @merges[pr]), "##{pr}"
-      end
-    end
-
     test "#104 (game: progression, turn processor, rules, prompt fixtures) takes the normal lane" do
       result = DeployLanes.classify(@lanes, @merges[104])
       assert result.lane == :normal
       assert "lib/ex_tales_forge/game/progression.ex" in result.other
       assert "priv/rules/skills.md" in result.other
-    end
-
-    test "#105 is normal: besides /team files it changed the router and the shared CSS and JS bundle" do
-      result = DeployLanes.classify(@lanes, @merges[105])
-      assert result.lane == :normal
-
-      assert result.other == [
-               "assets/css/app.css",
-               "assets/js/app.js",
-               "lib/ex_tales_forge_web/router.ex"
-             ]
-    end
-
-    test "#102 (/team PR feed) is normal: it also added routes, config and a signed-out endpoint" do
-      result = DeployLanes.classify(@lanes, @merges[102])
-      assert result.lane == :normal
-      assert "lib/ex_tales_forge_web/router.ex" in result.other
-      assert "lib/ex_tales_forge_web/controllers/version_peer_controller.ex" in result.other
-      assert "lib/ex_tales_forge/pr_feed/poller.ex" in result.admin
-    end
-
-    test "#133 (board thumbs: the board component and its UI test) takes the admin lane" do
-      assert %{lane: :admin, other: []} =
-               DeployLanes.classify(@lanes, [
-                 "lib/ex_tales_forge_web/components/team_idea_board.ex",
-                 "test/ex_tales_forge_web/live/team_idea_board_test.exs"
-               ])
-    end
-
-    test "every board test is admin; the board's API contract and controller are not" do
-      for file <- [
-            "test/ex_tales_forge_web/live/team_idea_board_test.exs",
-            "test/ex_tales_forge/board_test.exs",
-            "test/ex_tales_forge/board/auto_done_test.exs",
-            "test/ex_tales_forge/board/transitions_test.exs"
-          ] do
-        assert DeployLanes.admin?(@lanes, file), file
-      end
-
-      refute DeployLanes.admin?(
-               @lanes,
-               "lib/ex_tales_forge_web/controllers/board_api_controller.ex"
-             )
     end
 
     test "#97 (CI workflow) is normal" do
@@ -168,7 +118,7 @@ defmodule TalesForge.DeployLanesTest do
 
     test "a mixed merge counts as a game change" do
       assert DeployLanes.classify(@lanes, [
-               "priv/team/data.json",
+               "lib/ex_tales_forge_web/live/admin/costs_live.ex",
                "lib/ex_tales_forge/game/intent.ex"
              ]).lane ==
                :normal

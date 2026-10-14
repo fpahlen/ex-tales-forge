@@ -3,11 +3,10 @@ defmodule TalesForge.WorkflowClient do
   The client that the product app uses to send data to Workflow. The
   product app sends only work-log turn events.
 
-  The adapter does the I/O. `TalesForge.WorkflowClient.Local` calls Workflow
-  in the same release. `TalesForge.WorkflowClient.Http` posts to the
-  Workflow route `POST /internal/workflow/work-log/turns`. The config
+  The adapter does the I/O. `TalesForge.WorkflowClient.Http` posts to the
+  Workflow app's route `POST /internal/workflow/work-log/turns`. The config
   `:ex_tales_forge, TalesForge.WorkflowClient, adapter:` selects the adapter.
-  The default is the local adapter.
+  The default is the HTTP adapter.
 
   `TalesForge.Workers.PushWorkLogTurn` calls this client. The turn queues
   that job in its own transaction, so the turn makes no HTTP call.
@@ -23,7 +22,7 @@ defmodule TalesForge.WorkflowClient do
   @spec adapter() :: module()
   def adapter do
     Application.get_env(:ex_tales_forge, __MODULE__, [])[:adapter] ||
-      TalesForge.WorkflowClient.Local
+      TalesForge.WorkflowClient.Http
   end
 
   @doc "Sends one turn event with the adapter in use."

@@ -32,22 +32,24 @@ defmodule TalesForgeWeb.AppComponentsTest do
 
   describe "lives_on/1" do
     test "links to the home app, and shows nothing where the page lives" do
-      html =
-        render_component(&AppComponents.lives_on/1,
-          area: :board,
-          path: "/team",
-          what: "The idea board",
-          role: :playtest
-        )
+      for role <- [:playtest, :production] do
+        html =
+          render_component(&AppComponents.lives_on/1,
+            area: :board,
+            path: "/team",
+            what: "The idea board",
+            role: role
+          )
 
-      assert html =~ ~s(href="https://tales-forge.fly.dev/team")
-      assert html =~ "The idea board lives on production ↗"
+        assert html =~ ~s(href="https://whyse-workflow.fly.dev/team")
+        assert html =~ "The idea board lives on Workflow ↗"
+      end
 
       assert render_component(&AppComponents.lives_on/1,
-               area: :board,
-               path: "/team",
-               what: "The idea board",
-               role: :production
+               area: :playtest_runs,
+               path: "/admin/play/runs",
+               what: "Playtest runs",
+               role: :playtest
              ) =~ ~r/^\s*$/
     end
   end
@@ -94,7 +96,7 @@ defmodule TalesForgeWeb.AppComponentsTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin")
       assert has_element?(view, "#env-badge", "PRODUCTION")
-      refute has_element?(view, "#lives-on-board")
+      assert has_element?(view, ~s(#lives-on-board[href="https://whyse-workflow.fly.dev/team"]))
 
       assert has_element?(
                view,
@@ -103,7 +105,7 @@ defmodule TalesForgeWeb.AppComponentsTest do
              )
     end
 
-    test "on playtest the badge says so and the home links to the board on production", %{
+    test "on playtest the badge says so and the home links to the board on Workflow", %{
       conn: conn
     } do
       Application.put_env(:ex_tales_forge, :app_name, "tales-forge-playtest")
@@ -112,14 +114,9 @@ defmodule TalesForgeWeb.AppComponentsTest do
 
       assert has_element?(
                view,
-               ~s(#lives-on-board[href="https://tales-forge.fly.dev/team"]),
-               "The idea board lives on production ↗"
+               ~s(#lives-on-board[href="https://whyse-workflow.fly.dev/team"]),
+               "The idea board lives on Workflow ↗"
              )
-    end
-
-    test "the /team header has the badge", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team")
-      assert has_element?(view, "#team-env-badge", "LOCAL")
     end
 
     test "telemetry links to the same page on the other app", %{conn: conn} do

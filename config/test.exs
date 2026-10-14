@@ -14,15 +14,6 @@ config :ex_tales_forge, TalesForge.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
-config :ex_tales_forge, TalesForge.Workflow.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  port: String.to_integer(System.get_env("PGPORT", "5432")),
-  database: "ex_tales_forge_test#{System.get_env("MIX_TEST_PARTITION")}",
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
-
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :ex_tales_forge, TalesForgeWeb.Endpoint,
@@ -40,7 +31,6 @@ config :swoosh, :api_client, false
 config :logger, level: :warning
 
 config :ex_tales_forge, Oban, testing: :inline, peer: false
-config :ex_tales_forge, TalesForge.Workflow.Oban, testing: :inline, peer: false
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
@@ -71,20 +61,10 @@ config :ex_tales_forge, :llm_req_options, plug: {Req.Test, TalesForge.LLM}
 # unset unless a test puts them.
 config :ex_tales_forge, :costs_peer_req_options, plug: {Req.Test, TalesForge.Costs.Peer}
 
-# Live PR feed (/team): no polling in tests and no token; GitHub and the
-# other app's /internal/version go to Req.Test stubs. Tests that need a token
-# put :pr_feed_token and call TalesForge.PrFeed.Poller.poll/2 themselves.
-config :ex_tales_forge, TalesForge.PrFeed, poll: false
-config :ex_tales_forge, :pr_feed_token, nil
-config :ex_tales_forge, :pr_feed_req_options, plug: {Req.Test, TalesForge.PrFeed.GitHub}
-
 config :ex_tales_forge, :version_peer_req_options,
   plug: {Req.Test, TalesForge.ProductApi.RunningCommits}
 
 config :ex_tales_forge, :online_peer_req_options, plug: {Req.Test, TalesForge.Online.Peer}
-
-# Docs viewer images from GitHub go to Req.Test stubs (TalesForge.Collab.Files).
-config :ex_tales_forge, :docs_req_options, plug: {Req.Test, TalesForge.Collab.Files}
 
 # Jev HTTP goes to Req.Test stubs; no real TypeSafe calls in CI.
 # Jev HTTP goes to Req.Test when a test sets :api_key; default nil so Scorer
@@ -108,8 +88,7 @@ config :ex_tales_forge, :intent_jev_shadow, :sync
 # Session versus canon: tests stub the Jev labeller (TalesForge.Canon.Classifier).
 config :ex_tales_forge, TalesForge.Canon, classifier: TalesForge.Canon.ClassifierStub
 
-# The HTTP adapters of the Workflow split (card 4) call Req.Test stubs.
-config :ex_tales_forge, :product_app_req_options, plug: {Req.Test, Workflow.ProductApp.Http}
+# The Workflow client (TalesForge.WorkflowClient.Http) calls Req.Test stubs.
 
 config :ex_tales_forge, :workflow_client_req_options,
   plug: {Req.Test, TalesForge.WorkflowClient.Http}

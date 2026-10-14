@@ -9,8 +9,9 @@ defmodule TalesForgeWeb.Router do
   there is no separate admin login.
 
   The only public routes are the login page, the GitHub OAuth request/callback,
-  logout, Gentry's token sign-in at `/team/qa-login` (`TalesForge.QaLogin`), the Fly health check (`/health`) and the token-guarded machine-to-machine
-  `/internal/costs`, `/internal/version`, the bots' `/internal/board/*` and the signed GitHub webhook `/webhooks/github`. Static assets are served by the endpoint before the router.
+  logout, the Fly health check (`/health`) and the token-guarded machine-to-machine
+  `/internal/costs`, `/internal/version` and `/internal/product/*`. The Workflow paths
+  (`TalesForge.AppRole.workflow_paths/0`) redirect to the Workflow app for 30 days. Static assets are served by the endpoint before the router.
   """
 
   use TalesForgeWeb, :router
@@ -64,16 +65,6 @@ defmodule TalesForgeWeb.Router do
     delete "/logout", AdminSessionController, :delete
   end
 
-  # Gentry's QA sign-in (TalesForge.QaLogin): Gentry gives its own token
-  # (GENTRY_QA_TOKEN) and gets a read-only browser session as "Gentry (QA)" for
-  # /team and /team/presentation. 404 while the token is unset.
-  scope "/team", TalesForgeWeb do
-    pipe_through :public_browser
-
-    get "/qa-login", QaLoginController, :new
-    post "/qa-login", QaLoginController, :create
-  end
-
   scope "/", TalesForgeWeb do
     pipe_through :browser
 
@@ -82,22 +73,6 @@ defmodule TalesForgeWeb.Router do
       live "/new/:adventure", CreateCharacterLive, :new
       live "/play/:id", PlayLive, :show
     end
-
-    # The founders' page: a light landing page (TeamLive) and the full
-    # presentation (TeamPresentationLive), same team sign-in. Production only
-    # (TalesForge.AppRole area :board): their own live_session, so reaching
-    # them is a full page load through HomeApp, which sends playtest there.
-    live_session :team, on_mount: [{Hooks, :require_team_member}] do
-      live "/team", TeamLive, :index
-      live "/team/presentation", TeamPresentationLive, :index
-      live "/team/work-log", TeamWorkLogLive, :index
-    end
-
-    # The founders' work log as CSV (TalesForge.WorkLog.Report), for Slicing Pie.
-    get "/team/work-log.csv", WorkLogExportController, :csv
-
-    # Images on idea board cards and in the team chat (TalesForge.Images).
-    get "/team/images/:id", TeamImageController, :show
   end
 
   # The admin area, grouped by purpose (decision 2026-10-10; the nav and the
@@ -132,14 +107,6 @@ defmodule TalesForgeWeb.Router do
     live_session :admin_playtest, on_mount: [{Hooks, :require_team_member}] do
       live "/play/runs", PlaytestLive.Index, :index
       live "/play/runs/:id", PlaytestLive.Show, :show
-    end
-
-    # Founders' decisions and the docs: production only (area :collab).
-    live_session :admin_collab, on_mount: [{Hooks, :require_team_member}] do
-      live "/founders/decisions", DecisionLive.Index, :index
-      live "/founders/decisions/:slug", DecisionLive.Show, :show
-      live "/docs", DocLive.Index, :index
-      live "/docs/*path", DocLive.Index, :show
     end
 
     live_session :admin_surveys, on_mount: [{Hooks, :require_team_member}] do
@@ -192,9 +159,6 @@ defmodule TalesForgeWeb.Router do
 
     get "/code-docs/*path", CodeDocsController, :show
 
-    # Images in tales-forge-docs pages (the repo is private; DocFilesController).
-    get "/docs-files/*path", DocFilesController, :show
-
     # Founder survey result downloads (team members only, like every page).
     get "/founders/surveys/:id/results.csv", SurveyExportController, :csv
     get "/founders/surveys/:id/results.md", SurveyExportController, :markdown
@@ -216,7 +180,6 @@ defmodule TalesForgeWeb.Router do
     get "/costs", CostsPeerController, :show
     get "/version", VersionPeerController, :show
     get "/online", OnlinePeerController, :show
-    get "/work-log/events", WorkLogPeerController, :show
   end
 
   # The product-app API that Workflow reads (costs, online, running commits;
@@ -231,46 +194,15 @@ defmodule TalesForgeWeb.Router do
     get "/running-commits", ProductApiController, :running_commits
   end
 
-  scope "/internal/workflow", TalesForgeWeb do
-    pipe_through :api
-
-    post "/work-log/turns", WorkflowWorkLogController, :create
-  end
-
-  # GitHub's repository webhook (both apps). Signed with GITHUB_WEBHOOK_SECRET
-  # (X-Hub-Signature-256); off (404) while the secret is unset. See
-  # GitHubWebhookController and docs/github-webhooks.md.
-  scope "/webhooks", TalesForgeWeb do
-    post "/github", GitHubWebhookController, :create
-  end
-
-  # The founders' idea board's bot API (Case, Bobby and Gentry; production only).
-  # Each bot has its own bearer token (BOARD_BOT_TOKEN_<BOT>); see
-  # BoardApiController. Off (404) until the board module is deployed.
-  scope "/internal/board", TalesForgeWeb do
-    pipe_through :api
-
-    get "/ideas", BoardApiController, :index
-    post "/ideas", BoardApiController, :create
-    get "/ideas/:id", BoardApiController, :show
-    post "/ideas/:id/refinement", BoardApiController, :refine
-    post "/ideas/:id/move", BoardApiController, :move
-    post "/ideas/:id/links", BoardApiController, :link
-    post "/ideas/:id/comments", BoardApiController, :comment
-    post "/prs", BoardApiController, :pr
-  end
-
-  # The team chat's bot API (production only), with the same bot tokens as the
-  # board API; see ChatApiController.
-  scope "/internal", TalesForgeWeb do
-    pipe_through :api
-
-    get "/chat", ChatApiController, :index
-    post "/chat", ChatApiController, :create
-
-    # The bots open the images on cards and in the chat with their board
-    # tokens; see TeamImageController.
-    get "/images/:id", TeamImageController, :api
+  # Workflow moved to its own app (whyse-workflow, board card "Workflow split
+  # 5/5"). For 30 days, its old URLs here redirect to the same path and query
+  # there (307, so a POST stays a POST). Workflow does its own sign-in.
+  # Remove this scope after the 30 days (tales-forge-docs decisions.md).
+  scope "/", TalesForgeWeb do
+    for path <- TalesForge.AppRole.workflow_paths() do
+      match :*, path, WorkflowRedirectController, :show
+      match :*, path <> "/*rest", WorkflowRedirectController, :show
+    end
   end
 
   # Swoosh mailbox preview in development (LiveDashboard lives at /admin/operate/telemetry)

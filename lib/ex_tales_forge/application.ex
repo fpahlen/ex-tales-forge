@@ -11,8 +11,6 @@ defmodule TalesForge.Application do
       TalesForgeWeb.Telemetry,
       TalesForge.Repo,
       {Oban, Application.fetch_env!(:ex_tales_forge, Oban)},
-      TalesForge.Workflow.Repo,
-      {Oban, Application.fetch_env!(:ex_tales_forge, TalesForge.Workflow.Oban)},
       TalesForge.Jido,
       {Registry, keys: :unique, name: TalesForge.World.Registry},
       {DynamicSupervisor, name: TalesForge.World.Supervisor, strategy: :one_for_one},
@@ -21,23 +19,14 @@ defmodule TalesForge.Application do
       {Phoenix.PubSub, name: TalesForge.PubSub},
       TalesForgeWeb.Presence,
       TalesForge.Online.Peer,
-      TalesForge.WorkLog.Peer,
-      Workflow.BotCalls,
       {Task.Supervisor, name: TalesForge.Playtest.Supervisor},
       {Task.Supervisor, name: TalesForge.Playtest.SeriesSupervisor},
       {Task.Supervisor, name: TalesForge.IntentJev.Supervisor},
       TalesForge.AdminAuth.MembershipCache,
       TalesForge.Survey.Cache,
-      TalesForge.PrFeed.Poller,
-      # Production: the board follows GitHub webhooks (topic "github").
-      TalesForge.Board.GitHubEvents,
       TalesForgeWeb.Endpoint,
       # Playtest only: the hourly code heat map sample (TalesForge.CodeHeat).
-      TalesForge.CodeHeat.Sampler,
-      # Production: move Building cards whose PR is in this release to Done.
-      Supervisor.child_spec({Task, &TalesForge.Board.Workers.AutoDone.schedule_on_boot/0},
-        id: :board_auto_done
-      )
+      TalesForge.CodeHeat.Sampler
     ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html

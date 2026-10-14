@@ -14,8 +14,8 @@ defmodule TalesForge.Online do
     shared `COSTS_PEER_TOKEN`), the same pull model as the costs page. The
     reader is `TalesForge.Online.Peer`, which keeps the last answer for
     `TalesForge.Online.Peer.ttl_ms/0`; an older answer counts as empty.
-  - **Bots** do not keep a page open. Workflow notes their API calls
-    (`Workflow.BotCalls`, `TalesForge.TeamOnline`).
+  - **Bots** do not keep a page open. The Workflow app (whyse-ab/workflow)
+    shows them; this app shows the founders only.
   """
 
   alias TalesForge.AppRole
@@ -234,9 +234,8 @@ defmodule TalesForge.Online do
   @doc """
   Everyone online for the header counter (`TalesForgeWeb.OnlineHeaderLive`):
   `%{founders: [person + name + handle], bots: [...]}` from the module in config
-  `:online_snapshot` (`TalesForge.TeamOnline`, which also reads the board and
-  the PR feed). Through config, so this shared module does not depend on admin
-  code. Without that module: the founders only, and no bots.
+  `:online_snapshot`, when one is set. Without that module (the default since
+  Workflow moved to its own app): the founders only, and no bots.
   """
   @spec snapshot(DateTime.t()) :: %{founders: [map()], bots: [map()]}
   def snapshot(now \\ DateTime.utc_now()) do

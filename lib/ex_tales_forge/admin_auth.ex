@@ -67,7 +67,7 @@ defmodule TalesForge.AdminAuth do
   @spec clear_session(Plug.Conn.t()) :: Plug.Conn.t()
   def clear_session(conn) do
     Enum.reduce(
-      [@session_key, @github_login_key | TalesForge.QaLogin.session_keys()],
+      [@session_key, @github_login_key],
       conn,
       &Plug.Conn.delete_session(&2, &1)
     )

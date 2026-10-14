@@ -27,6 +27,13 @@ defmodule TalesForge.AppRole do
 
   @default_production_url "https://tales-forge.fly.dev"
   @default_playtest_url "https://tales-forge-playtest.fly.dev"
+  @default_workflow_url "https://whyse-workflow.fly.dev"
+
+  # The paths that Workflow (whyse-workflow) serves. The product app
+  # redirects them there for 30 days (TalesForgeWeb.WorkflowRedirectController).
+  @workflow_paths ~w(/team /admin/founders/decisions /admin/docs /admin/docs-files
+                     /internal/board /internal/chat /internal/images /internal/workflow
+                     /webhooks/github)
 
   @doc "This app's name (Fly's FLY_APP_NAME), or \"local\" off Fly."
   @spec app_name() :: String.t()
@@ -87,28 +94,41 @@ defmodule TalesForge.AppRole do
   end
 
   @doc """
-  The app that owns `area`: surveys, the founders' pages (`:board`: the idea
-  board on /team and the presentation) and the founders' decisions and docs
-  (`:collab`) live on production; playtest runs on playtest.
+  The app that owns `area`: surveys live on production and playtest runs on
+  playtest. The founders' pages (`:board`: the idea board on /team and the
+  presentation) and the founders' decisions and docs (`:collab`) live on
+  Workflow, its own app (board card "Workflow split 5/5").
 
       iex> TalesForge.AppRole.home(:surveys)
       :production
       iex> TalesForge.AppRole.home(:playtest_runs)
       :playtest
       iex> TalesForge.AppRole.home(:board)
-      :production
+      :workflow
       iex> TalesForge.AppRole.home(:collab)
-      :production
+      :workflow
   """
-  @spec home(area()) :: :production | :playtest
+  @spec home(area()) :: :production | :playtest | :workflow
   def home(:surveys), do: :production
-  def home(:board), do: :production
-  def home(:collab), do: :production
+  def home(:board), do: :workflow
+  def home(:collab), do: :workflow
   def home(:playtest_runs), do: :playtest
 
-  @doc "True when `area`'s data lives on this app (always on `:local`)."
+  @doc """
+  True when `area`'s data lives on this app. On `:local`, every product-app
+  area is here; the Workflow areas never are.
+  """
   @spec here?(area(), role()) :: boolean()
-  def here?(area, role \\ role()), do: role == :local or role == home(area)
+  def here?(area, role \\ role()) do
+    case home(area) do
+      :workflow -> false
+      home -> role == :local or role == home
+    end
+  end
+
+  @doc "The paths that Workflow serves; the product app redirects them there."
+  @spec workflow_paths() :: [String.t()]
+  def workflow_paths, do: @workflow_paths
 
   @doc """
   The area an admin path belongs to, or nil: `/admin/founders/survey`,
@@ -169,7 +189,7 @@ defmodule TalesForge.AppRole do
         nil
 
       area ->
-        if here?(area, role), do: nil, else: url(home(area), AdminPaths.legacy(path), query)
+        if here?(area, role), do: nil, else: url(home(area), target_path(area, path), query)
     end
   end
 
@@ -185,17 +205,39 @@ defmodule TalesForge.AppRole do
   """
   @spec link(area(), String.t(), role()) :: String.t()
   def link(area, path, role \\ role()) do
-    if here?(area, role), do: path, else: url(home(area), AdminPaths.legacy(path), nil)
+    if here?(area, role), do: path, else: url(home(area), target_path(area, path), nil)
   end
 
-  @doc "Base URL of the production or playtest app (config `TalesForge.AppRole`)."
-  @spec base_url(:production | :playtest) :: String.t()
+  # Workflow knows only the current paths; the product apps also know the old
+  # admin paths (TalesForge.AdminPaths.legacy/1), so links between them use those.
+  defp target_path(area, path) do
+    if home(area) == :workflow,
+      do: AdminPaths.canonical(path),
+      else: AdminPaths.legacy(path)
+  end
+
+  @doc "Base URL of the production, playtest or Workflow app (config `TalesForge.AppRole`)."
+  @spec base_url(:production | :playtest | :workflow) :: String.t()
   def base_url(:production), do: config_url(:production_url, @default_production_url)
   def base_url(:playtest), do: config_url(:playtest_url, @default_playtest_url)
+  def base_url(:workflow), do: config_url(:workflow_url, @default_workflow_url)
 
-  @doc "Display name of the app that owns `area`, e.g. for a notice or nav label."
+  @doc """
+  Display name of the app that owns `area`, e.g. for a notice or nav label.
+
+      iex> TalesForge.AppRole.home_label(:board)
+      "Workflow"
+      iex> TalesForge.AppRole.home_label(:playtest_runs)
+      "playtest"
+  """
   @spec home_label(area()) :: String.t()
-  def home_label(area), do: if(home(area) == :production, do: "production", else: "playtest")
+  def home_label(area) do
+    case home(area) do
+      :production -> "production"
+      :playtest -> "playtest"
+      :workflow -> "Workflow"
+    end
+  end
 
   defp url(app, path, query) do
     base = base_url(app) |> String.trim_trailing("/")
