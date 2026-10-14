@@ -230,6 +230,41 @@ defmodule TalesForge.WorkLog do
     |> Repo.insert()
   end
 
+  @doc """
+  Adds a manual entry for a bot (`added_by` is `"bot:<name>"`) with
+  `add_entry/2`. `attrs` has `founder`, `date`, `hours` and `reason`. An
+  entry with the same founder, date and reason is already there: the
+  function keeps it and gives `{:ok, :skipped, entry}`, so an import can run
+  again.
+  """
+  @spec add_bot_entry(String.t(), map()) ::
+          {:ok, Entry.t()} | {:ok, :skipped, Entry.t()} | {:error, Ecto.Changeset.t()}
+  def add_bot_entry(added_by, attrs) do
+    cs = Entry.changeset(%Entry{}, Map.put(stringify(attrs), "added_by", added_by))
+
+    with true <- cs.valid?,
+         %Entry{} = entry <- same_entry(cs) do
+      {:ok, :skipped, entry}
+    else
+      _ -> add_entry(added_by, attrs)
+    end
+  end
+
+  defp stringify(attrs), do: Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
+
+  defp same_entry(cs) do
+    founder = Ecto.Changeset.get_field(cs, :founder)
+    date = Ecto.Changeset.get_field(cs, :date)
+    reason = Ecto.Changeset.get_field(cs, :reason)
+
+    Repo.one(
+      from(e in Entry,
+        where: e.founder == ^founder and e.date == ^date and e.reason == ^reason,
+        limit: 1
+      )
+    )
+  end
+
   @doc "The manual entries of the days `from` to `to` (both inclusive), oldest first."
   @spec entries(Date.t(), Date.t()) :: [Entry.t()]
   def entries(%Date{} = from, %Date{} = to) do
