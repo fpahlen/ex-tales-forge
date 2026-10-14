@@ -1108,6 +1108,17 @@ export const BoardDrafts = {
 // in the hash opens again and the page and the card scroll back to where
 // they were (sessionStorage, this tab only).
 const SCROLL_KEY = "tf:board-scroll"
+// The card id of a link to a card on this same page (`/team#idea-<id>`, or a
+// full URL with this origin and path), else null.
+export const sameDocCardId = (a, loc) => {
+  if (!a) return null
+  let url
+  try { url = new URL(a.getAttribute("href"), loc.href) } catch (_e) { return null }
+  if (url.origin !== loc.origin || url.pathname !== loc.pathname) return null
+  if (a.target && a.target !== "_self") return null
+  return cardIdFromHash(url.hash)
+}
+
 export const cardIdFromHash = hash => {
   const m = /^#idea-([0-9a-f-]{8,})$/i.exec(hash || "")
   return m ? m[1] : null
@@ -1149,13 +1160,29 @@ const setupCardUrl = hook => {
   }
   hook.cardUrlRestore = reopen
 
-  // Same-page links (inbox "Open the card", chat card links) only change the
-  // hash. replaceState for open/close does not fire hashchange, so no loop.
-  const onHashChange = () => {
-    const id = cardIdFromHash(location.hash)
-    if (!id || document.getElementById("board-modal")) return
+  // Open a card in the dialog. A card that is open already stays open; another
+  // open card is replaced (the server keeps one open_id).
+  const openCard = id => {
+    if (!id || !board()) return
+    if (document.getElementById("board-modal")?.dataset.openCard === id) return
     hook.pushEventTo(board().dataset.boardTarget, "open", {card_id: id})
   }
+
+  // Same-page card links (inbox "Open the card", chat card links): open the
+  // card on the click. Do not wait for hashchange: it does not fire when the
+  // address has the same #idea-<id> already. A click with a modifier key
+  // (new tab or window) stays with the browser.
+  const onClick = e => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    const id = sameDocCardId(e.target.closest?.("a[href]"), location)
+    if (!id) return
+    e.preventDefault()
+    openCard(id)
+  }
+  document.addEventListener("click", onClick)
+
+  // A hash that the user types (or the back button) opens the card too.
+  const onHashChange = () => openCard(cardIdFromHash(location.hash))
   window.addEventListener("hashchange", onHashChange)
 
   const observer = new MutationObserver(() => {
@@ -1169,6 +1196,7 @@ const setupCardUrl = hook => {
     observer.disconnect()
     window.removeEventListener("scroll", onScroll)
     window.removeEventListener("hashchange", onHashChange)
+    document.removeEventListener("click", onClick)
     hook.el.removeEventListener("scroll", onScroll, {capture: true})
   }
 }
