@@ -60,6 +60,11 @@ defmodule Workflow.Team do
   worker module, it starts no bot), or the id of the bot or the handle of
   the founder who does the job. `limit_min` is the time limit of one run in
   minutes.
+
+  An exclusive bot job has `queue` and `hold_min`. Its run goes to its own
+  Oban queue with limit 1 and the highest priority, so other work never
+  blocks it. While its run is open, other wakes to the same bot wait until
+  the bot reports or `hold_min` minutes pass after the start.
   """
   @type job :: %{
           id: String.t(),
@@ -67,7 +72,9 @@ defmodule Workflow.Team do
           cron: String.t(),
           owner: String.t(),
           worker: module() | nil,
-          limit_min: pos_integer()
+          limit_min: pos_integer(),
+          queue: atom() | nil,
+          hold_min: pos_integer() | nil
         }
 
   @type t :: %__MODULE__{
@@ -166,13 +173,32 @@ defmodule Workflow.Team do
       cron: cron,
       owner: owner,
       worker: worker,
-      limit_min: Map.get(j, "limit_min", 30)
+      limit_min: Map.get(j, "limit_min", 30),
+      queue: j["queue"] && String.to_atom(j["queue"]),
+      hold_min: j["hold_min"]
     }
+    |> exclusive!()
   end
 
-  defp owner!(team, %{owner: owner, id: id}) do
+  defp exclusive!(%{queue: nil, hold_min: nil} = job), do: job
+
+  defp exclusive!(%{queue: q, hold_min: h, limit_min: limit} = job)
+       when is_atom(q) and q != nil and is_integer(h) and h >= limit,
+       do: job
+
+  defp exclusive!(job),
+    do:
+      raise(
+        ArgumentError,
+        "the exclusive job #{inspect(job.id)} needs a queue and a hold_min of at least limit_min"
+      )
+
+  defp owner!(team, %{owner: owner, id: id} = job) do
     unless owner == "code" or bot_id(team, owner) != nil or owner in handles(team),
       do: raise(ArgumentError, "the job #{inspect(id)} has an unknown owner #{inspect(owner)}")
+
+    if job.queue && bot_id(team, owner) == nil,
+      do: raise(ArgumentError, "the exclusive job #{inspect(id)} must belong to a bot")
   end
 
   defp role!(r) when r in ~w(refiner builder checker), do: String.to_atom(r)
@@ -215,7 +241,14 @@ defmodule Workflow.Team do
             "owner" => "code",
             "worker" => "Example.SweepWorker"
           },
-          %{"id" => "check", "name" => "Check", "cron" => "0 7 * * 1-5", "owner" => "quill"}
+          %{
+            "id" => "check",
+            "name" => "Check",
+            "cron" => "0 7 * * 1-5",
+            "owner" => "quill",
+            "queue" => "check_runs",
+            "hold_min" => 45
+          }
         ]
       },
       %{"hello" => "Hello from {product}."}
@@ -381,15 +414,38 @@ defmodule Workflow.Team do
       iex> Workflow.Team.crontab(Workflow.Team.example(), Example.Wake)
       [
         {"*/15 * * * *", Example.SweepWorker, [args: %{"job_id" => "sweep"}]},
-        {"0 7 * * 1-5", Example.Wake, [args: %{"job_id" => "check"}]}
+        {"0 7 * * 1-5", Example.Wake, [args: %{"job_id" => "check"}, queue: :check_runs, priority: 0]}
       ]
   """
   @spec crontab(t(), module() | nil) :: [{String.t(), module(), keyword()}]
   def crontab(%__MODULE__{jobs: jobs} = team, bot_worker \\ nil) do
     for job <- jobs,
         worker = cron_worker(team, job, bot_worker),
-        do: {job.cron, worker, [args: %{"job_id" => job.id}]}
+        do: {job.cron, worker, [args: %{"job_id" => job.id}] ++ queue_opts(job)}
   end
+
+  @doc """
+  The Oban options of the jobs of `job`: its own queue and the highest
+  priority (0) for an exclusive job, else none.
+
+      iex> Workflow.Team.queue_opts(Workflow.Team.job(Workflow.Team.example(), "check"))
+      [queue: :check_runs, priority: 0]
+      iex> Workflow.Team.queue_opts(Workflow.Team.job(Workflow.Team.example(), "sweep"))
+      []
+  """
+  @spec queue_opts(job()) :: keyword()
+  def queue_opts(%{queue: nil}), do: []
+  def queue_opts(%{queue: queue}), do: [queue: queue, priority: 0]
+
+  @doc """
+  The Oban queues of the exclusive jobs, each with limit 1.
+
+      iex> Workflow.Team.exclusive_queues(Workflow.Team.example())
+      [check_runs: 1]
+  """
+  @spec exclusive_queues(t()) :: keyword(pos_integer())
+  def exclusive_queues(%__MODULE__{jobs: jobs}),
+    do: jobs |> Enum.flat_map(&if(&1.queue, do: [{&1.queue, 1}], else: [])) |> Enum.uniq()
 
   defp cron_worker(team, job, bot_worker) do
     cond do

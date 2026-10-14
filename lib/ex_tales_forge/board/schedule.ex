@@ -171,6 +171,35 @@ defmodule TalesForge.Board.Schedule do
   defp report_detail(_), do: nil
 
   @doc """
+  How many seconds other wakes to `bot` must still wait at `now`: an open
+  run of an exclusive job of `bot` (a job with `hold_min`) holds them until
+  the bot reports or `hold_min` minutes pass after the start. 0 when nothing
+  holds.
+  """
+  @spec hold_seconds(Workflow.Team.t(), atom() | String.t(), DateTime.t()) :: non_neg_integer()
+  def hold_seconds(%Workflow.Team{} = team, bot, %DateTime{} = now) do
+    holds = for %{hold_min: h, id: id} <- team.jobs, is_integer(h), into: %{}, do: {id, h}
+
+    if holds == %{} do
+      0
+    else
+      owner = to_string(bot)
+      ids = Map.keys(holds)
+
+      from(r in ScheduledRun,
+        where: r.owner == ^owner and r.status == "open" and r.job_id in ^ids,
+        select: {r.job_id, r.started_at}
+      )
+      |> Repo.all()
+      |> Enum.map(fn {id, started} ->
+        DateTime.diff(DateTime.add(started, holds[id] * 60), now)
+      end)
+      |> Enum.max(fn -> 0 end)
+      |> max(0)
+    end
+  end
+
+  @doc """
   Closes `run` with "no_report" when it is still open at `now` and its
   deadline has come. Returns `:no_report`, `:closed` (the bot reported) or
   `{:wait, seconds}` (the deadline is later).

@@ -32,8 +32,12 @@ defmodule TalesForge.Board.Workers.Notify do
 
   use Oban.Worker, queue: :board, max_attempts: 10
 
+  # A held wake checks again after at most this many seconds, so it goes out
+  # soon after the exclusive run reports.
+  @hold_check_s 60
+
   alias TalesForge.Board
-  alias TalesForge.Board.Idea
+  alias TalesForge.Board.{Idea, Schedule}
   alias TalesForge.BoardApi
 
   @doc "The job that wakes `bot` about `event` on `idea`."
@@ -80,20 +84,23 @@ defmodule TalesForge.Board.Workers.Notify do
   @spec run_job(BoardApi.bot(), Workflow.Team.job(), TalesForge.Board.ScheduledRun.t()) ::
           Oban.Job.changeset()
   def run_job(bot, job, %TalesForge.Board.ScheduledRun{} = run) when is_map(job) do
-    new(%{
-      "bot" => Atom.to_string(bot),
-      "event" => "schedule.run",
-      "delivery_id" => Ecto.UUID.generate(),
-      "payload" => %{
-        "job" => %{"id" => job.id, "name" => job.name, "limit_min" => job.limit_min},
-        "run" => %{
-          "id" => run.id,
-          "started_at" => DateTime.to_iso8601(run.started_at),
-          "deadline_at" => DateTime.to_iso8601(run.deadline_at)
-        },
-        "finish" => %{"method" => "POST", "path" => "/internal/board/runs/#{run.id}/finish"}
-      }
-    })
+    new(
+      %{
+        "bot" => Atom.to_string(bot),
+        "event" => "schedule.run",
+        "delivery_id" => Ecto.UUID.generate(),
+        "payload" => %{
+          "job" => %{"id" => job.id, "name" => job.name, "limit_min" => job.limit_min},
+          "run" => %{
+            "id" => run.id,
+            "started_at" => DateTime.to_iso8601(run.started_at),
+            "deadline_at" => DateTime.to_iso8601(run.deadline_at)
+          },
+          "finish" => %{"method" => "POST", "path" => "/internal/board/runs/#{run.id}/finish"}
+        }
+      },
+      Workflow.Team.queue_opts(job)
+    )
   end
 
   @spec run_job(BoardApi.bot(), atom(), map()) :: Oban.Job.changeset()
@@ -152,6 +159,23 @@ defmodule TalesForge.Board.Workers.Notify do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"bot" => bot} = args}) do
+    case held_for(args, Workflow.Team.Source.team(), DateTime.utc_now()) do
+      0 -> send_wake(bot, args)
+      seconds -> {:snooze, min(seconds, @hold_check_s)}
+    end
+  end
+
+  @doc """
+  How many seconds the wake with `args` must still wait at `now`: an open
+  exclusive run of the bot holds its other wakes
+  (`TalesForge.Board.Schedule.hold_seconds/3`). A `schedule.run` wake never
+  waits.
+  """
+  @spec held_for(map(), Workflow.Team.t(), DateTime.t()) :: non_neg_integer()
+  def held_for(%{"event" => "schedule.run"}, _team, _now), do: 0
+  def held_for(%{"bot" => bot}, team, now), do: Schedule.hold_seconds(team, bot, now)
+
+  defp send_wake(bot, args) do
     config = BoardApi.bot_config(String.to_existing_atom(bot))
 
     case {config[:webhook_url], config[:webhook_key]} do

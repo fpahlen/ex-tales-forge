@@ -21,21 +21,25 @@ defmodule TalesForge.Workflow.Jobs do
   cron plugin with the scheduled jobs of the team config
   (`Workflow.Team.crontab/2`, cron lines in UTC). A code job runs its own
   worker; a bot job runs the worker of config `:schedule_bot_worker`
-  (`TalesForge.Board.Workers.ScheduledWake`), which wakes the bot. The team config is the only schedule source.
+  (`TalesForge.Board.Workers.ScheduledWake`), which wakes the bot. Each exclusive job gets its own queue with limit 1
+  (`Workflow.Team.exclusive_queues/1`). The team config is the only schedule
+  source.
   """
   @spec config() :: keyword()
   def config do
     config = Application.fetch_env!(:ex_tales_forge, @name)
+    team = Workflow.Team.Source.team()
 
     cron =
       {Oban.Plugins.Cron,
        crontab:
-         Workflow.Team.crontab(
-           Workflow.Team.Source.team(),
-           Application.get_env(:ex_tales_forge, :schedule_bot_worker)
-         )}
+         Workflow.Team.crontab(team, Application.get_env(:ex_tales_forge, :schedule_bot_worker))}
 
-    Keyword.update(config, :plugins, [cron], &(&1 ++ [cron]))
+    config
+    |> Keyword.update(:plugins, [cron], &(&1 ++ [cron]))
+    |> Keyword.update(:queues, Workflow.Team.exclusive_queues(team), fn queues ->
+      Keyword.merge(queues, Workflow.Team.exclusive_queues(team))
+    end)
   end
 
   @doc "Inserts one job into the Workflow Oban instance."
