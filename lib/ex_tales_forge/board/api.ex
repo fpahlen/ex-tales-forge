@@ -29,7 +29,9 @@ defmodule TalesForge.Board.Api do
   PR that needs a founder's merge OK. JSON `number`, `url`, `head_sha`,
   `player_note` (one line: what changes for players) and `idea_id` (an existing
   card) or `title` (a new card), and optional `player_change`. The card stays
-  in Building with the PR waiting; the founder's Approve / Request changes
+  in Building with the PR waiting. Optional `final` (default true): send
+  `false` for a PR that is one part of a card with more PRs to come, so the
+  board keeps the card in Building when that PR ships; the founder's Approve / Request changes
   wakes the builder with `pr.approved` / `pr.changes_requested`. Fast-lane PRs need
   no OK: post only normal-lane PRs.
 

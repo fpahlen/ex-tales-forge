@@ -1,0 +1,20 @@
+{
+  "source": "Gentry QA 2026-10-14 08:57, playtest a1acbe8",
+  "sessions": {
+    "a1bed2f5": {
+      "adventure": "crossroads",
+      "turns": [
+        {"turn": 10, "text": "I wait until dusk.", "jev": {"action": "wait", "later": "wait"}, "finding": "clock moved to midday, prose said dusk"},
+        {"turn": 11, "text": "It's already midnight.", "jev": {"action": "speak", "band": "best_guess", "confidence": 0.67}, "finding": "sheet held, prose accepted night"},
+        {"turn": 12, "text": "I pay Marta one copper for the room tonight.", "finding": "room price 8 silver, charge 30c, then 3 silver"}
+      ]
+    },
+    "6ab77f0f": {
+      "adventure": "tin_valley",
+      "turns": [
+        {"turn": 3, "text": "I attack", "jev": {"action": "combat", "target": "innkeep", "confidence": 0.9919}, "finding": "rolled against Brenna, no question"},
+        {"turn": 4, "text": "I attack the miner", "jev": {"action": "combat", "target": null}, "finding": "no minor foe in the final npc_state"}
+      ]
+    }
+  }
+}

@@ -52,6 +52,7 @@ defmodule TalesForge.Board do
   alias TalesForge.Workflow.Repo
 
   @topic "board:ideas"
+  @moved_already "The card moved already."
 
   @typedoc "Who acts (see `TalesForge.Board.Transitions`)."
   @type actor :: Transitions.actor()
@@ -905,14 +906,21 @@ defmodule TalesForge.Board do
   def pr_number_of(%Idea{pr_number: n}) when is_integer(n), do: n
 
   def pr_number_of(idea) do
+    idea |> pr_link_numbers() |> List.first()
+  end
+
+  @doc "The numbers of the pull requests in the card's `pr` links (links loaded), in link order."
+  @spec pr_link_numbers(Idea.t()) :: [pos_integer()]
+  def pr_link_numbers(idea) do
     idea.links
     |> Enum.filter(&(&1.kind == "pr"))
-    |> Enum.find_value(fn l ->
+    |> Enum.flat_map(fn l ->
       case Regex.run(~r{/pull/(\d+)}, l.url) do
-        [_, n] -> String.to_integer(n)
-        _ -> nil
+        [_, n] -> [String.to_integer(n)]
+        _ -> []
       end
     end)
+    |> Enum.uniq()
   end
 
   # :awaiting while the card's PR (at its current head sha) has no Approve.
@@ -947,6 +955,7 @@ defmodule TalesForge.Board do
 
     with :ok <- Transitions.allowed?(team(), facts, idea.column, to, actor) do
       Multi.new()
+      |> Multi.run(:claim, fn repo, _ -> claim_column(repo, idea, to) end)
       |> Multi.update(:idea, Idea.update_changeset(idea, %{column: to}))
       |> Multi.insert(
         :transition,
@@ -963,6 +972,23 @@ defmodule TalesForge.Board do
       |> clean_up_images(idea, to)
       |> run(idea.id)
       |> check_done_after(to == "building")
+    end
+  end
+
+  @doc "The error of a move that lost the race: another move came first."
+  @spec moved_already() :: String.t()
+  def moved_already, do: @moved_already
+
+  # The move happens only when the card is still in the column that the
+  # checks read: one conditional UPDATE in the move's transaction. Two moves
+  # at the same time (for example two AutoDone runs) make one move; the other
+  # gets an error and writes nothing.
+  defp claim_column(repo, %Idea{id: id, column: from}, to) do
+    case repo.update_all(from(i in Idea, where: i.id == ^id and i.column == ^from),
+           set: [column: to]
+         ) do
+      {1, _} -> {:ok, from}
+      {0, _} -> {:error, @moved_already}
     end
   end
 
@@ -1358,6 +1384,11 @@ defmodule TalesForge.Board do
       {:error,
        "#{Team.bot_name(team(), :builder)} links a PR to a card in Building. This card is in #{Transitions.label(team(), idea.column)}."}
 
+  # The optional `final` flag of POST /prs: false only for an explicit false,
+  # so a link without the flag keeps the one-PR behavior.
+  defp final?(final) when final in [false, "false"], do: false
+  defp final?(_final), do: true
+
   defp write_pr(idea, number, attrs) do
     note = String.trim(attrs["player_note"])
     sha = String.trim(attrs["head_sha"])
@@ -1370,6 +1401,7 @@ defmodule TalesForge.Board do
         pr_number: number,
         pr_url: attrs["url"],
         pr_head_sha: sha,
+        pr_final: final?(attrs["final"]),
         player_note: note
       })
     )

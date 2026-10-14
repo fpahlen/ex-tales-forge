@@ -229,7 +229,8 @@ defmodule TalesForge.Game.Schemas do
               improvements: [],
               training: nil,
               parts: nil,
-              split: nil
+              split: nil,
+              combat: nil
 
     def decode(map) when is_map(map) do
       %__MODULE__{
@@ -242,7 +243,8 @@ defmodule TalesForge.Game.Schemas do
         improvements: Map.get(map, "improvements") || [],
         training: Map.get(map, "training"),
         parts: Map.get(map, "parts"),
-        split: Map.get(map, "split")
+        split: Map.get(map, "split"),
+        combat: Map.get(map, "combat")
       }
     end
 
@@ -257,7 +259,8 @@ defmodule TalesForge.Game.Schemas do
         "improvements" => res.improvements || [],
         "training" => res.training,
         "parts" => res.parts,
-        "split" => res.split
+        "split" => res.split,
+        "combat" => res.combat
       }
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
       |> Map.new()
