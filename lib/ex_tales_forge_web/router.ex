@@ -271,6 +271,11 @@ defmodule TalesForgeWeb.Router do
     # The bots open the images on cards and in the chat with their board
     # tokens; see TeamImageController.
     get "/images/:id", TeamImageController, :api
+
+    # The bots read and add manual work log entries with their board tokens;
+    # see WorkLogApiController.
+    get "/work-log/entries", WorkLogApiController, :index
+    post "/work-log/entries", WorkLogApiController, :create
   end
 
   # Swoosh mailbox preview in development (LiveDashboard lives at /admin/operate/telemetry)
