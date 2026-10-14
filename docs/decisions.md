@@ -11,6 +11,100 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Switch to D100 percentage system
+
+- **Decision (hawkan.fredriksson@gmail.com, 2026-10-14, on the idea board):** build it. System change from D20-system to D100-system so we work in percentage, applicable for all skills
+- **Why:** **Problem.** The game uses a d20 system today. Players must convert a skill to odds in their head. Håkan wants percentages that players can read at once.
+
+**Goal.** All skill rolls use d100. A skill level is the percent chance of success. The change covers game rules, code and player text.
+
+**Scope.** Team-page art and the presentation do not change now (Håkan, 2026-10-12). The founders redo them later.
+
+**Locked rules from founders (Håkan, 2026-10-12 and 2026-10-13).**
+- Skill levels go from 1 to 100. A check succeeds when the d100 roll is equal to or less than the skill.
+- Critical success: a roll from 1 to S ÷ 10, rounded up. With skill 10 or less, a critical success is not possible.
+- Critical failure: a roll above 100 − (100 − S) ÷ 10. The game rounds this chance down. A roll of 100 is always a critical failure.
+- With skill 100 or more, a roll of 100 gives a second roll. A failure on the second roll is a critical failure.
+- Critical bands use the effective skill (level plus the stat bonus).
+- Near miss (partial success): a roll from 1 to 15 above the skill. The player reaches part of the goal, or succeeds with a cost.
+- A near miss and a failure bank one improvement chance. A critical failure banks nothing.
+- Combat critical success: full damage plus full bonuses. Combat critical failure: the attacker takes normal weapon damage.
+- Running or climbing critical success: about 50 percent more speed.
+- Lockpicking critical success: the lock opens in half the time, with no noise.
+- Persuasion critical success: the result is better than the player expects, based on the target and the goal.
+- A successful improvement adds 1d6+1 skill points (2 to 7). It does not add a fixed 5.
+- One improvement roll costs ceil(level ÷ 15) Learning Points. This keeps the same cost shape as today.
+- Race bonuses and the starting pool use the 5x factor. The pool of 20 to 30 becomes 100 to 150.
+- The improvement roll stays d100. The skill improves when the roll is at least 51 and at least the current level.
+- At most one successful improvement per skill per long-rest cycle. That rule stays.
+
+**Baseline A/B effects (answer to the open question).**
+Today the code has two variants:
+- `default`: learn from failure. `TalesForge.Game.Progression` resolves banked chances on rest.
+- `baseline`: the old #64 rule in `TalesForge.Game.Progression.Tiered`. Playtest runs tag each arm.
+
+Both variants roll 1d20 today.
+
+If we change only `default` to d100 now:
+- New default sessions use percent skills. Baseline sessions stay on d20.
+- Growth data from the two arms is not comparable after the change.
+- Saved baseline characters keep d20 skill numbers. Default characters get the 5x migration.
+
+If we convert both arms to d100:
+- We must redesign the Tiered thresholds for the percent scale.
+- Old baseline runs on d20 still do not compare to new baseline runs on d100.
+- The size grows past L.
+
+If we delete the baseline variant with this change:
+- We remove `Variant` baseline, `Progression.Tiered`, baseline prompts and the baseline pack.
+- All new sessions use the d100 default rules.
+- The A/B comparison ends. Old baseline run data stays for history.
+- The code gets simpler. This is the recommended path (high confidence).
+
+**Proposed approach.**
+1. Add one pure function `TalesForge.Game.Mechanics.resolve_check/2`. It takes the roll and the effective skill. It returns the outcome.
+2. Check the outcomes in this order: critical success, success, critical failure, near miss, failure.
+3. Remove the d20 rule "natural 20 at skill 15 or more is a partial success". The critical-failure band replaces it.
+4. Change the roll from `:rand.uniform(20)` to `:rand.uniform(100)` in `Mechanics`, `Progression` and `Train`.
+5. Multiply each d20 number by 5. A skill of 5 becomes 25, so current characters keep the same odds.
+6. Use the same factor for stat bonuses and the untrained floor. The trainer bonus becomes +25. The reflection level becomes 50.
+7. Change the death roll from d20 > CON ÷ 2 to d100 > CON × 2.5. The odds stay the same.
+8. On a successful improvement, add `:rand.uniform(6) + 1` to the skill. Cap the skill at 100.
+9. Change the Learning Point cost to ceil(level ÷ 15).
+10. Change the game-system tag from `skill_d20` to `skill_d100` in `TalesForge.AICalls.Tags`.
+11. Update the GM prompts, the Tin Valley rules files and the player text. Remove each "d20" from player text.
+12. Write one data migration. It multiplies the skill levels of saved characters by 5, one time only.
+13. Record the D100 rule in `decisions.md` before the build starts.
+14. Build the check as one step of the turn pipe. The step takes plain data and returns plain data. Dice rolls stay at the edge, so tests can inject them.
+15. If founders delete baseline: remove the baseline arm in the same change set.
+
+**Acceptance criteria.**
+- Every skill check rolls 1d100 against the effective skill.
+- Rolls from 1 to ceil(S ÷ 10) give a critical success when S is more than 10.
+- The top floor((100 − S) ÷ 10) rolls give a critical failure. A roll of 100 is always in that band.
+- A roll of 1 to 15 above the skill gives a near miss.
+- With skill 100 or more, a roll of 100 gives a second roll.
+- A critical failure banks no improvement chance.
+- A successful improvement adds 2 to 7 points. The skill never goes above 100.
+- Saved characters keep the same odds after the migration.
+- No player text and no GM prompt says "d20".
+- Tests cover skills 5, 10, 11, 25, 50, 90, 95 and 100 with injected rolls.
+
+**Size: L.** The change touches about 50 files. Most changes are numbers, text and tests. A baseline delete stays inside L. A full baseline port to d100 does not.
+
+**Risks.**
+- Saved characters must change one time only. Mitigation: the migration records that it ran. A second run does nothing.
+- The turn pipe refactor changes the same modules now. Mitigation: Bobby builds this change after the turn pipe PRs merge.
+- The 1d6+1 gain has more variance than a fixed +5. Mitigation: playtest first, then tune the die if needed.
+- Some 5x numbers can feel wrong on d100. Mitigation: playtest first, then tune the numbers.
+
+**Deploy lane: normal.** The game rules change. Ship to playtest first. Then a founder approves production.
+
+**Confidence.** High confidence that the change is feasible. High confidence in the locked rules. High confidence that a baseline delete is the clean path. Medium confidence in the 5x numbers and in 1d6+1 feel until playtest shows them. Verdict: feasible with caveats. Rough cost: L.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-26706846-f808-4418-9564-7717b5d49171)
+
+<!-- board:idea:26706846-f808-4418-9564-7717b5d49171 -->
+
 ## 2026-10-14: Web push library for the installed team app: web_push_ex
 
 - **Decision (Bobby, for the card "Install the team page as an app (PWA)", decision 74b98134):** use Hex `web_push_ex` 0.2 for web push. It encrypts the message and signs the VAPID token. Our own client (`Workflow.Push.Http`, Req) sends the request.
