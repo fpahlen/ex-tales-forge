@@ -145,6 +145,59 @@ defmodule TalesForgeWeb.TeamInboxTest do
     end
   end
 
+  describe "more items at once on a computer (card 686a0c36)" do
+    test "a wide screen shows four items, a narrow screen shows one", %{conn: conn} do
+      for n <- 1..5, do: mention("item #{n}")
+      {:ok, view, _} = live(owner(conn), "/team")
+      [first, second, third, fourth, _fifth] = Store.open(@owner.handle)
+
+      html = view |> render() |> LazyHTML.from_fragment()
+      assert html |> LazyHTML.query("#inbox-item") |> Enum.count() == 1
+
+      rows = html |> LazyHTML.query("#inbox-rows [data-inbox-row]") |> Enum.to_list()
+      assert length(rows) == 3
+
+      assert Enum.map(rows, &LazyHTML.attribute(&1, "id")) ==
+               Enum.map([second, third, fourth], &["inbox-row-#{&1.id}"])
+
+      # The rows show only from the md width. A phone shows the current item.
+      [list] = html |> LazyHTML.query("#inbox-rows") |> Enum.to_list()
+      [class] = LazyHTML.attribute(list, "class")
+      assert class =~ "hidden"
+      assert class =~ "md:grid"
+      refute html |> LazyHTML.query("#inbox-item.hidden") |> Enum.any?()
+      assert has_element?(view, ~s(#inbox-item[data-item-id="#{first.id}"][data-swipe]))
+    end
+
+    test "one item shows no rows", %{conn: conn} do
+      mention()
+      {:ok, view, _} = live(owner(conn), "/team")
+      refute has_element?(view, "#inbox-rows")
+    end
+
+    test "a click on a row makes it current, and the actions use the current item",
+         %{conn: conn} do
+      for n <- 1..3, do: mention("item #{n}")
+      {:ok, view, _} = live(owner(conn), "/team")
+      [first, second, third] = Store.open(@owner.handle)
+
+      view |> element("#inbox-row-#{third.id}") |> render_click()
+      assert has_element?(view, ~s(#inbox-item[data-item-id="#{third.id}"]))
+      assert has_element?(view, "#inbox-row-#{first.id}")
+
+      view |> element("#inbox") |> render_hook("key", %{"key" => "k"})
+      assert has_element?(view, ~s(#inbox-item[data-item-id="#{second.id}"]))
+      view |> element("#inbox") |> render_hook("key", %{"key" => "j"})
+      assert has_element?(view, ~s(#inbox-item[data-item-id="#{third.id}"]))
+
+      view |> element("#inbox-done") |> render_click()
+      assert has_element?(view, "#inbox-toast", "Marked done.")
+      settle(view)
+      assert %{state: "done"} = Store.get(third.id)
+      assert %{state: "new"} = Store.get(first.id)
+    end
+  end
+
   test "Enter in the answer sends a card comment after the undo time and closes the item",
        %{conn: conn} do
     idea = mention()

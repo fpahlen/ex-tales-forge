@@ -5,7 +5,10 @@ defmodule TalesForgeWeb.TeamInbox do
   (`Workflow.Inbox.has_inbox?/2`) sees it. The rules and the queue are in
   `Workflow.Inbox`; the rows are in `Workflow.Inbox.Store`.
 
-  The panel shows one item at a time:
+  The panel shows one current item. On a computer (the `md` width and up),
+  up to three more items show under it as compact rows (`#inbox-rows`).
+  A click on a row makes that item the current item. The actions and the
+  keys work on the current item only. A phone shows the current item only.
 
     * With no open items, the panel shows an "Inbox zero" link. Otherwise it
       shows the count.
@@ -73,6 +76,27 @@ defmodule TalesForgeWeb.TeamInbox do
 
   defp current(%{items: items, index: index}), do: Enum.at(items, index)
 
+  @rows 3
+
+  @doc """
+  The items after the current item (index and item), at most three. The list
+  starts again at the first item after the last item.
+
+      iex> TalesForgeWeb.TeamInbox.rows(~w(a b c d e), 3)
+      [{4, "e"}, {0, "a"}, {1, "b"}]
+
+      iex> TalesForgeWeb.TeamInbox.rows(~w(a b), 0)
+      [{1, "b"}]
+  """
+  @spec rows(list(), non_neg_integer()) :: [{non_neg_integer(), term()}]
+  def rows(items, index) do
+    count = length(items)
+
+    (index + 1)..(index + min(@rows, count - 1))//1
+    |> Enum.map(&rem(&1, count))
+    |> Enum.map(&{&1, Enum.at(items, &1)})
+  end
+
   @impl true
   def handle_event("key", %{"key" => key}, socket) do
     case current(socket.assigns) do
@@ -97,6 +121,16 @@ defmodule TalesForgeWeb.TeamInbox do
     case String.trim(text) do
       "" -> {:noreply, socket}
       text -> handle_action(socket, :answer, text)
+    end
+  end
+
+  def handle_event("pick", %{"index" => index}, socket) do
+    case Integer.parse(index) do
+      {i, ""} when i >= 0 and i < length(socket.assigns.items) ->
+        {:noreply, assign(socket, :index, i)}
+
+      _other ->
+        {:noreply, socket}
     end
   end
 
@@ -376,6 +410,32 @@ defmodule TalesForgeWeb.TeamInbox do
           Item {@index + 1} of {length(@items)}. Use j and k to move between items.
         </p>
       </article>
+
+      <%!-- On a computer, the next items show as compact rows. A click makes
+           the item current. The phone shows the current item only. --%>
+      <ol
+        :if={@item && length(@items) > 1}
+        id="inbox-rows"
+        aria-label="Next items"
+        class="hidden gap-1 md:grid"
+      >
+        <li :for={{i, row} <- rows(@items, @index)}>
+          <button
+            type="button"
+            id={"inbox-row-#{row.id}"}
+            data-inbox-row
+            phx-click="pick"
+            phx-value-index={i}
+            phx-target={@myself}
+            class="grid min-h-11 w-full gap-0.5 rounded border px-3 py-1 text-left text-sm hover:bg-[var(--paper-panel)]"
+          >
+            <span class="truncate font-semibold">{chip(row)}</span>
+            <span class="truncate text-xs text-[var(--paper-muted)]">
+              {who(row.author)}: {String.slice(row.body, 0, 120)}
+            </span>
+          </button>
+        </li>
+      </ol>
 
       <div
         :if={@pending}
