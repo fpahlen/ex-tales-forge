@@ -245,6 +245,7 @@ defmodule TalesForgeWeb.TeamLiveTest do
       assert html =~ ~s(id="workspace")
       assert html =~ "order-3 lg:order-2"
       assert html =~ ~s(id="live" class="order-4 space-y-5")
+
       assert TalesForgeWeb.TeamLive.phone_panel_order() ==
                [:inbox, :new_idea, :boards, :what_we_did, :workspace, :live]
     end
