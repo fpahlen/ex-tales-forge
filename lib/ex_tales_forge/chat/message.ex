@@ -4,6 +4,7 @@ defmodule TalesForge.Chat.Message do
   email or `bot:<name>`), the text, the founder handles and bots it
   mentions (`TalesForge.Board.Mentions`), and its images
   (`TalesForge.Images`). A message with an image can have an empty text.
+  Each message is in one thread (`TalesForge.Chat.Thread`).
   """
 
   use Ecto.Schema
@@ -20,6 +21,7 @@ defmodule TalesForge.Chat.Message do
     field :body, :string
     field :mentions, {:array, :string}, default: []
     field :bots, {:array, :string}, default: []
+    belongs_to :thread, TalesForge.Chat.Thread, type: :binary_id
     has_many :images, TalesForge.Images.Image, foreign_key: :message_id
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end
@@ -37,9 +39,10 @@ defmodule TalesForge.Chat.Message do
     required = if opts[:images?], do: [:author], else: [:author, :body]
 
     message
-    |> cast(attrs, [:author, :body, :mentions, :bots])
+    |> cast(attrs, [:author, :body, :mentions, :bots, :thread_id])
     |> update_change(:body, &String.trim/1)
     |> validate_required(required, message: "Write a message first.")
+    |> validate_required([:thread_id])
     |> then(&if(get_field(&1, :body), do: &1, else: put_change(&1, :body, "")))
     |> validate_length(:body, max: @max, message: "Write #{@max} characters or fewer.")
   end

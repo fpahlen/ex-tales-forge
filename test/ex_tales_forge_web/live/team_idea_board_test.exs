@@ -808,6 +808,37 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
     assert body =~ ~r/^First line <mark[^>]*>@fredrik<\/mark> ok\nSecond line$/
   end
 
+  test "card comments: start a thread, comment in it, and see the comments by thread",
+       %{conn: conn} do
+    {:ok, idea} = Board.create_idea("fredrik@whyse.se", %{"title" => "Threads"})
+    {:ok, _} = Board.add_comment(idea, "fredrik@whyse.se", "old comment")
+
+    {:ok, view, _} = live(log_in_admin(conn, "fredrik@whyse.se", login: "fpahlen"), "/team")
+    view |> element("#tile-#{idea.id} button[aria-haspopup]") |> render_click()
+
+    view
+    |> form("#card-#{idea.id}-comment", %{"subject" => "Scope", "body" => "First in Scope"})
+    |> render_submit()
+
+    [thread] = TalesForge.Chat.card_threads(idea.id)
+    assert thread.subject == "Scope"
+    assert thread.created_by == "fredrik"
+    assert has_element?(view, "#card-#{idea.id}-thread-general li", "old comment")
+    assert has_element?(view, "#card-#{idea.id}-thread-#{thread.id} li", "First in Scope")
+
+    assert has_element?(
+             view,
+             "#card-#{idea.id}-comment-thread option[value='#{thread.id}']",
+             "Scope"
+           )
+
+    view
+    |> form("#card-#{idea.id}-comment", %{"thread_id" => thread.id, "body" => "Second"})
+    |> render_submit()
+
+    assert has_element?(view, "#card-#{idea.id}-thread-#{thread.id} li", "Second")
+  end
+
   test "answers: a move saves all boxes together and passes the gate; close saves too",
        %{conn: conn} do
     me = "founder@example.com"

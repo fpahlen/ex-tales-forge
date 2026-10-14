@@ -16,7 +16,7 @@ defmodule TalesForge.Workflow.Repo.Migrations.MoveWorkflowTables do
     board_goals board_ideas board_comments board_votes board_goal_votes
     board_links board_transitions board_approvals board_answers board_pings
     board_edits board_deletions
-    team_chat_messages team_chat_reads team_images
+    team_chat_threads team_chat_messages team_chat_reads team_images
     work_log_events work_log_entries
     inbox_items
   )

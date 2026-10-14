@@ -193,6 +193,104 @@ defmodule TalesForgeWeb.TeamChatLiveTest do
            )
   end
 
+  describe "threads" do
+    defp open_chat(conn) do
+      {:ok, view, _html} = live(conn, "/team")
+      {_header, chat} = chat(view, "team-online")
+      chat |> element("#team-online-chat-button") |> render_click()
+      chat
+    end
+
+    defp thobias_conn,
+      do: log_in_admin(build_conn(), "thobias@example.com", login: "tsjokvist")
+
+    test "the thread list shows General, and a new subject thread opens on the right", %{
+      conn: conn
+    } do
+      chat = open_chat(conn)
+      general = Chat.general()
+
+      assert panel_has?(
+               chat,
+               "#team-online-chat-thread-#{general.id}[aria-current=true]",
+               "General"
+             )
+
+      assert panel_has?(chat, "#team-online-chat-thread-title", "General")
+
+      render_submit(chat, "new_subject", %{"thread" => %{"subject" => "Release plan"}})
+      assert panel_has?(chat, "#team-online-chat-thread-title", "Release plan")
+
+      render_submit(chat, "send", %{"chat" => %{"body" => "First in the thread"}})
+      [thread] = Enum.filter(Chat.threads({:founder, "fredrik"}), &(&1.subject == "Release plan"))
+
+      assert {:ok, [%{body: "First in the thread"}]} =
+               Chat.recent({:founder, "fredrik"}, thread.id)
+
+      assert {:ok, []} = Chat.recent({:founder, "fredrik"}, general.id)
+    end
+
+    test "a thread shows its unread count in the list", %{conn: conn} do
+      {:ok, t} = Chat.start_subject({:founder, "max"}, "Art")
+      {:ok, _} = Chat.post("max@example.com", "one", login: "maxpahlen", thread_id: t.id)
+      {:ok, _} = Chat.post("max@example.com", "two", login: "maxpahlen", thread_id: t.id)
+
+      chat = open_chat(conn)
+      assert panel_has?(chat, "#team-online-chat-thread-#{t.id}-unread", "2")
+
+      render_click(chat, "open_thread", %{"id" => t.id})
+      refute panel_has?(chat, "#team-online-chat-thread-#{t.id}-unread")
+    end
+
+    test "a 1:1 starts from the list; the other founder's list has it", %{conn: conn} do
+      chat = open_chat(conn)
+      render_click(chat, "new_direct", %{"handle" => "max"})
+      assert panel_has?(chat, "#team-online-chat-thread-title", "Max")
+      render_submit(chat, "send", %{"chat" => %{"body" => "Just us"}})
+
+      [direct] = Enum.filter(Chat.threads({:founder, "max"}), &(&1.kind == "direct"))
+      assert direct.members == ["fredrik", "max"]
+      assert {:ok, [%{body: "Just us"}]} = Chat.recent({:founder, "max"}, direct.id)
+    end
+
+    test "another founder cannot see, open or post in a 1:1" do
+      {:ok, direct} = Chat.start_direct({:founder, "fredrik"}, "max")
+
+      {:ok, _} =
+        Chat.post("fredrik@whyse.se", "secret plan", login: "fpahlen", thread_id: direct.id)
+
+      chat = open_chat(thobias_conn())
+      refute panel_has?(chat, "#team-online-chat-thread-#{direct.id}")
+      refute render(chat) =~ "secret plan"
+
+      # A forged event with the id of the 1:1 opens General, not the 1:1.
+      render_click(chat, "open_thread", %{"id" => direct.id})
+      assert panel_has?(chat, "#team-online-chat-thread-title", "General")
+      refute render(chat) =~ "secret plan"
+
+      render_submit(chat, "send", %{
+        "chat" => %{"body" => "from outside", "thread_id" => direct.id}
+      })
+
+      {:ok, messages} = Chat.recent({:founder, "max"}, direct.id)
+      assert Enum.map(messages, & &1.body) == ["secret plan"]
+
+      # A live message in the 1:1 never reaches the other founder's panel.
+      {:ok, _} =
+        Chat.post("max@example.com", "second secret", login: "maxpahlen", thread_id: direct.id)
+
+      refute render(chat) =~ "second secret"
+    end
+
+    test "on a phone, Threads goes back to the list", %{conn: conn} do
+      chat = open_chat(conn)
+      assert panel_has?(chat, "#team-online-chat-threads.hidden")
+      render_click(chat, "threads", %{})
+      refute panel_has?(chat, "#team-online-chat-threads.hidden")
+      assert panel_has?(chat, "#team-online-chat-open-thread.hidden")
+    end
+  end
+
   describe "relative message times (TalesForgeWeb.TeamTime)" do
     test "the time element has the relative text, the ISO time and the Stockholm time on hover" do
       at = ~U[2026-10-12 07:40:00Z]

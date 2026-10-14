@@ -681,15 +681,12 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
     with_idea(socket, id, &Board.add_images(&1, socket.assigns.founder, images, params["note"]))
   end
 
-  defp event("comment", %{"card_id" => id, "body" => body}, socket) do
+  defp event("comment", %{"card_id" => id, "body" => body} = params, socket) do
     Typing.stop(id, socket.assigns.founder)
 
     socket
     |> assign(:typed, Map.delete(socket.assigns.typed, id))
-    |> with_idea(
-      id,
-      &Board.add_comment(&1, socket.assigns.founder, body, login: socket.assigns[:login])
-    )
+    |> with_idea(id, &comment_in_thread(&1, socket, body, params))
     |> confirm(id, ["body"])
   end
 
@@ -2304,19 +2301,28 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
 
         <section aria-label="Comments" class="space-y-1">
           <h5 class="font-semibold">Comments</h5>
-          <ul class="space-y-1">
-            <li
-              :for={c <- @idea.comments}
-              id={"comment-#{c.id}"}
-              class="rounded bg-[var(--paper-margin)] px-2 py-1 leading-snug"
-            >
-              <div class="flex items-baseline gap-2 text-xs">
-                <span class="font-semibold">{who(c.author)}</span>
-                <TalesForgeWeb.TeamTime.ago at={c.inserted_at} class="text-[var(--paper-muted)]" />
-              </div>
-              <p class="whitespace-pre-line break-words">{comment_body(c.body)}</p>
-            </li>
-          </ul>
+          <div
+            :for={{thread, comments} <- comment_groups(@idea)}
+            id={"card-#{@idea.id}-thread-#{(thread && thread.id) || "general"}"}
+            class="space-y-1"
+          >
+            <h6 class="flex items-center gap-1 text-xs font-semibold text-[var(--paper-muted)]">
+              <.icon name="hero-hashtag" class="size-3" />{(thread && thread.subject) || "General"}
+            </h6>
+            <ul class="space-y-1">
+              <li
+                :for={c <- comments}
+                id={"comment-#{c.id}"}
+                class="rounded bg-[var(--paper-margin)] px-2 py-1 leading-snug"
+              >
+                <div class="flex items-baseline gap-2 text-xs">
+                  <span class="font-semibold">{who(c.author)}</span>
+                  <TalesForgeWeb.TeamTime.ago at={c.inserted_at} class="text-[var(--paper-muted)]" />
+                </div>
+                <p class="whitespace-pre-line break-words">{comment_body(c.body)}</p>
+              </li>
+            </ul>
+          </div>
           <form
             phx-submit="comment"
             phx-change="typing"
@@ -2326,6 +2332,31 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             data-draft={"card:#{@idea.id}"}
           >
             <input type="hidden" name="card_id" value={@idea.id} />
+            <div class="flex flex-wrap gap-2">
+              <label class="grid gap-1 text-xs" for={"card-#{@idea.id}-comment-thread"}>
+                Thread
+                <select
+                  id={"card-#{@idea.id}-comment-thread"}
+                  name="thread_id"
+                  class="min-h-11 rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2"
+                >
+                  <option value="">General</option>
+                  <option :for={t <- card_threads(@idea)} value={t.id}>
+                    {t.subject}
+                  </option>
+                </select>
+              </label>
+              <label class="grid flex-1 gap-1 text-xs" for={"card-#{@idea.id}-comment-subject"}>
+                Or start a new thread
+                <input
+                  id={"card-#{@idea.id}-comment-subject"}
+                  name="subject"
+                  maxlength={TalesForge.Chat.Thread.max_subject()}
+                  placeholder="Subject"
+                  class="min-h-11 rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-2"
+                />
+              </label>
+            </div>
             <label class="grid gap-1" for={"card-#{@idea.id}-comment-body"}>
               Comment. Write @ and a name to ping a founder, or @founders to ping all founders. {Team.bot_mentions(
                 team()
@@ -2683,6 +2714,54 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   defp who(actor) when actor in ["board", "import"], do: String.capitalize(actor)
   defp who(email) when is_binary(email), do: TalesForge.TeamOnline.name(team(), email)
   defp who(_), do: "someone"
+
+  # A comment in the chosen card thread, or in a new thread with the subject.
+  defp comment_in_thread(idea, socket, body, params) do
+    founder = socket.assigns.founder
+    login = socket.assigns[:login]
+
+    params =
+      if String.trim(to_string(body)) == "", do: Map.delete(params, "subject"), else: params
+
+    with {:ok, thread_id} <- comment_thread(idea, founder, login, params) do
+      Board.add_comment(idea, founder, body, login: login, thread_id: thread_id)
+    end
+  end
+
+  defp comment_thread(idea, founder, login, %{"subject" => subject})
+       when is_binary(subject) and subject != "" do
+    case String.trim(subject) do
+      "" ->
+        {:ok, nil}
+
+      subject ->
+        founder
+        |> TalesForge.Chat.viewer(login)
+        |> TalesForge.Chat.start_card_thread(idea.id, subject)
+        |> case do
+          {:ok, thread} -> {:ok, thread.id}
+          {:error, :forbidden} -> {:error, "Only a founder can start a thread."}
+          {:error, cs} -> {:error, cs}
+        end
+    end
+  end
+
+  defp comment_thread(_idea, _founder, _login, params), do: {:ok, params["thread_id"]}
+
+  # The whole card is the argument, so the options render again on each
+  # change of the card (LiveView change tracking).
+  defp card_threads(%Idea{id: id}), do: TalesForge.Chat.card_threads(id)
+
+  # The comments of a card in their threads: General first, then each
+  # thread of the card, newest comment first.
+  defp comment_groups(idea) do
+    groups = Enum.group_by(idea.comments, & &1.thread_id)
+
+    [{nil, Map.get(groups, nil, [])}] ++
+      (idea
+       |> card_threads()
+       |> Enum.map(&{&1, Map.get(groups, &1.id, [])}))
+  end
 
   # A comment body as one line of HTML: the text is escaped, the mentions are
   # inline marks, the author's own line breaks stay (whitespace-pre-line),
