@@ -70,6 +70,17 @@ defmodule Workflow.ProductApp do
   @doc "Reads the persona scores. Returns a map with string keys."
   @callback persona_scores() :: {:ok, map()} | :error
 
+  @doc """
+  The adapter for `persona_scores/0`: config
+  `:ex_tales_forge, Workflow.ProductApp, persona_scores_adapter:`, else
+  `adapter/0`. The persona scores can come from another app (playtest runs
+  the persona playtests) while the other data stays local.
+  """
+  @spec scores_adapter() :: module()
+  def scores_adapter do
+    Application.get_env(:ex_tales_forge, __MODULE__, [])[:persona_scores_adapter] || adapter()
+  end
+
   @doc "The adapter in use."
   @spec adapter() :: module()
   def adapter do
@@ -106,7 +117,7 @@ defmodule Workflow.ProductApp do
   @doc "The persona scores. Nil when they are not available."
   @spec persona_scores() :: scores()
   def persona_scores do
-    case adapter().persona_scores() do
+    case scores_adapter().persona_scores() do
       {:ok, body} -> decode_scores(body)
       :error -> nil
     end

@@ -273,6 +273,20 @@ if config_env() != :test do
   config :ex_tales_forge, :product_api, token: System.get_env("PRODUCT_APP_API_TOKEN")
   config :ex_tales_forge, :workflow_api, token: System.get_env("WORKFLOW_API_TOKEN")
 
+  # PRODUCT_APP_PERSONA_SCORES_URL (for example https://tales-forge-playtest.fly.dev):
+  # Workflow reads only the persona scores with the HTTP adapter from that app
+  # (playtest runs the persona playtests). Costs, online and the running
+  # commits stay on the local adapter. Unset = the local adapter for all.
+  case System.get_env("PRODUCT_APP_PERSONA_SCORES_URL") do
+    url when is_binary(url) and url != "" ->
+      config :ex_tales_forge, Workflow.ProductApp,
+        persona_scores_adapter: Workflow.ProductApp.Http,
+        base_url: String.trim(url)
+
+    _ ->
+      :ok
+  end
+
   # Gentry's QA sign-in on /team (TalesForge.QaLogin). GENTRY_QA_TOKEN (secret,
   # same value on both apps) turns on /team/qa-login; unset = 404. The session
   # is read-only. QA_ALLOW_WRITES=true lets it write on playtest only (for later
