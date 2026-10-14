@@ -11,6 +11,57 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Upcoming jobs panel, scheduled by Oban
+
+- **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. Founders cannot see what is scheduled. Add an Upcoming panel on /team. It lists the next scheduled jobs with time, owner (person or bot) and status. Examples: the Gentry playtest run, the Bobby and Gentry update, the weekly branch prune, card ETAs and planned cutovers.
+- **Why:** **Problem.** The founders cannot see what is scheduled. The schedules are in the bot routines in Grok Bot, and only the owner of a routine can see it. Some scheduled bot runs find no work, but they cost money each time.
+
+**Goal.** One schedule in the app, visible to all founders. Each job has a time, an owner (a person, a bot or plain code) and the result of its last run. Code does the jobs that code can do. A bot starts only for a job that needs a bot.
+
+**What the code has today (main, `e6ae50a`).**
+- The Workflow Oban instance (`TalesForge.Workflow.Oban`) already has `Oban.Plugins.Cron`. It runs three plain-code jobs on production: the hourly stuck card check, the mention sweep and the PR feed backup read. This is from the decision "Bot work in Elixir" (2026-10-13).
+- `Board.Workers.Notify` wakes a bot with a signed webhook. But each wake is for a card. A scheduled wake has no card, so it needs a new event.
+- `Workflow.Team` is the team config. Workflow code has no team names, so the job list must come from this config.
+- The app has no time zone database. Thus Oban reads the cron times in UTC. At each change of summer time (next: 25 Oct), the local times move by one hour.
+- A card in Building has no ETA field. Bobby writes the ETA as free text in his "Picked up by Bobby" comment.
+- Gentry has no board webhook. Gentry has only the cron routine for the playtest run (07:13 on weekdays).
+
+**Proposed approach.**
+1. Put the schedule in the team config: one list of jobs. Each job has an id, a cron line, an owner and a kind. The kind is code (an Oban worker) or bot (a wake for that bot). The Cron plugin and the panel read the same list. Thus the schedule is in one place.
+2. Add the `tz` library and set the Cron plugin to Europe/Stockholm. The panel shows Stockholm times.
+3. Add the table `scheduled_runs`: job id, owner, started at, finished at, result (ok, failed or no report) and a short note. Code jobs write their row. A bot job writes its row when the wake goes out.
+4. Add the wake event `schedule.run` to `Notify`, with the job id and the run id but no card. A scheduled wake never merges with a card wake.
+5. Add the bot API route `POST /internal/board/runs/:id/finish` (result and note). The bot calls it at the end of its run. A run with no report after its time limit gets "no report".
+6. A job can be marked exclusive. An exclusive job gets its own Oban queue (limit 1), so other work never blocks its start. While its run is open, other wakes to that bot wait. `Notify` sends them after the run ends, or after the time limit. The Tales Forge config marks the playtest run as exclusive.
+7. Add an optional ETA to the card. The builder sets it with the pickup comment (`eta_at` in the bot API). The panel shows the cards in Building with their ETA.
+8. Add the Upcoming panel on `/team`. It shows the next run of each job (time, owner, last result) and the card ETAs, and it updates live. Oban's cron parser gives the next times.
+9. Cutover for each bot job: the bot adds a `schedule.run` section to its webhook routine, then deletes its old cron routine. Gentry first gets a webhook routine, and Fredrik sets `BOARD_WEBHOOK_URL_GENTRY` and `BOARD_WEBHOOK_KEY_GENTRY` on Fly.
+
+**Steps, one PR each.**
+1. The job list in the team config, the time zone, the run table for the three code jobs, and the Upcoming panel. Cost: M.
+2. Bot jobs: the `schedule.run` wake, the finish route and the "no report" result. Cost: M.
+3. Exclusive jobs: the own queue and the wait for other wakes to that bot. Cost: S.
+4. The card ETA field and the ETA list on the panel. Cost: S.
+5. Cutover of the bot routines, one bot at a time. Mostly routine changes, little code. Cost: S.
+
+**Acceptance criteria.**
+- Each founder sees the Upcoming panel on `/team`, with the next time, the owner and the last result of each job.
+- The times are in Stockholm time and stay correct after 25 Oct.
+- The three code jobs show ok or failed after each run, and start no bot.
+- At 07:13 on a weekday, Oban wakes Gentry for the playtest run, and the panel shows the run as open.
+- A founder @mention of Gentry during the run waits. Gentry gets it after the run reports done.
+- If Gentry sends no report in the time limit, the panel shows "no report" and the waiting wakes go out.
+- A card in Building with an ETA shows on the panel with that ETA.
+
+**Deploy lane: admin (team tools).** Only Workflow code changes. While only founders use prod, it goes to prod after CI and a smoke test. If card 5 of the Workflow split moves the team page first, this work goes into `whyse-ab/workflow`.
+
+**Verdict: feasible with caveats.** The Cron plugin, the webhook wakes and the team page exist. The caveats: the app cannot stop a bot in the middle of a run. It can only hold the new wakes to that bot until the bot reports done. And each bot must change its own routine for the cutover.
+
+**Confidence.** High that it is feasible. Medium on the cost of step 2, because the cutover needs a test with a real bot wake. Verdict: feasible with caveats. Rough cost: L.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-0af75424-0a67-4688-9eeb-d152335f7f95)
+
+<!-- board:idea:0af75424-0a67-4688-9eeb-d152335f7f95 -->
+
 ## 2026-10-14: Install the team page as an app (PWA)
 
 - **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. Make /team installable as a Progressive Web App. Add a web app manifest (name, icons, start_url /team, display standalone) and a small service worker. Founders can then install it from Chrome, Edge or Safari. It opens in its own window with an icon, with no browser bar. Add web push notifications for new inbox items and chat messages (desktop, Android, and iPhone when added to the home screen). Do not cache pages with data offline in version 1. Build in whyse-ab/workflow if the split card 5 has merged. Requested by Fredrik on 2026-10-14.
