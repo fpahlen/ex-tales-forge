@@ -49,7 +49,8 @@ defmodule TalesForge.Board.NotifyTest do
   test "run_job wakes a bot about a run that names no card" do
     job = Notify.run_job(:case, :run_failed, %{"workflow" => "CI"})
 
-    assert {job.changes.args["bot"], job.changes.args["event"], job.changes.args["payload"]["run"]} ==
+    assert {job.changes.args["bot"], job.changes.args["event"],
+            job.changes.args["payload"]["run"]} ==
              {"case", "run.failed", %{"workflow" => "CI"}}
   end
 
