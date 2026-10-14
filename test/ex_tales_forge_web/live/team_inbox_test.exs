@@ -71,6 +71,24 @@ defmodule TalesForgeWeb.TeamInboxTest do
   end
 
   describe "Open the card (card 88065dfb)" do
+    test "the hover preview shows only while the chip is closed (card 686a0c36)",
+         %{conn: conn} do
+      idea = mention(String.duplicate("long text ", 80))
+      {:ok, view, _} = live(owner(conn), "/team")
+      html = view |> render() |> LazyHTML.from_fragment()
+
+      [summary] = html |> LazyHTML.query("#inbox-chip summary") |> Enum.to_list()
+      assert LazyHTML.attribute(summary, "title") == []
+
+      [preview] = html |> LazyHTML.query("#inbox-chip-preview") |> Enum.to_list()
+      [class] = LazyHTML.attribute(preview, "class")
+      assert class =~ "pointer-events-none"
+      assert class =~ "[.group:not([open]):hover_&]:block"
+      refute class =~ "group-hover:block"
+
+      assert has_element?(view, ~s(#inbox-chip-body a[href="/team#idea-#{idea.id}"]))
+    end
+
     test "the chip stays open across a board change", %{conn: conn} do
       mention()
       {:ok, view, _} = live(owner(conn), "/team")

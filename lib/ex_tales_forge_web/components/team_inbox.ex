@@ -273,15 +273,16 @@ defmodule TalesForgeWeb.TeamInbox do
           class="group relative"
           phx-mounted={JS.ignore_attributes(["open"])}
         >
-          <summary
-            title={String.slice(@item.body, 0, 200)}
-            class="inline-flex min-h-11 cursor-pointer items-center rounded-full border px-3 text-sm"
-          >
+          <summary class="inline-flex min-h-11 cursor-pointer items-center rounded-full border px-3 text-sm">
             {chip(@item)}
           </summary>
+          <%!-- The preview shows only on hover while the chip is closed. When the
+               chip is open, the preview stays hidden, so "Open the card" is
+               easy to hit. The summary has no native title for the same reason. --%>
           <div
+            id="inbox-chip-preview"
             role="tooltip"
-            class="pointer-events-none absolute z-10 mt-1 hidden max-w-sm rounded border bg-[var(--paper-panel)] p-2 text-xs shadow group-hover:block group-open:hidden"
+            class="pointer-events-none absolute z-10 mt-1 hidden max-w-sm rounded border bg-[var(--paper-panel)] p-2 text-xs shadow [.group:not([open]):hover_&]:block"
           >
             {String.slice(@item.body, 0, 200)}
           </div>
