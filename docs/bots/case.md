@@ -101,7 +101,7 @@ User-level allow rules in `/home/box/agent-data/settings.json` (`autoReviewInstr
 3. Create automations under `sand-data/automations` on trusted user request.
 4. Launch and steer executors for `whyse-ab/ex-tales-forge` work.
 5. Move idea cards between columns on the board API (`/internal/board/ideas/`).
-6. Post messages to the team chat API (`/internal/chat`).
+6. Post messages to the team chat API (`/internal/chat`). Read and add manual work log entries (`/internal/work-log/entries`, same bearer token; see "Board bot API" in `bobby.md`).
 7. Run read-only `flyctl` commands for the Fly apps `tales-forge` and `tales-forge-playtest`.
 8. Push feature branches and open PRs on `ex-tales-forge`. Never force-push or push direct to main.
 9. Delete fully merged branches with no open PR on `ex-tales-forge` and `tales-forge-docs`.

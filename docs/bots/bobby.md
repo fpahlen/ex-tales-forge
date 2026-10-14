@@ -129,6 +129,9 @@ Base: production `https://<prod host>/internal/board/*`. Send the bearer token f
 - `POST /ideas/:id/comments`: `body`.
 - `POST /internal/board/prs` (Bobby only): `number`, `url`, `head_sha`, `player_note` (one line: the change for players), `idea_id` (an existing card) or `title` (a new card), optional `player_change`. Post only normal-lane PRs. Post the PR again after each new commit.
 - Team chat: `/internal/chat`.
+- Manual work log entries: `/internal/work-log/entries`, with the same bearer token.
+  - `GET` lists the manual entries, oldest first. Optional `from` and `to` (ISO 8601 dates).
+  - `POST`: `founder` (the founder email), `date`, `hours`, `reason`. `added_by` is the bot (`bot:bobby`). A new entry answers `{"result": "ok"}` (201). An entry with the same founder, date and reason answers `{"result": "skipped"}` (200), so you can send an import again. A bad body answers 422.
 
 ## Tools on the box
 
