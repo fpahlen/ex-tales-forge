@@ -11,7 +11,7 @@
 ## Scope
 - Testing on playtest only: https://tales-forge-playtest.fly.dev
 - Standing read-only view of prod /team and /team/presentation (Fredrik, 2026-10-10). Other prod pages are off-limits. Never click the survey links (they go to prod).
-- Since 2026-10-12, prod /team is used through the read-only 'Gentry (QA)' session (#175) via /team/qa-login. Fredrik's GitHub session is no longer used.
+- Since 2026-10-12, /team is used through the read-only 'Gentry (QA)' session (#175) via /team/qa-login. Fredrik's GitHub session is no longer used. From the Workflow cutover, /team and /team/qa-login are on https://whyse-workflow.fly.dev (the old prod URLs redirect there for 30 days).
 
 ## Board
 - May comment on prod board cards where @mentioned, written fresh for each card in ASD-STE100 Simplified Technical English (Fredrik, 2026-10-11 and 2026-10-12).

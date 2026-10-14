@@ -11,6 +11,22 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Workflow split 5/5: cutover plan (founder answers)
+
+- **Decision (founders, 2026-10-14, on the idea board, card 84f426a1):** Workflow runs as its own app. Repo `whyse-ab/workflow`, Fly app `whyse-workflow` (https://whyse-workflow.fly.dev), with its own Postgres. Goal: G7, our shared workspace.
+- **Founder answers.**
+  - Sign-in stays "Sign in with GitHub" with the team `ADMIN_GITHUB_TEAM`. Workflow gets its own GitHub OAuth app (one callback URL for each OAuth app).
+  - The old Workflow URLs on the product app redirect to Workflow for 30 days (307, query kept, a POST stays a POST). Then a product-app PR removes the redirects.
+  - Bobby copies the `workflow` tables to the new database, with Fredrik on call. The script compares the row counts and stops on a difference.
+- **Why:** The team tools and the product app now deploy, fail and scale apart. A product-app deploy no longer restarts the board, and the board no longer shares the product database.
+- **How it works.**
+  - The product app serves `GET /internal/product/*` to Workflow (`PRODUCT_APP_API_TOKEN`). The product app sends work-log turns to Workflow's `POST /internal/workflow/work-log/turns` (`WORKFLOW_API_TOKEN`). These are the only data paths.
+  - The bot secrets (`BOARD_BOT_TOKEN_*`, `BOARD_WEBHOOK_URL_*`, `BOARD_WEBHOOK_KEY_*`), `ADMIN_GITHUB_TEAM`, `GENTRY_QA_TOKEN` and the GitHub webhook move to `whyse-workflow` with the same values. The bots use the Workflow host ([bots](bots/README.md)).
+  - The product database keeps the schema `workflow` for 30 days as the rollback copy. Then it is dropped.
+  - Cost: about $8 a month (app 512 MB, database 512 MB). A 256 MB database makes it about $6.50.
+- **Builds on:** the 2026-10-13 entry "Workflow split 5/5: Extraction to own repo and Fly app". The bot API includes `/internal/work-log/entries`.
+- **Details:** `docs/cutover-runbook.md` in `whyse-ab/workflow` (backup, secrets, bot hosts, cutover order, rollback). PRs: whyse-ab/workflow#1, whyse-ab/ex-tales-forge#259. Merges and the cutover need Fredrik's OK.
+
 ## 2026-10-14: Workflow split 6/6: Team setup
 
 - **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Follows [Workflow split 2/5: Team config](https://tales-forge.fly.dev/team#idea-4dbf0bfc-d0ac-4673-86b1-e3e515996f31) and card 5. Goal: G7, our shared workspace.

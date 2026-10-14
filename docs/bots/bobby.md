@@ -107,7 +107,7 @@ Board-only features live on `/team`, and `/team` is only on production. Gentry c
 
 ### Gentry's QA login
 
-Gentry may view production `/team` read-only through his QA login: `/team/qa-login` with `GENTRY_QA_TOKEN`. `QA_ALLOW_WRITES` stays off.
+Gentry may view `/team` on Workflow read-only through his QA login: `https://whyse-workflow.fly.dev/team/qa-login` with `GENTRY_QA_TOKEN` (a secret on `whyse-workflow`). `QA_ALLOW_WRITES` stays off.
 
 ## Routines
 
@@ -121,15 +121,15 @@ The routine folders were not on the box on 2026-10-12. Bobby's `automations` fol
 
 ## Board bot API
 
-Base: production `https://<prod host>/internal/board/*`. Send the bearer token from `BOARD_BOT_TOKEN_BOBBY`.
+Base: the Workflow app, `https://whyse-workflow.fly.dev/internal/board/*` (the board moved from production at the Workflow cutover). Send the bearer token from `BOARD_BOT_TOKEN_BOBBY`.
 
 - `GET /ideas` (optional `?column=`), `GET /ideas/:id`.
 - `POST /ideas/:id/move`: `to`, optional `note`.
 - `POST /ideas/:id/links`: `kind` (pr, playtest, doc, other), `url`, `label`.
 - `POST /ideas/:id/comments`: `body`.
 - `POST /internal/board/prs` (Bobby only): `number`, `url`, `head_sha`, `player_note` (one line: the change for players), `idea_id` (an existing card) or `title` (a new card), optional `player_change`. Post only normal-lane PRs. Post the PR again after each new commit.
-- Team chat: `/internal/chat`.
-- Manual work log entries: `/internal/work-log/entries`, with the same bearer token.
+- Team chat: `https://whyse-workflow.fly.dev/internal/chat`.
+- Manual work log entries: `https://whyse-workflow.fly.dev/internal/work-log/entries`, with the same bearer token.
   - `GET` lists the manual entries, oldest first. Optional `from` and `to` (ISO 8601 dates).
   - `POST`: `founder` (the founder email), `date`, `hours`, `reason`. `added_by` is the bot (`bot:bobby`). A new entry answers `{"result": "ok"}` (201). An entry with the same founder, date and reason answers `{"result": "skipped"}` (200), so you can send an import again. A bad body answers 422.
 
@@ -148,9 +148,9 @@ Names only. The values stay in their files, in Fly secrets or in GitHub Actions 
 
 | Name or path | Purpose |
 |--------------|---------|
-| `/home/box/.config/tales-forge/board-bot-token` | Bobby's board bot token (env name `BOARD_BOT_TOKEN_BOBBY`, also set on `tales-forge`) |
+| `/home/box/.config/tales-forge/board-bot-token` | Bobby's board bot token (env name `BOARD_BOT_TOKEN_BOBBY`, also set on `whyse-workflow`) |
 | `/home/box/.config/tales-forge/gentry-qa-token` | Gentry's QA login token (`GENTRY_QA_TOKEN`) |
-| `BOARD_WEBHOOK_URL_BOBBY`, `BOARD_WEBHOOK_KEY_BOBBY` | Fly secrets on `tales-forge` from the "board wake-ups" webhook trigger. Fredrik sets them with `fly secrets set -a tales-forge` |
+| `BOARD_WEBHOOK_URL_BOBBY`, `BOARD_WEBHOOK_KEY_BOBBY` | Fly secrets on `whyse-workflow` from the "board wake-ups" webhook trigger. Fredrik sets them with `fly secrets set -a whyse-workflow` |
 | `SECURITY_LANE_WEBHOOK_URL`, `SECURITY_LANE_WEBHOOK_KEY` | GitHub Actions secrets on `ex-tales-forge` from the "security-lane deploys" webhook trigger |
 | `FLY_API_TOKEN`, `FLY_API_TOKEN_PLAYTEST` | GitHub Actions deploy tokens |
 | `SECURITY_BOT_TOKEN` (or `SECURITY_BOT_APP_ID`, `SECURITY_BOT_APP_PRIVATE_KEY`) | Lets the security lane merge |
