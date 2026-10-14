@@ -1,9 +1,11 @@
 defmodule TalesForgeWeb.TeamLive do
   @moduledoc """
-  The founders' landing page at `/team`, top to bottom:
+  The founders' landing page at `/team`.
 
-  1. **What have we done** (`#done`, at the top): the pull requests merged
-     in the last 3 days as short theme bullets, the nested
+  **Desktop** (and the HTML order, so links and tests stay stable), top to bottom:
+
+  1. **What have we done** (`#done`): the pull requests merged in the last
+     3 days as short theme bullets, the nested
      `TalesForgeWeb.TeamWhatWeDidLive` (`TalesForge.PrFeed.WhatWeDid`);
   2. the compact shared-workspace header with quick stats
      (`TalesForgeWeb.TeamWorkspace`; the crew picture and how we work live on
@@ -11,12 +13,17 @@ defmodule TalesForgeWeb.TeamLive do
   3. **What we're going to do** (`#idea-board`): the founders' idea board
      (`TalesForgeWeb.TeamIdeaBoard`, live over `TalesForge.Board`'s PubSub) on
      production and locally. For a founder with inbox rules, the inbox panel
-     (`TalesForgeWeb.TeamInbox`) is under New idea, live over the inbox
-     PubSub (`Workflow.Inbox.Store`). `/team` lives on production only
+     (`TalesForgeWeb.TeamInbox`) is live over the inbox PubSub
+     (`Workflow.Inbox.Store`). `/team` lives on production only
      (`TalesForge.AppRole`, area `:board`): playtest redirects it there;
   4. **What we're doing now** (`#live`): the live GitHub PR, CI and deploy feed,
      the nested `TalesForgeWeb.TeamPrFeedLive` (`TalesForge.PrFeed`, polled on
      the server and pushed over PubSub).
+
+  **Phone** (below the `lg` width, 1024 px): CSS `order` alone changes the
+  stack to inbox → New idea → boards → What have we done → quick stats →
+  What we're doing now. The list lives in `phone_panel_order/0`. Desktop
+  keeps the HTML order above.
 
   The nav links to the full presentation (`/team/presentation`).
 
@@ -65,6 +72,14 @@ defmodule TalesForgeWeb.TeamLive do
     do:
       for({id, _} <- @nav, not String.starts_with?(id, "/"), do: id) ++
         ~w(workspace)
+
+  @doc """
+  Phone panel order below `lg` (1024 px). Desktop keeps the HTML order in
+  `render/1`. One place for the mobile stack so the panels card can reuse it.
+  """
+  @spec phone_panel_order() :: [atom()]
+  def phone_panel_order,
+    do: [:inbox, :new_idea, :boards, :what_we_did, :workspace, :live]
 
   @doc """
   The old crew anchors of this page and where they land now: the crew on the
@@ -194,7 +209,7 @@ defmodule TalesForgeWeb.TeamLive do
       <main
         id="team-main"
         tabindex="-1"
-        class="mx-auto max-w-6xl space-y-16 px-4 pb-16 pt-8 sm:px-6 sm:pt-12"
+        class="mx-auto flex max-w-6xl flex-col gap-16 px-4 pb-16 pt-8 sm:px-6 sm:pt-12"
       >
         <TeamLayout.qa_banner
           team={@team}
@@ -202,7 +217,7 @@ defmodule TalesForgeWeb.TeamLive do
           read_only={assigns[:read_only] == true}
         />
         <.what_we_did socket={assigns[:socket]} />
-        <TeamWorkspace.header stats={assigns[:stats]} />
+        <TeamWorkspace.header stats={assigns[:stats]} class="order-3 lg:order-2" />
         <.going_to_do
           board?={assigns[:board?] || false}
           connected={assigns[:connected] == true}
@@ -229,7 +244,7 @@ defmodule TalesForgeWeb.TeamLive do
 
   defp what_we_did(assigns) do
     ~H"""
-    <section id="done" class="space-y-5" aria-labelledby="done-title">
+    <section id="done" class="order-2 space-y-5 lg:order-1" aria-labelledby="done-title">
       <header class="max-w-3xl space-y-2">
         <h2 id="done-title" class="font-serif text-2xl font-bold sm:text-3xl">
           What have we done
@@ -257,7 +272,7 @@ defmodule TalesForgeWeb.TeamLive do
 
   defp live_section(assigns) do
     ~H"""
-    <section id="live" class="space-y-5" aria-labelledby="live-title">
+    <section id="live" class="order-4 space-y-5" aria-labelledby="live-title">
       <header class="max-w-3xl space-y-2">
         <h2 id="live-title" class="font-serif text-2xl font-bold sm:text-3xl">
           What we're doing now
@@ -290,7 +305,7 @@ defmodule TalesForgeWeb.TeamLive do
 
   defp going_to_do(assigns) do
     ~H"""
-    <section id="idea-board" class="space-y-5" aria-labelledby="idea-board-title">
+    <section id="idea-board" class="order-1 space-y-5 lg:order-3" aria-labelledby="idea-board-title">
       <header class="max-w-3xl space-y-2">
         <h2 id="idea-board-title" class="font-serif text-2xl font-bold sm:text-3xl">
           What we're going to do

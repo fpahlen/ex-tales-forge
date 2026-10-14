@@ -766,6 +766,16 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
     assert {:error, {:redirect, %{to: "https://tales-forge.fly.dev/team"}}} = live(conn, "/team")
   end
 
+  test "phone order: inbox before New idea, goals with the columns", %{conn: conn} do
+    {:ok, view, html} = live(log_in_admin(conn, "fredrik@whyse.se", login: "fpahlen"), "/team")
+
+    assert html =~ ~s(id="board-goals")
+    assert html =~ "order-4 lg:order-1"
+    assert has_element?(view, ~s(#board-chat.order-3.lg\\:order-3))
+    assert has_element?(view, ~s(#board-columns.order-5.lg\\:order-5))
+    assert html =~ ~s(class="order-1 lg:order-4")
+  end
+
   test "a mention shows in the inbox of the named founder, not under 'Pings for you'",
        %{conn: conn} do
     {:ok, idea} = Board.create_idea("fredrik@whyse.se", %{"title" => "Fishing"})

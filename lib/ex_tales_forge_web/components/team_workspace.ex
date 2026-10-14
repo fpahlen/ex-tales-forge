@@ -72,12 +72,13 @@ defmodule TalesForgeWeb.TeamWorkspace do
   end
 
   attr :stats, :map, default: nil
+  attr :class, :any, default: nil, doc: "extra classes (mobile order on /team)"
 
   @doc "The header. Without `stats` (no board here) it shows the title only."
   @spec header(map()) :: Phoenix.LiveView.Rendered.t()
   def header(assigns) do
     ~H"""
-    <section id="workspace" class="space-y-4" aria-labelledby="workspace-title">
+    <section id="workspace" class={["space-y-4", @class]} aria-labelledby="workspace-title">
       <header class="space-y-1">
         <h1 id="workspace-title" class="font-serif text-3xl font-bold leading-tight sm:text-4xl">
           Our workspace

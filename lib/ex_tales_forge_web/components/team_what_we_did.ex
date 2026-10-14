@@ -28,7 +28,7 @@ defmodule TalesForgeWeb.TeamWhatWeDid do
       <ul :if={@summary.count > 0} id="what-we-did-bullets" class="list-disc space-y-2 pl-5">
         <li :for={bullet <- @summary.bullets} class="leading-relaxed">
           {bullet.text}
-          <span class="whitespace-nowrap text-sm text-[var(--paper-muted)]">
+          <span class="text-sm text-[var(--paper-muted)]">
             (<%= for {pr, i} <- Enum.with_index(bullet.prs) do %>
               <%= if i > 0 do %>
                 ,

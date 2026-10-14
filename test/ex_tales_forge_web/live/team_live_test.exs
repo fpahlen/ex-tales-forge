@@ -238,6 +238,18 @@ defmodule TalesForgeWeb.TeamLiveTest do
       assert ids == ~w(done workspace idea-board live)
     end
 
+    test "phone order classes: board first, then done, workspace, live" do
+      html = render_with(@data)
+      assert html =~ ~s(id="idea-board" class="order-1 space-y-5 lg:order-3")
+      assert html =~ ~s(id="done" class="order-2 space-y-5 lg:order-1")
+      assert html =~ ~s(id="workspace")
+      assert html =~ "order-3 lg:order-2"
+      assert html =~ ~s(id="live" class="order-4 space-y-5")
+
+      assert TalesForgeWeb.TeamLive.phone_panel_order() ==
+               [:inbox, :new_idea, :boards, :what_we_did, :workspace, :live]
+    end
+
     test "null and missing numbers still render, never a zero" do
       html = render_with(%{})
       assert html =~ "Bundled numbers as of not measured yet"

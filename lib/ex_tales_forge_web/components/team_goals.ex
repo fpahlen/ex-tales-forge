@@ -30,6 +30,7 @@ defmodule TalesForgeWeb.TeamGoals do
   attr :open_id, :string, default: nil
   attr :open_cards, :map, default: nil
   attr :connected, :boolean, default: false
+  attr :class, :any, default: nil, doc: "extra classes (mobile order on the board)"
 
   @spec strip(map()) :: Phoenix.LiveView.Rendered.t()
   def strip(assigns) do
@@ -37,7 +38,7 @@ defmodule TalesForgeWeb.TeamGoals do
     <section
       id="board-goals"
       aria-labelledby="board-north-star"
-      class="team-card grid gap-3 rounded-xl p-4"
+      class={["team-card grid gap-3 rounded-xl p-4", @class]}
     >
       <p id="board-north-star" class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span class="text-xs font-semibold uppercase tracking-wide text-[var(--paper-muted)]">North star</span>
