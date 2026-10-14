@@ -1400,9 +1400,11 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         aria-pressed={to_string(@mine == -1)}
         aria-label={"Downvote: #{@down}"}
         title={
-          if @mine == -1,
-            do: "Your downvote. Click to take it back.",
-            else: "Downvote (needs a reason)"
+          cond do
+            @mine == -1 -> "Your downvote. Click to take it back."
+            Board.downvote_reason_required?(@idea) -> "Downvote (needs a reason)"
+            true -> "Downvote"
+          end
         }
         aria-expanded={@downvote_for != :none && to_string(@downvote_for == @idea.id)}
         aria-controls={@downvote_for != :none && "card-#{@idea.id}-downvote"}
@@ -1764,7 +1766,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
             idea.column,
             {:founder, assigns.founder}
           ),
-        downvotes: Enum.filter(idea.votes, &(&1.value == -1)),
+        downvotes: Enum.filter(idea.votes, &(&1.value == -1 and &1.reason not in [nil, ""])),
         comment_to:
           case assigns.comment_for do
             {id, to} when id == idea.id -> to
@@ -2798,10 +2800,13 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   defp blank(s, _), do: s
 
   # A -1 vote. An existing -1 is a toggle; a new -1 opens the card with the reason box.
+  # A -1 that needs no reason (taking a -1 back, or any -1 on a parked card)
+  # saves at once. Other -1 votes open the card with the reason box.
   defp downvote(socket, id, %Idea{} = idea) do
-    if Board.vote_of(idea, socket.assigns.founder) == -1,
-      do: with_idea(socket, id, &Board.vote(&1, socket.assigns.founder, -1)),
-      else: {:noreply, socket |> assign(open_id: id, downvote_for: id) |> load()}
+    if Board.vote_of(idea, socket.assigns.founder) == -1 or
+         not Board.downvote_reason_required?(idea),
+       do: with_idea(socket, id, &Board.vote(&1, socket.assigns.founder, -1)),
+       else: {:noreply, socket |> assign(open_id: id, downvote_for: id) |> load()}
   end
 
   defp downvote(socket, id, nil), do: result(socket, id, {:error, "That card is gone."})

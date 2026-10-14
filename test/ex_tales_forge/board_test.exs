@@ -129,6 +129,59 @@ defmodule TalesForge.BoardTest do
     end
   end
 
+  describe "votes on parked cards (card dbd33ca0)" do
+    test "a founder votes +1 or -1 on a parked card; a -1 needs no reason" do
+      {:ok, idea} = idea!() |> Board.move({:founder, @ada}, "parked")
+      {:ok, idea} = Board.vote(idea, @ada, 1)
+      assert [%{founder: @ada, value: 1}] = idea.votes
+      {:ok, idea} = Board.vote(idea, @bo, -1)
+      assert %{value: -1, reason: nil} = Enum.find(idea.votes, &(&1.founder == @bo))
+      {:ok, idea} = Board.vote(idea, @bo, -1)
+      assert [%{founder: @ada}] = idea.votes
+      {:ok, idea} = Board.vote(idea, @bo, -1, "Not this month")
+      assert %{reason: "Not this month"} = Enum.find(idea.votes, &(&1.founder == @bo))
+    end
+
+    test "a card that leaves Parked keeps its votes" do
+      {:ok, idea} = idea!() |> Board.move({:founder, @ada}, "parked")
+      {:ok, idea} = Board.vote(idea, @ada, 1)
+      {:ok, idea} = Board.move(idea, {:founder, @ada}, "ideas")
+      assert [%{founder: @ada, value: 1}] = idea.votes
+    end
+
+    test "votes in Done and Archived stay closed" do
+      idea = idea!()
+      Repo.update_all(from(i in Idea, where: i.id == ^idea.id), set: [column: "done"])
+      done = Board.get_idea!(idea.id)
+
+      assert {:error, "Votes are closed once a card is in " <> _} = Board.vote(done, @ada, 1)
+      assert {:error, "Votes are closed once a card is in " <> _} = Board.vote(done, @ada, -1)
+
+      other = idea!("Another idea")
+      {:ok, archived} = Board.archive(other, @ada, "Old")
+      assert {:error, "Votes are closed once a card is in " <> _} = Board.vote(archived, @ada, 1)
+    end
+
+    test "the Parked column is sorted by net votes, then by total votes" do
+      park = fn title ->
+        {:ok, idea} = idea!(title) |> Board.move({:founder, @ada}, "parked")
+        idea
+      end
+
+      first_in = park.("First in, no votes")
+      tied_net = park.("Net 0, two votes")
+      best = park.("Net +1")
+      {:ok, _} = Board.vote(best, @ada, 1)
+      {:ok, tied_net} = Board.vote(tied_net, @ada, 1)
+      {:ok, _} = Board.vote(tied_net, @bo, -1)
+      worst = park.("Net -1")
+      {:ok, _} = Board.vote(worst, @bo, -1)
+
+      assert Enum.map(Board.board()["parked"], & &1.id) ==
+               [best.id, tied_net.id, first_in.id, worst.id]
+    end
+  end
+
   describe "moves and rules" do
     test "Building → Done needs the PR's merge commit in the running prod release" do
       github!("behind")

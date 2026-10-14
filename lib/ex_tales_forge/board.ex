@@ -52,6 +52,9 @@ defmodule TalesForge.Board do
   alias TalesForge.Workflow.Repo
 
   @topic "board:ideas"
+
+  # The columns where founders can vote (`vote/4`).
+  @vote_columns ~w(ideas refining check parked)
   @moved_already "The card moved already."
 
   @typedoc "Who acts (see `TalesForge.Board.Transitions`)."
@@ -70,8 +73,9 @@ defmodule TalesForge.Board do
 
   @doc """
   The whole board: a map of column => cards, with votes, comments, links and
-  history loaded. Ideas are ranked (best first, with `:score` set fresh); the
-  other columns are in the order the cards arrived there. Archived cards are
+  history loaded. Ideas are ranked (best first, with `:score` set fresh).
+  Parked is sorted by net votes, then total votes. The other columns are in
+  the order the cards arrived there. Archived cards are
   not on the board (`archived/0`).
   """
   @spec board(DateTime.t()) :: %{String.t() => [Idea.t()]}
@@ -153,6 +157,14 @@ defmodule TalesForge.Board do
     |> Repo.all()
     |> preload_all()
     |> then(&order("ideas", &1, now))
+  end
+
+  # Parked: net votes, then total votes, both descending; then the card
+  # that arrived in Parked first.
+  defp order("parked", cards, _now) do
+    Enum.sort_by(cards, fn idea ->
+      {-net_votes(idea), -length(idea.votes), DateTime.to_unix(entered_at(idea), :microsecond)}
+    end)
   end
 
   # The backlog: net votes, then total votes, both descending; then the
@@ -309,7 +321,9 @@ defmodule TalesForge.Board do
   Sets `founder`'s vote on the card to `value` (1 or -1). A -1 needs a
   `reason`, saved with the vote. Voting the same value again takes the vote
   back (and its reason); the other value changes it. Only on cards in Ideas,
-  Refining or Founder check. Votes do not move cards and wake nobody.
+  Refining, Founder check or Parked. On a parked card a -1 needs no reason
+  (it can have one). Votes in Done and Archived stay closed. Votes do not
+  move cards and wake nobody.
   """
   @spec vote(Idea.t(), String.t(), 1 | -1, String.t() | nil) :: {:ok, Idea.t()} | error()
   def vote(idea, founder, value, reason \\ nil)
@@ -318,18 +332,24 @@ defmodule TalesForge.Board do
     founder = normalize(founder)
     reason = if is_binary(reason), do: String.trim(reason), else: nil
 
-    if idea.column in ~w(ideas refining check) do
+    if idea.column in @vote_columns do
+      opts = [reason_required?: downvote_reason_required?(idea)]
+      reason = if reason == "", do: nil, else: reason
+
       result =
         case Repo.get_by(Vote, idea_id: idea.id, founder: founder) do
           %Vote{value: ^value} = vote ->
             Repo.delete(vote)
 
           %Vote{} = vote ->
-            vote |> Vote.changeset(%{value: value, reason: reason}) |> Repo.update()
+            vote |> Vote.changeset(%{value: value, reason: reason}, opts) |> Repo.update()
 
           nil ->
             %Vote{}
-            |> Vote.changeset(%{idea_id: idea.id, founder: founder, value: value, reason: reason})
+            |> Vote.changeset(
+              %{idea_id: idea.id, founder: founder, value: value, reason: reason},
+              opts
+            )
             |> Repo.insert()
         end
 
@@ -350,6 +370,14 @@ defmodule TalesForge.Board do
   end
 
   def vote(_idea, _founder, _value, _reason), do: {:error, "A vote is +1 or -1."}
+
+  @doc """
+  True when a -1 on the card needs a reason: on every card that takes votes,
+  except a card in Parked.
+  """
+  @spec downvote_reason_required?(Idea.t()) :: boolean()
+  def downvote_reason_required?(%Idea{column: "parked"}), do: false
+  def downvote_reason_required?(%Idea{}), do: true
 
   @doc """
   Adds a comment by `author` (a founder email or `bot:<name>`). `@<bot id>`
