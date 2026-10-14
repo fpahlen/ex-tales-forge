@@ -22,7 +22,7 @@ Note: the saved profile description (in `profile.json`) still holds the first pe
 3. Connect the GitHub connector with access to `whyse-ab/tales-forge-docs` and `whyse-ab/ex-tales-forge`. Connect Google Drive (idea docs).
 4. Make sure the box has the user-level Auto-review rules (see "Auto-review rules"). They live in `/home/box/agent-data/settings.json` and are shared by all agents.
 5. Create the six routines in "Routines". Copy each prompt from the old routine in the Grok Bot app.
-6. For "Idea board wake-up", create a new webhook trigger. The URL and key change when you recreate it. Set them again on the Workflow Fly app (`whyse-workflow`) as `BOARD_WEBHOOK_URL_CASE` and `BOARD_WEBHOOK_KEY_CASE` (see `docs/infrastructure-setup.md`, Step 8). Never paste the values into a doc, chat or commit.
+6. For "Idea board wake-up", create a new webhook trigger. The URL and key change when you recreate it. Set them again on the production Fly app (from the Workflow cutover, on `whyse-workflow`) as `BOARD_WEBHOOK_URL_CASE` and `BOARD_WEBHOOK_KEY_CASE` (see `docs/infrastructure-setup.md`, Step 8). Never paste the values into a doc, chat or commit.
 7. Make sure `BOARD_BOT_TOKEN_CASE` is available to Case for the board bot API.
 8. Restore the box files in "Files" (or let the routines create them again).
 9. Test: write `@case hello` in a card comment. Case must wake within 1 minute.
@@ -100,8 +100,8 @@ User-level allow rules in `/home/box/agent-data/settings.json` (`autoReviewInstr
 2. Launch and steer executors for `tales-forge-docs` work.
 3. Create automations under `sand-data/automations` on trusted user request.
 4. Launch and steer executors for `whyse-ab/ex-tales-forge` work.
-5. Move idea cards between columns on the board API (`https://whyse-workflow.fly.dev/internal/board/ideas/`).
-6. Post messages to the team chat API (`https://whyse-workflow.fly.dev/internal/chat`). Read and add manual work log entries (`https://whyse-workflow.fly.dev/internal/work-log/entries`, same bearer token; see "Board bot API" in `bobby.md`).
+5. Move idea cards between columns on the board API (`/internal/board/ideas/`; from the Workflow cutover, on `https://whyse-workflow.fly.dev`).
+6. Post messages to the team chat API (`/internal/chat`; from the Workflow cutover, on `https://whyse-workflow.fly.dev`). Read and add manual work log entries (`/internal/work-log/entries`, same bearer token; see "Board bot API" in `bobby.md`).
 7. Run read-only `flyctl` commands for the Fly apps `tales-forge` and `tales-forge-playtest`.
 8. Push feature branches and open PRs on `ex-tales-forge`. Never force-push or push direct to main.
 9. Delete fully merged branches with no open PR on `ex-tales-forge` and `tales-forge-docs`.
@@ -127,6 +127,6 @@ User-level allow rules in `/home/box/agent-data/settings.json` (`autoReviewInstr
 Names only. Never write the values.
 
 - `BOARD_BOT_TOKEN_CASE` – Case's bearer token for the board bot API.
-- `BOARD_WEBHOOK_URL_CASE`, `BOARD_WEBHOOK_KEY_CASE` – Case's webhook trigger. Set on the `whyse-workflow` Fly app. Re-set them in the Grok Bot app and on Fly when you recreate the routine.
+- `BOARD_WEBHOOK_URL_CASE`, `BOARD_WEBHOOK_KEY_CASE` – Case's webhook trigger. Set on the `tales-forge` Fly app. From the Workflow cutover, set on `whyse-workflow`. Re-set them in the Grok Bot app and on Fly when you recreate the routine.
 - `BOARD_BOT_TOKEN` – general board bot token name.
 - Related (other bots and CI): `BOARD_WEBHOOK_URL_BOBBY`, `BOARD_WEBHOOK_KEY_BOBBY`, `BOARD_BOT_TOKEN_BOBBY`, `BOARD_WEBHOOK_URL_GENTRY`, `BOARD_WEBHOOK_KEY_GENTRY`, `BOARD_BOT_TOKEN_GENTRY`, `GENTRY_QA_TOKEN`, `SECURITY_LANE_WEBHOOK_URL`, `SECURITY_LANE_WEBHOOK_KEY`, `FLY_API_TOKEN`, `FLY_API_TOKEN_PLAYTEST`.
