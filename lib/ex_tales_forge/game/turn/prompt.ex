@@ -56,8 +56,7 @@ defmodule TalesForge.Game.Turn.Prompt do
   # On a long rest, the improvement attempts the rest resolved and the skills
   # that need reflection first, for the GM's "you wake and feel surer" /
   # "needs reflection" note; on any other turn, a physical skill that improved
-  # right away, for the "a little surer at" note. The prompt profile leaves
-  # the note out for the baseline variant.
+  # right away, for the "a little surer at" note.
   defp rest_growth(%{handler: handler, mechanical: mechanical, board: board}) do
     cond do
       long_rest?(handler) ->

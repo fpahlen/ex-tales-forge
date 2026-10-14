@@ -1,8 +1,7 @@
 defmodule TalesForge.Game.GesturePromptTest do
   @moduledoc """
   The GM's recent gestures reach the next GM prompt as spent, in the per-turn
-  part only, for the default variant; a repeat is logged. The baseline variant's
-  prompts are untouched.
+  part only; a repeat is logged.
   """
   use TalesForge.DataCase, async: false
 
@@ -43,9 +42,9 @@ defmodule TalesForge.Game.GesturePromptTest do
     :ok
   end
 
-  defp two_turns(variant) do
+  defp two_turns do
     {:ok, session} =
-      GameSessions.create_session(%{adventure_id: "tin_valley", variant: variant})
+      GameSessions.create_session(%{adventure_id: "tin_valley"})
 
     assert {:ok, _} =
              GameSessions.submit_message(session.id, "I ask the innkeeper about the road")
@@ -62,7 +61,7 @@ defmodule TalesForge.Game.GesturePromptTest do
   end
 
   test "default: the second GM prompt lists the first turn's gestures, and a repeat is logged" do
-    %{first: first, second: second, system: system, log: log} = two_turns("default")
+    %{first: first, second: second, system: system, log: log} = two_turns()
 
     refute first =~ "Gestures already used"
 
@@ -78,16 +77,8 @@ defmodule TalesForge.Game.GesturePromptTest do
   end
 
   test "default: the list sits in the per-turn message, after the session-stable part" do
-    %{second: second} = two_turns("default")
+    %{second: second} = two_turns()
     [stable | _] = String.split(second, "## Perceived facts")
     refute stable =~ "Gestures already used"
-  end
-
-  test "baseline: no gesture list, no new rule, no repeat log" do
-    %{second: second, system: system, log: log} = two_turns("baseline")
-
-    refute second =~ "Gestures already used"
-    refute system =~ "Gestures already used"
-    refute log =~ "gm gesture repeated"
   end
 end

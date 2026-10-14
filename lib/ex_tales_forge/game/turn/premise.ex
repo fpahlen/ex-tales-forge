@@ -2,8 +2,7 @@ defmodule TalesForge.Game.Turn.Premise do
   @moduledoc """
   Stage 2 of a turn: the premise check (`TalesForge.Game.PremiseCheck`).
   The claims in the player's words that the session state contradicts go to
-  the GM prompt and to the turn as `player.false_premise` events. The
-  baseline variant never runs the check.
+  the GM prompt and to the turn as `player.false_premise` events.
 
   `check/1` runs first only with `TURN_PREMISE_FIRST=on`: its findings block
   the action. Otherwise `TalesForge.Game.Turn.Npcs.react/1` runs the check on
@@ -17,7 +16,6 @@ defmodule TalesForge.Game.Turn.Premise do
   alias TalesForge.Fronts
   alias TalesForge.Game.PremiseCheck
   alias TalesForge.Game.Turn
-  alias TalesForge.Game.Variant
   alias TalesForge.Repo
   alias TalesForge.Schemas.Turn, as: TurnRow
 
@@ -28,7 +26,7 @@ defmodule TalesForge.Game.Turn.Premise do
   def check(%Turn{} = turn) do
     world = Turn.world_before(turn)
 
-    if Turn.flag?(turn, :turn_premise_first) and not Variant.baseline?(world) do
+    if Turn.flag?(turn, :turn_premise_first) do
       put_first(
         turn,
         run(
@@ -41,18 +39,15 @@ defmodule TalesForge.Game.Turn.Premise do
     end
   end
 
-  @doc "The findings against `board` (after the mechanics); [] for the baseline variant."
+  @doc "The findings against `board` (after the mechanics)."
   @spec findings(Turn.t(), map()) :: [PremiseCheck.finding()]
   def findings(%Turn{} = turn, board) do
     world = Turn.world_before(turn)
 
-    if Variant.baseline?(world),
-      do: [],
-      else:
-        run(
-          turn,
-          PremiseCheck.state(world, board.world, Map.get(board.sim, :fronts, []), fights(turn))
-        )
+    run(
+      turn,
+      PremiseCheck.state(world, board.world, Map.get(board.sim, :fronts, []), fights(turn))
+    )
   end
 
   @doc "The session events for `findings`."

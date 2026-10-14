@@ -5,7 +5,7 @@ defmodule TalesForge.Game.ForgeCottageHooksTest do
   through rumours and hooks"). Hilde and Maude carry a rumour each that is
   heard at the inn, in the yard and in the square; Brenna and Tam send people
   there; with the Tinjacks, Brenna also points at Maude because of Pip. Pack
-  data only; sessions without the flag and the baseline variant are unchanged.
+  data only; sessions without the flag are unchanged.
   """
   use TalesForge.DataCase, async: false
 
@@ -59,7 +59,7 @@ defmodule TalesForge.Game.ForgeCottageHooksTest do
 
   describe "the pack" do
     test "Brenna and Tam send people to the forge and the cottage" do
-      pack = Pack.load("tin_valley", "default", ["inn_world"])
+      pack = Pack.load("tin_valley", ["inn_world"])
       brenna = Enum.join(npc(pack, "innkeep")["hooks"], "\n")
       tam = Enum.join(npc(pack, "stable_lad")["hooks"], "\n")
 
@@ -70,17 +70,17 @@ defmodule TalesForge.Game.ForgeCottageHooksTest do
     end
 
     test "with the Tinjacks, Brenna also points at Maude because of Pip" do
-      pack = Pack.load("tin_valley", "default", ["inn_world", "antagonist"])
+      pack = Pack.load("tin_valley", ["inn_world", "antagonist"])
       assert Enum.any?(npc(pack, "innkeep")["hooks"], &(&1 =~ "tell Maude at her cottage"))
     end
 
     test "without the inn world, Brenna's hooks are as before" do
-      hooks = npc(Pack.load("tin_valley", "default", []), "innkeep")["hooks"]
+      hooks = npc(Pack.load("tin_valley", []), "innkeep")["hooks"]
       refute Enum.any?(hooks, &(&1 =~ "forge" or &1 =~ "Maude"))
     end
 
     test "the rumours are heard at the inn, in the yard and in the square, not at the places themselves" do
-      pack = Pack.load("tin_valley", "default", ["inn_world"])
+      pack = Pack.load("tin_valley", ["inn_world"])
 
       for place <- ~w(valley_inn inn_yard market_square),
           do: assert(heard_at(pack, place) == @rumours)
@@ -106,19 +106,6 @@ defmodule TalesForge.Game.ForgeCottageHooksTest do
       assert per_turn =~ "Brask's forge off the Market Square rang past midnight"
       assert per_turn =~ "Old Maude, the herb-wife"
       assert NPC.format_gm_sections(session.id, ["innkeep"]) =~ "Hilde Brask's forge"
-    end
-
-    test "the baseline variant and sessions without the flag hear no rumours" do
-      {:ok, plain} = GameSessions.create_session(%{adventure_id: "tin_valley"})
-      System.put_env("INN_WORLD", "on")
-
-      {:ok, baseline} =
-        GameSessions.create_session(%{adventure_id: "tin_valley", variant: "baseline"})
-
-      for session <- [plain, baseline] do
-        refute NPC.get_instance(session.id, "smith")
-        refute NPC.format_gm_sections(session.id, ["innkeep"]) =~ "Hilde Brask"
-      end
     end
   end
 end

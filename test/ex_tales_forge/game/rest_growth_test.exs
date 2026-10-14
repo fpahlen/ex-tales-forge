@@ -3,8 +3,8 @@ defmodule TalesForge.Game.RestGrowthTest do
   Skill growth from failure, banked until sleep (decision 2026-10-09): on a
   long rest the skills that improved reach the per-turn part of the GM prompt,
   so the GM can let the character wake surer of them. Physical skills improve
-  right away and get their note on the turn itself. Other ordinary turns and
-  the baseline variant add nothing.
+  right away and get their note on the turn itself. Other ordinary turns add
+  nothing.
   """
   use TalesForge.DataCase, async: false
 
@@ -53,9 +53,9 @@ defmodule TalesForge.Game.RestGrowthTest do
 
   # Twenty banked chances on an untrained skill: each attempt is a coin flip,
   # so at least one improves (all twenty failing is about 1 in a million).
-  defp play(variant, text, level \\ 0, skill \\ "stealth") do
+  defp play(text, level \\ 0, skill \\ "stealth") do
     {:ok, session} =
-      GameSessions.create_session(%{adventure_id: "tin_valley", variant: variant})
+      GameSessions.create_session(%{adventure_id: "tin_valley"})
 
     # Reload: the opening scene has been written since create_session returned.
     session = GameSessions.get_session!(session.id)
@@ -76,7 +76,7 @@ defmodule TalesForge.Game.RestGrowthTest do
   end
 
   test "default: sleep resolves the banked chances and tells the GM, without numbers" do
-    {user, session} = play("default", "I go to sleep")
+    {user, session} = play("I go to sleep")
 
     assert user =~ @heading
     assert user =~ "They wake a little surer at: stealth."
@@ -87,14 +87,14 @@ defmodule TalesForge.Game.RestGrowthTest do
   end
 
   test "default: an ordinary turn keeps the chances banked and adds nothing" do
-    {user, session} = play("default", "I look around the common room")
+    {user, session} = play("I look around the common room")
 
     refute user =~ @heading
     assert get_in(session.world_state, ["character", "learning_points", "stealth"]) == 20.0
   end
 
   test "default: from level 10 an unreflected skill keeps its LP and the GM hears why" do
-    {user, session} = play("default", "I go to sleep", 10)
+    {user, session} = play("I go to sleep", 10)
 
     assert user =~ "Their stealth has outgrown simple practice; they need to reflect on it"
     refute user =~ "They wake a little surer"
@@ -103,14 +103,14 @@ defmodule TalesForge.Game.RestGrowthTest do
 
   test "default: reflecting on the skill at the rest lets it grow" do
     {user, session} =
-      play("default", "I go to sleep after going over my sneaking past the guards", 10)
+      play("I go to sleep after going over my sneaking past the guards", 10)
 
     refute user =~ "outgrown simple practice"
     assert get_in(session.world_state, ["character", "learning_points", "stealth"]) == 0.0
   end
 
   test "default: a physical skill improves on the turn and the GM hears it right away" do
-    {user, session} = play("default", "I look around the common room", 0, "climbing")
+    {user, session} = play("I look around the common room", 0, "climbing")
 
     assert user =~ "## Growth: what that failure taught"
     assert user =~ "They are a little surer at: climbing."
@@ -122,17 +122,7 @@ defmodule TalesForge.Game.RestGrowthTest do
     assert session.world_state["character"]["improved_since_rest"] == ["climbing"]
   end
 
-  test "baseline: a physical skill gets no immediate note" do
-    {user, _session} = play("baseline", "I look around the common room", 0, "climbing")
-    refute user =~ "## Growth"
-  end
-
   test "the reflection words cover every skill the game rolls" do
     assert Reflection.covered_skills() == Mechanics.skill_stat_map() |> Map.keys() |> Enum.sort()
-  end
-
-  test "baseline: the prompt never gets the note" do
-    {user, _session} = play("baseline", "I go to sleep")
-    refute user =~ @heading
   end
 end

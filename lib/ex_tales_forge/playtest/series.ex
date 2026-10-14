@@ -1,7 +1,7 @@
 defmodule TalesForge.Playtest.Series do
   @moduledoc """
-  Plays a planned batch of playtest runs, one after another, so an A/B comparison
-  (or a baseline) runs unattended on one deploy.
+  Plays a planned batch of playtest runs, one after another, so a batch runs
+  unattended on one deploy.
 
   The plan goes round by round: every round plays each persona once in every
   variant, and the variant order flips each round, so both arms are spread evenly
@@ -16,14 +16,13 @@ defmodule TalesForge.Playtest.Series do
   On playtest (`PLAYTEST_RUNNER_ENABLED=true`):
 
       bin/ex_tales_forge rpc 'TalesForge.Playtest.Series.start("jev-ab-1",
-        personas: ~w(paul lotta lars hawk ronny), variants: ~w(baseline default),
+        personas: ~w(paul lotta lars hawk ronny), variants: ~w(a b),
         runs: 13, turn_limit: 10) |> IO.inspect()'
       bin/ex_tales_forge rpc 'TalesForge.Playtest.Series.progress("jev-ab-1") |> IO.inspect()'
       bin/ex_tales_forge rpc 'TalesForge.Playtest.Series.stop() |> IO.inspect()'
 
-  The `variant` option is handed to `TalesForge.Playtest.Runner.start/3`; the game
-  only acts on it once behaviour variants exist (a build without them plays every
-  run the same way).
+  A variant is only a label in the run notes: the game plays every run the same
+  way.
   """
 
   require Logger
@@ -212,7 +211,6 @@ defmodule TalesForge.Playtest.Series do
     run_opts = [
       turn_limit: turn_limit,
       turn_timeout_ms: turn_timeout,
-      variant: item.variant,
       notes: [tag(name, item.variant), opts[:notes]] |> Enum.reject(&is_nil/1) |> Enum.join(" · ")
     ]
 

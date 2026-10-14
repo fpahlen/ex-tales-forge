@@ -34,7 +34,7 @@ defmodule TalesForge.Game.TinjacksTest do
     :ok
   end
 
-  defp pack, do: Pack.load("tin_valley", "default", @features)
+  defp pack, do: Pack.load("tin_valley", @features)
 
   defp front do
     defn = Enum.find(pack().fronts, &(&1["id"] == "tinjacks"))

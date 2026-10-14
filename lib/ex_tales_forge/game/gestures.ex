@@ -1,7 +1,7 @@
 defmodule TalesForge.Game.Gestures do
   @moduledoc """
   Recent GM gestures and stock lines, tracked by pattern so the GM does not
-  repeat them (default variant only).
+  repeat them.
 
   The GM writes prose; Elixir reads it. `extract/1` finds gestures in a
   narration by pattern rather than by fixed phrase:

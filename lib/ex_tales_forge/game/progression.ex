@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.Progression do
   @moduledoc """
-  Skill growth for the `"default"` variant: you learn from failure, only in the
+  Skill growth: you learn from failure, only in the
   skill you failed, and it sinks in while you sleep (decisions 2026-10-09,
   tales-forge-docs `docs/decisions.md`, superseding the 2026-10-07 "LP spent
   every turn" rule).
@@ -44,10 +44,6 @@ defmodule TalesForge.Game.Progression do
   The numbers (`attempt_floor`, `lp_per_roll_divisor`, `reflection_level`,
   `long_rest_hours`) are in `config/config.exs` under
   `config :ex_tales_forge, TalesForge.Game.Progression`.
-
-  The `"baseline"` variant keeps the #64 rule in
-  `TalesForge.Game.Progression.Tiered`; `TalesForge.Game.TurnProcessor` picks
-  one per session.
 
   Every roll is one entry in the turn's `mechanical_resolution["improvements"]`
   (`skill`, `roll`, `raw_skill`, `improved`, `lp_spent`, plus `lp_cleared` on
@@ -289,7 +285,7 @@ defmodule TalesForge.Game.Progression do
   @doc """
   One training session: a free attempt (no LP spent) with the trainer bonus on
   the roll. Whether the session may happen at all (trainer present, skill gap,
-  fee, vitality) is `TalesForge.Game.Train.qualify/6`.
+  fee, vitality) is `TalesForge.Game.Train.qualify/5`.
 
       iex> character = %{"skills" => %{"persuasion" => 12}, "learning_points" => %{}}
       iex> {trained, attempt} = TalesForge.Game.Progression.train(character, "persuasion", %{"persuasion" => 7})

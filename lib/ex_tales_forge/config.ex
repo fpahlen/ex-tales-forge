@@ -205,12 +205,6 @@ defmodule TalesForge.Config do
   """
   def world_antagonist?, do: System.get_env("WORLD_ANTAGONIST", "off") in ~w(on true 1)
 
-  @doc """
-  Behaviour variant of new sessions (`TalesForge.Game.Variant`): GAME_VARIANT,
-  `default` unless set. `baseline` plays the game as before the 2026-10-07 rework.
-  """
-  def game_variant, do: System.get_env("GAME_VARIANT", "default") |> String.trim()
-
   def ollama_api_base, do: System.get_env("OLLAMA_API_BASE", "http://localhost:11434")
 
   defp auto_provider do

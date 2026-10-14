@@ -6,7 +6,7 @@ defmodule TalesForge.Game.Context do
     player's action against (location, exits, present NPCs, their stock,
     the character, valid skills).
   - `build_gm_context/1`: the GM/scene context (rules, intent context, world
-    state, opening scene, and in the default variant the gestures of recent
+    state, opening scene, and the gestures of recent
     turns, `TalesForge.Game.Gestures`). The turn adds `:npc_reactions`, `:world_facts`
     and `:price_lines` before `TalesForge.Game.Prompts` turns it into messages.
   - `session_stable_section/1` and `per_turn_section/1`: the two user
@@ -22,7 +22,6 @@ defmodule TalesForge.Game.Context do
   alias TalesForge.Game.Movement
   alias TalesForge.Game.Perception
   alias TalesForge.Game.Schemas.MechanicalResolution
-  alias TalesForge.Game.Variant
   alias TalesForge.Game.World
   alias TalesForge.GameSessions
   alias TalesForge.NPC
@@ -65,7 +64,6 @@ defmodule TalesForge.Game.Context do
       "situation_lines" => Map.get(world, "situation_lines", []),
       "recent_turns" => recent_turns(session.id),
       "valid_skills" => Mechanics.skill_stat_map() |> Map.keys() |> Enum.sort(),
-      "variant" => Variant.of(world),
       # For movement (not printed in the prompt): every place, and where the
       # people who are not here are (TalesForge.Game.Movement).
       "places" => Map.get(world, "locations") || World.locations(),
@@ -139,7 +137,7 @@ defmodule TalesForge.Game.Context do
 
     %{
       session_id: session.id,
-      rules: TalesForge.Game.Prompts.load_rules(adventure_id, TalesForge.Game.Variant.of(world)),
+      rules: TalesForge.Game.Prompts.load_rules(adventure_id),
       intent_context: intent,
       formatted_intent: format_intent_context(intent),
       world_state: world,
@@ -151,25 +149,20 @@ defmodule TalesForge.Game.Context do
   @doc """
   Gestures and stock lines in the GM narration of the session's last
   `TalesForge.Game.Gestures.recent_turns/0` turns, newest first, which the
-  per-turn prompt lists as spent. Always `[]` for the baseline variant, whose
-  prompts stay as they were.
+  per-turn prompt lists as spent.
   """
   @spec recent_gestures(GameSession.t()) :: [Gestures.t()]
   def recent_gestures(%GameSession{} = session) do
-    if Variant.baseline?(session.world_state || %{}) do
-      []
-    else
-      import Ecto.Query
+    import Ecto.Query
 
-      Turn
-      |> where([t], t.game_session_id == ^session.id)
-      |> order_by([t], desc: t.turn_number)
-      |> limit(^Gestures.recent_turns())
-      |> select([t], t.narrative)
-      |> Repo.all()
-      |> Enum.reverse()
-      |> Gestures.recent()
-    end
+    Turn
+    |> where([t], t.game_session_id == ^session.id)
+    |> order_by([t], desc: t.turn_number)
+    |> limit(^Gestures.recent_turns())
+    |> select([t], t.narrative)
+    |> Repo.all()
+    |> Enum.reverse()
+    |> Gestures.recent()
   end
 
   @doc """
@@ -209,15 +202,14 @@ defmodule TalesForge.Game.Context do
   end
 
   @doc """
-  Default variant: what the character's sleep made of the
+  What the character's sleep made of the
   failures they banked (`context[:rest_growth]`, set by
   `TalesForge.Game.TurnProcessor`: `attempts`, the improvement rolls the rest
   resolved, and `needs_reflection`, skills at the reflection level that were
   not reflected on). Skills that improved are named so the GM can let the
   character wake surer of them; skills that need reflection get a short line
   saying so. Never any numbers. nil when there is nothing to say and when the
-  turn was not a long rest. `TalesForge.Prompt.Profile` leaves the section out
-  for the baseline variant.
+  turn was not a long rest.
 
       iex> section = TalesForge.Game.Context.rest_growth_section(%{world_state: %{}, rest_growth: %{
       ...>   attempts: [
@@ -316,12 +308,11 @@ defmodule TalesForge.Game.Context do
   def player_request_section(_context), do: nil
 
   @doc """
-  Default variant: where the character is, who is with them and where the
+  Where the character is, who is with them and where the
   others are, plus the move when this turn changed the location
   (`context[:moved_from]`, set by the turn). The GM narrates from this place
   and voices only the people present, so it can't answer Osric as Brenna
-  after the character has left the inn. `TalesForge.Prompt.Profile` leaves
-  the section out for the baseline variant.
+  after the character has left the inn.
   """
   @spec scene_now_section(map()) :: String.t() | nil
   def scene_now_section(context) do
@@ -395,33 +386,22 @@ defmodule TalesForge.Game.Context do
 
   # Already told to the player before turn 1. Keep it on every GM turn so the
   # model doesn't re-narrate the arrival as if it just happened (humans and bots).
-  # `TalesForge.Prompt.Profile` picks the baseline text for the baseline variant.
   @doc false
-  @spec opening_section(struct() | nil, :baseline | :default) :: String.t() | nil
-  def opening_section(nil, _text), do: nil
+  @spec opening_section(struct() | nil) :: String.t() | nil
+  def opening_section(nil), do: nil
 
-  def opening_section(%Scene{} = scene, text) do
+  def opening_section(%Scene{} = scene) do
     where = if(scene.location_name, do: " (#{scene.location_name})", else: "")
 
-    if text == :baseline do
-      """
-      ## Opening scene#{where} — already told to the player
-      Do not rewrite or re-narrate this as if it just happened. The player has
-      already heard it; respond to their action from here.
+    # Not "from here": after the character leaves, this scene is history.
+    """
+    ## Opening scene#{where} — already told to the player
+    This is how the session began. Do not rewrite or re-narrate it. The
+    character may have moved on since: "Scene now" in the per-turn state
+    says where they are and who is with them, and it wins over this scene.
 
-      #{scene.narrative}
-      """
-    else
-      # Not "from here": after the character leaves, this scene is history.
-      """
-      ## Opening scene#{where} — already told to the player
-      This is how the session began. Do not rewrite or re-narrate it. The
-      character may have moved on since: "Scene now" in the per-turn state
-      says where they are and who is with them, and it wins over this scene.
-
-      #{scene.narrative}
-      """
-    end
+    #{scene.narrative}
+    """
     |> String.trim()
   end
 

@@ -14,7 +14,6 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Index do
   import TalesForgeWeb.AdminComponents
   import TalesForgeWeb.CharacterChangesComponents
 
-  alias TalesForge.Game.Variant
   alias TalesForge.Markdown
 
   alias TalesForge.Playtest.{
@@ -42,14 +41,12 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Index do
      |> assign(:enabled, Runner.enabled?())
      |> assign(:personas, Enum.map(Personas.list(), &{"#{&1.name} (#{&1.style})", &1.id}))
      |> assign(:modules, Runner.modules())
-     |> assign(:variants, Variant.all())
      |> assign(
        :form,
        to_form(%{
          "persona" => "paul",
          "module" => "tin_valley",
-         "turn_limit" => "5",
-         "variant" => "default"
+         "turn_limit" => "5"
        })
      )
      |> assign_summary()
@@ -74,7 +71,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Index do
         _ -> 5
       end
 
-    opts = [turn_limit: turn_limit, variant: params["variant"], notes: "started from admin"]
+    opts = [turn_limit: turn_limit, notes: "started from admin"]
 
     case Runner.start(persona, module, opts) do
       {:ok, run_id} ->
@@ -119,7 +116,6 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Index do
         >
           <.input field={@form[:persona]} type="select" label="Persona" options={@personas} />
           <.input field={@form[:module]} type="select" label="Module" options={@modules} />
-          <.input field={@form[:variant]} type="select" label="Variant" options={@variants} />
           <.input field={@form[:turn_limit]} type="number" label="Turn limit" min="1" max="30" />
           <button
             type="submit"
@@ -442,6 +438,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Index do
   defp usd(value), do: "$" <> :erlang.float_to_binary(value / 1, decimals: 2)
 
   # The flags that tell runs apart at a glance; the run page lists them all.
+  # Runs from before 2026-10-14 also carry their A/B "variant".
   defp flags_line(flags) do
     [
       flags["variant"],

@@ -140,7 +140,7 @@ defmodule TalesForge.Game.SkillSplitTest do
       handler = %HandlerResult{handler: "observe"}
 
       {updated, res} =
-        SkillSplit.apply(character, action("three attacks"), handler, "three attacks", "default",
+        SkillSplit.apply(character, action("three attacks"), handler, "three attacks",
           rolls: [20, 20, 20]
         )
 

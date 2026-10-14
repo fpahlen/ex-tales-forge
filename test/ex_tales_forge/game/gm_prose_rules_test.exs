@@ -4,8 +4,7 @@ defmodule TalesForge.Game.GmProseRulesTest do
   GM plays Brenna"): no default echo of the player's line, a rare deliberate
   echo as the one exception, and no "on the house" by default. Stock gestures
   are no longer banned phrase by phrase: the gestures of recent turns are
-  listed as spent (`TalesForge.Game.Gestures`). The default variant only; the baseline prompts and the
-  pre-rework Brenna stay as they were.
+  listed as spent (`TalesForge.Game.Gestures`).
   """
   use ExUnit.Case, async: true
 
@@ -41,22 +40,5 @@ defmodule TalesForge.Game.GmProseRulesTest do
     for phrase <- @banned -- ["on the house"], do: refute(gm =~ ~s("#{phrase}"))
     assert gm =~ ~s|Sometimes the per-turn state has "Gestures already used (recent turns)"|
     assert gm =~ "nor the same motion with the same body part or prop"
-  end
-
-  test "the baseline GM prompt is unchanged by this rule" do
-    baseline = Prompts.gm_system("baseline")
-
-    refute baseline =~ "React, do not restate"
-    for phrase <- @banned, do: refute(baseline =~ phrase)
-  end
-
-  test "Brenna charges her prices; the baseline Brenna is untouched" do
-    root = Path.join(:code.priv_dir(:ex_tales_forge), "adventures/tin_valley")
-    brenna = File.read!(Path.join(root, "npcs/innkeep.md"))
-    baseline = File.read!(Path.join(root, "variants/baseline/npcs/innkeep.md"))
-
-    assert brenna =~ "a free plate is earned"
-    refute brenna =~ "Kind and generous with civil guests"
-    refute baseline =~ "a free plate is earned"
   end
 end

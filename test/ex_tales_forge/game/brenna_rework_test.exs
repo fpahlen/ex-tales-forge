@@ -2,8 +2,7 @@ defmodule TalesForge.Game.BrennaReworkTest do
   @moduledoc """
   Brenna rework (decision 2026-10-07, Fredrik via Case): a warm, chatty barkeep
   who enjoys running the tavern, without the default brush-off; a lead by
-  turn 2; GM prose cleanup. The baseline variant keeps the old Brenna and
-  prompts for the comparison arm.
+  turn 2; GM prose cleanup.
   """
   use TalesForge.DataCase, async: false
 
@@ -17,8 +16,8 @@ defmodule TalesForge.Game.BrennaReworkTest do
     :ok
   end
 
-  defp brenna(variant \\ "default") do
-    "tin_valley" |> Pack.load(variant) |> Map.fetch!(:npcs) |> Enum.find(&(&1["id"] == "innkeep"))
+  defp brenna do
+    "tin_valley" |> Pack.load() |> Map.fetch!(:npcs) |> Enum.find(&(&1["id"] == "innkeep"))
   end
 
   test "Brenna is a warm, chatty host: higher extraversion and agreeableness, calmer" do
@@ -37,40 +36,14 @@ defmodule TalesForge.Game.BrennaReworkTest do
     assert length(brenna["hooks"]) == 4
   end
 
-  test "the baseline variant keeps the old, guarded Brenna and only her" do
-    old = brenna("baseline")
-
-    assert old["personality"] == "Practical, tired of guild politics, kind to paying guests."
-    assert old["motivations"]["personality_traits"]["extraversion"] == 5
-    assert old["motivations"]["current_concern"]["focus"] == "armed strangers on the valley road"
-    refute Map.has_key?(old, "hooks")
-
-    ids = fn variant ->
-      "tin_valley"
-      |> Pack.load(variant)
-      |> Map.fetch!(:npcs)
-      |> Enum.map(& &1["id"])
-      |> Enum.sort()
-    end
-
-    assert ids.("baseline") == ids.("default")
-  end
-
-  test "a session's GM sections carry the variant's Brenna, with hooks only in the default" do
+  test "a session's GM sections carry Brenna with her hooks" do
     {:ok, default} = GameSessions.create_session(%{adventure_id: "tin_valley"})
-
-    {:ok, baseline} =
-      GameSessions.create_session(%{adventure_id: "tin_valley", variant: "baseline"})
 
     new = NPC.format_gm_sections(default.id, ["innkeep"])
     assert new =~ ~s("hooks")
     assert new =~ "Osric Vane"
     assert new =~ ~s("mood": "cheerful")
     refute new =~ "armed strangers"
-
-    old = NPC.format_gm_sections(baseline.id, ["innkeep"])
-    refute old =~ ~s("hooks")
-    assert old =~ "armed strangers on the valley road"
   end
 
   test "the GM prompt asks for a lead by turn 2 and clean, second-person prose" do
@@ -86,9 +59,5 @@ defmodule TalesForge.Game.BrennaReworkTest do
 
     scene = Prompts.scene_system()
     assert scene =~ "a host greets a newcomer warmly"
-
-    for prompt <- [Prompts.gm_system("baseline"), Prompts.scene_system("baseline")] do
-      refute prompt =~ "scarred oak"
-    end
   end
 end

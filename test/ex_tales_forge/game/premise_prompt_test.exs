@@ -1,16 +1,14 @@
 defmodule TalesForge.Game.PremisePromptTest do
   @moduledoc """
   A false claim in the player's words reaches the GM as a short correction in
-  the per-turn part of the prompt, for the default variant, and is recorded on
-  the turn as a `player.false_premise` event. The baseline variant's prompts
-  are untouched.
+  the per-turn part of the prompt and is recorded on the turn as a
+  `player.false_premise` event.
   """
   use TalesForge.DataCase, async: false
 
   import Ecto.Query
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
 
-  alias TalesForge.Game.PremiseCheck
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.Schemas.SessionEvent
@@ -47,9 +45,9 @@ defmodule TalesForge.Game.PremisePromptTest do
     :ok
   end
 
-  defp play(variant, text) do
+  defp play(text) do
     {:ok, session} =
-      GameSessions.create_session(%{adventure_id: "tin_valley", variant: variant})
+      GameSessions.create_session(%{adventure_id: "tin_valley"})
 
     assert {:ok, _} = GameSessions.submit_message(session.id, text)
     assert_received {:gm_prompt, user}
@@ -63,7 +61,7 @@ defmodule TalesForge.Game.PremisePromptTest do
   end
 
   test "default: the correction is in the per-turn part and the turn records it" do
-    %{user: user, events: [event]} = play("default", @claim)
+    %{user: user, events: [event]} = play(@claim)
 
     assert user =~ @heading
     assert user =~ "- Player claims to have bought enchanted armor; no such purchase happened"
@@ -77,30 +75,8 @@ defmodule TalesForge.Game.PremisePromptTest do
   end
 
   test "default: a true claim adds nothing" do
-    %{user: user, events: events} = play("default", "I draw my hunting knife and watch the door.")
+    %{user: user, events: events} = play("I draw my hunting knife and watch the door.")
     refute user =~ @heading
     assert events == []
-  end
-
-  test "baseline: no check, no note, no event" do
-    %{user: user, events: events} = play("baseline", @claim)
-    refute user =~ @heading
-    assert events == []
-  end
-
-  test "the profile leaves the premise section out for the baseline variant" do
-    findings = PremiseCheck.check("I killed the orc chief", %{fronts: [%{id: "orc_nest"}]})
-    assert findings != []
-
-    baseline = %{world_state: %{"variant" => "baseline"}, premise_findings: findings}
-    default = %{world_state: %{"variant" => "default"}, premise_findings: findings}
-
-    ids = fn data ->
-      data |> TalesForge.Prompt.Ctx.from_gm_context(:scene) |> TalesForge.Prompt.Profile.ids()
-    end
-
-    refute :premise in ids.(baseline)
-    assert :premise in ids.(default)
-    assert TalesForge.Prompt.Sections.Premise.text(findings) =~ @heading
   end
 end

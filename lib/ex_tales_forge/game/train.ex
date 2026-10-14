@@ -7,25 +7,21 @@ defmodule TalesForge.Game.Train do
   the character can pay (per day, one-day minimum) and the character is not
   down or dead.
 
-  - Default variant (decision 2026-10-07): the session is **one free
-    improvement attempt** (no LP spent) with **+5** on the d20
-    (`TalesForge.Game.Progression.train/3`). No LP or failures are needed.
-  - Baseline variant: the #64 rule, which also needs the tier's LP and a
-    failure (`TalesForge.Game.Progression.Tiered`).
+  The session is **one free improvement attempt** (no LP spent) with **+5**
+  on the d20 (`TalesForge.Game.Progression.train/3`, decision 2026-10-07).
+  No LP or failures are needed.
   """
 
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Progression
-  alias TalesForge.Game.Progression.Tiered
-  alias TalesForge.Game.Variant
   alias TalesForge.Game.WorldClock
 
   @doc """
   Runs a training action. Returns the character, the attempts (tagged with
   `trainer_npc_id`), `"took_place"` or `"declined"`, and the ticks that pass
-  (one when declined). Options: `:variant` (default `"default"`) and
-  `:improvement_rolls` (injected d20s for tests).
+  (one when declined). Option: `:improvement_rolls` (injected d20s for
+  tests).
   """
   @spec apply(map(), map() | nil, [String.t()] | nil, struct(), keyword()) ::
           {map(), [map()], String.t(), non_neg_integer()}
@@ -34,12 +30,11 @@ defmodule TalesForge.Game.Train do
     skill = Mechanics.normalize_skill_name(Map.get(params, "skill"))
     ticks = WorldClock.clamp_wait(Map.get(params, "ticks"))
     npc_id = action.target
-    variant = Keyword.get(opts, :variant, "default")
 
-    case qualify(character, npc_def, present_ids, skill, ticks, variant) do
+    case qualify(character, npc_def, present_ids, skill, ticks) do
       {:ok, fee} ->
         rolls = opts[:improvement_rolls] || %{}
-        {taught, entry} = attempt(character, skill, rolls, variant)
+        {taught, entry} = Progression.train(character, skill, rolls)
         coins = Inventory.deduct_coins(Map.get(taught, "coins", %{}), fee)
         taught = Map.put(taught, "coins", coins)
         {taught, [Map.put(entry, "trainer_npc_id", npc_id)], "took_place", ticks}
@@ -51,12 +46,11 @@ defmodule TalesForge.Game.Train do
 
   @doc """
   Whether a training session may take place: `{:ok, fee_copper}` or
-  `{:error, reason}`. Only the baseline variant also asks for the tier's LP
-  and a failure (`:not_eligible`).
+  `{:error, reason}`.
   """
-  @spec qualify(map(), map() | nil, [String.t()] | nil, String.t() | nil, integer(), Variant.t()) ::
+  @spec qualify(map(), map() | nil, [String.t()] | nil, String.t() | nil, integer()) ::
           {:ok, pos_integer()} | {:error, atom()}
-  def qualify(character, npc_def, present_ids, skill, ticks, variant \\ "default") do
+  def qualify(character, npc_def, present_ids, skill, ticks) do
     npc_id = Map.get(npc_def || %{}, "id")
     npc_skill = get_in(npc_def || %{}, ["skills", skill])
     fee_rate = Map.get(npc_def || %{}, "fee_copper")
@@ -89,9 +83,6 @@ defmodule TalesForge.Game.Train do
       vitality not in ["ok", "hurt"] ->
         {:error, :vitality}
 
-      variant == "baseline" and not Tiered.skill_eligible?(character, skill) ->
-        {:error, :not_eligible}
-
       true ->
         {:ok, session_fee(fee_rate, ticks)}
     end
@@ -109,13 +100,6 @@ defmodule TalesForge.Game.Train do
     days = max(1, ceil(ticks / WorldClock.ticks_per_day()))
     fee_copper * days
   end
-
-  defp attempt(character, skill, rolls, "baseline") do
-    {taught, [entry]} = Tiered.attempt_trained_skill(character, skill, rolls)
-    {taught, entry}
-  end
-
-  defp attempt(character, skill, rolls, _variant), do: Progression.train(character, skill, rolls)
 
   # Stamped down/dead without wounding — Mechanics.vitality/1 derives down from wounds.
   defp training_vitality(character) do

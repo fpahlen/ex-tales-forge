@@ -6,19 +6,12 @@ defmodule TalesForge.Game.Mechanics do
   linked stat's bonus, or the untrained floor at level 0): equal or under
   succeeds.
 
-  What a roll earns depends on the session's variant:
-
-  - **default** (decision 2026-10-09): only a failure or a partial success
-    earns, and only for the skill rolled: 1 LP, one banked improvement chance
-    (`growth_lp/1`). A success, natural 1 included, earns nothing, and the
-    linked stat adds nothing. `TalesForge.Game.Progression` resolves the
-    banked chances on a long rest.
-  - **baseline:** the #64 rule. Failure 1, success 0.5, natural 20 2, natural 1
-    1, plus the linked stat's bonus `(stat − 10) div 4` (`lp_stat_bonus/1`),
-    spent by `TalesForge.Game.Progression.Tiered`.
-
-  Failures are counted in `learning_failures` in both; only the baseline
-  variant's rule reads them.
+  What a roll earns (decision 2026-10-09): only a failure or a partial
+  success earns, and only for the skill rolled: 1 LP, one banked improvement
+  chance (`growth_lp/1`). A success, natural 1 included, earns nothing, and
+  the linked stat adds nothing. `TalesForge.Game.Progression` resolves the
+  banked chances on a long rest. Failures are counted in
+  `learning_failures`.
 
   Vitality (wounds, down, death rolls) is here too.
   """
@@ -61,20 +54,6 @@ defmodule TalesForge.Game.Mechanics do
                    "cooking" => "WIS",
                    "alchemy" => "INT"
                  })
-
-  @lp_stat_bonus_max 2
-
-  @action_skill_hints [
-    {~r/\b(sneak|hide|stealth)\b/i, "stealth"},
-    {~r/\b(ask|talk|persuad|convinc|greet|barter)\b/i, "persuasion"},
-    {~r/\b(lie|bluff|deceiv)\b/i, "deception"},
-    {~r/\b(intimidat|threaten|menace)\b/i, "intimidation"},
-    {~r/\b(look|examine|study|read|search|inspect)\b/i, "insight"},
-    {~r/\b(fight|attack|strike|swing|stab)\b/i, "melee_combat"},
-    {~r/\b(shoot|aim|bow|arrow)\b/i, "ranged_combat"},
-    {~r/\b(climb|scale)\b/i, "climbing"},
-    {~r/\b(track|follow trail)\b/i, "tracking"}
-  ]
 
   # Verbs that mean a real check: someone resists, something is hidden, or
   # failing costs something. Ordinary talk ("ask", "greet", "tell") and
@@ -172,8 +151,7 @@ defmodule TalesForge.Game.Mechanics do
 
   @doc """
   The skill a player's text clearly calls for, or nil when it needs no check.
-  Unlike `infer_skill_from_action/1` (the baseline variant) there is no
-  fallback: ordinary talk and everyday actions get no roll.
+  There is no fallback: ordinary talk and everyday actions get no roll.
 
       iex> TalesForge.Game.Mechanics.infer_check_skill("I try to convince her to lower the price")
       "persuasion"
@@ -199,7 +177,7 @@ defmodule TalesForge.Game.Mechanics do
   end
 
   @doc """
-  Default variant, combat actions only: the skill of the first fight verb in
+  Combat actions only: the skill of the first fight verb in
   the text (melee, ranged or unarmed), or nil when it names none.
 
       iex> TalesForge.Game.Mechanics.first_combat_skill("I punch him, then grab the knife and stab")
@@ -228,29 +206,16 @@ defmodule TalesForge.Game.Mechanics do
   end
 
   @doc """
-  Baseline variant: the skill for a player's text, falling back to `"insight"`
-  when no verb matches (so ordinary talk rolls Insight).
-  """
-  @spec infer_skill_from_action(String.t()) :: String.t()
-  def infer_skill_from_action(action) when is_binary(action) do
-    Enum.find_value(@action_skill_hints, "insight", fn {pattern, skill} ->
-      if Regex.match?(pattern, action), do: skill
-    end)
-  end
-
-  @doc """
   The server's check for a turn: the skill the action or handler names (none
-  for move, inventory, wait and train), rolled with `perform_and_apply/4` under
-  the session's `variant` (`"default"` or `"baseline"`). Returns the updated
-  character and the resolution.
+  for move, inventory, wait and train), rolled with `perform_and_apply/4`.
+  Returns the updated character and the resolution.
   """
-  @spec apply_server_mechanics(map(), PlayerAction.t(), HandlerResult.t(), String.t()) ::
+  @spec apply_server_mechanics(map(), PlayerAction.t(), HandlerResult.t()) ::
           {map(), MechanicalResolution.t()}
   def apply_server_mechanics(
         character,
         %PlayerAction{} = player_action,
-        %HandlerResult{} = handler,
-        variant \\ "default"
+        %HandlerResult{} = handler
       ) do
     action_skill =
       player_action.action.parameters
@@ -263,7 +228,7 @@ defmodule TalesForge.Game.Mechanics do
       {character, no_check_resolution()}
     else
       modifier = (handler.state_hints || %{})["roll_modifier"] || 0
-      perform_and_apply(character, skill, nil, variant, modifier)
+      perform_and_apply(character, skill, nil, modifier)
     end
   end
 
@@ -287,36 +252,28 @@ defmodule TalesForge.Game.Mechanics do
 
   @doc """
   Rolls 1d20 for `skill` (inject `injected_roll` in tests), adds the LP it
-  earns under `variant` and counts a failure. LP are only earned here;
-  spending them is `TalesForge.Game.Progression` (default) or
-  `TalesForge.Game.Progression.Tiered` (baseline).
+  earns and counts a failure. LP are only earned here; spending them is
+  `TalesForge.Game.Progression`.
   """
-  @spec perform_and_apply(map(), String.t() | nil, 1..20 | nil, String.t(), integer()) ::
+  @spec perform_and_apply(map(), String.t() | nil, 1..20 | nil, integer()) ::
           {map(), MechanicalResolution.t()}
-  def perform_and_apply(
-        character,
-        skill,
-        injected_roll \\ nil,
-        variant \\ "default",
-        modifier \\ 0
-      ) do
+  def perform_and_apply(character, skill, injected_roll \\ nil, modifier \\ 0) do
     normalized = normalize_skill_name(skill) || "insight"
     # Catalogue v2: the manner adverb's roll modifier (PROVISIONAL table).
     effective = max(0, effective_skill_level(character, normalized) + modifier)
-    roll_at(character, normalized, effective, injected_roll, variant)
+    roll_at(character, normalized, effective, injected_roll)
   end
 
   @doc """
   Rolls one part of a skill split at the part `level`. The rules are the
-  rules of `perform_and_apply/5`: natural 1, natural 20 and the partial
+  rules of `perform_and_apply/4`: natural 1, natural 20 and the partial
   success. Inject `injected_roll` in tests.
   """
-  @spec perform_part(map(), String.t(), non_neg_integer(), 1..20 | nil, String.t()) ::
+  @spec perform_part(map(), String.t(), non_neg_integer(), 1..20 | nil) ::
           {map(), MechanicalResolution.t()}
-  def perform_part(character, skill, level, injected_roll \\ nil, variant \\ "default")
-      when is_integer(level) do
+  def perform_part(character, skill, level, injected_roll \\ nil) when is_integer(level) do
     normalized = normalize_skill_name(skill) || "insight"
-    roll_at(character, normalized, max(0, level), injected_roll, variant)
+    roll_at(character, normalized, max(0, level), injected_roll)
   end
 
   @doc """
@@ -415,18 +372,11 @@ defmodule TalesForge.Game.Mechanics do
     for i <- 1..count, do: if(i <= extra, do: base + 1, else: base)
   end
 
-  defp roll_at(character, normalized, effective, injected_roll, variant) do
+  defp roll_at(character, normalized, effective, injected_roll) do
     raw_level = character |> get_in(["skills", normalized]) |> to_int(0)
     roll = injected_roll || :rand.uniform(20)
     outcome = resolve_outcome(roll, effective, raw_level)
-    baseline? = variant == "baseline"
-
-    lp =
-      if baseline?,
-        do:
-          lp_for_roll(roll, outcome, raw_level) +
-            lp_stat_bonus(linked_stat(character, normalized)),
-        else: growth_lp(outcome)
+    lp = growth_lp(outcome)
 
     learning_points =
       character
@@ -446,14 +396,14 @@ defmodule TalesForge.Game.Mechanics do
       lp_awarded: lp,
       notes:
         "Rolled #{roll} vs #{normalized} #{effective} (#{base_note(raw_level)}). " <>
-          lp_note(lp, baseline?) <> nat_notes(roll)
+          lp_note(lp) <> nat_notes(roll)
     }
 
     {updated, resolution}
   end
 
   @doc """
-  Default variant: the LP a roll's outcome earns for the skill rolled, one
+  The LP a roll's outcome earns for the skill rolled, one
   banked improvement chance for a failure or a partial success and nothing
   for a success.
 
@@ -464,26 +414,14 @@ defmodule TalesForge.Game.Mechanics do
   def growth_lp(outcome) when outcome in ["failure", "partial_success"], do: 1.0
   def growth_lp(_outcome), do: 0.0
 
-  # A success under the default rule earns nothing; the sheet is left as it was.
+  # A success earns nothing; the sheet is left as it was.
   defp add_lp(lp_map, _skill, lp) when lp == 0.0, do: lp_map
 
   defp add_lp(lp_map, skill, lp),
     do: Map.update(lp_map, skill, lp, fn current -> Float.round(to_float(current) + lp, 1) end)
 
-  defp lp_note(lp, true), do: "+#{lp} LP."
-  defp lp_note(lp, false) when lp == 0.0, do: "Success: nothing to learn."
-  defp lp_note(_lp, false), do: "+1 banked improvement chance (resolved on sleep)."
-
-  @doc """
-  Baseline variant: extra Learning Points per roll from the linked stat,
-  `(stat − 10) div 4`, from 0 to +2. The default variant adds none.
-
-      iex> Enum.map([8, 13, 14, 18], &TalesForge.Game.Mechanics.lp_stat_bonus/1)
-      [0, 0, 1, 2]
-  """
-  @spec lp_stat_bonus(integer()) :: non_neg_integer()
-  def lp_stat_bonus(stat) when is_integer(stat),
-    do: (stat - 10) |> div(4) |> max(0) |> min(@lp_stat_bonus_max)
+  defp lp_note(lp) when lp == 0.0, do: "Success: nothing to learn."
+  defp lp_note(_lp), do: "+1 banked improvement chance (resolved on sleep)."
 
   @doc """
   Wound cap from CON. Minimum 1 (CON 3).
@@ -642,10 +580,6 @@ defmodule TalesForge.Game.Mechanics do
     end
   end
 
-  defp linked_stat(character, skill) do
-    character |> get_in(["stats", Map.get(@skill_stat_v2, skill, "WIS")]) |> to_int(10)
-  end
-
   # A trained skill: level plus the linked stat's bonus ((stat - 10) div 2).
   # An untrained one (level 0) uses the untrained floor max(stat div 3, bonus):
   # anyone can try with raw talent (old rules, 2026-10-07).
@@ -679,12 +613,6 @@ defmodule TalesForge.Game.Mechanics do
   defp resolve_outcome(roll, effective, _raw) when roll <= effective, do: "success"
   defp resolve_outcome(roll, effective, _raw) when roll <= effective + 3, do: "partial_success"
   defp resolve_outcome(_roll, _effective, _raw), do: "failure"
-
-  defp lp_for_roll(1, _outcome, _raw), do: 1.0
-  defp lp_for_roll(20, _outcome, _raw), do: 2.0
-  defp lp_for_roll(_roll, "success", _raw), do: 0.5
-  defp lp_for_roll(_roll, "partial_success", _raw), do: 1.0
-  defp lp_for_roll(_roll, _outcome, _raw), do: 1.0
 
   defp base_note(raw) when raw <= 0, do: "untrained: stat ÷ 3"
   defp base_note(raw), do: "base #{raw}"

@@ -15,40 +15,35 @@ defmodule TalesForge.Game.Prompts do
   same `x-grok-conv-id` the opening scene warms the cache for GM turn 1. Nothing
   in 1–4 may change per turn; `test/ex_tales_forge/game/prompt_prefix_test.exs`
   guards this.
-
-  A session's behaviour variant (`TalesForge.Game.Variant`) picks the prompt
-  files: `priv/prompts/variants/<variant>/<file>` replaces `priv/prompts/<file>`
-  when it exists. The variant is fixed per session, so the cached prefix is too.
   """
 
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction}
-  alias TalesForge.Game.Variant
   alias TalesForge.Prompt
   alias TalesForge.Prompt.{Ctx, Profile}
 
-  @doc "System prompt of the intent step (`priv/prompts/intent_system.txt`) for a variant."
-  @spec intent_system(Variant.t()) :: String.t()
-  def intent_system(variant \\ "default"), do: read_prompt("intent_system.txt", variant)
+  @doc "System prompt of the intent step (`priv/prompts/intent_system.txt`)."
+  @spec intent_system() :: String.t()
+  def intent_system, do: read_prompt("intent_system.txt")
 
   @doc "Shared table voice, message 1 of every narration call (`narrator_system.txt`)."
-  @spec narrator_system(Variant.t()) :: String.t()
-  def narrator_system(variant \\ "default"), do: read_prompt("narrator_system.txt", variant)
+  @spec narrator_system() :: String.t()
+  def narrator_system, do: read_prompt("narrator_system.txt")
 
   @doc """
-  Task prompt of a GM turn, message 3, for a variant and an app role. The
+  Task prompt of a GM turn, message 3, for an app role. The
   prompt is the fragments in `priv/prompts/gm_system/` that
   `TalesForge.Prompt.Profile.gm_task_fragments/1` lists for the role.
   """
-  @spec gm_system(Variant.t(), atom()) :: String.t()
-  def gm_system(variant \\ "default", role \\ :local) do
-    %Ctx{call: :gm, role: role, variant: variant}
+  @spec gm_system(atom()) :: String.t()
+  def gm_system(role \\ :local) do
+    %Ctx{call: :gm, role: role}
     |> Profile.gm_task_fragments()
-    |> Enum.map_join(&read_prompt("gm_system/#{&1}.txt", variant))
+    |> Enum.map_join(&read_prompt("gm_system/#{&1}.txt"))
   end
 
   @doc "Task prompt of the opening/arrival scene, message 3 (`scene_system.txt`)."
-  @spec scene_system(Variant.t()) :: String.t()
-  def scene_system(variant \\ "default"), do: read_prompt("scene_system.txt", variant)
+  @spec scene_system() :: String.t()
+  def scene_system, do: read_prompt("scene_system.txt")
 
   @doc "Messages for the opening/arrival scene call."
   @spec scene_messages(map()) :: [%{role: String.t(), content: String.t()}]
@@ -113,47 +108,30 @@ defmodule TalesForge.Game.Prompts do
   Falls back to global rules if no pack-specific rules/ directory is found.
   This is the key to making fully self-contained game packs (e.g. "Drakar och Demoner")
   actually drive the GM prompts.
-
-  A behaviour variant (`TalesForge.Game.Variant`) can replace whole rule files:
-  `<root>/variants/<variant>/rules/<file>.md` takes the place of
-  `<root>/rules/<file>.md`, where the root is the pack folder (or `priv/` for
-  the global rules). The baseline arm uses this to keep the rules text it was
-  written against.
   """
-  @spec load_rules(String.t() | nil, Variant.t()) :: String.t()
-  def load_rules(adventure_id, variant \\ "default")
-
-  def load_rules(adventure_id, variant) when is_binary(adventure_id) do
+  @spec load_rules(String.t() | nil) :: String.t()
+  def load_rules(adventure_id) when is_binary(adventure_id) do
     pack_rules_dir = Path.join([priv_path("adventures"), adventure_id, "rules"])
 
     if File.dir?(pack_rules_dir) and has_markdown?(pack_rules_dir) do
-      load_rules_from_dir(pack_rules_dir, variant)
+      load_rules_from_dir(pack_rules_dir)
     else
-      load_rules_from_dir(priv_path("rules"), variant)
+      load_rules_from_dir(priv_path("rules"))
     end
   end
 
-  def load_rules(_other, variant), do: load_rules_from_dir(priv_path("rules"), variant)
+  def load_rules(_other), do: load_rules_from_dir(priv_path("rules"))
 
   @doc """
   Load rules from an explicit directory (used by the Importer and for pack-aware sessions).
-  Walks recursively and concatenates all .md files, sorted by path. For a
-  variant other than `"default"`, a file under
-  `<dir>/../variants/<variant>/rules/` with the same relative path replaces the
-  file's content (the heading keeps the relative path).
+  Walks recursively and concatenates all .md files, sorted by path.
   """
-  @spec load_rules_from_dir(String.t(), Variant.t()) :: String.t()
-  def load_rules_from_dir(dir, variant \\ "default") when is_binary(dir) do
-    override_dir =
-      Path.join([Path.dirname(dir), "variants", Variant.of(%{"variant" => variant}), "rules"])
-
+  @spec load_rules_from_dir(String.t()) :: String.t()
+  def load_rules_from_dir(dir) when is_binary(dir) do
     Path.wildcard(Path.join(dir, "**/*.md"))
     |> Enum.sort()
     |> Enum.map_join("\n\n---\n\n", fn path ->
-      rel = Path.relative_to(path, dir)
-      override = Path.join(override_dir, rel)
-      content = if File.regular?(override), do: File.read!(override), else: File.read!(path)
-      "### #{rel}\n\n#{content}"
+      "### #{Path.relative_to(path, dir)}\n\n#{File.read!(path)}"
     end)
   end
 
@@ -161,13 +139,7 @@ defmodule TalesForge.Game.Prompts do
     Path.wildcard(Path.join(dir, "**/*.md")) != []
   end
 
-  defp read_prompt(name, variant) do
-    override = priv_path("prompts/variants/#{Variant.of(%{"variant" => variant})}/#{name}")
-
-    if File.exists?(override),
-      do: File.read!(override),
-      else: File.read!(priv_path("prompts/#{name}"))
-  end
+  defp read_prompt(name), do: File.read!(priv_path("prompts/#{name}"))
 
   # Resolved at runtime: in a release priv lives under /app/lib/ex_tales_forge-<vsn>/priv,
   # not under the _build path a compile-time module attribute would capture.

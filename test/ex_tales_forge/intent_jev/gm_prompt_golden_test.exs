@@ -1,15 +1,13 @@
 defmodule TalesForge.IntentJev.GmPromptGoldenTest do
   @moduledoc """
   The GM prompt of a whole turn (player text in, GM request out) is byte-identical
-  whether `INTENT_JEV` is off or shadow, and for the baseline variant whatever
-  the flag says.
+  whether `INTENT_JEV` is off or shadow.
 
   The golden files in `test/fixtures/prompts/gm_turn/` were written from
   `main` before Jev intent was wired in (this test, without the shadow case, run
   there with `UPDATE_GM_TURN_GOLDEN=1`). The off case proves the default path is
   unchanged, the shadow case that the shadow Jev read (stubbed here, it runs
-  inline in tests) changes nothing the GM sees, and the baseline case that the
-  frozen arm ignores the flag. The LLM is stubbed with `Req.Test` (xAI wire
+  inline in tests) changes nothing the GM sees. The LLM is stubbed with `Req.Test` (xAI wire
   shape) and the dice are seeded, so no network and no keys.
   """
   use TalesForge.DataCase, async: false
@@ -74,27 +72,14 @@ defmodule TalesForge.IntentJev.GmPromptGoldenTest do
     @tag :gm_turn_golden
     test "#{adventure}: INTENT_JEV off plays the golden GM prompt" do
       Application.put_env(:ex_tales_forge, :intent_jev, :off)
-      check_golden(unquote(adventure), "default", gm_prompt(unquote(adventure), "default", nil))
-      refute_received :jev_called
-    end
-
-    @tag :gm_turn_golden
-    test "#{adventure} (baseline): INTENT_JEV=on is ignored, the golden GM prompt plays" do
-      Application.put_env(:ex_tales_forge, :intent_jev, :on)
-
-      check_golden(
-        unquote(adventure),
-        "baseline",
-        gm_prompt(unquote(adventure), "baseline", "on")
-      )
-
+      check_golden(unquote(adventure), gm_prompt(unquote(adventure), nil))
       refute_received :jev_called
     end
 
     test "#{adventure}: INTENT_JEV shadow plays the same GM prompt and only logs Jev" do
       Application.put_env(:ex_tales_forge, :intent_jev, :shadow)
-      {prompt, session_id} = gm_prompt_and_session(unquote(adventure), "default", nil)
-      check_golden(unquote(adventure), "default", prompt)
+      {prompt, session_id} = gm_prompt_and_session(unquote(adventure), nil)
+      check_golden(unquote(adventure), prompt)
 
       assert_received :jev_called
 
@@ -110,12 +95,12 @@ defmodule TalesForge.IntentJev.GmPromptGoldenTest do
     end
   end
 
-  defp gm_prompt(adventure, variant, intent_jev),
-    do: adventure |> gm_prompt_and_session(variant, intent_jev) |> elem(0)
+  defp gm_prompt(adventure, intent_jev),
+    do: adventure |> gm_prompt_and_session(intent_jev) |> elem(0)
 
-  defp gm_prompt_and_session(adventure, variant, intent_jev) do
+  defp gm_prompt_and_session(adventure, intent_jev) do
     attrs =
-      %{name: "GM turn golden", adventure_id: adventure, variant: variant}
+      %{name: "GM turn golden", adventure_id: adventure}
       |> then(&if(intent_jev, do: Map.put(&1, :intent_jev, intent_jev), else: &1))
 
     {:ok, session} = GameSessions.create_session(attrs)
@@ -125,9 +110,8 @@ defmodule TalesForge.IntentJev.GmPromptGoldenTest do
     {normalise(prompt, session.id), session.id}
   end
 
-  defp check_golden(adventure, variant, actual) do
-    suffix = if variant == "default", do: "", else: ".#{variant}"
-    path = Path.join(@dir, "#{adventure}#{suffix}.txt")
+  defp check_golden(adventure, actual) do
+    path = Path.join(@dir, "#{adventure}.txt")
 
     if System.get_env("UPDATE_GM_TURN_GOLDEN") in ~w(1 true) do
       File.mkdir_p!(@dir)
@@ -135,7 +119,7 @@ defmodule TalesForge.IntentJev.GmPromptGoldenTest do
     end
 
     assert actual == File.read!(path),
-           "the GM prompt for #{adventure} (#{variant}) changed; diff #{path} against a fresh render"
+           "the GM prompt for #{adventure} changed; diff #{path} against a fresh render"
   end
 
   defp normalise(text, session_id) do

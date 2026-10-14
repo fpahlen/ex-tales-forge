@@ -7,11 +7,10 @@ defmodule TalesForge.Game.Intent do
   `INTENT_JEV=on` (`TalesForge.IntentJev`), Jev reads the turn first and the
   heuristic is the fallback.
 
-  In the default variant a move's target is resolved to a real place
+  A move's target is resolved to a real place
   (`TalesForge.Game.Movement`): an exit, a place further along the exits (the
   route stops at the first checkpoint), or the place of a person who is
-  elsewhere. A target that names no place is not a move. The baseline variant
-  keeps the old exit-name matching.
+  elsewhere. A target that names no place is not a move.
   """
 
   require Logger
@@ -22,16 +21,10 @@ defmodule TalesForge.Game.Intent do
   alias TalesForge.Game.Movement
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
-  alias TalesForge.Game.Variant
   alias TalesForge.Game.WorldClock
 
-  # Baseline variant only: these action types had to carry a skill, so every
-  # observe/speak/interact rolled. The default variant requires none; the
-  # action handler gives combat its default skill.
-  @skill_required ~w(observe speak interact combat use_item)a
   @no_skill_types ~w(move wait train pickup drop buy sell trade spend)a
-  @move_hints ~r/\b(go|head|walk|travel|move|enter|leave|step|run|proceed)\b/i
-  # Default variant (scene-change fix, 2026-10-07): more ways to say "I go
+  # Scene-change fix, 2026-10-07: more ways to say "I go
   # there", the ways out of a place, and words that make a move a plan for
   # later rather than this turn's action (those get a low confidence).
   @move_verbs ~r/\b(go|goes|going|head|heads|heading|walk|walks|walking|travel|move|moving|enter|enters|leave|leaves|leaving|step|steps|stepping|run|runs|proceed|return|returns|returning|set off|set out|make (?:my|our) way|lead the way|follow|climb|climbs|descend|hike|hurry|stride|strides|cross|seek|find|join|visit|approach|approaches|press on|push on|continue|slip out|duck out)\b/iu
@@ -47,7 +40,7 @@ defmodule TalesForge.Game.Intent do
   # A verb of motion must come this close before the place it sends you to.
   @verb_reach 60
   @train_verbs ~r/\b(teach|teaching|practice|practise|drill|train|training)\b/
-  # Default variant: the ways players start a fight. Matched outside quoted
+  # The ways players start a fight. Matched outside quoted
   # speech, so "any orcs I should fight?" is talk, not an attack.
   @combat_skills ~w(melee_combat ranged_combat unarmed_combat)
   @quoted_speech ~r/"[^"]*"|\x{201C}[^\x{201D}]*\x{201D}/u
@@ -100,16 +93,12 @@ defmodule TalesForge.Game.Intent do
 
   @doc """
   Builds the `PlayerAction` from an extraction: normalises the primary action
-  (default variant: move targets resolved to real places), checks required
-  skills (baseline) and keeps the other actions as deferred.
+  (move targets resolved to real places) and keeps the other actions as
+  deferred.
   """
   @spec validate_player_action(IntentExtraction.t(), map()) :: PlayerAction.t()
   def validate_player_action(%IntentExtraction{} = extraction, context) do
     primary = extraction |> primary_action() |> normalize_move(context)
-
-    if skill_missing?(primary, context) do
-      raise ArgumentError, "primary action missing required skill"
-    end
 
     deferred =
       extraction.actions
@@ -126,7 +115,7 @@ defmodule TalesForge.Game.Intent do
   end
 
   @doc """
-  Default variant: the location a move target means, from where the character
+  The location a move target means, from where the character
   is now: an exit id, a place further on (by id, name or alias), or the
   npc_id of a person elsewhere (the character goes to them). Travel stops at
   the first checkpoint on the way (`TalesForge.Game.Movement.route/3`).
@@ -164,11 +153,11 @@ defmodule TalesForge.Game.Intent do
 
   def resolve_move_target(_target, _context), do: :error
 
-  # Default variant: a move target in any form becomes a location id;
+  # A move target in any form becomes a location id;
   # a target that is no reachable place stops being a move (the character
   # stays, and the GM is told so by the scene block).
   defp normalize_move(%SingleAction{action_type: :move} = action, context) do
-    if Variant.baseline?(context) or Movement.places(movement_world(context)) == %{} do
+    if Movement.places(movement_world(context)) == %{} do
       action
     else
       case resolve_move_target(action.target, context) do
@@ -182,8 +171,7 @@ defmodule TalesForge.Game.Intent do
   # an absent npc_id): the character goes to them.
   defp normalize_move(%SingleAction{action_type: type, target: target} = action, context)
        when type in [:speak, :other, :freeform] and is_binary(target) do
-    with false <- Variant.baseline?(context),
-         %{"location_id" => _} <- context |> Map.get("npc_locations", %{}) |> Map.get(target),
+    with %{"location_id" => _} <- context |> Map.get("npc_locations", %{}) |> Map.get(target),
          {:ok, id} <- resolve_move_target(target, context) do
       %SingleAction{action | action_type: :move, target: id}
     else
@@ -222,23 +210,20 @@ defmodule TalesForge.Game.Intent do
 
   @doc """
   The heuristic reading of the player's text. A low confidence makes
-  `extract_intent/2` ask the player. In the default variant a move phrased as
+  `extract_intent/2` ask the player. A move phrased as
   a plan for later ("at first light", "after this drink") gets a low
   confidence.
   """
   @spec heuristic_intent(String.t(), map()) :: IntentExtraction.t()
   def heuristic_intent(raw_action, context) do
-    target_location = infer_target_location(raw_action, context)
+    target_location = infer_destination(raw_action, context)
     target_npc = infer_target_npc(raw_action, context)
     target_fixture = infer_target_fixture(raw_action, context)
 
     action_type =
-      infer_action_type(raw_action, target_location, target_fixture, target_npc, context)
+      infer_action_type(raw_action, target_location, target_fixture, target_npc)
 
-    skill =
-      if Variant.baseline?(context),
-        do: Mechanics.infer_skill_from_action(raw_action),
-        else: combat_skill(action_type, raw_action, Mechanics.infer_check_skill(raw_action))
+    skill = combat_skill(action_type, raw_action, Mechanics.infer_check_skill(raw_action))
 
     parameters =
       %{}
@@ -272,7 +257,6 @@ defmodule TalesForge.Game.Intent do
   # cutoff (0.75), so the mock provider still plays the move.
   defp heuristic_confidence(raw_action, :move, context) do
     cond do
-      Variant.baseline?(context) -> 0.9
       # "Osric Vane, …": the player speaks to someone who is one exit away.
       addressed_npc_location(String.downcase(raw_action), context) -> 0.9
       Regex.match?(@deferral, raw_action) or String.contains?(raw_action, "?") -> 0.8
@@ -295,12 +279,7 @@ defmodule TalesForge.Game.Intent do
       (length(extraction.actions) > 1 and extraction.confidence < 0.85)
   end
 
-  defp skill_missing?(%SingleAction{action_type: type, parameters: params}, context) do
-    Variant.baseline?(context) and type in @skill_required and
-      is_nil(Mechanics.normalize_skill_name(Map.get(params, "skill")))
-  end
-
-  # Default variant: a fight rolls the skill of its first fight verb (an
+  # A fight rolls the skill of its first fight verb (an
   # explicit stealth or other non-combat check stays).
   defp combat_skill(:combat, raw_action, skill) when skill in [nil | @combat_skills] do
     Mechanics.first_combat_skill(Regex.replace(@quoted_speech, raw_action, " ")) || skill
@@ -311,17 +290,12 @@ defmodule TalesForge.Game.Intent do
   defp combat_skill(_action_type, _raw_action, skill) when skill in @combat_skills, do: nil
   defp combat_skill(_action_type, _raw_action, skill), do: skill
 
-  # Baseline keeps the old six verbs; the default variant knows more ways to
-  # attack (lunge, slash, loose an arrow…) and ignores quoted speech.
-  defp combat_intent?(lowered, context) do
-    if Variant.baseline?(context) do
-      Regex.match?(~r/\b(attack|fight|strike|stab|shoot|punch)\b/i, lowered)
-    else
-      Regex.match?(@combat_verbs, Regex.replace(@quoted_speech, lowered, " "))
-    end
-  end
+  # Many ways to attack (lunge, slash, loose an arrow…); quoted speech is
+  # ignored.
+  defp combat_intent?(lowered),
+    do: Regex.match?(@combat_verbs, Regex.replace(@quoted_speech, lowered, " "))
 
-  defp infer_action_type(raw_action, target_location, target_fixture, target_npc, context) do
+  defp infer_action_type(raw_action, target_location, target_fixture, target_npc) do
     lowered = String.downcase(raw_action)
 
     cond do
@@ -329,7 +303,7 @@ defmodule TalesForge.Game.Intent do
       Rest.lodging_then_sleep?(lowered) -> :spend
       wait_intent?(lowered) -> :wait
       target_location -> :move
-      combat_intent?(lowered, context) -> :combat
+      combat_intent?(lowered) -> :combat
       Regex.match?(~r/\b(say|ask|tell|speak|shout|whisper|greet)\b/i, lowered) -> :speak
       Regex.match?(~r/\b(buy|purchase)\b/i, lowered) -> :buy
       Regex.match?(~r/\bpay\b.+\bfor\b/i, lowered) -> :buy
@@ -345,19 +319,7 @@ defmodule TalesForge.Game.Intent do
     end
   end
 
-  defp infer_target_location(raw_action, context) do
-    if Variant.baseline?(context) do
-      if Regex.match?(@move_hints, raw_action) do
-        raw_action
-        |> String.downcase()
-        |> find_matching_exit(context)
-      end
-    else
-      infer_destination(raw_action, context)
-    end
-  end
-
-  # Default variant. In order: a place the sentence sends the character to
+  # In order: a place the sentence sends the character to
   # ("up to the cut"), an exit named anywhere (the old rule), the way out
   # ("I head out the door"), a person elsewhere the character goes to ("I
   # approach Osric"), or a person elsewhere the player speaks to by name

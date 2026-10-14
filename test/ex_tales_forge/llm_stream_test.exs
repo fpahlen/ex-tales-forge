@@ -100,7 +100,7 @@ defmodule TalesForge.LLMStreamTest do
 
     LLM.complete_turn(
       [
-        %{role: "system", content: Prompts.gm_system("default", role(opts[:variant]))},
+        %{role: "system", content: Prompts.gm_system(role(opts[:variant]))},
         %{role: "user", content: "RULES AND STATE"}
       ],
       %PlayerAction{overall_intent: "look around", action: %SingleAction{action_type: :observe}},
@@ -197,27 +197,23 @@ defmodule TalesForge.LLMStreamTest do
   test "the playtest GM prompt is the fragment files in order" do
     root = Path.join(:code.priv_dir(:ex_tales_forge), "prompts")
 
-    for {variant, dir} <- [{"default", root}, {"baseline", Path.join(root, "variants/baseline")}] do
-      files =
-        Enum.map_join(
-          ~w(head location_name output gm_notes),
-          &File.read!(Path.join([dir, "gm_system", "#{&1}.txt"]))
-        )
+    files =
+      Enum.map_join(
+        ~w(head location_name output gm_notes),
+        &File.read!(Path.join([root, "gm_system", "#{&1}.txt"]))
+      )
 
-      assert Prompts.gm_system(variant, :playtest) == files
-    end
+    assert Prompts.gm_system(:playtest) == files
   end
 
   test "the production GM prompt leaves out gm_notes and location_name" do
-    for variant <- ["default", "baseline"] do
-      full = Prompts.gm_system(variant, :playtest)
-      lean = Prompts.gm_system(variant, :production)
-      assert full =~ ~r/^- gm_notes:/m
-      assert full =~ " Leave location_name out."
-      refute lean =~ "gm_notes"
-      refute lean =~ "location_name"
-      assert lean =~ "Return ONLY valid JSON matching the required schema."
-    end
+    full = Prompts.gm_system(:playtest)
+    lean = Prompts.gm_system(:production)
+    assert full =~ ~r/^- gm_notes:/m
+    assert full =~ " Leave location_name out."
+    refute lean =~ "gm_notes"
+    refute lean =~ "location_name"
+    assert lean =~ "Return ONLY valid JSON matching the required schema."
   end
 
   test "the variant follows the app role" do

@@ -21,7 +21,6 @@ defmodule TalesForge.GameSessions do
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.TurnProcessor
-  alias TalesForge.Game.Variant
   alias TalesForge.Game.World
   alias TalesForge.IntentJev
   alias TalesForge.NPC
@@ -54,38 +53,31 @@ defmodule TalesForge.GameSessions do
   `characters` row its levers. An invalid one returns
   `{:error, {:invalid_character, message}}` and creates nothing.
 
-  `:variant` is the behaviour variant (`TalesForge.Game.Variant`), stored in
-  `world_state["variant"]` when it is not `"default"`; nil means
-  `GAME_VARIANT`. An unknown one returns `{:error, :unknown_variant}`.
-
   `:intent_jev` (`"off"`, `"shadow"` or `"on"`) overrides `INTENT_JEV` for this
   session, e.g. a playtest run's arm; the mode is stored in
   `world_state["intent_jev"]` when it is not off (`TalesForge.IntentJev`).
   """
   def create_session(attrs \\ %{}) do
     adventure_id = adventure_id_from(attrs)
-    {variant, intent_jev, attrs} = pop_session_flags(attrs)
+    {intent_jev, attrs} = pop_session_flags(attrs)
 
     character_opts =
       Map.take(attrs, @character_opts ++ Enum.map(@character_opts, &Atom.to_string/1))
 
-    with {:ok, variant} <- Variant.cast(variant),
-         {:ok, character} <- validate_character(character_opts),
+    with {:ok, character} <- validate_character(character_opts),
          world =
            adventure_id
-           |> materialize_world(variant)
+           |> materialize_world()
            |> put_character(character)
-           |> Variant.put(variant)
-           |> IntentJev.put_mode(IntentJev.mode_for_new_session(variant, intent_jev)) do
+           |> IntentJev.put_mode(IntentJev.mode_for_new_session(intent_jev)) do
       insert_session(attrs, adventure_id, world, character_opts)
     end
   end
 
-  # The variant and the Jev intent mode are world-state choices, not columns.
+  # The Jev intent mode is a world-state choice, not a column.
   defp pop_session_flags(attrs) do
-    variant = Map.get(attrs, :variant) || Map.get(attrs, "variant")
     intent_jev = Map.get(attrs, :intent_jev) || Map.get(attrs, "intent_jev")
-    {variant, intent_jev, Map.drop(attrs, [:variant, "variant", :intent_jev, "intent_jev"])}
+    {intent_jev, Map.drop(attrs, [:intent_jev, "intent_jev"])}
   end
 
   defp insert_session(attrs, adventure_id, world, character_opts) do
@@ -150,10 +142,10 @@ defmodule TalesForge.GameSessions do
   # Dual path: complete packs fail-fast via Pack; Crossroads keeps today's seed.
   # The session's world features (INN_WORLD, WORLD_ANTAGONIST) are read here,
   # once, and stored in world_state["features"].
-  defp materialize_world("tin_valley", variant),
-    do: Pack.materialize("tin_valley", variant, Features.for_new_session(variant))
+  defp materialize_world("tin_valley"),
+    do: Pack.materialize("tin_valley", Features.for_new_session())
 
-  defp materialize_world(_adventure_id, _variant), do: World.default_world_state()
+  defp materialize_world(_adventure_id), do: World.default_world_state()
 
   def scene_status(session_id) do
     session_id
@@ -498,7 +490,7 @@ defmodule TalesForge.GameSessions do
         pending
         |> Map.get("actions")
         |> case do
-          nil -> [heuristic_from_pending(pending, option, context)]
+          nil -> [heuristic_from_pending(pending, option)]
           actions -> Enum.map(actions, &TalesForge.Game.Schemas.SingleAction.decode/1)
         end,
       primary_index: option["action_index"],
@@ -509,15 +501,14 @@ defmodule TalesForge.GameSessions do
     Intent.validate_player_action(extraction, context)
   end
 
-  defp heuristic_from_pending(pending, option, context) do
+  defp heuristic_from_pending(pending, option) do
     TalesForge.Game.Intent.heuristic_intent(
       "#{pending["raw_action"]} (#{option["label"]})",
       %{
         "exits" => [],
         "exit_names" => %{},
         "present_npcs" => [],
-        "npc_details" => %{},
-        "variant" => Variant.of(context)
+        "npc_details" => %{}
       }
     )
     |> Map.get(:actions)

@@ -72,11 +72,7 @@ defmodule TalesForge.Canon.Seed do
 
   defp pack(adventure_id, world_state) when is_binary(adventure_id) do
     pack =
-      Pack.load(
-        adventure_id,
-        world_state["variant"] || "default",
-        List.wrap(world_state["features"])
-      )
+      Pack.load(adventure_id, List.wrap(world_state["features"]))
 
     {pack.locations, pack.npcs}
   rescue
