@@ -1,7 +1,11 @@
 defmodule TalesForgeWeb.ChatApiController do
   @moduledoc """
-  The bots' API for the team chat: `GET /internal/chat` (the latest
-  messages) and `POST /internal/chat` (`{"body": "..."}`, post as the bot).
+  The bots' API for the team chat: `GET /internal/chat?thread_id=...` (the
+  latest messages of a thread, default General, and the thread list) and
+  `POST /internal/chat` (`{"body": "...", "thread_id": "..."}`, post as the
+  bot). A bot answers in the `thread_id` of the message that woke it. With
+  `"subject"` and no `thread_id`, the bot starts a subject thread. A bot can
+  never read or post in a 1:1 thread: that gives 404 (`TalesForge.Chat.api/3`).
 
   - Production only, like the board (`TalesForge.AppRole.here?(:board)`);
     elsewhere 404. Off (404) while config `:team_chat` names no loaded module.

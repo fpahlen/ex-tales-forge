@@ -117,14 +117,18 @@ defmodule TalesForge.Chat do
 
   # The database filter is a first cut. ThreadRules.visible/2 is the rule.
   defp visible_query({:founder, handle}) when is_binary(handle),
-    do: from(t in Thread, where: t.kind == "subject" or ^handle in t.members)
+    do:
+      from(t in Thread,
+        where: is_nil(t.idea_id) and (t.kind == "subject" or ^handle in t.members)
+      )
 
-  defp visible_query(_viewer), do: from(t in Thread, where: t.kind == "subject")
+  defp visible_query(_viewer),
+    do: from(t in Thread, where: is_nil(t.idea_id) and t.kind == "subject")
 
   @doc """
   The thread `id` when `viewer` can read it. `nil` gives the General
   thread. Returns `{:error, :not_found}` for a thread that `viewer` cannot
-  read, and for an id that is not a thread.
+  read, and for an id that is not a chat thread (a card thread too).
   """
   @spec thread(ThreadRules.viewer(), Ecto.UUID.t() | nil) ::
           {:ok, Thread.t()} | {:error, :not_found}
@@ -132,7 +136,7 @@ defmodule TalesForge.Chat do
 
   def thread(viewer, id) when is_binary(id) do
     with {:ok, uuid} <- Ecto.UUID.cast(id),
-         %Thread{} = thread <- Repo.get(Thread, uuid) do
+         %Thread{idea_id: nil} = thread <- Repo.get(Thread, uuid) do
       allow(viewer, thread)
     else
       _ -> {:error, :not_found}
@@ -198,6 +202,68 @@ defmodule TalesForge.Chat do
         |> find_direct()
         |> then(&if(&1, do: allow(viewer, &1), else: {:error, :forbidden}))
     end
+  end
+
+  @doc "The threads of the card `idea_id`, newest comment first."
+  @spec card_threads(Ecto.UUID.t()) :: [Thread.t()]
+  def card_threads(idea_id) when is_binary(idea_id),
+    do:
+      Repo.all(
+        from t in Thread, where: t.idea_id == ^idea_id, order_by: [desc: t.last_message_at]
+      )
+
+  @doc """
+  The thread `thread_id` of the card `idea_id`. `nil` and `""` give
+  `{:ok, nil}`, the General thread of the card. A thread of another card,
+  a chat thread or an unknown id gives `{:error, :not_found}`.
+  """
+  @spec card_thread(Ecto.UUID.t(), Ecto.UUID.t() | nil) ::
+          {:ok, Thread.t() | nil} | {:error, :not_found}
+  def card_thread(_idea_id, thread_id) when thread_id in [nil, ""], do: {:ok, nil}
+
+  def card_thread(idea_id, thread_id) when is_binary(thread_id) do
+    with {:ok, uuid} <- Ecto.UUID.cast(thread_id),
+         %Thread{} = thread <- Repo.get_by(Thread, id: uuid, idea_id: idea_id) do
+      {:ok, thread}
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
+  def card_thread(_idea_id, _thread_id), do: {:error, :not_found}
+
+  @doc """
+  Starts a thread with `subject` on the card `idea_id`, by the same rule
+  as a subject thread in the chat: founders and bots can start one.
+  Returns `{:ok, thread}`, `{:error, :forbidden}` or `{:error, changeset}`.
+  """
+  @spec start_card_thread(ThreadRules.viewer(), Ecto.UUID.t(), String.t() | nil) ::
+          {:ok, Thread.t()} | {:error, :forbidden | Ecto.Changeset.t()}
+  def start_card_thread(viewer, idea_id, subject) when is_binary(idea_id) do
+    with {:ok, attrs} <- ThreadRules.subject_attrs(viewer, subject, DateTime.utc_now()) do
+      %Thread{}
+      |> Thread.changeset(Map.put(attrs, :idea_id, idea_id))
+      |> Repo.insert()
+    end
+  end
+
+  @doc """
+  Adds a step to `multi` that sets `last_message_at` of the thread
+  `thread_id` to the time of the change `key`. `nil` adds no step.
+  """
+  @spec touch(Multi.t(), Ecto.UUID.t() | nil, atom()) :: Multi.t()
+  def touch(multi, nil, _key), do: multi
+
+  def touch(multi, thread_id, key) do
+    Multi.update_all(
+      multi,
+      {:touch_thread, thread_id},
+      fn changes ->
+        at = Map.fetch!(changes, key).inserted_at
+        from(t in Thread, where: t.id == ^thread_id, update: [set: [last_message_at: ^at]])
+      end,
+      []
+    )
   end
 
   @doc """
@@ -398,9 +464,11 @@ defmodule TalesForge.Chat do
       "delivery_id" => Ecto.UUID.generate(),
       "payload" => %{
         "chat" => %{
+          "thread" => thread_json(Repo.get(Thread, message.thread_id)),
           "message" => to_json(message),
           "recent" => Enum.map(context, &to_json/1),
-          "reply_url" => AppRole.base_url(:production) <> "/internal/chat"
+          "reply_url" => AppRole.base_url(:production) <> "/internal/chat",
+          "reply_params" => %{"thread_id" => message.thread_id}
         }
       }
     })
@@ -411,12 +479,25 @@ defmodule TalesForge.Chat do
   def to_json(%Message{} = m),
     do: %{
       "id" => m.id,
+      "thread_id" => m.thread_id,
       "author" => m.author,
       "body" => m.body,
       "mentions" => m.mentions,
       "bots" => m.bots,
       "images" => images_json(m.images),
       "at" => m.inserted_at
+    }
+
+  @doc "A thread as JSON for the bots."
+  @spec thread_json(Thread.t() | nil) :: map() | nil
+  def thread_json(nil), do: nil
+
+  def thread_json(%Thread{} = t),
+    do: %{
+      "id" => t.id,
+      "subject" => t.subject,
+      "kind" => t.kind,
+      "last_message_at" => t.last_message_at
     }
 
   defp images_json(images) when is_list(images), do: Enum.map(images, &Images.to_json/1)
@@ -549,25 +630,55 @@ defmodule TalesForge.Chat do
   def suggestions, do: Mentions.suggestions(team())
 
   @doc """
-  The bots' API (`TalesForgeWeb.ChatApiController`): `:index` gives the
-  latest messages, `:create` posts `params["body"]` as the bot. A bot never
-  wakes another bot.
+  The bots' API (`TalesForgeWeb.ChatApiController`). A bot can read and
+  post only in subject threads (`TalesForge.Chat.ThreadRules`).
+
+  - `:index` gives the latest messages of `params["thread_id"]` (default:
+    General) and the threads that the bot can read.
+  - `:create` posts `params["body"]` as the bot in `params["thread_id"]`
+    (default: General). With `params["subject"]` and no `thread_id`, the
+    bot starts a subject thread and posts in it.
+  - A thread that the bot cannot read gives 404, the same as a missing
+    thread. A bot never wakes another bot.
   """
   @spec api(:index | :create, atom(), map()) :: {pos_integer(), map()}
-  def api(:index, bot, _params) do
-    case recent(viewer("bot:#{bot}", nil), nil, 50) do
-      {:ok, messages} -> {200, %{"messages" => Enum.map(messages, &to_json/1)}}
+  def api(:index, bot, params) do
+    viewer = viewer("bot:#{bot}", nil)
+
+    with {:ok, thread} <- thread(viewer, params["thread_id"]),
+         {:ok, messages} <- recent(viewer, thread.id, 50) do
+      {200,
+       %{
+         "thread" => thread_json(thread),
+         "threads" => viewer |> threads() |> Enum.map(&thread_json/1),
+         "messages" => Enum.map(messages, &to_json/1)
+       }}
+    else
       {:error, :not_found} -> {404, %{"error" => "not_found"}}
     end
   end
 
   def api(:create, bot, params) do
-    case post("bot:#{bot}", to_string(params["body"] || "")) do
-      {:ok, m} -> {201, to_json(m)}
+    author = "bot:#{bot}"
+
+    with {:ok, thread_id} <- api_thread(viewer(author, nil), params),
+         {:ok, m} <- post(author, to_string(params["body"] || ""), thread_id: thread_id) do
+      {201, to_json(m)}
+    else
       {:error, :not_found} -> {404, %{"error" => "not_found"}}
+      {:error, :forbidden} -> {404, %{"error" => "not_found"}}
       {:error, cs} -> {422, %{"errors" => Ecto.Changeset.traverse_errors(cs, &elem(&1, 0))}}
     end
   end
+
+  # The thread of a bot post: thread_id, or a new subject thread.
+  defp api_thread(_viewer, %{"thread_id" => id}) when is_binary(id) and id != "", do: {:ok, id}
+
+  defp api_thread(viewer, %{"subject" => subject}) when is_binary(subject) do
+    with {:ok, thread} <- start_subject(viewer, subject), do: {:ok, thread.id}
+  end
+
+  defp api_thread(_viewer, _params), do: {:ok, nil}
 
   defp team, do: Workflow.Team.Source.team()
 end

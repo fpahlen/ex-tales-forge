@@ -360,11 +360,31 @@ defmodule TalesForge.Board do
   (see `TalesForge.Board.Mentions`). On an archived card a comment wakes
   no bot and pings nobody. `opts[:login]` is the author's GitHub
   login, so the author gets no ping for their own name.
+
+  `opts[:thread_id]` is the card thread of the comment
+  (`TalesForge.Chat.card_thread/2`). `nil` is the General thread of the
+  card. A thread of another card gives `{:error, "No such thread on this
+  card."}`. The bots that the comment wakes get the `thread_id`.
   """
   @spec add_comment(Idea.t(), String.t(), String.t(), keyword()) :: {:ok, Idea.t()} | error()
   def add_comment(%Idea{} = idea, author, body, opts \\ []) do
+    case TalesForge.Chat.card_thread(idea.id, opts[:thread_id]) do
+      {:ok, thread} -> insert_comment(idea, author, body, thread && thread.id, opts)
+      {:error, :not_found} -> {:error, "No such thread on this card."}
+    end
+  end
+
+  defp insert_comment(idea, author, body, thread_id, opts) do
     author = normalize(author)
-    changeset = Comment.changeset(%Comment{}, %{idea_id: idea.id, author: author, body: body})
+
+    changeset =
+      Comment.changeset(%Comment{}, %{
+        idea_id: idea.id,
+        author: author,
+        body: body,
+        thread_id: thread_id
+      })
+
     # A comment on an archived card stays on the card but wakes nobody.
     archived? = idea.column == "archived"
     team = team()
@@ -374,6 +394,7 @@ defmodule TalesForge.Board do
 
     Multi.new()
     |> Multi.insert(:comment, changeset)
+    |> TalesForge.Chat.touch(thread_id, :comment)
     |> WorkLog.add("comment", :comment, & &1.author)
     |> Multi.run(:pings, fn repo, %{comment: comment} ->
       now = DateTime.utc_now()
@@ -394,7 +415,12 @@ defmodule TalesForge.Board do
     end)
     |> then(fn multi ->
       Enum.reduce(bots, multi, fn bot, acc ->
-        Events.add(acc, :mention, idea, %{bot: bot, body: body, author: author})
+        Events.add(acc, :mention, idea, %{
+          bot: bot,
+          body: body,
+          author: author,
+          thread_id: thread_id
+        })
       end)
     end)
     |> Events.add(:comment, idea, %{

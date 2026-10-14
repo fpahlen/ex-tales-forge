@@ -18,7 +18,10 @@ defmodule TalesForge.Board.Api do
   - `POST /ideas/:id/move`: `to` (a column), optional `note`. Gates as in
     `TalesForge.Board.Transitions`.
   - `POST /ideas/:id/links`: `kind` (pr, playtest, doc, other), `url`, `label`.
-  - `POST /ideas/:id/comments`: `body`. The checker passes a card with
+  - `POST /ideas/:id/comments`: `body`, optional `thread_id` (a thread of
+    the card; the bot answers in the thread of the comment that woke it) or
+    `subject` (a new card thread). The card JSON has `threads`, and each
+    comment has its `thread_id` (`null` is the General thread of the card). The checker passes a card with
     `"verdict": "pass"` (the comment then starts with
     `TalesForge.Board.check_pass/1`, "<checker name> check: pass").
 
@@ -123,8 +126,26 @@ defmodule TalesForge.Board.Api do
         do: Board.check_pass(team()) <> ". " <> to_string(params["body"] || ""),
         else: params["body"]
 
-    idea |> Board.add_comment("bot:#{bot}", to_string(body || "")) |> answer()
+    with {:ok, thread_id} <- comment_thread(bot, idea, params) do
+      idea
+      |> Board.add_comment("bot:#{bot}", to_string(body || ""), thread_id: thread_id)
+      |> answer()
+    end
   end
+
+  # The card thread of a bot comment: thread_id, or a new thread with subject.
+  defp comment_thread(_bot, _idea, %{"thread_id" => id}) when is_binary(id) and id != "",
+    do: {:ok, id}
+
+  defp comment_thread(bot, idea, %{"subject" => subject}) when is_binary(subject) do
+    case TalesForge.Chat.start_card_thread({:bot, bot}, idea.id, subject) do
+      {:ok, thread} -> {:ok, thread.id}
+      {:error, %Ecto.Changeset{} = cs} -> {422, %{"error" => errors(cs)}}
+      {:error, :forbidden} -> {422, %{"error" => "This bot cannot start a thread."}}
+    end
+  end
+
+  defp comment_thread(_bot, _idea, _params), do: {:ok, nil}
 
   defp answer({:ok, idea}), do: {200, card(idea)}
   defp answer({:error, %Ecto.Changeset{} = cs}), do: {422, %{"error" => errors(cs)}}
@@ -208,8 +229,15 @@ defmodule TalesForge.Board.Api do
       "comments" =>
         Enum.map(
           idea.comments,
-          &%{"author" => &1.author, "body" => &1.body, "at" => &1.inserted_at}
+          &%{
+            "author" => &1.author,
+            "body" => &1.body,
+            "thread_id" => &1.thread_id,
+            "at" => &1.inserted_at
+          }
         ),
+      "threads" =>
+        idea.id |> TalesForge.Chat.card_threads() |> Enum.map(&TalesForge.Chat.thread_json/1),
       "images" => images(idea),
       "links" =>
         Enum.map(idea.links, &%{"kind" => &1.kind, "url" => &1.url, "label" => &1.label}),
