@@ -1,6 +1,6 @@
 ---
 title: Decision log
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # Decision log
@@ -10,6 +10,50 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
+
+## 2026-10-14: Workflow split 6/6: Team setup
+
+- **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. Part of the split of the team tools into a separate product, named Workflow for now. Parent card: [split admin from the game](https://tales-forge.fly.dev/team#idea-b4c786e1-0ea6-4ae9-83bc-ccdd4107bd48). Follows [Workflow split 2/5: Team config](https://tales-forge.fly.dev/team#idea-4dbf0bfc-d0ac-4673-86b1-e3e515996f31) and card 5. Goal: G7, our shared workspace.
+- **Why:** **Goal.** A founder starts a new team with one sentence and a repo URL. An example is "I build a booking app for clinics, here is my repo". Workflow reads the repo and proposes a team config. The founder checks the config and saves it. No code change is necessary.
+
+**What we already have (main, `96cc848`, high confidence).**
+1. `Workflow.Team` is a plain struct: product name, repo URL, docs repo, founders, bots, column labels, goals and presentation text. `Workflow.Team.from_map/2` builds it from a map and checks it.
+2. `Workflow.Team.Source` reads the `workflow` block of `priv/team/data.json` at compile time. Thus a new config needs a new build today.
+3. Decision of card 2: one Workflow app for each team. The data has no team id.
+4. Sign-in uses the GitHub team in `ADMIN_GITHUB_TEAM`. Bot tokens come from the `BOARD_BOT_TOKEN_<BOT>` secrets.
+5. The board has a GitHub App (`TalesForge.Board.GitHubApp`). Today it can only write to our docs repo.
+
+**What this means.** A new team gets a new Workflow app with its own database. The same release runs for each team. Only the config is different. Thus the config must be read when the app runs, not when it is built.
+
+**Plan.**
+1. Store the team config in the database: one row, because one app serves one team. `Workflow.Team.Source` reads the row at start and keeps it in memory. The row stores the same map that `from_map/2` reads.
+2. Seed our row from `priv/team/data.json`. Our board and team page show the same data as before.
+3. A new app with no config row shows a setup page. Nothing else opens until a founder saves a config.
+4. The setup page has one text field for the sentence and one field for the repo URL.
+5. Workflow reads the repo through a repo adapter, for example `Workflow.Repo.GitHub.read/1`, behind a common interface. It reads the README, the file list and the collaborators.
+6. Jev turns the sentence and the README into the product name and a short description. This follows our call-type rule: text in, data out, so Jev and not the LLM.
+7. Elixir fills the rest: founders from the repo collaborators, the seven default column labels and the three bot roles. Goals start empty. The founders add goals on the board.
+8. The founder edits the proposal in a form and presses Save. `from_map/2` checks the config before the save.
+9. A founder can open the same form later to change the config.
+
+**Cost: L.** Steps 1 to 3 are M, because the source changes from compile time to run time. Steps 4 to 8 are M. Workflow also needs its own small Jev client after card 5, because the Jev modules are in the product app.
+
+**Risks.**
+- A wrong config can break the board. Mitigation: `from_map/2` checks each save. A test renders /team with the seeded row and compares it with main.
+- The repo can be private. Mitigation: the new team installs our GitHub App on its repo, or gives a read-only token.
+- A new app has no founders yet. Thus someone must be allowed to open the setup page first. See the open questions.
+- A new Fly app, its database and its secrets are still a manual step. This card does not automate them.
+
+**Depends on.** Card 2 (done) and card 5, which Bobby builds now. Do this card after card 5.
+
+**Deploy lane.** Workflow only, on its own app after card 5. The product app does not change.
+
+**Verdict: feasible with caveats.** The config struct and its checks exist. The source must move from a compile-time file to a database row. A new team still needs a manual app setup.
+
+**Confidence.** High confidence that the setup page is feasible. Medium confidence in the cost, because the sign-in of a new team and private repos need founder answers. Verdict: feasible with caveats. Rough cost: L.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-77c29dee-c11c-4f26-a1e3-e58a1f937c6b)
+
+<!-- board:idea:77c29dee-c11c-4f26-a1e3-e58a1f937c6b -->
 
 ## 2026-10-13: Workflow split 3/5: Data boundary
 
