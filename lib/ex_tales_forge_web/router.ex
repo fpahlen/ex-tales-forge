@@ -168,12 +168,9 @@ defmodule TalesForgeWeb.Router do
   # playtest-run AI spend. Answers on the playtest app only, and only while
   # COSTS_PEER_TOKEN is set (404 otherwise); needs it as a bearer token (401);
   # see CostsPeerController. /internal/version (both apps, same token) gives the
-  # running commit to the other app's live PR feed on /team; see
-  # VersionPeerController. /internal/online (playtest only, same token) gives
-  # production's /team the founders online on playtest; see OnlinePeerController.
-  # /internal/work-log/events (playtest only, same token) gives production the
-  # playtest work log events; see WorkLogPeerController.
-  # None of them calls an LLM.
+  # running commit; see VersionPeerController. /internal/online (playtest only,
+  # same token) gives production's header the founders online on playtest; see
+  # OnlinePeerController. None of them calls an LLM.
   scope "/internal", TalesForgeWeb do
     pipe_through :api
 
@@ -183,9 +180,8 @@ defmodule TalesForgeWeb.Router do
   end
 
   # The product-app API that Workflow reads (costs, online, running commits;
-  # PRODUCT_APP_API_TOKEN, 404 while unset); see ProductApiController. Workflow
-  # receives work-log turn events from the product app (WORKFLOW_API_TOKEN,
-  # 404 while unset); see WorkflowWorkLogController. None of them calls an LLM.
+  # PRODUCT_APP_API_TOKEN, 404 while unset); see ProductApiController. None of
+  # them calls an LLM.
   scope "/internal/product", TalesForgeWeb do
     pipe_through :api
 

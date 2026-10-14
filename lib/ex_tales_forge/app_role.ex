@@ -32,7 +32,8 @@ defmodule TalesForge.AppRole do
   # The paths that Workflow (whyse-workflow) serves. The product app
   # redirects them there for 30 days (TalesForgeWeb.WorkflowRedirectController).
   @workflow_paths ~w(/team /admin/founders/decisions /admin/docs /admin/docs-files
-                     /internal/board /internal/chat /internal/images /internal/workflow
+                     /internal/board /internal/chat /internal/images /internal/work-log
+                     /internal/workflow
                      /webhooks/github)
 
   @doc "This app's name (Fly's FLY_APP_NAME), or \"local\" off Fly."
