@@ -3,7 +3,7 @@ defmodule TalesForge.ProductApi.PersonaScores do
   The persona scores that the product app gives to Workflow
   (`TalesForge.ProductApi`). The scores are the Jev turn scores
   (`playtest_scores` kind `"turn_affect"`) of the playtest runs that started
-  on this app since `since/0`. Each persona gets the confidence-weighted
+  on this app since 2026-10-07. Each persona gets the confidence-weighted
   score (`TalesForge.Playtest.JevHeadline`), the low-confidence share and the
   number of scored turns.
 
