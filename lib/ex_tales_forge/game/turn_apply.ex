@@ -147,19 +147,51 @@ defmodule TalesForge.Game.TurnApply do
       )
       when is_binary(target) and target != "" do
     params = action.parameters || %{}
+    price = spend_copper(player_action.overall_intent)
 
-    if params["item_id"] in [nil, ""] and not person_or_nil?(world, target) do
-      params = Map.put(params, "item_id", target)
-      hints = Map.put(handler.state_hints || %{}, "parameters", params)
+    cond do
+      params["item_id"] in [nil, ""] and not person_or_nil?(world, target) and
+        drink_here?(player_action.overall_intent) and price > 0 ->
+        spend_here(player_action, handler, price)
 
-      {%{player_action | action: %{action | target: nil, parameters: params}},
-       %{handler | state_hints: hints}}
-    else
-      {player_action, handler}
+      params["item_id"] in [nil, ""] and not person_or_nil?(world, target) ->
+        listed(player_action, handler, params, target)
+
+      true ->
+        {player_action, handler}
     end
   end
 
   def item_buy(player_action, handler, _world), do: {player_action, handler}
+
+  # "I order an ale", "I drink an ale": the character drinks or eats it at
+  # the counter, so it is a payment at the service price and no item.
+  # Gentry's playtest session ead76238 on 2026-10-14: the Mug of Ale stayed
+  # in the inventory after the character drank it.
+  @drink_here ~r/\b(?:order|orders|ordering|drink|drinks|drinking|have a|grab a|down a)\b/iu
+
+  defp drink_here?(text) when is_binary(text), do: Regex.match?(@drink_here, text)
+  defp drink_here?(_text), do: false
+
+  defp spend_here(%PlayerAction{action: action} = player_action, handler, price) do
+    params = Map.put(action.parameters || %{}, "amount_copper", price)
+    spend = %{action | action_type: :spend, target: nil, parameters: params}
+
+    hints =
+      (handler.state_hints || %{})
+      |> Map.put("parameters", params)
+      |> Map.put("action_type", "spend")
+
+    {%{player_action | action: spend}, %{handler | state_hints: hints}}
+  end
+
+  defp listed(%PlayerAction{action: action} = player_action, handler, params, target) do
+    params = Map.put(params, "item_id", target)
+    hints = Map.put(handler.state_hints || %{}, "parameters", params)
+
+    {%{player_action | action: %{action | target: nil, parameters: params}},
+     %{handler | state_hints: hints}}
+  end
 
   @doc """
   Makes a purchase of a service with no item a payment at the service price.
@@ -323,6 +355,9 @@ defmodule TalesForge.Game.TurnApply do
     phrase = place_phrase(text)
 
     cond do
+      generic_here?(text, world) ->
+        stay(world, world["location_id"])
+
       best_score > target_score and best == world["location_id"] ->
         stay(world, best)
 
@@ -356,6 +391,20 @@ defmodule TalesForge.Game.TurnApply do
       notes: "The character is already in #{name}. The character stays here. Narrate no walk.",
       state_hints: %{"same_place" => true}
     }
+  end
+
+  # A general word for a lodging place ("inside the inn", "into the tavern")
+  # names the place where the character is when that place is a rest place.
+  # Gentry's playtest session ead76238 on 2026-10-14: "I go inside the inn"
+  # in the Weary Pilgrim moved the character to the Pilgrim Cellar.
+  @generic_inn ~r/\b(?:inn|tavern|taproom|alehouse|pub|common room)\b/iu
+  @leave_words ~r/\b(?:out of|leave|leaves|exit|exits|outside)\b/iu
+
+  defp generic_here?(text, world) do
+    here = world["location_id"]
+
+    is_binary(here) and Regex.match?(@generic_inn, text) and
+      not Regex.match?(@leave_words, text) and Rest.rest_place?(world, here)
   end
 
   @place_phrase ~r/\b(?:to|into|towards?)\s+the\s+([\p{L}' -]+?)(?=\s+(?:by|near|on|in|at|with|and|beside|of)\b|[,.!?;]|$)/iu
@@ -413,6 +462,79 @@ defmodule TalesForge.Game.TurnApply do
         "reason" => "There is no place called #{name} near here. " <> exits(world)
       }
     }
+  end
+
+  @set_out ~r/\b(?:head|heads|heading|go|goes|going|walk|walks|walking|set out|setting out|leave|leaving|travel|travelling|traveling|ride|riding|on my way)\b/iu
+  @any_place_phrase ~r/\b(?:to|into|towards?|about|for|at)\s+the\s+([\p{L}' -]+?)(?=\s+(?:by|near|on|in|at|with|and|beside|of)\b|[,.!?;]|$)/iu
+
+  @doc """
+  Keeps the character here when the turn is not a move but the text sets out
+  for a place that the world does not have ("I ask Marta about the old mill
+  and say I'm heading out there now"). The handler stays (the character
+  still talks), and it gets the reason with the exits and a note: the
+  character stays here, and the GM narrates no walk. Other handlers do not
+  change.
+
+  Gentry's playtest session ead76238 on 2026-10-14: Jev read the turn as
+  speech with a deferred move, so the move check did not run, and the prose
+  walked the character to the square.
+
+  ## Examples
+
+      iex> alias TalesForge.Game.Schemas.HandlerResult
+      iex> world = %{"location_id" => "inn", "locations" => %{
+      ...>   "inn" => %{"name" => "The Inn", "exits" => ["square"]},
+      ...>   "square" => %{"name" => "Crossroads Square"}}}
+      iex> h = %HandlerResult{handler: "narrate", target: "marta_kellen", notes: "Talk.", state_hints: %{}}
+      iex> TalesForge.Game.TurnApply.deferred_move(h, world, "I ask Marta about the old mill and say I'm heading out there now.").state_hints["reason"]
+      "There is no place called old mill near here. The exits from The Inn are: Crossroads Square."
+      iex> TalesForge.Game.TurnApply.deferred_move(h, world, "I ask Marta about the weather.") == h
+      true
+  """
+  @spec deferred_move(HandlerResult.t(), map(), String.t() | nil) :: HandlerResult.t()
+  def deferred_move(%HandlerResult{handler: handler_name} = handler, world, text)
+      when is_binary(text) and handler_name != "move" do
+    hints = handler.state_hints || %{}
+    phrase = any_place_phrase(text)
+
+    if Regex.match?(@set_out, text) and hints["rejected"] != true and is_binary(phrase) and
+         unknown_place?(phrase, world) do
+      %{
+        handler
+        | notes:
+            String.trim(
+              (handler.notes || "") <>
+                " The character stays here this turn. Narrate no walk. Give the exits as a plain list, in the words of the reason."
+            ),
+          state_hints:
+            hints
+            |> Map.put("move_rejected", true)
+            |> Map.put("reason", "There is no place called #{phrase} near here. " <> exits(world))
+      }
+    else
+      handler
+    end
+  end
+
+  def deferred_move(handler, _world, _text), do: handler
+
+  defp any_place_phrase(text) do
+    case Regex.run(@any_place_phrase, text) do
+      [_, phrase] -> String.trim(phrase)
+      nil -> nil
+    end
+  end
+
+  # The phrase names no place of the world and no person.
+  defp unknown_place?(phrase, world) do
+    named = words(phrase)
+
+    places =
+      world
+      |> Map.get("locations", %{})
+      |> Enum.flat_map(fn {id, loc} -> place_words(id, loc) end)
+
+    unknown_phrase?(phrase, world) and overlap(named, places) == 0
   end
 
   @doc """

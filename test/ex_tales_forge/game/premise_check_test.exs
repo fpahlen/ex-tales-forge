@@ -46,7 +46,7 @@ defmodule TalesForge.Game.PremiseCheckTest do
     test "a kill that never happened" do
       assert corrections("I killed the orc chief") == [
                "Player claims to have killed the orc chief; they have won no fight this session " <>
-                 "and Orc nest in the cut is still active. Don't narrate it as true."
+                 "and Orc nest in the cut is still active. Invent no bounty, reward, token or story that backs the claim. Don't narrate it as true."
              ]
 
       assert [%{kind: :kill}] =
@@ -78,7 +78,7 @@ defmodule TalesForge.Game.PremiseCheckTest do
 
   describe "Gentry's v85/v86 retest: a kill claimed as a reminder" do
     @orc_chief "Player claims to have killed the orc chief; they have won no fight this session " <>
-                 "and Orc nest in the cut is still active. Don't narrate it as true."
+                 "and Orc nest in the cut is still active. Invent no bounty, reward, token or story that backs the claim. Don't narrate it as true."
 
     test "\"As I said\" is the player reminding the table, not speech to a character" do
       assert corrections("As I said, I killed the orc chief yesterday") == [@orc_chief]
@@ -93,7 +93,7 @@ defmodule TalesForge.Game.PremiseCheckTest do
 
       assert king ==
                "Player claims to have killed the bandit king; they have won no fight this session " <>
-                 "and nobody by that name is known in this session. Don't narrate it as true."
+                 "and nobody by that name is known in this session. Invent no bounty, reward, token or story that backs the claim. Don't narrate it as true."
 
       assert [troll] = corrections("I killed the troll under the bridge yesterday.")
       assert troll =~ "killed the troll;"
@@ -107,7 +107,7 @@ defmodule TalesForge.Game.PremiseCheckTest do
 
       assert corrections("As I said, I killed the orc chief yesterday", state) == [
                "Player claims to have killed the orc chief; they have won no fight against the orc chief " <>
-                 "this session and Orc nest in the cut is still active. Don't narrate it as true."
+                 "this session and Orc nest in the cut is still active. Invent no bounty, reward, token or story that backs the claim. Don't narrate it as true."
              ]
 
       assert [_] = corrections("I killed the bandit king.", state)
