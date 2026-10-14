@@ -2,7 +2,7 @@ defmodule Workflow.Inbox.FoundersTest do
   @moduledoc """
   Each founder in the team config has the rule `mention`. An @mention of a
   founder makes one item in the inbox of that founder. The inbox replaces the
-  board pings and the chat badge of that founder.
+  board pings of that founder. The chat button also counts the message.
   """
   use TalesForge.DataCase, async: false
 
@@ -31,7 +31,8 @@ defmodule Workflow.Inbox.FoundersTest do
       assert id == idea.id
       assert Enum.all?(@team.founders -- [@founder], &(Store.open(&1.handle) == []))
       assert Board.unread_pings(github) == []
-      assert Chat.unread(github) == 0
+      # The chat button counts the mention too (the inbox shows what needs an answer).
+      assert %{count: 1, latest: %{preview: "@" <> _}} = Chat.bar(github, hd(@founder.emails))
     end
   end
 end

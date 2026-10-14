@@ -75,7 +75,7 @@ defmodule Workflow.Inbox.StoreTest do
     assert %{state: "discarded", acted_at: %DateTime{}} = Store.get(item.id)
   end
 
-  test "the inbox replaces the pings and the chat badge for each founder with rules" do
+  test "the inbox replaces the pings for each founder with rules; the chat button counts new messages" do
     idea = card()
 
     {:ok, _} =
@@ -88,9 +88,11 @@ defmodule Workflow.Inbox.StoreTest do
     {:ok, _} = Chat.post(@owner_email, "@#{@other.handle} hi", login: @owner.github)
 
     assert Board.unread_pings(@owner.github) == []
-    assert Chat.unread(@owner.github) == 0
+    # The owner posted after the message of @other, so the owner has read it.
+    assert Chat.bar(@owner.github, @owner_email).count == 0
     assert Board.unread_pings(@other.github) == []
-    assert Chat.unread(@other.github) == 0
+    # @other takes part in General, so the later message of the owner counts.
+    assert Chat.bar(@other.github, @other_email).count == 1
     # The comment of @other on the card closed the card item of @other.
     assert [%{source: :chat}] = Store.open(@other.handle)
   end

@@ -29,20 +29,20 @@ defmodule TalesForge.ChatTest do
     assert "Write 2000 characters or fewer." in errors_on(cs).body
   end
 
-  test "founder mentions make inbox items; the inbox replaces the unread badge" do
+  test "founder mentions make inbox items and count on the chat button" do
     # Handles come from GitHub logins (the team config, priv/team/data.json).
     {:ok, _} = Chat.post(@fredrik, "@max can you look? cc @fredrik", login: "fpahlen")
     {:ok, _} = Chat.post(@fredrik, "@founders standup at 16", login: "fpahlen")
 
-    # Each founder has inbox rules, so no founder has a badge.
+    # The inbox items stay, and the chat button counts the same messages.
     assert [_, _] = Workflow.Inbox.Store.open("max")
-    assert Chat.unread("maxpahlen") == 0
-    assert Chat.unread("MaxPahlen") == 0
-    # The author gets no item for their own message.
+    assert Chat.bar("maxpahlen", @max).count == 2
+    assert Chat.bar("MaxPahlen", @max).count == 2
+    # The author gets no item and no count for their own messages.
     assert Workflow.Inbox.Store.open("fredrik") == []
-    assert Chat.unread("fpahlen") == 0
-    # An email or an unknown login has no handle, so no badge.
-    assert Chat.unread(@max) == 0
+    assert Chat.bar("fpahlen", @fredrik).count == 0
+    # An email or an unknown login has no handle, so the count is 0.
+    assert Chat.bar(@max, @max) == %{count: 0, latest: nil}
   end
 
   test "a founder's bot mention wakes the bot through the webhook outbox" do

@@ -155,7 +155,7 @@ defmodule TalesForge.ChatThreadsTest do
     test "a mention of a non-member makes no mention, no badge and no inbox item", %{t: t} do
       {:ok, m} = post(@max, "@thobias @fredrik @founders look", t)
       assert m.mentions == ["fredrik"]
-      assert Chat.unread(@thobias.login) == 0
+      assert Chat.bar(@thobias.login, @thobias.email).count == 0
       assert Chat.unread_by_thread(v(@thobias), @thobias.email)[t.id] == nil
 
       u = direct!(@max, @thobias)
@@ -239,16 +239,85 @@ defmodule TalesForge.ChatThreadsTest do
       assert counts[t.id] == 1
       # The author has read their own messages.
       assert Chat.unread_by_thread(v(@max), @max.email) == %{}
-      # The direct message counts on the chat button. Each founder has an
-      # inbox, so a mention goes to the inbox and not to the button.
+      # The direct message and the mention count on the chat button.
       {:ok, _} = post(@max, "@thobias look", a)
-      assert Chat.unread(@thobias.login) == 1
+      assert Chat.bar(@thobias.login, @thobias.email).count == 4
 
       :ok = Chat.mark_read(@thobias.login, t.id)
       assert Chat.unread_by_thread(v(@thobias), @thobias.email)[t.id] == nil
       assert Chat.unread_by_thread(v(@thobias), @thobias.email)[a.id] == 3
-      assert Chat.unread(@thobias.login) == 0
+      assert Chat.bar(@thobias.login, @thobias.email).count == 3
       assert Chat.unread_by_thread({:bot, :case}, nil) == %{}
+    end
+  end
+
+  describe "bar" do
+    defp bar(who), do: Chat.bar(who.login, who.email)
+
+    test "a thread that you take part in counts, and a thread that you never joined does not" do
+      {:ok, joined} = Chat.start_subject(v(@max), "Joined")
+      {:ok, other} = Chat.start_subject(v(@max), "Other")
+      {:ok, _} = post(@thobias, "I am in", joined)
+      {:ok, _} = post(@max, "reply one", joined)
+      {:ok, _} = post(@max, "not for you", other)
+
+      assert %{count: 1, latest: latest} = bar(@thobias)
+      assert latest.thread_id == joined.id
+      assert latest.preview == "reply one"
+      assert is_binary(latest.author) and latest.author != ""
+    end
+
+    test "you take part when you started the thread or were mentioned in it" do
+      {:ok, mine} = Chat.start_subject(v(@thobias), "Mine")
+      {:ok, named} = Chat.start_subject(v(@max), "Named")
+      {:ok, _} = post(@max, "in your thread", mine)
+      {:ok, _} = post(@max, "@thobias see this", named)
+      {:ok, _} = post(@max, "and this", named)
+
+      assert %{count: 3, latest: %{thread_id: id, preview: "and this"}} = bar(@thobias)
+      assert id == named.id
+    end
+
+    test "General uses the participant rule" do
+      {:ok, _} = Chat.post(@max.email, "General news", login: @max.login)
+      assert bar(@thobias).count == 0
+
+      {:ok, _} = Chat.post(@thobias.email, "Hi all", login: @thobias.login)
+      {:ok, _} = Chat.post(@max.email, "Hi Thobias", login: @max.login)
+      assert %{count: 1, latest: %{preview: "Hi Thobias"}} = bar(@thobias)
+    end
+
+    test "all messages in a direct thread count" do
+      t = direct!(@max, @thobias)
+      {:ok, _} = post(@max, "one", t)
+      {:ok, _} = post(@max, "two", t)
+      assert %{count: 2, latest: %{thread_id: id, preview: "two"}} = bar(@thobias)
+      assert id == t.id
+      assert bar(@hakan).count == 0
+    end
+
+    test "your own messages do not count" do
+      t = direct!(@max, @thobias)
+      {:ok, _} = post(@thobias, "from me", t)
+      assert bar(@thobias) == %{count: 0, latest: nil}
+    end
+
+    test "a message with only images shows sent an image" do
+      t = direct!(@max, @thobias)
+      {:ok, _} = post(@max, "", t, images: [TalesForge.ImageFixtures.png()])
+      assert %{count: 1, latest: %{preview: "sent an image"}} = bar(@thobias)
+    end
+
+    test "the count clears after mark_read, and your own topic gets the read event" do
+      t = direct!(@max, @thobias)
+      {:ok, _} = post(@max, "one", t)
+      assert bar(@thobias).count == 1
+
+      Chat.subscribe(v(@thobias))
+      :ok = Chat.mark_read(@thobias.login, t.id)
+      id = t.id
+      assert_receive {:team_chat_read, ^id}
+      assert bar(@thobias) == %{count: 0, latest: nil}
     end
   end
 end
