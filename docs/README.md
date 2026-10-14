@@ -35,6 +35,7 @@ Also in this folder:
 - [Design: player intent as one Jev call](design-jev-intent.md): one TypeSafe Jev call per turn for the typed intent and the safety label; labelled evaluation set and `mix intent.eval` first, thresholds and clarification bands, what goes away, secrets, playtest comparison, PR sequence (design, no code yet)
 - [Design: one rule for skills and the economy](design-skills-economy.md): a day rate by skill level through practice hours drives wages, hirelings, trainer fees, services and item prices as anchors, with bounded situational modifiers (0.5×-3×) for the price paid; practice hours as narrative bands; growth stays PR #100's LP model; the drift to fix and open questions (design, no code)
 - [Discussion: when Workflow needs a bot, and how a client sets it up](discussion-workflow-bots-and-client-setup.md): code, then LLM, then bot; hosting, Microsoft-only clients, and bots other than Grok Bot (open discussion)
+- [Personal account migration plan](personal-account-migration.md): move Tales Forge and Workflow off Fredrik's personal accounts (GitHub, Fly, billing, secrets)
 - [Call types: Elixir function, Jev, or LLM](call-types.md): which call type to use for each piece of work, and the target turn pipeline (draft)
 - [Plan: porting character creation from the old app](character-creation-port.md): how the old app's creation works and a proposed port to the Elixir app (draft)
 - [Setting up Resend (email)](resend-setup.md)
