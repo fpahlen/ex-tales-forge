@@ -102,7 +102,8 @@ defmodule TalesForge.PrFeed.Live do
         merged_today: snap.merged_today + merged_since(pr, today) - merged_since(old, today),
         merged_week: snap.merged_week + merged_since(pr, week) - merged_since(old, week),
         fetched_at: now,
-        pace: snap.pace && Pace.put_pr(snap.pace, old, pr, now)
+        pace: snap.pace && Pace.put_pr(snap.pace, old, pr, now),
+        merged: PrFeed.recent_merged(Map.values(model.pulls), now)
     }
 
     %{model | snapshot: new_snap}

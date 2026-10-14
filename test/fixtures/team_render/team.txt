@@ -2,6 +2,7 @@ Skip to content
 Tales ForgeChatFounders: 1Bots: 1online. Show who is online.LOCAL
 Admin
 Going to do
+Done
 Doing <ago>
 Work log
 Presentation
@@ -78,6 +79,9 @@ Parked
 0
 Done
 0Nothing here yet.
+What have we done
+The pull requests that we merged in the last 3 days, in short themes. Each line links to its pull requests.
+No merged pull requests since <date>.
 What we're doing <ago>
 Live from GitHub, updated every minute: the pull requests in the game's repo, whether their checks
 passed, and whether they're on playtest or in production yet.

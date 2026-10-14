@@ -101,7 +101,8 @@ defmodule TalesForge.PrFeedFixtures do
       merged_today: Keyword.get(opts, :today, 0),
       merged_week: Keyword.get(opts, :week, 0),
       fetched_at: DateTime.utc_now(),
-      pace: Keyword.get(opts, :pace)
+      pace: Keyword.get(opts, :pace),
+      merged: Keyword.get(opts, :merged, [])
     }
   end
 

@@ -11,10 +11,13 @@ defmodule TalesForgeWeb.TeamLive do
      (`TalesForgeWeb.TeamInbox`) is under New idea, live over the inbox
      PubSub (`Workflow.Inbox.Store`). `/team` lives on production only
      (`TalesForge.AppRole`, area `:board`): playtest redirects it there;
-  3. **What we're doing now** (`#live`): the live GitHub PR, CI and deploy feed,
+  3. **What have we done** (`#done`): the pull requests merged in the last
+     3 days as short theme bullets, the nested
+     `TalesForgeWeb.TeamWhatWeDidLive` (`TalesForge.PrFeed.WhatWeDid`);
+  4. **What we're doing now** (`#live`): the live GitHub PR, CI and deploy feed,
      the nested `TalesForgeWeb.TeamPrFeedLive` (`TalesForge.PrFeed`, polled on
      the server and pushed over PubSub);
-  4. the one link to the full presentation (`#presentation-cta`).
+  5. the one link to the full presentation (`#presentation-cta`).
 
   The crew cards moved to the presentation (decision 2026-10-10). Old links
   still work: the `TeamAnchorRedirect` hook (`assets/js/team_hooks.js`)
@@ -32,15 +35,18 @@ defmodule TalesForgeWeb.TeamLive do
   use TalesForgeWeb, :live_view
 
   alias TalesForge.PrFeed
+  alias TalesForge.PrFeed.WhatWeDid
   alias TalesForge.TeamPage
   alias TalesForgeWeb.Layouts
   alias TalesForgeWeb.TeamLayout
   alias TalesForgeWeb.TeamPresentationLive
   alias TalesForgeWeb.TeamPrFeed
+  alias TalesForgeWeb.TeamWhatWeDid
   alias TalesForgeWeb.TeamWorkspace
 
   @nav [
     {"idea-board", "Going to do"},
+    {"done", "Done"},
     {"live", "Doing now"},
     {"/team/work-log", "Work log"},
     {"/team/presentation", "Presentation"}
@@ -51,7 +57,7 @@ defmodule TalesForgeWeb.TeamLive do
   presentation anchor, so the redirect hook leaves them alone.
 
       iex> TalesForgeWeb.TeamLive.anchors()
-      ["idea-board", "live", "presentation-cta", "workspace"]
+      ["idea-board", "done", "live", "presentation-cta", "workspace"]
   """
   @spec anchors() :: [String.t()]
   def anchors,
@@ -205,6 +211,7 @@ defmodule TalesForgeWeb.TeamLive do
           ideas_sort={assigns[:ideas_sort] || "newest"}
           ideas_tags={assigns[:ideas_tags] || []}
         />
+        <.what_we_did socket={assigns[:socket]} />
         <.live_section socket={assigns[:socket]} />
         <.presentation />
       </main>
@@ -212,6 +219,33 @@ defmodule TalesForgeWeb.TeamLive do
       <TeamLayout.footer team={@team} d={@d} />
       <Layouts.flash_group flash={@flash} />
     </div>
+    """
+  end
+
+  # "What have we done": the merged pull requests of the last days as short
+  # theme bullets (TeamWhatWeDidLive, TalesForge.PrFeed.WhatWeDid). Without a
+  # socket the cached panel or the plain titles are shown statically.
+  attr :socket, :any, default: nil
+
+  defp what_we_did(assigns) do
+    ~H"""
+    <section id="done" class="space-y-5" aria-labelledby="done-title">
+      <header class="max-w-3xl space-y-2">
+        <h2 id="done-title" class="font-serif text-2xl font-bold sm:text-3xl">
+          What have we done
+        </h2>
+        <p class="text-base leading-relaxed text-[var(--paper-muted)] sm:text-lg">
+          The pull requests that we merged in the last {WhatWeDid.days()} days, in short themes. Each line links to its pull requests.
+        </p>
+      </header>
+      <%= if @socket do %>
+        {live_render(@socket, TalesForgeWeb.TeamWhatWeDidLive, id: "team-what-we-did")}
+      <% else %>
+        <TeamWhatWeDid.panel summary={
+          WhatWeDid.cached_or_titles(Map.get(PrFeed.snapshot(), :merged, []), DateTime.utc_now())
+        } />
+      <% end %>
+    </section>
     """
   end
 

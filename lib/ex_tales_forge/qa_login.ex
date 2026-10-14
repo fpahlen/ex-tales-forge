@@ -42,7 +42,8 @@ defmodule TalesForge.QaLogin do
   # in the admin deploy lane, .github/deploy-lanes.txt).
   @allowed_views ~w(TalesForgeWeb.TeamLive TalesForgeWeb.TeamPresentationLive
                     TalesForgeWeb.TeamWorkLogLive
-                    TalesForgeWeb.TeamPrFeedLive TalesForgeWeb.OnlineHeaderLive
+                    TalesForgeWeb.TeamPrFeedLive TalesForgeWeb.TeamWhatWeDidLive
+                    TalesForgeWeb.OnlineHeaderLive
                     TalesForgeWeb.TeamChatLive)
 
   # Events that only change what this browser shows (open or close a card or
