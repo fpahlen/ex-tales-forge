@@ -98,6 +98,7 @@ defmodule TalesForge.Prompt.Profile do
       Sections.NoticedDetails,
       Sections.Premise,
       Sections.SkillSplit,
+      Sections.Combat,
       Sections.RestGrowth,
       Sections.PlayerRequest
     ]
@@ -117,6 +118,7 @@ defmodule TalesForge.Prompt.Profile do
 
   defp include?(Sections.NoticedDetails, ctx), do: Ctx.flag?(ctx, :skill_detail_level)
   defp include?(Sections.SkillSplit, ctx), do: Ctx.flag?(ctx, :skill_split)
+  defp include?(Sections.Combat, ctx), do: Ctx.flag?(ctx, :combat_opposed)
   defp include?(section, ctx) when section in @default_only, do: not Ctx.baseline?(ctx)
   defp include?(_section, _ctx), do: true
 end

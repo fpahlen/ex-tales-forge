@@ -173,6 +173,7 @@ defmodule TalesForgeWeb.PlayLive do
       |> assign(:world_clock, Map.get(world, "world_clock", "—"))
       |> assign(:character, character)
       |> assign(:present_npcs, present_npcs(world))
+      |> assign(:last_exchange, last_exchange(world))
       |> assign(:quick_stats, quick_stats(character))
       |> assign(
         :input_disabled,
@@ -213,6 +214,7 @@ defmodule TalesForgeWeb.PlayLive do
           location_name={@location_name}
           scene_image_url={@scene_image_url}
           present_npcs={@present_npcs}
+          last_exchange={@last_exchange}
         />
       </div>
 

@@ -25,7 +25,15 @@ defmodule TalesForge.NPC do
     world_state =
       session.world_state
       |> Map.put("present_npcs", sync_present_npcs(session.id, location_id))
-      |> Map.put("npc_state", refresh_world_npc_state(session.id))
+      |> Map.put(
+        "npc_state",
+        # QA 2026-10-14 08:57 (e): keep the NPC wounds and the minor foes of
+        # the fights (#270) when the scene changes.
+        TalesForge.Game.Combat.carry(
+          Map.get(session.world_state, "npc_state"),
+          refresh_world_npc_state(session.id)
+        )
+      )
 
     session
     |> GameSession.changeset(%{world_state: world_state})
@@ -99,6 +107,37 @@ defmodule TalesForge.NPC do
     NpcInstance
     |> where([n], n.game_session_id == ^session_id)
     |> Repo.all()
+  end
+
+  @doc """
+  The combat fighter of one NPC instance (`TalesForge.Game.Combat`): the
+  stats, skills, OCEAN, Maslow level and concerns of its definition (with
+  the `Characters.Defaults` already applied) and its current concern.
+  Returns nil when the session has no instance with that id.
+  """
+  @spec combat_profile(String.t(), String.t()) :: map() | nil
+  def combat_profile(session_id, npc_id) do
+    case get_instance(session_id, npc_id) do
+      %NpcInstance{} = inst ->
+        definition = inst.personality || %{}
+        runtime = inst.runtime_state || %{}
+
+        %{
+          "id" => inst.npc_id,
+          "name" => Map.get(definition, "name", inst.npc_id),
+          "stats" => Map.get(definition, "stats", %{}),
+          "skills" => Map.get(definition, "skills", %{}),
+          "ocean" =>
+            Map.get(definition, "ocean") ||
+              get_in(definition, ["motivations", "personality_traits"]) || %{},
+          "maslow" => Map.get(definition, "maslow"),
+          "concerns" => List.wrap(Map.get(definition, "concerns")),
+          "current_concern" => runtime["current_concern"]
+        }
+
+      nil ->
+        nil
+    end
   end
 
   def get_instance(session_id, npc_id) do

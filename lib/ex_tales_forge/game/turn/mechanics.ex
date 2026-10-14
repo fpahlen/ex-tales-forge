@@ -6,7 +6,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
   before the narration.
 
   Writes `outcome`: `handler`, `mechanical`, `board`, `agents` and
-  `price_lines`. A blocked action is data: the handler is a `narrate` handler
+  `price_lines`, and `combat` (the exchange, `COMBAT_OPPOSED=on`). A blocked action is data: the handler is a `narrate` handler
   with `"rejected" => true` and the reason.
   """
 
@@ -14,10 +14,12 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
   alias TalesForge.AICalls.Steps
   alias TalesForge.Game.ActionHandler
+  alias TalesForge.Game.Combat
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.SkillSplit
   alias TalesForge.Game.Turn
+  alias TalesForge.Game.Turn.Combat, as: TurnCombat
   alias TalesForge.Game.TurnApply
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.Game.TurnRules
@@ -28,7 +30,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
   @doc "Writes `outcome`."
   @spec apply(Turn.t()) :: Turn.t()
   def apply(%Turn{} = turn) do
-    {handler, mechanical, ruled, played} = Steps.time(:rules, fn -> rules(turn) end)
+    {handler, mechanical, ruled, played, combat} = Steps.time(:rules, fn -> rules(turn) end)
     agents = agents(turn, ruled)
     {price_lines, board} = prices(turn, agents, ruled)
 
@@ -40,7 +42,8 @@ defmodule TalesForge.Game.Turn.Mechanics do
           board: board,
           agents: agents,
           price_lines: price_lines,
-          played: played
+          played: played,
+          combat: combat
         }
     }
   end
@@ -61,30 +64,58 @@ defmodule TalesForge.Game.Turn.Mechanics do
       |> premise_block(player_action, turn.premise.first)
       |> apply_outcomes(world, apply?)
 
-    ruled =
+    ruled_before_target =
       premised
       |> lodging_block(world, played, lodging?)
       |> sleep_after_lodging(world, played, apply?)
       |> injection_block(turn.injected)
 
+    # COMBAT_OPPOSED=on: the attack needs a person in the scene. An unclear
+    # target blocks the roll, and the turn asks the player.
+    {targeted, ruled, target} = TurnCombat.target(turn, world, played, ruled_before_target)
+
     # TURN_APPLY_OUTCOMES=on: the board books the played action (with the
     # payment amount). Off: the board gets the action of the intent step.
-    board_action = if apply?, do: played, else: player_action
+    board_action = if apply?, do: targeted, else: player_action
 
-    {character, rolled} = roll(turn, played, ruled)
+    {character, rolled} = roll(turn, targeted, ruled)
+
+    {combat, foe} = TurnCombat.exchange(turn, world, target, rolled)
+
+    applied =
+      TurnProcessor.apply_board(turn.session, character, ruled, board_action, rolled,
+        catalogue_v2: Turn.flag?(turn, :jev_catalogue_v2),
+        opposed: TurnCombat.on?(turn),
+        combat: combat
+      )
 
     board =
-      TurnProcessor.apply_board(turn.session, character, ruled, board_action, rolled,
-        catalogue_v2: Turn.flag?(turn, :jev_catalogue_v2)
-      )
+      if TurnCombat.on?(turn), do: TurnCombat.book(applied, world, combat, foe), else: applied
 
     # TURN_APPLY_OUTCOMES=on: the GM gets the handler after the board, for
     # example the short sleep after a failed room payment.
     handler = if apply?, do: board.handler, else: ruled
 
-    {handler, %{rolled | improvements: board.improvements, training: board.training}, board,
-     board_action}
+    mechanical =
+      %{rolled | improvements: board.improvements, training: board.training}
+      |> with_exchange(combat)
+
+    {handler, mechanical, board, board_action, combat}
   end
+
+  # COMBAT_OPPOSED=on (QA 2026-10-14 08:57, #270): the mechanical resolution
+  # shows the exchange (the d20 against the Parry and the counterattack), and
+  # the outcome is the hit or the miss of the attack, not the flat skill roll.
+  defp with_exchange(mechanical, %{"attack" => attack} = exchange) do
+    %{
+      mechanical
+      | combat: exchange,
+        outcome: if(attack["hit"], do: "success", else: "failure"),
+        notes: Combat.summary(exchange)
+    }
+  end
+
+  defp with_exchange(mechanical, _exchange), do: mechanical
 
   # SKILL_SPLIT=on: the split request of the player rolls each part
   # (TalesForge.Game.SkillSplit). Off: one roll, as before.
@@ -165,6 +196,9 @@ defmodule TalesForge.Game.Turn.Mechanics do
       priced
       |> TurnApply.named_move(world, played.overall_intent)
       |> TurnApply.unknown_move(world)
+      |> TurnApply.deferred_move(world, played.overall_intent)
+      |> TurnApply.wait_until(world, played.overall_intent)
+      |> TurnApply.service_prices(world, played.overall_intent)
 
     {paid, moved}
   end

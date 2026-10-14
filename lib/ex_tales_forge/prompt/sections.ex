@@ -320,6 +320,18 @@ defmodule TalesForge.Prompt.Sections.SkillSplit do
   def render(ctx), do: TalesForge.Game.SkillSplit.prompt_section(Map.get(ctx.data, :mechanical))
 end
 
+defmodule TalesForge.Prompt.Sections.Combat do
+  @moduledoc """
+  The combat exchange that the server rolled: who attacked whom, both rolls,
+  both results and the wounds (`TalesForge.Game.Combat.prompt_section/1`).
+  Only with `COMBAT_OPPOSED=on`.
+  """
+  use TalesForge.Prompt.Section, id: :combat, slot: :turn
+
+  @impl true
+  def render(ctx), do: TalesForge.Game.Combat.prompt_section(Map.get(ctx.data, :combat))
+end
+
 defmodule TalesForge.Prompt.Sections.RestGrowth do
   @moduledoc false
   use TalesForge.Prompt.Section, id: :rest_growth, slot: :turn

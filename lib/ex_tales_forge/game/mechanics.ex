@@ -517,6 +517,10 @@ defmodule TalesForge.Game.Mechanics do
   @doc """
   Apply at most one wound or one death roll after the perception snapshot.
   Inject `opts[:death_roll]` (1..20) in tests.
+
+  With `opts[:opposed]` true (`COMBAT_OPPOSED=on`), the exchange in
+  `opts[:combat]` (`TalesForge.Game.Combat.exchange/4`) replaces the failed
+  combat roll: the character takes a wound only from a counterattack hit.
   """
   @spec apply_vitality(map(), MechanicalResolution.t() | nil, keyword()) :: map()
   def apply_vitality(world, mechanical, opts \\ []) when is_map(world) do
@@ -526,13 +530,18 @@ defmodule TalesForge.Game.Mechanics do
   end
 
   defp apply_character_vitality(character, mechanical, facts, opts) do
+    hit =
+      if opts[:opposed],
+        do: opposed_hit?(opts[:combat]),
+        else: combat_failure?(mechanical)
+
     character = stamp_wound_max(character)
 
     cond do
       Map.get(character, "vitality") == "dead" ->
         Map.put(character, "vitality", "dead")
 
-      harm?(mechanical, facts) ->
+      hit or wound_fact?(facts) ->
         apply_harm(character, mechanical, opts)
 
       true ->
@@ -586,7 +595,8 @@ defmodule TalesForge.Game.Mechanics do
 
   defp strip_turn_lp(character, _), do: character
 
-  defp harm?(mechanical, facts), do: combat_failure?(mechanical) or wound_fact?(facts)
+  defp opposed_hit?(%{"attacker_wounded" => true}), do: true
+  defp opposed_hit?(_combat), do: false
 
   defp combat_failure?(%MechanicalResolution{outcome: "failure", skill: skill})
        when skill in @combat_skills,

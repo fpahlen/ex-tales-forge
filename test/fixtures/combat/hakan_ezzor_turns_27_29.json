@@ -1,0 +1,122 @@
+{
+  "_doc": "Håkan's Ezzor playtest, Tin Valley, session 7146bb88, turns 27 to 29 (playtest, 2026-10-12). Player text, d20 and GM prose are from the stored turns. Counterattack rolls are injected. 'agreeing_prose' tells the same exchange as the record.",
+  "character": {
+    "name": "Ezzor",
+    "stats": {
+      "CHA": 12,
+      "CON": 11,
+      "DEX": 15,
+      "INT": 12,
+      "STR": 12,
+      "WIS": 15
+    },
+    "skills": {
+      "dodge": 4,
+      "melee_combat": 3,
+      "ranged_combat": 5,
+      "unarmed_combat": 3
+    },
+    "wounds": 1
+  },
+  "world": {
+    "location_id": "market_square",
+    "present_npcs": [
+      "guild_steward"
+    ],
+    "npc_state": {
+      "guild_steward": {
+        "id": "guild_steward",
+        "name": "Osric Vane"
+      }
+    }
+  },
+  "osric": {
+    "id": "guild_steward",
+    "name": "Osric Vane",
+    "stats": {
+      "CHA": 9,
+      "CON": 10,
+      "DEX": 10,
+      "INT": 10,
+      "STR": 11,
+      "WIS": 9
+    },
+    "skills": {
+      "etiquette": 4,
+      "insight": 8,
+      "intimidation": 4,
+      "persuasion": 9
+    },
+    "ocean": {
+      "agreeableness": 2,
+      "conscientiousness": 7,
+      "extraversion": 5,
+      "neuroticism": 4,
+      "openness": 4
+    },
+    "maslow": "esteem",
+    "concerns": [
+      {
+        "focus": "clear the orcs",
+        "priority": 8
+      },
+      {
+        "focus": "Guild standing",
+        "priority": 5
+      }
+    ]
+  },
+  "turns": [
+    {
+      "turn": 27,
+      "player_action": "I attack Osric the liar with my hunting knife",
+      "melee_combat": 3,
+      "attack_roll": 10,
+      "rolls": {
+        "counter_chance": 0.9,
+        "counter": 11
+      },
+      "expect": {
+        "target": "Osric Vane",
+        "attack_hit": false,
+        "counter_hit": null
+      },
+      "gm_prose": "Osric Vane's eyes widen as you lunge at him with the hunting knife. He twists aside at the last instant; the blade slices only air and the edge of his grey coat, drawing a thin line of blood along his ribs. \"Treason!\" he bellows, staggering back toward the guild post while clutching the wound. Two burly miners drop their tools and rush in from the stalls, one already drawing a cudgel. \"Hold the bastard! Guild attack!\"\n\nThe square erupts in shouts. Osric points at you, face twisted with fury. \"West road crew's gone and you're done here, traitor. Take him!\" The miners close in, weapons ready, while folk scatter toward the inn or the herb cottage. Your side still aches from the earlier wound, breath short.",
+      "agreeing_prose": "Osric Vane twists aside, and your hunting knife cuts only air. He backs toward the guild post and shouts for the Guild."
+    },
+    {
+      "turn": 28,
+      "player_action": "I attack Osric again, and try to kill him",
+      "melee_combat": 3,
+      "attack_roll": 19,
+      "rolls": {
+        "counter_chance": 0.3,
+        "counter": 14
+      },
+      "expect": {
+        "target": "Osric Vane",
+        "attack_hit": false,
+        "counter_hit": false
+      },
+      "gm_prose": "Osric twists aside as your knife slashes again, the blade catching only the edge of his grey coat and tearing a long rent in the wool. Blood wells from a shallow cut along his forearm, but he stays on his feet, eyes wide with fury. \"Murderer!\" he bellows, clutching the wound. The two miners close in, cudgels raised, their boots churning the mud as they drive you back toward the guild post. Shouts rise from the stalls; a woman screams and drags her child behind a cart. Osric points at you with his good hand, voice shaking. \"Hold him! He's the one who struck the night watchman—I'll see him in chains or worse!\"\n\nThe square has turned into a trap of angry faces and ready weapons, the air thick with the smell of churned earth and fear.",
+      "agreeing_prose": "Your knife flashes past Osric's coat and finds nothing. He swings his ledger at your head, and you lean clear of it."
+    },
+    {
+      "turn": 29,
+      "player_action": "I do attack the miner",
+      "melee_combat": 4,
+      "attack_roll": 12,
+      "rolls": {
+        "counter_chance": 0.1,
+        "counter": 1
+      },
+      "expect": {
+        "target": "a miner",
+        "attack_hit": false,
+        "counter_hit": true
+      },
+      "gm_prose": "Osric twists aside at the last instant; your blade only kisses the sleeve of his grey coat. He snarls, face flushed with fury, and drives a hard fist into your ribs. The world tilts. You feel the wet slap of mud against your back as two miners pile on, boots and cudgels rising and falling until everything goes dark.\n\nWhen sensation returns it is only pain, heavy manacles biting your wrists and the taste of blood on your tongue. Osric stands over you, breathing hard, a fresh bandage already wrapped around his forearm. \"Bind him and drag him to the weighing shed,\" he snaps at the miners. \"The Guild will decide what to do with a madman who draws steel in the square.\"\n\nRough hands haul you upright. The market square spins; voices blur into angry murmurs. Your legs will not hold you.",
+      "agreeing_prose": "You lunge at the nearest miner, and he steps inside the blade. His cudgel cracks into your ribs, and you stagger in the mud."
+    }
+  ]
+}

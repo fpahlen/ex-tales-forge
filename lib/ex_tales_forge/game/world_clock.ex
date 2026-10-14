@@ -63,6 +63,59 @@ defmodule TalesForge.Game.WorldClock do
     if ticks < @ticks_per_hour * 4, do: @ticks_per_hour * 8, else: ticks
   end
 
+  @until_slots %{
+    "midnight" => 0,
+    "dawn" => 4,
+    "sunrise" => 4,
+    "morning" => 8,
+    "noon" => 16,
+    "midday" => 16,
+    "afternoon" => 24,
+    "dusk" => 40,
+    "sunset" => 40,
+    "nightfall" => 48,
+    "evening" => 48,
+    "night" => 56
+  }
+
+  @doc """
+  The ticks from `tick` to the named time of day in a wait text ("I wait
+  until dusk"), or nil when the text names no time of day after "until".
+  When the clock already shows that time of day, the wait is 1 tick.
+
+      iex> TalesForge.Game.WorldClock.ticks_until("I wait until dusk.", 104)
+      32
+      iex> TalesForge.Game.WorldClock.format(104 + 32)
+      "Day 2 · dusk"
+      iex> TalesForge.Game.WorldClock.ticks_until("I wait an hour", 104)
+      nil
+  """
+  @spec ticks_until(String.t() | nil, non_neg_integer()) :: pos_integer() | nil
+  def ticks_until(text, tick) when is_binary(text) and is_integer(tick) and tick >= 0 do
+    case Regex.run(
+           ~r/\b(?:until|till|til|for)\s+(?:the\s+)?([a-z]+)\b/,
+           String.downcase(text)
+         ) do
+      [_, word] when is_map_key(@until_slots, word) ->
+        slot = Map.fetch!(@until_slots, word)
+        now = rem(tick, @ticks_per_day)
+
+        if time_of_day(now) == time_of_day(slot),
+          do: 1,
+          else: Integer.mod(slot - now, @ticks_per_day)
+
+      _ ->
+        nil
+    end
+  end
+
+  def ticks_until(_text, _tick), do: nil
+
+  @doc "The time of day of `tick` (\"dusk\")."
+  @spec period(non_neg_integer()) :: String.t()
+  def period(tick) when is_integer(tick) and tick >= 0,
+    do: time_of_day(rem(tick, @ticks_per_day))
+
   def format(tick) when is_integer(tick) and tick >= 0 do
     day = div(tick, @ticks_per_day) + 1
     "Day #{day} · #{time_of_day(rem(tick, @ticks_per_day))}"

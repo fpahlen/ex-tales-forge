@@ -4,23 +4,29 @@ defmodule TalesForge.Game.ProseCheck do
   prose with the outcome record (`TalesForge.Game.OutcomeRecord`). Each
   mismatch counts as 1 bug. The check only logs; there is no GM re-run.
 
-  Four kinds of mismatch, with simple pattern rules:
+  Five kinds of mismatch, with simple pattern rules:
 
     * `:coins` — the prose names a coin amount, and the record has no coin
       change of that size;
-    * `:item` — the prose hands the character an item ("hands you a loaf"),
-      and the record has no item gain with that name;
+    * `:item` — the prose hands the character an item ("hands you a loaf",
+      "slides a token across to you"), and the record has no item gain with
+      that name. A turn that paid coins serves the food or drink it paid
+      for, so the placing pattern counts only on a turn with no payment;
     * `:location` — the prose moves the character to a named place
       ("you step out into Market Square"), and the record has no move;
     * `:clock` — the prose skips time ("the next morning", "hours later"),
-      and the record clock moved less than 4 hours.
+      and the record clock moved less than 4 hours;
+    * `:wound` — only when the record has a combat exchange
+      (`COMBAT_OPPOSED=on`, `TalesForge.Game.Combat`): the prose tells blood
+      or a wound on the foe, and the attack missed; or the prose tells a
+      strike on the character, and no counterattack hit.
 
   Pure: no Repo, no LLM.
   """
 
   alias TalesForge.Game.WorldClock
 
-  @type mismatch :: %{kind: :coins | :item | :location | :clock, detail: String.t()}
+  @type mismatch :: %{kind: :coins | :item | :location | :clock | :wound, detail: String.t()}
 
   @numbers %{
     "a" => 1,
@@ -50,11 +56,21 @@ defmodule TalesForge.Game.ProseCheck do
 
   @give_re ~r/\b(?:hands|gives|passes|tosses|slides|offers)\s+you\s+(?:a|an|the|some|your)?\s*([a-z' -]+?)(?:[.,;!]|\s+for\b|\s+and\b|$)/
 
+  # "sliding a small wooden token across to you", "sets a fresh mug of ale
+  # in front of you". Gentry's playtest session ead76238 on 2026-10-14.
+  @place_re ~r/\b(?:slides?|sliding|sets?|setting|places?|placing|puts?|putting|pushes|pushing)\s+(?:a|an|the|some)\s+([a-z' -]+?)\s+(?:across\s+to|in\s+front\s+of|toward|towards)\s+you\b/
+
   @move_re ~r/\b[Yy]ou\s+(?:step|walk|head|go|move|arrive|stride|wander)\s+(?:out\s+|back\s+)?(?:into|to|at|in|onto)\s+(?:the\s+)?([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)*)/
 
   @skip_re ~r/\b(?:next morning|the next day|morning dawns|dawn breaks|hours later|overnight|by morning|you sleep|you wake)\b/i
 
   @night_ticks 4 * 60
+
+  @foe_wound_re ~r/\b(?:blood|bloody|bleeds?|bleeding|bled|gash(?:es)?|wound(?:s|ed)?|cut along|draws? blood)\b/i
+
+  @player_hit_re ~r/\b(?:hits?|strikes?|drives?|slams?|smashes?|cuts?|stabs?|slashes?|punch(?:es)?|kicks?|clubs?)\b[^.!?;]{0,40}\b(?:you|your)\b/i
+
+  @you_re ~r/\b(?:you|your)\b/i
 
   @doc """
   The mismatches between `prose` and the outcome `record`.
@@ -70,7 +86,8 @@ defmodule TalesForge.Game.ProseCheck do
   @spec check(String.t() | nil, map() | nil) :: [mismatch()]
   def check(prose, record) when is_binary(prose) and is_map(record) do
     coins(prose, record) ++
-      items(prose, record) ++ location(prose, record) ++ clock(prose, record)
+      items(prose, record) ++
+      location(prose, record) ++ clock(prose, record) ++ wound(prose, record)
   end
 
   def check(_prose, _record), do: []
@@ -108,8 +125,11 @@ defmodule TalesForge.Game.ProseCheck do
   defp items(prose, record) do
     gained = record |> get_in(["items", "gained"]) |> List.wrap() |> Enum.map(&item_words/1)
 
-    @give_re
-    |> Regex.scan(String.downcase(prose))
+    paid? = (get_in(record, ["coins", "delta_copper"]) || 0) < 0
+    lower = String.downcase(prose)
+    placed = if paid?, do: [], else: Regex.scan(@place_re, lower)
+
+    (Regex.scan(@give_re, lower) ++ placed)
     |> Enum.map(fn [_, phrase] -> String.trim(phrase) end)
     |> Enum.reject(&(&1 == "" or Regex.match?(@coin_re, &1) or coin_word?(&1)))
     |> Enum.reject(fn phrase -> Enum.any?(gained, &named?(phrase, &1)) end)
@@ -133,6 +153,39 @@ defmodule TalesForge.Game.ProseCheck do
   end
 
   defp location(_prose, _record), do: []
+
+  # A sentence with a wound word and no "you" tells a wound on the foe. A
+  # strike verb with "you" or "your" close after it tells a hit on the
+  # character. A dead or down foe already in the record is a booked hit.
+  defp wound(prose, %{"combat" => %{"attack" => attack} = combat}) do
+    sentences = String.split(prose, ~r/(?<=[.!?])\s+/)
+    foe_hit? = attack["hit"] == true
+    player_hit? = get_in(combat, ["counter", "hit"]) == true
+
+    foe =
+      if foe_hit?,
+        do: [],
+        else:
+          sentences
+          |> Enum.reject(&Regex.match?(@you_re, &1))
+          |> Enum.flat_map(&(Regex.run(@foe_wound_re, &1) || []))
+          |> Enum.take(1)
+          |> Enum.map(&%{kind: :wound, detail: "foe: " <> &1})
+
+    player =
+      if player_hit?,
+        do: [],
+        else:
+          @player_hit_re
+          |> Regex.run(prose)
+          |> List.wrap()
+          |> Enum.take(1)
+          |> Enum.map(&%{kind: :wound, detail: "character: " <> &1})
+
+    foe ++ player
+  end
+
+  defp wound(_prose, _record), do: []
 
   defp clock(prose, record) do
     before = get_in(record, ["clock", "tick_before"]) || 0

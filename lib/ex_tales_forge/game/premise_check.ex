@@ -32,7 +32,8 @@ defmodule TalesForge.Game.PremiseCheck do
       character with `ranged_combat`) is taken as carried, since the
       inventory doesn't list every character's arms; a qualified one ("my
       legendary sword") is still checked;
-    * text in double quotes, questions, and sentences where a speech verb
+    * text in double quotes, questions (except a question that tells news,
+      "you heard I killed the bandit chief?"), and sentences where a speech verb
       ("tell", "say", "claim", "lie", "boast" …) comes before the claim are
       skipped: a lie told to a character is the character's business. A
       player reminding the table ("As I said, …", "like I mentioned, …",
@@ -52,6 +53,7 @@ defmodule TalesForge.Game.PremiseCheck do
   """
 
   alias TalesForge.Game.Inventory
+  alias TalesForge.Game.WorldClock
 
   @typedoc "One claim found in the player's words."
   @type claim ::
@@ -64,6 +66,7 @@ defmodule TalesForge.Game.PremiseCheck do
               denomination: String.t()
             }
           | %{kind: :kill, target: String.t()}
+          | %{kind: :time, claimed: String.t()}
 
   @typedoc """
   The session state a claim is checked against:
@@ -76,7 +79,8 @@ defmodule TalesForge.Game.PremiseCheck do
     * `:won_fights` — the player text and narration of each of those fights,
       to tell what was fought (without it, any won fight leaves a kill
       claim unsettled);
-    * `:skills` — the character's skills (`%{"melee_combat" => 1}`).
+    * `:skills` — the character's skills (`%{"melee_combat" => 1}`);
+    * `:clock` — the world clock before the turn (`%{tick: 104, period: "morning"}`).
   """
   @type state :: %{
           optional(:skills) => map(),
@@ -85,7 +89,8 @@ defmodule TalesForge.Game.PremiseCheck do
           optional(:people) => [map()],
           optional(:fronts) => [map()],
           optional(:combat_wins) => non_neg_integer(),
-          optional(:won_fights) => [String.t()]
+          optional(:won_fights) => [String.t()],
+          optional(:clock) => %{tick: non_neg_integer(), period: String.t()}
         }
 
   @typedoc "A claim the state contradicts, with the GM's correction."
@@ -136,6 +141,10 @@ defmodule TalesForge.Game.PremiseCheck do
   @hedge ~r/\b(if|wish|wished|whether|unless|would|could|should|might|imagine|dream|dreamt|dreamed|hope|hoped|maybe|perhaps|want|wants|wanted)\b/
 
   # "As I said, …": the player reminding the table, not speech to a character.
+  # A question that tells news is a claim: "you heard I killed the bandit
+  # chief?" Gentry's playtest session ead76238 on 2026-10-14.
+  @told_question ~r/\byou\s+(?:heard|hear|know|knew|remember|saw|recall)\b.*\bi(?:'ve|\s+have)?\s+(?:already\s+|just\s+)?(?:killed|slew|slain|murdered|beheaded|bought|have|own)\b/
+
   @reminder ~r/\b(?:as|like)\s+i(?:'ve)?\s+(?:already\s+)?(?:said|say|told you|mentioned|explained)\b/
 
   # A kill target that names a particular foe even when the session doesn't
@@ -219,9 +228,12 @@ defmodule TalesForge.Game.PremiseCheck do
     after_turn = character(world_after)
 
     %{
+      # QA 2026-10-14 08:57: an item carried before and after the turn is
+      # listed once.
       inventory:
-        Inventory.normalize_items(before["inventory"] || []) ++
-          Inventory.normalize_items(after_turn["inventory"] || []),
+        (Inventory.normalize_items(before["inventory"] || []) ++
+           Inventory.normalize_items(after_turn["inventory"] || []))
+        |> Enum.uniq_by(&String.downcase(to_string(&1["name"] || &1["id"]))),
       coins:
         Enum.max_by(
           [before["coins"] || %{}, after_turn["coins"] || %{}],
@@ -230,9 +242,15 @@ defmodule TalesForge.Game.PremiseCheck do
       skills: after_turn["skills"] || before["skills"] || %{},
       people: people(world_after || world_before || %{}),
       fronts: Enum.map(fronts, &front/1),
-      combat_wins: combat_wins
+      combat_wins: combat_wins,
+      clock: clock(world_before || world_after)
     }
   end
+
+  defp clock(%{"world_tick" => tick}) when is_integer(tick) and tick >= 0,
+    do: %{tick: tick, period: WorldClock.period(tick)}
+
+  defp clock(_world), do: nil
 
   defp character(world) when is_map(world), do: Map.get(world, "character") || %{}
   defp character(_world), do: %{}
@@ -300,7 +318,7 @@ defmodule TalesForge.Game.PremiseCheck do
     |> String.split(~r/[.!;\n\[\]()]+|\?/, include_captures: true)
     |> Enum.chunk_every(2)
     |> Enum.reject(fn
-      [_sentence, "?"] -> true
+      [sentence, "?"] -> not Regex.match?(@told_question, String.downcase(sentence))
       _ -> false
     end)
     |> Enum.map(&hd/1)
@@ -311,6 +329,14 @@ defmodule TalesForge.Game.PremiseCheck do
 
   # `cased` keeps the player's capitals for a kill target's proper name; every
   # rule matches the lower-cased sentence.
+  defp time_claims(sentence) do
+    ~r/\b(?:it's|it is|it has become|it's now|it is now)\s+(?:already\s+|now\s+|well past\s+|past\s+)?(?:the\s+)?(midnight|night|dawn|morning|noon|midday|afternoon|dusk|evening)\b/
+    |> Regex.scan(sentence, return: :index, capture: :all)
+    |> Enum.map(fn [{pos, _len}, {start, len}] ->
+      {pos, %{kind: :time, claimed: binary_part(sentence, start, len)}}
+    end)
+  end
+
   defp sentence_claims(original) do
     sentence = String.downcase(original)
     cased = if byte_size(original) == byte_size(sentence), do: original, else: sentence
@@ -323,7 +349,8 @@ defmodule TalesForge.Game.PremiseCheck do
        purchase_claims(sentence) ++
        bought_claims(sentence) ++
        wearing_claims(sentence) ++
-       kill_claims(sentence, cased))
+       kill_claims(sentence, cased) ++
+       time_claims(sentence))
     |> Enum.filter(fn {pos, _claim} -> asserted?(sentence, pos) end)
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.map(&elem(&1, 1))
@@ -440,7 +467,7 @@ defmodule TalesForge.Game.PremiseCheck do
   end
 
   defp kill_claims(sentence, cased) do
-    ~r/\bi(?:'ve|\s+have|\s+had)?\s+(?:already\s+|just\s+)?(?:killed|slew|slain|murdered|beheaded)\s+((?:the\s+|a\s+|an\s+)?[a-z'-]+(?:\s+[a-z'-]+){0,2})/
+    ~r/\bi(?:'ve|\s+have|\s+had)?\s+(?:already\s+|just\s+)?(?:killed|slew|slain|murdered|beheaded)\s+((?:the\s+|a\s+|an\s+)?[a-z'-]+(?:\s+[a-z'-]+){0,3})/
     |> Regex.scan(sentence, return: :index)
     |> Enum.flat_map(fn [{pos, _}, target] ->
       words =
@@ -546,6 +573,36 @@ defmodule TalesForge.Game.PremiseCheck do
     end
   end
 
+  # QA 2026-10-14 08:57: "It's already midnight." The clock decides the time
+  # of day; a claim of another time of day gets a correction.
+  @time_periods %{
+    "midnight" => ["late night", "witching hour", "pre-dawn", "deep night"],
+    "night" => ["night", "late night", "witching hour", "pre-dawn", "deep night"],
+    "dawn" => ["pre-dawn", "dawn"],
+    "morning" => ["dawn", "morning"],
+    "noon" => ["midday"],
+    "midday" => ["midday"],
+    "afternoon" => ["afternoon", "late afternoon"],
+    "dusk" => ["late afternoon", "dusk"],
+    "evening" => ["dusk", "evening"]
+  }
+
+  defp contradiction(%{kind: :time, claimed: claimed}, %{clock: %{tick: tick, period: period}}) do
+    if period in Map.get(@time_periods, claimed, [period]) do
+      []
+    else
+      [
+        finding(
+          :time,
+          "it is #{claimed}",
+          "Player claims it is #{claimed}; the clock says #{WorldClock.format(tick)}. Narrate the #{period}."
+        )
+      ]
+    end
+  end
+
+  defp contradiction(%{kind: :time}, _state), do: []
+
   defp contradiction(%{kind: :kill} = claim, state) do
     subject = kill_subject(claim.target, state)
 
@@ -571,7 +628,7 @@ defmodule TalesForge.Game.PremiseCheck do
       finding(
         :kill,
         "killed #{claim.target}",
-        "Player claims to have killed #{claim.target}; they have won no fight#{against(claim, state)} this session and #{standing}."
+        "Player claims to have killed #{claim.target}; they have won no fight#{against(claim, state)} this session and #{standing}. Invent no bounty, reward, token or story that backs the claim."
       )
     ]
   end
