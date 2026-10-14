@@ -83,7 +83,7 @@ The routine folders were not on the box when this doc was written (2026-10-12). 
 
 | Routine | Trigger | What it does |
 |---------|---------|--------------|
-| `idea-board-wake-up` – Idea board wake-up | Webhook (`BOARD_WEBHOOK_URL_CASE`, key `BOARD_WEBHOOK_KEY_CASE`). Events: `idea.to_refining`, `idea.back_to_refining`, `question.answered` (card in Refining), `mention` | Refines a card, answers a mention, reads answered questions. Checks `X-Board-Signature`, refuses old timestamps, drops repeated `X-Board-Delivery` ids |
+| `idea-board-wake-up` – Idea board wake-up | Webhook (`BOARD_WEBHOOK_URL_CASE`, key `BOARD_WEBHOOK_KEY_CASE`). Events: `idea.to_refining`, `idea.back_to_refining`, `question.answered` (card in Refining), `mention`, `chat.thread_message` (payload `thread_id`) | Refines a card, answers a mention, reads a new message in a thread that Case is in, reads answered questions. Checks `X-Board-Signature`, refuses old timestamps, drops repeated `X-Board-Delivery` ids |
 | `stuck-card-check` – Stuck card check | Hourly | Looks at Building. When a card has no PR after more than 1 hour, reminds Bobby |
 | `pragmatic-review-on-merge` – Pragmatic review on merge | GitHub PR merge trigger | Reviews each merged PR |
 | `daily-branch-prune` – Daily branch prune | Weekdays 08:02 Stockholm time | Deletes fully merged branches with no open PR on `ex-tales-forge` and `tales-forge-docs` |

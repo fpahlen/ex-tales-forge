@@ -234,9 +234,11 @@ Optional names that the code reads but no app has today: `RESEND_API_KEY`, `MAIL
 
 | Bot | Webhook URL secret | Webhook key secret | API token secret | Wakes on |
 |---|---|---|---|---|
-| Case | `BOARD_WEBHOOK_URL_CASE` (set) | `BOARD_WEBHOOK_KEY_CASE` (set) | `BOARD_BOT_TOKEN_CASE` (set) | `idea.to_refining`, `idea.back_to_refining`, `question.answered` (card in Refining), `mention` |
-| Bobby | `BOARD_WEBHOOK_URL_BOBBY` (set) | `BOARD_WEBHOOK_KEY_BOBBY` (set) | `BOARD_BOT_TOKEN_BOBBY` (set) | `idea.to_building`, `pr.approved`, `pr.changes_requested`, `mention`; also `security_lane.deployed` from Actions when `SECURITY_LANE_WEBHOOK_URL` is set |
-| Gentry | `BOARD_WEBHOOK_URL_GENTRY` (not set) | `BOARD_WEBHOOK_KEY_GENTRY` (not set) | `BOARD_BOT_TOKEN_GENTRY` (not set) | `mention` only (no move wakes Gentry) |
+| Case | `BOARD_WEBHOOK_URL_CASE` (set) | `BOARD_WEBHOOK_KEY_CASE` (set) | `BOARD_BOT_TOKEN_CASE` (set) | `idea.to_refining`, `idea.back_to_refining`, `question.answered` (card in Refining), `mention`, `chat.thread_message` |
+| Bobby | `BOARD_WEBHOOK_URL_BOBBY` (set) | `BOARD_WEBHOOK_KEY_BOBBY` (set) | `BOARD_BOT_TOKEN_BOBBY` (set) | `idea.to_building`, `pr.approved`, `pr.changes_requested`, `mention`, `chat.thread_message`; also `security_lane.deployed` from Actions when `SECURITY_LANE_WEBHOOK_URL` is set |
+| Gentry | `BOARD_WEBHOOK_URL_GENTRY` (not set) | `BOARD_WEBHOOK_KEY_GENTRY` (not set) | `BOARD_BOT_TOKEN_GENTRY` (not set) | `mention` and `chat.thread_message` only (no move wakes Gentry) |
+
+`chat.thread_message` (from 2026-10-14, ex-tales-forge #261): a new message in a chat thread or a card thread that the bot is a participant of. A participant started the thread, posted in it, or was @mentioned in it. The payload has `thread_id`. The author gets no wake. A bot's post wakes no bot. A 1:1 never wakes a bot. When the message names the bot, only the `mention` wake comes. Card wakes merge with the other wakes of the card (one wake per bot per card in 2 minutes). Founders get an inbox item (rule `thread_message`) for the same event.
 
 Each delivery is a JSON `POST` with these headers: `Authorization: Bearer <key>`, `X-Board-Event`, `X-Board-Delivery` (a UUID, the same on each retry), `X-Board-Timestamp` (Unix seconds) and `X-Board-Signature: sha256=<hex HMAC-SHA256 of "<timestamp>.<body>">`. Any 2xx ends the job. Oban retries up to 8 times (1 min, doubling, up to 4 h). The bot must check the signature, refuse a timestamp older than 5 minutes, and drop a delivery id that it has seen.
 

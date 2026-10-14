@@ -23,7 +23,7 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
   - The product app serves `GET /internal/product/*` to Workflow (`PRODUCT_APP_API_TOKEN`). The product app sends work-log turns to Workflow's `POST /internal/workflow/work-log/turns` (`WORKFLOW_API_TOKEN`). These are the only data paths.
   - The bot secrets (`BOARD_BOT_TOKEN_*`, `BOARD_WEBHOOK_URL_*`, `BOARD_WEBHOOK_KEY_*`), `ADMIN_GITHUB_TEAM`, `GENTRY_QA_TOKEN` and the GitHub webhook move to `whyse-workflow` with the same values. The bots use the Workflow host ([bots](bots/README.md)).
   - The product database keeps the schema `workflow` for 30 days as the rollback copy. Then it is dropped.
-  - Cost: about $8 a month (app 512 MB, database 512 MB). A 256 MB database makes it about $6.50.
+  - Cost: about $6.50 a month (app 512 MB, own Fly Postgres 256 MB). Fredrik chose the 256 MB database on 2026-10-14.
 - **Builds on:** the 2026-10-13 entry "Workflow split 5/5: Extraction to own repo and Fly app". The bot API includes `/internal/work-log/entries`.
 - **Details:** `docs/cutover-runbook.md` in `whyse-ab/workflow` (backup, secrets, bot hosts, cutover order, rollback). PRs: whyse-ab/workflow#1, whyse-ab/ex-tales-forge#259. Merges and the cutover need Fredrik's OK.
 
