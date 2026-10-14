@@ -16,9 +16,10 @@ defmodule TalesForge.Board.GitHubEvents do
     card whose waiting PR has that head commit.
   - `Deploy to production` passed: queue `TalesForge.Board.Workers.AutoDone`,
     so cards whose PR is now on prod move to Done.
-  - A workflow run on main ended: give it to the inbox (`Workflow.Inbox`,
-    rules `ci_failed` and `deploy_failed`) as an event with no tag. A failed
-    run makes items; a passed run of the same workflow closes them.
+  - A workflow run on main failed: wake the builder bot (`run.failed`, the
+    devops bot) with the run. A founder gets no inbox item and no ping.
+  - A workflow run on main passed: give it to the inbox (`Workflow.Inbox`) as
+    an event with no tag. It closes the open items of that workflow.
 
   Production only (`TalesForge.AppRole`), as the board, or with
   `:board_github_events_anywhere`.
@@ -41,6 +42,7 @@ defmodule TalesForge.Board.GitHubEvents do
           | {:wake_pr, :pr_merged, pos_integer()}
           | {:wake_sha, :ci_failed, String.t()}
           | :auto_done
+          | {:wake_run, :run_failed, map()}
           | {:inbox, Workflow.Inbox.Event.t()}
 
   @doc "Starts the subscriber (named `#{inspect(__MODULE__)}`)."
@@ -79,10 +81,11 @@ defmodule TalesForge.Board.GitHubEvents do
       iex> GitHubEvents.plan(%GitEvent{type: :workflow_run, repo: "o/r", action: "completed",
       ...>   workflow: "CI", ci: :failed, sha: "abc"})
       [{:wake_sha, :ci_failed, "abc"}]
-      iex> [{:inbox, event}] = GitHubEvents.plan(%GitEvent{type: :workflow_run, repo: "o/r",
-      ...>   action: "completed", workflow: "CI", ci: :failed, sha: "abc", branch: "main"}) |> Enum.drop(1)
-      iex> {event.type, event.workflow, event.url}
-      {:workflow_failed, "CI", "https://github.com/o/r/commit/abc"}
+      iex> [{:wake_run, :run_failed, run}] = GitHubEvents.plan(%GitEvent{type: :workflow_run,
+      ...>   repo: "o/r", action: "completed", workflow: "CI", ci: :failed, sha: "abc",
+      ...>   branch: "main"}) |> Enum.drop(1)
+      iex> {run["workflow"], run["url"]}
+      {"CI", "https://github.com/o/r/commit/abc"}
       iex> GitHubEvents.plan(%GitEvent{type: :workflow_run, repo: "o/r", action: "completed",
       ...>   workflow: "Deploy to production", ci: :passed})
       [:auto_done]
@@ -125,22 +128,39 @@ defmodule TalesForge.Board.GitHubEvents do
 
   defp board_plan(%GitEvent{}), do: []
 
-  # A run on main names no card and no person: the inbox gets it with no tag.
+  # A failed run on main names no card: the builder bot (devops) gets it.
+  defp inbox_plan(
+         %GitEvent{type: :workflow_run, action: "completed", branch: "main", ci: :failed} = e
+       )
+       when is_binary(e.workflow) and is_binary(e.sha) do
+    [
+      {:wake_run, :run_failed,
+       %{
+         "repo" => e.repo,
+         "workflow" => e.workflow,
+         "branch" => "main",
+         "sha" => e.sha,
+         "url" => "https://github.com/#{e.repo}/commit/#{e.sha}",
+         "actor" => e.actor
+       }}
+    ]
+  end
+
+  # A passed run on main closes the open inbox items of that workflow.
   defp inbox_plan(%GitEvent{type: :workflow_run, action: "completed", branch: "main", ci: ci} = e)
-       when ci in [:failed, :passed] and is_binary(e.workflow) and is_binary(e.sha) do
+       when ci == :passed and is_binary(e.workflow) and is_binary(e.sha) do
     url = "https://github.com/#{e.repo}/commit/#{e.sha}"
 
     [
       {:inbox,
        %Workflow.Inbox.Event{
-         type: if(ci == :failed, do: :workflow_failed, else: :workflow_passed),
+         type: :workflow_passed,
          source_id: "run-#{e.workflow}-#{e.sha}",
          workflow: e.workflow,
          sha: e.sha,
          url: url,
          author: e.actor,
-         body:
-           "#{e.workflow} #{if ci == :failed, do: "failed", else: "passed"} on main at #{String.slice(e.sha, 0, 7)}."
+         body: "#{e.workflow} passed on main at #{String.slice(e.sha, 0, 7)}."
        }}
     ]
   end
@@ -163,6 +183,12 @@ defmodule TalesForge.Board.GitHubEvents do
   end
 
   defp run(:auto_done), do: AutoDone.schedule()
+
+  defp run({:wake_run, event, run}) do
+    builder = Workflow.Team.bot(Workflow.Team.Source.team(), :builder)
+    {:ok, _job} = builder |> Notify.run_job(event, run) |> TalesForge.Workflow.Jobs.insert()
+    :ok
+  end
 
   defp run({:inbox, event}) do
     {:ok, _count} = Workflow.Inbox.Store.record(Workflow.Team.Source.team(), event)

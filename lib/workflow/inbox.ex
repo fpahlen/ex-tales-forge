@@ -24,6 +24,10 @@ defmodule Workflow.Inbox do
   founder's Approve ships the merge to production after playtest
   (`docs/DEPLOY-FLY.md`). Thus one rule gives the PR and deploy approvals.
 
+  The board sends no `:workflow_failed` event: a failed run on main wakes the
+  builder bot, the devops bot (`TalesForge.Board.GitHubEvents`). The two
+  rules stay so that a passed run closes the old items.
+
   The `ci_failed` and `deploy_failed` events have no tag: they name no card
   and no person. A failed CI run on the head of a PR on a card wakes the
   builder (`TalesForge.Board.GitHubEvents`), so it makes no inbox item.

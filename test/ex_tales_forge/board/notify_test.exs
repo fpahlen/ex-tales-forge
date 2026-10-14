@@ -46,6 +46,14 @@ defmodule TalesForge.Board.NotifyTest do
     }
   end
 
+  test "run_job wakes a bot about a run that names no card" do
+    job = Notify.run_job(:case, :run_failed, %{"workflow" => "CI"})
+
+    assert {job.changes.args["bot"], job.changes.args["event"],
+            job.changes.args["payload"]["run"]} ==
+             {"case", "run.failed", %{"workflow" => "CI"}}
+  end
+
   test "the first retries come within seconds, later ones back off up to 4 h" do
     assert Enum.map(1..10, &Notify.backoff(%Oban.Job{attempt: &1})) ==
              [10, 30, 60, 120, 120, 240, 480, 960, 1920, 3840]

@@ -252,16 +252,24 @@ defmodule TalesForgeWeb.TeamInboxTest do
     assert Store.open(@owner.handle) == []
   end
 
-  test "a failed run on main shows as an ack item, and the a key marks it done", %{conn: conn} do
+  test "a leftover CI failure ack item still shows, and the a key marks it done", %{conn: conn} do
+    # New failures wake the devops bot and make no inbox item. Leftover items
+    # from before that change still close with ack and with a passed run.
     {:ok, _} =
-      Store.record(@team, %Workflow.Inbox.Event{
-        type: :workflow_failed,
+      %Workflow.Inbox.Record{}
+      |> Ecto.Changeset.change(%{
+        recipient: @owner.handle,
+        rule: "ci_failed",
+        kind: :ack,
+        state: "new",
+        position: 1,
+        source: :github,
         source_id: "run-CI-abc1234",
-        workflow: "CI",
-        sha: "abc1234",
         url: "https://github.com/o/r/commit/abc1234",
+        title: "CI",
         body: "CI failed on main at abc1234."
       })
+      |> TalesForge.Workflow.Repo.insert()
 
     {:ok, view, _} = live(owner(conn), "/team")
     assert has_element?(view, "#inbox-chip summary", "GitHub: CI")

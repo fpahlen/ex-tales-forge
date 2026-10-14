@@ -49,8 +49,10 @@ defmodule TalesForge.QaLogin do
 
   # Events that only change what this browser shows (open or close a card or
   # the chat, sort, filter, cancel a form). Every other event is refused for a
-  # read-only session, also events added later.
-  @read_events ~w(open close toggle chat validate validate_images cancel_image
+  # read-only session, also events added later. "threads" and "open_thread"
+  # show the chat thread list and one thread (the QA session marks no thread
+  # as read, `TalesForgeWeb.TeamChatLive`).
+  @read_events ~w(open close toggle chat threads open_thread validate validate_images cancel_image
                   toggle_sort toggle_tag clear_tags cancel_comment cancel_downvote
                   edit_refinement cancel_refinement draft_change
                   open_archive close_archive archive_filter archive_tag cancel_archive

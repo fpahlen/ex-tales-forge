@@ -165,37 +165,53 @@ defmodule Workflow.Inbox.StoreTest do
     end
   end
 
-  describe "rules ci_failed and deploy_failed (GitHub runs on main)" do
+  describe "failed runs on main go to the devops bot, not the inbox" do
     alias TalesForge.Board.GitHubEvents
     alias TalesForge.GitEvents.GitEvent
+    alias Workflow.Inbox.Record
 
-    defp run_on_main(workflow, ci, sha) do
+    defp plan_on_main(workflow, ci, sha) do
       %GitEvent{type: :workflow_run, repo: "o/r", action: "completed", branch: "main"}
       |> Map.merge(%{workflow: workflow, ci: ci, sha: sha, actor: "someone"})
       |> GitHubEvents.plan()
-      |> Enum.each(fn
+    end
+
+    defp apply_inbox_steps(steps) do
+      Enum.each(steps, fn
         {:inbox, event} -> {:ok, _} = Store.record(@team, event)
         _step -> :ok
       end)
     end
 
-    test "a failed CI run makes one ack item, and a passed CI run closes it" do
-      run_on_main("CI", :failed, "abc1234")
+    test "a failed CI run wakes the builder and makes no inbox item" do
+      steps = plan_on_main("CI", :failed, "abc1234")
+      assert Enum.any?(steps, &match?({:wake_run, :run_failed, %{"workflow" => "CI"}}, &1))
+      refute Enum.any?(steps, &match?({:inbox, _}, &1))
 
-      assert [item] = Store.open(@owner.handle)
-      assert {item.kind, item.source, item.rule, item.title} == {:ack, :github, "ci_failed", "CI"}
-      assert item.url == "https://github.com/o/r/commit/abc1234"
+      apply_inbox_steps(steps)
+      assert Store.open(@owner.handle) == []
       assert Store.open(@other.handle) == []
-
-      run_on_main("Deploy to playtest", :failed, "abc1234")
-      run_on_main("CI", :passed, "def5678")
-      assert [%{rule: "deploy_failed"}] = Store.open(@owner.handle)
     end
 
-    test "the same failed run twice makes one item" do
-      run_on_main("CI", :failed, "abc1234")
-      run_on_main("CI", :failed, "abc1234")
-      assert [_one] = Store.open(@owner.handle)
+    test "a passed CI run closes leftover open items of that workflow" do
+      {:ok, _} =
+        %Record{}
+        |> Ecto.Changeset.change(%{
+          recipient: @owner.handle,
+          rule: "ci_failed",
+          kind: :ack,
+          state: "new",
+          position: 1,
+          source: :github,
+          source_id: "run-CI-oldsha",
+          url: "https://github.com/o/r/commit/oldsha",
+          title: "CI",
+          body: "CI failed on main at oldsha."
+        })
+        |> Repo.insert()
+
+      apply_inbox_steps(plan_on_main("CI", :passed, "def5678"))
+      assert Store.open(@owner.handle) == []
     end
   end
 end
