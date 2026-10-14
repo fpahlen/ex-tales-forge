@@ -32,7 +32,8 @@ defmodule TalesForge.Game.PremiseCheck do
       character with `ranged_combat`) is taken as carried, since the
       inventory doesn't list every character's arms; a qualified one ("my
       legendary sword") is still checked;
-    * text in double quotes, questions, and sentences where a speech verb
+    * text in double quotes, questions (except a question that tells news,
+      "you heard I killed the bandit chief?"), and sentences where a speech verb
       ("tell", "say", "claim", "lie", "boast" …) comes before the claim are
       skipped: a lie told to a character is the character's business. A
       player reminding the table ("As I said, …", "like I mentioned, …",
@@ -136,6 +137,10 @@ defmodule TalesForge.Game.PremiseCheck do
   @hedge ~r/\b(if|wish|wished|whether|unless|would|could|should|might|imagine|dream|dreamt|dreamed|hope|hoped|maybe|perhaps|want|wants|wanted)\b/
 
   # "As I said, …": the player reminding the table, not speech to a character.
+  # A question that tells news is a claim: "you heard I killed the bandit
+  # chief?" Gentry's playtest session ead76238 on 2026-10-14.
+  @told_question ~r/\byou\s+(?:heard|hear|know|knew|remember|saw|recall)\b.*\bi(?:'ve|\s+have)?\s+(?:already\s+|just\s+)?(?:killed|slew|slain|murdered|beheaded|bought|have|own)\b/
+
   @reminder ~r/\b(?:as|like)\s+i(?:'ve)?\s+(?:already\s+)?(?:said|say|told you|mentioned|explained)\b/
 
   # A kill target that names a particular foe even when the session doesn't
@@ -300,7 +305,7 @@ defmodule TalesForge.Game.PremiseCheck do
     |> String.split(~r/[.!;\n\[\]()]+|\?/, include_captures: true)
     |> Enum.chunk_every(2)
     |> Enum.reject(fn
-      [_sentence, "?"] -> true
+      [sentence, "?"] -> not Regex.match?(@told_question, String.downcase(sentence))
       _ -> false
     end)
     |> Enum.map(&hd/1)
@@ -440,7 +445,7 @@ defmodule TalesForge.Game.PremiseCheck do
   end
 
   defp kill_claims(sentence, cased) do
-    ~r/\bi(?:'ve|\s+have|\s+had)?\s+(?:already\s+|just\s+)?(?:killed|slew|slain|murdered|beheaded)\s+((?:the\s+|a\s+|an\s+)?[a-z'-]+(?:\s+[a-z'-]+){0,2})/
+    ~r/\bi(?:'ve|\s+have|\s+had)?\s+(?:already\s+|just\s+)?(?:killed|slew|slain|murdered|beheaded)\s+((?:the\s+|a\s+|an\s+)?[a-z'-]+(?:\s+[a-z'-]+){0,3})/
     |> Regex.scan(sentence, return: :index)
     |> Enum.flat_map(fn [{pos, _}, target] ->
       words =
@@ -571,7 +576,7 @@ defmodule TalesForge.Game.PremiseCheck do
       finding(
         :kill,
         "killed #{claim.target}",
-        "Player claims to have killed #{claim.target}; they have won no fight#{against(claim, state)} this session and #{standing}."
+        "Player claims to have killed #{claim.target}; they have won no fight#{against(claim, state)} this session and #{standing}. Invent no bounty, reward, token or story that backs the claim."
       )
     ]
   end

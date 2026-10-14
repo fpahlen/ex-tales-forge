@@ -2,7 +2,7 @@ defmodule TalesForge.Game.Turn.Outcome do
   @moduledoc """
   Stage 7 of a turn: the checks on the narration and the persistence.
 
-    * `TURN_STATE_FROM_MECHANICS=on`: the prose post-check. Each mismatch
+    * `TURN_STATE_FROM_MECHANICS=on` or `TURN_APPLY_OUTCOMES=on`: the prose post-check. Each mismatch
       between the GM prose and the outcome record is logged and stored as a
       `turn.prose_mismatch` event. There is no GM re-run.
     * `COMBAT_OPPOSED=on`: the post-check also runs for the `:wound` kind
@@ -70,7 +70,8 @@ defmodule TalesForge.Game.Turn.Outcome do
   defp prose_check(turn, narrative, board) do
     record = Map.get(board, :outcome)
 
-    state? = Turn.flag?(turn, :turn_state_from_mechanics)
+    state? =
+      Turn.flag?(turn, :turn_state_from_mechanics) or Turn.flag?(turn, :turn_apply_outcomes)
 
     if (state? or Turn.flag?(turn, :combat_opposed)) and record do
       mismatches =

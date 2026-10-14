@@ -178,6 +178,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
       priced
       |> TurnApply.named_move(world, played.overall_intent)
       |> TurnApply.unknown_move(world)
+      |> TurnApply.deferred_move(world, played.overall_intent)
 
     {paid, moved}
   end

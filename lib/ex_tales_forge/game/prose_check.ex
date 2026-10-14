@@ -8,8 +8,10 @@ defmodule TalesForge.Game.ProseCheck do
 
     * `:coins` — the prose names a coin amount, and the record has no coin
       change of that size;
-    * `:item` — the prose hands the character an item ("hands you a loaf"),
-      and the record has no item gain with that name;
+    * `:item` — the prose hands the character an item ("hands you a loaf",
+      "slides a token across to you"), and the record has no item gain with
+      that name. A turn that paid coins serves the food or drink it paid
+      for, so the placing pattern counts only on a turn with no payment;
     * `:location` — the prose moves the character to a named place
       ("you step out into Market Square"), and the record has no move;
     * `:clock` — the prose skips time ("the next morning", "hours later"),
@@ -53,6 +55,10 @@ defmodule TalesForge.Game.ProseCheck do
   @coin_re ~r/\b(\d+|#{@number_words})\s+(copper|coppers|silver|silvers|gold)\b/
 
   @give_re ~r/\b(?:hands|gives|passes|tosses|slides|offers)\s+you\s+(?:a|an|the|some|your)?\s*([a-z' -]+?)(?:[.,;!]|\s+for\b|\s+and\b|$)/
+
+  # "sliding a small wooden token across to you", "sets a fresh mug of ale
+  # in front of you". Gentry's playtest session ead76238 on 2026-10-14.
+  @place_re ~r/\b(?:slides?|sliding|sets?|setting|places?|placing|puts?|putting|pushes|pushing)\s+(?:a|an|the|some)\s+([a-z' -]+?)\s+(?:across\s+to|in\s+front\s+of|toward|towards)\s+you\b/
 
   @move_re ~r/\b[Yy]ou\s+(?:step|walk|head|go|move|arrive|stride|wander)\s+(?:out\s+|back\s+)?(?:into|to|at|in|onto)\s+(?:the\s+)?([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)*)/
 
@@ -119,8 +125,11 @@ defmodule TalesForge.Game.ProseCheck do
   defp items(prose, record) do
     gained = record |> get_in(["items", "gained"]) |> List.wrap() |> Enum.map(&item_words/1)
 
-    @give_re
-    |> Regex.scan(String.downcase(prose))
+    paid? = (get_in(record, ["coins", "delta_copper"]) || 0) < 0
+    lower = String.downcase(prose)
+    placed = if paid?, do: [], else: Regex.scan(@place_re, lower)
+
+    (Regex.scan(@give_re, lower) ++ placed)
     |> Enum.map(fn [_, phrase] -> String.trim(phrase) end)
     |> Enum.reject(&(&1 == "" or Regex.match?(@coin_re, &1) or coin_word?(&1)))
     |> Enum.reject(fn phrase -> Enum.any?(gained, &named?(phrase, &1)) end)
