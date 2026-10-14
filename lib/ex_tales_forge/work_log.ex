@@ -279,14 +279,14 @@ defmodule TalesForge.WorkLog do
   def add_entries(added_by, founders, attrs) when is_list(founders) do
     attrs = stringify(attrs)
 
-    Repo.transaction(fn ->
-      Enum.map(founders, fn founder ->
-        case add_entry(added_by, Map.put(attrs, "founder", founder)) do
-          {:ok, entry} -> entry
-          {:error, cs} -> Repo.rollback(cs)
-        end
-      end)
-    end)
+    Repo.transaction(fn -> Enum.map(founders, &add_or_rollback(added_by, &1, attrs)) end)
+  end
+
+  defp add_or_rollback(added_by, founder, attrs) do
+    case add_entry(added_by, Map.put(attrs, "founder", founder)) do
+      {:ok, entry} -> entry
+      {:error, cs} -> Repo.rollback(cs)
+    end
   end
 
   @doc "The manual entries of the days `from` to `to` (both inclusive), oldest first."
