@@ -8,10 +8,14 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
     last 30 days.
   - The table shows each auto session and each manual entry, with its work
     note, newest first. The totals show the hours of each founder.
-  - The manual form adds hours, a date and a reason
-    (`TalesForge.WorkLog.add_entry/2`). The founder field is the signed-in
-    founder by default. For the spreadsheet import, use the reason
-    "Imported from spreadsheet" and the original date.
+  - The manual form adds hours, a date and a reason for one or more
+    founders. The founder checkboxes come from the Workflow team founders
+    (`Workflow.Team`, the first of each founder's `emails`). The signed-in
+    founder is checked by default, and the date is today (Europe/Stockholm).
+    One save adds one entry for each checked founder in one transaction
+    (`TalesForge.WorkLog.add_entries/3`, which calls `add_entry/2`).
+    `added_by` is the signed-in founder. For the spreadsheet import, use
+    the reason "Imported from spreadsheet" and the original date.
   - The Slicing Pie shows the hours and the percentage of each contributor
     for all time (`Workflow.SlicingPie`). The range form does not change it.
   - The CSV link downloads one row for each founder and day
@@ -58,7 +62,7 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
 
   defp entry_form(founder, params \\ %{}) do
     defaults = %{
-      "founder" => founder || "",
+      "founders" => if(founder, do: [String.downcase(founder)], else: []),
       "date" => Date.to_iso8601(Report.today()),
       "hours" => "",
       "reason" => ""
@@ -94,17 +98,29 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
     do: {:noreply, put_flash(socket, :error, TalesForge.QaLogin.refused_message())}
 
   def handle_event("add_entry", %{"entry" => params}, socket) do
-    case WorkLog.add_entry(socket.assigns.admin_email, params) do
-      {:ok, %Entry{} = entry} ->
+    founders = params |> Map.get("founders", []) |> List.wrap() |> Enum.reject(&(&1 == ""))
+    params = Map.put(params, "founders", founders)
+    attrs = Map.take(params, ~w(date hours reason))
+
+    case WorkLog.add_entries(socket.assigns.admin_email, founders, attrs) do
+      {:ok, [%Entry{} = first | _] = entries} ->
+        names = Enum.map_join(entries, ", ", &founder_name(socket.assigns.team, &1.founder))
+
         {:noreply,
          socket
          |> put_flash(
            :info,
-           "The entry is saved: #{Report.hours(entry.minutes)} h for #{entry.founder}."
+           "Saved #{count(length(entries))}: #{Report.hours(first.minutes)} h each for #{names}."
          )
          |> assign(:entry_form, entry_form(socket.assigns.admin_email))
          |> load()
          |> load_pie()}
+
+      {:error, :no_founder} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Pick one or more founders.")
+         |> assign(:entry_form, entry_form(socket.assigns.admin_email, params))}
 
       {:error, cs} ->
         {:noreply,
@@ -112,6 +128,16 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
          |> put_flash(:error, "Correct the entry: " <> errors(cs))
          |> assign(:entry_form, entry_form(socket.assigns.admin_email, params))}
     end
+  end
+
+  defp count(1), do: "1 entry"
+  defp count(n), do: "#{n} entries"
+
+  defp founder_name(team, email), do: Workflow.SlicingPie.label(team, email)
+
+  # The founders that have an email in the team config, as {name, email}.
+  defp founder_choices(team) do
+    for f <- team.founders, email = List.first(Map.get(f, :emails, [])), do: {f.name, email}
   end
 
   # One line with each field and its first message, for the flash.
@@ -236,7 +262,21 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
             For the spreadsheet import, write the reason "Imported from spreadsheet" and give the original date.
           </p>
           <.form for={@entry_form} id="work-log-entry-form" phx-submit="add_entry" class="space-y-2">
-            <.input field={@entry_form[:founder]} type="email" label="Founder email" />
+            <fieldset id="work-log-entry-founders" class="space-y-1">
+              <legend class="text-sm font-semibold">Founders</legend>
+              <label
+                :for={{name, email} <- founder_choices(@team)}
+                class="mr-4 inline-flex items-center gap-1 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  name="entry[founders][]"
+                  value={email}
+                  checked={email in List.wrap(@entry_form[:founders].value)}
+                  class="checkbox checkbox-sm"
+                /> {name}
+              </label>
+            </fieldset>
             <.input field={@entry_form[:date]} type="date" label="Date" />
             <.input
               field={@entry_form[:hours]}
@@ -244,9 +284,10 @@ defmodule TalesForgeWeb.TeamWorkLogLive do
               step="0.25"
               min="0.25"
               max="24"
+              required
               label="Hours"
             />
-            <.input field={@entry_form[:reason]} type="text" label="Reason" />
+            <.input field={@entry_form[:reason]} type="text" label="Reason" required />
             <button type="submit" class="rounded-full border px-4 py-1.5 text-sm font-semibold">Save the entry</button>
           </.form>
         </section>

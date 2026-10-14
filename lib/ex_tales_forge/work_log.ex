@@ -265,6 +265,30 @@ defmodule TalesForge.WorkLog do
     )
   end
 
+  @doc """
+  Adds one manual entry for each founder email in `founders`, all in one
+  transaction (`add_entry/2` for each). `attrs` has `date`, `hours` and
+  `reason`; `added_by` is the signed-in founder. When one entry is not
+  valid, the function adds no entry and gives its changeset. An empty
+  `founders` list gives `{:error, :no_founder}`.
+  """
+  @spec add_entries(String.t(), [String.t()], map()) ::
+          {:ok, [Entry.t()]} | {:error, Ecto.Changeset.t() | :no_founder}
+  def add_entries(_added_by, [], _attrs), do: {:error, :no_founder}
+
+  def add_entries(added_by, founders, attrs) when is_list(founders) do
+    attrs = stringify(attrs)
+
+    Repo.transaction(fn ->
+      Enum.map(founders, fn founder ->
+        case add_entry(added_by, Map.put(attrs, "founder", founder)) do
+          {:ok, entry} -> entry
+          {:error, cs} -> Repo.rollback(cs)
+        end
+      end)
+    end)
+  end
+
   @doc "The manual entries of the days `from` to `to` (both inclusive), oldest first."
   @spec entries(Date.t(), Date.t()) :: [Entry.t()]
   def entries(%Date{} = from, %Date{} = to) do
