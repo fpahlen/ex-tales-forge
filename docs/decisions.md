@@ -11,6 +11,58 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Fix Inbox long text hover over Open button
+
+- **Decision (hawkan.fredriksson@gmail.com, 2026-10-14, on the idea board):** build it. Inbox corrction, When the text is long in the Inbox message it hovers over the button Open the card so you can't press the button, have to be fixed
+- **Why:** **Update after Håkan's answers (14 Oct).** Håkan asked which is best: one card or a follow-up. My pick: **do both in this card, shipped as two small PRs.**
+1. **PR 1, the hover fix (S).** Hide the hover preview while the chip is open and drop the native `title`, as described below. It is small and ships to prod first, so the Open link works again the same day.
+2. **PR 2, see more items at once (S–M).** On a computer, show the current item as today, with up to three more items under it as compact rows (card name and a short line of text). Click a row to make it the current item. j/k still moves between items. Answer, Done, Skip and Discard stay on the current item only, so the undo toast and keyboard keys work as now.
+3. **Phone:** no change. One item at a time with swipe, as Håkan answered.
+
+Why one card: it is the same panel and the same component (`TalesForgeWeb.TeamInbox`), and Håkan asked for both. Why two PRs: the fix should not wait for the layout work, and a small PR is easier to check and to undo.
+
+Rough cost for the whole card: **M** (S for the fix plus S–M for the rows).
+
+---
+
+**The problem.** In the Inbox, long message text covers the **Open the card** link so you cannot press it. Håkan's second ask (on the screenshot note): on a computer, show at least four Inbox items at once; on a phone, arrange them another way. Today the panel shows one item at a time (`Item 1 of N`, j/k).
+
+**Cause of the hover bug (main, `787ae75`, high confidence).**
+1. The context chip is a `<details id="inbox-chip">` with class `group` (`TalesForgeWeb.TeamInbox`).
+2. A hover preview sits on top of the open body: `absolute z-10 … group-hover:block group-open:hidden`. When the chip is open and you move the pointer to reach **Open the card**, `group-hover:block` can win over `group-open:hidden`, so the preview paints over the link.
+3. The same summary also has a native `title={String.slice(@item.body, 0, 200)}`, so the browser tooltip can cover the link as well.
+4. **Open the card** lives inside the open chip body (`#inbox-chip-body`), under that stack.
+
+The preview has `pointer-events-none`, but the overlay still blocks use in practice (you cannot see or reliably hit the link). Håkan's screenshots match this.
+
+**One-item layout (by design today).** The moduledoc and UI say the panel shows one item at a time; j/k and swipe move the index. That is intentional, not a bug. Showing four at once is a product change on top of the hover fix.
+
+**Fix for the hover bug (smallest, this card).**
+1. When the chip is open, never show the hover preview. Prefer `group-open:!hidden`, or only render the preview when the details is closed (for example `hidden open:hidden group-hover:block` on a child that is not shown while open).
+2. Drop the native `title` on the summary (the open body already shows the full text; the closed chip label is enough).
+3. Keep **Open the card** easy to hit: either leave it in the open body once the overlay is gone, or move the link just outside the `<details>` so it is never under a tooltip. Prefer the smallest change that keeps the existing chip tests green (`#inbox-chip-body a[href=…]` in `team_inbox_test.exs`).
+4. Add or extend a LiveView/CSS assertion that the open chip does not show the hover preview (or that the Open link is not covered).
+
+**Multi-item view (optional same PR or a follow-up).**
+- Desktop: show up to four compact rows (chip + short body + Open), with one expanded for answer/approve actions; keep j/k.
+- Phone: keep one-at-a-time + swipe (current behaviour), or a short vertical stack — founders choose.
+- Do not grow the answer/approve surface into four full forms at once; that would fight the undo toast and keyboard model.
+
+**Test.** Hover/open regression in `team_inbox_test.exs` (and a short Bobby smoke on prod: long body, open chip, click Open). If multi-item ships, assert four rows on a wide viewport and one on a narrow one.
+
+**Cost: S** for the hover fix alone (hours). **M** if this card also ships the four-item desktop layout in the same PR.
+
+**Risk.** Low for the hover fix (markup/CSS in one component). Multi-item touches keyboard, swipe, and the undo toast; keep phone behaviour unless founders ask otherwise.
+
+**Deploy lane.** Team tools on the product app: straight to prod after CI and a smoke test. Inbox is Workflow UI on `/team`.
+
+**Verdict: feasible.** The Open link is under a hover preview that still shows while the chip is open. Fix the open/hover CSS (and drop the native title). Treat four-at-once as a separate, optional scope.
+
+**Confidence.** High on the hover cause (read the markup on main; screenshots match). Medium on multi-item cost until founders pick the phone layout. Verdict: feasible. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-686a0c36-7739-43d8-bde8-f89447a76bcd)
+
+<!-- board:idea:686a0c36-7739-43d8-bde8-f89447a76bcd -->
+
 ## 2026-10-14: Inbox chat answers map to wrong thread
 
 - **Decision (hawkan.fredriksson@gmail.com, 2026-10-14, on the idea board):** build it. Inbox correction needed, when I answer a comment from the Chat directly in Inbox the answer ended up in General Chat, not in Playtest where the question was asked. If we are going to be able to answer chat questions in Inbox it has to be mapped to the right thread in the chat.
