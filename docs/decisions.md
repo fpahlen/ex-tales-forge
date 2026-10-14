@@ -239,6 +239,17 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 
 <!-- board:idea:6be78cd9-ac91-4d15-abb7-27476a252409 -->
 
+## 2026-10-14: Turn data for time, prices and the combat target (QA 08:57)
+
+- **Decision (Bobby, from Gentry's QA of 2026-10-14 08:57):** these rules add to the 2026-10-14 entry "NPC combat: how both sides roll" and to the turn-apply rules of ex-tales-forge #272. The GM prompt template does not change; the new text is per-turn data (handler notes and premise corrections).
+- **The target.** The Jev target counts only when the player's words refer to a person: a pronoun or a word of that person's id or name. A bare "I attack" asks whom.
+- **The display.** The mechanical resolution has the exchange (`combat`). Its notes give the d20 against the target number, the Parry, the wounds and the counterattack. Its outcome is the hit or the miss. The play page shows NPC wounds, minor foes and the last exchange. A scene change keeps NPC wounds and minor foes.
+- **Wait until a time of day.** "I wait until dusk" waits to the start of that time of day (`TURN_APPLY_OUTCOMES=on`).
+- **Time claims.** A player claim of a time of day that the clock does not show gets a premise correction with the clock.
+- **Service prices.** At a rest place, a text that names a room, a meal or an ale gives the GM the server price (room 3 silver, 30c) (`TURN_APPLY_OUTCOMES=on`).
+- **Why:** the GM narrated dusk at midday, accepted midnight, quoted a room at eight silver while the server charged 30c, and rolled a bare attack against the only person present.
+- **Link:** [ex-tales-forge #281](https://github.com/whyse-ab/ex-tales-forge/pull/281)
+
 ## 2026-10-14: NPC combat: how both sides roll (build rules, version 1)
 
 - **Decision (Bobby, from Fredrik's answers on the idea board, 2026-10-14):** the build of "NPC combat: both sides roll" uses these rules, behind the flag `COMBAT_OPPOSED` (on for playtest in `fly.playtest.toml`, off on production). It supersedes no entry; it gives the numbers that the 2026-10-14 entry "NPC combat: both sides roll" left open.
