@@ -72,6 +72,7 @@ Ask Case or Bobby to add a key. You get a masked input box in the chat, so the v
 | `MAIL_ADAPTER` | Email provider, e.g. `resend`. Nothing sends mail since magic links were removed (PR #54) | No, see [Resend setup](resend-setup.md) |
 | `RESEND_API_KEY` | Resend sending key | No |
 | `ADMIN_MAIL_FROM` | Sender address for login emails (default `admin@tales-forge.ai`) | No |
+| `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY` | The VAPID key pair for web push of the installed team app (`Workflow.Push`, ex-tales-forge PR [#277](https://github.com/whyse-ab/ex-tales-forge/pull/277)). Url-safe base64, P-256. Unset = push is off. A new pair stops all stored subscriptions, so each founder must allow notifications again | **Staged 2026-10-14** (own pair) |
 
 Mailgun and Postmark (`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `POSTMARK_API_KEY`) are also supported by the code but not used.
 
@@ -112,6 +113,7 @@ Same names as production, with **separate values** (never copied from prod), exc
 | `INTENT_CALL_EVERY_TURN` | Not set (off). Turning it on (every turn through the intent call, about $0.0023 more per turn) needs Fredrik's OK |
 | `GENTRY_QA_TOKEN` | **Staged 2026-10-12**, the **same value** as production. Turns on `/team/qa-login` here too (ex-tales-forge PR [#175](https://github.com/whyse-ab/ex-tales-forge/pull/175)) |
 | `QA_ALLOW_WRITES` | Not set (off). `true` lets the Gentry (QA) session write on playtest only. Turning it on needs Fredrik's OK |
+| `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY` | **Staged 2026-10-14**, its own key pair (not the production pair). Web push of the installed team app (`Workflow.Push`) |
 
 GitHub Actions secret for deploying playtest: `FLY_API_TOKEN_PLAYTEST`, a deploy token for `tales-forge-playtest` only (Fly dashboard → tales-forge-playtest → Tokens, or `fly tokens create deploy -a tales-forge-playtest`). Set.
 

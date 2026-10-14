@@ -11,6 +11,18 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Web push library for the installed team app: web_push_ex
+
+- **Decision (Bobby, for the card "Install the team page as an app (PWA)", decision 74b98134):** use Hex `web_push_ex` 0.2 for web push. It encrypts the message and signs the VAPID token. Our own client (`Workflow.Push.Http`, Req) sends the request.
+- **Why:**
+  1. It uses the `aes128gcm` content encoding (RFC 8291 and RFC 8188). Safari on iPhone (Home Screen app, iOS 16.4 and later) and on the Mac needs this encoding. Chrome, Edge and Firefox accept it too.
+  2. It has one new dependency, `jose`. It uses `:json` from OTP 27, and our image has OTP 27.
+  3. It sends no HTTP itself. We use Req, which the app has already. Thus we control the timeout and the retry (Oban).
+  4. Its tests use the examples of the RFC.
+  5. Other options: `web_push_elixir` 0.8 sends only the old `aesgcm` encoding, which Safari does not accept. `web_push_encryption` 0.3 has no release since 2021 and needs HTTPoison.
+- **Secrets:** `WEB_PUSH_VAPID_PUBLIC_KEY` and `WEB_PUSH_VAPID_PRIVATE_KEY`, one key pair for each app ([fly-secrets.md](fly-secrets.md)).
+- **Link:** [ex-tales-forge PR #277](https://github.com/whyse-ab/ex-tales-forge/pull/277), [the card](https://tales-forge.fly.dev/team#idea-47efd154-fa47-44df-92de-d0ba6b66b366)
+
 ## 2026-10-14: Upcoming jobs panel, scheduled by Oban
 
 - **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. Founders cannot see what is scheduled. Add an Upcoming panel on /team. It lists the next scheduled jobs with time, owner (person or bot) and status. Examples: the Gentry playtest run, the Bobby and Gentry update, the weekly branch prune, card ETAs and planned cutovers.
