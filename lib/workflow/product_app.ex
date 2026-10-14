@@ -6,6 +6,7 @@ defmodule Workflow.ProductApp do
   1. `costs/1`: the AI spend of each day and the intent latency, last 7 days.
   2. `online/0`: the founders online on the product app.
   3. `running_commits/0`: the commit of the product app and of each app.
+  4. `persona_scores/0`: the Jev score of each persona over the playtest runs.
 
   The adapter does the I/O. `Workflow.ProductApp.Local` calls the product app
   in the same release. `Workflow.ProductApp.Http` calls its
@@ -50,6 +51,25 @@ defmodule Workflow.ProductApp do
   @doc "Reads the running commits. Returns a map with string keys."
   @callback running_commits() :: {:ok, map()} | :error
 
+  @typedoc "The score of one persona."
+  @type persona_score :: %{
+          score: float() | nil,
+          low_confidence_pct: non_neg_integer() | nil,
+          turns: non_neg_integer() | nil
+        }
+
+  @typedoc "The persona scores, or nil when the product app has no scored turn."
+  @type scores ::
+          %{
+            since: String.t() | nil,
+            runs: non_neg_integer(),
+            by_persona: %{String.t() => persona_score()}
+          }
+          | nil
+
+  @doc "Reads the persona scores. Returns a map with string keys."
+  @callback persona_scores() :: {:ok, map()} | :error
+
   @doc "The adapter in use."
   @spec adapter() :: module()
   def adapter do
@@ -81,6 +101,43 @@ defmodule Workflow.ProductApp do
       {:ok, body} -> decode_running(body)
       :error -> %{current: nil, production: nil, playtest: nil}
     end
+  end
+
+  @doc "The persona scores. Nil when they are not available."
+  @spec persona_scores() :: scores()
+  def persona_scores do
+    case adapter().persona_scores() do
+      {:ok, body} -> decode_scores(body)
+      :error -> nil
+    end
+  end
+
+  @doc """
+  Decodes the persona scores answer. A persona with a bad value is left out.
+
+      iex> Workflow.ProductApp.decode_scores(%{"scores" => %{"since" => "2026-10-07", "runs" => 3,
+      ...>   "by_persona" => %{"hawk" => %{"score" => 3.5, "low_confidence_pct" => 20, "turns" => 9}, "x" => 1}}})
+      %{since: "2026-10-07", runs: 3, by_persona: %{"hawk" => %{score: 3.5, low_confidence_pct: 20, turns: 9}}}
+      iex> Workflow.ProductApp.decode_scores(%{"scores" => nil})
+      nil
+  """
+  @spec decode_scores(term()) :: scores()
+  def decode_scores(%{"scores" => %{"by_persona" => %{} = by} = s}) when map_size(by) > 0 do
+    %{
+      since: string(s["since"]),
+      runs: if(is_integer(s["runs"]), do: s["runs"], else: 0),
+      by_persona: for({p, %{} = v} <- by, is_binary(p), into: %{}, do: {p, persona_score(v)})
+    }
+  end
+
+  def decode_scores(_body), do: nil
+
+  defp persona_score(v) do
+    %{
+      score: if(is_number(v["score"]), do: v["score"] * 1.0),
+      low_confidence_pct: if(is_integer(v["low_confidence_pct"]), do: v["low_confidence_pct"]),
+      turns: if(is_integer(v["turns"]), do: v["turns"])
+    }
   end
 
   @doc """

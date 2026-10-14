@@ -9,7 +9,7 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
   |---|---|---|---|
   | `costs/2` | the product app's AI spend per Stockholm day (`Workflow.ProductApp.costs/1`) | last 7 days | `ai_spend.playtest_day_totals_usd` |
   | `intent_latency/2` | the product app's Jev intent latency (`Workflow.ProductApp.costs/1`) | last 7 days | `intent_shadow` |
-  | `persona_scores/1` | none: the product app gives no playtest scores | - | the last `playtest_series` batch |
+  | `persona_scores/1` | the product app's Jev score per persona (`Workflow.ProductApp.persona_scores/0`) | since 2026-10-07 | the last `playtest_series` batch |
 
   The GitHub-sourced groups (tests from CI, the decision log) come from the
   live PR feed (`TalesForge.PrFeed.Extras`). Every group has `:source`
@@ -50,7 +50,7 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
       decisions: decisions(extras, data),
       costs: spend_group(costs.spend, data),
       intent_latency: latency_group(costs.intent_latency, data),
-      persona_scores: scores_fallback(data)
+      persona_scores: persona_scores(data, now)
     }
   end
 
@@ -265,11 +265,35 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
   # ── Persona scores since inception ───────────────────────────────────────
 
   @doc """
-  The persona scores: the last batch in `data.json`. The product app gives
-  no playtest scores to Workflow, so this group is always the fallback.
+  The persona scores from the product app (`Workflow.ProductApp.persona_scores/0`):
+  the Jev score per persona over the playtest runs since 2026-10-07. The
+  fallback (the last batch in `data.json`) when the product app has no
+  scored turn.
   """
-  @spec persona_scores(map()) :: group()
-  def persona_scores(data), do: scores_fallback(data)
+  @spec persona_scores(map(), DateTime.t()) :: group()
+  def persona_scores(data, now \\ DateTime.utc_now()),
+    do: scores_group(ProductApp.persona_scores(), data, now)
+
+  @doc """
+  The persona-scores group for the decoded scores, or the fallback for nil.
+
+      iex> scores = %{since: "2026-10-07", runs: 2, by_persona: %{"hawk" => %{score: 3.0, low_confidence_pct: 10, turns: 4}}}
+      iex> TalesForgeWeb.TeamLiveNumbers.scores_group(scores, %{}, ~U[2026-10-14 08:00:00Z])
+      %{source: :live, as_of: "2026-10-14", window: :since_inception, runs: 2,
+        by_persona: %{"hawk" => %{score: 3.0, low_confidence_pct: 10, turns: 4}}}
+  """
+  @spec scores_group(ProductApp.scores(), map(), DateTime.t()) :: group()
+  def scores_group(%{by_persona: by} = scores, _data, now) when map_size(by) > 0 do
+    %{
+      source: :live,
+      as_of: Date.to_iso8601(local_date(now)),
+      window: :since_inception,
+      runs: scores.runs,
+      by_persona: by
+    }
+  end
+
+  def scores_group(_scores, data, _now), do: scores_fallback(data)
 
   @doc """
   The persona-scores fallback: the last batch in `data.json`'s playtest series.

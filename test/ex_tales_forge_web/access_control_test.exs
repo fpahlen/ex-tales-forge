@@ -62,6 +62,7 @@ defmodule TalesForgeWeb.AccessControlTest do
     {:get, "/internal/product/costs"},
     {:get, "/internal/product/online"},
     {:get, "/internal/product/running-commits"},
+    {:get, "/internal/product/persona-scores"},
     # Workflow receives work-log turn events, bearer token WORKFLOW_API_TOKEN
     # (WorkflowWorkLogController); the same decision.
     {:post, "/internal/workflow/work-log/turns"},
