@@ -6,8 +6,16 @@ defmodule TalesForgeWeb.TeamChatLive do
   Nested in `TalesForgeWeb.OnlineHeaderLive`, which loads it through config
   `:team_chat_live` on production and locally.
 
-  - The chat button shows the unread count of `TalesForge.Chat.unread/1`
-    (your handle comes from your GitHub login, `TalesForge.Board.Mentions`).
+  - The chat button shows the new messages of `TalesForge.Chat.bar/2`
+    (your handle comes from your GitHub login, `TalesForge.Board.Mentions`):
+    the count and, from tablet width up, a one-line preview of the latest
+    message (name and first words). On a phone, only the count shows. The
+    preview is part of the accessible name of the button on all widths.
+  - A click on the chat button opens the thread of the latest new message
+    (General when there is no new message). The thread list keeps the other
+    threads with new messages and their counts.
+  - The button updates live: on each new message, and on
+    `{:team_chat_read, thread_id}` when you open a thread in another tab.
   - Threads: the thread list is on the left, sorted by the last message, with
     the unread count of each thread. The open thread is on the right. On a
     phone, the panel shows the list or the open thread, and "Threads" goes
@@ -37,7 +45,6 @@ defmodule TalesForgeWeb.TeamChatLive do
   alias Phoenix.LiveView.JS
   alias TalesForge.Chat
   alias TalesForge.Chat.Message
-  alias TalesForge.TeamOnline
   alias TalesForgeWeb.TeamImages
 
   @impl true
@@ -67,7 +74,7 @@ defmodule TalesForgeWeb.TeamChatLive do
      |> assign(:open, false)
      |> assign(:draft, "")
      |> assign(:messages, [])
-     |> assign(:unread, Chat.unread(login))
+     |> assign(:bar, Chat.bar(login, socket.assigns[:admin_email]))
      |> assign(:form, to_form(%{"body" => ""}, as: :chat))
      |> TeamImages.allow(:chat_images), layout: false}
   end
@@ -75,7 +82,10 @@ defmodule TalesForgeWeb.TeamChatLive do
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_event("open", _params, socket), do: {:noreply, open(socket, nil)}
+  def handle_event("open", _params, socket) do
+    socket = assign(socket, :bar, bar(socket))
+    {:noreply, open(socket, nil, latest_thread(socket.assigns.bar))}
+  end
 
   def handle_event("open_thread", %{"id" => id}, socket), do: {:noreply, view_thread(socket, id)}
   def handle_event("threads", _params, socket), do: {:noreply, assign(socket, :pane, :list)}
@@ -137,18 +147,21 @@ defmodule TalesForgeWeb.TeamChatLive do
   @impl true
   @spec handle_info(term(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_info({:open_chat, to}, socket), do: {:noreply, open(socket, to)}
+  def handle_info({:open_chat, to}, socket), do: {:noreply, open(socket, to, nil)}
 
   def handle_info({:team_chat, %Message{} = m}, socket) do
     if socket.assigns.open and open_thread?(socket, m) do
       unless socket.assigns[:qa], do: Chat.mark_read(socket.assigns.login, m.thread_id)
       {:noreply, socket |> assign(:messages, socket.assigns.messages ++ [m]) |> load_threads()}
     else
-      {:noreply, socket |> assign(:unread, Chat.unread(socket.assigns.login)) |> load_threads()}
+      {:noreply, socket |> assign(:bar, bar(socket)) |> load_threads()}
     end
   end
 
   def handle_info({:team_chat_thread, _thread}, socket), do: {:noreply, load_threads(socket)}
+
+  def handle_info({:team_chat_read, _thread_id}, socket),
+    do: {:noreply, socket |> assign(:bar, bar(socket)) |> load_threads()}
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
@@ -158,12 +171,17 @@ defmodule TalesForgeWeb.TeamChatLive do
 
   defp open_thread?(_socket, _message), do: false
 
-  defp open(socket, to) do
+  defp bar(socket), do: Chat.bar(socket.assigns.login, socket.assigns.email)
+
+  defp latest_thread(%{latest: %{thread_id: id}}), do: id
+  defp latest_thread(_bar), do: nil
+
+  defp open(socket, to, thread_id) do
     body = if to, do: "@#{mention(to)} ", else: ""
 
     socket
     |> assign(:open, true)
-    |> view_thread(nil)
+    |> view_thread(thread_id)
     |> assign(:form, to_form(%{"body" => body}, as: :chat))
   end
 
@@ -183,7 +201,7 @@ defmodule TalesForgeWeb.TeamChatLive do
 
     socket
     |> assign(thread: thread, messages: messages, pane: :thread)
-    |> assign(:unread, Chat.unread(socket.assigns.login))
+    |> assign(:bar, bar(socket))
     |> load_threads()
   end
 
@@ -228,11 +246,21 @@ defmodule TalesForgeWeb.TeamChatLive do
         <.icon name="hero-chat-bubble-left-right" class="size-4" />
         <span>Chat</span>
         <span
-          :if={@unread > 0}
+          :if={@bar.count > 0}
           id={"#{@id_prefix}-unread"}
           class="ml-0.5 rounded-full bg-[var(--paper-accent)] px-1.5 text-[0.7rem] leading-5 text-white"
         >
-          {@unread}<span class="sr-only"> new mentions of you</span>
+          {@bar.count}<span class="sr-only">{if @bar.count == 1,
+            do: " new message",
+            else: " new messages"}</span>
+        </span>
+        <span
+          :if={@bar.latest}
+          id={"#{@id_prefix}-preview"}
+          class="sr-only md:not-sr-only md:ml-1 md:max-w-[18rem] md:truncate md:font-normal md:text-[var(--paper-muted)]"
+        >
+          <span class="font-semibold text-[var(--paper-ink)]">{@bar.latest.author}:</span>
+          {@bar.latest.preview}
         </span>
       </button>
 
@@ -577,14 +605,5 @@ defmodule TalesForgeWeb.TeamChatLive do
     """
   end
 
-  defp author("bot:" <> bot = actor) do
-    team = Workflow.Team.Source.team()
-
-    case Workflow.Team.bot_id(team, actor) do
-      nil -> String.capitalize(bot)
-      id -> Workflow.Team.bot_name(team, id)
-    end
-  end
-
-  defp author(email), do: TeamOnline.name(Workflow.Team.Source.team(), email)
+  defp author(author), do: Chat.author_name(author)
 end

@@ -19,17 +19,21 @@ defmodule TalesForge.Chat do
   - Mentions use the board's one parser, `TalesForge.Board.Mentions`:
     `@<founder handle>`, `@founders`, `@<bot id>` and `@devops` (all bots of
     the team config, `Workflow.Team`).
-  - A founder mention gives that founder an unread badge on the chat button
-    (`unread/1`, by GitHub login) until they open the chat (`mark_read/1`). No email or push
-    (the founder's answer on the card).
+  - The chat button shows the new messages for a founder (`bar/2`): the
+    count and the latest message. A message counts when another author
+    writes it in a thread that the founder takes part in (the participant
+    rule, `TalesForge.Chat.ThreadRules.participants/4`), or in a direct
+    thread of the founder. General uses the same rule. The count of a
+    thread clears when the founder opens it (`mark_read/2`). No email or
+    push (the founder's answer on the card).
   - A bot mention **by a founder** wakes the bot through the board's webhook
     outbox (`TalesForge.Board.Workers.Notify`, event `chat.mention`), in the
     same transaction as the message. A bot that mentions a bot wakes nobody,
     to keep bot costs under control (the founder's answer on the card).
   - A message that names a founder with inbox rules makes an item in that
-    founder's inbox (`Workflow.Inbox`), in the same transaction. For that
-    founder the inbox replaces the unread badge: `unread/1` gives 0. A
-    message by that founder closes the chat items of that founder.
+    founder's inbox (`Workflow.Inbox`), in the same transaction. The
+    message also counts on the chat button (`bar/2`). A message by that
+    founder closes the chat items of that founder.
   - Each new message notifies the participants of its thread
     (`TalesForge.Chat.ThreadRules.participants/4`): the founder or bot that
     started the thread, posted in it, or was @mentioned in it. A founder
@@ -559,28 +563,134 @@ defmodule TalesForge.Chat do
   defp images_json(images) when is_list(images), do: Enum.map(images, &Images.to_json/1)
   defp images_json(_not_loaded), do: []
 
-  @doc """
-  The unread count on the chat button of the founder with this GitHub
-  `login`, since they last opened each thread: all messages to them in
-  direct threads, and the mentions of them in subject threads. For a
-  founder with an inbox (`Workflow.Inbox`), the inbox shows the mentions,
-  so the count has only the direct messages.
+  @preview_words 8
+  @preview_chars 60
+
+  @typedoc """
+  The latest new message on the chat button: its thread, the name of its
+  author and the first words of its text.
   """
-  @spec unread(String.t() | nil) :: non_neg_integer()
-  def unread(login) do
+  @type latest :: %{thread_id: Ecto.UUID.t(), author: String.t(), preview: String.t()}
+
+  @typedoc "The chat button of a founder: the count of new messages and the latest one."
+  @type bar :: %{count: non_neg_integer(), latest: latest() | nil}
+
+  @doc """
+  The chat button of the founder with this GitHub `login`. `email` is the
+  founder's own author email.
+
+  A message is new when it arrived after the founder last opened its
+  thread and another author wrote it. It counts when the thread is a
+  direct thread of the founder, or when the founder takes part in the
+  thread: the founder started it, posted in it, or was @mentioned in it
+  (`TalesForge.Chat.ThreadRules.participants/4`). General uses the same
+  rule. A message that also made an inbox item counts too.
+
+  Returns the count and the latest new message (`nil` when the count is 0).
+  """
+  @spec bar(String.t() | nil, String.t() | nil) :: bar()
+  def bar(login, email) do
     team = team()
 
     case Mentions.handle_for(team, login) do
-      nil ->
-        0
-
-      handle ->
-        {:founder, handle}
-        |> unread_query()
-        |> badge_filter(handle, Workflow.Inbox.has_inbox?(team, handle))
-        |> Repo.aggregate(:count)
+      nil -> %{count: 0, latest: nil}
+      handle -> bar_for(team, handle, email)
     end
   end
+
+  defp bar_for(team, handle, email) do
+    messages =
+      {:founder, handle}
+      |> unread_query()
+      |> others(handle, email)
+      |> order_by([m], desc: m.inserted_at)
+      |> preload(:images)
+      |> Repo.all()
+
+    # The participant filter reads only the threads with new messages.
+    joined =
+      messages
+      |> Enum.map(& &1.thread_id)
+      |> Enum.uniq()
+      |> then(&Repo.all(from t in Thread, where: t.id in ^&1))
+      |> Enum.filter(&takes_part?(team, &1, handle))
+      |> MapSet.new(& &1.id)
+
+    case Enum.filter(messages, &MapSet.member?(joined, &1.thread_id)) do
+      [] -> %{count: 0, latest: nil}
+      [latest | _] = counted -> %{count: length(counted), latest: latest(latest)}
+    end
+  end
+
+  # The messages by other authors: not the founder's handle, not their email.
+  defp others(query, handle, email) do
+    query
+    |> where([m], is_nil(m.author_handle) or m.author_handle != ^handle)
+    |> then(&if(is_binary(email), do: where(&1, [m], m.author != ^email), else: &1))
+  end
+
+  defp takes_part?(_team, %Thread{kind: "direct", members: members}, handle),
+    do: handle in members
+
+  defp takes_part?(team, %Thread{} = thread, handle) do
+    team
+    |> ThreadRules.participants(thread, thread.created_by, thread_posts(thread))
+    |> Map.fetch!(:founders)
+    |> Enum.member?(handle)
+  end
+
+  defp latest(%Message{} = m),
+    do: %{thread_id: m.thread_id, author: author_name(m.author), preview: preview(m)}
+
+  @doc """
+  The first words of a message for the chat button. A message with only
+  images gives "sent an image".
+
+      iex> TalesForge.Chat.preview(%TalesForge.Chat.Message{body: "Can you  check the new card today please it is ready"})
+      "Can you check the new card today please…"
+      iex> TalesForge.Chat.preview(%TalesForge.Chat.Message{body: "Done"})
+      "Done"
+      iex> TalesForge.Chat.preview(%TalesForge.Chat.Message{body: " "})
+      "sent an image"
+  """
+  @spec preview(Message.t()) :: String.t()
+  def preview(%Message{body: body}) do
+    words = (body || "") |> String.split()
+
+    case words do
+      [] -> "sent an image"
+      words -> words |> Enum.take(@preview_words) |> Enum.join(" ") |> cut(length(words))
+    end
+  end
+
+  defp cut(text, count) do
+    cond do
+      String.length(text) > @preview_chars ->
+        String.slice(text, 0, @preview_chars) |> String.trim_trailing() |> Kernel.<>("…")
+
+      count > @preview_words ->
+        text <> "…"
+
+      true ->
+        text
+    end
+  end
+
+  @doc """
+  The name of a message author: the founder name of an email, or the bot
+  name of `bot:<id>`.
+  """
+  @spec author_name(String.t()) :: String.t()
+  def author_name("bot:" <> bot = actor) do
+    team = team()
+
+    case Workflow.Team.bot_id(team, actor) do
+      nil -> String.capitalize(bot)
+      id -> Workflow.Team.bot_name(team, id)
+    end
+  end
+
+  def author_name(email), do: TalesForge.TeamOnline.name(team(), email)
 
   @doc """
   The unread count of each thread that `viewer` can read, by thread id:
@@ -618,16 +728,11 @@ defmodule TalesForge.Chat do
     )
   end
 
-  defp badge_filter(query, _handle, true = _inbox?),
-    do: where(query, [m, t], t.kind == "direct")
-
-  defp badge_filter(query, handle, false = _inbox?),
-    do: where(query, [m, t], ^handle in m.mentions or t.kind == "direct")
-
   @doc """
   Marks the thread `thread_id` (`nil` is General) as read for the founder
   with this GitHub `login`. A thread that the founder cannot read stays
-  unchanged.
+  unchanged. The founder's own topic gets `{:team_chat_read, thread_id}`,
+  so that the chat button clears in their other tabs too.
   """
   @spec mark_read(String.t() | nil, Ecto.UUID.t() | nil) :: :ok
   def mark_read(login, thread_id \\ nil) do
@@ -636,6 +741,12 @@ defmodule TalesForge.Chat do
       Repo.insert!(%Read{handle: handle, thread_id: thread.id, read_at: DateTime.utc_now()},
         on_conflict: {:replace, [:read_at]},
         conflict_target: [:handle, :thread_id]
+      )
+
+      Phoenix.PubSub.broadcast(
+        TalesForge.PubSub,
+        ThreadRules.founder_topic(handle),
+        {:team_chat_read, thread.id}
       )
     end
 

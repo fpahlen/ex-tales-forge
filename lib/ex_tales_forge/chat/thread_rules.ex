@@ -236,6 +236,17 @@ defmodule TalesForge.Chat.ThreadRules do
   def viewer_topics(:nobody), do: []
   def viewer_topics(_viewer), do: [@topic]
 
+  @doc """
+  The own PubSub topic of the founder `handle`. The direct messages of the
+  founder and the read events of the founder (`{:team_chat_read, thread_id}`)
+  go on it.
+
+      iex> TalesForge.Chat.ThreadRules.founder_topic("ada")
+      "team_chat:direct:ada"
+  """
+  @spec founder_topic(String.t()) :: String.t()
+  def founder_topic(handle) when is_binary(handle), do: direct_topic(handle)
+
   defp direct_topic(handle), do: "#{@topic}:direct:#{handle}"
 
   @doc """

@@ -83,7 +83,7 @@ defmodule TalesForgeWeb.TeamChatLiveTest do
     assert panel_has?(chat, "[role=alert]", "Write a message first.")
   end
 
-  test "a mention of you goes to the inbox, not to the badge, for a founder with rules", %{
+  test "a mention of you goes to the inbox and also counts on the chat button", %{
     conn: conn
   } do
     {:ok, view, _html} = live(conn, "/admin")
@@ -91,8 +91,8 @@ defmodule TalesForgeWeb.TeamChatLiveTest do
     refute has_element?(chat, "#admin-online-chat-unread")
 
     {:ok, _} = Chat.post("max@example.com", "@fredrik look at this")
-    # The signed-in founder has inbox rules: the inbox replaces the badge.
-    refute has_element?(chat, "#admin-online-chat-unread")
+    # The inbox shows what needs an answer; the button shows what is new.
+    assert has_element?(chat, "#admin-online-chat-unread", "1")
     assert [%{source: :chat}] = Workflow.Inbox.Store.open("fredrik")
 
     chat |> element("#admin-online-chat-button") |> render_click()
@@ -280,6 +280,53 @@ defmodule TalesForgeWeb.TeamChatLiveTest do
         Chat.post("max@example.com", "second secret", login: "maxpahlen", thread_id: direct.id)
 
       refute render(chat) =~ "second secret"
+    end
+
+    test "a new message updates the chat button live, and a click opens its thread", %{
+      conn: conn
+    } do
+      {:ok, t} = Chat.start_subject({:founder, "fredrik"}, "Release")
+      {:ok, other} = Chat.start_subject({:founder, "fredrik"}, "Other")
+      {:ok, view, _html} = live(conn, "/team")
+      {_header, chat} = chat(view, "team-online")
+      refute has_element?(chat, "#team-online-chat-unread")
+
+      {:ok, _} = Chat.post("max@example.com", "older", login: "maxpahlen", thread_id: other.id)
+
+      {:ok, _} =
+        Chat.post("max@example.com", "Can you check the build today please now",
+          login: "maxpahlen",
+          thread_id: t.id
+        )
+
+      assert has_element?(chat, "#team-online-chat-unread", "2")
+      assert has_element?(chat, "#team-online-chat-unread .sr-only", "new messages")
+      assert has_element?(chat, "#team-online-chat-button #team-online-chat-preview", "Max")
+
+      assert has_element?(
+               chat,
+               "#team-online-chat-preview",
+               "Can you check the build today please now"
+             )
+
+      chat |> element("#team-online-chat-button") |> render_click()
+      assert panel_has?(chat, "#team-online-chat-thread-title", "Release")
+      assert panel_has?(chat, "#team-online-chat-thread-#{other.id}-unread", "1")
+      assert has_element?(chat, "#team-online-chat-unread", "1")
+      assert has_element?(chat, "#team-online-chat-preview", "older")
+    end
+
+    test "opening a thread in another tab clears the chat button", %{conn: conn} do
+      {:ok, direct} = Chat.start_direct({:founder, "max"}, "fredrik")
+      {:ok, _} = Chat.post("max@example.com", "hi", login: "maxpahlen", thread_id: direct.id)
+
+      {:ok, view, _html} = live(conn, "/team")
+      {_header, chat} = chat(view, "team-online")
+      assert has_element?(chat, "#team-online-chat-unread", "1")
+
+      :ok = Chat.mark_read("fpahlen", direct.id)
+      refute has_element?(chat, "#team-online-chat-unread")
+      refute has_element?(chat, "#team-online-chat-preview")
     end
 
     test "on a phone, Threads goes back to the list", %{conn: conn} do
