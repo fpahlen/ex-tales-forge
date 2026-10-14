@@ -36,6 +36,7 @@ defmodule TalesForge.PrFeed do
   @table TalesForge.PrFeed.Poller
   @zone "Europe/Stockholm"
   @shown 15
+  @merged_days 7
   @pace_ttl_ms 24 * 60 * 60 * 1000
 
   @typedoc "Where a pull request stands."
@@ -75,6 +76,14 @@ defmodule TalesForge.PrFeed do
           deployed: %{playtest: Deploys.status(), production: Deploys.status()}
         }
 
+  @typedoc "A merged pull request of the last #{@merged_days} days (`recent_merged/2`)."
+  @type merged :: %{
+          number: pos_integer(),
+          title: String.t(),
+          url: String.t() | nil,
+          merged_at: DateTime.t()
+        }
+
   @typedoc "Why there is no feed."
   @type status :: :ok | :loading | :not_configured | :unavailable
 
@@ -85,7 +94,8 @@ defmodule TalesForge.PrFeed do
           merged_today: non_neg_integer(),
           merged_week: non_neg_integer(),
           fetched_at: DateTime.t() | nil,
-          pace: Pace.t() | nil
+          pace: Pace.t() | nil,
+          merged: [merged()]
         }
 
   @typedoc "Everything `build/2` needs, as fetched and parsed by the poller."
@@ -214,7 +224,8 @@ defmodule TalesForge.PrFeed do
       merged_today: 0,
       merged_week: 0,
       fetched_at: fetched_at,
-      pace: nil
+      pace: nil,
+      merged: []
     }
   end
 
@@ -267,8 +278,33 @@ defmodule TalesForge.PrFeed do
       merged_today: Enum.count(merged, &(DateTime.compare(&1.merged_at, today) != :lt)),
       merged_week: Enum.count(merged, &(DateTime.compare(&1.merged_at, week) != :lt)),
       fetched_at: now,
-      pace: pace(pulls, Map.get(inputs, :commits), now)
+      pace: pace(pulls, Map.get(inputs, :commits), now),
+      merged: recent_merged(pulls, now)
     }
+  end
+
+  @doc """
+  The pull requests merged in the last #{@merged_days} days before `now`,
+  newest first. `TalesForge.PrFeed.WhatWeDid` reads them. The shown items
+  are only the latest #{@shown}, so this list is apart from them.
+
+      iex> pr = %{number: 7, title: "Add the inn", url: "u7", state: :merged,
+      ...>   merged_at: ~U[2026-10-09 09:00:00Z]}
+      iex> old = %{pr | number: 6, merged_at: ~U[2026-09-01 09:00:00Z]}
+      iex> TalesForge.PrFeed.recent_merged([old, pr, %{pr | number: 8, state: :open}], ~U[2026-10-09 12:00:00Z])
+      [%{number: 7, title: "Add the inn", url: "u7", merged_at: ~U[2026-10-09 09:00:00Z]}]
+  """
+  @spec recent_merged([pr()] | Enumerable.t(), DateTime.t()) :: [merged()]
+  def recent_merged(pulls, %DateTime{} = now) do
+    since = DateTime.add(now, -@merged_days * 86_400, :second)
+
+    pulls
+    |> Enum.filter(fn pr ->
+      pr.state == :merged and match?(%DateTime{}, pr.merged_at) and
+        DateTime.compare(pr.merged_at, since) != :lt
+    end)
+    |> Enum.sort_by(&DateTime.to_unix(&1.merged_at), :desc)
+    |> Enum.map(&%{number: &1.number, title: &1.title, url: &1.url, merged_at: &1.merged_at})
   end
 
   defp pace(pulls, commits, now) when is_list(commits), do: Pace.build(pulls, commits, now)
