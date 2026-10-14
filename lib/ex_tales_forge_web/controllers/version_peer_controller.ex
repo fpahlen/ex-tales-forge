@@ -2,8 +2,8 @@ defmodule TalesForgeWeb.VersionPeerController do
   @moduledoc """
   `GET /internal/version`, on both apps: the commit this app runs, as JSON
   `{"app": "production" | "playtest" | "local", "git_sha": "..." | null}`, so
-  the other app's live PR feed on `/team` can tell which merged pull requests
-  are deployed here (`TalesForge.PrFeed.Versions`). No other data.
+  the other app can tell which merged pull requests are deployed here. No
+  other data.
 
   Guarded like `/internal/costs` by the shared `COSTS_PEER_TOKEN` as a bearer
   token (`TalesForgeWeb.PeerToken`): token unset, 404 (the endpoint is off);

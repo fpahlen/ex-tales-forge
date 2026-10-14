@@ -9,7 +9,7 @@ import Config
 
 config :ex_tales_forge,
   namespace: TalesForge,
-  ecto_repos: [TalesForge.Repo, TalesForge.Workflow.Repo],
+  ecto_repos: [TalesForge.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Skill split (TalesForge.Game.SkillSplit, SKILL_SPLIT=on). This is the one
@@ -30,9 +30,7 @@ config :ex_tales_forge, TalesForge.CodeHeat, enabled: false
 
 config :ex_tales_forge, Oban,
   repo: TalesForge.Repo,
-  # `board` only finishes the board jobs that this instance queued before the
-  # Workflow Oban instance started. New board jobs go to the Workflow instance.
-  queues: [default: 10, llm: 5, board: 5],
+  queues: [default: 10, llm: 5],
   # Graceful stop: on SIGTERM Oban stops fetching and gives running jobs 20 s to
   # finish, inside fly.toml's 30 s kill_timeout (so the old blue-green machine
   # does not die with a job still 'executing').
@@ -50,51 +48,9 @@ config :ex_tales_forge, Oban,
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)}
   ]
 
-# The Workflow repo keeps its migration table in `public`. The migrations
-# create the schema `workflow`, so the table cannot be in it.
-config :ex_tales_forge, TalesForge.Workflow.Repo,
-  priv: "priv/workflow_repo",
-  migration_source: "workflow_schema_migrations"
-
-# The Oban instance of Workflow (TalesForge.Workflow.Jobs). It uses the Workflow
-# repo and keeps its jobs in the Postgres schema `workflow`, so a bot wake-up
-# job and its board or chat change go into one transaction.
-config :ex_tales_forge, TalesForge.Workflow.Oban,
-  name: TalesForge.Workflow.Oban,
-  repo: TalesForge.Workflow.Repo,
-  prefix: "workflow",
-  queues: [default: 5, board: 5],
-  shutdown_grace_period: :timer.seconds(20),
-  stage_interval: :timer.seconds(30),
-  plugins: [
-    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
-    # The board webhook times out at 30 s (Notify.timeout/1), and Notify keeps
-    # its delivery id, so a rescued job is safe.
-    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)}
-    # The cron plugin comes from the scheduled jobs in the team config
-    # (priv/team/data.json `workflow.jobs`, cron lines in UTC):
-    # TalesForge.Workflow.Jobs.config/0 adds it at start.
-  ]
-
-# The founders' idea board on /team (tales-forge-docs docs/design-idea-board.md).
-# The bot API (TalesForgeWeb.BoardApiController, shared) hands each request to
-# this module; until it is deployed the API answers 404.
-config :ex_tales_forge, :board_api, TalesForge.Board.Api
-
-# The cron worker of the bot jobs in the team config (TalesForge.Workflow.Jobs):
-# it wakes the bot with a card-less schedule.run event.
-config :ex_tales_forge, :schedule_bot_worker, TalesForge.Board.Workers.ScheduledWake
-
-# Who's online (header counter on admin and /team): the module that adds the
-# bots' activity, and the "Chat" buttons: true shows them as a disabled
-# placeholder, false opens the team chat (TalesForgeWeb.TeamChatLive).
-config :ex_tales_forge, :online_snapshot, TalesForge.TeamOnline
-config :ex_tales_forge, :team_chat_placeholder, false
-
-# Team chat (production only, like the board): the admin module behind the
-# header's chat panel and the bots' /internal/chat API (TalesForge.Chat).
-config :ex_tales_forge, :team_chat, TalesForge.Chat
-config :ex_tales_forge, :team_chat_live, TalesForgeWeb.TeamChatLive
+# Who's online (header counter on admin): the "Chat" buttons are a disabled
+# placeholder. The team chat is in the Workflow app (whyse-ab/workflow).
+config :ex_tales_forge, :team_chat_placeholder, true
 
 # LLM prices in USD per 1M tokens, used when a response carries no billed cost.
 # Source: https://docs.x.ai/developers/pricing (fetched 2026-10-06). Prompts at or
@@ -146,12 +102,10 @@ config :ex_tales_forge, TalesForge.AppRole,
   production_url: "https://tales-forge.fly.dev",
   playtest_url: "https://tales-forge-playtest.fly.dev"
 
-# Live PR feed on /team (TalesForge.PrFeed): the repo it follows and how often
-# the server polls GitHub (the browser never does). The token is the secret
-# GITHUB_FEED_TOKEN (config/runtime.exs); without it the feed says unavailable.
-config :ex_tales_forge, TalesForge.PrFeed,
-  repo: "whyse-ab/ex-tales-forge",
-  poll: true
+# The Workflow app (whyse-ab/workflow). The product app sends work-log turn
+# events to it (TalesForge.WorkflowClient.Http) and redirects the old Workflow
+# paths to it for 30 days (TalesForgeWeb.WorkflowRedirectController).
+config :ex_tales_forge, TalesForge.WorkflowClient, base_url: "https://whyse-workflow.fly.dev"
 
 # Admin costs page (/admin/costs). Edit cost figures HERE, in one place.
 # fixed_monthly: one entry per fixed cost. amount is a tagged union:

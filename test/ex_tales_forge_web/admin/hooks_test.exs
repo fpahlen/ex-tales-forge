@@ -11,10 +11,7 @@ defmodule TalesForgeWeb.AdminLive.HooksTest do
   # :reload_on_stale_assets already attached" once static assets changed.
   test "admin LiveViews don't also declare the admin hooks themselves" do
     for view <- [
-          TalesForgeWeb.AdminLive.LoginLive,
-          TalesForgeWeb.AdminLive.DecisionLive.Index,
-          TalesForgeWeb.AdminLive.DecisionLive.Show,
-          TalesForgeWeb.AdminLive.DocLive.Index
+          TalesForgeWeb.AdminLive.LoginLive
         ] do
       hooks = view.__live__().lifecycle.mount
 
@@ -44,8 +41,8 @@ defmodule TalesForgeWeb.AdminLive.HooksTest do
     end
 
     test "an admin page reloads instead of crashing", %{conn: conn} do
-      assert {:error, {:redirect, %{to: to}}} = live(log_in_admin(conn), ~p"/admin/docs")
-      assert to =~ "/admin/docs"
+      assert {:error, {:redirect, %{to: to}}} = live(log_in_admin(conn), ~p"/admin/operate/costs")
+      assert to =~ "/admin/operate/costs"
     end
 
     test "the login page reloads instead of crashing", %{conn: conn} do

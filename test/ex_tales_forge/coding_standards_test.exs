@@ -13,9 +13,6 @@ defmodule TalesForge.CodingStandardsTest do
 
   @documented [
     TalesForge.LLM,
-    TalesForge.Collab.Links,
-    TalesForge.Collab.Files,
-    TalesForgeWeb.DocFilesController,
     Mix.Tasks.Docs.CheckLinks,
     TalesForge.Game.TurnProcessor,
     TalesForge.Game.Context,

@@ -190,7 +190,7 @@ defmodule TalesForge.DeployLanes.SecurityTest do
           lanes,
           "head",
           "prod",
-          git(["mix.lock", "priv/team/data.json"], trees)
+          git(["mix.lock", "lib/ex_tales_forge_web/live/admin/costs_live.ex"], trees)
         )
 
       assert ok.ok

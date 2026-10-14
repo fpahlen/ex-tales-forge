@@ -1,7 +1,6 @@
 defmodule TalesForgeWeb.LinkCrawlTest do
   @moduledoc """
-  Link check for the signed-in app: seeds a session, a playtest run, docs and a
-  decision, then crawls from the player home and the admin dashboard, following
+  Link check for the signed-in app: seeds a session and a playtest run, then crawls from the player home and the admin dashboard, following
   every internal `href` and `src`, and asserts each one answers (no 404, no
   500, no redirect to the login page). Two pages per route are enough to cover
   every template; it runs in about a second and needs no network.
@@ -13,7 +12,6 @@ defmodule TalesForgeWeb.LinkCrawlTest do
   """
   use TalesForgeWeb.ConnCase, async: false
 
-  alias TalesForge.Collab.Importer
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.Repo
@@ -50,13 +48,11 @@ defmodule TalesForgeWeb.LinkCrawlTest do
 
     # The crawl really reached the pages that carry the most links.
     for page <-
-          ~w(/admin/docs /admin/founders/decisions /admin/play/runs /admin/play/sessions /admin/operate/costs) do
+          ~w(/admin/play/runs /admin/play/sessions /admin/operate/costs) do
       assert Map.has_key?(visited, page), "crawl never reached #{page}"
     end
 
     assert Enum.any?(Map.keys(visited), &String.starts_with?(&1, "/admin/play/runs/"))
-    assert Enum.any?(Map.keys(visited), &String.starts_with?(&1, "/admin/docs/"))
-    assert Enum.any?(Map.keys(visited), &String.starts_with?(&1, "/admin/founders/decisions/"))
   end
 
   defp seed do
@@ -94,38 +90,6 @@ defmodule TalesForgeWeb.LinkCrawlTest do
       overall: 4.1,
       scores: %{}
     })
-
-    {:ok, _} =
-      Importer.upsert_doc_markdown(
-        """
-        # Founder survey
-
-        Replaces [survey 2](founder-survey-2.md); scores per [persona](personas.md#paul).
-        See the [decision](../decisions/d-008-tin-valley-starter.md), the
-        [script](scripts/jev-rescore/rescore.exs) and the [playtest page](/admin/play/runs).
-
-        ![Score by turn](images/score.png)
-        """,
-        "docs/founder-survey-3.md"
-      )
-
-    {:ok, _} = Importer.upsert_doc_markdown("# Survey 2\n\nOld.", "docs/founder-survey-2.md")
-
-    {:ok, _} =
-      Importer.upsert_doc_markdown("# Personas\n\n## Paul\n\nTheatre.", "docs/personas.md")
-
-    {:ok, _} =
-      Importer.upsert_decision_markdown(
-        """
-        ---
-        id: d-008-tin-valley-starter
-        title: Tin Valley starter
-        rank: 1
-        ---
-        Background in [the decision log](../docs/founder-survey-3.md#founder-survey).
-        """,
-        "decisions/d-008-tin-valley-starter.md"
-      )
   end
 
   defp crawl(_conn, [], visited, broken), do: {visited, broken}
@@ -173,7 +137,7 @@ defmodule TalesForgeWeb.LinkCrawlTest do
 
   defp check(200, _location), do: :ok
 
-  defp check(status, location) when status in [301, 302] do
+  defp check(status, location) when status in [301, 302, 307] do
     if location && String.starts_with?(location, "/admin/login"),
       do: {:error, "redirects to the login page"},
       else: :ok

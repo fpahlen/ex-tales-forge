@@ -15,6 +15,7 @@ defmodule TalesForgeWeb.AdminLive.HomeAppTest do
   alias TalesForge.Surveys
 
   @prod "https://tales-forge.fly.dev"
+  @workflow "https://whyse-workflow.fly.dev"
   @playtest "https://tales-forge-playtest.fly.dev"
 
   @survey_paths [
@@ -56,31 +57,8 @@ defmodule TalesForgeWeb.AdminLive.HomeAppTest do
                @prod <> "/admin/surveys/founder-survey-3?x=1"
     end
 
-    test "the founders' pages, decisions and docs redirect to production (admin split)", %{
-      conn: conn
-    } do
-      for {path, to} <- [
-            {"/team", "/team"},
-            {"/team/presentation", "/team/presentation"},
-            {"/admin/founders/decisions", "/admin/decisions"},
-            {"/admin/founders/decisions/some-slug", "/admin/decisions/some-slug"},
-            {"/admin/decisions", "/admin/decisions"},
-            {"/admin/docs", "/admin/docs"},
-            {"/admin/docs/personas.md", "/admin/docs/personas.md"},
-            {"/admin/docs-files/images/a.png", "/admin/docs-files/images/a.png"}
-          ] do
-        assert redirected_to(get(conn, path)) == @prod <> to, path
-        assert redirected_to(get(build_conn(), path)) == @prod <> to, path
-      end
-
-      assert redirected_to(get(conn, "/team/presentation?x=1")) ==
-               @prod <> "/team/presentation?x=1"
-
-      # Live navigation from another admin page is a full page load, so the plug runs.
-      {:ok, view, _html} = live(conn, ~p"/admin/play/sessions")
-
-      assert {:error, {:redirect, %{to: "http://www.example.com/admin/docs"}}} =
-               live_redirect(view, to: ~p"/admin/docs")
+    test "the founders' pages, decisions and docs redirect to the Workflow app", %{conn: conn} do
+      assert_workflow_redirects(conn)
     end
 
     test "the nav marks production-only pages by their home", %{conn: conn} do
@@ -88,18 +66,18 @@ defmodule TalesForgeWeb.AdminLive.HomeAppTest do
 
       assert has_element?(
                view,
-               ~s(#admin-nav a[href="#{@prod}/admin/decisions"][data-cross-app]),
-               "Decision queue (page) (production) ↗"
+               ~s(#admin-nav a[href="#{@workflow}/admin/founders/decisions"][data-cross-app]),
+               "Decision queue (page) (Workflow) ↗"
              )
 
       assert has_element?(
                view,
-               ~s(#admin-nav a[href="#{@prod}/admin/docs"]),
-               "All docs (production) ↗"
+               ~s(#admin-nav a[href="#{@workflow}/admin/docs"]),
+               "All docs (Workflow) ↗"
              )
 
-      assert has_element?(view, ~s(#admin-nav a[href="#{@prod}/team"]), "(production) ↗")
-      refute render(view) =~ "↗ (production)"
+      assert has_element?(view, ~s(#admin-nav a[href="#{@workflow}/team"]), "(Workflow) ↗")
+      refute render(view) =~ "↗ (Workflow)"
     end
 
     test "live navigation to a survey page goes to production", %{conn: conn} do
@@ -149,10 +127,8 @@ defmodule TalesForgeWeb.AdminLive.HomeAppTest do
   describe "on production" do
     setup do: as_app("tales-forge")
 
-    test "the founders' pages, decisions and docs are served here", %{conn: conn} do
-      for path <- ["/team", "/team/presentation", "/admin/founders/decisions", "/admin/docs"] do
-        assert {:ok, _view, _html} = live(conn, path), path
-      end
+    test "the founders' pages, decisions and docs redirect to the Workflow app", %{conn: conn} do
+      assert_workflow_redirects(conn)
     end
 
     test "playtest run pages redirect to the same path on playtest", %{conn: conn} do
@@ -215,5 +191,27 @@ defmodule TalesForgeWeb.AdminLive.HomeAppTest do
       assert {:ok, view, _html} = live(conn, ~p"/admin/play/runs")
       assert has_element?(view, ~s(#admin-nav a[href="/admin/founders/survey"]))
     end
+  end
+
+  # The Workflow pages moved to the Workflow app (card 5/5): a 307 to the
+  # same path there for 30 days, signed in or not, with the query kept.
+  defp assert_workflow_redirects(conn) do
+    for {path, to} <- [
+          {"/team", "/team"},
+          {"/team/presentation?x=1", "/team/presentation?x=1"},
+          {"/admin/founders/decisions", "/admin/founders/decisions"},
+          {"/admin/founders/decisions/some-slug", "/admin/founders/decisions/some-slug"},
+          {"/admin/docs", "/admin/docs"},
+          {"/admin/docs/personas.md", "/admin/docs/personas.md"},
+          {"/admin/docs-files/images/a.png", "/admin/docs-files/images/a.png"}
+        ] do
+      assert redirected_to(get(conn, path), 307) == @workflow <> to, path
+      assert redirected_to(get(build_conn(), path), 307) == @workflow <> to, path
+    end
+
+    # The old decision path (before the 2026-10-10 regrouping) goes across in
+    # one step too (HomeApp, 302).
+    assert redirected_to(get(conn, "/admin/decisions")) ==
+             @workflow <> "/admin/founders/decisions"
   end
 end
