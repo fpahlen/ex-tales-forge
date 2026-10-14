@@ -5,6 +5,9 @@ defmodule TalesForge.Game.Turn.Outcome do
     * `TURN_STATE_FROM_MECHANICS=on`: the prose post-check. Each mismatch
       between the GM prose and the outcome record is logged and stored as a
       `turn.prose_mismatch` event. There is no GM re-run.
+    * `COMBAT_OPPOSED=on`: the post-check also runs for the `:wound` kind
+      alone. Each hit or blood in the prose that the exchange does not have
+      is logged and stored as a `turn.prose_mismatch` event.
     * `NPC_DIALOGUE_MEMORY=on`: the server (never the GM) writes the lines
       that the NPCs spoke, and the repetition guard counts each repeat.
     * `TURN_OUTCOME_RECORD=on`: the outcome record goes to the turn as a
@@ -67,8 +70,13 @@ defmodule TalesForge.Game.Turn.Outcome do
   defp prose_check(turn, narrative, board) do
     record = Map.get(board, :outcome)
 
-    if Turn.flag?(turn, :turn_state_from_mechanics) and record do
-      mismatches = ProseCheck.check(narrative, record)
+    state? = Turn.flag?(turn, :turn_state_from_mechanics)
+
+    if (state? or Turn.flag?(turn, :combat_opposed)) and record do
+      mismatches =
+        narrative
+        |> ProseCheck.check(record)
+        |> Enum.filter(&(state? or &1.kind == :wound))
 
       if mismatches != [],
         do:

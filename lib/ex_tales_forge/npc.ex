@@ -101,6 +101,37 @@ defmodule TalesForge.NPC do
     |> Repo.all()
   end
 
+  @doc """
+  The combat fighter of one NPC instance (`TalesForge.Game.Combat`): the
+  stats, skills, OCEAN, Maslow level and concerns of its definition (with
+  the `Characters.Defaults` already applied) and its current concern.
+  Returns nil when the session has no instance with that id.
+  """
+  @spec combat_profile(String.t(), String.t()) :: map() | nil
+  def combat_profile(session_id, npc_id) do
+    case get_instance(session_id, npc_id) do
+      %NpcInstance{} = inst ->
+        definition = inst.personality || %{}
+        runtime = inst.runtime_state || %{}
+
+        %{
+          "id" => inst.npc_id,
+          "name" => Map.get(definition, "name", inst.npc_id),
+          "stats" => Map.get(definition, "stats", %{}),
+          "skills" => Map.get(definition, "skills", %{}),
+          "ocean" =>
+            Map.get(definition, "ocean") ||
+              get_in(definition, ["motivations", "personality_traits"]) || %{},
+          "maslow" => Map.get(definition, "maslow"),
+          "concerns" => List.wrap(Map.get(definition, "concerns")),
+          "current_concern" => runtime["current_concern"]
+        }
+
+      nil ->
+        nil
+    end
+  end
+
   def get_instance(session_id, npc_id) do
     Repo.get_by(NpcInstance, game_session_id: session_id, npc_id: npc_id)
   end

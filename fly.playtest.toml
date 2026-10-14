@@ -36,6 +36,9 @@ kill_timeout = "30s"
   # Hourly call-time sample for /admin/operate/code-heat (TalesForge.CodeHeat).
   # Playtest only: production stays off.
   CODE_HEAT_MAP = "on"
+  # Opposed combat rolls and NPC wounds (TalesForge.Game.Combat). Playtest
+  # only: production stays off (fly.toml) until Gentry passes it.
+  COMBAT_OPPOSED = "on"
 
 [http_service]
   internal_port = 4000
