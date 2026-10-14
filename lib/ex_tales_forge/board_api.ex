@@ -79,6 +79,6 @@ defmodule TalesForge.BoardApi do
   @doc "One bot's settings from config `:board_bots` (`webhook_url`, `webhook_key`, `api_token`)."
   @spec bot_config(bot()) :: keyword()
   def bot_config(bot) do
-    Application.get_env(:ex_tales_forge, :board_bots, []) |> Keyword.get(bot, [])
+    (Application.get_env(:ex_tales_forge, :board_bots) || []) |> Keyword.get(bot, [])
   end
 end

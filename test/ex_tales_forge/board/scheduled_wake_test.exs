@@ -56,7 +56,10 @@ defmodule TalesForge.Board.ScheduledWakeTest do
 
     on_exit(fn ->
       Application.delete_env(:ex_tales_forge, :board_req_options)
-      Application.put_env(:ex_tales_forge, :board_bots, old)
+
+      if old,
+        do: Application.put_env(:ex_tales_forge, :board_bots, old),
+        else: Application.delete_env(:ex_tales_forge, :board_bots)
     end)
 
     :ok
