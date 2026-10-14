@@ -18,14 +18,23 @@ defmodule TalesForge.Workflow.Jobs do
 
   @doc """
   The start config of the Workflow Oban instance: the app config plus the
-  cron plugin with the scheduled code jobs of the team config
-  (`Workflow.Team.crontab/1`, cron lines in UTC). The team config is the only
-  schedule source.
+  cron plugin with the scheduled jobs of the team config
+  (`Workflow.Team.crontab/2`, cron lines in UTC). A code job runs its own
+  worker; a bot job runs the worker of config `:schedule_bot_worker`
+  (`TalesForge.Board.Workers.ScheduledWake`), which wakes the bot. The team config is the only schedule source.
   """
   @spec config() :: keyword()
   def config do
     config = Application.fetch_env!(:ex_tales_forge, @name)
-    cron = {Oban.Plugins.Cron, crontab: Workflow.Team.crontab(Workflow.Team.Source.team())}
+
+    cron =
+      {Oban.Plugins.Cron,
+       crontab:
+         Workflow.Team.crontab(
+           Workflow.Team.Source.team(),
+           Application.get_env(:ex_tales_forge, :schedule_bot_worker)
+         )}
+
     Keyword.update(config, :plugins, [cron], &(&1 ++ [cron]))
   end
 

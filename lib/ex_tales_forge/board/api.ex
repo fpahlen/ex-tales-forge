@@ -39,7 +39,12 @@ defmodule TalesForge.Board.Api do
   new commit changes what the PR does for players; then the founders answer
   again.
 
-  Errors: 404 unknown card, 422 with `{"error": "..."}` for a refused change.
+  `finish_run` (`POST /runs/:id/finish`): the report of a scheduled bot run
+  after a `schedule.run` wake. Body: `status` (`"ok"` or `"failed"`) and an
+  optional `detail`. Only the bot that owns the run can finish it
+  (`TalesForge.Board.Schedule.finish_by_bot/3`).
+
+  Errors: 404 unknown card or run, 403 not the owner of the run, 422 with `{"error": "..."}` for a refused change.
 
   The bot roles and names come from the team config. This module is an edge:
   it reads `Workflow.Team.Source`.
@@ -89,6 +94,28 @@ defmodule TalesForge.Board.Api do
       else:
         {403,
          %{"error" => "Only #{Team.bot_name(team, :builder)} puts PRs up for a founder's OK."}}
+  end
+
+  def handle(:finish_run, bot, %{"id" => id} = params) do
+    case TalesForge.Board.Schedule.finish_by_bot(id, bot, params) do
+      {:ok, run} ->
+        {200, %{"id" => run.id, "job_id" => run.job_id, "status" => run.status}}
+
+      {:error, :not_found} ->
+        {404, %{"error" => "No such run."}}
+
+      {:error, :forbidden} ->
+        {403, %{"error" => "Only the bot that owns the run can finish it."}}
+
+      {:error, :closed} ->
+        {422, %{"error" => "This run is closed."}}
+
+      {:error, :bad_status} ->
+        {422, %{"error" => ~s(Give "status": "ok" or "failed".)}}
+
+      error ->
+        answer(error)
+    end
   end
 
   def handle(action, bot, %{"id" => id} = params) do

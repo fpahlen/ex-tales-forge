@@ -81,6 +81,10 @@ config :ex_tales_forge, TalesForge.Workflow.Oban,
 # this module; until it is deployed the API answers 404.
 config :ex_tales_forge, :board_api, TalesForge.Board.Api
 
+# The cron worker of the bot jobs in the team config (TalesForge.Workflow.Jobs):
+# it wakes the bot with a card-less schedule.run event.
+config :ex_tales_forge, :schedule_bot_worker, TalesForge.Board.Workers.ScheduledWake
+
 # Who's online (header counter on admin and /team): the module that adds the
 # bots' activity, and the "Chat" buttons: true shows them as a disabled
 # placeholder, false opens the team chat (TalesForgeWeb.TeamChatLive).

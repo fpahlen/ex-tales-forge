@@ -361,15 +361,42 @@ defmodule Workflow.Team do
   def code_job?(%{owner: owner}), do: owner == "code"
 
   @doc """
-  The Oban cron table of the code jobs: one `{cron, worker, opts}` entry for
-  each job, with the job id in the args. The cron lines are in UTC.
+  True when a bot of the team does the job. Oban wakes that bot.
+
+      iex> team = Workflow.Team.example()
+      iex> {Workflow.Team.bot_job?(team, Workflow.Team.job(team, "check")), Workflow.Team.bot_job?(team, Workflow.Team.job(team, "sweep"))}
+      {true, false}
+  """
+  @spec bot_job?(t(), job()) :: boolean()
+  def bot_job?(team, %{owner: owner}), do: bot_id(team, owner) != nil
+
+  @doc """
+  The Oban cron table: one `{cron, worker, opts}` entry for each job, with
+  the job id in the args. The cron lines are in UTC. A code job runs its own
+  worker. A bot job runs `bot_worker`, which wakes the bot; with no
+  `bot_worker` the bot jobs are left out. A job of a founder has no entry.
 
       iex> Workflow.Team.crontab(Workflow.Team.example())
       [{"*/15 * * * *", Example.SweepWorker, [args: %{"job_id" => "sweep"}]}]
+      iex> Workflow.Team.crontab(Workflow.Team.example(), Example.Wake)
+      [
+        {"*/15 * * * *", Example.SweepWorker, [args: %{"job_id" => "sweep"}]},
+        {"0 7 * * 1-5", Example.Wake, [args: %{"job_id" => "check"}]}
+      ]
   """
-  @spec crontab(t()) :: [{String.t(), module(), keyword()}]
-  def crontab(%__MODULE__{jobs: jobs}) do
-    for job <- jobs, code_job?(job), do: {job.cron, job.worker, [args: %{"job_id" => job.id}]}
+  @spec crontab(t(), module() | nil) :: [{String.t(), module(), keyword()}]
+  def crontab(%__MODULE__{jobs: jobs} = team, bot_worker \\ nil) do
+    for job <- jobs,
+        worker = cron_worker(team, job, bot_worker),
+        do: {job.cron, worker, [args: %{"job_id" => job.id}]}
+  end
+
+  defp cron_worker(team, job, bot_worker) do
+    cond do
+      code_job?(job) -> job.worker
+      bot_job?(team, job) -> bot_worker
+      true -> nil
+    end
   end
 
   @doc """

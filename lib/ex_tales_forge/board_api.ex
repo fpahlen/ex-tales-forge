@@ -18,7 +18,8 @@ defmodule TalesForge.BoardApi do
   @type bot :: atom()
 
   @typedoc "An API action, one per route."
-  @type action :: :index | :show | :create | :refine | :move | :link | :comment | :pr
+  @type action ::
+          :index | :show | :create | :refine | :move | :link | :comment | :pr | :finish_run
 
   @typedoc "The HTTP status and JSON body of an answer."
   @type answer :: {pos_integer(), map() | [map()]}

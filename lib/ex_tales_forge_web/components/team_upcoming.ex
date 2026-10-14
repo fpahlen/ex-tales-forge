@@ -109,17 +109,18 @@ defmodule TalesForgeWeb.TeamUpcoming do
   @doc """
   The status label of a run.
 
-      iex> Enum.map(~w(open ok failed), &TalesForgeWeb.TeamUpcoming.label/1)
-      ["Open", "OK", "Failed"]
+      iex> Enum.map(~w(open ok failed no_report), &TalesForgeWeb.TeamUpcoming.label/1)
+      ["Open", "OK", "Failed", "No report"]
   """
   @spec label(String.t()) :: String.t()
   def label("open"), do: "Open"
   def label("ok"), do: "OK"
   def label("failed"), do: "Failed"
+  def label("no_report"), do: "No report"
   def label(other), do: other
 
   defp status_class("ok"), do: "text-emerald-700"
-  defp status_class("failed"), do: "text-red-700"
+  defp status_class(s) when s in ~w(failed no_report), do: "text-red-700"
   defp status_class(_), do: "text-[var(--paper-accent)]"
 
   @doc """

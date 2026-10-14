@@ -12,6 +12,10 @@ defmodule TalesForge.Board.Workers.Notify do
   `transition` (from, to, actor) and, for a mention, `comment`. A
   `chat.thread_message` wake also has `thread_id`.
 
+  A `schedule.run` wake (`run_job/3`) has no card: the body has `job` (id,
+  name, limit_min), `run` (id, started_at, deadline_at, UTC) and `finish`
+  (the path for the report, `POST /internal/board/runs/:id/finish`).
+
   Any 2xx ends it. A pooled connection the bot already closed (`:closed`) is
   retried once at once in the same attempt. Otherwise Oban retries up to 10
   times, fast at first so a short outage of the bot costs seconds, not half an
@@ -54,6 +58,29 @@ defmodule TalesForge.Board.Workers.Notify do
         }
         |> Map.merge(pr_fields(extra))
         |> Map.merge(thread_fields(event, extra))
+    })
+  end
+
+  @doc """
+  The card-less `schedule.run` job that wakes `bot` for the run `run` of the
+  scheduled job `job` (`TalesForge.Board.Schedule.start_bot_run/3`).
+  """
+  @spec run_job(BoardApi.bot(), Workflow.Team.job(), TalesForge.Board.ScheduledRun.t()) ::
+          Oban.Job.changeset()
+  def run_job(bot, job, run) do
+    new(%{
+      "bot" => Atom.to_string(bot),
+      "event" => "schedule.run",
+      "delivery_id" => Ecto.UUID.generate(),
+      "payload" => %{
+        "job" => %{"id" => job.id, "name" => job.name, "limit_min" => job.limit_min},
+        "run" => %{
+          "id" => run.id,
+          "started_at" => DateTime.to_iso8601(run.started_at),
+          "deadline_at" => DateTime.to_iso8601(run.deadline_at)
+        },
+        "finish" => %{"method" => "POST", "path" => "/internal/board/runs/#{run.id}/finish"}
+      }
     })
   end
 
