@@ -12,6 +12,7 @@ defmodule TalesForge.Board.Events do
   | `:question_answered` (an answer or a deferral) | wake the refiner while the card is in Refining |
   | `:idea_to_check`, `:idea_to_done`, `:idea_to_archived` | no wake (founders see the board) |
   | `:comment` (a comment on a card) | no wake (the `:mention` event wakes the bots) |
+  | `:chat_thread_message` (a comment in a card thread where the bot is a participant) | wake that bot (`chat.thread_message`) |
 
   Each event also goes to the inbox (`Workflow.Inbox.route/2`, through
   `Workflow.Inbox.Store.add/3`) in the same Multi. A comment that names a
@@ -49,6 +50,7 @@ defmodule TalesForge.Board.Events do
           | :idea_to_archived
           | :comment
           | :mention
+          | :chat_thread_message
           | :pr_approved
           | :pr_waiting
           | :question_answered
@@ -105,6 +107,7 @@ defmodule TalesForge.Board.Events do
       author: comment.author,
       author_handle: extra[:author_handle],
       mentions: extra[:mentions] || [],
+      participants: extra[:participants] || [],
       body: comment.body || ""
     }
 
@@ -174,6 +177,7 @@ defmodule TalesForge.Board.Events do
 
   def bots(team, :idea_to_building, _extra), do: [Team.bot(team, :builder)]
   def bots(_team, :mention, %{bot: bot}), do: [bot]
+  def bots(_team, :chat_thread_message, %{bot: bot}), do: [bot]
 
   def bots(team, event, _extra) when event in [:pr_approved, :pr_changes_requested],
     do: [Team.bot(team, :builder)]

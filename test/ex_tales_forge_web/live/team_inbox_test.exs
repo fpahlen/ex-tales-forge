@@ -11,7 +11,7 @@ defmodule TalesForgeWeb.TeamInboxTest do
 
   @team Workflow.Team.Source.team()
   @owner Enum.find(@team.founders, &(&1.inbox != []))
-  @other Enum.find(@team.founders, &(&1.inbox == ["mention"]))
+  @other Enum.find(@team.founders, &(&1.inbox == ["mention", "thread_message"]))
   @owner_email "owner@example.com"
   @other_email "other@example.com"
 

@@ -9,8 +9,53 @@ defmodule Workflow.InboxTest do
   @team Workflow.Team.example()
 
   test "each rule has a test in this file" do
-    tested = ~w(mention pr_approval founder_check ci_failed deploy_failed)
+    tested = ~w(mention thread_message pr_approval founder_check ci_failed deploy_failed)
     assert Enum.map(Inbox.rules(), & &1.id) == tested
+  end
+
+  describe "rule thread_message" do
+    # Each founder of the example team has the rules mention and thread_message.
+    defp thread_team,
+      do: %{
+        @team
+        | founders: Enum.map(@team.founders, &%{&1 | inbox: ["mention", "thread_message"]})
+      }
+
+    test "each participant gets one answer item, and the author gets none" do
+      event = %Event{
+        type: :chat,
+        source_id: "m1",
+        author: "lin@example.com",
+        author_handle: "lin",
+        participants: ["ada", "orjan", "lin"],
+        body: "Next step?"
+      }
+
+      items = Inbox.route(thread_team(), event)
+
+      assert Enum.map(items, &{&1.recipient, &1.rule, &1.kind}) ==
+               [{"ada", "thread_message", :answer}, {"orjan", "thread_message", :answer}]
+    end
+
+    test "a participant that the message names gets only the mention item" do
+      event = %Event{
+        type: :comment,
+        source_id: "c1",
+        idea_id: "i1",
+        author_handle: "lin",
+        mentions: ["ada"],
+        participants: ["ada", "orjan"],
+        body: "@ada look"
+      }
+
+      assert Enum.map(Inbox.route(thread_team(), event), &{&1.recipient, &1.rule}) ==
+               [{"ada", "mention"}, {"orjan", "thread_message"}]
+    end
+
+    test "a founder without the rule gets no thread item" do
+      event = %Event{type: :chat, source_id: "m1", participants: ["ada"], body: "x"}
+      assert Inbox.route(@team, event) == []
+    end
   end
 
   describe "rule mention" do

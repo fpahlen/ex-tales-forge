@@ -20,6 +20,9 @@ defmodule Workflow.Inbox.Event do
     * `author`: a founder email or `bot:<id>`
     * `author_handle`: the founder handle of the author, or nil
     * `mentions`: the founder handles that the body names, without the author
+    * `participants`: for a `:comment` or `:chat`, the founder handles of the
+      thread participants that the message notifies, without the author
+      (`TalesForge.Chat.ThreadRules.notify/4`)
     * `body`: the text of the comment or the message
     * `pr`: for a PR event, `%{number, url, head_sha}`
     * `questions`: the open questions of the card, for `:check_questions`;
@@ -49,6 +52,7 @@ defmodule Workflow.Inbox.Event do
           author: String.t() | nil,
           author_handle: String.t() | nil,
           mentions: [String.t()],
+          participants: [String.t()],
           body: String.t(),
           pr: %{number: pos_integer(), url: String.t() | nil, head_sha: String.t() | nil} | nil,
           questions: [String.t()],
@@ -64,6 +68,7 @@ defmodule Workflow.Inbox.Event do
             author: nil,
             author_handle: nil,
             mentions: [],
+            participants: [],
             body: "",
             pr: nil,
             questions: [],

@@ -30,6 +30,14 @@ defmodule TalesForge.Chat do
     founder's inbox (`Workflow.Inbox`), in the same transaction. For that
     founder the inbox replaces the unread badge: `unread/1` gives 0. A
     message by that founder closes the chat items of that founder.
+  - Each new message notifies the participants of its thread
+    (`TalesForge.Chat.ThreadRules.participants/4`): the founder or bot that
+    started the thread, posted in it, or was @mentioned in it. A founder
+    gets an inbox item (rule `thread_message`). A bot gets a wake through
+    the webhook outbox (event `chat.thread_message`, with `thread_id`). The
+    author is not notified. A message by a bot wakes no bot. In a direct
+    thread, only its two members are participants, and no bot wakes. A
+    founder that the message names gets one item only (the `mention` item).
   - A message can carry images (`TalesForge.Images`): pasted, dropped,
     picked, or one still from "Capture screen". The text is then the note
     and can be empty. The bots get the image links in the JSON (`images`).
@@ -350,24 +358,64 @@ defmodule TalesForge.Chat do
     end)
   end
 
+  # One Oban insert that wakes the participant `bot` about the new message.
+  defp add_thread_wake(bot, multi) do
+    TalesForge.Workflow.Jobs.insert(multi, {:thread_wake, bot}, fn %{message: m, images: imgs} ->
+      wake_job(bot, %{m | images: imgs}, "chat.thread_message")
+    end)
+  end
+
+  # The earlier posts of `thread`, for the participants (ThreadRules).
+  defp thread_posts(%Thread{id: id}) do
+    from(m in Message,
+      where: m.thread_id == ^id,
+      select: %{
+        author: m.author,
+        author_handle: m.author_handle,
+        mentions: m.mentions,
+        bots: m.bots
+      }
+    )
+    |> Repo.all()
+  end
+
   defp insert(%Thread{} = thread, author, body, images, opts) do
     team = team()
     author_handle = Mentions.handle_for(team, opts[:login])
     %{bots: bots, founders: mentioned} = Mentions.parse(team, body)
     founders = ThreadRules.mentions(thread, mentioned -- [author_handle])
+    bot_mentions = ThreadRules.wakes(thread, bots)
 
     wakes =
       ThreadRules.wakes(thread, if(founder?(author), do: Mentions.wakes(team, body), else: []))
+
+    notify =
+      team
+      |> ThreadRules.participants(
+        thread,
+        thread.created_by,
+        thread_posts(thread) ++
+          [
+            %{
+              author: author,
+              author_handle: author_handle,
+              mentions: founders,
+              bots: bot_mentions
+            }
+          ]
+      )
+      |> ThreadRules.notify(author, author_handle, wakes)
 
     changeset =
       Message.changeset(
         %Message{},
         %{
           author: author,
+          author_handle: author_handle,
           body: body,
           thread_id: thread.id,
           mentions: founders,
-          bots: thread |> ThreadRules.wakes(bots) |> Enum.map(&Atom.to_string/1)
+          bots: Enum.map(bot_mentions, &Atom.to_string/1)
         },
         images?: images != []
       )
@@ -387,7 +435,8 @@ defmodule TalesForge.Chat do
     |> WorkLog.add("chat", :message, & &1.author)
     |> Multi.run(:images, fn _repo, %{message: m} -> store_images(m, author, images) end)
     |> then(fn multi -> Enum.reduce(wakes, multi, &add_wake/2) end)
-    |> InboxStore.add(team, &inbox_event(&1, author_handle))
+    |> then(fn multi -> Enum.reduce(notify.bots, multi, &add_thread_wake/2) end)
+    |> InboxStore.add(team, &inbox_event(&1, author_handle, notify.founders))
     |> mark_own_read(author_handle, thread)
     |> Repo.transaction()
     |> case do
@@ -420,13 +469,14 @@ defmodule TalesForge.Chat do
   # The inbox event of a stored message (Workflow.Inbox): a message that names
   # a founder makes an item, and a message by a founder closes the chat items
   # of that founder.
-  defp inbox_event(%{message: %Message{} = m}, author_handle),
+  defp inbox_event(%{message: %Message{} = m}, author_handle, participants),
     do: %InboxEvent{
       type: :chat,
       source_id: m.id,
       author: m.author,
       author_handle: author_handle,
       mentions: m.mentions,
+      participants: participants,
       body: m.body
     }
 
@@ -451,18 +501,24 @@ defmodule TalesForge.Chat do
   def founder?("bot:" <> _), do: false
   def founder?(author), do: is_binary(author) and String.contains?(author, "@")
 
-  @doc "The webhook job that wakes `bot` for `message`, with the last messages of the same thread as context."
-  @spec wake_job(atom(), Message.t()) :: Oban.Job.changeset()
-  def wake_job(bot, %Message{} = message) do
+  @doc """
+  The webhook job that wakes `bot` for `message`, with the last messages of
+  the same thread as context. `event` is `"chat.mention"` (the bot is
+  @mentioned) or `"chat.thread_message"` (the bot is a participant of the
+  thread). The payload has the `thread_id`.
+  """
+  @spec wake_job(atom(), Message.t(), String.t()) :: Oban.Job.changeset()
+  def wake_job(bot, %Message{} = message, event \\ "chat.mention") do
     context =
       %Thread{id: message.thread_id}
       |> messages_before(message.inserted_at, @context)
 
     Notify.new(%{
       "bot" => Atom.to_string(bot),
-      "event" => "chat.mention",
+      "event" => event,
       "delivery_id" => Ecto.UUID.generate(),
       "payload" => %{
+        "thread_id" => message.thread_id,
         "chat" => %{
           "thread" => thread_json(Repo.get(Thread, message.thread_id)),
           "message" => to_json(message),

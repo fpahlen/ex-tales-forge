@@ -14,6 +14,7 @@ defmodule Workflow.Inbox do
   | Rule | Event | Kind | Item |
   |---|---|---|---|
   | `mention` | a comment or a chat message names the founder | answer | one item for each named founder |
+  | `thread_message` | a new message in a thread where the founder is a participant | answer | one item for each participant, not the author |
   | `pr_approval` | a PR on a card waits for a founder's OK | approve | one item for each founder with the rule |
   | `founder_check` | a card moves to Founder check with open questions | answer | one item for each open question |
   | `ci_failed` | the `CI` workflow fails on main | ack | one item for each founder with the rule |
@@ -26,6 +27,10 @@ defmodule Workflow.Inbox do
   The `ci_failed` and `deploy_failed` events have no tag: they name no card
   and no person. A failed CI run on the head of a PR on a card wakes the
   builder (`TalesForge.Board.GitHubEvents`), so it makes no inbox item.
+
+  A message makes at most one item for each founder: a founder that the
+  message names gets the `mention` item, not also a `thread_message` item
+  (`route/2` keeps the first item of each recipient and source).
 
   ## Close
 
@@ -80,6 +85,12 @@ defmodule Workflow.Inbox do
       about: "A comment or a chat message names the founder."
     },
     %{
+      id: "thread_message",
+      kind: :answer,
+      events: [:comment, :chat],
+      about: "A new message in a thread where the founder is a participant."
+    },
+    %{
       id: "pr_approval",
       kind: :approve,
       events: [:pr_waiting],
@@ -109,7 +120,7 @@ defmodule Workflow.Inbox do
   The rules, in order. Each rule is one entry.
 
       iex> Workflow.Inbox.rules() |> Enum.map(& &1.id)
-      ["mention", "pr_approval", "founder_check", "ci_failed", "deploy_failed"]
+      ["mention", "thread_message", "pr_approval", "founder_check", "ci_failed", "deploy_failed"]
   """
   @spec rules() :: [rule()]
   def rules, do: @rules
@@ -165,6 +176,13 @@ defmodule Workflow.Inbox do
   # One clause for each rule id.
   defp rule_match?(%{id: "mention"}, %Event{mentions: mentions, author_handle: author}, handle),
     do: handle in mentions and handle != author
+
+  defp rule_match?(
+         %{id: "thread_message"},
+         %Event{participants: participants, author_handle: author},
+         handle
+       ),
+       do: handle in participants and handle != author
 
   defp rule_match?(%{id: "ci_failed"}, %Event{workflow: workflow}, _handle),
     do: workflow == "CI"

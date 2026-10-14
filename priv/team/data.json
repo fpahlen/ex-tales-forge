@@ -1056,27 +1056,27 @@
       {
         "name": "Fredrik",
         "github": "fpahlen",
-        "inbox": ["mention", "pr_approval", "founder_check", "ci_failed", "deploy_failed"]
+        "inbox": ["mention", "thread_message", "pr_approval", "founder_check", "ci_failed", "deploy_failed"]
       },
       {
         "name": "Thobias",
         "github": "tsjokvist",
-        "inbox": ["mention"]
+        "inbox": ["mention", "thread_message"]
       },
       {
         "name": "Håkan",
         "github": "hawkan-fredriksson",
-        "inbox": ["mention"]
+        "inbox": ["mention", "thread_message"]
       },
       {
         "name": "Jeanette",
         "github": "jpa71",
-        "inbox": ["mention"]
+        "inbox": ["mention", "thread_message"]
       },
       {
         "name": "Max",
         "github": "maxpahlen",
-        "inbox": ["mention"]
+        "inbox": ["mention", "thread_message"]
       }
     ],
     "bots": [
