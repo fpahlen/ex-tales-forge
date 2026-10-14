@@ -30,47 +30,47 @@ fixed facts, then the current state.
 # Combat System Summary for Skill-Based Fantasy RPG
 
 ## Overview
-This combat system, adapted from Savage Worlds' wound-based mechanics, is designed for a skill-centered fantasy RPG where progression emphasizes learning from failures. It is fast-paced, dangerous, and exciting, using minimal rules to ensure quick resolution while integrating with the core system (1d20 skill rolls, success on ≤ skill level, no skill cap, LP-driven improvement, and six stats from 3-18). The computer DM handles bookkeeping, tracking wounds, initiative, and LP seamlessly.
+This combat system, adapted from Savage Worlds' wound-based mechanics, is designed for a skill-centered fantasy RPG where progression emphasizes learning from failures. It is fast-paced, dangerous, and exciting, using minimal rules to ensure quick resolution while integrating with the core system (1d100 skill rolls from 1 to 100, success on ≤ skill level, LP-driven improvement, and six stats from 3-18). The computer DM handles bookkeeping, tracking wounds, initiative, and LP seamlessly.
 
 ## Core Mechanics
 - **Wound Track**:
   - Characters/NPCs: 3 wounds base + (CON - 10)/2 (rounded down). E.g., CON 18 = 7 wounds; CON 10 = 3; CON 3 = 1 minimum.
   - Mooks (minor foes): 1 wound; major enemies: 3-5 wounds.
-  - At 0 wounds: Incapacitated (unconscious, needs rescue). Excess hit triggers death roll (d20 > CON/2 or die).
+  - At 0 wounds: Incapacitated (unconscious, needs rescue). Excess hit triggers death roll (d100 > CON × 2.5: the character dies).
 - **Initiative**:
-  - Roll Tactics or Dodge (d20, success on ≤ skill level) each round; highest successes act first, ties favor players then DEX stat.
+  - Roll Tactics or Dodge (d100, success on ≤ skill level) each round; highest successes act first, ties favor players then DEX stat.
   - Computer DM rerolls initiative per round for dynamic pacing.
 - **Attacks**:
-  - Roll combat skill (Melee, Ranged, Unarmed) vs. Parry (Dodge/2 + 10 + (DEX - 10)/2).
-  - Success (≤ skill level, not 20): Roll damage (1d6 + STR/3 for melee/unarmed, +DEX/3 for ranged, rounded down) vs. Toughness (5 + armor + CON/2).
-  - Natural 1: Exceptional hit (double damage or narrative bonus, e.g., disarm).
-  - Natural 20: Fumble (+2 LP; computer DM narrates setback, e.g., slip).
+  - Roll combat skill (Melee, Ranged, Unarmed) vs. Parry (Dodge/2 + 50 + 5 × ((DEX - 10)/2)). The target is the skill less the Parry above 50.
+  - Success (≤ target, not a critical failure): Roll damage (1d6 + STR/3 for melee/unarmed, +DEX/3 for ranged, rounded down) vs. Toughness (5 + armor + CON/2).
+  - Critical success (1 to ceil(skill / 10)): full damage and every bonus (e.g., disarm).
+  - Critical failure (the top floor((100 - skill) / 10) rolls, always 100): the attacker takes normal weapon damage. No LP.
   - Damage Outcomes:
     - < Toughness: No effect.
     - ≥ Toughness: Shaken (lose next action unless WIS/2 roll succeeds).
     - ≥ Toughness + 4: 1 wound + Shaken (or +1 wound if Shaken).
     - Mooks die on 1 wound; others take wounds up to max.
 - **Learning Points (LP)**:
-  - Miss (Natural 20 included): +1 LP for the skill rolled. A hit earns none.
+  - Miss or near miss: +1 LP for the skill rolled. A hit or a critical failure earns none.
   - Nothing spills to other skills.
-  - Combat skills and dodge are physical: their LP are resolved at the end of the turn of the miss, not on a rest: ceil(skill / 3) LP per roll, d20 ≥ 11 and ≥ skill level: +1, at most +1 per skill between two long rests; from skill 10 only after reflecting on it. Other skills rolled in a fight (deception, intimidation) wait for sleep.
+  - Combat skills and dodge are physical: their LP are resolved at the end of the turn of the miss, not on a rest: ceil(skill / 15) LP per roll, d100 ≥ 51 and ≥ skill level: +1d6+1, at most one success per skill between two long rests; from skill 50 only after reflecting on it. Other skills rolled in a fight (deception, intimidation) wait for sleep.
 
 ## Additional Features
-- **Multi-Actions**: Multiple actions per round (e.g., attack twice) at -2 skill per extra action, granting LP on failures.
+- **Multi-Actions**: Multiple actions per round (e.g., attack twice) at -10 skill per extra action, granting LP on failures.
 - **Tactical Options**:
-  - Reckless: +2 attack skill, -2 Parry next round.
-  - Defensive: +2 Parry, -2 attack skill.
-  - Trick (Deception/Intimidation): Success lowers foe’s Parry by 2 (+1 LP on fail).
-- **Group Advantage**: +1 attack roll per ally engaged with target.
+  - Reckless: +10 attack skill, -10 Parry next round.
+  - Defensive: +10 Parry, -10 attack skill.
+  - Trick (Deception/Intimidation): Success lowers foe’s Parry by 10 (+1 LP on fail).
+- **Group Advantage**: +5 attack skill per ally engaged with target.
 - **Recovery**: Post-combat, First Aid (≤ skill level) heals 1 wound per success (once per ally per fight). Otherwise, 1 wound/day with CON/2 roll success.
-- **Computer DM**: Tracks wounds, initiative, LP; adds environmental effects (e.g., -1 Dodge on mud) or fumble tables for flavor.
+- **Computer DM**: Tracks wounds, initiative, LP; adds environmental effects (e.g., -5 Dodge on mud) or fumble tables for flavor.
 
 ## Design Goals
 - **Deadly**: Low wounds (1-7) and high damage (~4 average) resolve fights in 2-4 rounds.
 - **Fast-Paced**: Simple rolls and initiative keep combat swift.
 - **Exciting**: Tactical choices and dynamic initiative add cinematic tension.
 - **Skill-Centric**: Skills drive outcomes, with stats as modifiers; failures fuel LP for growth.
-- **Trainer Integration**: Trainers (+5 to improvement rolls) or stat-boosting quests ease high-skill advancement.
+- **Trainer Integration**: Trainers (+25 to improvement rolls) or stat-boosting quests ease high-skill advancement.
 
 ---
 
@@ -83,27 +83,37 @@ purpose. See `PRODUCT.md` → Rules philosophy.
 
 ## Overview
 
-This is a skill-based fantasy RPG system where character progress is measured by skills acquired and improved primarily through learning from failures, rather than traditional levels or experience points. The system uses a computer as the DM for bookkeeping, eliminating manual tracking burdens. Skills are rolled on a 1d20, with success determined by rolling equal to or below the skill level. There is no skill cap, allowing indefinite growth, though high levels require trainers or adventures to achieve.
+This is a skill-based fantasy RPG system where character progress is measured by skills acquired and improved primarily through learning from failures, rather than traditional levels or experience points. The system uses a computer as the DM for bookkeeping, eliminating manual tracking burdens. Skills go from 1 to 100 and are rolled on a 1d100 (a percentage roll). A roll succeeds when it is equal to or below the effective skill (skill level plus the stat bonus). Skills grow to at most 100; high levels need trainers or adventures.
 
 ## Core Skill Mechanics
 
-- **Skill Rolls**:
-  - Roll 1d20: Success if ≤ current skill level.
-  - Natural 1: Exceptional success (narrative benefit). Earns no LP: nothing to learn from a success.
-  - Natural 20: Always a failure (+1 LP). For skills ≥15, treated as a "complicated success" (action succeeds with a drawback, still +1 LP).
+- **Skill Rolls** (the server checks in this order):
+  - **Critical success**: a roll of 1 to ceil(skill / 10). Not possible at skill 10 or below. It earns no LP.
+  - **Success**: a roll equal to or below the effective skill. It earns no LP.
+  - **Critical failure**: the top floor((100 - skill) / 10) rolls. A roll of 100 is always a critical failure. It earns no LP.
+  - **Near miss** (partial success): 1 to 15 above the skill. The attempt falls just short or succeeds at a cost. +1 LP.
+  - **Failure**: any other roll. +1 LP.
+  - At skill 100 or higher, a roll of 100 rolls again. A failure on the second roll is a critical failure.
+  - The critical bands use the effective skill (level plus stat bonus).
+  - Examples: skill 50 gives critical success on 1-5, success on 6-50, near miss on 51-65, failure on 66-95 and critical failure on 96-100. Skill 90 gives critical success on 1-9 and critical failure on 100 only.
+- **Critical effects**:
+  - Combat critical success: full damage and every bonus. Combat critical failure: the attacker takes normal weapon damage.
+  - Running or climbing: about 50% faster.
+  - Lockpicking: half the time, and quiet.
+  - Persuasion: the deal is better than expected.
 - **Learning Points (LP)** — you learn only from failure, only in the skill you failed:
-  - Failure or partial success: +1 LP for that skill, a banked improvement chance. Nothing spills to other skills.
-  - Success (natural 1 included): no LP.
+  - Failure or near miss: +1 LP for that skill, a banked improvement chance. Nothing spills to other skills.
+  - Success, critical success or critical failure: no LP.
   - The linked stat adds no LP: talent helps you succeed, not learn faster.
 - **Skill Improvement** — it sinks in while you sleep, except for physical skills:
   - Banked LP are resolved on a long rest (sleep, or six hours or more of rest). Ordinary turns resolve nothing.
-  - Physical skills (melee, ranged and unarmed combat, dodge, climbing, lockpicking) improve right away: their LP are resolved at the end of the turn of the failure, by the same cost, roll and reflection rule. They too gain at most +1 per skill between two long rests; after that, their LP are dropped until the character has slept. LP too few for a roll wait for more failures until the next long rest.
-  - Higher levels need more failures: one improvement roll costs ceil(skill / 3) banked LP (1 LP up to 3, 2 up to 6, 3 up to 9, 4 up to 12, 5 up to 15).
-  - Roll 1d20 ≥ 11 and ≥ raw skill: skill +1. Chance (21 - max(skill, 11))/20: 50% up to 11, 45% at 12, 25% at 16, 5% at 20. No roll is a sure thing, not even at level 0.
-  - At most +1 per skill per night (for physical skills: per long-rest cycle): the rolls stop at the first success. Then all of that skill's banked LP are gone, and they are gone too if every roll failed or there were too few for a roll. Nothing carries over to the next night.
-  - From skill 10, practice alone is not enough: the LP are only resolved on a rest when the character reflected on the skill, practised or studied it deliberately, or trained it with a trainer since the last long rest. Until then they stay banked.
-  - No skill cap, but past 20 only a trainer's bonus can reach the target.
-- **Death Exception**: No LP from fatal failures, and the dead learn nothing.
+  - Physical skills (melee, ranged and unarmed combat, dodge, climbing, lockpicking) improve right away: their LP are resolved at the end of the turn of the failure, by the same cost, roll and reflection rule. They too improve at most once per skill between two long rests; after that, their LP are dropped until the character has slept. LP too few for a roll wait for more failures until the next long rest.
+  - Higher levels need more failures: one improvement roll costs ceil(skill / 15) banked LP (1 LP up to 15, 2 up to 30, 3 up to 45, 4 up to 60, 5 up to 75).
+  - Roll 1d100 ≥ 51 and ≥ raw skill: the skill gains 1d6+1 (at most 100). Chance (101 - max(skill, 51))/100: 50% up to 51, 45% at 56, 25% at 76, 5% at 96. No roll is a sure thing, not even at level 0.
+  - At most one success per skill per night (for physical skills: per long-rest cycle): the rolls stop at the first success. Then all of that skill's banked LP are gone, and they are gone too if every roll failed or there were too few for a roll. Nothing carries over to the next night.
+  - From skill 50, practice alone is not enough: the LP are only resolved on a rest when the character reflected on the skill, practised or studied it deliberately, or trained it with a trainer since the last long rest. Until then they stay banked.
+  - Skills stop at 100. Past 75, only a trainer's bonus makes the roll likely.
+- **Death Exception**: No LP from fatal failures, and the dead learn nothing. A death roll is a d100: a roll above CON × 2.5 means death.
 - **Skill List Categories** (Examples):
   - **Combat**: Melee Combat, Ranged Combat, Unarmed Combat, Tactics, Dodge.
   - **Exploration**: Navigation, Survival, Tracking, Climbing, Stealth.
@@ -113,7 +123,7 @@ This is a skill-based fantasy RPG system where character progress is measured by
 
 ## Trainers and Adventures
 
-- **Trainers**: NPCs with skill level ≥5 above the character's. A training session is one free improvement attempt (no LP) with +5 to the roll (1d20 + 5 ≥ 11 and ≥ skill).
+- **Trainers**: NPCs with skill level ≥25 above the character's. A training session is one free improvement attempt (no LP) with +25 to the roll (1d100 + 25 ≥ 51 and ≥ skill).
   - Found via quests (e.g., journey to a master thief for Stealth training).
   - One attempt per training session; costs time and the trainer's fee.
   - Can be group quests for party training.
@@ -122,7 +132,7 @@ This is a skill-based fantasy RPG system where character progress is measured by
 ## Stats (STR, DEX, CON, INT, WIS, CHA)
 
 - **Range**: 3-18 (rolled or point-buy).
-- **Bonuses to Skill Rolls**: (Stat - 10)/2 (rounded down) added to effective skill level for related skills.
+- **Bonuses to Skill Rolls**: 5 × ((Stat - 10)/2, rounded down) added to effective skill level for related skills.
   - STR: Physical power (e.g., Melee, Climbing).
   - DEX: Agility/precision (e.g., Ranged, Stealth).
   - CON: Endurance (e.g., Survival, First Aid).
@@ -130,11 +140,11 @@ This is a skill-based fantasy RPG system where character progress is measured by
   - WIS: Perception (e.g., Insight, Tracking).
   - CHA: Social (e.g., Persuasion, Deception).
 - **Minimum Requirements for Advancement**:
-  - Skills divided into tiers (Novice 1-5, Adept 6-10, Expert 11-15, Master 16+).
+  - Skills divided into tiers (Novice 1-25, Adept 26-50, Expert 51-75, Master 76+).
   - Min stat for higher tiers (e.g., STR ≥8 for Adept in Melee; increases per tier).
   - Auto-fail improvement if unmet; LP retained. Trainers can reduce minima.
 - **Base Chance for Unskilled Attempts (Level 0)**:
-  - Effective level = Stat / 3 (rounded down) for related tasks.
+  - Effective level = 5 × (Stat / 3, rounded down) for related tasks.
   - Adjustable by difficulty (/2 easy, /4 hard).
   - Failures grant LP to start building the skill.
 - **Additional Integrations**:
@@ -144,12 +154,12 @@ This is a skill-based fantasy RPG system where character progress is measured by
 ## Character Creation and Starting Allocation
 
 - **Stats**: 75-point buy (min 3/max 18 per stat).
-- **Skill Points**: 20-30 total to distribute (adjust for campaign).
-  - Cost: 1 point per level 1-3; 2 points per level 4-5 (cap at 5 starting).
-  - Stat Bonuses: +1 point per (stat &gt;10) for linked skills.
-  - Backgrounds: Grant 3-5 free points in thematic skills (e.g., Warrior: +3 Melee, +2 Tactics).
+- **Skill Points**: 100-150 total to distribute (adjust for campaign).
+  - Skills rise in steps of 5. Cost: 5 points per step up to 15; 10 points per step from 20 to 25 (cap at 25 starting, 35 for a signature skill).
+  - Stat Bonuses: +5 points per (stat &gt;10) for linked skills.
+  - Backgrounds: Grant 15-25 free points in thematic skills (e.g., Warrior: +15 Melee, +10 Tactics).
   - Minimum: Allocate to at least 3-5 skills for diversity.
-  - Wildcards: 1-2 extra points for quirks.
+  - Wildcards: 5-10 extra points for quirks.
 - **Computer DM Role**: Suggests builds, simulates practice rolls for feedback.
 
 ---
@@ -390,43 +400,43 @@ World items are stored in `session_state.worldItems`, keyed by `locationId`. The
 # Racial Mechanics Summary for Skill-Based Fantasy RPG
 
 ## Overview
-This document outlines racial options for a skill-based fantasy RPG where progression is driven by learning from failures, using a 1d20 skill roll system (success on ≤ skill level, no skill cap, LP-driven improvement, stats 3-18). Races (Humans, Elves, Dwarves, Gnomes, Halflings, Half-Elves) provide starting stat modifiers, skill bonuses, and traits to enhance role-playing and build diversity without overshadowing skill progression. Modifiers are modest (+1 or +2, occasional -1) to maintain balance, and skill bonuses align with the 20-30 point starting pool, capped at novice levels (≤5). Traits encourage narrative adventures (e.g., trainer quests) and integrate with failure-driven growth.
+This document outlines racial options for a skill-based fantasy RPG where progression is driven by learning from failures, using a 1d100 skill roll system (skills 1 to 100, success on ≤ skill level, LP-driven improvement, stats 3-18). Races (Humans, Elves, Dwarves, Gnomes, Halflings, Half-Elves) provide starting stat modifiers, skill bonuses, and traits to enhance role-playing and build diversity without overshadowing skill progression. Modifiers are modest (+1 or +2, occasional -1) to maintain balance, and skill bonuses align with the 100-150 point starting pool, capped at novice levels (≤25). Traits encourage narrative adventures (e.g., trainer quests) and integrate with failure-driven growth.
 
 ## Human
 - **Description**: Versatile and resilient, humans adapt quickly, thriving on trial and error.
 - **Stat Modifiers**: +1 to any two stats (player choice).
-- **Skill Bonuses**: +5 starting skill points (freely distributed).
+- **Skill Bonuses**: +25 starting skill points (freely distributed).
 - **Traits**: **Adaptability** – Reroll one failed skill check per session (+1 LP if reroll fails).
 
 ## Elf
 - **Description**: Graceful, long-lived, and attuned to nature/magic, elves learn from subtle mistakes.
 - **Stat Modifiers**: +2 DEX, +1 INT or WIS (choice), -1 CON.
-- **Skill Bonuses**: +3 to Ranged Combat or Arcana, +2 to Survival or Tracking.
-- **Traits**: **Keen Senses** – +2 to Perception-based skills (e.g., Insight, Tracking) in natural settings; **Elven Grace** – Ignore natural 20 fumble once per session on DEX-linked skills (complicated success, +2 LP).
+- **Skill Bonuses**: +15 to Ranged Combat or Arcana, +10 to Survival or Tracking.
+- **Traits**: **Keen Senses** – +10 to Perception-based skills (e.g., Insight, Tracking) in natural settings; **Elven Grace** – Turn one critical failure into a normal failure once per session on DEX-linked skills (+1 LP).
 
 ## Dwarf
 - **Description**: Sturdy craftsmen, dwarves endure failures in harsh conditions, forging strength.
 - **Stat Modifiers**: +2 CON, +1 STR, -1 CHA.
-- **Skill Bonuses**: +3 to Melee Combat or Crafting, +2 to Survival or Alchemy.
-- **Traits**: **Stonecunning** – +2 to skills involving stone/earth (e.g., Climbing caves, Herbalism for minerals); **Resilience** – Reduce wounds taken by 1 (min 0) once per combat (+1 LP per wound absorbed).
+- **Skill Bonuses**: +15 to Melee Combat or Crafting, +10 to Survival or Alchemy.
+- **Traits**: **Stonecunning** – +10 to skills involving stone/earth (e.g., Climbing caves, Herbalism for minerals); **Resilience** – Reduce wounds taken by 1 (min 0) once per combat (+1 LP per wound absorbed).
 
 ## Gnome
 - **Description**: Curious tinkerers, gnomes treat failures as experiments, innovating through insight.
 - **Stat Modifiers**: +2 INT, +1 DEX, -1 STR.
-- **Skill Bonuses**: +3 to Alchemy or Lockpicking, +2 to Arcana or Crafting.
-- **Traits**: **Tinker's Insight** – +2 to INT-linked skills when experimenting or reverse-engineering; **Curious Mind** – Gain +1 LP when failing a skill check while investigating something new.
+- **Skill Bonuses**: +15 to Alchemy or Lockpicking, +10 to Arcana or Crafting.
+- **Traits**: **Tinker's Insight** – +10 to INT-linked skills when experimenting or reverse-engineering; **Curious Mind** – Gain +1 LP when failing a skill check while investigating something new.
 
 ## Halfling
 - **Description**: Cheerful, social, and resilient, halflings find joy in simple pleasures and navigate danger with surprising luck.
 - **Stat Modifiers**: +2 DEX, +1 CHA, -1 STR.
-- **Skill Bonuses**: +3 to Stealth or Cooking, +2 to Persuasion or Trading.
-- **Traits**: **Lucky** – Reroll one natural 20 fumble per session (still gain +2 LP); **Brave** – +2 to resist fear effects and intimidation.
+- **Skill Bonuses**: +15 to Stealth or Cooking, +10 to Persuasion or Trading.
+- **Traits**: **Lucky** – Reroll one critical failure per session (+1 LP if the reroll fails); **Brave** – +10 to resist fear effects and intimidation.
 
 ## Half-Elf
 - **Description**: Bridging two worlds, half-elves combine human adaptability with elven grace, though they sometimes struggle with identity.
 - **Stat Modifiers**: +1 DEX, +1 CHA.
-- **Skill Bonuses**: +2 to any two skills (player choice).
-- **Traits**: **Versatile Heritage** – Choose one Human or Elf trait at character creation; **Social Chameleon** – +2 to social skills when interacting with either humans or elves.
+- **Skill Bonuses**: +10 to any two skills (player choice).
+- **Traits**: **Versatile Heritage** – Choose one Human or Elf trait at character creation; **Social Chameleon** – +10 to social skills when interacting with either humans or elves.
 
 ---
 
@@ -531,7 +541,7 @@ There is no general crafting skill.
 
 ### Bargaining
 
-Haggling is a Persuasion roll. Appraisal is a separate roll that the player can skip. A successful appraisal tells the true value, the local scarcity and the fair local price. Knowing the price gives +2 to the Persuasion roll (+3 at Appraisal 10 or higher), and the haggle starts from the fair price. A success moves the price 10-20% in the player's favour. A failure caps the deal at the fair price minus 10%.
+Haggling is a Persuasion roll. Appraisal is a separate roll that the player can skip. A successful appraisal tells the true value, the local scarcity and the fair local price. Knowing the price gives +10 to the Persuasion roll (+15 at Appraisal 50 or higher), and the haggle starts from the fair price. A success moves the price 10-20% in the player's favour. A failure caps the deal at the fair price minus 10%.
 
 ---
 
@@ -539,14 +549,14 @@ Haggling is a Persuasion roll. Appraisal is a separate roll that the player can 
 
 | Tier | Level Range | Phase | Hours (~) | Real-World Equivalent |
 |------|-------------|-------|-----------|----------------------|
-| **Novice** | 1-5 | Cognitive | 0-100 | Hobbyist, casual practitioner |
-| **Adept** | 6-10 | Associative | 100-1,000 | Serious amateur, professional basics |
-| **Expert** | 11-15 | Autonomous | 1,000-3,000 | Working professional, instructor |
-| **Master** | 16-20 | Deliberate Practice | 3,000-10,000 | World-class, decades of dedication |
+| **Novice** | 1-25 | Cognitive | 0-100 | Hobbyist, casual practitioner |
+| **Adept** | 26-50 | Associative | 100-1,000 | Serious amateur, professional basics |
+| **Expert** | 51-75 | Autonomous | 1,000-3,000 | Working professional, instructor |
+| **Master** | 76-100 | Deliberate Practice | 3,000-10,000 | World-class, decades of dedication |
 
 ### Hours Formula (Power Law)
 ```
-Hours = 10,000 × (Level / 20)³
+Hours = 10,000 × (Level / 100)³
 ```
 
 ---
@@ -557,10 +567,10 @@ When you reach threshold levels in one skill, related skills in the **same domai
 
 | Highest Skill in Domain | Floor for Other Domain Skills |
 |-------------------------|-------------------------------|
-| 1-9 | 0 (skills are still islands) |
-| 10-14 | 2 (patterns starting to connect) |
-| 15-17 | 4 (flow state, unconscious competence) |
-| 18-20 | 6 (universal principles visible) |
+| 1-49 | 0 (skills are still islands) |
+| 50-74 | 10 (patterns starting to connect) |
+| 75-89 | 20 (flow state, unconscious competence) |
+| 90-100 | 30 (universal principles visible) |
 
 **Note**: The floor applies only to skills the character has NOT trained. If they have actual skill levels, use the higher of floor or trained level.
 
@@ -568,11 +578,11 @@ When you reach threshold levels in one skill, related skills in the **same domai
 
 ## Summit Sight (Cross-Domain Recognition)
 
-At **Level 18+** in any skill, masters gain the ability to **recognize principles** in other domains.
+At **Level 90+** in any skill, masters gain the ability to **recognize principles** in other domains.
 
 ### Mechanical Effects
 - **Narrative Recognition**: GM describes cross-domain insights
-- **First Attempt Bonus**: +2 to initial tries at new "spiritually adjacent" skills
+- **First Attempt Bonus**: +10 to initial tries at new "spiritually adjacent" skills
 
 ### Spiritually Adjacent Skills
 Skills are "spiritually adjacent" when they share underlying principles despite being in different domains:
@@ -593,34 +603,34 @@ High skill levels in a domain grant **contextual stat bonuses** when performing 
 
 | Domain Mastery Level | Stat Bonus (in-domain only) |
 |---------------------|----------------------------|
-| 10-14 (Adept) | +1 to linked attributes |
-| 15-17 (Expert) | +2 to linked attributes |
-| 18-20 (Master) | +3 to linked attributes |
+| 50-74 (Adept) | +1 to linked attributes |
+| 75-89 (Expert) | +2 to linked attributes |
+| 90-100 (Master) | +3 to linked attributes |
 
-**Example**: A Level 15 Melee Combat character (Martial domain) gets +2 to effective STR, DEX, and CON when performing any Martial domain action.
+**Example**: A Level 75 Melee Combat character (Martial domain) gets +2 to effective STR, DEX, and CON when performing any Martial domain action.
 
 ---
 
 ## LP Progression: Learn From Failure, Sleep On It (Physical Skills: Right Away)
 
-A failed or partial roll banks one Learning Point for the skill rolled; a success banks nothing, and nothing spills to other skills. Banked LP are resolved on the next long rest (sleep, or six hours or more of rest). One improvement roll costs ceil(level / 3) LP; roll 1d20, and at least 11 and at least the current level raises the skill by 1. The rolls stop at the first success, at most +1 per skill per night, and then the skill's LP are gone, success or not. From level 10 the character must also reflect on the skill (think it over, practise or study it deliberately, or train with a trainer) before a rest resolves it; until then its LP stay banked.
+A failure or a near miss banks one Learning Point for the skill rolled; a success, a critical success or a critical failure banks nothing, and nothing spills to other skills. Banked LP are resolved on the next long rest (sleep, or six hours or more of rest). One improvement roll costs ceil(level / 15) LP; roll 1d100, and at least 51 and at least the current level raises the skill by 1d6+1 (at most 100). The rolls stop at the first success, at most one success per skill per night, and then the skill's LP are gone, success or not. From level 50 the character must also reflect on the skill (think it over, practise or study it deliberately, or train with a trainer) before a rest resolves it; until then its LP stay banked.
 
-Physical skills (melee combat, ranged combat, unarmed combat, dodge, climbing, lockpicking) improve right away instead: at the end of the turn of the failure, with the same LP cost, roll and reflection rule. They also gain at most +1 between two long rests: once one has improved, its LP are dropped until the character has slept. A failed roll spends its LP; LP too few for a roll wait for the next failures, and the long rest clears what is left.
+Physical skills (melee combat, ranged combat, unarmed combat, dodge, climbing, lockpicking) improve right away instead: at the end of the turn of the failure, with the same LP cost, roll and reflection rule. They also improve at most once between two long rests: once one has improved, its LP are dropped until the character has slept. A failed roll spends its LP; LP too few for a roll wait for the next failures, and the long rest clears what is left.
 
 | Level | LP per roll | Chance per roll |
 |-------|-------------|-----------------|
-| 0-3 | 1 | 50% |
-| 4-6 | 2 | 50% |
-| 7-9 | 3 | 50% |
-| 10-12 | 4 (+ reflection) | 50% / 50% / 45% |
-| 13-15 | 5 (+ reflection) | 40% / 35% / 30% |
-| 16-18 | 6 (+ reflection) | 25% / 20% / 15% |
-| 19-20 | 7 (+ reflection) | 10% / 5% |
+| 0-15 | 1 | 50% |
+| 16-30 | 2 | 50% |
+| 31-45 | 3 | 50% |
+| 46-60 | 4 (+ reflection from 50) | 50% to 41% |
+| 61-75 | 5 (+ reflection) | 40% to 26% |
+| 76-90 | 6 (+ reflection) | 25% to 11% |
+| 91-100 | 7 (+ reflection) | 10% to 1% |
 
 ### Trainer Bonuses
-- Trainers must have skill level ≥5 above student
-- A training session is one free attempt (no LP) with +5 to the roll (the roll + 5 must reach 11 and the level)
-- Past level 20, only a trainer's bonus can reach the target
+- Trainers must have skill level ≥25 above student
+- A training session is one free attempt (no LP) with +25 to the roll (the roll + 25 must reach 51 and the level)
+- Skills stop at 100. Past 75, a trainer's bonus helps most
 
 ---
 
@@ -630,13 +640,13 @@ Physical skills (melee combat, ranged combat, unarmed combat, dodge, climbing, l
 Skills don't exist in isolation. A master swordsman has developed body awareness, timing, and spatial reasoning that transfers to other physical disciplines. Domains capture this reality.
 
 ### Why Floors Instead of Bonuses?
-Floors represent baseline competence, not enhancement. A master fighter doesn't get +6 to unarmed — they can't be *worse* than level 6 at unarmed. This distinction matters narratively.
+Floors represent baseline competence, not enhancement. A master fighter doesn't get +30 to unarmed — they can't be *worse* than level 30 at unarmed. This distinction matters narratively.
 
 ### Why Learn Only From Failure, and Mostly Overnight?
-You learn where you fall short, not where you already succeed, and practice sinks in while you sleep. The body is the exception: a missed handhold or a parry that came too late teaches on the spot. The 10,000-hour research shows diminishing returns at high levels: a novice improves quickly, a master grinds for marginal gains. Each level needs more failures in a day before a roll is even possible, a night gives at most one level, and from level 10 you must also reflect on what you have learned.
+You learn where you fall short, not where you already succeed, and practice sinks in while you sleep. The body is the exception: a missed handhold or a parry that came too late teaches on the spot. The 10,000-hour research shows diminishing returns at high levels: a novice improves quickly, a master grinds for marginal gains. Each level needs more failures in a day before a roll is even possible, a night gives at most one gain, and from level 50 you must also reflect on what you have learned.
 
 ### Why Trainers?
-Beyond Expert level, self-study plateaus. Real masters seek other masters. A trainer's +5 matters most where attempts mostly fail, and past level 20 nothing else works. This creates natural quest hooks and emphasizes that true mastery is rare.
+Beyond Expert level, self-study plateaus. Real masters seek other masters. A trainer's +25 matters most where attempts mostly fail, and near level 100 little else works. This creates natural quest hooks and emphasizes that true mastery is rare.
 
 --- system ---
 Your task: narrate the result of the player's action this turn.
@@ -647,6 +657,7 @@ Mechanics:
 - Do NOT output mechanical_resolution.
 - Outcome none means no check was needed: ordinary talk and everyday actions simply happen. Narrate their natural result.
 - Match the given outcome tone. Failure is real; do not soften a failed check into a secret success.
+- A critical_success goes better than expected; follow the effect in the resolution notes. A critical_failure goes wrong in a clear, visible way. A partial_success is a near miss: the attempt falls just short or succeeds at a cost.
 - A failed check costs only what was tried for. A failed read, search or recall means the character learns nothing extra; it never makes an NPC colder, more suspicious or hostile. People notice an attempt only when the action itself shows (a lie, a threat, a clumsy grab). NPC attitude follows the character's words and deeds, not the dice.
 - Do NOT patch coins, inventory, learning_points, skills, learning_failures, location_id, clocks, fronts, public_facts, wounds, or vitality.
 - Do NOT patch learning_points, skills, or learning_failures — the server handles LP and competence.

@@ -60,7 +60,7 @@ defmodule TalesForge.Game.TrainTest do
     assert hd(bundle.actions).action_type == :wait
   end
 
-  test "happy path spends a day, one free attempt at +5, deducts the day fee", %{
+  test "happy path spends a day, one free attempt at +25, deducts the day fee", %{
     session: session
   } do
     session = seed_persuasion(session)
@@ -68,12 +68,12 @@ defmodule TalesForge.Game.TrainTest do
     before_tick = session.world_state["world_tick"]
 
     {_session, turn, payload} =
-      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => 6})
+      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => {26, 5}})
 
     session = reload(session.id)
     character = session.world_state["character"]
 
-    assert get_in(character, ["skills", "persuasion"]) == 4
+    assert get_in(character, ["skills", "persuasion"]) == 20
     assert Map.get(character["learning_points"], "persuasion") == 0
     assert Map.get(character["learning_failures"], "persuasion") == 0
     assert Inventory.coin_total_copper(character["coins"]) == before_coins - 50
@@ -83,10 +83,10 @@ defmodule TalesForge.Game.TrainTest do
     assert [
              %{
                "skill" => "persuasion",
-               "roll" => 6,
-               "raw_skill" => 3,
+               "roll" => 26,
+               "raw_skill" => 15,
                "improved" => true,
-               "bonus" => 5,
+               "bonus" => 25,
                "lp_spent" => 0,
                "trainer_npc_id" => "innkeep"
              }
@@ -101,7 +101,7 @@ defmodule TalesForge.Game.TrainTest do
       train_sim(
         session,
         "I spend three days training persuasion with Brenna",
-        %{"persuasion" => 1}
+        %{"persuasion" => 5}
       )
 
     session = reload(session.id)
@@ -116,7 +116,7 @@ defmodule TalesForge.Game.TrainTest do
     before = snapshot(session)
 
     {_session, turn, payload} =
-      train_sim(session, absent_osric_action(), %{"persuasion" => 20})
+      train_sim(session, absent_osric_action(), %{"persuasion" => {100, 5}})
 
     session = reload(session.id)
     assert_unchanged(session, before)
@@ -134,7 +134,7 @@ defmodule TalesForge.Game.TrainTest do
     before = snapshot(session)
 
     {_session, turn, payload} =
-      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => 20})
+      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => {100, 5}})
 
     session = reload(session.id)
     assert_unchanged(session, before)
@@ -151,7 +151,7 @@ defmodule TalesForge.Game.TrainTest do
     before = snapshot(session)
 
     {_session, turn, payload} =
-      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => 20})
+      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => {100, 5}})
 
     session = reload(session.id)
     assert_unchanged(session, before)
@@ -168,7 +168,7 @@ defmodule TalesForge.Game.TrainTest do
     before = snapshot(session)
 
     {_session, turn, payload} =
-      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => 20})
+      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => {100, 5}})
 
     session = reload(session.id)
     assert_unchanged(session, before)
@@ -180,11 +180,11 @@ defmodule TalesForge.Game.TrainTest do
     session = seed_bars(session, %{}, %{})
 
     {_session, turn, payload} =
-      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => 20})
+      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => {100, 5}})
 
     assert payload.mechanical_resolution["training"] == "took_place"
     assert [%{"improved" => true, "lp_spent" => 0}] = turn.mechanical_resolution["improvements"]
-    assert get_in(reload(session.id).world_state, ["character", "skills", "persuasion"]) == 4
+    assert get_in(reload(session.id).world_state, ["character", "skills", "persuasion"]) == 20
   end
 
   test "declined when Brenna has no authored stealth", %{session: session} do
@@ -194,7 +194,7 @@ defmodule TalesForge.Game.TrainTest do
     before = snapshot(session)
 
     {_session, turn, payload} =
-      train_sim(session, "I train stealth with Brenna for a day", %{"stealth" => 20})
+      train_sim(session, "I train stealth with Brenna for a day", %{"stealth" => {100, 5}})
 
     session = reload(session.id)
     assert_unchanged(session, before)
@@ -233,7 +233,7 @@ defmodule TalesForge.Game.TrainTest do
 
   test "train does not emit player.improved", %{session: session} do
     session = seed_persuasion(session)
-    train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => 1})
+    train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => 5})
 
     kinds =
       SessionEvent

@@ -1,9 +1,9 @@
 {
   "_doc": "Global base labels and tables for TalesForge.Characters.Defaults. World packs extend this with priv/adventures/<id>/character_defaults.json (new labels only; a pack cannot redefine or remove a base label).",
   "seniority": {
-    "apprentice": 4,
-    "journeyman": 8,
-    "master": 12
+    "apprentice": 20,
+    "journeyman": 40,
+    "master": 60
   },
   "races": {
     "human": {

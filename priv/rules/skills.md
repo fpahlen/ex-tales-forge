@@ -69,7 +69,7 @@ There is no general crafting skill.
 
 ### Bargaining
 
-Haggling is a Persuasion roll. Appraisal is a separate roll that the player can skip. A successful appraisal tells the true value, the local scarcity and the fair local price. Knowing the price gives +2 to the Persuasion roll (+3 at Appraisal 10 or higher), and the haggle starts from the fair price. A success moves the price 10-20% in the player's favour. A failure caps the deal at the fair price minus 10%.
+Haggling is a Persuasion roll. Appraisal is a separate roll that the player can skip. A successful appraisal tells the true value, the local scarcity and the fair local price. Knowing the price gives +10 to the Persuasion roll (+15 at Appraisal 50 or higher), and the haggle starts from the fair price. A success moves the price 10-20% in the player's favour. A failure caps the deal at the fair price minus 10%.
 
 ---
 
@@ -77,14 +77,14 @@ Haggling is a Persuasion roll. Appraisal is a separate roll that the player can 
 
 | Tier | Level Range | Phase | Hours (~) | Real-World Equivalent |
 |------|-------------|-------|-----------|----------------------|
-| **Novice** | 1-5 | Cognitive | 0-100 | Hobbyist, casual practitioner |
-| **Adept** | 6-10 | Associative | 100-1,000 | Serious amateur, professional basics |
-| **Expert** | 11-15 | Autonomous | 1,000-3,000 | Working professional, instructor |
-| **Master** | 16-20 | Deliberate Practice | 3,000-10,000 | World-class, decades of dedication |
+| **Novice** | 1-25 | Cognitive | 0-100 | Hobbyist, casual practitioner |
+| **Adept** | 26-50 | Associative | 100-1,000 | Serious amateur, professional basics |
+| **Expert** | 51-75 | Autonomous | 1,000-3,000 | Working professional, instructor |
+| **Master** | 76-100 | Deliberate Practice | 3,000-10,000 | World-class, decades of dedication |
 
 ### Hours Formula (Power Law)
 ```
-Hours = 10,000 × (Level / 20)³
+Hours = 10,000 × (Level / 100)³
 ```
 
 ---
@@ -95,10 +95,10 @@ When you reach threshold levels in one skill, related skills in the **same domai
 
 | Highest Skill in Domain | Floor for Other Domain Skills |
 |-------------------------|-------------------------------|
-| 1-9 | 0 (skills are still islands) |
-| 10-14 | 2 (patterns starting to connect) |
-| 15-17 | 4 (flow state, unconscious competence) |
-| 18-20 | 6 (universal principles visible) |
+| 1-49 | 0 (skills are still islands) |
+| 50-74 | 10 (patterns starting to connect) |
+| 75-89 | 20 (flow state, unconscious competence) |
+| 90-100 | 30 (universal principles visible) |
 
 **Note**: The floor applies only to skills the character has NOT trained. If they have actual skill levels, use the higher of floor or trained level.
 
@@ -106,11 +106,11 @@ When you reach threshold levels in one skill, related skills in the **same domai
 
 ## Summit Sight (Cross-Domain Recognition)
 
-At **Level 18+** in any skill, masters gain the ability to **recognize principles** in other domains.
+At **Level 90+** in any skill, masters gain the ability to **recognize principles** in other domains.
 
 ### Mechanical Effects
 - **Narrative Recognition**: GM describes cross-domain insights
-- **First Attempt Bonus**: +2 to initial tries at new "spiritually adjacent" skills
+- **First Attempt Bonus**: +10 to initial tries at new "spiritually adjacent" skills
 
 ### Spiritually Adjacent Skills
 Skills are "spiritually adjacent" when they share underlying principles despite being in different domains:
@@ -131,11 +131,11 @@ High skill levels in a domain grant **contextual stat bonuses** when performing 
 
 | Domain Mastery Level | Stat Bonus (in-domain only) |
 |---------------------|----------------------------|
-| 10-14 (Adept) | +1 to linked attributes |
-| 15-17 (Expert) | +2 to linked attributes |
-| 18-20 (Master) | +3 to linked attributes |
+| 50-74 (Adept) | +1 to linked attributes |
+| 75-89 (Expert) | +2 to linked attributes |
+| 90-100 (Master) | +3 to linked attributes |
 
-**Example**: A Level 15 Melee Combat character (Martial domain) gets +2 to effective STR, DEX, and CON when performing any Martial domain action.
+**Example**: A Level 75 Melee Combat character (Martial domain) gets +2 to effective STR, DEX, and CON when performing any Martial domain action.
 
 ---
 
@@ -155,24 +155,24 @@ The rule is in `core_mechanics.md`, "Skill split". This table gives the meaning 
 <!-- /skill_split:on -->
 ## LP Progression: Learn From Failure, Sleep On It (Physical Skills: Right Away)
 
-A failed or partial roll banks one Learning Point for the skill rolled; a success banks nothing, and nothing spills to other skills. Banked LP are resolved on the next long rest (sleep, or six hours or more of rest). One improvement roll costs ceil(level / 3) LP; roll 1d20, and at least 11 and at least the current level raises the skill by 1. The rolls stop at the first success, at most +1 per skill per night, and then the skill's LP are gone, success or not. From level 10 the character must also reflect on the skill (think it over, practise or study it deliberately, or train with a trainer) before a rest resolves it; until then its LP stay banked.
+A failure or a near miss banks one Learning Point for the skill rolled; a success, a critical success or a critical failure banks nothing, and nothing spills to other skills. Banked LP are resolved on the next long rest (sleep, or six hours or more of rest). One improvement roll costs ceil(level / 15) LP; roll 1d100, and at least 51 and at least the current level raises the skill by 1d6+1 (at most 100). The rolls stop at the first success, at most one success per skill per night, and then the skill's LP are gone, success or not. From level 50 the character must also reflect on the skill (think it over, practise or study it deliberately, or train with a trainer) before a rest resolves it; until then its LP stay banked.
 
-Physical skills (melee combat, ranged combat, unarmed combat, dodge, climbing, lockpicking) improve right away instead: at the end of the turn of the failure, with the same LP cost, roll and reflection rule. They also gain at most +1 between two long rests: once one has improved, its LP are dropped until the character has slept. A failed roll spends its LP; LP too few for a roll wait for the next failures, and the long rest clears what is left.
+Physical skills (melee combat, ranged combat, unarmed combat, dodge, climbing, lockpicking) improve right away instead: at the end of the turn of the failure, with the same LP cost, roll and reflection rule. They also improve at most once between two long rests: once one has improved, its LP are dropped until the character has slept. A failed roll spends its LP; LP too few for a roll wait for the next failures, and the long rest clears what is left.
 
 | Level | LP per roll | Chance per roll |
 |-------|-------------|-----------------|
-| 0-3 | 1 | 50% |
-| 4-6 | 2 | 50% |
-| 7-9 | 3 | 50% |
-| 10-12 | 4 (+ reflection) | 50% / 50% / 45% |
-| 13-15 | 5 (+ reflection) | 40% / 35% / 30% |
-| 16-18 | 6 (+ reflection) | 25% / 20% / 15% |
-| 19-20 | 7 (+ reflection) | 10% / 5% |
+| 0-15 | 1 | 50% |
+| 16-30 | 2 | 50% |
+| 31-45 | 3 | 50% |
+| 46-60 | 4 (+ reflection from 50) | 50% to 41% |
+| 61-75 | 5 (+ reflection) | 40% to 26% |
+| 76-90 | 6 (+ reflection) | 25% to 11% |
+| 91-100 | 7 (+ reflection) | 10% to 1% |
 
 ### Trainer Bonuses
-- Trainers must have skill level ≥5 above student
-- A training session is one free attempt (no LP) with +5 to the roll (the roll + 5 must reach 11 and the level)
-- Past level 20, only a trainer's bonus can reach the target
+- Trainers must have skill level ≥25 above student
+- A training session is one free attempt (no LP) with +25 to the roll (the roll + 25 must reach 51 and the level)
+- Skills stop at 100. Past 75, a trainer's bonus helps most
 
 ---
 
@@ -182,10 +182,10 @@ Physical skills (melee combat, ranged combat, unarmed combat, dodge, climbing, l
 Skills don't exist in isolation. A master swordsman has developed body awareness, timing, and spatial reasoning that transfers to other physical disciplines. Domains capture this reality.
 
 ### Why Floors Instead of Bonuses?
-Floors represent baseline competence, not enhancement. A master fighter doesn't get +6 to unarmed — they can't be *worse* than level 6 at unarmed. This distinction matters narratively.
+Floors represent baseline competence, not enhancement. A master fighter doesn't get +30 to unarmed — they can't be *worse* than level 30 at unarmed. This distinction matters narratively.
 
 ### Why Learn Only From Failure, and Mostly Overnight?
-You learn where you fall short, not where you already succeed, and practice sinks in while you sleep. The body is the exception: a missed handhold or a parry that came too late teaches on the spot. The 10,000-hour research shows diminishing returns at high levels: a novice improves quickly, a master grinds for marginal gains. Each level needs more failures in a day before a roll is even possible, a night gives at most one level, and from level 10 you must also reflect on what you have learned.
+You learn where you fall short, not where you already succeed, and practice sinks in while you sleep. The body is the exception: a missed handhold or a parry that came too late teaches on the spot. The 10,000-hour research shows diminishing returns at high levels: a novice improves quickly, a master grinds for marginal gains. Each level needs more failures in a day before a roll is even possible, a night gives at most one gain, and from level 50 you must also reflect on what you have learned.
 
 ### Why Trainers?
-Beyond Expert level, self-study plateaus. Real masters seek other masters. A trainer's +5 matters most where attempts mostly fail, and past level 20 nothing else works. This creates natural quest hooks and emphasizes that true mastery is rare.
+Beyond Expert level, self-study plateaus. Real masters seek other masters. A trainer's +25 matters most where attempts mostly fail, and near level 100 little else works. This creates natural quest hooks and emphasizes that true mastery is rare.

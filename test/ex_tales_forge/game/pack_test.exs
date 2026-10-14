@@ -83,9 +83,9 @@ defmodule TalesForge.Game.PackTest do
       assert by_npc["innkeep"]["derive"]["occupation"] == "innkeep"
       refute Map.has_key?(by_npc["innkeep"], "skills")
       assert by_npc["innkeep"]["fee_copper"] == 50
-      assert by_npc["guild_steward"]["skills"] == %{"persuasion" => 9}
+      assert by_npc["guild_steward"]["skills"] == %{"persuasion" => 45}
       assert by_npc["guild_steward"]["fee_copper"] == 80
-      assert by_npc["prospector"]["skills"] == %{"climbing" => 9, "melee_combat" => 8}
+      assert by_npc["prospector"]["skills"] == %{"climbing" => 45, "melee_combat" => 40}
       assert by_npc["prospector"]["fee_copper"] == 50
 
       guild = Enum.find(pack.fronts, &(&1["id"] == "miners_guild"))
@@ -179,9 +179,9 @@ defmodule TalesForge.Game.PackTest do
                "hills are restless"
 
       assert brenna.personality["skills"] == %{
-               "persuasion" => 8,
-               "insight" => 8,
-               "etiquette" => 4
+               "persuasion" => 40,
+               "insight" => 40,
+               "etiquette" => 20
              }
 
       assert brenna.personality["fee_copper"] == 50
@@ -189,10 +189,10 @@ defmodule TalesForge.Game.PackTest do
       refute Map.has_key?(brenna.runtime_state, "fee_copper")
 
       assert osric.personality["skills"] == %{
-               "persuasion" => 9,
-               "insight" => 8,
-               "etiquette" => 4,
-               "intimidation" => 4
+               "persuasion" => 45,
+               "insight" => 40,
+               "etiquette" => 20,
+               "intimidation" => 20
              }
 
       assert osric.personality["fee_copper"] == 80
@@ -200,10 +200,10 @@ defmodule TalesForge.Game.PackTest do
       refute Map.has_key?(osric.runtime_state, "fee_copper")
 
       assert caldern.personality["skills"] == %{
-               "climbing" => 9,
-               "survival" => 8,
-               "melee_combat" => 8,
-               "tracking" => 4
+               "climbing" => 45,
+               "survival" => 40,
+               "melee_combat" => 40,
+               "tracking" => 20
              }
 
       assert caldern.personality["fee_copper"] == 50

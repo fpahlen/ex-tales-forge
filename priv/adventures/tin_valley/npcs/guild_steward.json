@@ -1,7 +1,13 @@
 {
   "id": "guild_steward",
-  "derive": {"race": "human", "standing": "merchant", "occupation": "guild_steward"},
-  "skills": {"persuasion": 9},
+  "derive": {
+    "race": "human",
+    "standing": "merchant",
+    "occupation": "guild_steward"
+  },
+  "skills": {
+    "persuasion": 45
+  },
   "fee_copper": 80,
   "motivations": {
     "agency_tier": "actor",
@@ -13,14 +19,18 @@
       "neuroticism": 4
     }
   },
-  "resources": {"coin": 12},
+  "resources": {
+    "coin": 12
+  },
   "public_facts": [],
   "triggers": [
     {
       "id": "guild_post_thwarted",
       "on": "interact",
       "location_id": "market_square",
-      "target_in": ["guild post"],
+      "target_in": [
+        "guild post"
+      ],
       "event": "npc.slighted",
       "player_aware": true
     }
@@ -53,7 +63,10 @@
       "public_fact": {
         "id": "osric_hired_blades",
         "text": "Osric Vane's hired blades watch the square — his own steel, not Guild retainers.",
-        "visibility": ["market_square", "valley_inn"]
+        "visibility": [
+          "market_square",
+          "valley_inn"
+        ]
       },
       "memory": {
         "who": "self",
@@ -65,7 +78,15 @@
   },
   "maslow": "esteem",
   "concerns": [
-    {"text": "Clear the orcs from the approach so the Guild can dig on schedule", "focus": "clear the orcs", "priority": 8},
-    {"text": "Keep the Guild's standing in the valley", "focus": "Guild standing", "priority": 5}
+    {
+      "text": "Clear the orcs from the approach so the Guild can dig on schedule",
+      "focus": "clear the orcs",
+      "priority": 8
+    },
+    {
+      "text": "Keep the Guild's standing in the valley",
+      "focus": "Guild standing",
+      "priority": 5
+    }
   ]
 }

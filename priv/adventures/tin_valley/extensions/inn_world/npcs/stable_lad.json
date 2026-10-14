@@ -1,11 +1,24 @@
 {
   "id": "stable_lad",
-  "derive": {"race": "human", "standing": "commoner", "occupation": "laborer"},
-  "skills": {"stealth": 8, "insight": 6},
+  "derive": {
+    "race": "human",
+    "standing": "commoner",
+    "occupation": "laborer"
+  },
+  "skills": {
+    "stealth": 40,
+    "insight": 30
+  },
   "fee_copper": 10,
   "motivations": {
     "mood": "restless",
-    "personality_traits": {"openness": 7, "conscientiousness": 3, "extraversion": 7, "agreeableness": 6, "neuroticism": 5}
+    "personality_traits": {
+      "openness": 7,
+      "conscientiousness": 3,
+      "extraversion": 7,
+      "agreeableness": 6,
+      "neuroticism": 5
+    }
   },
   "hooks": [
     "Yard work is always waiting: muck out the stable, split wood, mend a drover's harness. Tam will gladly share it, and the gossip that comes with it.",
@@ -14,6 +27,10 @@
   ],
   "maslow": "esteem",
   "concerns": [
-    {"text": "Be taken seriously by the grown men in the yard", "focus": "being taken seriously", "priority": 6}
+    {
+      "text": "Be taken seriously by the grown men in the yard",
+      "focus": "being taken seriously",
+      "priority": 6
+    }
   ]
 }

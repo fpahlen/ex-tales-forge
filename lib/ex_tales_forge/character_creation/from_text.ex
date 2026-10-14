@@ -240,7 +240,7 @@ defmodule TalesForge.CharacterCreation.FromText do
     Classes: #{Enum.map_join(options.classes, ", ", & &1.id)}.
     Past occupations: #{Enum.map_join(options.occupations, ", ", & &1.id)}.
     Stats: #{Enum.join(@stats, ", ")}. Each stat is #{pb["min"]} to #{pb["max"]}. The stats total #{pb["budget"]} at most.
-    Skills: #{Enum.map_join(options.skill_list, ", ", & &1.id)}. Levels 1 to 5.
+    Skills: #{Enum.map_join(options.skill_list, ", ", & &1.id)}. Levels 5 to 25 (1 to 100 scale, steps of 5).
     The name is the character's name from the text. Give an empty value when the text has no name.
     Give a high confidence only when the text states the value.
     Ask at most #{@max_questions} short questions, only for the labels with the lowest confidence.

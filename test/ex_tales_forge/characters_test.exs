@@ -38,7 +38,7 @@ defmodule TalesForge.CharactersTest do
       assert elara.location_id == "valley_inn"
       assert elara.owner_player_id == nil
       assert elara.stats.dex == 14 and elara.stats.cha == 14
-      assert elara.skills["persuasion"] == 3
+      assert elara.skills["persuasion"] == 15
       assert elara.ocean.openness == 7
       assert elara.maslow_level == "esteem"
       assert [%{text: "Make a name for herself on the road", status: "open"}] = elara.concerns
@@ -60,7 +60,7 @@ defmodule TalesForge.CharactersTest do
       innkeep = Characters.get_by_slug(session.id, "innkeep")
       assert [%{id: "ale_mug", price_copper: 2}] = innkeep.inventory
       # Derived defaults: skills on the PC scale, authored OCEAN kept, stats within ±1 of 10.
-      assert innkeep.skills == %{"persuasion" => 8, "insight" => 8, "etiquette" => 4}
+      assert innkeep.skills == %{"persuasion" => 40, "insight" => 40, "etiquette" => 20}
       assert innkeep.ocean.conscientiousness == 7
       assert innkeep.stats.str in 9..11
     end

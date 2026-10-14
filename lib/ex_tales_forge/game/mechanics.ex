@@ -2,13 +2,15 @@ defmodule TalesForge.Game.Mechanics do
   @moduledoc """
   Server-side dice rolls and Learning Points.
 
-  A skill check rolls 1d20 against the effective level (raw level plus the
+  A skill check rolls 1d100 against the effective skill (raw level plus the
   linked stat's bonus, or the untrained floor at level 0): equal or under
-  succeeds.
+  succeeds. The outcome order is critical success, success, critical failure,
+  near miss, failure (`resolve_check/2`).
 
   What a roll earns (decision 2026-10-09): only a failure or a partial
   success earns, and only for the skill rolled: 1 LP, one banked improvement
-  chance (`growth_lp/1`). A success, natural 1 included, earns nothing, and
+  chance (`growth_lp/1`). A success or a critical success earns nothing, a critical failure earns
+  nothing, and
   the linked stat adds nothing. `TalesForge.Game.Progression` resolves the
   banked chances on a long rest. Failures are counted in
   `learning_failures`.
@@ -251,11 +253,11 @@ defmodule TalesForge.Game.Mechanics do
   end
 
   @doc """
-  Rolls 1d20 for `skill` (inject `injected_roll` in tests), adds the LP it
+  Rolls 1d100 for `skill` (inject `injected_roll` in tests), adds the LP it
   earns and counts a failure. LP are only earned here; spending them is
   `TalesForge.Game.Progression`.
   """
-  @spec perform_and_apply(map(), String.t() | nil, 1..20 | nil, integer()) ::
+  @spec perform_and_apply(map(), String.t() | nil, 1..100 | [1..100] | nil, integer()) ::
           {map(), MechanicalResolution.t()}
   def perform_and_apply(character, skill, injected_roll \\ nil, modifier \\ 0) do
     normalized = normalize_skill_name(skill) || "insight"
@@ -266,10 +268,9 @@ defmodule TalesForge.Game.Mechanics do
 
   @doc """
   Rolls one part of a skill split at the part `level`. The rules are the
-  rules of `perform_and_apply/4`: natural 1, natural 20 and the partial
-  success. Inject `injected_roll` in tests.
+  rules of `perform_and_apply/4`. Inject `injected_roll` in tests.
   """
-  @spec perform_part(map(), String.t(), non_neg_integer(), 1..20 | nil) ::
+  @spec perform_part(map(), String.t(), non_neg_integer(), 1..100 | [1..100] | nil) ::
           {map(), MechanicalResolution.t()}
   def perform_part(character, skill, level, injected_roll \\ nil) when is_integer(level) do
     normalized = normalize_skill_name(skill) || "insight"
@@ -374,8 +375,7 @@ defmodule TalesForge.Game.Mechanics do
 
   defp roll_at(character, normalized, effective, injected_roll) do
     raw_level = character |> get_in(["skills", normalized]) |> to_int(0)
-    roll = injected_roll || :rand.uniform(20)
-    outcome = resolve_outcome(roll, effective, raw_level)
+    {roll, outcome} = roll_outcome(effective, injected_roll)
     lp = growth_lp(outcome)
 
     learning_points =
@@ -386,7 +386,7 @@ defmodule TalesForge.Game.Mechanics do
     updated =
       character
       |> Map.put("learning_points", learning_points)
-      |> maybe_count_failure(normalized, outcome, roll)
+      |> maybe_count_failure(normalized, outcome)
 
     resolution = %MechanicalResolution{
       skill: normalized,
@@ -396,11 +396,35 @@ defmodule TalesForge.Game.Mechanics do
       lp_awarded: lp,
       notes:
         "Rolled #{roll} vs #{normalized} #{effective} (#{base_note(raw_level)}). " <>
-          lp_note(lp) <> nat_notes(roll)
+          lp_note(outcome) <> nat_notes(outcome) <> critical_effect(outcome, normalized)
     }
 
     {updated, resolution}
   end
+
+  # At skill 100 or above, a roll of 100 rolls again. A failure on the second
+  # roll is a critical failure; any other second outcome stands.
+  defp roll_outcome(effective, injected) do
+    {roll, rest} = take_roll(injected)
+    outcome = resolve_check(roll, effective)
+
+    if outcome == :reroll do
+      {second, _rest} = take_roll(rest)
+      {roll, reroll_outcome(resolve_check(second, effective))}
+    else
+      {roll, outcome}
+    end
+  end
+
+  # A second 100 is a failed second roll.
+  defp reroll_outcome(:reroll), do: "critical_failure"
+  defp reroll_outcome("failure"), do: "critical_failure"
+  defp reroll_outcome("critical_failure"), do: "critical_failure"
+  defp reroll_outcome(outcome), do: outcome
+
+  defp take_roll([roll | rest]) when is_integer(roll), do: {roll, rest}
+  defp take_roll(roll) when is_integer(roll), do: {roll, nil}
+  defp take_roll(_injected), do: {:rand.uniform(100), nil}
 
   @doc """
   The LP a roll's outcome earns for the skill rolled, one
@@ -411,7 +435,8 @@ defmodule TalesForge.Game.Mechanics do
       [1.0, 1.0, 0.0]
   """
   @spec growth_lp(String.t()) :: float()
-  def growth_lp(outcome) when outcome in ["failure", "partial_success"], do: 1.0
+  def growth_lp("failure"), do: 1.0
+  def growth_lp("partial_success"), do: 1.0
   def growth_lp(_outcome), do: 0.0
 
   # A success earns nothing; the sheet is left as it was.
@@ -420,8 +445,11 @@ defmodule TalesForge.Game.Mechanics do
   defp add_lp(lp_map, skill, lp),
     do: Map.update(lp_map, skill, lp, fn current -> Float.round(to_float(current) + lp, 1) end)
 
-  defp lp_note(lp) when lp == 0.0, do: "Success: nothing to learn."
-  defp lp_note(_lp), do: "+1 banked improvement chance (resolved on sleep)."
+  defp lp_note(outcome) when outcome in ["failure", "partial_success"],
+    do: "+1 banked improvement chance (resolved on sleep)."
+
+  defp lp_note("critical_failure"), do: "Critical failure: nothing to learn."
+  defp lp_note(_outcome), do: "Success: nothing to learn."
 
   @doc """
   Wound cap from CON. Minimum 1 (CON 3).
@@ -454,7 +482,7 @@ defmodule TalesForge.Game.Mechanics do
 
   @doc """
   Apply at most one wound or one death roll after the perception snapshot.
-  Inject `opts[:death_roll]` (1..20) in tests.
+  Inject `opts[:death_roll]` (1..100) in tests.
 
   With `opts[:opposed]` true (`COMBAT_OPPOSED=on`), the exchange in
   `opts[:combat]` (`TalesForge.Game.Combat.exchange/4`) replaces the failed
@@ -520,8 +548,8 @@ defmodule TalesForge.Game.Mechanics do
 
   defp fatal_death_roll?(character, opts) do
     con = character |> get_in(["stats", "CON"]) |> to_int(10)
-    roll = opts[:death_roll] || :rand.uniform(20)
-    roll > div(con, 2)
+    roll = opts[:death_roll] || :rand.uniform(100)
+    roll > con * 2.5
   end
 
   defp strip_turn_lp(character, %MechanicalResolution{skill: skill, lp_awarded: lp})
@@ -536,8 +564,8 @@ defmodule TalesForge.Game.Mechanics do
   defp opposed_hit?(%{"attacker_wounded" => true}), do: true
   defp opposed_hit?(_combat), do: false
 
-  defp combat_failure?(%MechanicalResolution{outcome: "failure", skill: skill})
-       when skill in @combat_skills,
+  defp combat_failure?(%MechanicalResolution{outcome: outcome, skill: skill})
+       when outcome in ["failure", "critical_failure"] and skill in @combat_skills,
        do: true
 
   defp combat_failure?(_), do: false
@@ -567,8 +595,8 @@ defmodule TalesForge.Game.Mechanics do
     %MechanicalResolution{outcome: "none", notes: "No skill check required."}
   end
 
-  defp maybe_count_failure(character, skill, outcome, roll) do
-    if outcome == "failure" or roll == 20 do
+  defp maybe_count_failure(character, skill, outcome) do
+    if outcome in ["failure", "critical_failure"] do
       failures =
         character
         |> Map.get("learning_failures", %{})
@@ -580,8 +608,8 @@ defmodule TalesForge.Game.Mechanics do
     end
   end
 
-  # A trained skill: level plus the linked stat's bonus ((stat - 10) div 2).
-  # An untrained one (level 0) uses the untrained floor max(stat div 3, bonus):
+  # A trained skill: level plus the linked stat's bonus (5 × ((stat - 10) div 2)).
+  # An untrained one (level 0) uses the untrained floor 5 × max(stat div 3, bonus):
   # anyone can try with raw talent (old rules, 2026-10-07).
   defp effective_skill_level(character, skill) do
     base = character |> get_in(["skills", skill]) |> to_int(0)
@@ -590,36 +618,127 @@ defmodule TalesForge.Game.Mechanics do
 
     if base <= 0,
       do: untrained_floor(stat_value),
-      else: max(0, base + div(stat_value - 10, 2))
+      else: max(0, base + stat_bonus(stat_value))
   end
 
   @doc """
-  The untrained roll level for a stat: `max(stat div 3, (stat - 10) div 2)`.
-  A skill at level 0 rolls against it; a trained skill uses its level plus the
-  stat bonus, so every level counts.
+  The untrained roll level for a stat on the d100 scale:
+  `5 × max(stat div 3, (stat - 10) div 2)`. A skill at level 0 rolls against
+  it; a trained skill uses its level plus the stat bonus, so every level counts.
 
       iex> TalesForge.Game.Mechanics.untrained_floor(12)
-      4
+      20
       iex> TalesForge.Game.Mechanics.untrained_floor(18)
-      6
+      30
   """
   @spec untrained_floor(integer()) :: non_neg_integer()
   def untrained_floor(stat) when is_integer(stat),
-    do: max(0, max(div(stat, 3), div(stat - 10, 2)))
+    do: 5 * max(0, max(div(stat, 3), div(stat - 10, 2)))
 
-  defp resolve_outcome(1, _effective, _raw), do: "success"
-  defp resolve_outcome(20, _effective, raw) when raw >= 15, do: "partial_success"
-  defp resolve_outcome(20, _effective, _raw), do: "failure"
-  defp resolve_outcome(roll, effective, _raw) when roll <= effective, do: "success"
-  defp resolve_outcome(roll, effective, _raw) when roll <= effective + 3, do: "partial_success"
-  defp resolve_outcome(_roll, _effective, _raw), do: "failure"
+  @doc """
+  The stat bonus added to a trained skill on the d100 scale:
+  `5 × ((stat - 10) div 2)`.
+
+      iex> Enum.map([8, 10, 12, 16], &TalesForge.Game.Mechanics.stat_bonus/1)
+      [-5, 0, 5, 15]
+  """
+  @spec stat_bonus(integer()) :: integer()
+  def stat_bonus(stat) when is_integer(stat), do: 5 * div(stat - 10, 2)
+
+  @doc """
+  The outcome of one d100 roll against the effective skill, in this order:
+  critical success, success, critical failure, near miss, failure.
+
+  - Critical success: rolls `1..ceil(skill / 10)`. Not possible at skill 10 or
+    below.
+  - Success: a roll at most the skill.
+  - Critical failure: the top `floor((100 - skill) / 10)` rolls. A roll of 100
+    is always in the band. At skill 100 or above, a roll of 100 is not decided
+    here: the caller rolls again (`:reroll`).
+  - Near miss: a roll 1 to 15 above the skill.
+
+      iex> Enum.map([1, 3, 4, 25, 26, 40, 41, 93, 94], &TalesForge.Game.Mechanics.resolve_check(&1, 25))
+      ["critical_success", "critical_success", "success", "success", "partial_success",
+       "partial_success", "failure", "failure", "critical_failure"]
+      iex> TalesForge.Game.Mechanics.resolve_check(1, 10)
+      "success"
+      iex> TalesForge.Game.Mechanics.resolve_check(100, 100)
+      :reroll
+  """
+  @spec resolve_check(1..100, integer()) :: String.t() | :reroll
+  def resolve_check(roll, skill) when roll in 1..100 and is_integer(skill) do
+    skill = max(skill, 0)
+
+    cond do
+      roll == 100 and skill >= 100 -> :reroll
+      roll <= critical_success_max(skill) -> "critical_success"
+      roll <= skill -> "success"
+      roll > critical_failure_floor(skill) -> "critical_failure"
+      roll <= skill + 15 -> "partial_success"
+      true -> "failure"
+    end
+  end
+
+  @doc """
+  The highest roll that is a critical success at `skill`: `ceil(skill / 10)`,
+  and 0 when skill is 10 or below (critical success is not possible).
+
+      iex> Enum.map([5, 10, 11, 25, 95], &TalesForge.Game.Mechanics.critical_success_max/1)
+      [0, 0, 2, 3, 10]
+  """
+  @spec critical_success_max(integer()) :: non_neg_integer()
+  def critical_success_max(skill) when is_integer(skill) and skill <= 10, do: 0
+  def critical_success_max(skill) when is_integer(skill), do: div(skill + 9, 10)
+
+  @doc """
+  The roll a critical failure must be above: `100 - floor((100 - skill) / 10)`,
+  so the band is the top `floor((100 - skill) / 10)` rolls and a roll of 100
+  is always in it. At skill 100 or above the band is empty (a roll of 100 is a
+  reroll instead).
+
+      iex> Enum.map([5, 50, 90, 95, 100], &TalesForge.Game.Mechanics.critical_failure_floor/1)
+      [91, 95, 99, 99, 100]
+  """
+  @spec critical_failure_floor(integer()) :: non_neg_integer()
+  def critical_failure_floor(skill) when is_integer(skill) and skill >= 100, do: 100
+
+  def critical_failure_floor(skill) when is_integer(skill),
+    do: min(99, 100 - div(100 - max(skill, 0), 10))
 
   defp base_note(raw) when raw <= 0, do: "untrained: stat ÷ 3"
   defp base_note(raw), do: "base #{raw}"
 
-  defp nat_notes(1), do: " Natural 1 — exceptional success."
-  defp nat_notes(20), do: " Natural 20."
+  defp nat_notes("critical_success"), do: " Critical success."
+  defp nat_notes("critical_failure"), do: " Critical failure."
   defp nat_notes(_), do: ""
+
+  @doc """
+  The effect of a critical result for `skill`, as a note for the GM (locked
+  answer 8 of the d100 switch). Empty for other outcomes.
+
+      iex> TalesForge.Game.Mechanics.critical_effect("critical_success", "lockpicking")
+      " The lock opens in half the time and without a sound."
+      iex> TalesForge.Game.Mechanics.critical_effect("success", "lockpicking")
+      ""
+  """
+  @spec critical_effect(String.t(), String.t() | nil) :: String.t()
+  def critical_effect("critical_success", skill) when skill in @combat_skills,
+    do: " The blow lands with full damage and every bonus."
+
+  def critical_effect("critical_success", skill)
+      when skill in ~w(athletics acrobatics climbing running),
+      do: " About 50% faster than normal."
+
+  def critical_effect("critical_success", "lockpicking"),
+    do: " The lock opens in half the time and without a sound."
+
+  def critical_effect("critical_success", "persuasion"),
+    do: " The other side agrees to more than expected."
+
+  def critical_effect("critical_failure", skill) when skill in @combat_skills,
+    do: " The attack goes wrong: the attacker takes normal weapon damage."
+
+  def critical_effect(_outcome, _skill), do: ""
 
   defp to_int(value, _default) when is_integer(value), do: value
   defp to_int(value, _default) when is_float(value), do: trunc(value)

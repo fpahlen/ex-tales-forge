@@ -200,8 +200,8 @@ What the GM gets, and what it writesIn: the turn already decided, as typed data.
 "action": "speak",
 "target": "brenna",
 "skill": "persuasion",
-"roll": 6,
-"needed": 7,
+"roll": 30,
+"needed": 35,
 "outcome": "success",
 "room_price": "3 silver",
 "player_said": "talk Brenna down"
@@ -222,12 +222,11 @@ confidence0.92, so act on it without asking the player to clarify
 In plain words: “They're trying to persuade Brenna, right <ago>, and it's an honest move.”
 2. Elixir applies the rules.
 Now the input is known and structured, so plain code takes over. No AI involved:
-Roll: 1d20, roll-under. The character's persuasion is 5, plus the Charisma bonus (CHA 14 gives +2),
-so the target is 7.
-The die shows 6: success.
+Roll: 1d100, roll-under. The character's persuasion is 25, plus the Charisma bonus (CHA 14 gives +10),
+so the target is 35.
+The die shows 30: success.
 Learning:
-a success earns nothing to learn from. In Tales Forge you learn from your failures,
-and only in the skill you failed. Persuasion is not a physical skill, so a failed haggle
+a success earns nothing to learn from. In Tales Forge you learn from your failures, and only in the skill you failed. Persuasion is not a physical skill, so a failed haggle
 would improve it during the next sleep.
 Price:
 the room's price comes from the game's own price list, never from the GM's imagination.
@@ -252,7 +251,7 @@ NPC memories are still written by the GM's own bookkeeping fields, which is exac
 That work is queued to move to Elixir and Jev in the stateful-world plan.
 More examples, from what the code actually does
 Elixir functions(exact, free, testable)Dice and learning:
-every skill check is 1d20 against skill + stat bonus. A failure is something to learn from, in that skill only.
+every skill check is 1d100 against skill + stat bonus. A failure is something to learn from, in that skill only.
 Physical skills improve right away (at most +1 for each long rest). Other skills improve during sleep.
 From level 10, a skill improves only after reflection, practice or training
 (Game.Mechanics, Game.Progression).
@@ -292,7 +291,7 @@ One turn, three lanes
 One turn in five steps.
 1. The player's line: “I lean on the bar and try to talk Brenna down on the price of the room.”.
 2. Jev lane: Jev reads the intent, as a typed card: speak · Brenna · persuasion · <ago> · 0.92 · safe. ~0.25 s.
-3. Elixir lane: Elixir applies the rules. The d20 lands on 6 against a target of 7: success. Nothing to learn from a success. Room: 3 silver (price list).
+3. Elixir lane: Elixir applies the rules. The d100 lands on 30 against a target of 35: success. Nothing to learn from a success. Room: 3 silver (price list).
 4. GM lane: GM writes the prose. It gets the card, the result and a quote of the player's words, and writes the prose.
 5. The prose goes out to the player.
 Asking the LLM for data instead would be a smell.
@@ -311,11 +310,11 @@ try to talk Brenna
 down on the price of
 the room.”
 1speak · Brenna · persuasion · <ago> · 0.92 · safe~0.25 s2speak · Brenna · persuasion · <ago> · 0.92 · safe
-6
+30
 lands on
-6
+30
 target
-7
+35
 ✓ success
 nothing to learn from a success
 room: 3 silver (price list)
@@ -334,11 +333,11 @@ Brenna down on the price of the room.”
 speak · Brenna · persuasion
 <ago> · 0.92 · safe
 2ElixirElixir applies the rules
-6
+30
 lands on
-6
+30
 target
-7
+35
 ✓ success
 nothing to learn from a success
 room: 3 silver (price list)
@@ -368,7 +367,8 @@ Reads what the player meant (intent), flags tricks (safety) and scores playtests
 TypeSafe Jev (hex jev ~> 0.2), model jev-1.13.0Grok (xAI)
 The Game Master model. It writes the story, and only the story.
 xAI grok-4.20-0309-non-reasoning (GM and today's LLM intent)Fly.io, Stockholm
-Two apps: tales-forge
+Two apps:
+tales-forge
 (production) and
 tales-forge-playtest
 (playtest). The live feed on /team shows which commit each app runs.
@@ -396,11 +396,9 @@ shadow
 on playtest
 (it read every turn, but the old path still decided) and was off in production.
 4. How it's wired
-Tales Forge runs as two apps on Fly.io in Stockholm. Playtest gets each change first.
-Production is what players use. GitHub keeps our code and our docs. GitHub also tests
+Tales Forge runs as two apps on Fly.io in Stockholm. Playtest gets each change first. Production is what players use. GitHub keeps our code and our docs. GitHub also tests
 each change before it ships.
-Three bots work with us. Case refines ideas and reviews work. Bobby builds and ships.
-Gentry tries to break things on playtest. When you move a card on the idea board, the
+Three bots work with us. Case refines ideas and reviews work. Bobby builds and ships. Gentry tries to break things on playtest. When you move a card on the idea board, the
 board wakes the right bot. When you move a card to Building, the board writes the
 decision in our decision log.
 .wired-line { position: absolute; left: 27px; top: 1.75rem; bottom: 1.75rem; width: 3px; border-radius: 2px; background: repeating-linear-gradient(to bottom, var(--paper-rule) 0 8px, transparent 8px 13px); }

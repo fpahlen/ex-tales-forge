@@ -41,7 +41,7 @@ defmodule TalesForge.Playtest.PersonaCharactersTest do
     end
 
     {:ok, paul} = PersonaCharacters.build("paul", "tin_valley")
-    assert paul["skills"]["persuasion"] == 7
+    assert paul["skills"]["persuasion"] == 35
   end
 
   test "every pick spends its whole skill budget within the skill rules" do
@@ -50,12 +50,12 @@ defmodule TalesForge.Playtest.PersonaCharactersTest do
       assert Map.take(c["skills"], Map.keys(pick["skills"])) == pick["skills"], id
       assert c["creation"]["occupation"] == pick["occupation"], id
       assert map_size(c["skills"]) >= 6, id
-      assert Enum.count(c["skills"], fn {_s, l} -> l > 5 end) in 1..2, id
+      assert Enum.count(c["skills"], fn {_s, l} -> l > 25 end) in 1..2, id
 
       budget =
-        if c["race"] == "human", do: 30, else: if(c["race"] == "half_elf", do: 28, else: 25)
+        if c["race"] == "human", do: 150, else: if(c["race"] == "half_elf", do: 140, else: 125)
 
-      free_refund = if id == "lars", do: 3, else: 0
+      free_refund = if id == "lars", do: 15, else: 0
       assert c["creation"]["skill_points_spent"] == budget + free_refund, id
     end
   end

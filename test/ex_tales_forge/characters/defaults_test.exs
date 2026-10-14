@@ -10,7 +10,7 @@ defmodule TalesForge.Characters.DefaultsTest do
     test "a journeyman innkeep: core skills at the tier, secondary at half, deterministic" do
       d = Defaults.derive(%{"occupation" => "innkeep"}, @rules, 1)
 
-      assert d["skills"] == %{"persuasion" => 8, "insight" => 8, "etiquette" => 4}
+      assert d["skills"] == %{"persuasion" => 40, "insight" => 40, "etiquette" => 20}
       assert d["maslow"] == "belonging"
       assert [%{"focus" => "regulars"}] = d["concerns"]
       assert d["coins"] == %{"gold" => 0, "silver" => 20, "copper" => 300}
@@ -21,14 +21,14 @@ defmodule TalesForge.Characters.DefaultsTest do
       end
     end
 
-    test "seniority sets the tier; class skills add at 3 without lowering a job skill" do
+    test "seniority sets the tier; class skills add at 15 without lowering a job skill" do
       master = Defaults.derive(%{"occupation" => "guard", "seniority" => "master"}, @rules, 1)
-      assert master["skills"]["melee_combat"] == 12
-      assert master["skills"]["insight"] == 6
+      assert master["skills"]["melee_combat"] == 60
+      assert master["skills"]["insight"] == 30
 
       warrior_guard = Defaults.derive(%{"occupation" => "guard", "class" => "warrior"}, @rules, 1)
-      assert warrior_guard["skills"]["melee_combat"] == 8
-      assert warrior_guard["skills"]["tactics"] == 4
+      assert warrior_guard["skills"]["melee_combat"] == 40
+      assert warrior_guard["skills"]["tactics"] == 20
     end
 
     test "stats and OCEAN vary by at most one around race + class + occupation, stable per seed" do
@@ -150,7 +150,7 @@ defmodule TalesForge.Characters.DefaultsTest do
       applied = Defaults.apply(definition, @rules, 123)
       assert applied["ocean"] == traits
       assert applied["motivations"]["personality_traits"] == traits
-      assert applied["skills"]["persuasion"] == 8
+      assert applied["skills"]["persuasion"] == 40
       assert applied["concerns"] == [%{"text" => "Keep the inn"}]
       assert map_size(applied["stats"]) == 6
       assert applied["derive"] == definition["derive"]

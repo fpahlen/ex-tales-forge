@@ -127,17 +127,22 @@ config :ex_tales_forge, :llm_prices, %{
   }
 }
 
-# Skill growth, default variant (TalesForge.Game.Progression; decisions
-# 2026-10-09 in tales-forge-docs docs/decisions.md):
-#   attempt_floor        an improvement roll needs d20 >= this and >= the level
+# Skill growth (TalesForge.Game.Progression; decisions 2026-10-09 and the
+# d100 switch in tales-forge-docs docs/decisions.md):
+#   attempt_floor        an improvement roll needs d100 >= this and >= the level
 #   lp_per_roll_divisor  one roll costs ceil(level / divisor) banked LP (min 1)
 #   reflection_level     from this level a skill grows only after reflection
 #   long_rest_hours      a wait this long (or sleep) resolves the banked LP
+#   gain_die, gain_flat  a success adds 1d<gain_die> + gain_flat points
+#   skill_cap            no skill grows past this
 config :ex_tales_forge, TalesForge.Game.Progression,
-  attempt_floor: 11,
-  lp_per_roll_divisor: 3,
-  reflection_level: 10,
-  long_rest_hours: 6
+  attempt_floor: 51,
+  lp_per_roll_divisor: 15,
+  reflection_level: 50,
+  long_rest_hours: 6,
+  gain_die: 6,
+  gain_flat: 1,
+  skill_cap: 100
 
 # Each thing lives in one place (TalesForge.AppRole): founder surveys only on
 # production, playtest runs only on playtest; each app redirects and links to

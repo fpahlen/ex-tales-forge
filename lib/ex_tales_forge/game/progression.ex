@@ -14,15 +14,15 @@ defmodule TalesForge.Game.Progression do
     `TalesForge.Game.TurnProcessor`).
   - **Higher levels need more failures:** one improvement roll costs
     `lp_per_roll/1` banked LP, `ceil(level / 3)` (at least 1): 1 LP up to
-    level 3, 2 up to 6, 3 up to 9, 4 up to 12 and so on.
-  - **The roll:** 1d20; the skill gains +1 when the roll is **at least 11 and
+    level 15, 2 up to 30, 3 up to 45, 4 up to 60 and so on.
+  - **The roll:** 1d100; the skill gains 1d6+1 when the roll is **at least 51 and
     at least the skill's level** (`improves?/3`), a chance of
-    `(21 − max(level, 11)) / 20`: at most 50%, 5% at 20, nothing past 20
+    `(101 − max(level, 51)) / 100`: at most 50%, 1% at 100, nothing past 100
     without a trainer.
-  - **At most +1 per skill per night, and nothing carries over:** the rolls
+  - **At most one success per skill per night, and nothing carries over:** the rolls
     stop at the first success, and every banked LP of that skill is then gone,
     whether a roll succeeded, all failed, or the LP were too few for one roll.
-  - **Reflection from level 10 (`reflection_level`):** a skill at that level or
+  - **Reflection from level 50 (`reflection_level`):** a skill at that level or
     higher is only resolved on a rest where the character reflected on it,
     practised or studied it, or trained it with a trainer since the last long
     rest (`TalesForge.Game.Reflection`). Otherwise its LP **stay banked** (the
@@ -32,13 +32,13 @@ defmodule TalesForge.Game.Progression do
     skills in `immediate_skills/0` (melee, ranged and unarmed combat, dodge,
     climbing, lockpicking) are resolved at the end of the turn of the failure
     (`resolve_turn/3`) with the same LP-per-roll cost, roll and reflection
-    gate. They too gain **at most +1 per long-rest cycle**: once one improves,
+    gate. They too gain **at most once per long-rest cycle**: once one improves,
     it is listed in the character's `"improved_since_rest"` and any LP it banks
     are dropped until the next long rest, so it cannot be spammed. LP too few
     for a roll wait for more failures within the cycle; the long rest then
     clears them like any other skill's.
   - **Trainers:** a training session is one **free** attempt (no LP) with
-    **+5** on the roll (`train/3`), paid for in coin and days
+    **+25** on the roll (`train/3`), paid for in coin and days
     (`TalesForge.Game.Train`).
 
   The numbers (`attempt_floor`, `lp_per_roll_divisor`, `reflection_level`,
@@ -53,8 +53,16 @@ defmodule TalesForge.Game.Progression do
 
   alias TalesForge.Game.WorldClock
 
-  @trainer_bonus 5
-  @defaults [attempt_floor: 11, lp_per_roll_divisor: 3, reflection_level: 10, long_rest_hours: 6]
+  @trainer_bonus 25
+  @defaults [
+    attempt_floor: 51,
+    lp_per_roll_divisor: 15,
+    reflection_level: 50,
+    long_rest_hours: 6,
+    gain_die: 6,
+    gain_flat: 1,
+    skill_cap: 100
+  ]
 
   # Skills resolved at the end of the turn of the failure instead of waiting
   # for sleep: the physical ones (decision 2026-10-09, ~16:04).
@@ -67,10 +75,13 @@ defmodule TalesForge.Game.Progression do
   @type attempt :: %{required(String.t()) => term()}
 
   @typedoc """
-  Injected d20 results for tests, per skill: one integer for every attempt, or
+  Injected d100 results for tests, per skill: one integer for every attempt, or
   a list used in order (then random once it runs out).
   """
-  @type rolls :: %{optional(String.t()) => 1..20 | [1..20]}
+  @type rolls :: %{optional(String.t()) => roll() | [roll()]}
+
+  @typedoc "A d100 result, or `{roll, gain}` to fix the improvement gain in tests."
+  @type roll :: 1..100 | {1..100, pos_integer() | nil}
 
   @typedoc "What a rest did: the updated sheet, its rolls, and skills that need reflection."
   @type rest_result :: {character(), [attempt()], [String.t()]}
@@ -81,7 +92,7 @@ defmodule TalesForge.Game.Progression do
   `:long_rest_hours`).
 
       iex> TalesForge.Game.Progression.setting(:reflection_level)
-      10
+      50
   """
   @spec setting(atom()) :: pos_integer()
   def setting(key) when is_atom(key) do
@@ -92,30 +103,30 @@ defmodule TalesForge.Game.Progression do
 
   @doc """
   The chance that one roll raises a skill at `level`:
-  `(21 − max(level, 11)) / 20`, between 0 and 0.5.
+  `(101 − max(level, 51)) / 100`, between 0 and 0.5.
 
-      iex> Enum.map([0, 1, 7, 11, 12, 20, 21], &TalesForge.Game.Progression.success_chance/1)
-      [0.5, 0.5, 0.5, 0.5, 0.45, 0.05, 0.0]
+      iex> Enum.map([0, 50, 51, 55, 95, 100, 101], &TalesForge.Game.Progression.success_chance/1)
+      [0.5, 0.5, 0.5, 0.46, 0.06, 0.01, 0.0]
   """
   @spec success_chance(integer()) :: float()
   def success_chance(level) when is_integer(level),
     do:
-      ((21 - max(level, setting(:attempt_floor))) / 20)
+      ((101 - max(level, setting(:attempt_floor))) / 100)
       |> max(0.0)
       |> min(1.0)
       |> Float.round(4)
 
   @doc """
   Whether a roll raises the skill: `roll + bonus` must reach both the floor of
-  11 and the skill's level, so no roll is a sure thing.
+  51 and the skill's level, so no roll is a sure thing.
 
-      iex> TalesForge.Game.Progression.improves?(11, 0)
+      iex> TalesForge.Game.Progression.improves?(51, 0)
       true
-      iex> TalesForge.Game.Progression.improves?(10, 0)
+      iex> TalesForge.Game.Progression.improves?(50, 0)
       false
-      iex> TalesForge.Game.Progression.improves?(12, 13)
+      iex> TalesForge.Game.Progression.improves?(60, 65)
       false
-      iex> TalesForge.Game.Progression.improves?(15, 20, 5)
+      iex> TalesForge.Game.Progression.improves?(75, 100, 25)
       true
   """
   @spec improves?(integer(), integer(), integer()) :: boolean()
@@ -127,15 +138,15 @@ defmodule TalesForge.Game.Progression do
   The lowest roll (with any trainer bonus) that can raise a skill.
 
       iex> TalesForge.Game.Progression.attempt_floor()
-      11
+      51
   """
   @spec attempt_floor() :: pos_integer()
   def attempt_floor, do: setting(:attempt_floor)
 
   @doc """
-  Banked LP one improvement roll costs at `level`: `ceil(level / 3)`, at least 1.
+  Banked LP one improvement roll costs at `level`: `ceil(level / 15)`, at least 1.
 
-      iex> Enum.map([0, 3, 4, 6, 7, 10, 13, 16, 19], &TalesForge.Game.Progression.lp_per_roll/1)
+      iex> Enum.map([0, 15, 16, 30, 31, 50, 65, 80, 95], &TalesForge.Game.Progression.lp_per_roll/1)
       [1, 1, 2, 2, 3, 4, 5, 6, 7]
   """
   @spec lp_per_roll(integer()) :: pos_integer()
@@ -147,7 +158,7 @@ defmodule TalesForge.Game.Progression do
   @doc """
   Whether a skill at `level` needs reflection before it can grow.
 
-      iex> {TalesForge.Game.Progression.needs_reflection?(9), TalesForge.Game.Progression.needs_reflection?(10)}
+      iex> {TalesForge.Game.Progression.needs_reflection?(49), TalesForge.Game.Progression.needs_reflection?(50)}
       {false, true}
   """
   @spec needs_reflection?(integer()) :: boolean()
@@ -180,7 +191,7 @@ defmodule TalesForge.Game.Progression do
   The bonus a trainer adds to the attempt roll.
 
       iex> TalesForge.Game.Progression.trainer_bonus()
-      5
+      25
   """
   @spec trainer_bonus() :: pos_integer()
   def trainer_bonus, do: @trainer_bonus
@@ -193,13 +204,13 @@ defmodule TalesForge.Game.Progression do
   `opts[:reflected]` keeps its LP and is returned in the third element.
   `opts[:only]` limits the rest to those skills.
 
-      iex> character = %{"skills" => %{"climbing" => 5}, "learning_points" => %{"climbing" => 5.0}}
+      iex> character = %{"skills" => %{"climbing" => 25}, "learning_points" => %{"climbing" => 5.0}}
       iex> {rested, attempts, []} =
-      ...>   TalesForge.Game.Progression.resolve_rest(character, %{"climbing" => [3, 12]})
+      ...>   TalesForge.Game.Progression.resolve_rest(character, %{"climbing" => [3, {55, 5}]})
       iex> {rested["skills"]["climbing"], rested["learning_points"]["climbing"]}
-      {6, 0.0}
+      {30, 0.0}
       iex> Enum.map(attempts, &{&1["roll"], &1["improved"], &1["lp_spent"]})
-      [{3, false, 2}, {12, true, 2}]
+      [{3, false, 2}, {55, true, 2}]
       iex> List.last(attempts)["lp_cleared"]
       1
   """
@@ -232,7 +243,7 @@ defmodule TalesForge.Game.Progression do
   immediate (physical) skills right away. Per skill, in alphabetical order:
 
   - already improved since the last long rest (`"improved_since_rest"`): its
-    LP are dropped, no roll (at most +1 per skill per long-rest cycle);
+    LP are dropped, no roll (at most one success per skill per long-rest cycle);
   - at `reflection_level` or above and not in `opts[:reflected]`: nothing
     happens, its LP stay banked for the rest;
   - otherwise `div(lp, lp_per_roll(level))` rolls, stopping at the first
@@ -240,15 +251,15 @@ defmodule TalesForge.Game.Progression do
     joins `"improved_since_rest"`. If no roll succeeds, the spent LP are gone
     and the remainder (too few for a roll) stays banked for later this cycle.
 
-      iex> character = %{"skills" => %{"climbing" => 5}, "learning_points" => %{"climbing" => 3.0}}
-      iex> {now, attempts} = TalesForge.Game.Progression.resolve_turn(character, %{"climbing" => [12]})
+      iex> character = %{"skills" => %{"climbing" => 25}, "learning_points" => %{"climbing" => 3.0}}
+      iex> {now, attempts} = TalesForge.Game.Progression.resolve_turn(character, %{"climbing" => [{60, 4}]})
       iex> {now["skills"]["climbing"], now["learning_points"]["climbing"], now["improved_since_rest"]}
-      {6, 0.0, ["climbing"]}
+      {29, 0.0, ["climbing"]}
       iex> Enum.map(attempts, &{&1["roll"], &1["improved"], &1["lp_spent"], &1["lp_cleared"]})
-      [{12, true, 2, 1}]
+      [{60, true, 2, 1}]
       iex> {again, []} = TalesForge.Game.Progression.resolve_turn(put_in(now, ["learning_points", "climbing"], 4.0))
       iex> {again["skills"]["climbing"], again["learning_points"]["climbing"]}
-      {6, 0.0}
+      {29, 0.0}
   """
   @spec resolve_turn(character(), rolls(), keyword()) :: {character(), [attempt()]}
   def resolve_turn(character, rolls \\ %{}, opts \\ [])
@@ -287,10 +298,10 @@ defmodule TalesForge.Game.Progression do
   the roll. Whether the session may happen at all (trainer present, skill gap,
   fee, vitality) is `TalesForge.Game.Train.qualify/5`.
 
-      iex> character = %{"skills" => %{"persuasion" => 12}, "learning_points" => %{}}
-      iex> {trained, attempt} = TalesForge.Game.Progression.train(character, "persuasion", %{"persuasion" => 7})
+      iex> character = %{"skills" => %{"persuasion" => 60}, "learning_points" => %{}}
+      iex> {trained, attempt} = TalesForge.Game.Progression.train(character, "persuasion", %{"persuasion" => {35, 3}})
       iex> {trained["skills"]["persuasion"], attempt["bonus"], attempt["lp_spent"]}
-      {13, 5, 0}
+      {63, 25, 0}
   """
   @spec train(character(), String.t(), rolls()) :: {character(), attempt()}
   def train(character, skill, rolls \\ %{})
@@ -369,26 +380,44 @@ defmodule TalesForge.Game.Progression do
     end
   end
 
-  defp attempt(character, skill, roll, bonus) do
+  defp attempt(character, skill, {roll, gain}, bonus) do
     level = character |> get_in(["skills", skill]) |> to_int()
     improved = improves?(roll, level, bonus)
+    gain = if improved, do: gain || improvement_gain(), else: 0
+    new_level = min(setting(:skill_cap), level + gain)
 
     updated =
       character
       |> Map.put_new("skills", %{})
       |> Map.put_new("learning_points", %{})
-      |> then(&if improved, do: put_in(&1, ["skills", skill], level + 1), else: &1)
+      |> then(&if improved, do: put_in(&1, ["skills", skill], new_level), else: &1)
 
-    {updated, %{"skill" => skill, "roll" => roll, "raw_skill" => level, "improved" => improved}}
+    entry =
+      %{"skill" => skill, "roll" => roll, "raw_skill" => level, "improved" => improved}
+      |> then(&if improved, do: Map.put(&1, "gain", new_level - level), else: &1)
+
+    {updated, entry}
   end
 
+  @doc """
+  Points a successful improvement adds: `1d6 + 1` (2 to 7). The skill never
+  passes `skill_cap` (100). Tests inject `{roll, gain}` pairs as rolls.
+  """
+  @spec improvement_gain() :: pos_integer()
+  def improvement_gain,
+    do: :rand.uniform(setting(:gain_die)) + setting(:gain_flat)
+
+  # An injected roll is a d100 result or a `{roll, gain}` pair.
   defp next_roll(rolls, skill) do
     case Map.get(rolls, skill) do
-      [roll | rest] -> {roll, Map.put(rolls, skill, rest)}
-      roll when is_integer(roll) -> {roll, rolls}
-      _ -> {:rand.uniform(20), rolls}
+      [roll | rest] -> {pair(roll), Map.put(rolls, skill, rest)}
+      roll when is_integer(roll) or is_tuple(roll) -> {pair(roll), rolls}
+      _ -> {{:rand.uniform(100), nil}, rolls}
     end
   end
+
+  defp pair({roll, gain}) when is_integer(roll), do: {roll, gain}
+  defp pair(roll) when is_integer(roll), do: {roll, nil}
 
   defp to_int(value) when is_integer(value), do: value
   defp to_int(value) when is_float(value), do: trunc(value)

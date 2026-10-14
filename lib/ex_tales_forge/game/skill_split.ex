@@ -136,7 +136,7 @@ defmodule TalesForge.Game.SkillSplit do
   plays as `Mechanics.apply_server_mechanics/3`. A refused split plays one
   normal attempt, and the resolution carries the refusal for the story.
 
-  `opts`: `:rolls`, a list of injected d20 rolls (one for each part).
+  `opts`: `:rolls`, a list of injected d100 rolls (one for each part).
   """
   @spec apply(map(), PlayerAction.t(), HandlerResult.t(), String.t() | nil, keyword()) ::
           {map(), MechanicalResolution.t()}
@@ -232,6 +232,7 @@ defmodule TalesForge.Game.SkillSplit do
     {updated, resolution}
   end
 
+  defp rank("critical_success"), do: 3
   defp rank("success"), do: 2
   defp rank("partial_success"), do: 1
   defp rank(_outcome), do: 0

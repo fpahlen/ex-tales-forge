@@ -175,7 +175,7 @@ defmodule TalesForge.Characters.Defaults do
     core = Map.new(occupation["core"], &{&1, tier})
 
     class["skills"]
-    |> Map.new(&{&1, 3})
+    |> Map.new(&{&1, 15})
     |> Map.merge(secondary, fn _k, a, b -> max(a, b) end)
     |> Map.merge(core, fn _k, a, b -> max(a, b) end)
   end

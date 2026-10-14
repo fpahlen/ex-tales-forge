@@ -507,7 +507,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
                "0.92, so act on it without asking the player to clarify"
              )
 
-      assert has_element?(view, "#turn-roll", "1d20, roll-under")
+      assert has_element?(view, "#turn-roll", "1d100, roll-under")
 
       assert has_element?(
                view,
@@ -515,7 +515,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
                "The character's persuasion is #{elixir["skill_level"]}"
              )
 
-      assert has_element?(view, "#turn-roll", "Charisma bonus (CHA 14 gives +2)")
+      assert has_element?(view, "#turn-roll", "Charisma bonus (CHA 14 gives +10)")
       assert has_element?(view, "#turn-roll", "so the target is #{elixir["target"]}")
       assert has_element?(view, "#turn-roll", "The die shows #{elixir["die"]}: success")
       assert has_element?(view, "#turn-elixir", "a success earns nothing to learn from")

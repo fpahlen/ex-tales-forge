@@ -158,7 +158,7 @@ defmodule TalesForge.AICallsTest do
     assert call.game_session_id == session.id
     assert call.conv_id == session.id
     assert %DateTime{} = call.started_at
-    assert {call.adventure_id, call.game_system} == {"crossroads_ledger", "skill_d20"}
+    assert {call.adventure_id, call.game_system} == {"crossroads_ledger", "skill_d100"}
     assert call.turn_number == 1
     assert call.purpose == "gm"
     assert call.model == "xai/grok-4.20-0309-non-reasoning"

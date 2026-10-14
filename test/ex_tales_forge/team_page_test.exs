@@ -88,7 +88,7 @@ defmodule TalesForge.TeamPageTest do
       value = String.to_integer(value)
 
       assert TalesForge.Game.Mechanics.skill_stat_map()[jev["skill"]] == stat
-      assert elixir["stat_bonus"] == div(value - 10, 2)
+      assert elixir["stat_bonus"] == 5 * div(value - 10, 2)
       assert elixir["target"] == elixir["skill_level"] + elixir["stat_bonus"]
 
       character = %{

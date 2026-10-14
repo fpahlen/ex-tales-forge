@@ -279,7 +279,7 @@
     "smell": "Asking the LLM for structured output is a smell: move that work to Jev or Elixir.",
     "walkthrough": {
       "illustrative": true,
-      "note": "Illustrative turn. Mechanics follow ex-tales-forge main (Game.Mechanics: 1d20 roll-under vs skill + (stat-10) div 2) Learning rule per decisions 2026-10-09 (Fredrik), live: learn only from failure, only in the failed skill; physical skills improve right away (at most +1 per skill per long rest), other skills improve during sleep; from level 10 only after reflection, practice or training. A success earns nothing. Room price from priv/adventures/tin_valley/world_agents.json. Jev intent is on in playtest and prod since 2026-10-09 (decisions.md); no haggling-discount rule yet; NPC memories still come from GM bookkeeping fields (queued to move).",
+      "note": "Illustrative turn. Mechanics follow ex-tales-forge main (Game.Mechanics: 1d100 roll-under vs skill + 5 × ((stat-10) div 2)) Learning rule per decisions 2026-10-09 (Fredrik), live: learn only from failure, only in the failed skill; physical skills improve right away (at most one gain per skill per long rest), other skills improve during sleep; from level 50 only after reflection, practice or training. A success earns nothing. Room price from priv/adventures/tin_valley/world_agents.json. Jev intent is on in playtest and prod since 2026-10-09 (decisions.md); no haggling-discount rule yet; NPC memories still come from GM bookkeeping fields (queued to move).",
       "player_text": "I lean on the bar and try to talk Brenna down on the price of the room.",
       "steps": [
         {
@@ -299,12 +299,12 @@
           "lane": "elixir",
           "label": "Elixir applies the rules",
           "detail": {
-            "roll": "1d20 roll-under",
-            "skill_level": 5,
+            "roll": "1d100 roll-under",
+            "skill_level": 25,
             "stat": "CHA 14",
-            "stat_bonus": 2,
-            "target": 7,
-            "die": 6,
+            "stat_bonus": 10,
+            "target": 35,
+            "die": 30,
             "outcome": "success",
             "room_price": "3 silver (price list)",
             "learning": "none (a success teaches nothing; persuasion would improve during sleep after a failure)"

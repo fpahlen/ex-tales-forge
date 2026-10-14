@@ -74,11 +74,11 @@ defmodule TalesForge.Game.Bargain do
   `opts`: `:appraise` (default false), `:rolls` (`%{"appraisal" => n,
   "persuasion" => n}`, for tests).
 
-      iex> char = %{"skills" => %{"persuasion" => 5}, "stats" => %{"CHA" => 10}}
-      iex> {_char, r} = TalesForge.Game.Bargain.haggle(char, :buy, 110, rolls: %{"persuasion" => 2})
+      iex> char = %{"skills" => %{"persuasion" => 25}, "stats" => %{"CHA" => 10}}
+      iex> {_char, r} = TalesForge.Game.Bargain.haggle(char, :buy, 110, rolls: %{"persuasion" => 10})
       iex> {r["outcome"], r["price_copper"]}
       {"success", 96}
-      iex> {_char, r} = TalesForge.Game.Bargain.haggle(char, :buy, 110, rolls: %{"persuasion" => 19})
+      iex> {_char, r} = TalesForge.Game.Bargain.haggle(char, :buy, 110, rolls: %{"persuasion" => 60})
       iex> {r["outcome"], r["price_copper"]}
       {"failure", 110}
   """
@@ -92,7 +92,9 @@ defmodule TalesForge.Game.Bargain do
         do: roll(character, "appraisal", rolls, 0),
         else: {character, nil}
 
-    known? = appraisal != nil and appraisal.outcome in ["success", "partial_success"]
+    known? =
+      appraisal != nil and appraisal.outcome in ["critical_success", "success", "partial_success"]
+
     start = if known?, do: fair, else: price
     bonus = if known?, do: knowledge_bonus(appraised), else: 0
 
@@ -110,18 +112,21 @@ defmodule TalesForge.Game.Bargain do
      }}
   end
 
-  # +2 to persuasion for a known price, +3 at appraisal 10 or higher.
+  # +10 to persuasion for a known price, +15 at appraisal 50 or higher.
   defp knowledge_bonus(character) do
-    if (get_in(character, ["skills", "appraisal"]) || 0) >= 10, do: 3, else: 2
+    if (get_in(character, ["skills", "appraisal"]) || 0) >= 50, do: 15, else: 10
   end
 
   defp roll(character, skill, rolls, modifier),
     do: Mechanics.perform_and_apply(character, skill, rolls[skill], modifier)
 
-  # 10 % plus 1 % for each point under the skill, at most 20 %; a partial
-  # success moves 10 %; a failure moves nothing.
+  # 10 % plus 1 % for each 5 points under the skill, at most 20 %; a critical
+  # success moves the full 20 % (better than expected); a partial success
+  # moves 10 %; a failure moves nothing.
+  defp percent(%{outcome: "critical_success"}), do: 20
+
   defp percent(%{outcome: "success", roll: roll, effective_skill: skill}),
-    do: min(20, 10 + max(0, skill - roll))
+    do: min(20, 10 + div(max(0, skill - roll), 5))
 
   defp percent(%{outcome: "partial_success"}), do: 10
   defp percent(_resolution), do: 0

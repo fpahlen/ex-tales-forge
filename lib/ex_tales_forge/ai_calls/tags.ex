@@ -4,9 +4,10 @@ defmodule TalesForge.AICalls.Tags do
 
   - `adventure_id`: the adventure pack the session plays (`world_state["adventure_id"]`,
     e.g. `tin_valley`), the "module" layer.
-  - `game_system`: the rules system. Every pack uses the built-in 1d20
-    roll-under skill system today (`#{inspect("skill_d20")}`); a session whose
-    world_state carries `"game_system"` overrides it.
+  - `game_system`: the rules system. Every pack uses the built-in 1d100
+    roll-under skill system today (`#{inspect("skill_d100")}`, see
+    `TalesForge.Game.DiceSystem`); a session whose world_state carries
+    `"game_system"` overrides it.
 
   Calls without a session (or with an unknown one) get nil tags.
   """
@@ -16,7 +17,7 @@ defmodule TalesForge.AICalls.Tags do
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 
-  @default_game_system "skill_d20"
+  @default_game_system TalesForge.Game.DiceSystem.default()
 
   @empty %{adventure_id: nil, game_system: nil}
 

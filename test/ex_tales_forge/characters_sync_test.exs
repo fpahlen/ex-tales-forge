@@ -53,7 +53,7 @@ defmodule TalesForge.CharactersSyncTest do
       session =
         put_character(session, fn c ->
           c
-          |> Map.update!("skills", &Map.put(&1, "climbing", 3))
+          |> Map.update!("skills", &Map.put(&1, "climbing", 15))
           |> Map.put("learning_points", %{"climbing" => 1.0})
           |> Map.put("learning_failures", %{"climbing" => 3})
         end)
@@ -61,11 +61,11 @@ defmodule TalesForge.CharactersSyncTest do
       NPC.record_memory(session.id, "innkeep", "The stranger paid in silver", 30)
       NPC.bump_relationship(session.id, "innkeep", 0.4)
 
-      session = wait_turn(session, %{"climbing" => 11})
-      assert get_in(session.world_state, ["character", "skills", "climbing"]) == 4
+      session = wait_turn(session, %{"climbing" => {51, 5}})
+      assert get_in(session.world_state, ["character", "skills", "climbing"]) == 20
 
       elara = Characters.get_by_slug(session.id, "elara_voss")
-      assert elara.skills["climbing"] == 4
+      assert elara.skills["climbing"] == 20
       assert elara.learning_points == %{"climbing" => 0.0}
       # Levers set at seeding are not overwritten by the mirror.
       assert elara.maslow_level == "esteem"

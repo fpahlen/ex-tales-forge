@@ -378,7 +378,7 @@ defmodule TalesForgeWeb.TeamCallTypes do
             <ul class="team-bullets space-y-1.5 text-sm leading-relaxed">
               <li>
                 <strong>Dice and learning:</strong>
-                every skill check is 1d20 against skill + stat bonus. A failure is something to learn from, in that skill only.
+                every skill check is 1d100 against skill + stat bonus. A failure is something to learn from, in that skill only.
                 Physical skills improve right away (at most +1 for each long rest). Other skills improve during sleep.
                 From level 10, a skill improves only after reflection, practice or training
                 (<code>Game.Mechanics</code>, <code>Game.Progression</code>).
@@ -522,7 +522,7 @@ defmodule TalesForgeWeb.TeamCallTypes do
         One turn in five steps.
         1. The player's line: “{@player_text}”.
         2. Jev lane: {step_label(@steps, "jev")}, as a typed card: {@card}. {@timer}.
-        3. Elixir lane: {step_label(@steps, "elixir")}. The d20 lands on {number(@elixir["die"])} against a target of {number(
+        3. Elixir lane: {step_label(@steps, "elixir")}. The d100 lands on {number(@elixir["die"])} against a target of {number(
           @elixir["target"]
         )}: {text(@elixir["outcome"])}. Nothing to learn from a success. Room: {text(
           @elixir["room_price"]
@@ -612,7 +612,7 @@ defmodule TalesForgeWeb.TeamCallTypes do
           data-move="fade"
         />
 
-        <%!-- 3. Elixir rolls the d20 and stamps the result. --%>
+        <%!-- 3. Elixir rolls the d100 and stamps the result. --%>
         <g
           class="team-kind-elixir"
           style={lane_style(@colours, "elixir")}

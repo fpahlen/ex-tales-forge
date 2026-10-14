@@ -103,7 +103,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
   end
 
   # COMBAT_OPPOSED=on (QA 2026-10-14 08:57, #270): the mechanical resolution
-  # shows the exchange (the d20 against the Parry and the counterattack), and
+  # shows the exchange (the d100 against the Parry and the counterattack), and
   # the outcome is the hit or the miss of the attack, not the flat skill roll.
   defp with_exchange(mechanical, %{"attack" => attack} = exchange) do
     %{
