@@ -11,6 +11,48 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Install the team page as an app (PWA)
+
+- **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. Make /team installable as a Progressive Web App. Add a web app manifest (name, icons, start_url /team, display standalone) and a small service worker. Founders can then install it from Chrome, Edge or Safari. It opens in its own window with an icon, with no browser bar. Add web push notifications for new inbox items and chat messages (desktop, Android, and iPhone when added to the home screen). Do not cache pages with data offline in version 1. Build in whyse-ab/workflow if the split card 5 has merged. Requested by Fredrik on 2026-10-14.
+- **Why:** **The goal.** Founders install `/team` as an app on a phone or a computer. The app opens in its own window with an icon. A new inbox item and a new chat message can show a push. Version 1 does not store pages for offline use.
+
+**What we have now (main, high confidence).**
+1. There is no web app manifest. `root.html.heex` has no manifest link.
+2. There is no service worker in `assets/` or `priv/static/`.
+3. There is no web-push library and no VAPID keys in `mix.exs` or in config.
+4. `/team` is `TalesForgeWeb.TeamLive`. Sign-in uses a session cookie from GitHub team auth (`TalesForge.AdminAuth`).
+5. Inbox and chat update live only while the page is open (LiveView). `TalesForge.Board.Workers.Notify` wakes bots by webhook. It does not send a browser push.
+6. The Workflow split 5/5 card is Done. Pull request `whyse-ab/workflow` #1 is still open. `/team` still runs on `tales-forge.fly.dev`.
+7. Related cards in Building: [Choose and order team page panels](https://tales-forge.fly.dev/team#idea-782327f7-6b27-4909-b7e4-e3c499eb1136) and [Completly new layout for mobile](https://tales-forge.fly.dev/team#idea-9a3dfce1-58b2-4f13-bc6e-2ca65d3c9a78).
+8. Related card in Ideas: [Notification rules as team settings](https://tales-forge.fly.dev/team#idea-7165e1e2-46ad-4766-9092-4e207caf8a93).
+
+**Plan.**
+1. Add one web app manifest. Set the name, the icons, `start_url` `/team`, and `display` `standalone`.
+2. Link the manifest from the root layout for the team pages.
+3. Add one small service worker. Register it only on `/team`.
+4. Do not cache LiveView pages in the service worker. The worker only handles install and push.
+5. Make maskable icons from `priv/static/logo.svg` (or a new team icon). Put them in `priv/static/`.
+6. For push: store VAPID keys as Fly secrets. Store each founder's push subscription in one Workflow table.
+7. When the server creates an inbox item for a founder, send a web push to that founder.
+8. When the server stores a chat message that the inbox rules would route to a founder, send a web push.
+9. Ask for notification permission once on `/team`, after the founder installs the app or opens Settings.
+
+**Cost: M.** The installable app alone is about S. Web push adds the subscription store, VAPID secrets, and the send path. Together the card is M.
+
+**Risk.**
+1. An iPhone shows web push only after the founder adds the app to the Home Screen (iOS 16.4 or later).
+2. The session cookie works in the installed app on the same device. Each browser profile needs its own push subscription.
+3. If the Workflow cutover lands first, Bobby builds this in `whyse-ab/workflow`. If not, he builds it in `ex-tales-forge` and moves it with the cutover.
+
+**Deploy lane.** Team tools on the product app. Straight to prod after CI and a smoke test, while only founders use prod.
+
+**Verdict: feasible with caveats.** The install path is clear. Push needs new server pieces and has iPhone limits. The repo target follows where `/team` lives when Building starts.
+
+**Confidence.** High for the gap in the code. Medium for the exact push library and the iPhone test path. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-47efd154-fa47-44df-92de-d0ba6b66b366)
+
+<!-- board:idea:47efd154-fa47-44df-92de-d0ba6b66b366 -->
+
 ## 2026-10-14: Completly new layout for mobile
 
 - **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it.
