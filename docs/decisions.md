@@ -11,6 +11,44 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Inbox chat answers map to wrong thread
+
+- **Decision (hawkan.fredriksson@gmail.com, 2026-10-14, on the idea board):** build it. Inbox correction needed, when I answer a comment from the Chat directly in Inbox the answer ended up in General Chat, not in Playtest where the question was asked. If we are going to be able to answer chat questions in Inbox it has to be mapped to the right thread in the chat.
+- **Why:** **The problem.** When a founder answers a team-chat item in the Inbox, the answer lands in General, not in the thread where the question was asked (for example Playtest).
+
+**Cause (main, `787ae75`, high confidence).**
+1. The Inbox answer for a chat item calls `TalesForge.Chat.post/3` with no `thread_id` (`TalesForgeWeb.TeamInbox.send_answer/3`, source `:chat`).
+2. `Chat.post/3` defaults a missing `thread_id` to General (`TalesForge.Chat`, docs and `thread/2`).
+3. The inbox event stores the message id as `source_id`, but not the thread id (`Chat.inbox_event/3` → `Workflow.Inbox.Event` / `Item` / `Record`). So the reply path has no thread to pass through.
+4. Bots already get it right: a wake carries `reply_params.thread_id`. The founder Inbox path does not.
+
+Playtest and General are subject threads (`TalesForge.Chat.Thread`, kind `"subject"`). General is the seeded thread with key `"general"`. Playtest is a normal subject thread by id and subject name.
+
+**Fix (smallest).**
+1. When the Inbox sends a chat answer, load the source message by `item.source_id` and pass its `thread_id` into `Chat.post/3` (with the same `login` as today).
+2. Put the lookup in `TalesForge.Chat` (one place), for example `Chat.message/1` or a small helper that returns the thread id. Do not add a column on `inbox_items` for this fix.
+3. If the source message is gone, do not post to General. Keep the item open (or show a short error). Posting to the wrong thread is worse than a failed send.
+4. Add a LiveView test in `team_inbox_test.exs`: post a mention in a non-General subject thread, answer from the Inbox, assert the new message has that `thread_id`.
+
+**Optional in the same PR (still S).**
+- Chip label: "Team chat: Playtest" instead of "Team chat" (needs the thread subject once, from the source message).
+- "Open the team chat" opens that thread (same idea as the chat bar click that opens the right thread, card 6be78cd9).
+
+**Test.** The new LiveView test above. Bobby smoke-checks on prod: answer an Inbox item from Playtest and see the reply in Playtest, not General.
+
+**Cost: S.** About a few hours. One reply path, one Chat helper, one test. No migration and no LLM call.
+
+**Risk.** Low. Existing open Inbox items keep working, because the reply still uses `source_id` on the message. No feature flag is necessary.
+
+**Deploy lane.** Team tools on the product app, now: straight to prod after CI and a smoke test. The chat and Inbox are Workflow code. If card 5 of the Workflow split (PR #259) moves the team page first, the change goes into `whyse-ab/workflow`.
+
+**Verdict: feasible.** The Inbox reply drops the thread id. Pass it through from the source message.
+
+**Confidence.** High. I read the code on main. I did not reproduce the bug in a browser. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-22bd967a-5ae7-49eb-880d-b83b235c8cfa)
+
+<!-- board:idea:22bd967a-5ae7-49eb-880d-b83b235c8cfa -->
+
 ## 2026-10-14: Switch to D100 percentage system
 
 - **Decision (hawkan.fredriksson@gmail.com, 2026-10-14, on the idea board):** build it. System change from D20-system to D100-system so we work in percentage, applicable for all skills
