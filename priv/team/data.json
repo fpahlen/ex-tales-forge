@@ -1056,11 +1056,13 @@
       {
         "name": "Fredrik",
         "github": "fpahlen",
+        "emails": ["fredrik@whyse.se"],
         "inbox": ["mention", "thread_message", "pr_approval", "founder_check", "ci_failed", "deploy_failed"]
       },
       {
         "name": "Thobias",
         "github": "tsjokvist",
+        "emails": ["tsjokvist@gmail.com"],
         "inbox": ["mention", "thread_message"]
       },
       {
@@ -1072,6 +1074,7 @@
       {
         "name": "Jeanette",
         "github": "jpa71",
+        "emails": ["jeanette@pahlen.net"],
         "inbox": ["mention", "thread_message"]
       },
       {

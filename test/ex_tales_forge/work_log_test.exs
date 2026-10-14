@@ -83,4 +83,21 @@ defmodule TalesForge.WorkLogTest do
   test "the peer does nothing without the token" do
     assert {:error, :not_configured} = Peer.sync()
   end
+
+  test "add_entries/3 adds all entries in one transaction, or none" do
+    attrs = %{"date" => "2026-03-09", "hours" => "2", "reason" => "Planning"}
+
+    assert {:error, %Ecto.Changeset{}} =
+             WorkLog.add_entries("ada@example.com", ["lin@example.com", "not an email"], attrs)
+
+    assert Repo.all(WorkLog.Entry) == []
+    assert {:error, :no_founder} = WorkLog.add_entries("ada@example.com", [], attrs)
+
+    assert {:ok, [_, _]} =
+             WorkLog.add_entries("ada@example.com", ["lin@example.com", "kim@example.com"], attrs)
+
+    assert Repo.all(WorkLog.Entry) |> Enum.map(& &1.added_by) |> Enum.uniq() == [
+             "ada@example.com"
+           ]
+  end
 end

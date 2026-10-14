@@ -27,6 +27,7 @@ defmodule TalesForgeWeb.TeamWorkLogLiveTest do
     view
     |> form("#work-log-entry-form",
       entry: %{
+        founders: ["fredrik@whyse.se"],
         date: Date.to_iso8601(TalesForge.WorkLog.Report.today()),
         hours: "1.5",
         reason: "Design meeting"
@@ -34,30 +35,81 @@ defmodule TalesForgeWeb.TeamWorkLogLiveTest do
     )
     |> render_submit()
 
-    assert [%Entry{founder: "founder@example.com", minutes: 90, added_by: "founder@example.com"}] =
+    assert [%Entry{founder: "fredrik@whyse.se", minutes: 90, added_by: "founder@example.com"}] =
              Repo.all(Entry)
 
+    assert render(view) =~ "Saved 1 entry: 1.50 h each for Fredrik."
     assert render(view) =~ "Design meeting"
-    assert has_element?(view, ~s(#work-log-total-founder\\@example\\.com), "1.50 h")
-    assert has_element?(view, ~s(#work-log-pie-founder\\@example\\.com), "1.50")
+    assert has_element?(view, ~s(#work-log-total-fredrik\\@whyse\\.se), "1.50 h")
     assert has_element?(view, ~s(#work-log-pie svg path))
     assert has_element?(view, "#work-log-pie", "%")
   end
 
-  test "an empty log shows no pie", %{conn: conn} do
+  test "the form shows a checkbox with the name of each founder and today's date", %{conn: conn} do
     {:ok, view, _html} = live(log_in_admin(conn), ~p"/team/work-log")
-    assert has_element?(view, "#work-log-pie-empty")
+
+    for name <- ~w(Fredrik Thobias Håkan Jeanette),
+        do: assert(has_element?(view, "#work-log-entry-founders label", name))
+
+    assert has_element?(
+             view,
+             ~s(#work-log-entry-form input[type="date"][value="#{TalesForge.WorkLog.Report.today()}"])
+           )
   end
 
-  test "a bad entry shows the errors and saves nothing", %{conn: conn} do
+  test "one save adds one entry for each picked founder", %{conn: conn} do
     {:ok, view, _html} = live(log_in_admin(conn), ~p"/team/work-log")
 
     html =
       view
-      |> form("#work-log-entry-form", entry: %{hours: "", reason: ""})
+      |> form("#work-log-entry-form",
+        entry: %{
+          founders: ["fredrik@whyse.se", "jeanette@pahlen.net", "hawkan.fredriksson@gmail.com"],
+          date: "2026-03-09",
+          hours: "12",
+          reason: "Coding weekend"
+        }
+      )
       |> render_submit()
 
-    assert html =~ "Correct the entry"
+    assert html =~ "Saved 3 entries: 12.00 h each for Fredrik, Jeanette, Håkan."
+
+    assert Repo.all(Entry) |> Enum.map(& &1.founder) |> Enum.sort() ==
+             ~w(fredrik@whyse.se hawkan.fredriksson@gmail.com jeanette@pahlen.net)
+
+    assert Repo.all(Entry) |> Enum.all?(&(&1.added_by == "founder@example.com"))
+  end
+
+  test "no founder picked: the form asks for one and saves nothing", %{conn: conn} do
+    {:ok, view, _html} = live(log_in_admin(conn), ~p"/team/work-log")
+
+    html =
+      view
+      |> form("#work-log-entry-form", entry: %{hours: "2", reason: "Planning"})
+      |> render_submit()
+
+    assert html =~ "Pick one or more founders."
+    assert Repo.all(Entry) == []
+  end
+
+  test "hours must be more than 0 and at most 24; a bad entry saves nothing", %{conn: conn} do
+    {:ok, view, _html} = live(log_in_admin(conn), ~p"/team/work-log")
+
+    for hours <- ["0", "25", ""] do
+      html =
+        view
+        |> form("#work-log-entry-form",
+          entry: %{
+            founders: ["fredrik@whyse.se", "jeanette@pahlen.net"],
+            hours: hours,
+            reason: "Planning"
+          }
+        )
+        |> render_submit()
+
+      assert html =~ "Correct the entry"
+    end
+
     assert Repo.all(Entry) == []
   end
 
