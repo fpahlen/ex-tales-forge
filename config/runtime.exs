@@ -342,6 +342,14 @@ if config_env() != :test do
     end
 
   config :ex_tales_forge, :board_bots, board_bots
+
+  # Web push for the installed team app (Workflow.Push): the VAPID key pair,
+  # WEB_PUSH_VAPID_PUBLIC_KEY and WEB_PUSH_VAPID_PRIVATE_KEY (secrets,
+  # url-safe base64). Unset = push is off. Workflow.Push sets the subject:
+  # the team page URL of this app (TalesForge.AppRole).
+  config :web_push_ex, :vapid,
+    public_key: board_env.("WEB_PUSH_VAPID_PUBLIC_KEY"),
+    private_key: board_env.("WEB_PUSH_VAPID_PRIVATE_KEY")
 end
 
 # Live PR feed on /team (TalesForge.PrFeed): GITHUB_FEED_TOKEN (secret), a

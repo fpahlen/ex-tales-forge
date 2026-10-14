@@ -27,6 +27,11 @@ defmodule TalesForgeWeb.TeamLive do
 
   The nav links to the full presentation (`/team/presentation`).
 
+  **Installed app** (decision 2026-10-14): the `TeamPush` hook
+  (`assets/js/team_push.js`) registers the service worker `/team-sw.js` on
+  this page only. For a founder with inbox rules, it asks for notification
+  permission one time and stores the push subscription (`Workflow.Push`).
+
   The crew cards moved to the presentation (decision 2026-10-10). Old links
   still work: the `TeamAnchorRedirect` hook (`assets/js/team_hooks.js`)
   replaces `/team#playtests` and the other
@@ -125,6 +130,7 @@ defmodule TalesForgeWeb.TeamLive do
      |> assign(:anchors, Jason.encode!(TeamPresentationLive.anchors(Workflow.Team.Source.team())))
      |> assign(:team, Workflow.Team.Source.team())
      |> assign(:aliases, Jason.encode!(aliases(Workflow.Team.Source.team())))
+     |> assign(:push_key, push_key(socket))
      |> assign_stats()}
   end
 
@@ -157,6 +163,23 @@ defmodule TalesForgeWeb.TeamLive do
           Workflow.Team.Source.team(),
           TalesForge.Chat.handle_for(socket.assigns[:admin_github_login])
         )
+
+  # Web push (Workflow.Push): the VAPID public key for a founder with inbox
+  # rules, when push is on. Without a key, the hook only registers the
+  # service worker.
+  defp push_key(socket), do: if(inbox?(socket), do: Workflow.Push.public_key())
+
+  @impl true
+  @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_event("push:subscribe", %{} = json, socket) do
+    handle = TalesForge.Chat.handle_for(socket.assigns[:admin_github_login])
+
+    if is_binary(handle) and socket.assigns[:push_key],
+      do: Workflow.Push.subscribe(handle, json)
+
+    {:noreply, socket}
+  end
 
   # The board lives on production (and locally); playtest keeps the placeholder.
   defp board_here?, do: TalesForge.AppRole.here?(:board)
@@ -197,6 +220,7 @@ defmodule TalesForgeWeb.TeamLive do
         data-anchors={@anchors}
         data-aliases={@aliases}
       />
+      <span id="team-push" hidden phx-hook="TeamPush" data-key={assigns[:push_key]} />
       <a
         id="skip-to-content"
         href="#team-main"
