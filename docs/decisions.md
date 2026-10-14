@@ -11,6 +11,41 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Show new chat messages in the top chat bar
+
+- **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. When a founder has a new chat message, show it in the chat bar at the top of the page. Show an unread count and a short preview of the latest message (author and first words). Click the bar to open that thread. The unread state clears when the founder opens the thread. Use the same participant rule as thread notifications. Update live with PubSub. Requested by Fredrik on 2026-10-14.
+- **Why:** **The request.** A founder sees new chat messages in the chat bar at the top of the page. The bar shows the unread count and a preview of the latest message (name and first words). It updates live. A click opens that thread. The count clears when the founder opens the thread.
+
+**What we have now (main, `53d05ef`).**
+1. The header already has a "Chat" button with a count (`TalesForgeWeb.TeamChatLive`, nested in `TalesForgeWeb.OnlineHeaderLive`). It shows on admin pages, `/team` and the presentation, on production and locally.
+2. The count comes from `TalesForge.Chat.unread/1`. It counts only mentions of you and direct messages. For a founder with an inbox, it counts only direct messages, because the inbox shows the mentions.
+3. The count already updates live. The button subscribes to the chat topics (`Chat.subscribe/1`) and counts again for each new message.
+4. A click on the button opens General, not the thread with the new message.
+5. Each thread already has its own read time (`team_chat_reads`), and opening a thread marks it as read (`Chat.mark_read/2`).
+
+**Change.**
+1. Replace `Chat.unread/1` with one function, for example `Chat.bar/2`. It gives the unread count and the latest unread message: thread id, author name and the first words. All callers move to it, and `unread/1` is deleted. Thus the rule for "new for you" is in one place.
+2. "New for you" uses the participant rule of thread notifications (`ThreadRules.participants/4`). It counts messages by others in a thread that you started, posted in, or were mentioned in. It also counts all messages in your direct threads. Messages that you wrote do not count.
+3. The button shows the count and, from tablet width up, a one-line preview, with the name and the first words of the message. On a phone, only the count shows, so the header still fits. A message with only images shows "sent an image".
+4. A click opens the panel at the thread of the latest unread message. The thread list shows the other unread threads with their counts, as now.
+5. When you open a thread, `mark_read` also sends a short event to your own topic. Thus the bar clears in your other tabs too.
+6. Screen readers: the count text changes from "new mentions of you" to "new messages", and the preview is part of the button name.
+
+**Test.** Unit tests on `Chat.bar/2`: a participant thread counts, and a thread you never joined does not. A direct thread counts, and your own messages do not. The count clears after `mark_read`. A LiveView test: a new message updates the bar live, and a click opens that thread. Bobby checks the header by hand on a phone and on a desktop.
+
+**Cost: M.** About a day. Most of it is the participant filter and the tests. No LLM call and no new table.
+
+**Risk.** Low. The QA session still never marks a thread as read. The participant filter only reads the threads that have unread messages, so it stays fast at team size. No feature flag is necessary.
+
+**Deploy lane.** Team tools on the product app, now: straight to prod after CI and a smoke test. The chat is Workflow code. If card 5 of the Workflow split moves the team page first, the change goes into `whyse-ab/workflow`.
+
+**Verdict: feasible.** The button, the live updates and the read times already exist. The change is a wider count, a preview and a click that opens the right thread.
+
+**Confidence.** High. I read the code. I did not try it in a browser. Verdict: feasible. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-6be78cd9-ac91-4d15-abb7-27476a252409)
+
+<!-- board:idea:6be78cd9-ac91-4d15-abb7-27476a252409 -->
+
 ## 2026-10-14: NPC combat: how both sides roll (build rules, version 1)
 
 - **Decision (Bobby, from Fredrik's answers on the idea board, 2026-10-14):** the build of "NPC combat: both sides roll" uses these rules, behind the flag `COMBAT_OPPOSED` (on for playtest in `fly.playtest.toml`, off on production). It supersedes no entry; it gives the numbers that the 2026-10-14 entry "NPC combat: both sides roll" left open.
