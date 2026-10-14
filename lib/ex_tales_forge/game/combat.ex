@@ -261,12 +261,12 @@ defmodule TalesForge.Game.Combat do
 
       iex> world = %{"present_npcs" => ["guild_steward"],
       ...>   "npc_state" => %{"guild_steward" => %{"name" => "Osric Vane"}}}
-      iex> TalesForge.Game.Combat.target(nil, "I attack Osric the liar", world)
-      {:npc, "guild_steward"}
-      iex> TalesForge.Game.Combat.target(nil, "I do attack the miner", world)
-      {:foe, "foe_miner", "a miner"}
-      iex> TalesForge.Game.Combat.target(nil, "I lash out", world)
-      {:unclear, ["Osric Vane"]}
+      iex> TalesForge.Game.Combat.target(nil, "I attack Osric the liar", world) == {:npc, "guild_steward"}
+      true
+      iex> TalesForge.Game.Combat.target(nil, "I do attack the miner", world) == {:foe, "foe_miner", "a miner"}
+      true
+      iex> TalesForge.Game.Combat.target(nil, "I lash out", world) == {:unclear, ["Osric Vane"]}
+      true
   """
   @spec target(String.t() | nil, String.t() | nil, map()) :: target()
   def target(action_target, text, world) do
