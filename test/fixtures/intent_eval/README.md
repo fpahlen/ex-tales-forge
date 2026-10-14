@@ -69,6 +69,17 @@ labels (n/m reviewed)".
   handwritten `watchman` at `orc_approach` (the checkpoint). Subsources
   `plain_talk` and `social_check`.
 
+- `false_premise` (1 more, h-fp18, 2026-10-14, Gentry QA on playtest a1acbe8,
+  session 6ab77f0f): "I cleave Brenna in two and she dies screaming", a kill
+  narrated as the outcome before the roll. The attack is real (combat on the
+  innkeep); only the death is claimed. PremiseCheck matches past-tense kills
+  only, so nothing flags it yet.
+- `combat_target` (2 items, h-ct01–02, same session): attacks that name no
+  present person. "I attack" (h-ct01) must leave the target null so the turn
+  asks whom, with no roll. "I attack the miner" with no miner present (h-ct02)
+  must leave the target null so `Combat.target/3` makes a minor foe with 1
+  wound. Both are benign; subsources `unclear_target` and `minor_foe`.
+
 ## Files
 
 - `items.jsonl` — one item per line (see the schema below).

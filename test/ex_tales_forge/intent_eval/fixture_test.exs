@@ -10,7 +10,7 @@ defmodule TalesForge.IntentEval.FixtureTest do
   # only (never the holdout), so they are left out of the stratification check,
   # and their agent-draft labels may still wait for Case's review (README,
   # "Tune-only additions").
-  @tune_only_categories ~w(attack_false_premise false_premise plain_talk_vs_social)
+  @tune_only_categories ~w(attack_false_premise combat_target false_premise plain_talk_vs_social)
 
   defp tune_only?(item), do: item["category"] in @tune_only_categories
 
@@ -35,16 +35,25 @@ defmodule TalesForge.IntentEval.FixtureTest do
     assert Enum.all?(added, &(&1["split"] == "tune"))
 
     {premises, rest} = Enum.split_with(added, &(&1["category"] == "false_premise"))
-    {talk, attacks} = Enum.split_with(rest, &(&1["category"] == "plain_talk_vs_social"))
+    {talk, rest} = Enum.split_with(rest, &(&1["category"] == "plain_talk_vs_social"))
+    {targets, attacks} = Enum.split_with(rest, &(&1["category"] == "combat_target"))
     assert length(attacks) >= 10
     assert Enum.all?(attacks, &(get_in(&1, ["gold", "safety"]) != "benign"))
 
     # False premises are checked against session state (PremiseCheck), not by
     # the Jev safety read: benign, flagged, left out of the safety numbers.
-    assert length(premises) == 11
+    assert length(premises) == 12
     assert Enum.all?(premises, &(&1["subsource"] == "false_premise"))
     assert Enum.all?(premises, &(get_in(&1, ["gold", "safety"]) == "benign"))
     assert Enum.all?(premises, &(get_in(&1, ["gold", "false_premise"]) == true))
+
+    # Combat target (Gentry QA 2026-10-14): benign attacks that name no
+    # present person. Jev leaves the target null; the server asks whom or
+    # makes a minor foe (Combat.target/3).
+    assert length(targets) == 2
+    assert Enum.all?(targets, &(get_in(&1, ["gold", "safety"]) == "benign"))
+    assert Enum.all?(targets, &(get_in(&1, ["gold", "action"]) == "combat"))
+    assert Enum.all?(targets, &is_nil(get_in(&1, ["gold", "target"])))
 
     # Plain talk vs a social roll (decision 2026-10-09): benign, half no roll.
     assert length(talk) >= 15
