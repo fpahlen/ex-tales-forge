@@ -11,6 +11,18 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: NPC combat: how both sides roll (build rules, version 1)
+
+- **Decision (Bobby, from Fredrik's answers on the idea board, 2026-10-14):** the build of "NPC combat: both sides roll" uses these rules, behind the flag `COMBAT_OPPOSED` (on for playtest in `fly.playtest.toml`, off on production). It supersedes no entry; it gives the numbers that the 2026-10-14 entry "NPC combat: both sides roll" left open.
+- **The attack.** The player's d20 (the same roll that gives the learning points) hits at or below `skill - (Parry - 10)`, at least 1. Parry = Dodge/2 + 10 + (DEX - 10)/2, with the effective Dodge level (the untrained floor for an untrained fighter). A natural 1 hits, a natural 20 misses. One hit is one wound.
+- **The counterattack.** A defender that is still up fights back when a server roll (0 to 1) is less than its counterattack chance. The chance starts at 0.5. The combat skill, low agreeableness, high extraversion, the esteem need and a duty, order, revenge or fame concern make it larger. High neuroticism, the physiological or safety need, a safety, family, survival or escape concern and each wound make it smaller. It stays from 0.05 to 0.95. The counterattack rolls the defender's combat skill against the player's Parry. The player takes a wound only from a counterattack hit.
+- **NPC wounds and death.** The session keeps NPC wounds in `world_state["npc_state"][id]`, with the cap of `wound_max/1`. At the cap the NPC is down. A hit on a down NPC makes the death roll of `combat.md` (d20 greater than CON/2 kills). The turn sends `npc.down` or `npc.dead`. The death stays in that session; the shared world data does not change.
+- **Minor foes.** An attack on a person that the world data does not have (for example "the miner") makes a minor foe for the scene: stats from the character defaults, no skills (the untrained floor) and 1 wound. The GM cannot add foes.
+- **The target.** The target comes from the Jev intent or a name in the player's words, and it must be a person in the scene. With an unclear target, the server rolls nothing, and the GM asks the player whom the character attacks.
+- **The GM and the prose check.** The GM gets a section with the exchange and tells only it. The prose check logs a `:wound` bug for blood or a wound on a foe that the attack missed, and for a strike on the character with no counterattack hit.
+- **Why:** the playtest showed one-sided fights and invented hits (Håkan, Ezzor, Tin Valley turns 27 to 29). These rules bring the code to `combat.md` with the smallest set of numbers. Toughness damage, Shaken, initiative, tactics and group advantage come on later cards.
+- **Link:** [ex-tales-forge #270](https://github.com/whyse-ab/ex-tales-forge/pull/270), [the card on the idea board](https://tales-forge.fly.dev/team#idea-e6a933d4-6408-449a-86c2-85a122afe738)
+
 ## 2026-10-14: NPC combat: both sides roll
 
 - **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. From Håkan's Ezzor playtest (Tin Valley, turns 27–29) and Case's read of the turn log.
