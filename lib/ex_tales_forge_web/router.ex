@@ -188,6 +188,7 @@ defmodule TalesForgeWeb.Router do
     get "/costs", ProductApiController, :costs
     get "/online", ProductApiController, :online
     get "/running-commits", ProductApiController, :running_commits
+    get "/persona-scores", ProductApiController, :persona_scores
   end
 
   # Workflow moved to its own app (whyse-workflow, board card "Workflow split

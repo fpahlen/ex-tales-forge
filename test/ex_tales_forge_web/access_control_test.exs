@@ -33,7 +33,8 @@ defmodule TalesForgeWeb.AccessControlTest do
     # (ProductApiController); decision 2026-10-13 "Workflow split 4/5".
     {:get, "/internal/product/costs"},
     {:get, "/internal/product/online"},
-    {:get, "/internal/product/running-commits"}
+    {:get, "/internal/product/running-commits"},
+    {:get, "/internal/product/persona-scores"}
   ]
 
   @id Ecto.UUID.generate()

@@ -8,6 +8,8 @@ defmodule TalesForge.ProductApi do
   2. Online players: the founders online on the product app (`online/0`).
   3. Running commit: the commit of this app (`current`) and the commit that
      each app runs (`running_commits/0`).
+  4. Persona scores: the Jev score of each persona over the playtest runs
+     on this app (`persona_scores/0`).
 
   Each function returns a map with string keys, the same as the JSON of
   `GET /internal/product/*` (`TalesForgeWeb.ProductApiController`). The
@@ -17,7 +19,7 @@ defmodule TalesForge.ProductApi do
 
   alias TalesForge.Online
   alias TalesForge.Playtest.RunMeta
-  alias TalesForge.ProductApi.{Costs, RunningCommits}
+  alias TalesForge.ProductApi.{Costs, PersonaScores, RunningCommits}
 
   @doc """
   The bearer token of `GET /internal/product/*` (the secret
@@ -55,6 +57,10 @@ defmodule TalesForge.ProductApi do
       "playtest" => running.playtest
     }
   end
+
+  @doc "The persona scores (`TalesForge.ProductApi.PersonaScores`); `scores` is nil without data."
+  @spec persona_scores() :: map()
+  def persona_scores, do: %{"scores" => PersonaScores.scores()}
 
   defp person(p) do
     %{
