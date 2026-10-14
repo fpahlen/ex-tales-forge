@@ -15,6 +15,8 @@ defmodule TalesForge.Board.Goal do
   @typedoc "A goal."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_goals" do
     field :key, :string
     field :title, :string

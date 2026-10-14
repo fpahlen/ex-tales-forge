@@ -16,7 +16,8 @@ defmodule TalesForge.Board.Similar do
   import Ecto.Query
 
   alias TalesForge.Board.Idea
-  alias TalesForge.{LLM, Repo}
+  alias TalesForge.LLM
+  alias TalesForge.Workflow.Repo
 
   @max_candidates 300
   @max_matches 3

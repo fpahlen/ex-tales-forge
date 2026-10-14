@@ -351,7 +351,7 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
         for {title, days_ago} <- [{"Old", 3}, {"Middle", 2}, {"New", 1}], into: %{} do
           {:ok, idea} = Board.create_idea("bo@example.com", %{"title" => title})
           at = DateTime.utc_now() |> DateTime.add(-days_ago, :day) |> DateTime.truncate(:second)
-          idea |> Ecto.Changeset.change(inserted_at: at) |> TalesForge.Repo.update!()
+          idea |> Ecto.Changeset.change(inserted_at: at) |> TalesForge.Workflow.Repo.update!()
           {title, idea.id}
         end
 
@@ -929,7 +929,11 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
   test "a PR from a plain pr link: after the backfill, badge and Approve on the thin card",
        %{conn: conn} do
     {:ok, idea} = Board.create_idea("ada@example.com", %{"title" => "Scroll"})
-    idea = idea |> Board.Idea.update_changeset(%{column: "building"}) |> TalesForge.Repo.update!()
+
+    idea =
+      idea
+      |> Board.Idea.update_changeset(%{column: "building"})
+      |> TalesForge.Workflow.Repo.update!()
 
     {:ok, idea} =
       Board.add_link(idea, "bot:bobby", %{
@@ -1146,7 +1150,7 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
     test "a Done or Parked card shows its questions read-only (QA: card #131)",
          %{conn: conn, idea: idea} do
       for column <- ~w(done parked) do
-        idea |> Ecto.Changeset.change(column: column) |> TalesForge.Repo.update!()
+        idea |> Ecto.Changeset.change(column: column) |> TalesForge.Workflow.Repo.update!()
         {:ok, view, _} = live(conn, "/team")
         open(view, idea)
 
@@ -1320,7 +1324,7 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
          %{conn: conn} do
       {:ok, open} = Board.create_idea("bo@example.com", %{"title" => "Fishing"})
       {:ok, done} = Board.create_idea("bo@example.com", %{"title" => "Fishing rods"})
-      done |> Ecto.Changeset.change(column: "done") |> TalesForge.Repo.update!()
+      done |> Ecto.Changeset.change(column: "done") |> TalesForge.Workflow.Repo.update!()
 
       # Candidates are newest first: c1 is "Fishing rods", c2 is "Fishing".
       refs =

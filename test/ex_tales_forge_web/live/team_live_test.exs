@@ -117,7 +117,7 @@ defmodule TalesForgeWeb.TeamLiveTest do
 
         i
         |> Ecto.Changeset.change(column: "check", refinement: refinement)
-        |> TalesForge.Repo.update!()
+        |> TalesForge.Workflow.Repo.update!()
       end
 
       voted = check.("Voted", %{})

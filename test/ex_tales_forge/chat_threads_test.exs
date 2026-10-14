@@ -3,6 +3,7 @@ defmodule TalesForge.ChatThreadsTest do
   # risk: each test below tries one path into a direct thread as a founder
   # who is not a member, as a bot, or as a guest, and expects no access.
   use TalesForge.DataCase, async: false
+  alias TalesForge.Workflow.Repo
 
   alias TalesForge.Chat
   alias TalesForge.Chat.{Message, Read, Thread}
@@ -26,7 +27,11 @@ defmodule TalesForge.ChatThreadsTest do
     t
   end
 
-  defp wakes, do: Oban.Job |> Repo.all() |> Enum.filter(&(&1.args["event"] == "chat.mention"))
+  defp wakes,
+    do:
+      Oban.Job
+      |> Repo.all(prefix: "workflow")
+      |> Enum.filter(&(&1.args["event"] == "chat.mention"))
 
   describe "General" do
     test "old messages and posts with no thread are in the General thread" do

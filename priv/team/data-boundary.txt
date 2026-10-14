@@ -1,0 +1,32 @@
+# The data boundary between Workflow and the product app (board card
+# "Workflow split 3/5: Data boundary"; TalesForge.DeployLanes.DataBoundary).
+# `mix deploy.check_boundaries` reads this file.
+#
+# Workflow data: each schema module with the prefix "workflow",
+# TalesForge.Workflow.Repo and TalesForge.Workflow.Jobs. Product-app data:
+# each other schema module and TalesForge.Repo.
+#
+# Rules for the lib/ files:
+#   1. Product-app code does not depend on Workflow data.
+#   2. Workflow code does not depend on product-app data.
+#
+# One glob for each line (Path.wildcard/1, relative to the repo root). `#`
+# starts a comment.
+
+[workflow]
+# Workflow code: each glob in priv/team/workflow-files.txt, and these files.
+lib/ex_tales_forge/workflow/*.ex
+lib/ex_tales_forge/images.ex
+lib/ex_tales_forge/images/*.ex
+lib/ex_tales_forge/collab.ex
+lib/ex_tales_forge/collab/**/*.ex
+
+[wiring]
+# These files start or migrate both repos.
+lib/ex_tales_forge/application.ex
+lib/ex_tales_forge/release.ex
+
+[pending]
+# Workflow files that still read product-app data directly. Card 4 ("Workflow
+# split 4/5") moves each one to the product-app API and removes it here.
+lib/ex_tales_forge_web/components/team_live_numbers.ex

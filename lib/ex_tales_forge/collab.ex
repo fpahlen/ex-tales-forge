@@ -11,7 +11,7 @@ defmodule TalesForge.Collab do
 
   alias TalesForge.Collab.{Importer, Links, Markdown}
   alias TalesForge.Collab.Schemas.{Comment, Decision, Doc, Interest}
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @topic "collab:decisions"
 
@@ -34,7 +34,12 @@ defmodule TalesForge.Collab do
   """
   @spec read_only?() :: boolean()
   def read_only? do
-    from(i in "board_ideas", where: not is_nil(i.collab_decision_id), select: 1, limit: 1)
+    from(i in "board_ideas",
+      prefix: "workflow",
+      where: not is_nil(i.collab_decision_id),
+      select: 1,
+      limit: 1
+    )
     |> Repo.exists?()
   end
 

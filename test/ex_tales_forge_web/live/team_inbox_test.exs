@@ -161,7 +161,7 @@ defmodule TalesForgeWeb.TeamInboxTest do
     settle(view)
 
     assert [%{decision: "approved", founder: @owner_email, pr_number: 302}] =
-             TalesForge.Repo.all(TalesForge.Board.Approval)
+             TalesForge.Workflow.Repo.all(TalesForge.Board.Approval)
              |> Enum.filter(&(&1.idea_id == idea.id))
 
     assert Store.open(@owner.handle) == []

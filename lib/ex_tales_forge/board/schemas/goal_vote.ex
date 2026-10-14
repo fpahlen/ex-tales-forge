@@ -9,6 +9,8 @@ defmodule TalesForge.Board.GoalVote do
   @typedoc "A goal vote."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_goal_votes" do
     field :founder, :string
     field :value, :integer

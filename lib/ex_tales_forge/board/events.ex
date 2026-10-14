@@ -62,7 +62,7 @@ defmodule TalesForge.Board.Events do
     multi =
       if event == :idea_to_building,
         do:
-          Oban.insert(
+          TalesForge.Workflow.Jobs.insert(
             multi,
             {:log_decision, idea.id},
             LogDecision.new(%{"idea_id" => idea.id, "founder" => extra[:actor]})
@@ -186,7 +186,7 @@ defmodule TalesForge.Board.Events do
   # One wake for each bot and card in 2 minutes (WakeMerge); a later event merges.
   defp notify(repo, bot, event, idea, extra) do
     if WakeMerge.wake?(WakeMerge.last_wake_at(repo, bot, idea.id), DateTime.utc_now()),
-      do: Oban.insert(Notify.job(bot, event, idea, extra)),
+      do: TalesForge.Workflow.Jobs.insert(Notify.job(bot, event, idea, extra)),
       else: {:ok, :merged}
   end
 end

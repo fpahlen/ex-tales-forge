@@ -11,6 +11,8 @@ defmodule TalesForge.Board.Link do
   @typedoc "A link."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_links" do
     field :kind, :string
     field :url, :string

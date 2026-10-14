@@ -12,6 +12,8 @@ defmodule TalesForge.Board.Transition do
   @typedoc "A transition."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_transitions" do
     field :from, :string
     field :to, :string

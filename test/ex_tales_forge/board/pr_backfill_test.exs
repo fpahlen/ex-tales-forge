@@ -5,7 +5,7 @@ defmodule TalesForge.Board.PrBackfillTest do
   gets no Approve.
   """
   use TalesForge.DataCase, async: false
-  use Oban.Testing, repo: TalesForge.Repo
+  use Oban.Testing, repo: TalesForge.Workflow.Repo, prefix: "workflow"
 
   alias TalesForge.Board
   alias TalesForge.Board.Workers.PrBackfill

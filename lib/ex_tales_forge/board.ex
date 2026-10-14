@@ -17,7 +17,7 @@ defmodule TalesForge.Board do
 
   Changes are broadcast on `topic/0` as `{:board, :changed}`.
 
-  This module does IO (`TalesForge.Repo`), so it is an edge: it reads the
+  This module does IO (`TalesForge.Workflow.Repo`), so it is an edge: it reads the
   team config from `Workflow.Team.Source` and gives it to the pure modules.
   """
 
@@ -48,7 +48,7 @@ defmodule TalesForge.Board do
   }
 
   alias TalesForge.Collab.Schemas.Decision
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @topic "board:ideas"
 

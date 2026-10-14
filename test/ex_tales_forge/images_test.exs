@@ -6,7 +6,7 @@ defmodule TalesForge.ImagesTest do
   alias TalesForge.Chat
   alias TalesForge.Images
   alias TalesForge.Images.Image
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   doctest TalesForge.Images
 

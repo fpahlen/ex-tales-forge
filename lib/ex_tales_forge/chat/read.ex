@@ -6,6 +6,7 @@ defmodule TalesForge.Chat.Read do
   @type t :: %__MODULE__{}
 
   @primary_key false
+  @schema_prefix "workflow"
   schema "team_chat_reads" do
     field :handle, :string, primary_key: true
     field :thread_id, :binary_id, primary_key: true

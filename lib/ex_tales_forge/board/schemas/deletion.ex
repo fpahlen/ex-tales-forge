@@ -14,6 +14,8 @@ defmodule TalesForge.Board.Deletion do
   @typedoc "A deletion."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_deletions" do
     field :idea_id, :binary_id
     field :title, :string

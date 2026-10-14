@@ -28,7 +28,7 @@ defmodule TalesForge.Board.Workers.MentionSweep do
   alias TalesForge.Board.Workers.Notify
   alias TalesForge.Chat
   alias TalesForge.Chat.Message
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @wait_s 15 * 60
   @window_s 24 * 3600
@@ -125,7 +125,7 @@ defmodule TalesForge.Board.Workers.MentionSweep do
 
     case job(team, found) do
       nil -> :ok
-      job -> {:ok, _} = Oban.insert(job)
+      job -> {:ok, _} = TalesForge.Workflow.Jobs.insert(job)
     end
 
     {:ok, length(found)}

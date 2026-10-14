@@ -3,8 +3,10 @@ defmodule TalesForge.WorkLog do
   The founders' work log (board card "Work time auto log"; decision
   2026-10-12 "Work time auto log" in the docs repo).
 
-  Each founder action writes one `TalesForge.WorkLog.Event` in the same
-  transaction as the action. The v1 actions are in `kinds/0`. Bots and
+  Each founder action writes one `TalesForge.WorkLog.Event`. Board and chat
+  actions write it in the same transaction as the action. A game turn writes
+  it after the turn commits (`record/4`). The events are in the Workflow repo
+  (`TalesForge.Workflow.Repo`). The v1 actions are in `kinds/0`. Bots and
   signed-out players write no event. Reading a card writes no event in v1.
   To count reading, add a kind and call `record/3` from the card open event.
 
@@ -19,7 +21,7 @@ defmodule TalesForge.WorkLog do
 
   alias Ecto.Multi
   alias TalesForge.AppRole
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
   alias TalesForge.WorkLog.{Entry, Event, Sessions}
 
   @kinds ~w(comment move chat card_edit turn)
@@ -57,13 +59,18 @@ defmodule TalesForge.WorkLog do
   end
 
   @doc """
-  Writes one event now, outside a transaction. Returns `{:ok, event}`, or
-  `{:ok, nil}` for a bot.
+  Writes one event outside a transaction. `at` is the time of the action
+  (default: now). Returns `{:ok, event}`, or `{:ok, nil}` for a bot. The game
+  turn calls this after its own transaction commits.
   """
-  @spec record(String.t() | nil, String.t(), String.t()) ::
+  @spec record(String.t() | nil, String.t(), term(), DateTime.t() | NaiveDateTime.t() | nil) ::
           {:ok, Event.t() | nil} | {:error, term()}
-  def record(founder, kind, ref) when kind in @kinds,
-    do: insert(Repo, founder, kind, ref, DateTime.utc_now())
+  def record(founder, kind, ref, at \\ nil) when kind in @kinds,
+    do: insert(Repo, founder, kind, ref, to_datetime(at))
+
+  defp to_datetime(nil), do: DateTime.utc_now()
+  defp to_datetime(%NaiveDateTime{} = at), do: DateTime.from_naive!(at, "Etc/UTC")
+  defp to_datetime(%DateTime{} = at), do: at
 
   defp insert(repo, founder, kind, ref, at) do
     if founder?(founder) do

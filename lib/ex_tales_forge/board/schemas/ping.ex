@@ -12,6 +12,8 @@ defmodule TalesForge.Board.Ping do
   @typedoc "A ping."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_pings" do
     field :handle, :string
     field :author, :string

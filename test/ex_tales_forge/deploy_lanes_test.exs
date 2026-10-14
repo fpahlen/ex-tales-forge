@@ -6,6 +6,7 @@ defmodule TalesForge.DeployLanesTest do
   alias TalesForge.DeployLanes.CLI
 
   doctest TalesForge.DeployLanes
+  doctest TalesForge.DeployLanes.DataBoundary
 
   @lanes DeployLanes.load()
 

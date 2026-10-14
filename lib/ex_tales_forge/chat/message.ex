@@ -15,6 +15,7 @@ defmodule TalesForge.Chat.Message do
   @max 2_000
 
   @primary_key {:id, :binary_id, autogenerate: true}
+  @schema_prefix "workflow"
   schema "team_chat_messages" do
     field :author, :string
     field :body, :string

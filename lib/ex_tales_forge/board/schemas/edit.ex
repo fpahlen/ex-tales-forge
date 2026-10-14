@@ -12,6 +12,8 @@ defmodule TalesForge.Board.Edit do
   @typedoc "A card edit."
   @type t :: %__MODULE__{}
 
+  @schema_prefix "workflow"
+
   schema "board_edits" do
     field :author, :string
     field :fields, {:array, :string}, default: []

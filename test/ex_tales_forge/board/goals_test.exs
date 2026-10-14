@@ -4,7 +4,7 @@ defmodule TalesForge.Board.GoalsTest do
   alias TalesForge.Board
   alias TalesForge.Board.{Goal, Goals}
   alias TalesForge.QaLogin
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   doctest TalesForge.Board.Goals
 

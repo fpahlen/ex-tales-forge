@@ -26,7 +26,8 @@ Skill growth (decision 2026-10-09, default variant): a failed or partial roll ba
 - **UI:** Phoenix LiveView + Tailwind
 - **Runtime:** Jido 2.x agents + actions
 - **Persistence:** plain Ecto + PostgreSQL (`GameSession`, `Turn`, `NpcInstance`, `Character`, `AICall`, …)
-- **Jobs:** Oban (queues `default` and `llm`; `ProcessScene`, `ProcessTurn`)
+- **Jobs:** Oban (queues `default` and `llm`; `ProcessScene`, `ProcessTurn`). Workflow (the team tools) has a second Oban instance, `TalesForge.Workflow.Oban`, for board and chat jobs (`TalesForge.Workflow.Jobs`).
+- **Workflow data:** `TalesForge.Workflow.Repo`, same database, Postgres schema `workflow`, migrations in `priv/workflow_repo/migrations`. Product-app code never calls it; Workflow code never calls `TalesForge.Repo` (`priv/team/data-boundary.txt`, `mix deploy.check_boundaries`).
 - **AI:** xAI Grok for prose (`TalesForge.LLM`); TypeSafe Jev (Hex `jev`) for typed answers from free text
 - **Authored content:** pack files under `priv/` (`priv/adventures/*`, `priv/npcs/*.json`, `priv/rules`, `priv/prompts`, `priv/characters`), loaded by `Game.Pack` / `NPC` and copied into each session at creation. Edited in git; the admin NPC definition pages are read-only.
 - **Admin:** `TalesForge.Admin` + LiveViews on plain Ecto changesets (`to_form/2`); JSON editors for complex maps like `world_state`.

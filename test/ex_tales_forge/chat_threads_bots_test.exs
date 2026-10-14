@@ -3,6 +3,7 @@ defmodule TalesForge.ChatThreadsBotsTest do
   # thread that woke it, a bot can never reach a 1:1, and card comments have
   # threads the same as the team chat.
   use TalesForge.DataCase, async: false
+  alias TalesForge.Workflow.Repo
 
   alias TalesForge.Board
   alias TalesForge.Board.Api
@@ -19,7 +20,8 @@ defmodule TalesForge.ChatThreadsBotsTest do
     on_exit(fn -> Application.delete_env(:ex_tales_forge, :board_bots) end)
   end
 
-  defp jobs(event), do: Oban.Job |> Repo.all() |> Enum.filter(&(&1.args["event"] == event))
+  defp jobs(event),
+    do: Oban.Job |> Repo.all(prefix: "workflow") |> Enum.filter(&(&1.args["event"] == event))
 
   describe "/internal/chat" do
     test "a bot reads and posts in a subject thread by thread_id" do

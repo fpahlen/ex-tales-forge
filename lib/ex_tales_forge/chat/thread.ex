@@ -36,6 +36,7 @@ defmodule TalesForge.Chat.Thread do
   @max_subject 120
 
   @primary_key {:id, :binary_id, autogenerate: true}
+  @schema_prefix "workflow"
   schema "team_chat_threads" do
     field :key, :string
     field :subject, :string

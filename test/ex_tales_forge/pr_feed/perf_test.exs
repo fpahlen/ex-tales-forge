@@ -57,7 +57,10 @@ defmodule TalesForge.PrFeed.PerfTest do
     config = Config.Reader.read!("config/config.exs", env: :prod)
 
     {_, cron} =
-      Enum.find(config[:ex_tales_forge][Oban][:plugins], &match?({Oban.Plugins.Cron, _}, &1))
+      Enum.find(
+        config[:ex_tales_forge][TalesForge.Workflow.Oban][:plugins],
+        &match?({Oban.Plugins.Cron, _}, &1)
+      )
 
     assert {"*/30 * * * *", TalesForge.PrFeed.Reconcile} in cron[:crontab]
   end

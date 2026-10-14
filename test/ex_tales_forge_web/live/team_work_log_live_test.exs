@@ -3,7 +3,8 @@ defmodule TalesForgeWeb.TeamWorkLogLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias TalesForge.{Chat, Repo}
+  alias TalesForge.Chat
+  alias TalesForge.Workflow.Repo
   alias TalesForge.WorkLog.Entry
 
   test "signed out, the log and the CSV redirect to the login page" do

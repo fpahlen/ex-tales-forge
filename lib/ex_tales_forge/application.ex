@@ -11,6 +11,8 @@ defmodule TalesForge.Application do
       TalesForgeWeb.Telemetry,
       TalesForge.Repo,
       {Oban, Application.fetch_env!(:ex_tales_forge, Oban)},
+      TalesForge.Workflow.Repo,
+      {Oban, Application.fetch_env!(:ex_tales_forge, TalesForge.Workflow.Oban)},
       TalesForge.Jido,
       {Registry, keys: :unique, name: TalesForge.World.Registry},
       {DynamicSupervisor, name: TalesForge.World.Supervisor, strategy: :one_for_one},

@@ -9,7 +9,7 @@ import Config
 
 config :ex_tales_forge,
   namespace: TalesForge,
-  ecto_repos: [TalesForge.Repo],
+  ecto_repos: [TalesForge.Repo, TalesForge.Workflow.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Skill split (TalesForge.Game.SkillSplit, SKILL_SPLIT=on). This is the one
@@ -30,6 +30,8 @@ config :ex_tales_forge, TalesForge.CodeHeat, enabled: false
 
 config :ex_tales_forge, Oban,
   repo: TalesForge.Repo,
+  # `board` only finishes the board jobs that this instance queued before the
+  # Workflow Oban instance started. New board jobs go to the Workflow instance.
   queues: [default: 10, llm: 5, board: 5],
   # Graceful stop: on SIGTERM Oban stops fetching and gives running jobs 20 s to
   # finish, inside fly.toml's 30 s kill_timeout (so the old blue-green machine
@@ -44,8 +46,30 @@ config :ex_tales_forge, Oban,
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
     # A job left 'executing' by a machine that was killed anyway (OOM, a hard
     # stop) goes back to 'available' after 5 minutes instead of never. Every
-    # worker must finish well within that (the board webhook times out at 30 s,
-    # Notify.timeout/1) and be idempotent (Notify keeps its delivery id).
+    # worker must finish well within that and be idempotent.
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)}
+  ]
+
+# The Workflow repo keeps its migration table in `public`. The migrations
+# create the schema `workflow`, so the table cannot be in it.
+config :ex_tales_forge, TalesForge.Workflow.Repo,
+  priv: "priv/workflow_repo",
+  migration_source: "workflow_schema_migrations"
+
+# The Oban instance of Workflow (TalesForge.Workflow.Jobs). It uses the Workflow
+# repo and keeps its jobs in the Postgres schema `workflow`, so a bot wake-up
+# job and its board or chat change go into one transaction.
+config :ex_tales_forge, TalesForge.Workflow.Oban,
+  name: TalesForge.Workflow.Oban,
+  repo: TalesForge.Workflow.Repo,
+  prefix: "workflow",
+  queues: [default: 5, board: 5],
+  shutdown_grace_period: :timer.seconds(20),
+  stage_interval: :timer.seconds(30),
+  plugins: [
+    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
+    # The board webhook times out at 30 s (Notify.timeout/1), and Notify keeps
+    # its delivery id, so a rescued job is safe.
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)},
     # Scheduled board work in Elixir, not in bot routines (decision 2026-10-13
     # "Bot work in Elixir"). Each worker runs on production only.

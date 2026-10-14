@@ -33,7 +33,7 @@ defmodule TalesForge.Board.GitHubEvents do
   alias TalesForge.Board.Workers.{AutoDone, Notify, PrBackfill}
   alias TalesForge.GitEvents
   alias TalesForge.GitEvents.GitEvent
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @typedoc "One thing the board does for an event."
   @type step ::
@@ -173,7 +173,7 @@ defmodule TalesForge.Board.GitHubEvents do
     pr = %{"number" => idea.pr_number, "url" => idea.pr_url, "head_sha" => idea.pr_head_sha}
     extra = %{actor: "bot:board", from: idea.column, to: idea.column, pr: pr}
     builder = Workflow.Team.bot(Workflow.Team.Source.team(), :builder)
-    {:ok, _job} = builder |> Notify.job(event, idea, extra) |> Oban.insert()
+    {:ok, _job} = builder |> Notify.job(event, idea, extra) |> TalesForge.Workflow.Jobs.insert()
     :ok
   end
 end

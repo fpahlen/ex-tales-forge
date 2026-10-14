@@ -1,7 +1,7 @@
 defmodule TalesForge.Board.MentionSweepTest do
   @moduledoc "The sweep wakes Case only when a founder's bot mention has no answer."
   use TalesForge.DataCase, async: false
-  use Oban.Testing, repo: TalesForge.Repo
+  use Oban.Testing, repo: TalesForge.Workflow.Repo, prefix: "workflow"
 
   alias TalesForge.Board.Workers.MentionSweep
   alias TalesForge.Board.Workers.MentionSweep.{Mention, Reply}

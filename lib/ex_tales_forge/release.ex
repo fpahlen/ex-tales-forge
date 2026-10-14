@@ -2,6 +2,10 @@ defmodule TalesForge.Release do
   @moduledoc """
   Used for executing DB release tasks when run in production without Mix
   installed.
+
+  `migrate/0` runs the migrations of each repo in `:ecto_repos`, in order:
+  first `TalesForge.Repo` (`priv/repo/migrations`), then
+  `TalesForge.Workflow.Repo` (`priv/workflow_repo/migrations`).
   """
   @app :ex_tales_forge
 

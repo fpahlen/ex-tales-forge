@@ -78,7 +78,7 @@ defmodule Workflow.Inbox.Store do
   """
   @spec record(Team.t(), Event.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def record(%Team{} = team, %Event{} = event) do
-    TalesForge.Repo.transaction(fn repo ->
+    TalesForge.Workflow.Repo.transaction(fn repo ->
       {:ok, n} = apply_event(event, repo, team)
       n
     end)
@@ -94,7 +94,7 @@ defmodule Workflow.Inbox.Store do
       where: r.recipient == ^handle and r.state == "new",
       order_by: [asc: r.position, asc: r.created_at]
     )
-    |> TalesForge.Repo.all()
+    |> TalesForge.Workflow.Repo.all()
   end
 
   @doc "The number of open items of `handle`."
@@ -103,14 +103,14 @@ defmodule Workflow.Inbox.Store do
 
   def count(handle),
     do:
-      TalesForge.Repo.aggregate(
+      TalesForge.Workflow.Repo.aggregate(
         from(r in Record, where: r.recipient == ^handle and r.state == "new"),
         :count
       )
 
   @doc "One item by id, or nil."
   @spec get(String.t()) :: Record.t() | nil
-  def get(id), do: TalesForge.Repo.get(Record, id)
+  def get(id), do: TalesForge.Workflow.Repo.get(Record, id)
 
   @doc """
   Closes the open item `id` of `handle` with the state of `action`
@@ -121,7 +121,7 @@ defmodule Workflow.Inbox.Store do
           :ok | {:error, :not_open}
   def close_item(id, handle, action) do
     from(r in Record, where: r.id == ^id and r.recipient == ^handle and r.state == "new")
-    |> TalesForge.Repo.update_all(
+    |> TalesForge.Workflow.Repo.update_all(
       set: [state: Inbox.state_after(action), acted_at: DateTime.utc_now()]
     )
     |> changed()
@@ -132,11 +132,11 @@ defmodule Workflow.Inbox.Store do
   def skip(id, handle) do
     position =
       from(r in Record, where: r.recipient == ^handle, select: r.position)
-      |> TalesForge.Repo.all()
+      |> TalesForge.Workflow.Repo.all()
       |> Inbox.skip_position()
 
     from(r in Record, where: r.id == ^id and r.recipient == ^handle and r.state == "new")
-    |> TalesForge.Repo.update_all(set: [position: position])
+    |> TalesForge.Workflow.Repo.update_all(set: [position: position])
     |> changed()
   end
 

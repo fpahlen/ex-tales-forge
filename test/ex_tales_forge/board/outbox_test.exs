@@ -264,5 +264,5 @@ defmodule TalesForge.Board.OutboxTest do
   defp public({:RSAPrivateKey, _, n, e, _, _, _, _, _, _, _}), do: {:RSAPublicKey, n, e}
 
   defp perform_job(worker, args),
-    do: Oban.Testing.perform_job(worker, args, repo: TalesForge.Repo)
+    do: Oban.Testing.perform_job(worker, args, repo: TalesForge.Workflow.Repo, prefix: "workflow")
 end

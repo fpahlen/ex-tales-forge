@@ -20,7 +20,7 @@ defmodule TalesForge.Images do
 
   alias TalesForge.AppRole
   alias TalesForge.Images.Image
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   @max_bytes 5_000_000
   @types ~w(image/png image/jpeg image/webp)

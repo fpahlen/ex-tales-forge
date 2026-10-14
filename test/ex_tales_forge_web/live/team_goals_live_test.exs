@@ -5,7 +5,7 @@ defmodule TalesForgeWeb.TeamGoalsLiveTest do
 
   alias TalesForge.Board
   alias TalesForge.Board.Goal
-  alias TalesForge.Repo
+  alias TalesForge.Workflow.Repo
 
   doctest TalesForgeWeb.TeamGoals
 

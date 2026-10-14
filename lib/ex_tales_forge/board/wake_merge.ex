@@ -44,7 +44,7 @@ defmodule TalesForge.Board.WakeMerge do
           fragment("?->'payload'->'idea'->>'id'", j.args) == ^idea_id,
       select: max(j.inserted_at)
     )
-    |> repo.one()
+    |> repo.one(prefix: "workflow")
     |> then(&(&1 && DateTime.from_naive!(&1, "Etc/UTC")))
   end
 end
