@@ -67,8 +67,15 @@ defmodule TalesForge.Board.Workers.Notify do
   end
 
   @doc """
-  The card-less `schedule.run` job that wakes `bot` for the run `run` of the
-  scheduled job `job` (`TalesForge.Board.Schedule.start_bot_run/3`).
+  Builds a card-less notify job for `bot`.
+
+  With a team job and a `ScheduledRun`, this starts the `schedule.run` wake
+  (`TalesForge.Board.Schedule.start_bot_run/3`).
+
+  With an atom event and a run map, this starts the wake for a GitHub Actions
+  run that names no card (`run.failed` on main). The body has `event`,
+  `delivery_id`, `bot`, `transition` (actor `bot:board`) and `run` (repo,
+  workflow, branch, sha, url, actor).
   """
   @spec run_job(BoardApi.bot(), Workflow.Team.job(), TalesForge.Board.ScheduledRun.t()) ::
           Oban.Job.changeset()
@@ -89,12 +96,6 @@ defmodule TalesForge.Board.Workers.Notify do
     })
   end
 
-  @doc """
-  The job that wakes `bot` about a GitHub Actions run that names no card
-  (`run.failed`: a failed run on main). Body: `event`, `delivery_id`, `bot`,
-  `transition` (actor `bot:board`) and `run` (repo, workflow, branch, sha, url,
-  actor).
-  """
   @spec run_job(BoardApi.bot(), atom(), map()) :: Oban.Job.changeset()
   def run_job(bot, event, run) when is_atom(event) and is_map(run) do
     new(%{
