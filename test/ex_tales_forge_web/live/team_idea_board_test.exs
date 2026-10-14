@@ -669,6 +669,19 @@ defmodule TalesForgeWeb.TeamIdeaBoardTest do
       assert has_element?(view, "#card-#{thin.id}-down .hero-hand-thumb-down")
     end
 
+    test "on a parked card a -1 saves at once with no reason box", %{conn: conn, thin: thin} do
+      {:ok, _} = Board.move(thin, {:founder, "bo@example.com"}, "parked")
+      {:ok, view, _} = live(conn, "/team")
+      assert has_element?(view, ~s(#board-col-parked #tile-#{thin.id}-down[title="Downvote"]))
+
+      click(view, "#tile-#{thin.id}-down")
+      refute has_element?(view, "#board-modal"), "a -1 on a parked card does not open the card"
+      assert counts(view, thin.id) == {0, 1}
+
+      click(view, "#tile-#{thin.id}-up")
+      assert counts(view, thin.id) == {1, 0}
+    end
+
     test "a bad vote value is refused on the card, not a crash", %{conn: conn, thin: thin} do
       {:ok, view, _} = live(conn, "/team")
 
