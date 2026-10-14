@@ -63,7 +63,7 @@ defmodule TalesForgeWeb.TeamPresentationLiveTest do
       assert {:ok, _landing, landing_html} =
                view |> element("#team-nav-overview") |> render_click() |> follow_redirect(conn)
 
-      assert landing_html =~ "The full presentation"
+      assert landing_html =~ "What have we done"
     end
   end
 

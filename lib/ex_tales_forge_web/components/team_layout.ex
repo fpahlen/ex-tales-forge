@@ -29,7 +29,7 @@ defmodule TalesForgeWeb.TeamLayout do
   with `/` is a path to its own page (for example `/team/presentation`), not an
   anchor. The presentation's nav
   starts with the way back to the overview; the landing page links the
-  presentation once, from its own card (`#presentation-cta`).
+  presentation from its nav.
   """
   attr :team, Workflow.Team, required: true, doc: "the team config"
   attr :page, :atom, required: true, values: [:landing, :presentation]
