@@ -521,7 +521,7 @@ defmodule TalesForge.Game.JevIntent do
     action = reply[:action] || :other
     safety = reply[:safety] || :benign
     target = pick_target(reply, :target, action, by_label, context, text)
-    skill = if action in @no_skill_actions, do: nil, else: skill_name(reply[:skill])
+    skill = decode_skill(action, skill_name(reply[:skill]), text)
     later = later_type(reply[:later], action, safety)
     later_target = if later, do: pick_target(reply, :later_target, later, by_label, context, text)
 
@@ -607,6 +607,88 @@ defmodule TalesForge.Game.JevIntent do
       _ -> nil
     end
   end
+
+  # QA 2026-10-14 21:15: Jev read "I search the floor" and "I try to sneak
+  # toward the stairs" with no skill, so the server rolled nothing and the GM
+  # told a result with no roll behind it. A skill that the player's words name
+  # (`text_skill/2`) fills the gap. A move rolls only to sneak or to climb.
+  @move_skills ~w(stealth climbing)
+
+  defp decode_skill(action, jev_skill, text) do
+    skill = jev_skill || text_skill(text, action)
+
+    cond do
+      is_nil(skill) -> nil
+      action == :move and skill in @move_skills -> skill
+      action in @no_skill_actions -> nil
+      true -> skill
+    end
+  end
+
+  @text_skills [
+    {~r/\b(sneak\w*|creep\w*|tiptoe\w*|unseen|unnoticed|hide|hides|hiding|stealthily)\b/u,
+     "stealth"},
+    {~r/\b(climb\w*|scal(e|es|ing) (the|a|up))\b/u, "climbing"},
+    {~r/\b(pick(s|ing)? (the|a|its|that) lock|lockpick\w*)\b/u, "lockpicking"},
+    {~r/\b(persuad\w*|convinc\w*|haggl\w*)\b/u, "persuasion"},
+    {~r/\b(search\w*|rummag\w*|scour\w*|hunt(s|ing)? for|look(s|ing)? (for|around for) (anything|something|clues|tracks|traps|ore))\b/u,
+     :search},
+    {~r/\b(follow(s|ing)? (the|its|their|his|her) (tracks|trail)|track(s|ing)? (the|it|them|him|her))\b/u,
+     "tracking"}
+  ]
+
+  @doc """
+  The skill that the player's words name, when Jev gave none: sneak is
+  stealth, climb is climbing, persuade is persuasion, search is perception
+  (insight in catalogue v1), and a bare attack is a combat skill. Nil when
+  the words name no skill.
+
+      iex> TalesForge.Game.JevIntent.text_skill("I try to sneak toward the cellar stairs", :move)
+      "stealth"
+      iex> TalesForge.Game.JevIntent.text_skill("I try to climb down the timber frame", :interact)
+      "climbing"
+      iex> TalesForge.Game.JevIntent.text_skill("I try to persuade Caldern to talk", :speak)
+      "persuasion"
+      iex> TalesForge.Game.JevIntent.text_skill("I punch him", :combat)
+      "unarmed_combat"
+      iex> TalesForge.Game.JevIntent.text_skill("I attack", :combat)
+      "melee_combat"
+      iex> TalesForge.Game.JevIntent.text_skill("I ask Marta about the road", :speak)
+      nil
+  """
+  @spec text_skill(String.t(), atom()) :: String.t() | nil
+  def text_skill(text, action) when is_binary(text) do
+    lowered = String.downcase(text)
+
+    if action == :combat, do: combat_text_skill(lowered), else: named_text_skill(lowered)
+  end
+
+  def text_skill(_text, _action), do: nil
+
+  defp named_text_skill(lowered) do
+    Enum.find_value(@text_skills, fn {regex, skill} ->
+      if Regex.match?(regex, lowered), do: text_skill_name(skill)
+    end)
+  end
+
+  defp combat_text_skill(lowered) do
+    cond do
+      Regex.match?(
+        ~r/\b(fists?|punch\w*|kick\w*|unarmed|wrestl\w*|grappl\w*|headbutt\w*)\b/u,
+        lowered
+      ) ->
+        "unarmed_combat"
+
+      Regex.match?(~r/\b(shoot\w*|bow|crossbow|sling|throw\w*|arrow\w*)\b/u, lowered) ->
+        "ranged_combat"
+
+      true ->
+        "melee_combat"
+    end
+  end
+
+  defp text_skill_name(:search), do: if(catalogue() == :v2, do: "perception", else: "insight")
+  defp text_skill_name(skill), do: skill
 
   defp skill_name(:none), do: nil
   defp skill_name(nil), do: nil
@@ -800,6 +882,9 @@ defmodule TalesForge.Game.JevIntent do
   defp put_manner(params, manner), do: Map.put(params, "manner", Atom.to_string(manner))
 
   defp put_skill(params, nil, _action), do: params
+
+  defp put_skill(params, skill, :move) when skill in @move_skills,
+    do: Map.put(params, "skill", skill)
 
   defp put_skill(params, _skill, action) when action in @no_skill_actions, do: params
 

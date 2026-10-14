@@ -35,7 +35,7 @@ defmodule TalesForge.Game.Turn.Combat do
           {PlayerAction.t(), HandlerResult.t(), Combat.target() | nil}
   def target(turn, world, played, handler) do
     if on?(turn) and combat_roll?(handler) do
-      case Combat.target(played.action.target, turn.raw_action, world) do
+      case Combat.target(played.action.target, target_text(played, turn.raw_action), world) do
         {:unclear, names} -> {unrolled(played), ask(names), {:unclear, names}}
         found -> {played, handler, found}
       end
@@ -43,6 +43,14 @@ defmodule TalesForge.Game.Turn.Combat do
       {played, handler, nil}
     end
   end
+
+  # A target the player picked from the "whom?" question
+  # (`IntentClarification.combat_target/3`) counts as named in the text.
+  defp target_text(%PlayerAction{action: %{parameters: %{"target_chosen" => true}} = action}, raw)
+       when is_binary(action.target),
+       do: "#{raw} #{String.replace(action.target, "_", " ")}"
+
+  defp target_text(_played, raw), do: raw
 
   defp combat_roll?(%{handler: "skill_check", skill: skill, state_hints: hints}),
     do: skill in Combat.combat_skills() and Map.get(hints || %{}, "rejected") != true

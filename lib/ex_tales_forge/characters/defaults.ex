@@ -92,7 +92,9 @@ defmodule TalesForge.Characters.Defaults do
       "ocean" => ocean(race, occupation, seed),
       "maslow" => maslow(occupation["maslow"], standing["maslow_floor"]),
       "concerns" => concerns(occupation, standing),
-      "coins" => standing["coins"]
+      # QA 2026-10-14 21:15: a standing lists "20s 300c"; the sheet keeps it
+      # converted up ("1g").
+      "coins" => TalesForge.Game.Inventory.normalize_coins(standing["coins"])
     }
   end
 

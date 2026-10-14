@@ -28,8 +28,8 @@ defmodule TalesForge.Game.CombatTurnTest do
       overall_intent: text,
       action: %SingleAction{
         action_type: :combat,
-        target: nil,
-        parameters: %{"skill" => "melee_combat"}
+        target: Keyword.get(opts, :target),
+        parameters: Map.merge(%{"skill" => "melee_combat"}, Keyword.get(opts, :params, %{}))
       }
     }
 
@@ -84,5 +84,43 @@ defmodule TalesForge.Game.CombatTurnTest do
 
     assert t.outcome.combat == nil
     refute Map.has_key?(t.outcome.board.outcome, "combat")
+  end
+
+  describe "d100 bands (QA 2026-10-14 21:15)" do
+    test "the outcome keeps the band of the attack roll", %{session: session} do
+      t = turn(session, "I attack the miner", combat_rolls: %{attack: 100, counter_chance: 0.99})
+      assert t.outcome.combat["attack"]["result"] == "critical_failure"
+      assert t.outcome.mechanical.outcome == "critical_failure"
+      assert t.outcome.mechanical.notes =~ "critical miss"
+    end
+
+    test "a roll just above the target is a near miss", %{session: session} do
+      t = turn(session, "I attack the miner", combat_rolls: %{attack: 2, counter_chance: 0.99})
+      target = t.outcome.combat["attack"]["target"]
+
+      t =
+        turn(session, "I attack the miner",
+          combat_rolls: %{attack: target + 1, counter_chance: 0.99}
+        )
+
+      assert t.outcome.mechanical.outcome == "partial_success"
+      refute t.outcome.combat["attack"]["hit"]
+      assert t.outcome.mechanical.notes =~ "near miss"
+    end
+  end
+
+  test "a person picked from the whom question is the target", %{session: session} do
+    world = session.world_state
+    [npc_id | _] = world["present_npcs"]
+
+    t =
+      turn(session, "I attack",
+        target: npc_id,
+        params: %{"target_chosen" => true},
+        combat_rolls: %{attack: 1, counter_chance: 0.99}
+      )
+
+    refute t.outcome.handler.state_hints["combat_target_unclear"]
+    assert t.outcome.combat["defender_id"] == npc_id
   end
 end

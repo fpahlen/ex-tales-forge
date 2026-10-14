@@ -136,6 +136,28 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
             <dt class="text-[var(--paper-muted)]">Inventory items</dt>
             <dd>{length(Map.get(@character, "inventory", []))}</dd>
           </div>
+          <div>
+            <dt class="text-[var(--paper-muted)]">Coins</dt>
+            <dd>{TalesForgeWeb.PlayComponents.format_coins(Map.get(@character, "coins", %{}))}</dd>
+          </div>
+          <div>
+            <dt class="text-[var(--paper-muted)]">Dice system</dt>
+            <dd>{Map.get(@session.world_state || %{}, "game_system", "—")}</dd>
+          </div>
+          <div class="sm:col-span-2" id="admin-character-skills">
+            <dt class="text-[var(--paper-muted)]">Skills (trained level / roll level)</dt>
+            <dd>
+              <span :if={TalesForgeWeb.PlayComponents.skill_rows(@character) == []}>—</span>
+              <ul class="flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs">
+                <li
+                  :for={row <- TalesForgeWeb.PlayComponents.skill_rows(@character)}
+                  data-skill={row.skill}
+                >
+                  {row.skill} {row.raw} / {row.effective}
+                </li>
+              </ul>
+            </dd>
+          </div>
         </dl>
       </.section_card>
 

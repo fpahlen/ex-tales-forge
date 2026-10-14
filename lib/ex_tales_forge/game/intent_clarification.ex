@@ -369,5 +369,51 @@ defmodule TalesForge.Game.IntentClarification do
     end
   end
 
+  @doc """
+  The question for an attack with no clear target (#281 item 6, QA
+  2026-10-14 21:15): "Whom do you attack?", one option for each person here
+  (`people` is `[{id, name}]`). Each option attacks that person; the option
+  action carries `"target_chosen"` so the combat step takes the target as
+  chosen (`TalesForge.Game.Turn.Combat.target/4`).
+  """
+  @spec combat_target(map(), [{String.t(), String.t()}], String.t()) :: map()
+  def combat_target(reading, people, raw_action) do
+    id = Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+    primary = List.first(reading.extraction.actions) || %SingleAction{action_type: :combat}
+    params = primary.parameters || %{}
+
+    options =
+      Enum.map(people, fn {npc_id, _name} ->
+        %SingleAction{
+          action_type: :combat,
+          target: npc_id,
+          parameters: Map.put(params, "target_chosen", true)
+        }
+      end)
+
+    %{
+      "clarification_id" => id,
+      "source" => "combat_target",
+      "question" => "Whom do you attack? #{Enum.map_join(people, ", or ", &elem(&1, 1))}?",
+      "options" =>
+        people
+        |> Enum.with_index()
+        |> Enum.map(fn {{_npc_id, name}, idx} ->
+          %{
+            "id" => "option_#{idx}",
+            "label" => "combat",
+            "description" => "Attack #{name}",
+            "action_index" => idx
+          }
+        end),
+      "option_actions" => Enum.map(options, &[encode_action(&1)]),
+      "allow_free_text" => true,
+      "overall_intent" => reading.extraction.overall_intent,
+      "confidence" => reading.confidence,
+      "raw_action" => raw_action,
+      "actions" => Enum.map(reading.extraction.actions, &encode_action/1)
+    }
+  end
+
   defp encode_action(action), do: SingleAction.encode(action)
 end

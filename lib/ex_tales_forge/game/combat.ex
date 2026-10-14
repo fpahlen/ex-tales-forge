@@ -91,6 +91,38 @@ defmodule TalesForge.Game.Combat do
     do: Mechanics.resolve_check(roll, target) in ~w(success critical_success)
 
   @doc """
+  The d100 band of an attack roll against `target` (QA 2026-10-14 21:15):
+  `critical_success`, `success`, `partial_success` (a near miss: a miss that
+  was 1 to 15 above the target), `failure` or `critical_failure`. The band
+  agrees with `hit?/2`: the first two hit, the others miss.
+
+      iex> Enum.map([1, 3, 30, 31, 45, 46, 100], &TalesForge.Game.Combat.result(&1, 30))
+      ["critical_success", "critical_success", "success", "partial_success", "partial_success", "failure", "critical_failure"]
+      iex> TalesForge.Game.Combat.result(1, 8)
+      "success"
+  """
+  @spec result(1..100, pos_integer()) :: String.t()
+  def result(roll, target) do
+    case Mechanics.resolve_check(roll, target) do
+      :reroll -> "failure"
+      band -> band
+    end
+  end
+
+  @doc """
+  The word for an attack band, as the player reads it.
+
+      iex> Enum.map(~w(critical_success success partial_success failure critical_failure), &TalesForge.Game.Combat.result_word/1)
+      ["critical hit", "hit", "near miss", "miss", "critical miss"]
+  """
+  @spec result_word(String.t() | nil) :: String.t()
+  def result_word("critical_success"), do: "critical hit"
+  def result_word("success"), do: "hit"
+  def result_word("partial_success"), do: "near miss"
+  def result_word("critical_failure"), do: "critical miss"
+  def result_word(_), do: "miss"
+
+  @doc """
   The combat skill of `fighter` and its effective level: `preferred` when it
   is a combat skill, otherwise the combat skill with the highest level.
   """
@@ -176,6 +208,7 @@ defmodule TalesForge.Game.Combat do
     defender_parry = parry(defender)
     target = attack_target(attack_level, defender_parry)
     hit = hit?(rolls.attack, target)
+    result = result(rolls.attack, target)
 
     cap = wound_max(defender)
     before = defender |> Map.get("wounds", 0) |> to_int(0) |> min(cap)
@@ -199,7 +232,8 @@ defmodule TalesForge.Game.Combat do
         "parry" => defender_parry,
         "target" => target,
         "roll" => rolls.attack,
-        "hit" => hit
+        "hit" => hit,
+        "result" => result
       },
       "counter" => counter,
       "defender_wounds" => wounds,
@@ -240,7 +274,8 @@ defmodule TalesForge.Game.Combat do
         "parry" => attacker_parry,
         "target" => target,
         "roll" => roll,
-        "hit" => hit?(roll, target)
+        "hit" => hit?(roll, target),
+        "result" => result(roll, target)
       }
     end
   end
@@ -522,7 +557,7 @@ defmodule TalesForge.Game.Combat do
   def prompt_section(%{"attack" => attack} = ex) do
     lines =
       [
-        "- #{ex["attacker"]} attacks #{ex["defender"]} (#{attack["skill"]} #{attack["level"]}, #{ex["defender"]}'s Parry #{attack["parry"]}): d100 #{attack["roll"]} against #{attack["target"]}. #{hit_word(attack["hit"])}.",
+        "- #{ex["attacker"]} attacks #{ex["defender"]} (#{attack["skill"]} #{attack["level"]}, #{ex["defender"]}'s Parry #{attack["parry"]}): d100 #{attack["roll"]} against #{attack["target"]}. #{sentence(band_word(attack))}.#{critical_note(attack)}",
         defender_line(ex),
         counter_line(ex)
       ]
@@ -547,11 +582,13 @@ defmodule TalesForge.Game.Combat do
       ...>   "counter" => %{"skill" => "melee_combat", "level" => 45, "parry" => 50, "roll" => 20, "target" => 45, "hit" => true}}
       iex> TalesForge.Game.Combat.summary(ex)
       "Attack: d100 15 vs 5 (melee_combat 15, Brenna's Parry 60): miss. Brenna: 0/3 wounds. Counterattack: d100 20 vs 45 (melee_combat 45, Ezzor's Parry 50): hit, Ezzor takes 1 wound."
+      iex> TalesForge.Game.Combat.summary(put_in(ex, ["attack", "result"], "partial_success"))
+      "Attack: d100 15 vs 5 (melee_combat 15, Brenna's Parry 60): near miss. Brenna: 0/3 wounds. Counterattack: d100 20 vs 45 (melee_combat 45, Ezzor's Parry 50): hit, Ezzor takes 1 wound."
   """
   @spec summary(map() | nil) :: String.t() | nil
   def summary(%{"attack" => a} = ex) do
     attack =
-      "Attack: d100 #{a["roll"]} vs #{a["target"]} (#{a["skill"]} #{a["level"]}, #{ex["defender"]}'s Parry #{a["parry"]}): #{String.downcase(hit_word(a["hit"]))}."
+      "Attack: d100 #{a["roll"]} vs #{a["target"]} (#{a["skill"]} #{a["level"]}, #{ex["defender"]}'s Parry #{a["parry"]}): #{band_word(a)}."
 
     wounds =
       "#{ex["defender"]}: #{ex["defender_wounds"]}/#{ex["defender_wound_max"]} wounds#{vitality_tail(ex["defender_vitality"])}."
@@ -559,7 +596,10 @@ defmodule TalesForge.Game.Combat do
     counter =
       case ex["counter"] do
         %{} = c ->
-          tail = if c["hit"], do: "hit, #{ex["attacker"]} takes 1 wound.", else: "miss."
+          tail =
+            if c["hit"],
+              do: "#{band_word(c)}, #{ex["attacker"]} takes 1 wound.",
+              else: "#{band_word(c)}."
 
           "Counterattack: d100 #{c["roll"]} vs #{c["target"]} (#{c["skill"]} #{c["level"]}, #{ex["attacker"]}'s Parry #{c["parry"]}): " <>
             tail
@@ -573,12 +613,26 @@ defmodule TalesForge.Game.Combat do
 
   def summary(_exchange), do: nil
 
+  # The locked effect of a critical attack (card 26706846, answer 4) for the GM.
+  defp critical_note(%{"result" => "critical_success", "skill" => skill}),
+    do: Mechanics.critical_effect("critical_success", skill)
+
+  defp critical_note(%{"result" => "critical_failure", "skill" => skill}),
+    do: Mechanics.critical_effect("critical_failure", skill)
+
+  defp critical_note(_attack), do: ""
+
   defp vitality_tail("down"), do: ", down"
   defp vitality_tail("dead"), do: ", dead"
   defp vitality_tail(_), do: ""
 
-  defp hit_word(true), do: "Hit"
-  defp hit_word(false), do: "Miss"
+  # The band word of an attack or counterattack map. A map from before the
+  # bands (no "result") falls back to hit or miss.
+  defp band_word(%{"result" => result}) when is_binary(result), do: result_word(result)
+  defp band_word(%{"hit" => true}), do: "hit"
+  defp band_word(_), do: "miss"
+
+  defp sentence(word), do: String.capitalize(word)
 
   defp defender_line(ex) do
     state =
@@ -600,8 +654,8 @@ defmodule TalesForge.Game.Combat do
   defp counter_line(%{"counter" => c} = ex) do
     result =
       if c["hit"],
-        do: "Hit: #{ex["attacker"]} takes 1 wound.",
-        else: "Miss: #{ex["attacker"]} takes no wound."
+        do: "#{sentence(band_word(c))}: #{ex["attacker"]} takes 1 wound.",
+        else: "#{sentence(band_word(c))}: #{ex["attacker"]} takes no wound."
 
     "- #{ex["defender"]} counterattacks #{ex["attacker"]} (#{c["skill"]} #{c["level"]}, Parry #{c["parry"]}): d100 #{c["roll"]} against #{c["target"]}. #{result}"
   end

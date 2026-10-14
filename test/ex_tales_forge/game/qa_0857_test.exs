@@ -75,7 +75,7 @@ defmodule TalesForge.Game.Qa0857Test do
 
       t =
         combat_turn(session, text, nil,
-          combat_rolls: %{attack: 20, counter_chance: 0.0, counter: 1}
+          combat_rolls: %{attack: 60, counter_chance: 0.0, counter: 1}
         )
 
       assert t.outcome.combat["defender_id"] == "foe_miner"
@@ -86,7 +86,7 @@ defmodule TalesForge.Game.Qa0857Test do
       assert mech.combat["defender_id"] == "foe_miner"
 
       assert mech.notes =~
-               ~r/^Attack: d100 20 vs \d+ \(melee_combat \d+, a miner's Parry \d+\): miss\./
+               ~r/^Attack: d100 60 vs \d+ \(melee_combat \d+, a miner's Parry \d+\): miss\./
 
       assert mech.notes =~ "Counterattack: d100 1 vs"
       assert MechanicalResolution.encode(mech)["combat"]["defender_id"] == "foe_miner"

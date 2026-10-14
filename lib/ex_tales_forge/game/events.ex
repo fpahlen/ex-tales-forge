@@ -56,7 +56,9 @@ defmodule TalesForge.Game.Events do
 
   defp combat_event(trigger, outcome, location_id, tick) do
     kind =
-      if outcome == "success", do: trigger["event_on_success"], else: trigger["event_on_failure"]
+      if outcome in ~w(success critical_success),
+        do: trigger["event_on_success"],
+        else: trigger["event_on_failure"]
 
     if is_binary(kind),
       do: [event(kind, true, tick, location_id, %{"outcome" => outcome}, "player")],
