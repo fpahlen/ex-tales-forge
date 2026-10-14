@@ -53,6 +53,10 @@ defmodule TalesForgeWeb.AccessControlTest do
     # The bots open card and chat images with the same bot tokens
     # (TeamImageController); 401 without a token.
     {:get, "/internal/images/:id"},
+    # The manual work log entries, the same bot tokens
+    # (WorkLogApiController); 401 without a token.
+    {:get, "/internal/work-log/entries"},
+    {:post, "/internal/work-log/entries"},
     # The product-app API that Workflow reads, bearer token PRODUCT_APP_API_TOKEN
     # (ProductApiController); decision 2026-10-13 "Workflow split 4/5".
     {:get, "/internal/product/costs"},
