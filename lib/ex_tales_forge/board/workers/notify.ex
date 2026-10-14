@@ -12,6 +12,15 @@ defmodule TalesForge.Board.Workers.Notify do
   `transition` (from, to, actor) and, for a mention, `comment`. A
   `chat.thread_message` wake also has `thread_id`.
 
+  A `schedule.run` wake (`run_job/3` with a scheduled run) has no card: the
+  body has `job` (id, name, limit_min), `run` (id, started_at, deadline_at,
+  UTC) and `finish` (the path for the report,
+  `POST /internal/board/runs/:id/finish`).
+
+  A `run.failed` wake (`run_job/3` with an atom event and a run map) has no
+  card: the body has `transition` (actor `bot:board`) and `run` (repo,
+  workflow, branch, sha, url, actor).
+
   Any 2xx ends it. A pooled connection the bot already closed (`:closed`) is
   retried once at once in the same attempt. Otherwise Oban retries up to 10
   times, fast at first so a short outage of the bot costs seconds, not half an
@@ -58,13 +67,37 @@ defmodule TalesForge.Board.Workers.Notify do
   end
 
   @doc """
-  The job that wakes `bot` about a GitHub Actions run that names no card
-  (`run.failed`: a failed run on main). Body: `event`, `delivery_id`, `bot`,
-  `transition` (actor `bot:board`) and `run` (repo, workflow, branch, sha, url,
-  actor).
+  Builds a card-less notify job for `bot`.
+
+  With a team job and a `ScheduledRun`, this starts the `schedule.run` wake
+  (`TalesForge.Board.Schedule.start_bot_run/3`).
+
+  With an atom event and a run map, this starts the wake for a GitHub Actions
+  run that names no card (`run.failed` on main). The body has `event`,
+  `delivery_id`, `bot`, `transition` (actor `bot:board`) and `run` (repo,
+  workflow, branch, sha, url, actor).
   """
+  @spec run_job(BoardApi.bot(), Workflow.Team.job(), TalesForge.Board.ScheduledRun.t()) ::
+          Oban.Job.changeset()
+  def run_job(bot, job, %TalesForge.Board.ScheduledRun{} = run) when is_map(job) do
+    new(%{
+      "bot" => Atom.to_string(bot),
+      "event" => "schedule.run",
+      "delivery_id" => Ecto.UUID.generate(),
+      "payload" => %{
+        "job" => %{"id" => job.id, "name" => job.name, "limit_min" => job.limit_min},
+        "run" => %{
+          "id" => run.id,
+          "started_at" => DateTime.to_iso8601(run.started_at),
+          "deadline_at" => DateTime.to_iso8601(run.deadline_at)
+        },
+        "finish" => %{"method" => "POST", "path" => "/internal/board/runs/#{run.id}/finish"}
+      }
+    })
+  end
+
   @spec run_job(BoardApi.bot(), atom(), map()) :: Oban.Job.changeset()
-  def run_job(bot, event, run) when is_map(run) do
+  def run_job(bot, event, run) when is_atom(event) and is_map(run) do
     new(%{
       "bot" => Atom.to_string(bot),
       "event" => event_name(event),

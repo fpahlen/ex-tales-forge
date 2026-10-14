@@ -259,6 +259,7 @@ defmodule TalesForgeWeb.Router do
     post "/ideas/:id/links", BoardApiController, :link
     post "/ideas/:id/comments", BoardApiController, :comment
     post "/prs", BoardApiController, :pr
+    post "/runs/:id/finish", BoardApiController, :finish_run
   end
 
   # The team chat's bot API (production only), with the same bot tokens as the

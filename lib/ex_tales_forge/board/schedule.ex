@@ -9,14 +9,25 @@ defmodule TalesForge.Board.Schedule do
   `scheduled_runs` (`TalesForge.Board.ScheduledRun`), `"open"` at the start,
   then `"ok"` or `"failed"`. A code job starts no bot.
 
+  A bot job (the owner is a bot) runs `start_bot_run/3`: one transaction
+  opens the run, adds the card-less `schedule.run` wake for the bot
+  (`TalesForge.Board.Workers.Notify.run_job/3`) and adds the time limit
+  check at `deadline_at` (`TalesForge.Board.Workers.NoReport`). The bot sends
+  its result with `POST /internal/board/runs/:id/finish` (`finish_by_bot/3`).
+  A run with no report at `deadline_at` gets `"no_report"`.
+
   All times are in UTC. The browser shows them in the viewer's local time
   zone. Changes are broadcast on `topic/0` as `{:schedule, :changed}`.
   """
 
   import Ecto.Query
 
+  alias Ecto.Multi
   alias TalesForge.Board.ScheduledRun
-  alias TalesForge.Workflow.Repo
+  alias TalesForge.Board.Workers.{NoReport, Notify}
+  alias TalesForge.Workflow.{Jobs, Repo}
+
+  @detail_max 2000
 
   @topic "board:schedule"
 
@@ -84,6 +95,104 @@ defmodule TalesForge.Board.Schedule do
     |> ScheduledRun.changeset(%{status: status, detail: detail, finished_at: now})
     |> Repo.update()
     |> tap(&broadcast/1)
+  end
+
+  @doc """
+  Opens a run of the bot job `job` (owner: the bot id) and, in the same
+  transaction, adds the `schedule.run` wake for the bot and the time limit
+  check at `now` + `limit_min`. Returns the run.
+  """
+  @spec start_bot_run(Workflow.Team.t(), Workflow.Team.job(), DateTime.t()) ::
+          {:ok, ScheduledRun.t()} | {:error, term()}
+  def start_bot_run(%Workflow.Team{} = team, %{owner: owner} = job, now \\ DateTime.utc_now()) do
+    bot = Workflow.Team.bot_id(team, owner) || raise ArgumentError, "#{owner} is not a bot"
+    deadline = DateTime.add(now, job.limit_min * 60)
+
+    attrs = %{
+      job_id: job.id,
+      owner: Atom.to_string(bot),
+      status: "open",
+      started_at: now,
+      deadline_at: deadline
+    }
+
+    Multi.new()
+    |> Multi.insert(:run, ScheduledRun.changeset(%ScheduledRun{}, attrs))
+    |> Jobs.insert(:wake, fn %{run: run} -> Notify.run_job(bot, job, run) end)
+    |> Jobs.insert(:limit, fn %{run: run} -> NoReport.job(run) end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{run: run}} ->
+        broadcast({:ok, run})
+        {:ok, Repo.get!(ScheduledRun, run.id)}
+
+      {:error, _step, reason, _done} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  The report of `bot` for the run `run_id`: `params` has `status` (`"ok"` or
+  `"failed"`) and an optional `detail`. Only the bot that owns the run can
+  finish it. A late report after "no_report" is kept: it replaces
+  "no_report".
+  """
+  @spec finish_by_bot(String.t(), atom(), map()) ::
+          {:ok, ScheduledRun.t()}
+          | {:error, :not_found | :forbidden | :closed | :bad_status | Ecto.Changeset.t()}
+  def finish_by_bot(run_id, bot, params) do
+    with {:ok, run} <- fetch(run_id),
+         :ok <- owner?(run, bot),
+         :ok <- reportable?(run),
+         {:ok, status} <- report_status(params["status"]) do
+      finish(run, status, report_detail(params["detail"]))
+    end
+  end
+
+  defp fetch(id) do
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         %ScheduledRun{} = run <- Repo.get(ScheduledRun, uuid) do
+      {:ok, run}
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
+  defp owner?(%ScheduledRun{owner: owner}, bot),
+    do: if(owner == to_string(bot), do: :ok, else: {:error, :forbidden})
+
+  defp reportable?(%ScheduledRun{status: s}) when s in ~w(open no_report), do: :ok
+  defp reportable?(_run), do: {:error, :closed}
+
+  defp report_status(s) when s in ~w(ok failed), do: {:ok, s}
+  defp report_status(_), do: {:error, :bad_status}
+
+  defp report_detail(d) when is_binary(d), do: String.slice(d, 0, @detail_max)
+  defp report_detail(_), do: nil
+
+  @doc """
+  Closes `run` with "no_report" when it is still open at `now` and its
+  deadline has come. Returns `:no_report`, `:closed` (the bot reported) or
+  `{:wait, seconds}` (the deadline is later).
+  """
+  @spec close_if_no_report(String.t(), DateTime.t()) ::
+          :no_report | :closed | {:wait, pos_integer()}
+  def close_if_no_report(run_id, now \\ DateTime.utc_now()) do
+    case fetch(run_id) do
+      {:ok, %ScheduledRun{status: "open", deadline_at: %DateTime{} = deadline} = run} ->
+        case DateTime.diff(deadline, now) do
+          wait when wait > 0 ->
+            {:wait, wait}
+
+          _ ->
+            minutes = div(DateTime.diff(deadline, run.started_at), 60)
+            {:ok, _} = finish(run, "no_report", "No report in #{minutes} min.", now)
+            :no_report
+        end
+
+      _ ->
+        :closed
+    end
   end
 
   defp broadcast({:ok, _}),

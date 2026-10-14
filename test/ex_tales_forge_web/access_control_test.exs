@@ -47,6 +47,7 @@ defmodule TalesForgeWeb.AccessControlTest do
     {:post, "/internal/board/ideas/:id/links"},
     {:post, "/internal/board/ideas/:id/comments"},
     {:post, "/internal/board/prs"},
+    {:post, "/internal/board/runs/:id/finish"},
     # The team chat's bot API (production only), the same bot tokens.
     {:get, "/internal/chat"},
     {:post, "/internal/chat"},
