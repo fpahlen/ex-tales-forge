@@ -134,8 +134,12 @@ defmodule TalesForge.Game.Turn.Combat do
 
     {world, events} =
       case exchange do
-        %{"attack" => _} -> Combat.book(carried_world, exchange, foe, before)
-        _ -> {carried_world, []}
+        %{"attack" => _} ->
+          {booked, events} = Combat.book(carried_world, exchange, foe, before)
+          {Map.put(booked, "combat_last", last(booked, exchange)), events}
+
+        _ ->
+          {carried_world, []}
       end
 
     outcome =
@@ -146,5 +150,10 @@ defmodule TalesForge.Game.Turn.Combat do
 
     %{board | world: world, events: board.events ++ events}
     |> Map.put(:outcome, outcome)
+  end
+
+  # The play page shows the last exchange (QA 2026-10-14 08:57, #270).
+  defp last(world, exchange) do
+    %{"tick" => world["world_tick"], "text" => Combat.summary(exchange)}
   end
 end

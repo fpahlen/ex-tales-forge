@@ -253,7 +253,10 @@ defmodule TalesForge.Game.Combat do
   The target of an attack. `action_target` is the Jev target (a world id or
   a name). The target must be a person in the scene (`present_npcs`):
 
-    * a present NPC by id, by name or by a name word in `text` gives `{:npc, id}`;
+    * a present NPC by a name word in `text` gives `{:npc, id}`;
+    * the Jev target (id or name) gives `{:npc, id}` only when `text` refers
+      to a person: a pronoun or a word of that id or name. A bare "I attack"
+      asks whom;
     * a person word ("the miner") with no present NPC gives
       `{:foe, id, name}`: the server makes a minor foe for the scene;
     * anything else gives `{:unclear, names}` with the names of the present
@@ -267,6 +270,10 @@ defmodule TalesForge.Game.Combat do
       true
       iex> TalesForge.Game.Combat.target(nil, "I lash out", world) == {:unclear, ["Osric Vane"]}
       true
+      iex> TalesForge.Game.Combat.target("guild_steward", "I attack", world) == {:unclear, ["Osric Vane"]}
+      true
+      iex> TalesForge.Game.Combat.target("guild_steward", "I attack him", world) == {:npc, "guild_steward"}
+      true
   """
   @spec target(String.t() | nil, String.t() | nil, map()) :: target()
   def target(action_target, text, world) do
@@ -274,11 +281,37 @@ defmodule TalesForge.Game.Combat do
     text = String.downcase(text || "")
 
     cond do
-      id = by_id_or_name(present, action_target) -> {:npc, id}
       id = by_text(present, text) -> {:npc, id}
+      id = named_jev_target(present, action_target, text) -> {:npc, id}
       noun = person_word(action_target, text) -> foe_target(noun, world)
       true -> {:unclear, Enum.map(present, &elem(&1, 1))}
     end
+  end
+
+  # QA 2026-10-14 08:57 (f): Jev fills the only present person as the target
+  # of a bare "I attack". The Jev target counts only when the text refers to
+  # a person: a pronoun or a word of the target id or name.
+  @pronouns ~w(him her them it he she they)
+
+  defp named_jev_target(present, action_target, text) do
+    with id when is_binary(id) <- by_id_or_name(present, action_target),
+         true <- refers_to_person?(text, id, action_target) do
+      id
+    else
+      _ -> nil
+    end
+  end
+
+  defp refers_to_person?(text, id, action_target) do
+    words = String.split(text, ~r/[^a-z']+/, trim: true)
+
+    target_words =
+      String.split(String.downcase("#{id} #{action_target}"), ~r/[^a-z']+/, trim: true)
+      |> Enum.reject(&(String.length(&1) < 3 or &1 in ~w(the and foe)))
+
+    Enum.any?(words, fn word ->
+      word in @pronouns or Enum.any?(target_words, &String.starts_with?(word, &1))
+    end)
   end
 
   defp present_people(world) do
@@ -497,6 +530,47 @@ defmodule TalesForge.Game.Combat do
     #{lines}
     """
   end
+
+  @doc """
+  A one-line text of the exchange for the mechanical resolution and the UI:
+  the d20 against the target number with the Parry, the wounds and the
+  counterattack. Returns nil without an attack.
+
+      iex> ex = %{"attacker" => "Ezzor", "defender" => "Brenna",
+      ...>   "attack" => %{"skill" => "melee_combat", "level" => 3, "parry" => 12, "roll" => 3, "target" => 1, "hit" => false},
+      ...>   "defender_wounds" => 0, "defender_wound_max" => 3, "defender_vitality" => "ok",
+      ...>   "counter" => %{"skill" => "melee_combat", "level" => 9, "parry" => 10, "roll" => 4, "target" => 9, "hit" => true}}
+      iex> TalesForge.Game.Combat.summary(ex)
+      "Attack: d20 3 vs 1 (melee_combat 3, Brenna's Parry 12): miss. Brenna: 0/3 wounds. Counterattack: d20 4 vs 9 (melee_combat 9, Ezzor's Parry 10): hit, Ezzor takes 1 wound."
+  """
+  @spec summary(map() | nil) :: String.t() | nil
+  def summary(%{"attack" => a} = ex) do
+    attack =
+      "Attack: d20 #{a["roll"]} vs #{a["target"]} (#{a["skill"]} #{a["level"]}, #{ex["defender"]}'s Parry #{a["parry"]}): #{String.downcase(hit_word(a["hit"]))}."
+
+    wounds =
+      "#{ex["defender"]}: #{ex["defender_wounds"]}/#{ex["defender_wound_max"]} wounds#{vitality_tail(ex["defender_vitality"])}."
+
+    counter =
+      case ex["counter"] do
+        %{} = c ->
+          tail = if c["hit"], do: "hit, #{ex["attacker"]} takes 1 wound.", else: "miss."
+
+          "Counterattack: d20 #{c["roll"]} vs #{c["target"]} (#{c["skill"]} #{c["level"]}, #{ex["attacker"]}'s Parry #{c["parry"]}): " <>
+            tail
+
+        _ ->
+          if ex["defender_vitality"] in ~w(ok hurt), do: "No counterattack.", else: nil
+      end
+
+    [attack, wounds, counter] |> Enum.reject(&is_nil/1) |> Enum.join(" ")
+  end
+
+  def summary(_exchange), do: nil
+
+  defp vitality_tail("down"), do: ", down"
+  defp vitality_tail("dead"), do: ", dead"
+  defp vitality_tail(_), do: ""
 
   defp hit_word(true), do: "Hit"
   defp hit_word(false), do: "Miss"

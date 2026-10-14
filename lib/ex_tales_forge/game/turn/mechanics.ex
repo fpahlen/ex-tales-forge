@@ -14,6 +14,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
   alias TalesForge.AICalls.Steps
   alias TalesForge.Game.ActionHandler
+  alias TalesForge.Game.Combat
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.SkillSplit
@@ -95,9 +96,26 @@ defmodule TalesForge.Game.Turn.Mechanics do
     # example the short sleep after a failed room payment.
     handler = if apply?, do: board.handler, else: ruled
 
-    {handler, %{rolled | improvements: board.improvements, training: board.training}, board,
-     board_action, combat}
+    mechanical =
+      %{rolled | improvements: board.improvements, training: board.training}
+      |> with_exchange(combat)
+
+    {handler, mechanical, board, board_action, combat}
   end
+
+  # COMBAT_OPPOSED=on (QA 2026-10-14 08:57, #270): the mechanical resolution
+  # shows the exchange (the d20 against the Parry and the counterattack), and
+  # the outcome is the hit or the miss of the attack, not the flat skill roll.
+  defp with_exchange(mechanical, %{"attack" => attack} = exchange) do
+    %{
+      mechanical
+      | combat: exchange,
+        outcome: if(attack["hit"], do: "success", else: "failure"),
+        notes: Combat.summary(exchange)
+    }
+  end
+
+  defp with_exchange(mechanical, _exchange), do: mechanical
 
   # SKILL_SPLIT=on: the split request of the player rolls each part
   # (TalesForge.Game.SkillSplit). Off: one roll, as before.
@@ -179,6 +197,8 @@ defmodule TalesForge.Game.Turn.Mechanics do
       |> TurnApply.named_move(world, played.overall_intent)
       |> TurnApply.unknown_move(world)
       |> TurnApply.deferred_move(world, played.overall_intent)
+      |> TurnApply.wait_until(world, played.overall_intent)
+      |> TurnApply.service_prices(world, played.overall_intent)
 
     {paid, moved}
   end
