@@ -741,7 +741,14 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
   @impl true
   def render(assigns) do
     ~H"""
-    <div id={@id} class="team-idea-board space-y-5" data-board-target={"##{@id}"}>
+    <div
+      id={@id}
+      class="team-idea-board flex flex-col gap-5"
+      data-board-target={"##{@id}"}
+    >
+      <%!-- Phone (below lg): inbox → pings → New idea → goals → columns.
+           Desktop keeps goals → pings → New idea → inbox → columns.
+           Order list: TalesForgeWeb.TeamLive.phone_panel_order/0. --%>
       <TeamGoals.strip
         strip={@goals_strip}
         team={team()}
@@ -753,12 +760,13 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
         open_id={@goal_open}
         open_cards={@goal_cards}
         connected={assigns[:connected] == true}
+        class="order-4 lg:order-1"
       />
       <section
         :if={@pings != []}
         id="board-pings"
         aria-labelledby="board-pings-title"
-        class="team-card rounded-xl border border-[var(--paper-accent)] p-3"
+        class="order-2 team-card rounded-xl border border-[var(--paper-accent)] p-3 lg:order-2"
       >
         <h3 id="board-pings-title" class="text-sm font-semibold">
           Pings for you
@@ -787,7 +795,7 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
       <section
         id="board-chat"
         aria-labelledby="board-chat-title"
-        class="team-card grid gap-2 rounded-xl p-4"
+        class="order-3 team-card grid gap-2 rounded-xl p-4 lg:order-3"
       >
         <h3 id="board-chat-title" class="text-sm font-semibold">New idea</h3>
         <ol
@@ -900,22 +908,23 @@ defmodule TalesForgeWeb.TeamIdeaBoard do
           >{@notice.title}</a>
         </.flash>
       </section>
-      <.live_component
-        :if={@inbox?}
-        module={TalesForgeWeb.TeamInbox}
-        id="inbox"
-        founder={@founder}
-        login={@login}
-        qa={assigns[:qa] == true}
-        read_only={assigns[:read_only] == true}
-      />
+      <div :if={@inbox?} class="order-1 lg:order-4">
+        <.live_component
+          module={TalesForgeWeb.TeamInbox}
+          id="inbox"
+          founder={@founder}
+          login={@login}
+          qa={assigns[:qa] == true}
+          read_only={assigns[:read_only] == true}
+        />
+      </div>
 
       <%!-- Desktop: Ideas left, the three active columns in the middle with
            Parked under them, Done right. Phone: the areas stack. Each area
            has a fixed height and scrolls on its own. --%>
       <div
         id="board-columns"
-        class="grid gap-3 lg:grid-cols-[15rem_minmax(0,1fr)_15rem] lg:grid-rows-[28rem_12rem]"
+        class="order-5 grid gap-3 lg:order-5 lg:grid-cols-[15rem_minmax(0,1fr)_15rem] lg:grid-rows-[28rem_12rem]"
       >
         <.area
           column="ideas"
