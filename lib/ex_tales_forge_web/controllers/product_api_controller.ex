@@ -7,6 +7,7 @@ defmodule TalesForgeWeb.ProductApiController do
     latency, last 7 days.
   - `GET /internal/product/online`: the founders online.
   - `GET /internal/product/running-commits`: the commit that each app runs.
+  - `GET /internal/product/persona-scores`: the Jev score of each persona.
 
   The secret `PRODUCT_APP_API_TOKEN` is the bearer token (config
   `:product_api`). Token unset: 404 (the API is off). Missing or wrong token:
@@ -29,6 +30,10 @@ defmodule TalesForgeWeb.ProductApiController do
   @doc "The commit that each app runs."
   @spec running_commits(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def running_commits(conn, _params), do: guarded(conn, &ProductApi.running_commits/0)
+
+  @doc "The Jev score of each persona."
+  @spec persona_scores(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def persona_scores(conn, _params), do: guarded(conn, &ProductApi.persona_scores/0)
 
   defp guarded(conn, body) do
     case ProductApi.token() do

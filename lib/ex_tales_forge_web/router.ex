@@ -229,6 +229,7 @@ defmodule TalesForgeWeb.Router do
     get "/costs", ProductApiController, :costs
     get "/online", ProductApiController, :online
     get "/running-commits", ProductApiController, :running_commits
+    get "/persona-scores", ProductApiController, :persona_scores
   end
 
   scope "/internal/workflow", TalesForgeWeb do

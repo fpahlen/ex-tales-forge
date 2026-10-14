@@ -9,7 +9,8 @@ defmodule Workflow.ProductAppApiTest do
   alias TalesForge.DeployLanes.DataBoundary
   alias TalesForge.ProductApi
   alias TalesForge.Repo
-  alias TalesForge.Schemas.AICall
+  alias TalesForge.GameSessions
+  alias TalesForge.Schemas.{AICall, PlaytestRun, PlaytestScore}
   alias TalesForge.Workers.PushWorkLogTurn
   alias TalesForge.WorkflowClient
   alias TalesForge.WorkLog
@@ -54,17 +55,51 @@ defmodule Workflow.ProductAppApiTest do
     })
   end
 
+  defp insert_scores! do
+    {:ok, session} = GameSessions.create_session(%{name: "Scores", adventure_id: "tin_valley"})
+
+    run =
+      Repo.insert!(%PlaytestRun{
+        game_session_id: session.id,
+        persona: "paul",
+        module: "tin_valley",
+        build: "0.1.0",
+        git_sha: "2a6589edcfcb2066731d951a7cd6c7fe45bdebd4",
+        flags: %{},
+        turn_limit: 2,
+        turns_played: 2,
+        status: "finished",
+        stop_reason: "turn_limit",
+        started_at: ~U[2026-10-08 10:00:00Z],
+        finished_at: ~U[2026-10-08 10:05:00Z]
+      })
+
+    for {turn, overall, confidence} <- [{1, 4.0, 0.75}, {2, 2.0, 0.25}] do
+      Repo.insert!(%PlaytestScore{
+        playtest_run_id: run.id,
+        kind: "turn_affect",
+        source: "jev",
+        model: "jev",
+        rubric_version: "paul-v2",
+        turn_number: turn,
+        overall: overall,
+        confidence: confidence,
+        scores: %{}
+      })
+    end
+  end
+
   describe "product-app API (GET /internal/product/*)" do
     test "off (404) while PRODUCT_APP_API_TOKEN is unset; 401 with a wrong token" do
       for path <-
-            ~w(/internal/product/costs /internal/product/online /internal/product/running-commits) do
+            ~w(/internal/product/costs /internal/product/online /internal/product/running-commits /internal/product/persona-scores) do
         assert call(:get, path, @product_token).status == 404
       end
 
       Application.put_env(:ex_tales_forge, :product_api, token: @product_token)
 
       for path <-
-            ~w(/internal/product/costs /internal/product/online /internal/product/running-commits) do
+            ~w(/internal/product/costs /internal/product/online /internal/product/running-commits /internal/product/persona-scores) do
         assert call(:get, path, nil).status == 401
         assert call(:get, path, "wrong").status == 401
       end
@@ -129,6 +164,36 @@ defmodule Workflow.ProductAppApiTest do
       assert {ProductApp.costs(now), ProductApp.online(), ProductApp.running_commits()} == local
     end
 
+    test "the local and the HTTP adapter give the same persona scores" do
+      assert ProductApp.persona_scores() == nil
+      insert_scores!()
+
+      local = ProductApp.persona_scores()
+
+      assert %{runs: 1, by_persona: %{"paul" => %{score: 3.5, low_confidence_pct: 50, turns: 2}}} =
+               local
+
+      Application.put_env(:ex_tales_forge, ProductApp,
+        adapter: ProductApp.Http,
+        base_url: "https://product.example"
+      )
+
+      Application.put_env(:ex_tales_forge, :product_api, token: @product_token)
+
+      assert %{"scores" => %{"runs" => 1}} =
+               call(:get, "/internal/product/persona-scores", @product_token)
+               |> json_response(200)
+
+      Req.Test.stub(ProductApp.Http, fn conn ->
+        assert conn.request_path == "/internal/product/persona-scores"
+        Req.Test.json(conn, ProductApi.persona_scores())
+      end)
+
+      assert ProductApp.persona_scores() == local
+
+      assert %{source: :live, runs: 1} = TalesForgeWeb.TeamLiveNumbers.persona_scores(%{})
+    end
+
     test "the HTTP adapter gives empty data without a token or when the product app fails" do
       Application.put_env(:ex_tales_forge, ProductApp,
         adapter: ProductApp.Http,
@@ -141,6 +206,7 @@ defmodule Workflow.ProductAppApiTest do
       Req.Test.stub(ProductApp.Http, &Req.Test.transport_error(&1, :timeout))
       assert ProductApp.online() == %{people: []}
       assert ProductApp.running_commits() == %{current: nil, production: nil, playtest: nil}
+      assert ProductApp.persona_scores() == nil
     end
   end
 

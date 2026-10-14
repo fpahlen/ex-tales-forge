@@ -23,6 +23,9 @@ defmodule Workflow.ProductApp.Http do
   @impl Workflow.ProductApp
   def running_commits, do: get("/internal/product/running-commits", [])
 
+  @impl Workflow.ProductApp
+  def persona_scores, do: get("/internal/product/persona-scores", [])
+
   defp get(path, params) do
     with url when is_binary(url) <- base_url(),
          token when is_binary(token) <- token() do

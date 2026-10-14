@@ -19,4 +19,7 @@ defmodule Workflow.ProductApp.Local do
 
   @impl Workflow.ProductApp
   def running_commits, do: {:ok, ProductApi.running_commits()}
+
+  @impl Workflow.ProductApp
+  def persona_scores, do: {:ok, ProductApi.persona_scores()}
 end
