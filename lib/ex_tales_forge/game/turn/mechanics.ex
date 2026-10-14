@@ -109,12 +109,18 @@ defmodule TalesForge.Game.Turn.Mechanics do
     %{
       mechanical
       | combat: exchange,
-        outcome: if(attack["hit"], do: "success", else: "failure"),
+        outcome: attack_outcome(attack),
         notes: Combat.summary(exchange)
     }
   end
 
   defp with_exchange(mechanical, _exchange), do: mechanical
+
+  # QA 2026-10-14 21:15: the outcome keeps the d100 band of the attack
+  # (critical success, near miss, critical failure), not only hit or miss.
+  defp attack_outcome(%{"result" => result}) when is_binary(result), do: result
+  defp attack_outcome(%{"hit" => true}), do: "success"
+  defp attack_outcome(_attack), do: "failure"
 
   # SKILL_SPLIT=on: the split request of the player rolls each part
   # (TalesForge.Game.SkillSplit). Off: one roll, as before.

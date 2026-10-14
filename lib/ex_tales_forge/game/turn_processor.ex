@@ -43,6 +43,7 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.Perception
   alias TalesForge.Game.Progression
   alias TalesForge.Game.Reflection
+  alias TalesForge.Game.RollLine
   alias TalesForge.Game.SceneProcessor
 
   alias TalesForge.Game.Schemas.{
@@ -378,7 +379,13 @@ defmodule TalesForge.Game.TurnProcessor do
        %{
          session_id: session.id,
          turn_count: turn_number,
-         entries: build_entries(raw_action, gm_result.narrative, turn.id),
+         entries:
+           build_entries(
+             raw_action,
+             gm_result.narrative,
+             turn.id,
+             MechanicalResolution.encode(mechanical)
+           ),
          mechanical_resolution: MechanicalResolution.encode(mechanical),
          llm_provider: LLM.provider(),
          llm_source: LLM.llm_source(LLM.provider()),
@@ -714,10 +721,10 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  defp build_entries(raw_action, narrative, turn_id) do
+  defp build_entries(raw_action, narrative, turn_id, mechanical) do
     [
       %{id: "#{turn_id}-player", role: "player", text: raw_action},
-      %{id: "#{turn_id}-gm", role: "gm", text: narrative}
+      %{id: "#{turn_id}-gm", role: "gm", text: narrative, roll: RollLine.text(mechanical)}
     ]
   end
 end

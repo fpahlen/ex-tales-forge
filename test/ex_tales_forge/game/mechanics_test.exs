@@ -129,11 +129,16 @@ defmodule TalesForge.Game.MechanicsTest do
   end
 
   test "move wait inventory train skip a check even when parameters carry a skill" do
-    Enum.each(["move", "wait", "inventory", "train"], fn handler ->
+    Enum.each(["wait", "inventory", "train"], fn handler ->
       {_character, result} = apply_with_skill(handler, "climbing")
       assert %MechanicalResolution{outcome: "none"} = result
       assert Mechanics.resolve_check_skill(handler, "climbing", "climbing") == nil
     end)
+
+    # A move rolls only to sneak or to climb (QA 2026-10-14 21:15).
+    {_character, result} = apply_with_skill("move", "insight")
+    assert %MechanicalResolution{outcome: "none"} = result
+    assert Mechanics.resolve_check_skill("move", "climbing", "climbing") == "climbing"
 
     {character, _result} = apply_with_skill("wait", "climbing")
     assert character["learning_points"] == %{}

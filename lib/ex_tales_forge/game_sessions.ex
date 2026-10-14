@@ -265,7 +265,13 @@ defmodule TalesForge.GameSessions do
         [
           {turn.inserted_at,
            %{id: "#{turn.id}-player", role: "player", text: turn.player_action}},
-          {turn.inserted_at, %{id: "#{turn.id}-gm", role: "gm", text: turn.narrative || ""}}
+          {turn.inserted_at,
+           %{
+             id: "#{turn.id}-gm",
+             role: "gm",
+             text: turn.narrative || "",
+             roll: TalesForge.Game.RollLine.text(turn.mechanical_resolution)
+           }}
         ]
       end)
 

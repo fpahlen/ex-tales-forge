@@ -37,6 +37,7 @@ defmodule TalesForge.IntentJev do
 
   alias TalesForge.AICalls
   alias TalesForge.Config
+  alias TalesForge.Game.Combat
   alias TalesForge.Game.{Intent, IntentClarification, JevIntent, NpcReactions, PlayerQuote, Rest}
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
 
@@ -328,6 +329,12 @@ defmodule TalesForge.IntentJev do
 
         {:ask, clarification, Map.merge(base_meta, %{"source" => "jev", "asked" => true})}
 
+      clarification = combat_target_question(reading, context, raw_action, opts) ->
+        clarification = Map.put(clarification, "safety", safety_map(safety))
+
+        {:ask, clarification,
+         Map.merge(base_meta, %{"source" => "combat_target", "asked" => true})}
+
       true ->
         action = Intent.validate_player_action(reading.extraction, context)
         quote = PlayerQuote.decide(action, raw_action, safety, quote_threshold(opts))
@@ -335,6 +342,42 @@ defmodule TalesForge.IntentJev do
         log_decision(context, band, quote, reading)
         {:act, action, %{gm_quote: quote.quote, gm_note: nil}, meta}
     end
+  end
+
+  # #281 item 6 (QA 2026-10-14 21:15): a bare "I attack" with people here asks
+  # whom, before the turn. The GM was told to ask, but it narrated the attack
+  # instead. A free-text answer (`never_ask`) is not asked again.
+  defp combat_target_question(%{action: :combat} = reading, context, raw_action, opts) do
+    people = context_people(context)
+
+    with false <- Keyword.get(opts, :never_ask, false),
+         [_ | _] <- people,
+         {:unclear, _names} <-
+           Combat.target(reading.target, raw_action, context_world(context, people)) do
+      IntentClarification.combat_target(reading, people, raw_action)
+    else
+      _ -> nil
+    end
+  end
+
+  defp combat_target_question(_reading, _context, _raw_action, _opts), do: nil
+
+  defp context_people(context) do
+    details = context["npc_details"] || %{}
+
+    context
+    |> Map.get("present_npcs", [])
+    |> List.wrap()
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(fn id -> {id, get_in(details, [id, "name"]) || id} end)
+  end
+
+  defp context_world(context, people) do
+    %{
+      "present_npcs" => Enum.map(people, &elem(&1, 0)),
+      "npc_state" => Map.new(people, fn {id, name} -> {id, %{"name" => name}} end),
+      "location_id" => context["location_id"]
+    }
   end
 
   @doc """

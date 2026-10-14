@@ -263,9 +263,17 @@ defmodule TalesForge.Game.JevIntentTest do
 
   describe "skill and later post-processing" do
     test "actions that never roll drop the skill" do
-      reading = read(:move, %{"market_square" => 1.0}, skill: :stealth)
+      reading = read(:move, %{"market_square" => 1.0}, skill: :insight)
       assert reading.skill == nil
       refute Map.has_key?(hd(reading.extraction.actions).parameters, "skill")
+
+      assert read(:wait, %{none: 1.0}, skill: :stealth).skill == nil
+    end
+
+    test "a move keeps a stealth or climbing check (QA 2026-10-14 21:15)" do
+      reading = read(:move, %{"market_square" => 1.0}, skill: :stealth)
+      assert reading.skill == "stealth"
+      assert hd(reading.extraction.actions).parameters["skill"] == "stealth"
     end
 
     test "an 'other' action or a flagged message has no deferred action" do

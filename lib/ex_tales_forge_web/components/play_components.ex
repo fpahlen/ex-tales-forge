@@ -2,6 +2,9 @@ defmodule TalesForgeWeb.PlayComponents do
   @moduledoc false
   use TalesForgeWeb, :html
 
+  alias TalesForge.Game.Inventory
+  alias TalesForge.Game.Mechanics
+
   attr :session_id, :string, required: true
   attr :session_name, :string, required: true
   attr :world_clock, :string, required: true
@@ -97,6 +100,13 @@ defmodule TalesForgeWeb.PlayComponents do
               <div class={entry_body_class(entry)}>
                 <span class="play-narrative-body">{entry.text}</span>
               </div>
+              <p
+                :if={Map.get(entry, :roll)}
+                class="play-roll-line font-mono text-xs text-[var(--paper-muted)]"
+                data-roll-line
+              >
+                {Map.get(entry, :roll)}
+              </p>
             </div>
           </div>
 
@@ -314,6 +324,23 @@ defmodule TalesForgeWeb.PlayComponents do
             <span class="play-label">Coins</span>
             {format_coins(Map.get(@character, "coins", %{}))}
           </p>
+          <div id="character-skills">
+            <h3 class="play-label mb-1">Skills</h3>
+            <ul :if={skill_rows(@character) != []} class="space-y-0.5 text-sm text-[var(--paper-ink)]">
+              <li
+                :for={row <- skill_rows(@character)}
+                class="flex justify-between gap-2"
+                data-skill={row.skill}
+                title={"Trained level #{row.raw}; rolls use #{row.effective} (with the stat bonus)"}
+              >
+                <span>{row.label}</span>
+                <span class="font-mono">{row.effective}%</span>
+              </li>
+            </ul>
+            <p :if={skill_rows(@character) == []} class="text-sm text-[var(--paper-muted)]">
+              No trained skills
+            </p>
+          </div>
         </div>
 
         <div>
@@ -449,11 +476,49 @@ defmodule TalesForgeWeb.PlayComponents do
 
   def format_mechanical(_), do: nil
 
+  @doc """
+  The trained skills of `character` for the character panel, by name: the
+  trained level (`raw`) and the level that rolls use (`effective`, with the
+  stat bonus; `TalesForge.Game.Mechanics.effective_level/2`).
+
+      iex> TalesForgeWeb.PlayComponents.skill_rows(%{"stats" => %{"DEX" => 10}, "skills" => %{"stealth" => 25, "melee_combat" => 0}})
+      [%{skill: "stealth", label: "Stealth", raw: 25, effective: 25}]
+  """
+  def skill_rows(character) when is_map(character) do
+    character
+    |> Map.get("skills", %{})
+    |> case do
+      skills when is_map(skills) -> skills
+      _ -> %{}
+    end
+    |> Enum.filter(fn {_skill, level} -> is_integer(level) and level > 0 end)
+    |> Enum.sort_by(fn {skill, _level} -> skill end)
+    |> Enum.map(fn {skill, level} ->
+      %{
+        skill: skill,
+        label: skill |> String.replace("_", " ") |> String.capitalize(),
+        raw: level,
+        effective: Mechanics.effective_level(character, skill)
+      }
+    end)
+  end
+
+  def skill_rows(_character), do: []
+
+  @doc """
+  The coins as gold, silver and copper, converted up first (QA 2026-10-14
+  21:15: a commoner start showed "0g 20s 300c"). 10 copper is 1 silver and
+  500 copper is 1 gold (`TalesForge.Game.Inventory`).
+
+      iex> TalesForgeWeb.PlayComponents.format_coins(%{"gold" => 0, "silver" => 20, "copper" => 300})
+      "1g 0s 0c"
+      iex> TalesForgeWeb.PlayComponents.format_coins(%{"gold" => 2, "silver" => 7})
+      "2g 7s 0c"
+  """
   def format_coins(coins) when is_map(coins) do
-    gold = Map.get(coins, "gold", 0)
-    silver = Map.get(coins, "silver", 0)
-    copper = Map.get(coins, "copper", 0)
-    "#{gold}g #{silver}s #{copper}c"
+    normal = Inventory.normalize_coins(coins)
+
+    "#{Map.get(normal, "gold", 0)}g #{Map.get(normal, "silver", 0)}s #{Map.get(normal, "copper", 0)}c"
   end
 
   def format_coins(_), do: "—"

@@ -47,6 +47,52 @@ defmodule TalesForgeWeb.PlayLiveTest do
     refute_sheet(html)
   end
 
+  describe "d100 rolls and skills (QA 2026-10-14 21:15)" do
+    test "the GM text shows the roll line, the panel shows the skills and the coins converted up",
+         %{conn: conn} do
+      {:ok, session} =
+        GameSessions.create_session(%{name: "Rolla", adventure_id: "tin_valley"})
+
+      world =
+        session.world_state
+        |> put_in(["character", "coins"], %{"gold" => 0, "silver" => 20, "copper" => 300})
+        |> put_in(["character", "skills"], %{"climbing" => 25, "stealth" => 5})
+
+      session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+
+      Repo.insert!(%Turn{
+        game_session_id: session.id,
+        turn_number: 1,
+        player_action: "I try to climb down the timber frame into the shaft.",
+        narrative: "Your boot slips on the wet timber.",
+        mechanical_resolution: %{
+          "skill" => "climbing",
+          "roll" => 85,
+          "effective_skill" => 25,
+          "outcome" => "failure",
+          "improvements" => [
+            %{
+              "skill" => "climbing",
+              "roll" => 70,
+              "raw_skill" => 20,
+              "improved" => true,
+              "gain" => 5
+            }
+          ]
+        }
+      })
+
+      {:ok, view, html} = live(conn, ~p"/play/#{session.id}")
+
+      assert has_element?(view, "[data-roll-line]", "Climbing: d100 85 vs 25: failure.")
+      assert has_element?(view, "[data-roll-line]", "Skill improved: climbing +5 (20 to 25)")
+      assert has_element?(view, "#character-skills [data-skill=climbing]")
+      assert has_element?(view, "#character-skills [data-skill=stealth]")
+      assert html =~ "1g 0s 0c"
+      refute html =~ "300c"
+    end
+  end
+
   test "dead session disables play input", %{conn: conn} do
     {:ok, session} =
       GameSessions.create_session(%{name: "Dead Elara", adventure_id: "tin_valley"})

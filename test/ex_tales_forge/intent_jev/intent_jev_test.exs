@@ -318,6 +318,100 @@ defmodule TalesForge.IntentJevTest do
 
       assert meta["band"] == "best_guess"
     end
+
+    # #281 item 6 (QA 2026-10-14 21:15): Jev fills the only person present as
+    # the target of a bare "I attack"; the game asks whom instead.
+    defp combat_reading(context, text) do
+      candidates = JevIntent.candidates(context)
+      npc = Enum.find(candidates, &(&1.kind == :npc))
+
+      reply = %{
+        action: :combat,
+        target: npc.label,
+        skill: :melee_combat,
+        later: :none,
+        safety: :benign,
+        confidence: %{action: 0.95, target: 0.95, safety: 0.99},
+        probabilities: %{action: %{combat: 1.0}}
+      }
+
+      {JevIntent.decode(reply, candidates, text: text, context: context), candidates, npc}
+    end
+
+    test "a bare attack asks whom, and the picked person is the target" do
+      context = intent_context()
+      {reading, candidates, npc} = combat_reading(context, "I attack")
+
+      assert {:ask, clarification, meta} =
+               IntentJev.decide(reading, candidates, context, "I attack", 12)
+
+      assert clarification["source"] == "combat_target"
+      assert clarification["question"] =~ "Whom do you attack?"
+      assert meta["asked"] == true
+      assert Enum.any?(clarification["options"], &(&1["description"] =~ "Attack "))
+
+      idx = Enum.find_index(context["present_npcs"], &(&1 == npc.id))
+      option = Enum.at(clarification["options"], idx)
+
+      assert {:act, %PlayerAction{action: action}, _gm, _meta} =
+               IntentJev.resolve_option(clarification, option, context)
+
+      assert action.action_type == :combat
+      assert action.target == npc.id
+      assert action.parameters["target_chosen"] == true
+      assert action.parameters["skill"] == "melee_combat"
+    end
+
+    test "an attack that names the person plays with no question" do
+      context = intent_context()
+      name = get_in(context, ["npc_details", hd(context["present_npcs"]), "name"])
+      text = "I attack #{name}"
+      {reading, candidates, _npc} = combat_reading(context, text)
+
+      assert {:act, %PlayerAction{action: %SingleAction{action_type: :combat}}, _gm, meta} =
+               IntentJev.decide(reading, candidates, context, text, 12)
+
+      refute meta["asked"]
+    end
+
+    test "a free-text answer to whom is not asked again" do
+      context = intent_context()
+      {reading, candidates, _npc} = combat_reading(context, "I attack")
+
+      assert {:act, %PlayerAction{}, _gm, _meta} =
+               IntentJev.decide(reading, candidates, context, "I attack", 12, never_ask: true)
+    end
+
+    test "Jev with no skill: the player's words name the check (QA 2026-10-14 21:15)" do
+      context = intent_context()
+      candidates = JevIntent.candidates(context)
+
+      read = fn action, text ->
+        reply = %{
+          action: action,
+          target: :none,
+          skill: :none,
+          later: :none,
+          safety: :benign,
+          confidence: %{action: 0.95, target: 0.9, safety: 0.99},
+          probabilities: %{action: %{action => 1.0}}
+        }
+
+        JevIntent.decode(reply, candidates, text: text, context: context)
+      end
+
+      sneak = read.(:move, "I try to sneak toward the cellar stairs while Marta is busy.")
+      assert sneak.skill == "stealth"
+      assert hd(sneak.extraction.actions).parameters["skill"] == "stealth"
+
+      assert read.(:observe, "I search the floor near the hearth for anything useful.").skill in ~w(insight perception)
+
+      assert read.(:speak, "I try to persuade Caldern Voss to tell me about the orcs").skill ==
+               "persuasion"
+
+      assert read.(:speak, "Marta, how much is a room for the night?").skill == nil
+      assert read.(:move, "I walk to the inn yard").skill == nil
+    end
   end
 
   describe "shadow" do

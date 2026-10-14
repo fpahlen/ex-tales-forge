@@ -248,6 +248,26 @@ defmodule TalesForge.Game.Inventory do
 
   def coin_total_copper(_), do: 0
 
+  @doc """
+  The same coins converted up: 10 copper is 1 silver and 500 copper is 1 gold.
+  The total stays the same; gold, silver and copper are always present.
+
+      iex> TalesForge.Game.Inventory.normalize_coins(%{"gold" => 0, "silver" => 20, "copper" => 300})
+      %{"gold" => 1, "silver" => 0, "copper" => 0}
+      iex> TalesForge.Game.Inventory.normalize_coins(%{"silver" => 100, "copper" => 505})
+      %{"gold" => 3, "silver" => 0, "copper" => 5}
+  """
+  @spec normalize_coins(map() | nil) :: %{String.t() => non_neg_integer()}
+  def normalize_coins(coins) do
+    total = max(0, coin_total_copper(coins || %{}))
+
+    %{
+      "gold" => div(total, @copper_per_gold),
+      "silver" => div(rem(total, @copper_per_gold), @copper_per_silver),
+      "copper" => rem(total, @copper_per_silver)
+    }
+  end
+
   def deduct_coins(coins, amount_copper) do
     total = coin_total_copper(coins)
 

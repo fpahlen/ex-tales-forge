@@ -13,7 +13,8 @@ defmodule TalesForge.Characters.DefaultsTest do
       assert d["skills"] == %{"persuasion" => 40, "insight" => 40, "etiquette" => 20}
       assert d["maslow"] == "belonging"
       assert [%{"focus" => "regulars"}] = d["concerns"]
-      assert d["coins"] == %{"gold" => 0, "silver" => 20, "copper" => 300}
+      # The standing's 20s 300c, converted up (QA 2026-10-14 21:15).
+      assert d["coins"] == %{"gold" => 1, "silver" => 0, "copper" => 0}
 
       for seed <- 1..50 do
         assert Defaults.derive(%{"occupation" => "innkeep"}, @rules, seed)["skills"] ==

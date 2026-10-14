@@ -242,8 +242,18 @@ defmodule TalesForge.Game.Mechanics do
       nil
       iex> TalesForge.Game.Mechanics.resolve_check_skill("observe", "Insight", nil)
       "insight"
+      iex> TalesForge.Game.Mechanics.resolve_check_skill("move", nil, "stealth")
+      "stealth"
+      iex> TalesForge.Game.Mechanics.resolve_check_skill("move", nil, "insight")
+      nil
   """
   @spec resolve_check_skill(String.t() | nil, term(), String.t() | nil) :: String.t() | nil
+  # A move rolls only to sneak or to climb (QA 2026-10-14 21:15: "I try to
+  # sneak toward the cellar stairs" is a move with a stealth check).
+  def resolve_check_skill("move", _handler_skill, action_skill)
+      when action_skill in ~w(stealth climbing),
+      do: action_skill
+
   def resolve_check_skill(handler, handler_skill, action_skill) do
     if handler in ["move", "inventory", "wait", "train", "work", "equip", "give"] do
       nil

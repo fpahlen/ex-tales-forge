@@ -474,7 +474,12 @@ defmodule TalesForge.CharacterCreationTest do
       assert c["creation"]["occupation"] == "hunter"
       assert c["creation"]["skill_points_spent"] == 140
       assert c["wound_max"] == Mechanics.wound_max(%{"stats" => c["stats"]})
-      assert c["coins"] == Defaults.rules(@adventure)["standings"]["commoner"]["coins"]
+
+      assert c["coins"] ==
+               TalesForge.Game.Inventory.normalize_coins(
+                 Defaults.rules(@adventure)["standings"]["commoner"]["coins"]
+               )
+
       assert [%{"id" => "travel_cloak"}, %{"id" => "hunting_knife"}] = c["inventory"]
       assert c["creation"]["points_spent"] == 75
 
