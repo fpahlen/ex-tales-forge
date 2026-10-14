@@ -11,6 +11,38 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: Inbox Open Card button does nothing
+
+- **Decision (hawkan.fredriksson@gmail.com, 2026-10-14, on the idea board):** build it. When I have a Card notification in Inbox and get the choice to Open card, nothing happens when I click on open card. It should open the card
+- **Why:** **The problem.** Håkan opens an inbox item and taps "Open the card". Nothing happens. The card must open in the card dialog.
+
+**Cause (main, `19d47c3`, high confidence).**
+1. The link in the inbox is a normal link to `/team#idea-<id>` (`Workflow.Inbox.url/1`, shown in `TalesForgeWeb.TeamInbox`).
+2. The inbox is on `/team` too. Thus the browser only changes the `#idea-<id>` part of the address. It does not load the page again.
+3. The board opens the card in the address only when the page loads or after a reconnect (`setupCardUrl` in `assets/js/team_hooks.js`). It does not listen for a change of the address.
+4. Thus the address changes, but no card opens.
+
+**Fix.**
+1. In `setupCardUrl`, listen for `hashchange`. When the new address names a card and no card dialog is open, send `open` to the board. This is the same event that the board links send now.
+2. Do not restore the scroll position on this path. That step is only for a page load.
+3. The board changes the address with `history.replaceState` when a card opens or closes. That does not cause `hashchange`, so no loop can occur.
+4. The inbox does not change. The fix is in one place: the board opens a card from the address. Thus each same-page link to a card works, for example a card link in the team chat.
+
+**Test.** We have no browser test for the board hooks. Bobby checks the fix by hand on prod: open an inbox item, tap "Open the card", and see the card dialog. Then he closes the card and taps the link again.
+
+**Cost: S.** About 10 lines of JavaScript and one check by hand.
+
+**Risk.** Low. A hash that names no card does nothing, as today. No feature flag is necessary.
+
+**Deploy lane.** Team tools on the product app, now: straight to prod after CI and a smoke test. If card 5 of the Workflow split moves the team page first, the fix goes into the new repo.
+
+**Verdict: feasible.** The cause is clear. A small fix in one place opens the card from each same-page link.
+
+**Confidence.** High. I read the code. I did not reproduce the problem in a browser. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-88065dfb-edcc-49cc-b35c-d795d271e07c)
+
+<!-- board:idea:88065dfb-edcc-49cc-b35c-d795d271e07c -->
+
 ## 2026-10-14: New section on the board "What have we done"
 
 - **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it.
