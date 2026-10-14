@@ -2,7 +2,8 @@ defmodule TalesForge.Board.Workers.MentionSweep do
   @moduledoc """
   Finds unanswered bot mentions (bot cost cut, decision 2026-10-13 "Bot work
   in Elixir"; it replaces the refiner's sweep every 15 minutes). Every 15 minutes
-  (`Oban.Plugins.Cron`, config), production only (`TalesForge.AppRole`).
+  (`Oban.Plugins.Cron`, job list in the team config), production only (`TalesForge.AppRole`).
+  Each run gets a row in `scheduled_runs` (`TalesForge.Board.Schedule.track/2`).
 
   A mention is unanswered when a founder mentions a bot in a board comment or
   in the team chat, 15 minutes or more ago and less than 24 hours ago, and
@@ -24,7 +25,7 @@ defmodule TalesForge.Board.Workers.MentionSweep do
   import Ecto.Query
 
   alias TalesForge.AppRole
-  alias TalesForge.Board.{Comment, Mentions}
+  alias TalesForge.Board.{Comment, Mentions, Schedule}
   alias TalesForge.Board.Workers.Notify
   alias TalesForge.Chat
   alias TalesForge.Chat.Message
@@ -110,8 +111,11 @@ defmodule TalesForge.Board.Workers.MentionSweep do
   end
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    if AppRole.role() == :production, do: run(DateTime.utc_now())
+  def perform(%Oban.Job{args: args}) do
+    if AppRole.role() == :production,
+      do:
+        Schedule.track(Map.get(args, "job_id", "mention_sweep"), fn -> run(DateTime.utc_now()) end)
+
     :ok
   end
 

@@ -54,15 +54,15 @@ defmodule TalesForge.PrFeed.PerfTest do
              :interval_ms
            )
 
-    config = Config.Reader.read!("config/config.exs", env: :prod)
-
     {_, cron} =
       Enum.find(
-        config[:ex_tales_forge][TalesForge.Workflow.Oban][:plugins],
+        TalesForge.Workflow.Jobs.config()[:plugins],
         &match?({Oban.Plugins.Cron, _}, &1)
       )
 
-    assert {"*/30 * * * *", TalesForge.PrFeed.Reconcile} in cron[:crontab]
+    assert {"*/30 * * * *", TalesForge.PrFeed.Reconcile, [args: %{"job_id" => "pr_feed_backup"}]} in cron[
+             :crontab
+           ]
   end
 
   test "Oban stages scheduled jobs every 30 seconds" do

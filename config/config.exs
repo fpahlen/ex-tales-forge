@@ -70,17 +70,10 @@ config :ex_tales_forge, TalesForge.Workflow.Oban,
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
     # The board webhook times out at 30 s (Notify.timeout/1), and Notify keeps
     # its delivery id, so a rescued job is safe.
-    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)},
-    # Scheduled board work in Elixir, not in bot routines (decision 2026-10-13
-    # "Bot work in Elixir"). Each worker runs on production only.
-    {Oban.Plugins.Cron,
-     crontab: [
-       {"7 * * * *", TalesForge.Board.Workers.StuckCards},
-       {"*/15 * * * *", TalesForge.Board.Workers.MentionSweep},
-       # The live PR feed follows GitHub webhooks; this full read every 30 min
-       # is the backup for missed ones (TalesForge.PrFeed.Reconcile).
-       {"*/30 * * * *", TalesForge.PrFeed.Reconcile}
-     ]}
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)}
+    # The cron plugin comes from the scheduled jobs in the team config
+    # (priv/team/data.json `workflow.jobs`, cron lines in UTC):
+    # TalesForge.Workflow.Jobs.config/0 adds it at start.
   ]
 
 # The founders' idea board on /team (tales-forge-docs docs/design-idea-board.md).

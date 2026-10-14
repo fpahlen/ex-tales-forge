@@ -12,7 +12,7 @@ defmodule TalesForge.Application do
       TalesForge.Repo,
       {Oban, Application.fetch_env!(:ex_tales_forge, Oban)},
       TalesForge.Workflow.Repo,
-      {Oban, Application.fetch_env!(:ex_tales_forge, TalesForge.Workflow.Oban)},
+      {Oban, TalesForge.Workflow.Jobs.config()},
       TalesForge.Jido,
       {Registry, keys: :unique, name: TalesForge.World.Registry},
       {DynamicSupervisor, name: TalesForge.World.Supervisor, strategy: :one_for_one},
