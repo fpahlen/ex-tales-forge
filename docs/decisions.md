@@ -11,6 +11,47 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: New section on the board "What have we done"
+
+- **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it.
+- **Why:** **Problem.** Founders want a "What have we done" section on the board. Today the PR feed lists pull requests, but it does not give a short plain summary of recent work.
+
+**Goal.** Add a section on `/team` that shows recent work as plain text or a short list. The source is merged pull requests (Fredrik, 2026-10-14).
+
+**Verdict.** Feasible with caveats. `TalesForge.PrFeed` already holds merged PRs, merge times and deploy state. The new section can read that data. The open questions decide the window, the format and the placement.
+
+**What we already have (high confidence).**
+1. `TalesForge.PrFeed` lists open and merged pull requests. It counts merges today and this week in Europe/Stockholm time.
+2. The board and the PR feed follow GitHub webhooks (#242).
+3. Done cards and the work log are other sources of "what we did". This card uses PRs only, as Fredrik asked.
+
+**What this card builds.**
+1. A pure function that takes the PrFeed snapshot and a time window, and returns a list of merged PRs for the section.
+2. A first UI that shows the list grouped by day or by theme label from the PR title. No model call in v1.
+3. A place on `/team` for the section (see open questions).
+4. Optional later: a short rewrite of the list into theme bullets with one model call. Keep that behind a flag.
+
+**Steps.**
+1. Add `TalesForge.Board.WhatWeDid` (or a peer under PrFeed) that filters merged PRs by window.
+2. Render the section on `/team` next to Goals or above the board columns.
+3. Link each line to the PR URL.
+4. Add a test that a known snapshot returns a stable list for a fixed window.
+5. Done when founders see the last few days of merges in plain language without opening GitHub.
+
+**Done when.** The section shows on `/team`. It lists merged PRs in the chosen window. Each line links to the PR. No model call is required for v1.
+
+**Risks and caveats.**
+- PR titles are often technical. A plain list may still feel noisy. Mitigation: group by day; optional theme rewrite later.
+- Three repos can merge in the same week (ex-tales-forge, workflow, tales-forge-docs). Mitigation: open question on which repos to include.
+- A 91-PR week needs a short window or a "show more" control.
+
+**Confidence.** High for a PR-list section on top of PrFeed. Medium for the best placement and for an LLM rewrite.
+
+**Sample (Case, 2026-10-14).** A comment on this card shows a hand-built summary for Oct 11–14 from the merged PRs. That is the tone of the section, not the final auto output. Verdict: feasible with caveats. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-90770f5c-fecb-483d-9aa4-f9c94274b431)
+
+<!-- board:idea:90770f5c-fecb-483d-9aa4-f9c94274b431 -->
+
 ## 2026-10-14: Workflow split 5/5: cutover plan (founder answers)
 
 - **Decision (founders, 2026-10-14, on the idea board, card 84f426a1):** Workflow runs as its own app. Repo `whyse-ab/workflow`, Fly app `whyse-workflow` (https://whyse-workflow.fly.dev), with its own Postgres. Goal: G7, our shared workspace.
