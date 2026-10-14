@@ -38,6 +38,8 @@ defmodule Workflow.Team do
 
   @typedoc """
   A founder: `handle` is the @mention handle, `github` the GitHub login.
+  `emails` holds the sign-in emails of the founder (lower case), so a log
+  email gets the founder's name.
   `inbox` holds the ids of the inbox rules for this founder
   (`Workflow.Inbox.rules/0`). An empty list gives no inbox.
   """
@@ -45,6 +47,7 @@ defmodule Workflow.Team do
           name: String.t(),
           handle: String.t(),
           github: String.t() | nil,
+          emails: [String.t()],
           inbox: [String.t()]
         }
 
@@ -100,6 +103,7 @@ defmodule Workflow.Team do
             name: name,
             handle: Map.get(f, "handle") || plain(name),
             github: f["github"],
+            emails: f |> Map.get("emails", []) |> Enum.map(&String.downcase/1),
             inbox: Map.get(f, "inbox", [])
           }
         end,
@@ -139,7 +143,7 @@ defmodule Workflow.Team do
         "docs_repo" => "org/product-docs",
         "founders" => [
           %{"name" => "Ada", "github" => "ada-gh", "inbox" => ["mention"]},
-          %{"name" => "Örjan", "github" => "orjan-gh"},
+          %{"name" => "Örjan", "github" => "orjan-gh", "emails" => ["orjan.x@x.se"]},
           %{"name" => "Lin"}
         ],
         "bots" => [

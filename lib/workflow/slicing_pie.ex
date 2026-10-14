@@ -103,19 +103,25 @@ defmodule Workflow.SlicingPie do
   end
 
   @doc """
-  The name of the founder for a log email. The local part of the email must
-  match the founder handle or the GitHub login. Other emails stay as they are.
+  The name of the founder for a log email. The email is one of the founder's
+  `emails`, or its local part is the founder handle or the GitHub login.
+  Other emails stay as they are.
 
       iex> team = Workflow.Team.example()
       iex> {Workflow.SlicingPie.label(team, "Ada-GH@x.se"), Workflow.SlicingPie.label(team, "z@x.se")}
       {"Ada", "z@x.se"}
+      iex> Workflow.SlicingPie.label(Workflow.Team.example(), "Orjan.X@x.se")
+      "Örjan"
   """
   @spec label(Team.t(), String.t()) :: String.t()
   def label(%Team{founders: founders}, email) do
-    local = email |> String.split("@") |> hd() |> String.downcase()
+    lower = String.downcase(email)
+    local = lower |> String.split("@") |> hd()
 
     Enum.find_value(founders, email, fn f ->
-      if local in [f.handle, f.github && String.downcase(f.github)], do: f.name
+      if lower in Map.get(f, :emails, []) or
+           local in [f.handle, f.github && String.downcase(f.github)],
+         do: f.name
     end)
   end
 
