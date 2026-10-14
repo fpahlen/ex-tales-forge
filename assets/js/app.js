@@ -49,6 +49,21 @@ window.addEventListener("phx:scroll-into-view", ({detail}) => {
   if (el) requestAnimationFrame(() => el.scrollIntoView({behavior: "smooth", block: "start"}))
 })
 
+// "We can't find the internet" flash (Layouts.flash_group). Phoenix shows it
+// at once when the socket drops. A deploy or a phone that comes back from the
+// background reconnects in about 1 second, so wait 3 seconds and show it only
+// if the socket is still down.
+const CLIENT_ERROR_DELAY_MS = 3000
+window.addEventListener("tf:client-error-later", e => {
+  const el = e.target
+  clearTimeout(el._showTimer)
+  el._showTimer = setTimeout(() => {
+    if (!liveSocket.isConnected() && el.closest(".phx-client-error")) {
+      liveSocket.execJS(el, el.getAttribute("data-show-js"))
+    }
+  }, CLIENT_ERROR_DELAY_MS)
+})
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

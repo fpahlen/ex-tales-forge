@@ -240,11 +240,15 @@ defmodule TalesForgeWeb.Layouts do
       <.flash kind={:info} flash={@flash} autohide />
       <.flash kind={:error} flash={@flash} />
 
+      <%!-- Shown only if the socket is still down after a few seconds
+           (assets/js/app.js). A deploy or a phone that wakes up reconnects
+           in about 1 second, and then the user sees nothing. --%>
       <.flash
         id="client-error"
         kind={:error}
         title={gettext("We can't find the internet")}
-        phx-disconnected={
+        phx-disconnected={JS.dispatch("tf:client-error-later", to: "#client-error")}
+        data-show-js={
           show(".phx-client-error #client-error")
           |> JS.remove_attribute("hidden", to: ".phx-client-error #client-error")
         }
