@@ -38,11 +38,11 @@ Risk: what happens if Fredrik's account is lost, locked or he leaves.
 | 14 | Email sending | Code supports `MAIL_ADAPTER`, `MAIL_API_KEY`, `MAILGUN_*`, `POSTMARK_API_KEY`, `RESEND_API_KEY`. None of these are set as Fly secrets. Prod mail is probably not on. | — | Low now. | When turned on: provider account on `ops@`, company domain. | S | later | V |
 | 15 | Costs / product app peers | `COSTS_PEER_TOKEN`, `COSTS_PEER_URL`, `PRODUCT_APP_API_TOKEN`, `PRODUCT_APP_PERSONA_SCORES_URL`, `WORKFLOW_API_TOKEN` (code). | Shared app tokens (not personal) | Low. | Vault. | S | 7 | V |
 | 16 | Admin access in app | `ADMIN_EMAILS` Fly secret (values not read). No hardcoded personal emails found in `config/` or `.github/` (only comments "Fredrik's OK", test fixtures with `fpahlen`). | Env list | Low. | Use `ADMIN_GITHUB_TEAM` only, or a company alias. | S | 7 | V |
-| 17 | Bot token files on box | `/home/box/.config/tales-forge/`: `board-bot-token`, `case-board-token`, `gentry-qa-token`, `github-webhook-secret`, `product-app-api-token`. Also `/home/box/.config/basecamp/credentials.json`. | Files on box, which runs under Fredrik's Grok Bot account | Medium. | Vault; box reads from vault. | S | 7 | V |
+| 17 | Bot token files on box | `/home/box/.config/tales-forge/`: `board-bot-token`, `case-board-token`, `gentry-qa-token`, `github-webhook-secret`, `product-app-api-token`. Also `/home/box/.config/basecamp/credentials.json` (delete when Basecamp is cancelled). | Files on box, which runs under Fredrik's Grok Bot account | Medium. | Vault; box reads from vault. | S | 7 | V |
 | 18 | Grok Bot itself | The box, bots and connectors run under Fredrik's Grok Bot account. | Login + billing | High. All bots stop if his account stops. | Company Grok Bot account (if possible), `bots@` login, company card. | M | 9 | V (stated) |
 | 19 | Google Drive / Calendar | Connectors use `fredrik.pahlen@gmail.com`. | Personal Google login | Medium. Company files in a private Drive. | Google Workspace on `whyse.se`, shared drive. | M | 9 | V (connector names) |
 | 20 | Web push | `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_VAPID_PUBLIC_KEY`. | Self-made keys (not personal) | Low. | Vault. Do not rotate (breaks subscriptions). | S | 7 | V |
-| 21 | Basecamp | Credentials on box. | Login owner (A: Fredrik) | Low–Medium. | Company account owner. | S | 9 | A |
+| 21 | Basecamp | Credentials on box. | Login owner (A: Fredrik) | None after cancel. | Cancel Basecamp, no migration. | S | 9 | A |
 | 22 | Billing in general | Fredrik pays with Fredrik's private card and claims utlägg. Code lists costs "from Fredrik" (5 seats x $4, SEK 2,318.75/yr, SEK 400/yr, ~$225/month). | Private card | Medium. Cash and bookkeeping risk. | Company card on every vendor. | S each | 10 | V (config) |
 | 23 | DNS / domain | Apps use `*.fly.dev`. No Fly certs on any app. Owner of `whyse.se` not checked. | Registrar login (A) | Medium. | Registrar account on company. | S | 10 | A |
 
@@ -71,16 +71,16 @@ Each step: do it, check it, and know the rollback.
 7. **Create Fly org `whyse`.** Company card, founders as members (two admins).
    - Check: `flyctl orgs list` shows `whyse` for each founder.
    - Rollback: delete the empty org.
-8. **Move playtest first.** Move `tales-forge-playtest` and `tales-forge-playtest-db` to `whyse` (`flyctl apps move`, or new DB with dump/restore). Make a new org deploy token for `FLY_API_TOKEN_PLAYTEST`.
-   - Check: playtest deploy from Actions passes; playtest login and Oban jobs run.
-   - Rollback: move apps back; restore old token.
-9. **Move production** the same way in a quiet window, after a DB backup. Find and move `whyse-workflow` too. Replace `FLY_API_TOKEN` and the box Fly token.
+8. **Move playtest first.** Move the database before or together with its app (apps in different Fly orgs do not share a private network). `fly apps move` does not work for Fly Postgres apps: create a new Postgres app `tales-forge-playtest-db-whyse` in `whyse`, then dump/restore from `tales-forge-playtest-db` (see 6.11). Then move `tales-forge-playtest` with `fly apps move tales-forge-playtest --org whyse` and attach the new DB. Make a new org deploy token for `FLY_API_TOKEN_PLAYTEST`.
+   - Check: playtest deploy from Actions passes; playtest login and Oban jobs run; row counts old = new.
+   - Rollback: point `DATABASE_URL` back to the old DB (keep it running), move the app back; restore old token.
+9. **Move production** the same way in a quiet window, after a DB backup: new Postgres app in `whyse` + dump/restore of `tales-forge-db` first, then `fly apps move tales-forge --org whyse`. Find and move `whyse-workflow` too. Replace `FLY_API_TOKEN` and the box Fly token.
    - Check: prod deploy passes; health page OK; data count before = after.
-   - Rollback: restore from the backup into the old app; old token still valid until removed.
+   - Rollback: point `DATABASE_URL` back to the old DB, move the app back; old token still valid until removed.
 10. **Move LLM and API vendors** (xAI, Typesafe/Intent) to company accounts on `billing@` with company card. New keys, set on Fly, old keys revoked.
     - Check: app makes an LLM call; vendor dashboard shows company account.
     - Rollback: put old key back (do not revoke until check passes).
-11. **Billing, domain, Google, Basecamp, Grok Bot.** Move each to company card and company login. Stop utlägg.
+11. **Billing, domain, Google, Grok Bot.** Move each to company card and company login. Stop utlägg. Cancel Basecamp (no migration).
     - Check: next invoice goes to Whyse AB.
     - Rollback: card can be changed back.
 
@@ -111,8 +111,6 @@ Each step: do it, check it, and know the rollback.
 Rules: one action per step. Never paste secret values in chat, tickets or this doc. Put them only in the vault or in the target system.
 Who: **Fredrik only**, **Any founder**, or **Bobby** (bot work on the box, after a human gives access).
 "Check in UI" = the path could not be verified against official docs on 2026-10-14. Confirm it in the UI before you follow it.
-
-Important correction to section 3, step 8–9: Fly docs say `fly apps move` **does not work for Fly Postgres apps**. Move the database with a new Postgres app in the target org and a dump/restore (task 6.11). Also, apps in different Fly orgs do not share a private network. Move the database before or together with its app.
 
 ### 6.1 Add a second GitHub org owner (inventory #1, step 1)
 
@@ -184,7 +182,7 @@ Infisical:
 
 Then:
 
-1. Move box token files (`/home/box/.config/tales-forge/*`, Basecamp credentials) into vault entries.
+1. Move box token files (`/home/box/.config/tales-forge/*`) into vault entries.
 2. Do not rotate `WEB_PUSH_VAPID_*` (rotation breaks subscriptions).
 
 - Check: every secret name in section 2 has an entry with an owner role. Two founders can open the vault.
@@ -461,17 +459,18 @@ Notification settings (stop bot mail to Fredrik, until revoke is done):
 - Check: bots read the shared drive. No company file is only in the personal Drive.
 - Rollback: reconnect the personal connector.
 
-### 6.19 Basecamp (inventory #21)
+### 6.19 Basecamp (inventory #21): cancel Basecamp, no migration
 
-- Who: Fredrik only (owner, assumed).
+- Who: Fredrik only (account owner).
+- Prerequisites: nothing in Basecamp is still needed (export anything you want to keep).
 
 1. In Basecamp, open **Adminland**. (Check in UI)
-2. Make another founder owner.
-3. Change billing to the company card.
-4. Store the box credentials in the vault.
+2. Cancel the subscription. (Check in UI)
+3. Delete `/home/box/.config/basecamp/credentials.json` from the box.
+4. Remove the Basecamp vault entry if one was made.
 
-- Check: a second founder sees the owner role.
-- Rollback: change the owner back.
+- Check: no further Basecamp charge on the next statement.
+- Rollback: none needed (re-subscribe if ever wanted).
 
 ### 6.20 Billing on every vendor (inventory #22, step 11)
 
