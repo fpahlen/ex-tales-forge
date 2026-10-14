@@ -199,6 +199,7 @@ defmodule TalesForgeWeb.PlayComponents do
   attr :location_name, :string, required: true
   attr :scene_image_url, :string, default: nil
   attr :present_npcs, :list, required: true
+  attr :last_exchange, :string, default: nil
 
   def visual_panel(assigns) do
     ~H"""
@@ -239,10 +240,21 @@ defmodule TalesForgeWeb.PlayComponents do
                 <p class="truncate text-xs text-[var(--paper-muted)]">
                   {npc_role_label(npc)}
                 </p>
+                <p
+                  :if={npc.wounds_label}
+                  class="truncate text-xs text-[var(--paper-accent)]"
+                  data-npc-wounds={npc.id}
+                >
+                  {npc.wounds_label}
+                </p>
               </div>
             </li>
           </ul>
           <p :if={@present_npcs == []} class="text-sm text-[var(--paper-muted)]">No one nearby.</p>
+          <div :if={@last_exchange} id="last-combat-exchange" class="mt-3">
+            <h3 class="play-label mb-1">Last exchange</h3>
+            <p class="text-xs text-[var(--paper-muted)]">{@last_exchange}</p>
+          </div>
         </div>
       </div>
     </section>
@@ -323,22 +335,61 @@ defmodule TalesForgeWeb.PlayComponents do
     """
   end
 
+  @doc """
+  The people of the Present panel: the present NPCs, then the minor foes
+  (#270) at the current location. Each person has a `wounds_label` when the
+  person has a wound or is down or dead (QA 2026-10-14 08:57).
+  """
   def present_npcs(world_state) when is_map(world_state) do
-    npc_ids = Map.get(world_state, "present_npcs", [])
-    npc_state = Map.get(world_state, "npc_state", %{})
+    npc_ids = List.wrap(Map.get(world_state, "present_npcs", []))
+    npc_state = Map.get(world_state, "npc_state") || %{}
 
-    Enum.map(npc_ids, fn npc_id ->
-      detail = Map.get(npc_state, npc_id, %{})
+    foe_ids =
+      npc_state
+      |> Enum.filter(fn {id, npc} ->
+        is_map(npc) and npc["minor"] == true and id not in npc_ids and
+          npc["location_id"] == world_state["location_id"]
+      end)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.sort()
+
+    Enum.map(npc_ids ++ foe_ids, fn npc_id ->
+      detail = Map.get(npc_state, npc_id) || %{}
 
       %{
         id: npc_id,
         name: Map.get(detail, "name", npc_id),
         role: Map.get(detail, "role", "present"),
         concern_priority: Map.get(detail, "concern_priority", 0),
-        portrait_url: Map.get(detail, "portrait_url")
+        portrait_url: Map.get(detail, "portrait_url"),
+        wounds_label: wounds_label(detail)
       }
     end)
   end
+
+  @doc "The last combat exchange text of the world (`combat_last`), or nil."
+  def last_exchange(world_state) when is_map(world_state) do
+    case Map.get(world_state, "combat_last") do
+      %{"text" => text} when is_binary(text) -> text
+      _ -> nil
+    end
+  end
+
+  def last_exchange(_world_state), do: nil
+
+  defp wounds_label(%{"vitality" => "dead"}), do: "dead"
+
+  defp wounds_label(%{"wounds" => wounds} = detail) when is_integer(wounds) do
+    max = detail["wound_max"] || 3
+
+    case {detail["vitality"], wounds} do
+      {"down", _} -> "down · #{wounds}/#{max} wounds"
+      {_, 0} -> nil
+      _ -> "#{wounds}/#{max} wounds"
+    end
+  end
+
+  defp wounds_label(_detail), do: nil
 
   def quick_stats(character) when is_map(character) do
     wounds = Map.get(character, "wounds", 0)

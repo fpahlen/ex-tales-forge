@@ -53,6 +53,7 @@ defmodule TalesForge.Game.PremiseCheck do
   """
 
   alias TalesForge.Game.Inventory
+  alias TalesForge.Game.WorldClock
 
   @typedoc "One claim found in the player's words."
   @type claim ::
@@ -65,6 +66,7 @@ defmodule TalesForge.Game.PremiseCheck do
               denomination: String.t()
             }
           | %{kind: :kill, target: String.t()}
+          | %{kind: :time, claimed: String.t()}
 
   @typedoc """
   The session state a claim is checked against:
@@ -77,7 +79,8 @@ defmodule TalesForge.Game.PremiseCheck do
     * `:won_fights` — the player text and narration of each of those fights,
       to tell what was fought (without it, any won fight leaves a kill
       claim unsettled);
-    * `:skills` — the character's skills (`%{"melee_combat" => 1}`).
+    * `:skills` — the character's skills (`%{"melee_combat" => 1}`);
+    * `:clock` — the world clock before the turn (`%{tick: 104, period: "morning"}`).
   """
   @type state :: %{
           optional(:skills) => map(),
@@ -86,7 +89,8 @@ defmodule TalesForge.Game.PremiseCheck do
           optional(:people) => [map()],
           optional(:fronts) => [map()],
           optional(:combat_wins) => non_neg_integer(),
-          optional(:won_fights) => [String.t()]
+          optional(:won_fights) => [String.t()],
+          optional(:clock) => %{tick: non_neg_integer(), period: String.t()}
         }
 
   @typedoc "A claim the state contradicts, with the GM's correction."
@@ -224,9 +228,12 @@ defmodule TalesForge.Game.PremiseCheck do
     after_turn = character(world_after)
 
     %{
+      # QA 2026-10-14 08:57: an item carried before and after the turn is
+      # listed once.
       inventory:
-        Inventory.normalize_items(before["inventory"] || []) ++
-          Inventory.normalize_items(after_turn["inventory"] || []),
+        (Inventory.normalize_items(before["inventory"] || []) ++
+           Inventory.normalize_items(after_turn["inventory"] || []))
+        |> Enum.uniq_by(&String.downcase(to_string(&1["name"] || &1["id"]))),
       coins:
         Enum.max_by(
           [before["coins"] || %{}, after_turn["coins"] || %{}],
@@ -235,9 +242,15 @@ defmodule TalesForge.Game.PremiseCheck do
       skills: after_turn["skills"] || before["skills"] || %{},
       people: people(world_after || world_before || %{}),
       fronts: Enum.map(fronts, &front/1),
-      combat_wins: combat_wins
+      combat_wins: combat_wins,
+      clock: clock(world_before || world_after)
     }
   end
+
+  defp clock(%{"world_tick" => tick}) when is_integer(tick) and tick >= 0,
+    do: %{tick: tick, period: WorldClock.period(tick)}
+
+  defp clock(_world), do: nil
 
   defp character(world) when is_map(world), do: Map.get(world, "character") || %{}
   defp character(_world), do: %{}
@@ -316,6 +329,14 @@ defmodule TalesForge.Game.PremiseCheck do
 
   # `cased` keeps the player's capitals for a kill target's proper name; every
   # rule matches the lower-cased sentence.
+  defp time_claims(sentence) do
+    ~r/\b(?:it's|it is|it has become|it's now|it is now)\s+(?:already\s+|now\s+|well past\s+|past\s+)?(?:the\s+)?(midnight|night|dawn|morning|noon|midday|afternoon|dusk|evening)\b/
+    |> Regex.scan(sentence, return: :index, capture: :all)
+    |> Enum.map(fn [{pos, _len}, {start, len}] ->
+      {pos, %{kind: :time, claimed: binary_part(sentence, start, len)}}
+    end)
+  end
+
   defp sentence_claims(original) do
     sentence = String.downcase(original)
     cased = if byte_size(original) == byte_size(sentence), do: original, else: sentence
@@ -328,7 +349,8 @@ defmodule TalesForge.Game.PremiseCheck do
        purchase_claims(sentence) ++
        bought_claims(sentence) ++
        wearing_claims(sentence) ++
-       kill_claims(sentence, cased))
+       kill_claims(sentence, cased) ++
+       time_claims(sentence))
     |> Enum.filter(fn {pos, _claim} -> asserted?(sentence, pos) end)
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.map(&elem(&1, 1))
@@ -550,6 +572,36 @@ defmodule TalesForge.Game.PremiseCheck do
       []
     end
   end
+
+  # QA 2026-10-14 08:57: "It's already midnight." The clock decides the time
+  # of day; a claim of another time of day gets a correction.
+  @time_periods %{
+    "midnight" => ["late night", "witching hour", "pre-dawn", "deep night"],
+    "night" => ["night", "late night", "witching hour", "pre-dawn", "deep night"],
+    "dawn" => ["pre-dawn", "dawn"],
+    "morning" => ["dawn", "morning"],
+    "noon" => ["midday"],
+    "midday" => ["midday"],
+    "afternoon" => ["afternoon", "late afternoon"],
+    "dusk" => ["late afternoon", "dusk"],
+    "evening" => ["dusk", "evening"]
+  }
+
+  defp contradiction(%{kind: :time, claimed: claimed}, %{clock: %{tick: tick, period: period}}) do
+    if period in Map.get(@time_periods, claimed, [period]) do
+      []
+    else
+      [
+        finding(
+          :time,
+          "it is #{claimed}",
+          "Player claims it is #{claimed}; the clock says #{WorldClock.format(tick)}. Narrate the #{period}."
+        )
+      ]
+    end
+  end
+
+  defp contradiction(%{kind: :time}, _state), do: []
 
   defp contradiction(%{kind: :kill} = claim, state) do
     subject = kill_subject(claim.target, state)

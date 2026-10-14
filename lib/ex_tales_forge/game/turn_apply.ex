@@ -583,4 +583,76 @@ defmodule TalesForge.Game.TurnApply do
   end
 
   defp exits(_world), do: "The character stays here."
+
+  @doc """
+  QA 2026-10-14 08:57: "I wait until dusk" waits to the named time of day
+  (`TalesForge.Game.WorldClock.ticks_until/2`), not the default hour. The
+  wait handler gets those ticks and a note with the new clock.
+
+      iex> h = %TalesForge.Game.Schemas.HandlerResult{handler: "wait", state_hints: %{"ticks" => 4}}
+      iex> TalesForge.Game.TurnApply.wait_until(h, %{"world_tick" => 104}, "I wait until dusk.").state_hints
+      %{"ticks" => 32}
+  """
+  @spec wait_until(HandlerResult.t(), map(), String.t() | nil) :: HandlerResult.t()
+  def wait_until(%HandlerResult{handler: "wait"} = handler, world, text) when is_binary(text) do
+    tick = Map.get(world, "world_tick", WorldClock.default_start_tick())
+
+    case WorldClock.ticks_until(text, tick) do
+      nil ->
+        handler
+
+      ticks ->
+        ticks = WorldClock.clamp_wait(ticks)
+
+        %{
+          handler
+          | notes:
+              "Wait #{ticks} ticks, until #{WorldClock.format(tick + ticks)}. Narrate that time of day.",
+            state_hints: Map.put(handler.state_hints || %{}, "ticks", ticks)
+        }
+    end
+  end
+
+  def wait_until(handler, _world, _text), do: handler
+
+  @service_names [
+    {~r/\b(room|rooms|bed|beds|lodging|lodgings|night's stay)\b/iu, "a room for the night", 30},
+    {~r/\b(meal|supper|dinner|stew|breakfast)\b/iu, "a meal", 5},
+    {~r/\b(ale|beer|mug)\b/iu, "a mug of ale", 2}
+  ]
+
+  @doc """
+  QA 2026-10-14 08:57: the GM quoted a room at "eight silver", the server
+  charged 30c, and later the GM said "three silver". The server prices of the
+  services (`spend_copper/1`) were not in the turn data. At a rest place
+  (`TalesForge.Game.Rest.rest_place?/2`), a text that names a service adds
+  the server price to the handler notes, so the GM quotes that price.
+
+      iex> h = %TalesForge.Game.Schemas.HandlerResult{handler: "narrate", notes: "No check."}
+      iex> world = %{"location_id" => "inn", "locations" => %{"inn" => %{"tags" => ["inn"]}}}
+      iex> TalesForge.Game.TurnApply.service_prices(h, world, "How much is a room?").notes
+      "No check. Server price: a room for the night costs 3 silver (30c). Quote only this price."
+  """
+  @spec service_prices(HandlerResult.t(), map(), String.t() | nil) :: HandlerResult.t()
+  def service_prices(%HandlerResult{state_hints: %{"rejected" => true}} = handler, _world, _text),
+    do: handler
+
+  def service_prices(%HandlerResult{} = handler, world, text) when is_binary(text) do
+    lines =
+      for {words, name, copper} <- @service_names, Regex.match?(words, text) do
+        "Server price: #{name} costs #{coin_words(copper)}."
+      end
+
+    if lines == [] or not Rest.rest_place?(world, world["location_id"]) do
+      handler
+    else
+      note = Enum.join(lines, " ") <> " Quote only this price."
+      %{handler | notes: Enum.join(Enum.reject([handler.notes, note], &(&1 in [nil, ""])), " ")}
+    end
+  end
+
+  def service_prices(handler, _world, _text), do: handler
+
+  defp coin_words(copper) when rem(copper, 10) == 0, do: "#{div(copper, 10)} silver (#{copper}c)"
+  defp coin_words(copper), do: "#{copper} copper"
 end

@@ -25,7 +25,15 @@ defmodule TalesForge.NPC do
     world_state =
       session.world_state
       |> Map.put("present_npcs", sync_present_npcs(session.id, location_id))
-      |> Map.put("npc_state", refresh_world_npc_state(session.id))
+      |> Map.put(
+        "npc_state",
+        # QA 2026-10-14 08:57 (e): keep the NPC wounds and the minor foes of
+        # the fights (#270) when the scene changes.
+        TalesForge.Game.Combat.carry(
+          Map.get(session.world_state, "npc_state"),
+          refresh_world_npc_state(session.id)
+        )
+      )
 
     session
     |> GameSession.changeset(%{world_state: world_state})
