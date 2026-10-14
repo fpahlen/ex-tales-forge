@@ -254,6 +254,27 @@ defmodule TalesForgeWeb.QaLoginTest do
       assert Chat.recent() == []
     end
 
+    # QA 2026-10-14 08:57: at 390px the "Threads" button did nothing for the
+    # QA session; the guard refused the "threads" event.
+    test "the chat thread list and a thread open, and nothing is written" do
+      {:ok, thread} = Chat.start_subject({:founder, "fredrik"}, "Release plan")
+      {:ok, view, _} = live(qa_conn(), "/team")
+      header = find_live_child(view, "team-online")
+      chat = find_live_child(header, "team-online-chat")
+
+      render_click(chat, "open", %{})
+      before = snapshot()
+
+      assert render(chat) =~ ~r/id="team-online-chat-threads"[^>]*class="[^"]*\bhidden\b/
+      render_click(chat, "threads", %{})
+      refute render(chat) =~ ~r/id="team-online-chat-threads"[^>]*class="[^"]*\bhidden\b/
+
+      render_click(chat, "open_thread", %{"id" => thread.id})
+      assert render(chat) =~ "Release plan"
+      refute render(chat) =~ "read-only"
+      assert snapshot() == before
+    end
+
     test "viewing a card never clears anyone's inbox items" do
       {:ok, idea} = Board.create_idea("fredrik@whyse.se", %{"title" => "Fishing"})
 
