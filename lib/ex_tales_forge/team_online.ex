@@ -4,11 +4,11 @@ defmodule TalesForge.TeamOnline do
   (`TalesForgeWeb.OnlineHeaderLive`, board card "Who's online right now"):
 
   - **Founders**: everyone with a page open on production or playtest right
-    now (`TalesForge.Online.people/1`, Phoenix Presence plus playtest's
-    list), one entry per person with each page and app once.
+    now, one entry per person with each page and app once. The product app
+    gives this list (`Workflow.ProductApp.online/0`).
   - **Bots** (the bots of the team config, `Workflow.Team`) do not keep a
     page open. Each shows their latest activity and when it was: a board API
-    call (each wake-up reads the board), a comment, a card move or a link on
+    call (each wake-up reads the board; `Workflow.BotCalls`), a comment, a card move or a link on
     the board, and for the builder the latest pull request in the live PR
     feed (the builder writes the pull requests).
     A bot counts as online when that was less than `online_minutes/0` ago.
@@ -22,9 +22,9 @@ defmodule TalesForge.TeamOnline do
   alias TalesForge.AppRole
   alias TalesForge.Board.{Comment, Link, Transition}
   alias TalesForge.Board.Mentions
-  alias TalesForge.Online
   alias TalesForge.PrFeed
   alias TalesForge.Workflow.Repo
+  alias Workflow.ProductApp
   alias Workflow.Team
 
   @online_minutes 10
@@ -60,10 +60,11 @@ defmodule TalesForge.TeamOnline do
   @spec snapshot(DateTime.t()) :: t()
   def snapshot(now \\ DateTime.utc_now()) do
     team = Workflow.Team.Source.team()
+    online = ProductApp.online()
 
     %{
       founders:
-        Enum.map(Online.people(), fn p ->
+        Enum.map(online.people, fn p ->
           Map.merge(p, %{
             name: name(team, p.email, p.login),
             handle: Mentions.handle_for(team, p.login)
@@ -159,7 +160,7 @@ defmodule TalesForge.TeamOnline do
 
   # Every bot activity we know of, as {bot, at, doing}.
   defp activity(team) do
-    calls = for {bot, at} <- Online.bot_calls(), do: {bot, at, "Read the board"}
+    calls = for {bot, at} <- Workflow.BotCalls.calls(), do: {bot, at, "Read the board"}
     calls ++ board_activity(team) ++ pr_activity(team)
   end
 

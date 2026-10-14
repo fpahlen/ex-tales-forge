@@ -264,6 +264,15 @@ end
 if config_env() != :test do
   config :ex_tales_forge, :costs_peer, token: System.get_env("COSTS_PEER_TOKEN")
 
+  # The product-app API that Workflow reads (GET /internal/product/*,
+  # Workflow.ProductApp.Http): PRODUCT_APP_API_TOKEN. Workflow's receive route
+  # for work-log turn events (POST /internal/workflow/work-log/turns,
+  # TalesForge.WorkflowClient.Http): WORKFLOW_API_TOKEN. One token for each
+  # direction. Unset = the route answers 404. Both clients use the local
+  # adapter until Workflow runs as its own app.
+  config :ex_tales_forge, :product_api, token: System.get_env("PRODUCT_APP_API_TOKEN")
+  config :ex_tales_forge, :workflow_api, token: System.get_env("WORKFLOW_API_TOKEN")
+
   # Gentry's QA sign-in on /team (TalesForge.QaLogin). GENTRY_QA_TOKEN (secret,
   # same value on both apps) turns on /team/qa-login; unset = 404. The session
   # is read-only. QA_ALLOW_WRITES=true lets it write on playtest only (for later

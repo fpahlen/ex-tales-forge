@@ -4,11 +4,12 @@
 #
 # Workflow data: each schema module with the prefix "workflow",
 # TalesForge.Workflow.Repo and TalesForge.Workflow.Jobs. Product-app data:
-# each other schema module and TalesForge.Repo.
+# each other schema module, TalesForge.Repo and the files on [product].
 #
 # Rules for the lib/ files:
 #   1. Product-app code does not depend on Workflow data.
-#   2. Workflow code does not depend on product-app data.
+#   2. Workflow code does not depend on product-app data. Workflow reads
+#      product-app data only through Workflow.ProductApp (card 4).
 #
 # One glob for each line (Path.wildcard/1, relative to the repo root). `#`
 # starts a comment.
@@ -26,7 +27,23 @@ lib/ex_tales_forge/collab/**/*.ex
 lib/ex_tales_forge/application.ex
 lib/ex_tales_forge/release.ex
 
+[product]
+# Product-app modules that Workflow does not call. Workflow reads costs,
+# online players and the running commit through Workflow.ProductApp.
+lib/ex_tales_forge/product_api.ex
+lib/ex_tales_forge/product_api/*.ex
+lib/ex_tales_forge/costs.ex
+lib/ex_tales_forge/costs/*.ex
+lib/ex_tales_forge/online.ex
+lib/ex_tales_forge/online/*.ex
+lib/ex_tales_forge/playtest/**/*.ex
+lib/ex_tales_forge/ai_calls.ex
+lib/ex_tales_forge/ai_calls/*.ex
+
+[adapter]
+# The local adapter of Workflow.ProductApp calls the product-app API in the
+# same release. A later card replaces it with the HTTP adapter.
+lib/workflow/product_app/local.ex
+
 [pending]
-# Workflow files that still read product-app data directly. Card 4 ("Workflow
-# split 4/5") moves each one to the product-app API and removes it here.
-lib/ex_tales_forge_web/components/team_live_numbers.ex
+# Workflow files that still read product-app data directly. Empty.

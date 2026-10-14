@@ -1443,7 +1443,7 @@ defmodule TalesForgeWeb.TeamPresentationLive do
     """
   end
 
-  attr :scores, :map, required: true, doc: "`TalesForgeWeb.TeamLiveNumbers.persona_scores/2`"
+  attr :scores, :map, required: true, doc: "`TalesForgeWeb.TeamLiveNumbers.persona_scores/1`"
   attr :personas, :list, required: true
 
   # The Jev score per persona now: live over every scored run here since

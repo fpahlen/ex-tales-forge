@@ -5,21 +5,30 @@ defmodule TalesForge.DeployLanes.DataBoundary do
 
   Workflow data is a schema module with the prefix `workflow`,
   `TalesForge.Workflow.Repo` and `TalesForge.Workflow.Jobs`. Product-app data
-  is every other schema module and `TalesForge.Repo`.
+  is every other schema module, `TalesForge.Repo` and the product-app
+  modules in `[product]`.
 
   Two rules apply to the file-level dependencies under `lib/`:
 
   1. Product-app code does not depend on Workflow data.
-  2. Workflow code does not depend on product-app data.
+  2. Workflow code does not depend on product-app data. Workflow gets
+     product-app data only through `Workflow.ProductApp`.
 
   A `[wiring]` file (the application and the release tasks) starts both
-  repos, so the rules skip it. A `[pending]` file may still depend on
-  product-app data until a later card moves it to the product-app API.
+  repos, so the rules skip it. An `[adapter]` file is the local adapter of a
+  Workflow client. It may call the product-app API. A `[pending]` file may
+  still depend on product-app data until a later card moves it.
   `mix deploy.check_boundaries` runs this check.
   """
 
   @typedoc "The sections of the data boundary file, as glob lists."
-  @type t :: %{workflow: [String.t()], wiring: [String.t()], pending: [String.t()]}
+  @type t :: %{
+          workflow: [String.t()],
+          wiring: [String.t()],
+          pending: [String.t()],
+          product: [String.t()],
+          adapter: [String.t()]
+        }
 
   @typedoc "The concrete file sets that the check uses."
   @type sets :: %{
@@ -48,7 +57,7 @@ defmodule TalesForge.DeployLanes.DataBoundary do
   `#` starts a comment.
 
       iex> TalesForge.DeployLanes.DataBoundary.parse("[workflow]\\nlib/a.ex # x\\n[pending]\\nlib/b.ex\\n")
-      %{workflow: ["lib/a.ex"], wiring: [], pending: ["lib/b.ex"]}
+      %{workflow: ["lib/a.ex"], wiring: [], pending: ["lib/b.ex"], product: [], adapter: []}
   """
   @spec parse(String.t()) :: t()
   def parse(text) do
@@ -56,7 +65,10 @@ defmodule TalesForge.DeployLanes.DataBoundary do
     |> String.split("\n")
     |> Enum.map(&(&1 |> String.split("#", parts: 2) |> hd() |> String.trim()))
     |> Enum.reject(&(&1 == ""))
-    |> Enum.reduce({nil, %{workflow: [], wiring: [], pending: []}}, &parse_line/2)
+    |> Enum.reduce(
+      {nil, %{workflow: [], wiring: [], pending: [], product: [], adapter: []}},
+      &parse_line/2
+    )
     |> elem(1)
     |> Map.new(fn {k, v} -> {k, Enum.reverse(v)} end)
   end
@@ -64,6 +76,8 @@ defmodule TalesForge.DeployLanes.DataBoundary do
   defp parse_line("[workflow]", {_, acc}), do: {:workflow, acc}
   defp parse_line("[wiring]", {_, acc}), do: {:wiring, acc}
   defp parse_line("[pending]", {_, acc}), do: {:pending, acc}
+  defp parse_line("[product]", {_, acc}), do: {:product, acc}
+  defp parse_line("[adapter]", {_, acc}), do: {:adapter, acc}
   defp parse_line("[" <> _ = line, _), do: raise(ArgumentError, "unknown section #{line}")
   defp parse_line(_line, {nil, _}), do: raise(ArgumentError, "a pattern before a section")
   defp parse_line(line, {key, acc}), do: {key, Map.update!(acc, key, &[line | &1])}

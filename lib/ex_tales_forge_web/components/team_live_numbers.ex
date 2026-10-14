@@ -1,27 +1,23 @@
 defmodule TalesForgeWeb.TeamLiveNumbers do
   @moduledoc """
-  The presentation's numbers that come from this app's own database, each
-  group live when there is data and otherwise the bundled `data.json`
-  (labelled "as of <date>"). Live or fallback is decided per group, never per
-  number, so the numbers in a group always belong together.
+  The presentation's numbers. A group is live when there is data and
+  otherwise the bundled `data.json` (labelled "as of <date>"). Live or
+  fallback is decided per group, never per number, so the numbers in a group
+  always belong together.
 
   | group | live source | window | fallback (`data.json`) |
   |---|---|---|---|
-  | `costs/2` | `ai_calls.cost_micro_usd` per Stockholm day (as the costs page: no function rows) | last 7 days | `ai_spend.playtest_day_totals_usd` |
-  | `intent_latency/2` | `ai_calls` purpose `"intent"`, status ok | last 7 days | `intent_shadow` |
-  | `persona_scores/2` | Jev turn scores (`playtest_scores` kind `"turn_affect"`) of runs started here | since 2026-10-07 | the last `playtest_series` batch |
+  | `costs/2` | the product app's AI spend per Stockholm day (`Workflow.ProductApp.costs/1`) | last 7 days | `ai_spend.playtest_day_totals_usd` |
+  | `intent_latency/2` | the product app's Jev intent latency (`Workflow.ProductApp.costs/1`) | last 7 days | `intent_shadow` |
+  | `persona_scores/1` | none: the product app gives no playtest scores | - | the last `playtest_series` batch |
 
   The GitHub-sourced groups (tests from CI, the decision log) come from the
   live PR feed (`TalesForge.PrFeed.Extras`). Every group has `:source`
   (`:live` or `:fallback`), `:as_of` and `:window`; `label/1` says which.
   """
 
-  import Ecto.Query
-
-  alias TalesForge.Playtest.JevHeadline
-  alias TalesForge.Repo
-  alias TalesForge.Schemas.{AICall, PlaytestRun, PlaytestScore}
   alias TalesForge.TeamPage
+  alias Workflow.ProductApp
 
   @zone "Europe/Stockholm"
   @inception ~D[2026-10-07]
@@ -47,12 +43,14 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
   """
   @spec all(map(), map(), DateTime.t()) :: %{atom() => group()}
   def all(data, extras, now \\ DateTime.utc_now()) do
+    costs = ProductApp.costs(now)
+
     %{
       tests: tests(extras, data),
       decisions: decisions(extras, data),
-      costs: costs(data, now),
-      intent_latency: intent_latency(data, now),
-      persona_scores: persona_scores(data, now)
+      costs: spend_group(costs.spend, data),
+      intent_latency: latency_group(costs.intent_latency, data),
+      persona_scores: scores_fallback(data)
     }
   end
 
@@ -151,48 +149,33 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
   # ── Costs: AI spend per day, last 7 days ─────────────────────────────────
 
   @doc """
-  AI spend on this app per Stockholm day for the last 7 days (today
-  included, so today is partial): `:days` (`%{"date", "usd"}`, every day, 0
-  when nothing was spent) and `:total_usd`. Fallback when there were no
-  priced calls in the window.
+  AI spend per Stockholm day for the last 7 days (today included, so today
+  is partial), from the product app (`Workflow.ProductApp.costs/1`): `:days`
+  (`%{"date", "usd"}`, every day, 0 when nothing was spent) and `:total_usd`.
+  Fallback when there were no priced calls in the window.
   """
   @spec costs(map(), DateTime.t()) :: group()
-  def costs(data, now \\ DateTime.utc_now()) do
-    days = last_days(now, 7)
-    from = day_start(hd(days))
+  def costs(data, now \\ DateTime.utc_now()), do: spend_group(ProductApp.costs(now).spend, data)
 
-    rows =
-      AICall
-      |> where([c], c.inserted_at >= ^from and c.call_type != "function")
-      |> where([c], not is_nil(c.cost_micro_usd))
-      |> group_by(
-        [c],
-        fragment("(? AT TIME ZONE 'UTC' AT TIME ZONE ?)::date", c.inserted_at, @zone)
-      )
-      |> select(
-        [c],
-        {fragment("(? AT TIME ZONE 'UTC' AT TIME ZONE ?)::date", c.inserted_at, @zone),
-         sum(c.cost_micro_usd)}
-      )
-      |> Repo.all()
-      |> Map.new(fn {date, micro} -> {date, to_int(micro)} end)
+  @doc """
+  The costs group from the product app's spend answer, else the fallback.
 
-    if rows == %{} do
-      costs_fallback(data)
-    else
-      day_rows = Enum.map(days, &%{"date" => Date.to_iso8601(&1), "usd" => usd(rows[&1] || 0)})
-
-      %{
-        source: :live,
-        as_of: Date.to_iso8601(local_date(now)),
-        window: :last_7_days,
-        days: day_rows,
-        total_usd: usd(rows |> Map.values() |> Enum.sum())
-      }
-    end
-  rescue
-    _db_error -> costs_fallback(data)
+      iex> spend = %{"as_of" => "2026-10-10", "days" => [%{"date" => "2026-10-10", "usd" => 2.0}], "total_usd" => 2.0}
+      iex> TalesForgeWeb.TeamLiveNumbers.spend_group(spend, %{}) |> Map.take([:source, :total_usd, :as_of])
+      %{source: :live, total_usd: 2.0, as_of: "2026-10-10"}
+  """
+  @spec spend_group(map() | nil, map()) :: group()
+  def spend_group(%{"days" => days, "total_usd" => total} = spend, _data) when is_list(days) do
+    %{
+      source: :live,
+      as_of: spend["as_of"],
+      window: :last_7_days,
+      days: days,
+      total_usd: total
+    }
   end
+
+  def spend_group(_spend, data), do: costs_fallback(data)
 
   @doc """
   The costs fallback: the last 7 days of `data.json`'s playtest day totals.
@@ -222,44 +205,38 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
   # ── Jev intent latency, last 7 days ──────────────────────────────────────
 
   @doc """
-  The Jev intent call's latency on this app over the last 7 days: `:reads`,
-  `:p50_ms`, `:p95_ms`, `:max_ms` and `:timeout_ms`. Fallback (the shadow
-  test's numbers) when there were no reads.
+  The Jev intent call's latency over the last 7 days, from the product app
+  (`Workflow.ProductApp.costs/1`): `:reads`, `:p50_ms`, `:p95_ms`, `:max_ms`
+  and `:timeout_ms`. Fallback (the shadow test's numbers) when there were no
+  reads.
   """
   @spec intent_latency(map(), DateTime.t()) :: group()
-  def intent_latency(data, now \\ DateTime.utc_now()) do
-    from = DateTime.add(now, -7, :day)
+  def intent_latency(data, now \\ DateTime.utc_now()),
+    do: latency_group(ProductApp.costs(now).intent_latency, data)
 
-    latencies =
-      AICall
-      |> where(
-        [c],
-        c.purpose == "intent" and c.status == "ok" and c.inserted_at >= ^from and
-          not is_nil(c.latency_ms)
-      )
-      |> select([c], c.latency_ms)
-      |> Repo.all()
-      |> Enum.sort()
+  @doc """
+  The latency group from a latency answer
+  (`TalesForge.ProductApi.Costs.intent_latency/1`), else the fallback.
 
-    case latencies do
-      [] ->
-        latency_fallback(data)
-
-      sorted ->
-        %{
-          source: :live,
-          as_of: Date.to_iso8601(local_date(now)),
-          window: :last_7_days,
-          reads: length(sorted),
-          p50_ms: percentile(sorted, 50),
-          p95_ms: percentile(sorted, 95),
-          max_ms: List.last(sorted),
-          timeout_ms: TeamPage.get(data, ["intent_shadow", "timeout_ms"])
-        }
-    end
-  rescue
-    _db_error -> latency_fallback(data)
+      iex> latency = %{"as_of" => "2026-10-10", "reads" => 3, "p50_ms" => 300, "p95_ms" => 900, "max_ms" => 900}
+      iex> TalesForgeWeb.TeamLiveNumbers.latency_group(latency, %{}) |> Map.take([:source, :p50_ms, :window])
+      %{source: :live, p50_ms: 300, window: :last_7_days}
+  """
+  @spec latency_group(map() | nil, map()) :: group()
+  def latency_group(%{"reads" => reads} = l, data) when is_integer(reads) and reads > 0 do
+    %{
+      source: :live,
+      as_of: l["as_of"],
+      window: :last_7_days,
+      reads: reads,
+      p50_ms: l["p50_ms"],
+      p95_ms: l["p95_ms"],
+      max_ms: l["max_ms"],
+      timeout_ms: TeamPage.get(data, ["intent_shadow", "timeout_ms"])
+    }
   end
+
+  def latency_group(_latency, data), do: latency_fallback(data)
 
   @doc """
   The latency fallback: the shadow test's numbers in `data.json`.
@@ -285,78 +262,14 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
     }
   end
 
-  @doc """
-  Nearest-rank percentile of a sorted list.
-
-      iex> TalesForgeWeb.TeamLiveNumbers.percentile([100, 200, 300, 400], 50)
-      200
-      iex> TalesForgeWeb.TeamLiveNumbers.percentile([100, 200, 300, 400], 95)
-      400
-  """
-  @spec percentile([number()], number()) :: number()
-  def percentile(sorted, p) do
-    rank = max(1, ceil(p / 100 * length(sorted)))
-    Enum.at(sorted, rank - 1)
-  end
-
   # ── Persona scores since inception ───────────────────────────────────────
 
   @doc """
-  The confidence-weighted Jev score per persona (`TalesForge.Playtest.JevHeadline`)
-  over every scored turn of the playtest runs started on this app since
-  2026-10-07: `:runs` and `:by_persona` (`%{"paul" => %{score, low_confidence_pct,
-  turns}}`). Fallback (the last batch in `data.json`) when there are none,
-  as on production, where playtest runs don't live.
+  The persona scores: the last batch in `data.json`. The product app gives
+  no playtest scores to Workflow, so this group is always the fallback.
   """
-  @spec persona_scores(map(), DateTime.t()) :: group()
-  def persona_scores(data, now \\ DateTime.utc_now()) do
-    since = day_start(@inception)
-
-    rows =
-      PlaytestScore
-      |> join(:inner, [s], r in PlaytestRun, on: r.id == s.playtest_run_id)
-      |> where([s, r], s.kind == "turn_affect" and r.started_at >= ^since)
-      |> order_by([s], asc: s.turn_number, desc: s.inserted_at, desc: s.id)
-      |> select([s, r], %{
-        run: r.id,
-        persona: r.persona,
-        turn: s.turn_number,
-        overall: s.overall,
-        confidence: s.confidence
-      })
-      |> Repo.all()
-      |> Enum.uniq_by(&{&1.run, &1.turn})
-      |> Enum.reject(&is_nil(&1.overall))
-
-    case rows do
-      [] -> scores_fallback(data)
-      rows -> live_scores(rows, now)
-    end
-  rescue
-    _db_error -> scores_fallback(data)
-  end
-
-  defp live_scores(rows, now) do
-    by_persona =
-      rows
-      |> Enum.group_by(& &1.persona)
-      |> Map.new(fn {persona, turns} ->
-        h =
-          JevHeadline.summarize(
-            Enum.map(turns, &%{overall: &1.overall, confidence: &1.confidence || 0.0})
-          )
-
-        {persona, %{score: h.score, low_confidence_pct: pct(h.unsure_share), turns: h.turns}}
-      end)
-
-    %{
-      source: :live,
-      as_of: Date.to_iso8601(local_date(now)),
-      window: :since_inception,
-      runs: rows |> Enum.map(& &1.run) |> Enum.uniq() |> length(),
-      by_persona: by_persona
-    }
-  end
+  @spec persona_scores(map()) :: group()
+  def persona_scores(data), do: scores_fallback(data)
 
   @doc """
   The persona-scores fallback: the last batch in `data.json`'s playtest series.
@@ -446,27 +359,8 @@ defmodule TalesForgeWeb.TeamLiveNumbers do
 
   # ── Helpers ───────────────────────────────────────────────────────────────
 
-  defp last_days(now, n) do
-    today = local_date(now)
-    for back <- (n - 1)..0//-1, do: Date.add(today, -back)
-  end
-
   defp local_date(now),
     do: now |> DateTime.shift_zone!(@zone, TimeZoneInfo.TimeZoneDatabase) |> DateTime.to_date()
 
-  defp day_start(date) do
-    date
-    |> DateTime.new!(~T[00:00:00], @zone, TimeZoneInfo.TimeZoneDatabase)
-    |> DateTime.shift_zone!("Etc/UTC", TimeZoneInfo.TimeZoneDatabase)
-  end
-
-  defp to_int(%Decimal{} = d), do: Decimal.to_integer(d)
-  defp to_int(n) when is_integer(n), do: n
-  defp to_int(_other), do: 0
-
-  defp usd(micro), do: round_usd(micro / 1_000_000)
   defp round_usd(x), do: Float.round(x * 1.0, 2)
-
-  defp pct(nil), do: nil
-  defp pct(share), do: round(share * 100)
 end

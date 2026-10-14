@@ -11,12 +11,12 @@ defmodule TalesForge.Board.AutoDoneTest do
 
   @ada "ada@example.com"
 
-  # GitHub: PR n merged as m<n>; m1 and m2 are in the running release run9,
+  # GitHub: PR n merged as m<n>; m1 and m2 are in the running release abc0009,
   # m3 is not. `down: true` makes GitHub answer 503.
   defp github!(opts \\ []) do
     Application.put_env(:ex_tales_forge, :pr_feed_token, "feed-token")
     Application.put_env(:ex_tales_forge, :board_req_options, plug: {Req.Test, __MODULE__})
-    System.put_env("GIT_SHA", "run9")
+    System.put_env("GIT_SHA", "abc0009")
     test_pid = self()
 
     Req.Test.stub(__MODULE__, fn conn ->
@@ -29,7 +29,7 @@ defmodule TalesForge.Board.AutoDoneTest do
         match = Regex.run(~r{/pulls/(\d+)$}, conn.request_path) ->
           Req.Test.json(conn, %{"merged" => true, "merge_commit_sha" => "m#{List.last(match)}"})
 
-        String.ends_with?(conn.request_path, "/compare/m3...run9") ->
+        String.ends_with?(conn.request_path, "/compare/m3...abc0009") ->
           Req.Test.json(conn, %{"status" => "behind"})
 
         String.contains?(conn.request_path, "/compare/") ->
@@ -82,7 +82,7 @@ defmodule TalesForge.Board.AutoDoneTest do
     assert done.column == "done"
     last = List.last(done.transitions)
     assert {last.from, last.to, last.actor} == {"building", "done", "bot:board"}
-    assert last.note == "PR #1 is in the prod release run9. The board moved the card to Done."
+    assert last.note == "PR #1 is in the prod release abc0009. The board moved the card to Done."
 
     assert Board.get_idea!(later.id).column == "building"
     assert Board.get_idea!(no_pr.id).column == "building"

@@ -22,6 +22,7 @@ defmodule TalesForge.Application do
       TalesForgeWeb.Presence,
       TalesForge.Online.Peer,
       TalesForge.WorkLog.Peer,
+      Workflow.BotCalls,
       {Task.Supervisor, name: TalesForge.Playtest.Supervisor},
       {Task.Supervisor, name: TalesForge.Playtest.SeriesSupervisor},
       {Task.Supervisor, name: TalesForge.IntentJev.Supervisor},
