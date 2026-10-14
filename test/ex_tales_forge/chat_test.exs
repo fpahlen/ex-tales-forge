@@ -13,7 +13,7 @@ defmodule TalesForge.ChatTest do
   end
 
   test "a message is kept, broadcast and shows in recent/0" do
-    Chat.subscribe()
+    Chat.subscribe(:guest)
     {:ok, m} = Chat.post(@fredrik, "  Hello team  ")
     assert m.body == "Hello team"
     assert_receive {:team_chat, %{id: id}} when id == m.id
