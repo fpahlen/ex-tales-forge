@@ -1149,6 +1149,15 @@ const setupCardUrl = hook => {
   }
   hook.cardUrlRestore = reopen
 
+  // Same-page links (inbox "Open the card", chat card links) only change the
+  // hash. replaceState for open/close does not fire hashchange, so no loop.
+  const onHashChange = () => {
+    const id = cardIdFromHash(location.hash)
+    if (!id || document.getElementById("board-modal")) return
+    hook.pushEventTo(board().dataset.boardTarget, "open", {card_id: id})
+  }
+  window.addEventListener("hashchange", onHashChange)
+
   const observer = new MutationObserver(() => {
     const p = panel()
     if (p && pendingPanelScroll != null) { p.scrollTop = pendingPanelScroll; pendingPanelScroll = null }
@@ -1159,6 +1168,7 @@ const setupCardUrl = hook => {
   return () => {
     observer.disconnect()
     window.removeEventListener("scroll", onScroll)
+    window.removeEventListener("hashchange", onHashChange)
     hook.el.removeEventListener("scroll", onScroll, {capture: true})
   }
 }
