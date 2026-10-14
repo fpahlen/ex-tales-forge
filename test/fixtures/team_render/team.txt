@@ -85,11 +85,7 @@ Done
 What we're doing <ago>
 Live from GitHub, updated every minute: the pull requests in the game's repo, whether their checks
 passed, and whether they're on playtest or in production yet.
-Live feed unavailableThis app has no GitHub token for the feed yet.
-The full presentation
-The crew and who does what, how a change gets from an idea to the game, the rules we work by, what the game runs on,
-what the playtests taught us, the pace and cost so far, how the idea board works, and where we go from here, together.
-Open the presentation Bundled numbers as of <date>
+Live feed unavailableThis app has no GitHub token for the feed yet.Bundled numbers as of <date>
 Pull requests, commits, tests, decisions, AI spend, Jev latency and persona scores come live (from GitHub and from the app) when a source is up.
 Each group says “live” or “as of” its date. The other numbers come from
 docs/team-page/data.json

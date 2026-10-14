@@ -158,10 +158,13 @@ defmodule TalesForgeWeb.TeamLiveTest do
       refute has_element?(view, "#crew-cards")
     end
 
-    test "the nav and the card open the presentation as its own page", %{conn: conn} do
+    test "the nav opens the presentation as its own page, and the presentation card is gone", %{
+      conn: conn
+    } do
       {:ok, view, html} = live(conn, ~p"/team")
 
-      assert has_element?(view, ~s(#presentation-link.team-cta[href="/team/presentation"]))
+      refute has_element?(view, "#presentation-cta")
+      refute has_element?(view, "#presentation-link")
       refute has_element?(view, "#hero-presentation-link")
       assert has_element?(view, ~s(#team-nav a[href="/team/presentation"]), "Presentation")
       refute has_element?(view, ~s(a[href="#presentation-cta"]))
@@ -173,10 +176,13 @@ defmodule TalesForgeWeb.TeamLiveTest do
         |> LazyHTML.query(~s(a[href="/team/presentation"]))
         |> Enum.count()
 
-      assert links == 2
+      assert links == 1
 
       assert {:ok, _presentation, html} =
-               view |> element("#presentation-link") |> render_click() |> follow_redirect(conn)
+               view
+               |> element(~s(#team-nav a[href="/team/presentation"]))
+               |> render_click()
+               |> follow_redirect(conn)
 
       assert html =~ "7. How we work together: one shared board"
     end
@@ -221,7 +227,7 @@ defmodule TalesForgeWeb.TeamLiveTest do
       refute html =~ "Hostile play"
     end
 
-    test "sections in order: done, hero, going to do, doing now, the presentation" do
+    test "sections in order: done, hero, going to do, doing now" do
       ids =
         @data
         |> render_with()
@@ -229,7 +235,7 @@ defmodule TalesForgeWeb.TeamLiveTest do
         |> LazyHTML.query("main > section")
         |> Enum.map(&(&1 |> LazyHTML.attribute("id") |> hd()))
 
-      assert ids == ~w(done workspace idea-board live presentation-cta)
+      assert ids == ~w(done workspace idea-board live)
     end
 
     test "null and missing numbers still render, never a zero" do

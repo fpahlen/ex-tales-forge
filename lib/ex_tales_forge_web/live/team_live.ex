@@ -16,8 +16,9 @@ defmodule TalesForgeWeb.TeamLive do
      (`TalesForge.AppRole`, area `:board`): playtest redirects it there;
   4. **What we're doing now** (`#live`): the live GitHub PR, CI and deploy feed,
      the nested `TalesForgeWeb.TeamPrFeedLive` (`TalesForge.PrFeed`, polled on
-     the server and pushed over PubSub);
-  5. the one link to the full presentation (`#presentation-cta`).
+     the server and pushed over PubSub).
+
+  The nav links to the full presentation (`/team/presentation`).
 
   The crew cards moved to the presentation (decision 2026-10-10). Old links
   still work: the `TeamAnchorRedirect` hook (`assets/js/team_hooks.js`)
@@ -57,13 +58,13 @@ defmodule TalesForgeWeb.TeamLive do
   presentation anchor, so the redirect hook leaves them alone.
 
       iex> TalesForgeWeb.TeamLive.anchors()
-      ["done", "idea-board", "live", "presentation-cta", "workspace"]
+      ["done", "idea-board", "live", "workspace"]
   """
   @spec anchors() :: [String.t()]
   def anchors,
     do:
       for({id, _} <- @nav, not String.starts_with?(id, "/"), do: id) ++
-        ~w(presentation-cta workspace)
+        ~w(workspace)
 
   @doc """
   The old crew anchors of this page and where they land now: the crew on the
@@ -213,7 +214,6 @@ defmodule TalesForgeWeb.TeamLive do
           ideas_tags={assigns[:ideas_tags] || []}
         />
         <.live_section socket={assigns[:socket]} />
-        <.presentation />
       </main>
 
       <TeamLayout.footer team={@team} d={@d} />
@@ -272,31 +272,6 @@ defmodule TalesForgeWeb.TeamLive do
       <% else %>
         <TeamPrFeed.feed feed={PrFeed.snapshot()} now={DateTime.utc_now()} />
       <% end %>
-    </section>
-    """
-  end
-
-  defp presentation(assigns) do
-    ~H"""
-    <section
-      id="presentation-cta"
-      class="team-callout space-y-4 p-5 sm:p-8"
-      aria-labelledby="presentation-cta-title"
-    >
-      <h2 id="presentation-cta-title" class="font-serif text-2xl font-bold sm:text-3xl">
-        The full presentation
-      </h2>
-      <p class="max-w-3xl leading-relaxed">
-        The crew and who does what, how a change gets from an idea to the game, the rules we work by, what the game runs on,
-        what the playtests taught us, the pace and cost so far, how the idea board works, and where we go from here, together.
-      </p>
-      <.link
-        id="presentation-link"
-        navigate={~p"/team/presentation"}
-        class="team-cta inline-flex items-center gap-2 rounded-full px-6 py-3 text-lg font-semibold"
-      >
-        Open the presentation <.icon name="hero-arrow-right" class="size-5" />
-      </.link>
     </section>
     """
   end
