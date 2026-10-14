@@ -5,7 +5,7 @@ defmodule TalesForge.Game.SkillSplit do
 
   A player splits one skill action into two or three parts in one turn. The
   server rolls each part at its part level (`TalesForge.Game.Mechanics.split_levels/2`
-  and `TalesForge.Game.Mechanics.perform_part/5`). The GM narrates each part
+  and `TalesForge.Game.Mechanics.perform_part/4`). The GM narrates each part
   and invents no parts.
 
   All functions here are pure. The injected rolls come from the turn options
@@ -133,33 +133,33 @@ defmodule TalesForge.Game.SkillSplit do
 
   @doc """
   The server check of a turn with the split. A turn with no split request
-  plays as `Mechanics.apply_server_mechanics/4`. A refused split plays one
+  plays as `Mechanics.apply_server_mechanics/3`. A refused split plays one
   normal attempt, and the resolution carries the refusal for the story.
 
   `opts`: `:rolls`, a list of injected d20 rolls (one for each part).
   """
-  @spec apply(map(), PlayerAction.t(), HandlerResult.t(), String.t() | nil, String.t(), keyword()) ::
+  @spec apply(map(), PlayerAction.t(), HandlerResult.t(), String.t() | nil, keyword()) ::
           {map(), MechanicalResolution.t()}
-  def apply(character, player_action, handler, text, variant, opts \\ []) do
+  def apply(character, player_action, handler, text, opts \\ []) do
     skill = check_skill(player_action, handler)
     rolls = Keyword.get(opts, :rolls, [])
 
     case {skill, request(player_action, text)} do
       {nil, _request} ->
-        Mechanics.apply_server_mechanics(character, player_action, handler, variant)
+        Mechanics.apply_server_mechanics(character, player_action, handler)
 
       {_skill, 1} ->
-        single(character, skill, handler, rolls, variant, nil)
+        single(character, skill, handler, rolls, nil)
 
       {skill, request} ->
         level = {Mechanics.raw_level(character, skill), effective(character, skill, handler)}
 
         case Mechanics.split_levels(level, request) do
           {:ok, parts} ->
-            split(character, skill, parts, rolls, variant)
+            split(character, skill, parts, rolls)
 
           {:error, reason} ->
-            single(character, skill, handler, rolls, variant, %{
+            single(character, skill, handler, rolls, %{
               "requested" => requested(request),
               "refused" => Atom.to_string(reason)
             })
@@ -184,9 +184,9 @@ defmodule TalesForge.Game.SkillSplit do
   defp requested(parts) when is_list(parts), do: parts
   defp requested(count), do: count
 
-  defp single(character, skill, handler, rolls, variant, split) do
+  defp single(character, skill, handler, rolls, split) do
     {updated, resolution} =
-      Mechanics.perform_and_apply(character, skill, List.first(rolls), variant, modifier(handler))
+      Mechanics.perform_and_apply(character, skill, List.first(rolls), modifier(handler))
 
     {updated, %{resolution | split: split}}
   end
@@ -194,12 +194,12 @@ defmodule TalesForge.Game.SkillSplit do
   # Each part rolls against the character before the turn. The first part
   # that earns a learning chance gives the character after the turn; the
   # other parts bank nothing (one learning chance for each split action).
-  defp split(character, skill, parts, rolls, variant) do
+  defp split(character, skill, parts, rolls) do
     results =
       parts
       |> Enum.with_index()
       |> Enum.map(fn {level, i} ->
-        Mechanics.perform_part(character, skill, level, Enum.at(rolls, i), variant)
+        Mechanics.perform_part(character, skill, level, Enum.at(rolls, i))
       end)
 
     learned = Enum.find(results, fn {_char, res} -> (res.lp_awarded || 0) > 0 end)

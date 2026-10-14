@@ -12,7 +12,7 @@ defmodule TalesForge.Game.Turn.Outcome do
       that the NPCs spoke, and the repetition guard counts each repeat.
     * `TURN_OUTCOME_RECORD=on`: the outcome record goes to the turn as a
       `turn.outcome` event.
-    * Default variant: the spent gestures the GM used anyway are logged.
+    * The spent gestures the GM used anyway are logged.
 
   The `store` adapter persists the turn. Writes `result`. A turn with a
   failed GM call passes through.

@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.JevIntent do
   @moduledoc """
-  The player-intent read as **one** TypeSafe Jev call, for the default variant.
+  The player-intent read as **one** TypeSafe Jev call.
 
   Jev never writes free text: every field is a choice over labels that this
   module proposes, and the numbers (durations, coin amounts, prices) are parsed

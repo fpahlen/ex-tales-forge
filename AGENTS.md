@@ -19,7 +19,7 @@ Who we build for is in [PRODUCT.md](PRODUCT.md). Core table: **Hawk** (hard mode
 
 Rules identity (same file, Rules philosophy): prices ≈ human labor; you learn by failing, slowly, with transfer across related skills. Do not invent XP bars or loot-table gold. Fewer non-intuitive rules → easier to stay in the story.
 
-Skill growth (decision 2026-10-09, default variant): a failed or partial roll banks one improvement chance for that exact skill (a success banks nothing, nothing spills to other skills, the linked stat adds nothing), and banked chances are resolved on a long rest or sleep (`TalesForge.Game.Progression`): one roll costs ceil(level / 3) banked LP, at most +1 per skill per night, the skill's LP are gone afterwards, and from level 10 the character must also reflect on the skill (`TalesForge.Game.Reflection`) or its LP stay banked. Physical skills (combat, dodge, climbing, lockpicking; `Progression.immediate_skills/0`) are resolved at the end of the turn of the failure instead (`Progression.resolve_turn/3`), same cost, roll and reflection gate, at most +1 per skill per long-rest cycle (`"improved_since_rest"`). The numbers are in `config/config.exs`. Plain talk doesn't roll (decisions 2026-10-07 and 2026-10-09): persuasion, deception and intimidation only when the character tries to change someone's mind against their interest.
+Skill growth (decision 2026-10-09): a failed or partial roll banks one improvement chance for that exact skill (a success banks nothing, nothing spills to other skills, the linked stat adds nothing), and banked chances are resolved on a long rest or sleep (`TalesForge.Game.Progression`): one roll costs ceil(level / 3) banked LP, at most +1 per skill per night, the skill's LP are gone afterwards, and from level 10 the character must also reflect on the skill (`TalesForge.Game.Reflection`) or its LP stay banked. Physical skills (combat, dodge, climbing, lockpicking; `Progression.immediate_skills/0`) are resolved at the end of the turn of the failure instead (`Progression.resolve_turn/3`), same cost, roll and reflection gate, at most +1 per skill per long-rest cycle (`"improved_since_rest"`). The numbers are in `config/config.exs`. Plain talk doesn't roll (decisions 2026-10-07 and 2026-10-09): persuasion, deception and intimidation only when the character tries to change someone's mind against their interest.
 
 ## Stack
 
@@ -70,7 +70,7 @@ Use kebab-case names that describe the work (`feature/two-tier-llm`, `fix/oban-m
 2. **Call-type rule** (decision 2026-10-07, tales-forge-docs `docs/call-types.md`): known structured input + structured output = Elixir function; unstructured input + structured output = Jev; prose output = LLM. Asking the LLM for structured output is a smell. Elixir is exact, free and instant, Jev is fast and cheap, the LLM is the slowest and most expensive: use the LLM last, with the smallest input possible.
 3. **One Character type** for player characters and NPCs: OCEAN, personality-filtered memory, a Maslow level and concerns; only the controller differs (`player`, `gm` or `bot`). `TalesForge.Characters` keeps a `characters` row per PC and NPC in step after every turn; the game still reads `world_state["character"]` and `npc_instances` until the Character plan's read switch (tales-forge-docs `docs/plan-unify-character.md`). Don't add a separate PC or NPC model.
 4. **Intent before the GM; the GM gets a typed struct plus a short quote.** The intent step runs first: one Jev call (`INTENT_JEV=on`, `TalesForge.IntentJev`), with the Elixir heuristic as the fallback. There is no intent LLM call (decision 2026-10-12). The GM gets the validated, typed `PlayerAction` plus a short, sanitised quote of the player's words (`overall_intent`, at most 500 characters), so it keeps the player's tone. This is intended (decisions 2026-10-07 "GM pipeline direction" and 2026-10-08). When Jev gives no quote, `overall_intent` is a typed summary of the message, sanitised the same way. The full raw message never goes to the GM.
-5. **The server owns mechanics.** It rolls dice and applies LP, inventory, coins, prices and time; the LLM narrates and never invents mechanics. A player's claim about the character's own state (an item, coins, a purchase or a kill the session doesn't back) is checked in Elixir against the session (`TalesForge.Game.PremiseCheck`, default variant), not by Jev; a false one reaches the GM as a short correction in the per-turn prompt (decision 2026-10-09).
+5. **The server owns mechanics.** It rolls dice and applies LP, inventory, coins, prices and time; the LLM narrates and never invents mechanics. A player's claim about the character's own state (an item, coins, a purchase or a kill the session doesn't back) is checked in Elixir against the session (`TalesForge.Game.PremiseCheck`), not by Jev; a false one reaches the GM as a short correction in the per-turn prompt (decision 2026-10-09).
 6. Important authored state stays human-readable: `priv/rules/*.md`, `priv/prompts/*.txt`, pack files.
 7. LLM replies use structured JSON with a strict schema (Tier 1 `PlayerAction` via `TalesForge.Game.Intent`; the scene and GM reply via `TalesForge.LLM`).
 8. Turn history is auditable: every turn is persisted in the `Turn` schema.
@@ -103,7 +103,7 @@ Decision: tales-forge-docs `docs/decisions.md`, 2026-10-10, "Positive framing an
 | `The scorer writes one row for each turn.` | `A row is written per turn by the scorer.` |
 | `@doc "Returns the confident share (0 to 1)."` | `@doc "Basically gives you roughly how sure-ish Jev was."` |
 
-Old names (for example `unsure_share`, `unsure_pct`) change to the confidence form when you touch them. A separate rename PR does the rest. Do not change the GM, Jev or intent prompts for wording only: a prompt change needs its own decision, and the baseline GM prompt golden test stays byte-identical.
+Old names (for example `unsure_share`, `unsure_pct`) change to the confidence form when you touch them. A separate rename PR does the rest. Do not change the GM, Jev or intent prompts for wording only: a prompt change needs its own decision, and the GM prompt golden test stays byte-identical.
 
 The same rule is in `CONTRIBUTING.md`.
 
@@ -120,18 +120,17 @@ Source: decision 2026-10-07 "GitHub team sign-in is the only login on production
 
 ## Feature flags
 
-Environment variables read through `TalesForge.Config`. Flags marked "new sessions" are fixed per session at creation (`world_state["variant"]`, `world_state["features"]`), so changing them affects new sessions only (`INTENT_JEV` is pinned as `world_state["intent_jev"]`). Current per-app values are in tales-forge-docs `docs/fly-secrets.md`; `fly.playtest.toml` `[env]` sets some for playtest.
+Environment variables read through `TalesForge.Config`. Flags marked "new sessions" are fixed per session at creation (`world_state["features"]`), so changing them affects new sessions only (`INTENT_JEV` is pinned as `world_state["intent_jev"]`). Current per-app values are in tales-forge-docs `docs/fly-secrets.md`; `fly.playtest.toml` `[env]` sets some for playtest.
 
 | Flag | What it does | Default | Production | Playtest |
 |------|--------------|---------|------------|----------|
-| `GAME_VARIANT` | Behaviour variant of new sessions: `default` or `baseline` (`TalesForge.Game.Variant`). The playtest runner can pick a variant per run | `default` | not set in `fly.toml` | not set in `fly.playtest.toml`; runs choose per run |
 | `INN_WORLD` | Places and people around the Valley Inn for new Tin Valley sessions (`TalesForge.Game.Features`) | off | off | `on` (`fly.playtest.toml`) |
 | `WORLD_ANTAGONIST` | The Tinjacks antagonist for new Tin Valley sessions; needs `INN_WORLD` | off | off | `on` (`fly.playtest.toml`, [#73](https://github.com/whyse-ab/ex-tales-forge/pull/73)) |
 | `NPC_REACTIONS` | Jev NPC reaction before each GM call (`TalesForge.Game.NpcReactions`; needs `TYPESAFE_API_KEY`) | off | off | `on` (Fly secret) |
 | `WORLD_AGENTS` | World-agents prototype: persons and locations hold facts for the GM; also turns on NPC reactions | off | off | off |
 | `CODE_HEAT_MAP` | Daily call-time sample of the app's functions for the code heat map on `/admin/operate/code-heat` (`TalesForge.CodeHeat`). Only `on` (or `true`, `1`) turns it on. Production stays off, also with the variable set | off | off (refused) | `on` (`fly.playtest.toml`) |
 | `PLAYTEST_RUNNER_ENABLED` | Persona bot runner; only `true` enables it, and never on production (`TalesForge.AppRole`) | off | **never set** (refused anyway) | `true` |
-| `INTENT_JEV` | New sessions: player intent as one Jev call (`TalesForge.IntentJev`). `on` = Jev drives the turn, heuristic on error or timeout; `shadow` = the heuristic plays, the Jev read is only logged (`ai_calls` purpose `turn.intent_shadow`); `off` = the heuristic plays. Needs `TYPESAFE_INTENT_API_KEY` (secret). Baseline sessions are always off (the no-Jev arm of `Playtest.Series`); the playtest runner can pick per run (`intent_jev`). Raises at boot on any other value | `on` | `on` (Fly secret) | `on` (Fly secret) |
+| `INTENT_JEV` | New sessions: player intent as one Jev call (`TalesForge.IntentJev`). `on` = Jev drives the turn, heuristic on error or timeout; `shadow` = the heuristic plays, the Jev read is only logged (`ai_calls` purpose `turn.intent_shadow`); `off` = the heuristic plays. Needs `TYPESAFE_INTENT_API_KEY` (secret). The playtest runner can pick per run (`intent_jev`). Raises at boot on any other value | `on` | `on` (Fly secret) | `on` (Fly secret) |
 | `INTENT_ACT_MIN_CONFIDENCE` / `INTENT_ASK_BELOW_CONFIDENCE` | `INTENT_JEV=on` bands on the calibrated confidence: act at or above, ask below (only when the top two readings play out differently), best guess between | 0.70 / 0.45 | not set | not set |
 | `INTENT_ASK_BELOW_RAW_CONFIDENCE` | `INTENT_JEV=on`: also ask (top two readings play out differently) when Jev's **raw** confidence is below this, even if calibration lifted it into the act band; `0` turns the raw check off | 0.45 | not set | not set |
 | `INTENT_JEV_TIMEOUT_MS` | `INTENT_JEV=on`: hard deadline of the Jev call on the player's clock before the heuristic takes over | 1500 | not set | not set |
@@ -145,7 +144,7 @@ Environment variables read through `TalesForge.Config`. Flags marked "new sessio
 | `SKILL_SPLIT` | Skill split (`TalesForge.Game.SkillSplit`): the player splits one skill action into two or three parts, and the server rolls each part (`Mechanics.split_levels/2`). The thresholds are in `config :ex_tales_forge, :skill_split` (d100 scale: start 100, triple 150, uneven part 25 or more). A split action banks one learning chance at most. The GM gets a section with each part, its level and its result. The rules text in `priv/rules` has `skill_split:on` and `skill_split:off` blocks; the GM prompt shows the blocks for the flag. Off: the prompts, the Jev questions and the rolls are as before. Keep it off until the D100 switch. Only `on` (or `true`, `1`) turns it on | off | off | off |
 | `COMBAT_OPPOSED` | Opposed combat (`TalesForge.Game.Combat`, decision 2026-10-14 "NPC combat: both sides roll"): the player's d20 attacks against the defender's Parry (Dodge/2 + 10 + (DEX - 10)/2). A defender that is still up counterattacks with a probability from its combat skill, OCEAN, Maslow level, concerns and wounds. A miss is only a miss: the player takes a wound only from a counterattack hit. NPC wounds stay in `world_state["npc_state"][id]` for the session (cap `wound_max/1`, down at the cap, the death roll on a hit after that, `npc.down` and `npc.dead` events). An attack on a person that the world does not have makes a minor foe (1 wound, untrained floor). An unclear target asks the player. The GM gets a combat exchange section, and the prose check logs a `:wound` mismatch for each hit or blood that the record does not have. Only `on` (or `true`, `1`) turns it on | off | off | `on` (`fly.playtest.toml`) |
 
-The baseline variant gets no world features. The GM has one reply mode, the strict structured JSON schema (`TalesForge.LLM`); there is no reply-mode flag.
+The GM has one reply mode, the strict structured JSON schema (`TalesForge.LLM`); there is no reply-mode flag.
 
 ## Each thing lives in one place
 
@@ -182,8 +181,7 @@ Production has no caps set; playtest has session and day caps. Changing a cap, o
 Sources: `test/ex_tales_forge/game/prompt_prefix_test.exs`, `test/ex_tales_forge/game/prompt_golden_test.exs`, decisions 2026-10-07 "No length limits in the GM reply schema" and "Each bot call gets its own conversation id".
 
 - **Static parts first.** xAI caches the longest identical prefix, so the shared narrator text and the rules come first and are byte-identical for the scene call and every GM turn of an adventure; session-stable content follows and does not change between turns; anything per turn (state, turn number, the action, NPC reactions, world facts, prices) comes last. The prefix test enforces this.
-- **Golden prompts stay byte-identical** unless a change is intended. The fixtures in `test/fixtures/prompts/` (one per adventure and variant) only change on purpose: regenerate with `UPDATE_PROMPT_GOLDEN=1 mix test test/ex_tales_forge/game/prompt_golden_test.exs`, review the diff and say so in the PR.
-- **The baseline variant is frozen.** `priv/prompts/variants/baseline/`, the packs' `variants/baseline/` folders and the `*.baseline.txt` fixtures are the pre-rework game and must not change while the baseline arm exists; new behaviour goes into the default variant only.
+- **Golden prompts stay byte-identical** unless a change is intended. The fixtures in `test/fixtures/prompts/` (one per adventure) only change on purpose: regenerate with `UPDATE_PROMPT_GOLDEN=1 mix test test/ex_tales_forge/game/prompt_golden_test.exs`, review the diff and say so in the PR.
 - The strict GM and scene reply schema has no `maxLength` or `maxItems` (they disable xAI's prompt cache); caps are applied in code when the reply is parsed.
 - The GM call streams (`stream: true`); the play page shows the narrative while it arrives (`TalesForge.LLM.Stream`). The GM reply has two variants by app role (`TalesForge.LLM.gm_variant/1`): production uses `lean` (no `gm_notes`, no `location_name` in schema and prompt), playtest and local use `full`. One prompt file serves both; `llm.ex` cuts the lean parts. `ai_calls` stores `ttft_ms` and `narration_variant`.
 - Only the scene and GM calls share the session's `x-grok-conv-id`; persona, scorer, intent and fact-extraction calls use `<session>:<purpose>`.
@@ -408,7 +406,7 @@ lib/ex_tales_forge/
   workers/      # Oban ProcessScene, ProcessTurn
   schemas/      # Ecto runtime schemas
 priv/rules/     # Markdown rulebook (global; packs may carry their own rules/)
-priv/prompts/   # LLM system prompts (variants/<variant>/ replaces whole files)
+priv/prompts/   # LLM system prompts
 priv/adventures/ # adventure packs: places, NPCs, rules, extensions, variants
 ```
 

@@ -49,9 +49,7 @@ defmodule TalesForge.Playtest.RunMeta do
   - `inn_world`, `world_antagonist`: `"on"` / `"off"`, the session's world
     features (`INN_WORLD`, `WORLD_ANTAGONIST`; `TalesForge.Game.Features`).
     Taken from the session, not the env, because they are fixed when the
-    session is created and the baseline variant never gets them;
-  - `variant`: the session's behaviour variant (`world_state["variant"]`),
-    `"default"` when the session has none;
+    session is created;
   - `intent_jev`: the session's Jev intent mode (`world_state["intent_jev"]`),
     `"off"` when the session has none;
   - `llm_provider`, `gm_model`, `intent_model`: the models that play the game;
@@ -64,7 +62,6 @@ defmodule TalesForge.Playtest.RunMeta do
       "world_agents" => on_off(Config.world_agents?()),
       "inn_world" => on_off(Features.on?(world_state, "inn_world")),
       "world_antagonist" => on_off(Features.on?(world_state, "antagonist")),
-      "variant" => variant(world_state),
       "intent_jev" => intent_jev(world_state),
       "llm_provider" => Config.llm_provider(),
       "gm_model" => Config.tier2_model() || Config.xai_model(),
@@ -82,9 +79,6 @@ defmodule TalesForge.Playtest.RunMeta do
   @spec commit_url(String.t() | nil) :: String.t() | nil
   def commit_url(nil), do: nil
   def commit_url(sha), do: "https://github.com/whyse-ab/ex-tales-forge/commit/" <> sha
-
-  defp variant(%{"variant" => variant}) when is_binary(variant) and variant != "", do: variant
-  defp variant(_world_state), do: "default"
 
   defp intent_jev(%{"intent_jev" => mode}) when is_binary(mode) and mode != "", do: mode
   defp intent_jev(_world_state), do: "off"

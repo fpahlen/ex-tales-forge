@@ -69,12 +69,11 @@ defmodule TalesForge.IntentJevTest do
     end)
   end
 
-  defp session(mode, variant \\ "default") do
+  defp session(mode) do
     {:ok, session} =
       GameSessions.create_session(%{
         name: "Jev intent",
         adventure_id: "tin_valley",
-        variant: variant,
         intent_jev: mode
       })
 
@@ -88,18 +87,16 @@ defmodule TalesForge.IntentJevTest do
   end
 
   describe "mode" do
-    test "a new session takes the override, else INTENT_JEV; the baseline is always off" do
+    test "a new session takes the override, else INTENT_JEV" do
       Application.put_env(:ex_tales_forge, :intent_jev, :shadow)
-      assert IntentJev.mode_for_new_session("default", nil) == :shadow
-      assert IntentJev.mode_for_new_session("default", "on") == :on
-      assert IntentJev.mode_for_new_session("default", "nonsense") == :shadow
-      assert IntentJev.mode_for_new_session("baseline", "on") == :off
+      assert IntentJev.mode_for_new_session(nil) == :shadow
+      assert IntentJev.mode_for_new_session("on") == :on
+      assert IntentJev.mode_for_new_session("nonsense") == :shadow
     end
 
     test "an off session's world state carries no flag; the others carry their mode" do
       refute Map.has_key?(session("off").world_state, "intent_jev")
       assert session("shadow").world_state["intent_jev"] == "shadow"
-      refute Map.has_key?(session("on", "baseline").world_state, "intent_jev")
     end
 
     test "configured? needs a key on the :intent endpoint" do

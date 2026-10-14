@@ -72,7 +72,7 @@ defmodule TalesForge.Game.Bargain do
   `"rolls"`.
 
   `opts`: `:appraise` (default false), `:rolls` (`%{"appraisal" => n,
-  "persuasion" => n}`, for tests) and `:variant`.
+  "persuasion" => n}`, for tests).
 
       iex> char = %{"skills" => %{"persuasion" => 5}, "stats" => %{"CHA" => 10}}
       iex> {_char, r} = TalesForge.Game.Bargain.haggle(char, :buy, 110, rolls: %{"persuasion" => 2})
@@ -85,19 +85,18 @@ defmodule TalesForge.Game.Bargain do
   @spec haggle(map(), :buy | :sell, non_neg_integer(), keyword()) :: {map(), result()}
   def haggle(character, kind, price, opts \\ []) do
     rolls = Keyword.get(opts, :rolls, %{})
-    variant = Keyword.get(opts, :variant, "default")
     fair = fair_price(kind, price)
 
     {appraised, appraisal} =
       if Keyword.get(opts, :appraise, false),
-        do: roll(character, "appraisal", rolls, variant, 0),
+        do: roll(character, "appraisal", rolls, 0),
         else: {character, nil}
 
     known? = appraisal != nil and appraisal.outcome in ["success", "partial_success"]
     start = if known?, do: fair, else: price
     bonus = if known?, do: knowledge_bonus(appraised), else: 0
 
-    {haggled, persuasion} = roll(appraised, "persuasion", rolls, variant, bonus)
+    {haggled, persuasion} = roll(appraised, "persuasion", rolls, bonus)
     moved = move(kind, start, percent(persuasion), fair, price)
 
     {haggled,
@@ -116,8 +115,8 @@ defmodule TalesForge.Game.Bargain do
     if (get_in(character, ["skills", "appraisal"]) || 0) >= 10, do: 3, else: 2
   end
 
-  defp roll(character, skill, rolls, variant, modifier),
-    do: Mechanics.perform_and_apply(character, skill, rolls[skill], variant, modifier)
+  defp roll(character, skill, rolls, modifier),
+    do: Mechanics.perform_and_apply(character, skill, rolls[skill], modifier)
 
   # 10 % plus 1 % for each point under the skill, at most 20 %; a partial
   # success moves 10 %; a failure moves nothing.

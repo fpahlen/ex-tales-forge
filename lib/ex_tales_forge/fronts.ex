@@ -10,7 +10,6 @@ defmodule TalesForge.Fronts do
 
   alias TalesForge.Game.Features
   alias TalesForge.Game.Pack
-  alias TalesForge.Game.Variant
   alias TalesForge.Game.WorldClock
   alias TalesForge.Repo
   alias TalesForge.Schemas.{FrontInstance, GameSession}
@@ -25,7 +24,7 @@ defmodule TalesForge.Fronts do
   def seed_session(_), do: :ok
 
   defp pack_fronts(world) do
-    Pack.load("tin_valley", Variant.of(world), Features.of(world)).fronts
+    Pack.load("tin_valley", Features.of(world)).fronts
   end
 
   def list_all(session_id) when is_binary(session_id) do

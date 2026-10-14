@@ -23,7 +23,6 @@ defmodule TalesForge.Game.Turn.Mechanics do
   alias TalesForge.Game.TurnApply
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.Game.TurnRules
-  alias TalesForge.Game.Variant
   alias TalesForge.World, as: WorldAgents
   alias TalesForge.World.Prices
 
@@ -53,7 +52,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
     resolved =
       player_action
-      |> ActionHandler.resolve(Variant.of(turn.session.world_state))
+      |> ActionHandler.resolve()
       |> Rest.apply(world, player_action.overall_intent)
 
     apply? = Turn.flag?(turn, :turn_apply_outcomes)
@@ -128,7 +127,6 @@ defmodule TalesForge.Game.Turn.Mechanics do
         played,
         ruled,
         turn.raw_action,
-        Variant.of(world),
         rolls: Keyword.get(turn.opts, :rolls, [])
       )
     else

@@ -9,11 +9,9 @@ defmodule TalesForge.Prompt.Profile do
     3. turn: the per-turn state; for a GM turn also the server bounds, the
        validated player action and the handler result.
 
-  The profile holds all the role, flag and baseline checks. A section only
+  The profile holds all the role and flag checks. A section only
   renders its data:
 
-    * the baseline variant gets the baseline opening scene and no scene-now,
-      premise or growth note;
     * `TURN_OUTCOME_RECORD` adds the outcome record;
     * `NPC_DIALOGUE_MEMORY` adds the NPC dialogue memory;
     * `NPC_REACTIONS` or `WORLD_AGENTS` adds the NPC reactions;
@@ -26,9 +24,6 @@ defmodule TalesForge.Prompt.Profile do
   alias TalesForge.Prompt.Ctx
   alias TalesForge.Prompt.Sections
 
-  # Sections of the default variant only (the baseline prompts stay as they were).
-  @default_only [Sections.SceneNow, Sections.Premise, Sections.RestGrowth]
-
   @doc "The static sections (system messages)."
   @spec static_sections(Ctx.t()) :: [module()]
   def static_sections(%Ctx{call: call}) when call in [:gm, :scene],
@@ -36,8 +31,8 @@ defmodule TalesForge.Prompt.Profile do
 
   @doc "The session sections."
   @spec session_sections(Ctx.t()) :: [module()]
-  def session_sections(%Ctx{call: call} = ctx) when call in [:gm, :scene],
-    do: [Sections.CharacterSheet, opening(ctx)]
+  def session_sections(%Ctx{call: call}) when call in [:gm, :scene],
+    do: [Sections.CharacterSheet, Sections.Opening]
 
   @doc "The turn sections."
   @spec turn_sections(Ctx.t()) :: [module()]
@@ -80,9 +75,6 @@ defmodule TalesForge.Prompt.Profile do
   @spec ids(Ctx.t()) :: [atom()]
   def ids(ctx), do: Enum.map(sections(ctx), & &1.id())
 
-  defp opening(ctx),
-    do: if(Ctx.baseline?(ctx), do: Sections.BaselineOpening, else: Sections.Opening)
-
   defp state_sections(ctx) do
     [
       Sections.PerceivedFacts,
@@ -119,6 +111,5 @@ defmodule TalesForge.Prompt.Profile do
   defp include?(Sections.NoticedDetails, ctx), do: Ctx.flag?(ctx, :skill_detail_level)
   defp include?(Sections.SkillSplit, ctx), do: Ctx.flag?(ctx, :skill_split)
   defp include?(Sections.Combat, ctx), do: Ctx.flag?(ctx, :combat_opposed)
-  defp include?(section, ctx) when section in @default_only, do: not Ctx.baseline?(ctx)
   defp include?(_section, _ctx), do: true
 end

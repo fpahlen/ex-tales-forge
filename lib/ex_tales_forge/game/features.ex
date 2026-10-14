@@ -1,7 +1,7 @@
 defmodule TalesForge.Game.Features do
   @moduledoc """
   World features of a session, fixed when the session is created and stored
-  as `world_state["features"]` (like `TalesForge.Game.Variant`). Turning a
+  as `world_state["features"]`. Turning a
   flag on or off changes new sessions only.
 
   - `"inn_world"` (`INN_WORLD=on`): the places and people around the Valley
@@ -9,12 +9,11 @@ defmodule TalesForge.Game.Features do
   - `"antagonist"` (`WORLD_ANTAGONIST=on`, needs `inn_world`): the Tinjacks,
     from `extensions/antagonist/`.
 
-  The baseline variant gets no features. Design: tales-forge-docs
+  Design: tales-forge-docs
   `docs/design-tin-valley-world.md`.
   """
 
   alias TalesForge.Config
-  alias TalesForge.Game.Variant
 
   @known ~w(inn_world antagonist)
   @requires %{"antagonist" => "inn_world"}
@@ -32,19 +31,15 @@ defmodule TalesForge.Game.Features do
   def all, do: @known
 
   @doc """
-  The features a new session of `variant` gets from the env flags. None for
-  the baseline variant; `antagonist` only together with `inn_world`.
+  The features a new session gets from the env flags; `antagonist` only
+  together with `inn_world`.
   """
-  @spec for_new_session(Variant.t()) :: [t()]
-  def for_new_session(variant) do
-    if variant == "baseline" do
-      []
-    else
-      [{"inn_world", Config.inn_world?()}, {"antagonist", Config.world_antagonist?()}]
-      |> Enum.filter(fn {_feature, on?} -> on? end)
-      |> Enum.map(fn {feature, _on?} -> feature end)
-      |> normalize()
-    end
+  @spec for_new_session() :: [t()]
+  def for_new_session do
+    [{"inn_world", Config.inn_world?()}, {"antagonist", Config.world_antagonist?()}]
+    |> Enum.filter(fn {_feature, on?} -> on? end)
+    |> Enum.map(fn {feature, _on?} -> feature end)
+    |> normalize()
   end
 
   @doc ~S"""

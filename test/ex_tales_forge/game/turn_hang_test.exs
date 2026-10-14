@@ -305,7 +305,8 @@ defmodule TalesForge.Game.TurnHangTest do
              Repo.get!(PlaytestRun, run_id).flags
 
     System.delete_env("WORLD_ANTAGONIST")
-    {:ok, run_id} = Runner.start("paul", "tin_valley", turn_limit: 1, variant: "baseline")
+    System.delete_env("INN_WORLD")
+    {:ok, run_id} = Runner.start("paul", "tin_valley", turn_limit: 1)
     assert {:ok, _run} = await(run_id)
 
     assert %{"inn_world" => "off", "world_antagonist" => "off"} =

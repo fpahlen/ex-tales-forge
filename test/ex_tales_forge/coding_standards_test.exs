@@ -27,7 +27,6 @@ defmodule TalesForge.CodingStandardsTest do
     TalesForge.Game.Gestures.Forms,
     TalesForge.Game.Mechanics,
     TalesForge.Game.Progression,
-    TalesForge.Game.Progression.Tiered,
     TalesForge.Game.Train,
     TalesForge.Game.PremiseCheck,
     TalesForge.World,

@@ -17,7 +17,6 @@ defmodule TalesForge.Game.CombatRollsTest do
     "present_npcs" => ["innkeep"],
     "npc_details" => %{"innkeep" => %{"name" => "Brenna Holt", "role" => "innkeep"}}
   }
-  @baseline Map.put(@context, "variant", "baseline")
 
   defp primary(text, context \\ @context) do
     %{actions: [action]} = Intent.heuristic_intent(text, context)
@@ -26,10 +25,10 @@ defmodule TalesForge.Game.CombatRollsTest do
 
   defp handler(text, context \\ @context) do
     player_action = Intent.validate_player_action(Intent.heuristic_intent(text, context), context)
-    ActionHandler.resolve(player_action, Map.get(context, "variant", "default"))
+    ActionHandler.resolve(player_action)
   end
 
-  describe "the default variant" do
+  describe "fights" do
     test "Hawk's goblin fight rolls (run 496574e3, turns 10 and 11)" do
       lunge =
         "I pivot toward the twig snap on my left, knife ready, and lunge low at the first goblin's spear arm to disable it before the bowman or hidden threat closes in."
@@ -86,17 +85,6 @@ defmodule TalesForge.Game.CombatRollsTest do
 
     test "Mechanics.first_combat_skill ignores texts without fight verbs" do
       assert Mechanics.first_combat_skill("I order a mug of ale") == nil
-    end
-  end
-
-  describe "the baseline variant keeps the old rules" do
-    test "only the six old attack verbs are fights" do
-      refute primary("I lunge low at the goblin's spear arm.", @baseline).action_type == :combat
-      assert primary("I attack the goblin.", @baseline).action_type == :combat
-    end
-
-    test "a fight word in a quote still counts" do
-      assert primary(~s(I say, "Then we fight."), @baseline).action_type == :combat
     end
   end
 end

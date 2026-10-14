@@ -5,8 +5,7 @@ defmodule TalesForge.IntentJev do
 
   The mode is fixed per session when it is created and stored as
   `world_state["intent_jev"]` (only when it is not `off`), like the other
-  "new sessions" flags; the baseline variant is always `off`
-  (`mode_for_new_session/2`, `mode/1`):
+  "new sessions" flags (`mode_for_new_session/1`, `mode/1`):
 
     * `:off` — the heuristic reads the turn. Nothing
       here runs.
@@ -73,13 +72,10 @@ defmodule TalesForge.IntentJev do
 
   @doc """
   The mode a new session gets: `override` (`"off"`, `"shadow"` or `"on"`, e.g.
-  a playtest run's arm) when given, else `INTENT_JEV`. Always `:off` for the
-  baseline variant.
+  a playtest run's arm) when given, else `INTENT_JEV`.
   """
-  @spec mode_for_new_session(String.t() | nil, String.t() | atom() | nil) :: mode()
-  def mode_for_new_session("baseline", _override), do: :off
-
-  def mode_for_new_session(_variant, override) do
+  @spec mode_for_new_session(String.t() | atom() | nil) :: mode()
+  def mode_for_new_session(override) do
     case parse_mode(override) do
       nil -> Config.intent_jev_mode()
       mode -> mode
@@ -120,18 +116,15 @@ defmodule TalesForge.IntentJev do
   def put_mode(world, mode), do: Map.put(world, "intent_jev", Atom.to_string(mode))
 
   @doc ~S"""
-  The mode of a session's world state (or intent context). `:off` for the
-  baseline variant and for sessions created without one.
+  The mode of a session's world state (or intent context). `:off` for
+  sessions created without one.
 
       iex> TalesForge.IntentJev.mode(%{"intent_jev" => "on"})
       :on
-      iex> TalesForge.IntentJev.mode(%{"intent_jev" => "on", "variant" => "baseline"})
-      :off
       iex> TalesForge.IntentJev.mode(%{})
       :off
   """
   @spec mode(map() | nil) :: mode()
-  def mode(%{"variant" => "baseline"}), do: :off
   def mode(%{"intent_jev" => mode}), do: parse_mode(mode) || :off
   def mode(_world), do: :off
 

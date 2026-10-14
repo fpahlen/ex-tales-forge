@@ -11,7 +11,7 @@ defmodule TalesForge.Prompt.Sections.Narrator do
   use TalesForge.Prompt.Section, id: :narrator, slot: :static
 
   @impl true
-  def render(ctx), do: TalesForge.Game.Prompts.narrator_system(ctx.variant)
+  def render(_ctx), do: TalesForge.Game.Prompts.narrator_system()
 end
 
 defmodule TalesForge.Prompt.Sections.Rules do
@@ -35,8 +35,8 @@ defmodule TalesForge.Prompt.Sections.Task do
   def render(ctx),
     do:
       if(ctx.call == :scene,
-        do: TalesForge.Game.Prompts.scene_system(ctx.variant),
-        else: TalesForge.Game.Prompts.gm_system(ctx.variant, ctx.role)
+        do: TalesForge.Game.Prompts.scene_system(),
+        else: TalesForge.Game.Prompts.gm_system(ctx.role)
       )
 end
 
@@ -54,17 +54,7 @@ defmodule TalesForge.Prompt.Sections.Opening do
 
   @impl true
   def render(ctx),
-    do: TalesForge.Game.Context.opening_section(Map.get(ctx.data, :opening_scene), :default)
-end
-
-defmodule TalesForge.Prompt.Sections.BaselineOpening do
-  @moduledoc false
-  # The opening scene text of the baseline variant.
-  use TalesForge.Prompt.Section, id: :opening, slot: :session
-
-  @impl true
-  def render(ctx),
-    do: TalesForge.Game.Context.opening_section(Map.get(ctx.data, :opening_scene), :baseline)
+    do: TalesForge.Game.Context.opening_section(Map.get(ctx.data, :opening_scene))
 end
 
 defmodule TalesForge.Prompt.Sections.PerceivedFacts do

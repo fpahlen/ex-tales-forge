@@ -32,19 +32,18 @@ defmodule TalesForge.Playtest.RunMetaTest do
     assert RunMeta.git_sha() == "00c370d"
   end
 
-  test "flags record the switches, the session variant, the models and the rubric" do
+  test "flags record the switches, the models and the rubric" do
     System.put_env("NPC_REACTIONS", "on")
     System.put_env("TIER2_MODEL", "gm-model")
 
-    flags = RunMeta.flags("hawk", %{"variant" => "baseline"})
+    flags = RunMeta.flags("hawk", %{})
 
     assert flags["npc_reactions"] == "on"
     assert flags["world_agents"] == "off"
-    assert flags["variant"] == "baseline"
     assert flags["gm_model"] == "gm-model"
     assert flags["intent_model"] == TalesForge.Config.xai_model()
     assert flags["jev_rubric"] == JevScorer.rubric_version("hawk")
-    assert RunMeta.flags("paul")["variant"] == "default"
+    refute Map.has_key?(RunMeta.flags("paul"), "variant")
     assert RunMeta.flags("nobody")["jev_rubric"] == nil
   end
 

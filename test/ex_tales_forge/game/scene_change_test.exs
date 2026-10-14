@@ -11,7 +11,6 @@ defmodule TalesForge.Game.SceneChangeTest do
   person elsewhere), Tier 1 targets are resolved to real places, the move
   updates the recorded location and who is present, and the GM prompt has a
   "Scene now" block (where, who is present, who is elsewhere, the move).
-  The baseline variant keeps the old behaviour.
   """
   use TalesForge.DataCase, async: false
 
@@ -42,9 +41,9 @@ defmodule TalesForge.Game.SceneChangeTest do
     :ok
   end
 
-  defp session(variant \\ "default") do
+  defp session do
     {:ok, session} =
-      GameSessions.create_session(%{name: "Scene", adventure_id: "tin_valley", variant: variant})
+      GameSessions.create_session(%{name: "Scene", adventure_id: "tin_valley"})
 
     Repo.get!(GameSession, session.id)
   end
@@ -274,17 +273,6 @@ defmodule TalesForge.Game.SceneChangeTest do
 
       assert world["location_id"] == "valley_inn"
       assert world["present_npcs"] == ["innkeep"]
-    end
-  end
-
-  describe "the baseline variant keeps the old behaviour" do
-    test "no new moves, no scene block, the old opening wording" do
-      session = session("baseline")
-      context = Context.build_gm_context(session)
-
-      refute move_target(@paul_t6, context.intent_context)
-      ctx = TalesForge.Prompt.Ctx.from_gm_context(context, :gm)
-      refute :scene_now in TalesForge.Prompt.Profile.ids(ctx)
     end
   end
 

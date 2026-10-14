@@ -34,7 +34,6 @@ defmodule TalesForge.Game.NpcReactions do
 
   alias TalesForge.AICalls
   alias TalesForge.Config
-  alias TalesForge.Game.Variant
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Scene, Turn}
@@ -294,14 +293,12 @@ defmodule TalesForge.Game.NpcReactions do
 
   # A failed read, search or recall happens in the player character's head:
   # the NPC never sees it, so it must not make her warier (decision
-  # 2026-10-07). The baseline variant passes every outcome on, as before.
+  # 2026-10-07).
   @unseen_skills ~w(insight history arcana tracking survival tactics)
 
   @doc false
   @spec visible_outcome(struct() | nil, map()) :: struct() | nil
-  def visible_outcome(%{skill: skill} = mechanical, world) when skill in @unseen_skills do
-    if Variant.baseline?(world), do: mechanical
-  end
+  def visible_outcome(%{skill: skill}, _world) when skill in @unseen_skills, do: nil
 
   def visible_outcome(mechanical, _world), do: mechanical
 

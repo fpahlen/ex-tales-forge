@@ -36,18 +36,17 @@ defmodule TalesForge.Game.InnWorldTest do
   end
 
   describe "Features" do
-    test "new sessions take the flags; the baseline variant gets none" do
-      assert Features.for_new_session("default") == []
+    test "new sessions take the flags" do
+      assert Features.for_new_session() == []
 
       System.put_env("INN_WORLD", "on")
-      assert Features.for_new_session("default") == ["inn_world"]
-      assert Features.for_new_session("baseline") == []
+      assert Features.for_new_session() == ["inn_world"]
 
       System.put_env("WORLD_ANTAGONIST", "on")
-      assert Features.for_new_session("default") == ["inn_world", "antagonist"]
+      assert Features.for_new_session() == ["inn_world", "antagonist"]
 
       System.delete_env("INN_WORLD")
-      assert Features.for_new_session("default") == [], "the antagonist needs the inn world"
+      assert Features.for_new_session() == [], "the antagonist needs the inn world"
     end
 
     test "on?/2 reads the session's features" do
@@ -59,7 +58,7 @@ defmodule TalesForge.Game.InnWorldTest do
   describe "the pack extension" do
     test "adds five places, joined both ways to the base map" do
       base = Pack.load("tin_valley")
-      pack = Pack.load("tin_valley", "default", ["inn_world"])
+      pack = Pack.load("tin_valley", ["inn_world"])
 
       assert map_size(base.locations) == 5
 
@@ -75,7 +74,7 @@ defmodule TalesForge.Game.InnWorldTest do
     end
 
     test "adds four people at the new places, each with hooks" do
-      pack = Pack.load("tin_valley", "default", ["inn_world"])
+      pack = Pack.load("tin_valley", ["inn_world"])
       people = Map.new(pack.npcs, &{&1["id"], &1})
 
       for id <- @new_people do
@@ -86,7 +85,7 @@ defmodule TalesForge.Game.InnWorldTest do
 
     test "every activity has a hook (trade, crafts, chores, sneak, lore, healing, a bounty)" do
       hooks =
-        Pack.load("tin_valley", "default", ["inn_world"]).npcs
+        Pack.load("tin_valley", ["inn_world"]).npcs
         |> Enum.flat_map(&List.wrap(&1["hooks"]))
         |> Enum.join("\n")
 
@@ -102,19 +101,11 @@ defmodule TalesForge.Game.InnWorldTest do
         assert hooks =~ word, "no hook mentions #{inspect(word)}"
       end
     end
-
-    test "the baseline variant and sessions without the feature keep the base pack" do
-      assert map_size(Pack.load("tin_valley", "baseline", ["inn_world"]).locations) == 5
-      assert length(Pack.load("tin_valley").npcs) == 3
-    end
   end
 
   describe "location blurbs" do
-    test "are the first paragraph under the heading; the baseline keeps the old reading" do
+    test "are the first paragraph under the heading" do
       assert Pack.load("tin_valley").locations["valley_inn"]["blurb"] =~ "A timber inn"
-
-      assert Pack.load("tin_valley", "baseline").locations["valley_inn"]["blurb"] ==
-               "# Valley Inn"
     end
   end
 

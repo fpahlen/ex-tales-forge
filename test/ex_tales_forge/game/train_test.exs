@@ -176,7 +176,7 @@ defmodule TalesForge.Game.TrainTest do
     assert turn.mechanical_resolution["improvements"] == []
   end
 
-  test "default variant: no LP and no failure needed", %{session: session} do
+  test "no LP and no failure needed", %{session: session} do
     session = seed_bars(session, %{}, %{})
 
     {_session, turn, payload} =
@@ -185,40 +185,6 @@ defmodule TalesForge.Game.TrainTest do
     assert payload.mechanical_resolution["training"] == "took_place"
     assert [%{"improved" => true, "lp_spent" => 0}] = turn.mechanical_resolution["improvements"]
     assert get_in(reload(session.id).world_state, ["character", "skills", "persuasion"]) == 4
-  end
-
-  test "baseline variant: declined when LP or failures are short" do
-    {:ok, session} =
-      GameSessions.create_session(%{
-        name: "Trainers baseline",
-        adventure_id: "tin_valley",
-        variant: "baseline"
-      })
-
-    session =
-      seed_bars(session, %{"persuasion" => 4.0}, %{"persuasion" => 3})
-
-    before = snapshot(session)
-
-    {_session, _turn, payload} =
-      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => 20})
-
-    session = reload(session.id)
-    assert_unchanged(session, before)
-    assert payload.mechanical_resolution["training"] == "declined"
-
-    session =
-      session
-      |> seed_bars(%{"persuasion" => 5.0}, %{"persuasion" => 0})
-
-    before = snapshot(session)
-
-    {_session, _turn, payload} =
-      train_sim(session, "I train persuasion with Brenna for a day", %{"persuasion" => 20})
-
-    session = reload(session.id)
-    assert_unchanged(session, before)
-    assert payload.mechanical_resolution["training"] == "declined"
   end
 
   test "declined when Brenna has no authored stealth", %{session: session} do
@@ -234,37 +200,6 @@ defmodule TalesForge.Game.TrainTest do
     assert_unchanged(session, before)
     assert payload.mechanical_resolution["training"] == "declined"
     assert turn.mechanical_resolution["improvements"] == []
-  end
-
-  test "baseline variant: qualifier fail does not rest all eligible skills" do
-    {:ok, session} =
-      GameSessions.create_session(%{
-        name: "Trainers baseline",
-        adventure_id: "tin_valley",
-        variant: "baseline"
-      })
-
-    session =
-      session
-      |> seed_persuasion()
-      |> seed_bars(
-        %{"persuasion" => 5.0, "climbing" => 5.0},
-        %{"persuasion" => 3, "climbing" => 3}
-      )
-      |> put_character(&put_in(&1, ["skills", "climbing"], 3))
-
-    before = snapshot(session)
-
-    train_sim(session, "I train stealth with Brenna for a day", %{
-      "stealth" => 20,
-      "climbing" => 20,
-      "persuasion" => 20
-    })
-
-    session = reload(session.id)
-    assert get_in(session.world_state, ["character", "skills", "climbing"]) == 3
-    assert Map.get(session.world_state["character"]["learning_points"], "climbing") == 5.0
-    assert_unchanged(session, before)
   end
 
   test "mechanical_bounds name training without +1", %{session: session} do
@@ -323,12 +258,7 @@ defmodule TalesForge.Game.TrainTest do
     assert Train.session_fee(80, WorldClock.ticks_per_day() * 2) == 160
   end
 
-  # Bars a baseline session needs to train; the default variant ignores them,
-  # and 0.0 LP leave nothing to spend at the end of the turn.
-  defp seed_persuasion(%{world_state: %{"variant" => "baseline"}} = session) do
-    seed_bars(session, %{"persuasion" => 5.0}, %{"persuasion" => 3})
-  end
-
+  # 0.0 LP leave nothing to spend at the end of the turn.
   defp seed_persuasion(session) do
     seed_bars(session, %{"persuasion" => 0.0}, %{"persuasion" => 0})
   end

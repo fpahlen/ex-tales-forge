@@ -2,20 +2,15 @@ defmodule TalesForge.Game.MechanicsTest do
   use ExUnit.Case, async: true
 
   alias TalesForge.Game.Mechanics
-  alias TalesForge.Game.Progression.Tiered
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction, SingleAction}
 
   doctest Mechanics,
     only: [
       growth_lp: 1,
-      lp_stat_bonus: 1,
       normalize_skill_name: 1,
       resolve_check_skill: 3,
       split_levels: 3
     ]
-
-  # The #64 rule, kept for the baseline variant only.
-  doctest Tiered
 
   @character %{
     "stats" => %{"STR" => 10, "DEX" => 10, "WIS" => 12, "CHA" => 14},
@@ -75,7 +70,7 @@ defmodule TalesForge.Game.MechanicsTest do
     assert Map.get(updated["learning_points"], "insight", 0) == expected
   end
 
-  describe "default variant: learn only from failure, only in that skill" do
+  describe "learn only from failure, only in that skill" do
     test "a failure banks one chance (natural 20 too), counted as a failure" do
       {updated, resolution} = Mechanics.perform_and_apply(@character, "insight", 20)
 
@@ -123,51 +118,12 @@ defmodule TalesForge.Game.MechanicsTest do
             overall_intent: "climb",
             action: %SingleAction{action_type: :interact, parameters: %{"skill" => "climbing"}}
           },
-          %HandlerResult{handler: "skill_check", skill: "climbing"},
-          "default"
+          %HandlerResult{handler: "skill_check", skill: "climbing"}
         )
 
       expected = if resolution.outcome == "success", do: nil, else: 1.0
       assert updated["learning_points"]["climbing"] == expected
       assert updated["learning_points"]["melee_combat"] == 0.5
-    end
-  end
-
-  describe "baseline variant: the #64 LP table" do
-    test "injected 20 on raw below 15 is failure with LP 2 and a failure count" do
-      {updated, resolution} = Mechanics.perform_and_apply(@character, "insight", 20, "baseline")
-
-      assert resolution.outcome == "failure"
-      assert resolution.lp_awarded == 2.0
-      assert Map.get(updated["learning_points"], "insight") == 2.0
-      assert Map.get(updated["learning_failures"], "insight") == 1
-    end
-
-    test "injected 20 on raw 15+ is partial_success and still counts a failure" do
-      character = put_in(@character, ["skills", "insight"], 15)
-      {updated, resolution} = Mechanics.perform_and_apply(character, "insight", 20, "baseline")
-
-      assert resolution.outcome == "partial_success"
-      assert resolution.lp_awarded == 2.0
-      assert Map.get(updated["learning_failures"], "insight") == 1
-    end
-
-    test "injected success awards 0.5 LP and does not increment failures" do
-      {updated, resolution} = Mechanics.perform_and_apply(@character, "insight", 2, "baseline")
-
-      assert resolution.outcome == "success"
-      assert resolution.lp_awarded == 0.5
-      assert Map.get(updated["learning_points"], "insight") == 0.5
-      assert Map.get(updated["learning_failures"] || %{}, "insight", 0) == 0
-    end
-
-    test "injected partial (not 20) awards 1.0 LP and does not increment failures" do
-      {updated, resolution} = Mechanics.perform_and_apply(@character, "insight", 5, "baseline")
-
-      assert resolution.outcome == "partial_success"
-      assert resolution.lp_awarded == 1.0
-      assert Map.get(updated["learning_points"], "insight") == 1.0
-      assert Map.get(updated["learning_failures"] || %{}, "insight", 0) == 0
     end
   end
 
@@ -212,209 +168,6 @@ defmodule TalesForge.Game.MechanicsTest do
     assert Map.get(updated["learning_failures"], "climbing") == 1
     assert Map.get(updated["learning_points"], "melee_combat") == 1.5
     assert Map.get(updated["learning_failures"], "melee_combat") == 2
-  end
-
-  test "attempt_improvements skips LP 4 with 3 failures" do
-    character = eligible(%{"climbing" => 4}, %{"climbing" => 3})
-    {updated, improvements} = Tiered.attempt_improvements(character, %{"climbing" => 20})
-
-    assert improvements == []
-    assert updated == character
-  end
-
-  test "attempt_improvements skips LP 5 with no failure since the last attempt" do
-    character = eligible(%{"climbing" => 5}, %{"climbing" => 0})
-    {updated, improvements} = Tiered.attempt_improvements(character, %{"climbing" => 20})
-
-    assert improvements == []
-    assert updated == character
-  end
-
-  test "attempt_improvements hit raises skill and clears bars" do
-    character = eligible(%{"climbing" => 5}, %{"climbing" => 3})
-    {updated, [entry]} = Tiered.attempt_improvements(character, %{"climbing" => 4})
-
-    assert entry == %{
-             "skill" => "climbing",
-             "roll" => 4,
-             "raw_skill" => 3,
-             "improved" => true
-           }
-
-    assert get_in(updated, ["skills", "climbing"]) == 4
-    assert Map.get(updated["learning_points"], "climbing") == 0
-    assert Map.get(updated["learning_failures"], "climbing") == 0
-  end
-
-  test "attempt_improvements miss leaves skill and sets LP 1.0" do
-    character = eligible(%{"climbing" => 5}, %{"climbing" => 3})
-    {updated, [entry]} = Tiered.attempt_improvements(character, %{"climbing" => 3})
-
-    assert entry["improved"] == false
-    assert entry["roll"] == 3
-    assert get_in(updated, ["skills", "climbing"]) == 3
-    assert Map.get(updated["learning_points"], "climbing") == 1.0
-    assert Map.get(updated["learning_failures"], "climbing") == 0
-  end
-
-  test "eligible LP 10 still only one +1 this pause" do
-    character = eligible(%{"climbing" => 10}, %{"climbing" => 3})
-    {updated, improvements} = Tiered.attempt_improvements(character, %{"climbing" => 4})
-
-    assert length(improvements) == 1
-    assert hd(improvements)["improved"] == true
-    assert get_in(updated, ["skills", "climbing"]) == 4
-    assert Map.get(updated["learning_points"], "climbing") == 0
-  end
-
-  test "two eligible skills apply independently" do
-    character =
-      @character
-      |> put_in(["skills", "stealth"], 2)
-      |> Map.put("learning_points", %{"climbing" => 5, "stealth" => 5})
-      |> Map.put("learning_failures", %{"climbing" => 3, "stealth" => 3})
-
-    {updated, improvements} =
-      Tiered.attempt_improvements(character, %{"climbing" => 4, "stealth" => 2})
-
-    assert Enum.map(improvements, & &1["skill"]) == ["climbing", "stealth"]
-    assert get_in(updated, ["skills", "climbing"]) == 4
-    assert get_in(updated, ["skills", "stealth"]) == 2
-    assert Map.get(updated["learning_points"], "climbing") == 0
-    assert Map.get(updated["learning_points"], "stealth") == 1.0
-  end
-
-  test "attempt_trained_skill hits when roll is greater than raw minus 5" do
-    character = eligible(%{"persuasion" => 5}, %{"persuasion" => 3})
-    character = put_in(character, ["skills", "persuasion"], 10)
-
-    {updated, [entry]} =
-      Tiered.attempt_trained_skill(character, "persuasion", %{"persuasion" => 6})
-
-    assert entry["improved"] == true
-    assert entry["roll"] == 6
-    assert entry["raw_skill"] == 10
-    assert get_in(updated, ["skills", "persuasion"]) == 11
-    assert Map.get(updated["learning_points"], "persuasion") == 0
-    assert Map.get(updated["learning_failures"], "persuasion") == 0
-  end
-
-  test "attempt_trained_skill misses when roll is not greater than raw minus 5" do
-    character = eligible(%{"persuasion" => 5}, %{"persuasion" => 3})
-    character = put_in(character, ["skills", "persuasion"], 10)
-
-    {updated, [entry]} =
-      Tiered.attempt_trained_skill(character, "persuasion", %{"persuasion" => 5})
-
-    assert entry["improved"] == false
-    assert entry["roll"] == 5
-    assert get_in(updated, ["skills", "persuasion"]) == 10
-    assert Map.get(updated["learning_points"], "persuasion") == 1.0
-    assert Map.get(updated["learning_failures"], "persuasion") == 0
-  end
-
-  test "wait attempt_improvements auto-fails master raw without consuming LP" do
-    character =
-      eligible(%{"climbing" => 15}, %{"climbing" => 3})
-      |> put_in(["skills", "climbing"], 16)
-
-    {updated, [entry]} = Tiered.attempt_improvements(character, %{"climbing" => 20})
-
-    assert entry == %{
-             "skill" => "climbing",
-             "raw_skill" => 16,
-             "improved" => false,
-             "auto_fail" => true
-           }
-
-    refute Map.has_key?(entry, "roll")
-    assert get_in(updated, ["skills", "climbing"]) == 16
-    assert Map.get(updated["learning_points"], "climbing") == 15
-    assert Map.get(updated["learning_failures"], "climbing") == 3
-  end
-
-  describe "tiered progression (baseline variant)" do
-    test "one failure is enough once the LP are there" do
-      character = eligible(%{"climbing" => 5}, %{"climbing" => 1})
-      {_updated, [entry]} = Tiered.attempt_improvements(character, %{"climbing" => 4})
-
-      assert entry["improved"] == true
-    end
-
-    test "an Adept skill (6-10) needs 7 LP" do
-      character = @character |> put_in(["skills", "climbing"], 6)
-
-      assert {_c, []} =
-               character
-               |> Map.merge(%{"learning_points" => %{"climbing" => 6.5}})
-               |> Map.put("learning_failures", %{"climbing" => 2})
-               |> Tiered.attempt_improvements(%{"climbing" => 20})
-
-      {_c, [entry]} =
-        character
-        |> Map.put("learning_points", %{"climbing" => 7.0})
-        |> Map.put("learning_failures", %{"climbing" => 2})
-        |> Tiered.attempt_improvements(%{"climbing" => 20})
-
-      assert entry["improved"] == true
-      refute Map.has_key?(entry, "modifier")
-    end
-
-    test "an Expert skill (11-15) needs 10 LP and rolls at -3" do
-      character =
-        eligible(%{"climbing" => 10}, %{"climbing" => 1}) |> put_in(["skills", "climbing"], 11)
-
-      {_c, [miss]} = Tiered.attempt_improvements(character, %{"climbing" => 14})
-      {hit_char, [hit]} = Tiered.attempt_improvements(character, %{"climbing" => 15})
-
-      assert {miss["improved"], miss["modifier"]} == {false, -3}
-      assert hit["improved"] == true
-      assert get_in(hit_char, ["skills", "climbing"]) == 12
-    end
-
-    test "a trainer lowers the target by 5 on top of the tier modifier" do
-      character = put_in(@character, ["skills", "persuasion"], 12)
-
-      {_c, [miss]} =
-        Tiered.attempt_trained_skill(character, "persuasion", %{"persuasion" => 10})
-
-      {_c, [hit]} =
-        Tiered.attempt_trained_skill(character, "persuasion", %{"persuasion" => 11})
-
-      # 10 - 3 = 7 is not above 12 - 5; 11 - 3 = 8 is
-      assert {miss["improved"], hit["improved"]} == {false, true}
-    end
-
-    test "each roll's LP gets the linked stat's bonus" do
-      # persuasion is CHA 14: (14 - 10) div 4 = +1 on top of 0.5 for a success
-      {updated, resolution} = Mechanics.perform_and_apply(@character, "persuasion", 2, "baseline")
-
-      assert resolution.lp_awarded == 1.5
-      assert updated["learning_points"]["persuasion"] == 1.5
-
-      # insight is WIS 12: no bonus
-      {_c, plain} = Mechanics.perform_and_apply(@character, "insight", 2, "baseline")
-      assert plain.lp_awarded == 0.5
-    end
-  end
-
-  test "raw 0 eligible any 1d20 improves" do
-    character =
-      @character
-      |> put_in(["skills", "climbing"], 0)
-      |> Map.put("learning_points", %{"climbing" => 5})
-      |> Map.put("learning_failures", %{"climbing" => 3})
-
-    {updated, [entry]} = Tiered.attempt_improvements(character, %{"climbing" => 1})
-
-    assert entry["improved"] == true
-    assert get_in(updated, ["skills", "climbing"]) == 1
-  end
-
-  defp eligible(lp, failures) do
-    @character
-    |> Map.put("learning_points", lp)
-    |> Map.put("learning_failures", failures)
   end
 
   defp apply_with_skill(handler, skill) do

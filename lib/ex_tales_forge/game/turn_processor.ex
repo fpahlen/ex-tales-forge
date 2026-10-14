@@ -7,12 +7,12 @@ defmodule TalesForge.Game.TurnProcessor do
 
   PlayerAction → handler → server mechanics → inventory → clock+move →
   events → WorldSim → Perception → vitality → banked LP spent on improvement
-  attempts on a long rest (`TalesForge.Game.Progression`) → premise check (default variant: the
+  attempts on a long rest (`TalesForge.Game.Progression`) → premise check (the
   player's claims about items, coins, purchases and kills checked against the
   session, `TalesForge.Game.PremiseCheck`) → table GM (tone only) → allow-listed
   patches → Multi → NPC updates → characters mirror → sync/signals → turn_completed.
 
-  Default variant: on a long rest the skills that improved overnight go to the
+  On a long rest the skills that improved overnight go to the
   per-turn GM prompt (`TalesForge.Game.Context.rest_growth_section/1`) so the
   GM can narrate the character waking surer of them.
 
@@ -42,7 +42,6 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.OutcomeRecord
   alias TalesForge.Game.Perception
   alias TalesForge.Game.Progression
-  alias TalesForge.Game.Progression.Tiered
   alias TalesForge.Game.Reflection
   alias TalesForge.Game.SceneProcessor
 
@@ -56,7 +55,6 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Game.Train
   alias TalesForge.Game.Turn
   alias TalesForge.Game.TurnApply
-  alias TalesForge.Game.Variant
   alias TalesForge.Game.World
   alias TalesForge.Game.WorldClock
   alias TalesForge.Game.WorldSim
@@ -273,13 +271,10 @@ defmodule TalesForge.Game.TurnProcessor do
     apply_training(world, session, player_action, opts)
   end
 
-  defp apply_pause_or_train(world, _session, handler, _player_action, opts) do
-    world_moved = WorldClock.advance(world, ActionHandler.tick_delta(handler))
-    {world_improved, improvements} = maybe_attempt_improvements(world_moved, handler, opts)
-    {world_improved, improvements, nil}
-  end
+  defp apply_pause_or_train(world, _session, handler, _player_action, _opts),
+    do: {WorldClock.advance(world, ActionHandler.tick_delta(handler)), [], nil}
 
-  # Default variant (decisions 2026-10-09): banked LP (one per failure) are
+  # Decisions 2026-10-09: banked LP (one per failure) are
   # resolved only on a long rest (sleep, or a wait of six hours or more): at
   # most +1 per skill, and the skill's LP are gone afterwards, except for a
   # skill at the reflection level the character did not reflect on, whose LP
@@ -287,11 +282,9 @@ defmodule TalesForge.Game.TurnProcessor do
   # by the rest, and so is "improved_since_rest". The physical skills in
   # Progression.immediate_skills/0 are resolved at the end of any other turn
   # (Progression.resolve_turn/3, at most +1 per skill per long-rest cycle).
-  # The dead learn nothing. The baseline
-  # variant spends LP only at a rest (maybe_attempt_improvements/3, the #64
-  # rule).
+  # The dead learn nothing.
   defp maybe_spend_lp(world, handler, opts) do
-    if Variant.baseline?(world) or Mechanics.dead?(world) do
+    if Mechanics.dead?(world) do
       {world, [], []}
     else
       character = Map.get(world, "character", %{})
@@ -311,19 +304,15 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  # Default variant: skills the player's words reflect on, practise or study
+  # Skills the player's words reflect on, practise or study
   # (TalesForge.Game.Reflection), and a skill trained with a trainer this turn,
   # are kept in the character's "reflecting" list until the next long rest. The
   # key is only written when there is something to keep.
   defp note_reflection(world, player_action, turn_attempts) do
-    if Variant.baseline?(world) do
-      world
-    else
-      trained = for %{"bonus" => _, "skill" => skill} <- turn_attempts, do: skill
-      found = Reflection.skills(player_action.overall_intent) ++ trained
+    trained = for %{"bonus" => _, "skill" => skill} <- turn_attempts, do: skill
+    found = Reflection.skills(player_action.overall_intent) ++ trained
 
-      if found == [], do: world, else: update_in(world, ["character"], &add_reflecting(&1, found))
-    end
+    if found == [], do: world, else: update_in(world, ["character"], &add_reflecting(&1, found))
   end
 
   defp add_reflecting(character, skills) do
@@ -348,13 +337,7 @@ defmodule TalesForge.Game.TurnProcessor do
     character = Map.get(world, "character", %{})
 
     {taught, improvements, training, ticks} =
-      Train.apply(
-        character,
-        npc_def,
-        present_ids,
-        action,
-        Keyword.put(opts, :variant, Variant.of(world))
-      )
+      Train.apply(character, npc_def, present_ids, action, opts)
 
     world =
       world
@@ -372,23 +355,6 @@ defmodule TalesForge.Game.TurnProcessor do
   end
 
   defp trainer_personality(_session_id, _npc_id), do: %{}
-
-  # Baseline variant only: the #64 rule tries eligible skills at a rest of an
-  # hour or more.
-  defp maybe_attempt_improvements(world, handler, opts) do
-    pause? =
-      Variant.baseline?(world) and handler.handler == "wait" and
-        ActionHandler.tick_delta(handler) >= WorldClock.ticks_per_hour()
-
-    if pause? do
-      rolls = opts[:improvement_rolls] || %{}
-      character = Map.get(world, "character", %{})
-      {improved, improvements} = Tiered.attempt_improvements(character, rolls)
-      {put_in(world, ["character"], improved), improvements}
-    else
-      {world, []}
-    end
-  end
 
   @doc false
   @spec persist_and_signal(GameSession.t(), map(), integer(), String.t(), map()) ::
@@ -444,7 +410,7 @@ defmodule TalesForge.Game.TurnProcessor do
   @spec apply_mechanics(map() | nil, PlayerAction.t(), HandlerResult.t()) :: {map(), struct()}
   def apply_mechanics(world_state, player_action, handler) do
     character = Map.get(world_state || %{}, "character", %{})
-    Mechanics.apply_server_mechanics(character, player_action, handler, Variant.of(world_state))
+    Mechanics.apply_server_mechanics(character, player_action, handler)
   end
 
   # HISTORY_STRIP_INJECTION=on: an injection turn writes no context_summary.
@@ -482,10 +448,10 @@ defmodule TalesForge.Game.TurnProcessor do
 
   defp maybe_move(world_state, _), do: world_state
 
-  # Default variant: only to a place that exists (the intent step resolves
-  # names and routes; this guards a stale or invented id). Baseline: as before.
+  # Only to a place that exists (the intent step resolves names and routes;
+  # this guards a stale or invented id).
   defp move_to(world_state, location_id) do
-    if Variant.baseline?(world_state) or World.runtime_location(world_state, location_id) != %{} do
+    if World.runtime_location(world_state, location_id) != %{} do
       put_in(world_state, ["character", "location_id"], location_id)
     else
       Logger.warning("move ignored: unknown location_id=#{inspect(location_id)}")
@@ -564,8 +530,7 @@ defmodule TalesForge.Game.TurnProcessor do
       {character, result} =
         Bargain.haggle(world["character"], action.action_type, price,
           appraise: Bargain.appraise?(text),
-          rolls: opts[:haggle_rolls] || %{},
-          variant: Variant.of(world)
+          rolls: opts[:haggle_rolls] || %{}
         )
 
       Logger.info("haggle session=#{session_id} result=#{inspect(result)}")

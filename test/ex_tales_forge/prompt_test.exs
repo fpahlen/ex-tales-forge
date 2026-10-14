@@ -87,7 +87,6 @@ defmodule TalesForge.PromptTest do
 
   describe "Profile.ids/1" do
     @static ~w(narrator rules task)a
-    @always ~w(perceived_facts intent_context npcs gestures player_request)a
     @off %{
       turn_outcome_record: false,
       npc_dialogue_memory: false,
@@ -96,25 +95,19 @@ defmodule TalesForge.PromptTest do
       skill_detail_level: false
     }
 
-    defp ids(call, variant, flags),
-      do: Profile.ids(%Ctx{call: call, variant: variant, flags: Map.merge(@off, flags)})
+    defp ids(call, flags),
+      do: Profile.ids(%Ctx{call: call, flags: Map.merge(@off, flags)})
 
-    test "default variant, every flag off" do
-      assert ids(:gm, "default", %{}) ==
+    test "every flag off" do
+      assert ids(:gm, %{}) ==
                @static ++
                  ~w(character_sheet opening perceived_facts intent_context npcs gestures scene_now premise rest_growth player_request gm_turn_action)a
 
-      assert ids(:scene, "default", %{}) == ids(:gm, "default", %{}) -- [:gm_turn_action]
-    end
-
-    test "baseline variant: the baseline opening and no default-only note" do
-      ids = ids(:gm, "baseline", %{})
-      assert ids == @static ++ [:character_sheet, :opening] ++ @always ++ [:gm_turn_action]
-      assert Sections.BaselineOpening in Profile.session_sections(%Ctx{variant: "baseline"})
+      assert ids(:scene, %{}) == ids(:gm, %{}) -- [:gm_turn_action]
     end
 
     test "each flag adds its own sections" do
-      base = ids(:gm, "default", %{})
+      base = ids(:gm, %{})
 
       for {flag, added} <- [
             turn_outcome_record: [:outcome_record],
@@ -123,14 +116,14 @@ defmodule TalesForge.PromptTest do
             world_agents: [:world_facts, :prices, :npc_reactions],
             skill_detail_level: [:noticed_details]
           ] do
-        assert Enum.sort(ids(:gm, "default", %{flag => true}) -- base) == Enum.sort(added)
+        assert Enum.sort(ids(:gm, %{flag => true}) -- base) == Enum.sort(added)
       end
     end
 
     test "every flag on keeps the prompt order" do
       on = Map.new(@off, fn {k, _} -> {k, true} end)
 
-      assert ids(:gm, "default", on) ==
+      assert ids(:gm, on) ==
                @static ++
                  ~w(character_sheet opening perceived_facts intent_context npcs world_facts prices npc_reactions npc_memory gestures scene_now outcome_record noticed_details premise rest_growth player_request gm_turn_action)a
     end
