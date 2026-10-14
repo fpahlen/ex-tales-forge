@@ -111,6 +111,8 @@ test/ex_tales_forge_web/live/team_presentation_live_test.exs
 test/ex_tales_forge/pr_feed_test.exs
 test/ex_tales_forge_web/live/team_pr_feed_live_test.exs
 test/ex_tales_forge_web/live/team_work_log_live_test.exs
+# The /team render snapshot
+test/fixtures/team_render/team.txt
 test/support/pr_feed_fixtures.ex
 # The inbox (board card 'Inbox: one triage queue per person'): the pure rules,
 # the store and the panel (the panel matches team_*.ex above). Its migration is

@@ -70,6 +70,63 @@ defmodule TalesForgeWeb.TeamInboxTest do
     assert has_element?(view, "#inbox-answer-text[data-inbox-answer]")
   end
 
+  describe "Open the card (card 88065dfb)" do
+    test "the chip stays open across a board change", %{conn: conn} do
+      mention()
+      {:ok, view, _} = live(owner(conn), "/team")
+
+      [chip] =
+        view
+        |> render()
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.query("#inbox-chip")
+        |> Enum.to_list()
+
+      [mounted] = LazyHTML.attribute(chip, "phx-mounted")
+      # The server HTML has no "open". The browser sets it, and patches keep it.
+      assert mounted =~ "ignore_attrs"
+      assert mounted =~ ~s("open")
+      assert LazyHTML.attribute(chip, "open") == []
+
+      {:ok, _} = Board.create_idea(@other_email, %{"title" => "Other change"})
+      assert has_element?(view, ~s(#inbox-chip[phx-mounted*="ignore_attrs"]))
+    end
+
+    test "the link opens a card in any column, Done included, also when it is open",
+         %{conn: conn} do
+      idea = mention()
+      {:ok, view, _} = live(owner(conn), "/team")
+
+      for column <- ~w(building done) do
+        idea
+        |> Ecto.Changeset.change(column: column)
+        |> TalesForge.Workflow.Repo.update!()
+
+        assert has_element?(view, ~s(#inbox-chip-body a[href="/team#idea-#{idea.id}"]))
+
+        # The click handler in setupCardUrl pushes "open" to the board.
+        for _ <- 1..2 do
+          view
+          |> with_target("#idea-board-live")
+          |> render_hook("open", %{"card_id" => idea.id})
+
+          assert has_element?(view, ~s(#board-modal[data-open-card="#{idea.id}"]))
+        end
+      end
+    end
+
+    test "the hook opens same-page card links on the click, not only on hashchange" do
+      js = File.read!("assets/js/team_hooks.js")
+      [_, setup] = String.split(js, "const setupCardUrl", parts: 2)
+
+      assert js =~ "export const sameDocCardId"
+      assert setup =~ ~s{document.addEventListener("click", onClick)}
+      assert setup =~ "e.preventDefault()"
+      assert setup =~ ~s{dataset.openCard === id}
+      assert setup =~ ~s{window.addEventListener("hashchange", onHashChange)}
+    end
+  end
+
   test "Enter in the answer sends a card comment after the undo time and closes the item",
        %{conn: conn} do
     idea = mention()

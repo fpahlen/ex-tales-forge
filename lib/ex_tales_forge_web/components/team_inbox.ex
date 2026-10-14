@@ -32,6 +32,8 @@ defmodule TalesForgeWeb.TeamInbox do
 
   use TalesForgeWeb, :live_component
 
+  alias Phoenix.LiveView.JS
+
   alias TalesForge.Board
   alias TalesForge.Chat
   alias Workflow.Inbox
@@ -262,7 +264,15 @@ defmodule TalesForgeWeb.TeamInbox do
         data-swipe
         class="grid gap-2"
       >
-        <details id="inbox-chip" class="group relative">
+        <%!-- The board and the inbox render again on each board or inbox
+             change (about each 13 s on production). The browser keeps the
+             chip open across those patches, so "Open the card" stays where
+             the founder taps it. --%>
+        <details
+          id="inbox-chip"
+          class="group relative"
+          phx-mounted={JS.ignore_attributes(["open"])}
+        >
           <summary
             title={String.slice(@item.body, 0, 200)}
             class="inline-flex min-h-11 cursor-pointer items-center rounded-full border px-3 text-sm"
