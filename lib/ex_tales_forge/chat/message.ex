@@ -1,7 +1,7 @@
 defmodule TalesForge.Chat.Message do
   @moduledoc """
   One message in the team chat (`TalesForge.Chat`): the author (a founder
-  email or `bot:<name>`), the text, the founder handles and bots it
+  email or `bot:<name>`) and the founder handle of the author when known, the text, the founder handles and bots it
   mentions (`TalesForge.Board.Mentions`), and its images
   (`TalesForge.Images`). A message with an image can have an empty text.
   Each message is in one thread (`TalesForge.Chat.Thread`).
@@ -18,6 +18,7 @@ defmodule TalesForge.Chat.Message do
   @schema_prefix "workflow"
   schema "team_chat_messages" do
     field :author, :string
+    field :author_handle, :string
     field :body, :string
     field :mentions, {:array, :string}, default: []
     field :bots, {:array, :string}, default: []
@@ -39,7 +40,7 @@ defmodule TalesForge.Chat.Message do
     required = if opts[:images?], do: [:author], else: [:author, :body]
 
     message
-    |> cast(attrs, [:author, :body, :mentions, :bots, :thread_id])
+    |> cast(attrs, [:author, :author_handle, :body, :mentions, :bots, :thread_id])
     |> update_change(:body, &String.trim/1)
     |> validate_required(required, message: "Write a message first.")
     |> validate_required([:thread_id])

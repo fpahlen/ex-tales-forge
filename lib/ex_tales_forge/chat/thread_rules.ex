@@ -17,6 +17,20 @@ defmodule TalesForge.Chat.ThreadRules do
   - Each known viewer can read a subject thread.
   - Only the two members can read a direct thread. A bot can never read a
     direct thread.
+
+  ## Thread participants
+
+  Each new message in a thread notifies each participant of the thread
+  (`notify/5`). A participant is the founder or bot that started the
+  thread, posted in it, or was @mentioned in it. The author of the new
+  message is not notified. A message by a bot wakes no bot (the loop guard),
+  but the founders still get an inbox item. The access rule limits the
+  participants:
+
+  - In a direct thread, only its two members can be participants. A bot is
+    never a participant.
+  - A card thread uses the card access: each founder and bot of the team,
+    and nobody on an archived card.
   """
 
   alias TalesForge.Chat.Thread
@@ -289,4 +303,117 @@ defmodule TalesForge.Chat.ThreadRules do
   end
 
   def direct_choices(_team, _viewer), do: []
+
+  @typedoc """
+  One earlier post in a thread, for `participants/4`: the author (a founder
+  email or `bot:<id>`), the founder handle of the author when it is known,
+  and the founder handles and bots that the post @mentions.
+  """
+  @type post :: %{
+          author: String.t() | nil,
+          author_handle: String.t() | nil,
+          mentions: [String.t()],
+          bots: [atom() | String.t()]
+        }
+
+  @typedoc """
+  The access scope of a thread: a chat thread, or a card thread with the
+  column of its card.
+  """
+  @type scope :: Thread.t() | {:card, String.t()}
+
+  @typedoc "The participants of a thread: founder handles and bot ids."
+  @type participants :: %{founders: [String.t()], bots: [atom()]}
+
+  @doc """
+  The participants of a thread: the founder or bot in `created_by`, and the
+  authors and @mentions of `posts`. The access rule of `scope` limits them
+  (see "Thread participants").
+
+      iex> alias TalesForge.Chat.{Thread, ThreadRules}
+      iex> team = Workflow.Team.example()
+      iex> posts = [%{author: "bot:rita", author_handle: nil, mentions: ["orjan"], bots: ["quill"]}]
+      iex> ThreadRules.participants(team, %Thread{kind: "subject"}, "ada", posts)
+      %{founders: ["ada", "orjan"], bots: [:rita, :quill]}
+      iex> ThreadRules.participants(team, %Thread{kind: "direct", members: ["ada", "lin"]}, "ada", posts)
+      %{founders: ["ada"], bots: []}
+      iex> ThreadRules.participants(team, {:card, "archived"}, "ada", posts)
+      %{founders: [], bots: []}
+  """
+  @spec participants(Team.t(), scope(), String.t() | nil, [post()]) :: participants()
+  def participants(%Team{} = team, scope, created_by, posts) do
+    handles = Team.handles(team)
+    entries = [%{author: created_by, author_handle: nil, mentions: [], bots: []} | posts]
+
+    founders =
+      entries
+      |> Enum.flat_map(&([author_handle(&1, handles)] ++ &1.mentions))
+      |> Enum.filter(&(&1 in handles))
+      |> Enum.uniq()
+
+    bots =
+      entries
+      |> Enum.flat_map(&[&1.author | &1.bots])
+      |> Enum.map(&bot_of(team, &1))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    limit(scope, %{founders: founders, bots: bots})
+  end
+
+  # The founder handle of a post author: the stored handle, or the handle
+  # of the thread starter, or the first part of a founder email.
+  defp author_handle(%{author_handle: h}, _handles) when is_binary(h), do: h
+  defp author_handle(%{author: "bot:" <> _}, _handles), do: nil
+
+  defp author_handle(%{author: author}, handles) when is_binary(author) do
+    cond do
+      author in handles -> author
+      String.contains?(author, "@") -> TalesForge.Chat.handle_for_email(author, handles)
+      true -> nil
+    end
+  end
+
+  defp author_handle(_post, _handles), do: nil
+
+  defp bot_of(_team, nil), do: nil
+  defp bot_of(team, bot) when is_atom(bot), do: Team.bot_id(team, Atom.to_string(bot))
+
+  defp bot_of(team, bot) when is_binary(bot) do
+    case bot do
+      "bot:" <> _ -> Team.bot_id(team, bot)
+      _ -> if String.contains?(bot, "@"), do: nil, else: Team.bot_id(team, bot)
+    end
+  end
+
+  defp limit(%Thread{kind: "subject"}, p), do: p
+
+  defp limit(%Thread{kind: "direct", members: members}, %{founders: founders}),
+    do: %{founders: Enum.filter(founders, &(&1 in members)), bots: []}
+
+  defp limit({:card, "archived"}, _p), do: %{founders: [], bots: []}
+  defp limit({:card, _column}, p), do: p
+  defp limit(_scope, _p), do: %{founders: [], bots: []}
+
+  @doc """
+  The participants that a new message notifies. `author` is the author of
+  the message (a founder email or `bot:<id>`) and `author_handle` its
+  founder handle. The author is never notified. A message by a bot wakes
+  no bot. `skip_bots` are the bots that the message wakes already (an
+  @mention), so that each bot gets one wake.
+
+      iex> alias TalesForge.Chat.ThreadRules
+      iex> p = %{founders: ["ada", "lin"], bots: [:rita, :quill]}
+      iex> ThreadRules.notify(p, "ada@example.com", "ada", [:quill])
+      %{founders: ["lin"], bots: [:rita]}
+      iex> ThreadRules.notify(p, "bot:rita", nil, [])
+      %{founders: ["ada", "lin"], bots: []}
+  """
+  @spec notify(participants(), String.t(), String.t() | nil, [atom()]) :: participants()
+  def notify(%{founders: founders, bots: bots}, author, author_handle, skip_bots) do
+    %{
+      founders: Enum.reject(founders, &(&1 == author_handle)),
+      bots: if(TalesForge.Chat.founder?(author), do: bots -- skip_bots, else: [])
+    }
+  end
 end

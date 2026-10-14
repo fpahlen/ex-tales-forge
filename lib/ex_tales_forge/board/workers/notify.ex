@@ -9,7 +9,8 @@ defmodule TalesForge.Board.Workers.Notify do
   bot can drop duplicates), `X-Board-Timestamp` (Unix seconds) and
   `X-Board-Signature: sha256=<hex HMAC-SHA256 of "<timestamp>.<body>" with the
   key>`. Body: `event`, `delivery_id`, `bot`, `idea` (id, title, column, url),
-  `transition` (from, to, actor) and, for a mention, `comment`.
+  `transition` (from, to, actor) and, for a mention, `comment`. A
+  `chat.thread_message` wake also has `thread_id`.
 
   Any 2xx ends it. A pooled connection the bot already closed (`:closed`) is
   retried once at once in the same attempt. Otherwise Oban retries up to 10
@@ -52,6 +53,7 @@ defmodule TalesForge.Board.Workers.Notify do
             )
         }
         |> Map.merge(pr_fields(extra))
+        |> Map.merge(thread_fields(event, extra))
     })
   end
 
@@ -61,6 +63,11 @@ defmodule TalesForge.Board.Workers.Notify do
 
   defp pr_fields(%{question: q}), do: %{"question" => q}
   defp pr_fields(_extra), do: %{}
+
+  # chat.thread_message: the card thread of the comment (nil is the General
+  # thread of the card).
+  defp thread_fields(:chat_thread_message, extra), do: %{"thread_id" => extra[:thread_id]}
+  defp thread_fields(_event, _extra), do: %{}
 
   @doc """
   The event's wire name.

@@ -47,6 +47,7 @@ defmodule TalesForge.Board do
     Vote
   }
 
+  alias TalesForge.Chat.ThreadRules
   alias TalesForge.Collab.Schemas.Decision
   alias TalesForge.Workflow.Repo
 
@@ -365,32 +366,51 @@ defmodule TalesForge.Board do
   (`TalesForge.Chat.card_thread/2`). `nil` is the General thread of the
   card. A thread of another card gives `{:error, "No such thread on this
   card."}`. The bots that the comment wakes get the `thread_id`.
+
+  Each comment also notifies the participants of its card thread, with the
+  card access (`TalesForge.Chat.ThreadRules.participants/4`): a founder
+  gets an inbox item (rule `thread_message`), and a bot gets the wake
+  `chat.thread_message` with the `thread_id`. The author is not notified,
+  and a comment by a bot wakes no bot.
   """
   @spec add_comment(Idea.t(), String.t(), String.t(), keyword()) :: {:ok, Idea.t()} | error()
   def add_comment(%Idea{} = idea, author, body, opts \\ []) do
     case TalesForge.Chat.card_thread(idea.id, opts[:thread_id]) do
-      {:ok, thread} -> insert_comment(idea, author, body, thread && thread.id, opts)
+      {:ok, thread} -> insert_comment(idea, author, body, thread, opts)
       {:error, :not_found} -> {:error, "No such thread on this card."}
     end
   end
 
-  defp insert_comment(idea, author, body, thread_id, opts) do
+  defp insert_comment(idea, author, body, thread, opts) do
     author = normalize(author)
+    thread_id = thread && thread.id
+    team = team()
+    author_handle = Mentions.handle_for(team, opts[:login])
 
     changeset =
       Comment.changeset(%Comment{}, %{
         idea_id: idea.id,
         author: author,
+        author_handle: author_handle,
         body: body,
         thread_id: thread_id
       })
 
     # A comment on an archived card stays on the card but wakes nobody.
     archived? = idea.column == "archived"
-    team = team()
     %{founders: mentioned} = if archived?, do: %{founders: []}, else: Mentions.parse(team, body)
-    founders = mentioned -- [Mentions.handle_for(team, opts[:login])]
+    founders = mentioned -- [author_handle]
     bots = if archived?, do: [], else: comment_wakes(team, author, body)
+
+    notify =
+      team
+      |> ThreadRules.participants(
+        {:card, idea.column},
+        thread && thread.created_by,
+        card_thread_posts(team, idea.id, thread_id) ++
+          [comment_post(team, author, author_handle, body)]
+      )
+      |> ThreadRules.notify(author, author_handle, bots)
 
     Multi.new()
     |> Multi.insert(:comment, changeset)
@@ -423,12 +443,42 @@ defmodule TalesForge.Board do
         })
       end)
     end)
+    |> then(fn multi ->
+      Enum.reduce(notify.bots, multi, fn bot, acc ->
+        Events.add(acc, :chat_thread_message, idea, %{
+          bot: bot,
+          body: body,
+          author: author,
+          thread_id: thread_id
+        })
+      end)
+    end)
     |> Events.add(:comment, idea, %{
-      author_handle: Mentions.handle_for(team, opts[:login]),
-      mentions: founders
+      author_handle: author_handle,
+      mentions: founders,
+      participants: notify.founders
     })
     |> run(idea.id)
     |> tap(fn _ -> Workflow.Inbox.Store.broadcast() end)
+  end
+
+  # The earlier comments of a card thread (nil is the General thread of the
+  # card), for the participants (ThreadRules).
+  defp card_thread_posts(team, idea_id, thread_id) do
+    from(c in Comment, where: c.idea_id == ^idea_id, select: {c.author, c.author_handle, c.body})
+    |> then(
+      &if(thread_id,
+        do: where(&1, [c], c.thread_id == ^thread_id),
+        else: where(&1, [c], is_nil(c.thread_id))
+      )
+    )
+    |> Repo.all()
+    |> Enum.map(fn {author, handle, body} -> comment_post(team, author, handle, body) end)
+  end
+
+  defp comment_post(team, author, author_handle, body) do
+    %{founders: founders, bots: bots} = Mentions.parse(team, body)
+    %{author: author, author_handle: author_handle, mentions: founders, bots: bots}
   end
 
   @doc """
