@@ -26,14 +26,12 @@ import {hooks as colocatedHooks} from "phoenix-colocated/ex_tales_forge"
 import topbar from "../vendor/topbar"
 import {Mermaid} from "./mermaid_hook"
 import {StoryScroll} from "./story_scroll"
-import {TeamPush} from "./team_push"
-import {MentionSuggest, TeamAnchorRedirect, ImageInput, TeamChat, TeamFlow, TeamInbox, TeamLanes, TeamPage} from "./team_hooks"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, Mermaid, TeamPage, TeamFlow, TeamLanes, TeamAnchorRedirect, MentionSuggest, TeamChat, TeamInbox, ImageInput, StoryScroll, TeamPush},
+  hooks: {...colocatedHooks, Mermaid, StoryScroll},
 })
 
 // Show progress bar on live navigation and form submits
@@ -47,21 +45,6 @@ window.addEventListener("phx:scroll-into-view", ({detail}) => {
   if (detail.mobile_only && window.matchMedia("(min-width: 1024px)").matches) return
   const el = document.getElementById(detail.id)
   if (el) requestAnimationFrame(() => el.scrollIntoView({behavior: "smooth", block: "start"}))
-})
-
-// "We can't find the internet" flash (Layouts.flash_group). Phoenix shows it
-// at once when the socket drops. A deploy or a phone that comes back from the
-// background reconnects in about 1 second, so wait 3 seconds and show it only
-// if the socket is still down.
-const CLIENT_ERROR_DELAY_MS = 3000
-window.addEventListener("tf:client-error-later", e => {
-  const el = e.target
-  clearTimeout(el._showTimer)
-  el._showTimer = setTimeout(() => {
-    if (!liveSocket.isConnected() && el.closest(".phx-client-error")) {
-      liveSocket.execJS(el, el.getAttribute("data-show-js"))
-    }
-  }, CLIENT_ERROR_DELAY_MS)
 })
 
 // connect if there are any LiveViews on the page

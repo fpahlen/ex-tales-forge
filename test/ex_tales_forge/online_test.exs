@@ -61,9 +61,4 @@ defmodule TalesForge.OnlineTest do
     Req.Test.stub(Peer, &Plug.Conn.send_resp(&1, 401, "no"))
     assert Peer.fetch() == {:error, {:http_status, 401}}
   end
-
-  test "board API calls are noted per bot" do
-    :ok = Workflow.BotCalls.seen(:gentry)
-    assert %DateTime{} = Workflow.BotCalls.calls()[:gentry]
-  end
 end

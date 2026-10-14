@@ -30,8 +30,6 @@ defmodule TalesForgeWeb.AdminLive.CostsLive do
   alias TalesForge.Costs.Peer
   alias TalesForge.Costs.PlaytestRuns
   alias TalesForge.ProductApi
-  alias TalesForge.TeamPage
-  alias TalesForgeWeb.TeamLiveNumbers
 
   @line_labels %{
     "gm" => "GM",
@@ -55,7 +53,7 @@ defmodule TalesForgeWeb.AdminLive.CostsLive do
      socket
      |> assign(
        :latency,
-       TeamLiveNumbers.latency_group(ProductApi.Costs.intent_latency(now), TeamPage.data())
+       latency(ProductApi.Costs.intent_latency(now))
      )
      |> mount_role(AppRole.role(), now)}
   end
@@ -805,7 +803,7 @@ defmodule TalesForgeWeb.AdminLive.CostsLive do
     end
   end
 
-  attr :latency, :map, required: true, doc: "`TalesForgeWeb.TeamLiveNumbers.latency_group/2`"
+  attr :latency, :map, required: true, doc: "the result of `latency/1`"
 
   # Jev intent latency on this app, last 7 days (moved here from the founders'
   # presentation, admin split 2026-10-10: it is a property of each app's calls).
@@ -839,4 +837,18 @@ defmodule TalesForgeWeb.AdminLive.CostsLive do
     </.section_card>
     """
   end
+
+  # The latency card's data: :live when this app made Jev intent reads in the
+  # last 7 days (`TalesForge.ProductApi.Costs.intent_latency/1`), else :none.
+  defp latency(%{"reads" => reads} = l) when is_integer(reads) and reads > 0 do
+    %{
+      source: :live,
+      reads: reads,
+      p50_ms: l["p50_ms"],
+      p95_ms: l["p95_ms"],
+      max_ms: l["max_ms"]
+    }
+  end
+
+  defp latency(_latency), do: %{source: :none}
 end

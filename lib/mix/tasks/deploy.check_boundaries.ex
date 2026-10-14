@@ -17,21 +17,12 @@ defmodule Mix.Tasks.Deploy.CheckBoundaries do
   It also fails when a pattern on `[admin]` or `[game]` matches no file in the
   repo, so the list doesn't keep stale entries that a renamed file slips past.
 
-  It also checks the data boundary between Workflow and the product app
-  (`TalesForge.DeployLanes.DataBoundary`, `priv/team/data-boundary.txt`):
-  product-app code does not call `TalesForge.Workflow.Repo` or a Workflow
-  schema, and Workflow code does not call `TalesForge.Repo`, a product-app
-  schema or a product-app module on `[product]`. CI runs it in the Test job.
+  CI runs it in the Test job.
   """
 
   use Mix.Task
 
   alias TalesForge.DeployLanes
-  alias TalesForge.DeployLanes.DataBoundary
-
-  @workflow_files "priv/team/workflow-files.txt"
-  @workflow_data ~w(lib/ex_tales_forge/workflow/repo.ex lib/ex_tales_forge/workflow/jobs.ex)
-  @product_data ~w(lib/ex_tales_forge/repo.ex)
 
   @shortdoc "Checks that game and shared code never depend on admin code"
 
@@ -47,90 +38,17 @@ defmodule Mix.Tasks.Deploy.CheckBoundaries do
 
     stale = stale_patterns(lanes)
     violations = DeployLanes.boundary_violations(lanes, edges)
-    data_violations = DataBoundary.violations(data_sets(), edges)
 
-    case {violations, stale, data_violations} do
-      {[], [], []} ->
+    case {violations, stale} do
+      {[], []} ->
         Mix.shell().info(
-          "deploy.check_boundaries: no game or shared file depends on an [admin] file, " <>
-            "and Workflow and the product app keep to their own data " <>
+          "deploy.check_boundaries: no game or shared file depends on an [admin] file " <>
             "(#{length(edges)} dependencies checked)"
         )
 
-      {[], [], data} ->
-        Mix.raise(data_failure_message(data))
-
       _ ->
-        Mix.raise(
-          failure_message(lanes_path, violations, stale) <>
-            if(data_violations == [], do: "", else: "\n" <> data_failure_message(data_violations))
-        )
+        Mix.raise(failure_message(lanes_path, violations, stale))
     end
-  end
-
-  # The concrete file sets of the data boundary. The schema files come from
-  # the compiled modules: a schema with the prefix "workflow" is Workflow data.
-  defp data_sets do
-    boundary = DataBoundary.default_path() |> File.read!() |> DataBoundary.parse()
-    {workflow_schemas, product_schemas} = DataBoundary.split_schemas(schema_files())
-
-    %{
-      workflow: expand(read_globs(@workflow_files) ++ boundary.workflow),
-      wiring: expand(boundary.wiring),
-      pending: expand(boundary.pending ++ boundary.adapter),
-      workflow_data: MapSet.union(workflow_schemas, MapSet.new(@workflow_data)),
-      product_data:
-        product_schemas
-        |> MapSet.union(MapSet.new(@product_data))
-        |> MapSet.union(expand(boundary.product))
-    }
-  end
-
-  defp read_globs(path) do
-    path
-    |> File.read!()
-    |> String.split("\n")
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == "" or String.starts_with?(&1, "#")))
-  end
-
-  defp expand(globs), do: globs |> Enum.flat_map(&Path.wildcard/1) |> MapSet.new()
-
-  defp schema_files do
-    {:ok, modules} = :application.get_key(:ex_tales_forge, :modules)
-
-    for module <- modules,
-        Code.ensure_loaded?(module),
-        function_exported?(module, :__schema__, 1),
-        module.__schema__(:source) != nil do
-      source = module.module_info(:compile)[:source] |> to_string() |> Path.relative_to_cwd()
-      {source, module.__schema__(:prefix)}
-    end
-  end
-
-  @doc false
-  @spec data_failure_message([DataBoundary.violation()]) :: String.t()
-  def data_failure_message(violations) do
-    lines =
-      for %{kind: kind, from: from, to: to} <- violations do
-        case kind do
-          :product_to_workflow -> "  #{from} -> #{to}  (product-app code uses Workflow data)"
-          :workflow_to_product -> "  #{from} -> #{to}  (Workflow code uses product-app data)"
-        end
-      end
-
-    Enum.join(
-      [
-        "deploy.check_boundaries failed (#{DataBoundary.default_path()}).",
-        "Workflow and the product app keep to their own data:"
-        | lines
-      ] ++
-        [
-          "Call the context of the other side, or move the file to the correct side. " <>
-            "Workflow uses TalesForge.Workflow.Repo; the product app uses TalesForge.Repo."
-        ],
-      "\n"
-    )
   end
 
   defp xref_edges do

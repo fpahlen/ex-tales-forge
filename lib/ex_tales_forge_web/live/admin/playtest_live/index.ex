@@ -14,7 +14,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Index do
   import TalesForgeWeb.AdminComponents
   import TalesForgeWeb.CharacterChangesComponents
 
-  alias TalesForge.Collab.Markdown
+  alias TalesForge.Markdown
 
   alias TalesForge.Playtest.{
     CharacterChanges,

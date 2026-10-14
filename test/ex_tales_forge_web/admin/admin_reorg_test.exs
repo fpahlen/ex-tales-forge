@@ -35,9 +35,6 @@ defmodule TalesForgeWeb.AdminLive.AdminReorgTest do
      "/admin/founders/surveys/founder-survey-3/results.csv"},
     {"/admin/surveys/founder-survey-3/results.md",
      "/admin/founders/surveys/founder-survey-3/results.md"},
-    {"/admin/decisions", "/admin/founders/decisions"},
-    {"/admin/decisions/d-008-tin-valley-starter",
-     "/admin/founders/decisions/d-008-tin-valley-starter"},
     {"/admin/costs", "/admin/operate/costs"},
     {"/admin/oban", "/admin/operate/telemetry"},
     {"/admin/oban/home", "/admin/operate/telemetry/home"},
@@ -70,7 +67,6 @@ defmodule TalesForgeWeb.AdminLive.AdminReorgTest do
       for new <- [
             "/admin/play/sessions",
             "/admin/play/runs",
-            "/admin/founders/decisions",
             "/admin/operate/costs",
             "/admin/archive/npc-definitions"
           ] do
@@ -81,11 +77,16 @@ defmodule TalesForgeWeb.AdminLive.AdminReorgTest do
     end
 
     test "unchanged URLs are not redirected", %{conn: conn} do
-      for path <- ["/admin", "/admin/docs", "/team", "/team/presentation"] do
-        assert conn |> get(path) |> html_response(200)
-      end
+      assert conn |> get("/admin") |> html_response(200)
 
       assert AdminPaths.canonical("/admin/code-docs/") == "/admin/code-docs/"
+    end
+
+    test "old decision URLs go to the Workflow app, signed in or not", %{conn: conn} do
+      for c <- [conn, build_conn()] do
+        assert redirected_to(get(c, "/admin/decisions/d-008")) ==
+                 "https://whyse-workflow.fly.dev/admin/founders/decisions/d-008"
+      end
     end
 
     test "signed out, an old URL goes to the sign-in first, not to the page" do

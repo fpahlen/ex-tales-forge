@@ -79,53 +79,20 @@ fly secrets set \
 
 Optional: `TALES_FORGE_DOCS_PATH` is for local/dev sync only; production should use `GITHUB_DOCS_TOKEN`.
 
-### Idea board secrets (production only)
+### Workflow secrets
 
-The founders' idea board (`/team`, design: tales-forge-docs
-`docs/design-idea-board.md`) needs these on `tales-forge` only. Without them the
-board still works; the bots just aren't woken and the decision log isn't written
-(the card says so).
+The team tools (the idea board, the team chat, `/team`, the bots' API and the
+GitHub webhook) are in the Workflow app, `whyse-ab/workflow`. Its secrets
+(`BOARD_*`, `GITHUB_APP_*`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_FEED_TOKEN`,
+`GENTRY_QA_TOKEN`) are on the Fly app `whyse-workflow`, not here. See that repo's
+`docs/cutover-runbook.md`.
 
-**GitHub App** (commits the decision log entry to `docs/decisions.md`):
+This app keeps two tokens for the link to Workflow:
 
-1. github.com/organizations/whyse-ab/settings/apps → New GitHub App. Name
-   "Tales Forge idea board", homepage the admin URL, **Webhook off**.
-2. Repository permissions: **Contents: Read and write** (Metadata: read is
-   automatic). Nothing else. "Only on this account".
-3. Create, note the **App ID**, then "Generate a private key" (downloads a PEM).
-4. Install App → whyse-ab → **Only select repositories: tales-forge-docs**.
-   The installation's URL ends with its **installation id**.
-5. If `main` on tales-forge-docs is protected, allow the App to push (add it
-   to the bypass list), or entries can't be committed.
-
-```bash
-fly secrets set -a tales-forge \
-  GITHUB_APP_ID='123456' \
-  GITHUB_APP_INSTALLATION_ID='7890123' \
-  GITHUB_APP_PRIVATE_KEY="$(cat tales-forge-idea-board.private-key.pem)"
-```
-
-**Bots** (`CASE`, `BOBBY`, `GENTRY`; each optional):
-
-```bash
-fly secrets set -a tales-forge \
-  BOARD_WEBHOOK_URL_CASE='https://…/hook' \
-  BOARD_WEBHOOK_KEY_CASE="$(openssl rand -hex 32)" \
-  BOARD_BOT_TOKEN_CASE="$(openssl rand -hex 32)"
-```
-
-- `BOARD_WEBHOOK_URL_<BOT>`: where the board POSTs wake-ups for that bot.
-- `BOARD_WEBHOOK_KEY_<BOT>`: sent as `Authorization: Bearer`, and the HMAC key
-  of `X-Board-Signature: sha256=<hex HMAC-SHA256 of "<X-Board-Timestamp>.<body>">`.
-  The bot should check the signature, refuse timestamps older than 5 minutes,
-  and drop repeated `X-Board-Delivery` ids (retries reuse the id).
-- `BOARD_BOT_TOKEN_<BOT>`: the bearer token the bot uses on
-  `https://<host>/internal/board/…` (ideas, refine, move, comments, links).
-
-Events: `idea.to_refining`, `idea.back_to_refining` (Case), `idea.to_building`,
-`pr.approved`, `pr.changes_requested` (Bobby), `mention` (whoever is
-@mentioned). Only moves and @mentions wake bots; votes never do
-(`TalesForge.Board.Transitions`). Failed deliveries retry up to 8 times (1 min doubling to 4 h).
+- `PRODUCT_APP_API_TOKEN`: Workflow sends it to read `GET /internal/product/*`.
+- `WORKFLOW_API_TOKEN`: this app sends it to Workflow's
+  `POST /internal/workflow/work-log/turns`. `WORKFLOW_URL` overrides the
+  Workflow base URL (default https://whyse-workflow.fly.dev).
 
 ## 4. Deploy
 
@@ -149,7 +116,7 @@ admin merge never carries an earlier game merge that still waits for a founder's
 which lane a set of files would take:
 
 ```bash
-elixir .github/scripts/deploy_lane.exs --files priv/team/data.json lib/ex_tales_forge_web/router.ex
+elixir .github/scripts/deploy_lane.exs --files lib/ex_tales_forge_web/live/admin/costs_live.ex lib/ex_tales_forge_web/router.ex
 elixir .github/scripts/deploy_lane.exs --sha <merge sha> --production <sha production runs>
 ```
 

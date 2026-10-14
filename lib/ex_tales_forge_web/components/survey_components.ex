@@ -8,7 +8,7 @@ defmodule TalesForgeWeb.SurveyComponents do
 
   use TalesForgeWeb, :html
 
-  alias TalesForge.Collab.Markdown
+  alias TalesForge.Markdown
   alias TalesForge.Survey.Question
 
   @doc "Markdown from the survey file (raw HTML in it is escaped)."

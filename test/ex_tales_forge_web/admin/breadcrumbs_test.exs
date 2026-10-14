@@ -10,8 +10,6 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
 
   alias TalesForgeWeb.AdminSections
 
-  @docs_fixture Path.expand("../../fixtures/tales_forge_docs", __DIR__)
-
   # The admin LiveView routes without path params; the ones with params are
   # covered by `@with_params` below, each with the record it needs.
   defp admin_live_paths do
@@ -49,11 +47,6 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
 
   test "every admin LiveView with params renders the breadcrumbs", %{conn: conn} do
     conn = log_in_admin(conn)
-    {:ok, _} = TalesForge.Collab.Importer.import_from_path(@docs_fixture)
-
-    {:ok, _} =
-      TalesForge.Collab.Importer.upsert_doc_markdown("# Roadmap\n", "docs/roadmap-2027.md")
-
     {:ok, session} = TalesForge.GameSessions.create_session(%{name: "Crumbs"})
     [npc | _] = TalesForge.Admin.list_npc_instances(session.id)
     [definition | _] = TalesForge.Admin.list_npc_definitions()
@@ -70,14 +63,12 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
       })
 
     paths = %{
-      "/admin/founders/decisions/:slug" => "/admin/founders/decisions/d-001-elixir-foundation",
       "/admin/founders/canon-review/:id" => "/admin/founders/canon-review/#{session.id}",
       "/admin/play/sessions/:id" => "/admin/play/sessions/#{session.id}",
       "/admin/play/sessions/:id/npcs" => "/admin/play/sessions/#{session.id}/npcs",
       "/admin/play/sessions/:id/npcs/:npc_id" =>
         "/admin/play/sessions/#{session.id}/npcs/#{npc.npc_id}",
       "/admin/play/sessions/:id/turns" => "/admin/play/sessions/#{session.id}/turns",
-      "/admin/docs/*path" => "/admin/docs/roadmap-2027.md",
       "/admin/archive/npc-definitions/:id" => "/admin/archive/npc-definitions/#{definition.id}",
       "/admin/play/runs/:id" => "/admin/play/runs/#{run.id}",
       "/admin/founders/surveys/:id" => "/admin/founders/surveys/founder-survey-3",
@@ -98,16 +89,16 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
   end
 
   test "a section page: Admin > Section > Page, with links up", %{conn: conn} do
-    {:ok, view, _html} = live(log_in_admin(conn), ~p"/admin/founders/decisions")
+    {:ok, view, _html} = live(log_in_admin(conn), ~p"/admin/operate/costs")
     assert has_element?(view, ~s(#admin-breadcrumbs a[href="/admin"]), "Admin")
 
     assert has_element?(
              view,
-             ~s(#admin-breadcrumbs a[href="/admin#section-founders"]),
-             "Founders"
+             ~s(#admin-breadcrumbs a[href="/admin#section-operate"]),
+             "Operate"
            )
 
-    assert has_element?(view, "#admin-breadcrumbs [aria-current=page]", "Decision queue")
+    assert has_element?(view, "#admin-breadcrumbs [aria-current=page]", "Costs")
   end
 
   test "every nav key has a section and a label for its crumb" do

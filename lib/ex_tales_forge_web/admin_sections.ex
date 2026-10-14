@@ -51,13 +51,20 @@ defmodule TalesForgeWeb.AdminSections do
       line: "Who we are, the founder survey, and what we have decided.",
       items: [
         %{
-          label: "Founders' page and PR feed ↗",
+          label: "Founders' page and PR feed",
           path: "/team",
+          area: :board,
           kind: :page,
           key: "team",
           nav: true
         },
-        %{label: "Presentation ↗", path: "/team/presentation", kind: :page, nav: true},
+        %{
+          label: "Presentation",
+          path: "/team/presentation",
+          area: :board,
+          kind: :page,
+          nav: true
+        },
         %{
           label: "Founder survey",
           path: "/admin/founders/survey",
@@ -69,11 +76,17 @@ defmodule TalesForgeWeb.AdminSections do
         %{
           label: "Decision queue (page)",
           path: "/admin/founders/decisions",
+          area: :board,
           kind: :live,
           key: "decisions",
           nav: true
         },
-        %{label: "Decision log (doc)", path: "/admin/docs/decisions.md", kind: :live},
+        %{
+          label: "Decision log (doc)",
+          path: "/admin/docs/decisions.md",
+          area: :collab,
+          kind: :live
+        },
         %{
           label: "Session versus canon",
           path: "/admin/founders/canon-review",
@@ -81,7 +94,7 @@ defmodule TalesForgeWeb.AdminSections do
           key: "canon_review",
           nav: true
         },
-        %{label: "Roadmap 2027", path: "/admin/docs/roadmap-2027.md", kind: :live}
+        %{label: "Roadmap 2027", path: "/admin/docs/roadmap-2027.md", area: :collab, kind: :live}
       ]
     },
     %{
@@ -104,8 +117,8 @@ defmodule TalesForgeWeb.AdminSections do
           kind: :page,
           area: :playtest_runs
         },
-        %{label: "Personas", path: "/admin/docs/personas.md", kind: :live},
-        %{label: "Jev scoring", path: "/admin/docs/jev-scoring.md", kind: :live},
+        %{label: "Personas", path: "/admin/docs/personas.md", area: :collab, kind: :live},
+        %{label: "Jev scoring", path: "/admin/docs/jev-scoring.md", area: :collab, kind: :live},
         %{
           label: "Game sessions",
           path: "/admin/play/sessions",
@@ -171,11 +184,17 @@ defmodule TalesForgeWeb.AdminSections do
         %{
           label: "Architecture",
           path: "/admin/docs/architecture-baseline-2026-10-09.md",
+          area: :collab,
           kind: :live
         },
-        %{label: "Call types", path: "/admin/docs/call-types.md", kind: :live},
-        %{label: "Coding standards", path: "/admin/docs/coding-standards.md", kind: :live},
-        %{label: "Environments", path: "/admin/docs/environments.md", kind: :live}
+        %{label: "Call types", path: "/admin/docs/call-types.md", area: :collab, kind: :live},
+        %{
+          label: "Coding standards",
+          path: "/admin/docs/coding-standards.md",
+          area: :collab,
+          kind: :live
+        },
+        %{label: "Environments", path: "/admin/docs/environments.md", area: :collab, kind: :live}
       ]
     },
     %{
@@ -183,26 +202,42 @@ defmodule TalesForgeWeb.AdminSections do
       title: "Docs",
       line: "The shared docs: rules, the world, and design notes.",
       items: [
-        %{label: "All docs", path: "/admin/docs", kind: :live, key: "docs", nav: true},
+        %{
+          label: "All docs",
+          path: "/admin/docs",
+          area: :collab,
+          kind: :live,
+          key: "docs",
+          nav: true
+        },
         %{
           label: "Rules: skills economy",
           path: "/admin/docs/design-skills-economy.md",
+          area: :collab,
           kind: :live
         },
         %{
           label: "World: Tin Valley",
           path: "/admin/docs/design-tin-valley-world.md",
+          area: :collab,
           kind: :live
         },
         %{
           label: "World: stateful world",
           path: "/admin/docs/design-stateful-world.md",
+          area: :collab,
           kind: :live
         },
-        %{label: "Examples of play", path: "/admin/docs/examples-of-play.md", kind: :live},
+        %{
+          label: "Examples of play",
+          path: "/admin/docs/examples-of-play.md",
+          area: :collab,
+          kind: :live
+        },
         %{
           label: "Design: playtest loop",
           path: "/admin/docs/design-playtest-loop.md",
+          area: :collab,
           kind: :live
         }
       ]
@@ -276,8 +311,8 @@ defmodule TalesForgeWeb.AdminSections do
       [{"Admin", nil}]
       iex> TalesForgeWeb.AdminSections.breadcrumbs("costs")
       [{"Admin", "/admin"}, {"Operate", "/admin#section-operate"}, {"Costs", nil}]
-      iex> TalesForgeWeb.AdminSections.breadcrumbs("decisions", "Confirm the rewrite")
-      [{"Admin", "/admin"}, {"Founders", "/admin#section-founders"}, {"Decision queue", "/admin/founders/decisions"}, {"Confirm the rewrite", nil}]
+      iex> TalesForgeWeb.AdminSections.breadcrumbs("playtest", "Paul, Tin Valley")
+      [{"Admin", "/admin"}, {"Play and test", "/admin#section-play"}, {"Playtest runs", "/admin/play/runs"}, {"Paul, Tin Valley", nil}]
       iex> TalesForgeWeb.AdminSections.breadcrumbs("unknown", "Some page")
       [{"Admin", "/admin"}, {"Some page", nil}]
   """

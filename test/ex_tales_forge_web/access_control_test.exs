@@ -22,53 +22,19 @@ defmodule TalesForgeWeb.AccessControlTest do
     {:get, "/admin/auth/github"},
     {:get, "/admin/auth/github/callback"},
     {:delete, "/admin/logout"},
-    # Gentry's QA sign-in: the token form and the token exchange. 404 while
-    # GENTRY_QA_TOKEN is unset; a correct token gives a read-only session for
-    # the /team pages only; see QaLoginController and TalesForge.QaLogin.
-    {:get, "/team/qa-login"},
-    {:post, "/team/qa-login"},
     # Machine-to-machine, bearer token (COSTS_PEER_TOKEN); see CostsPeerController.
     {:get, "/internal/costs"},
-    # Machine-to-machine, same bearer token: the running commit for the other
-    # app's live PR feed on /team; see VersionPeerController.
+    # Machine-to-machine, same bearer token: the running commit of this app;
+    # see VersionPeerController.
     {:get, "/internal/version"},
-    # Playtest's founders online for production's /team (OnlinePeerController).
+    # Playtest's founders online for production's header (OnlinePeerController).
     {:get, "/internal/online"},
-    # Playtest's work log events for production (WorkLogPeerController), the
-    # same bearer token; decision 2026-10-12 "Work time auto log".
-    {:get, "/internal/work-log/events"},
-    # The bots' idea-board API (production only), one bearer token per bot
-    # (BOARD_BOT_TOKEN_<BOT>); see BoardApiController.
-    {:get, "/internal/board/ideas"},
-    {:post, "/internal/board/ideas"},
-    {:get, "/internal/board/ideas/:id"},
-    {:post, "/internal/board/ideas/:id/refinement"},
-    {:post, "/internal/board/ideas/:id/move"},
-    {:post, "/internal/board/ideas/:id/links"},
-    {:post, "/internal/board/ideas/:id/comments"},
-    {:post, "/internal/board/prs"},
-    {:post, "/internal/board/runs/:id/finish"},
-    # The team chat's bot API (production only), the same bot tokens.
-    {:get, "/internal/chat"},
-    {:post, "/internal/chat"},
-    # The bots open card and chat images with the same bot tokens
-    # (TeamImageController); 401 without a token.
-    {:get, "/internal/images/:id"},
-    # The manual work log entries, the same bot tokens
-    # (WorkLogApiController); 401 without a token.
-    {:get, "/internal/work-log/entries"},
-    {:post, "/internal/work-log/entries"},
     # The product-app API that Workflow reads, bearer token PRODUCT_APP_API_TOKEN
     # (ProductApiController); decision 2026-10-13 "Workflow split 4/5".
     {:get, "/internal/product/costs"},
     {:get, "/internal/product/online"},
     {:get, "/internal/product/running-commits"},
-    {:get, "/internal/product/persona-scores"},
-    # Workflow receives work-log turn events, bearer token WORKFLOW_API_TOKEN
-    # (WorkflowWorkLogController); the same decision.
-    {:post, "/internal/workflow/work-log/turns"},
-    # GitHub's webhook: signed with GITHUB_WEBHOOK_SECRET (GitHubWebhookController).
-    {:post, "/webhooks/github"}
+    {:get, "/internal/product/persona-scores"}
   ]
 
   @id Ecto.UUID.generate()
@@ -81,7 +47,6 @@ defmodule TalesForgeWeb.AccessControlTest do
             "/",
             "/new/tin_valley",
             "/play/#{@id}",
-            "/team",
             "/admin",
             "/admin/operate/costs",
             "/admin/play/runs",
@@ -101,6 +66,9 @@ defmodule TalesForgeWeb.AccessControlTest do
         TalesForgeWeb.Router
         |> Phoenix.Router.routes()
         |> Enum.reject(&({&1.verb, &1.path} in @public))
+        |> Enum.reject(&(&1.plug == TalesForgeWeb.WorkflowRedirectController))
+        # The old decision path goes to the Workflow app, which signs in.
+        |> Enum.reject(&String.starts_with?(&1.path, "/admin/decisions"))
 
       assert length(routes) > 15
 
@@ -109,6 +77,23 @@ defmodule TalesForgeWeb.AccessControlTest do
 
         assert redirected_to(conn) =~ ~r{^/admin/login(\?|$)},
                "#{verb |> to_string() |> String.upcase()} #{path} is reachable logged out"
+      end
+    end
+
+    # The old Workflow paths redirect to the Workflow app for 30 days
+    # (TalesForgeWeb.WorkflowRedirectController). The Workflow app signs in.
+    test "the old Workflow paths redirect to the Workflow app, signed out too" do
+      routes =
+        TalesForgeWeb.Router
+        |> Phoenix.Router.routes()
+        |> Enum.filter(&(&1.plug == TalesForgeWeb.WorkflowRedirectController))
+
+      assert length(routes) == 2 * length(TalesForge.AppRole.workflow_paths())
+
+      for %{path: path} <- routes, verb <- [:get, :post] do
+        conn = dispatch(build_conn(), @endpoint, verb, concrete(path), %{})
+        assert conn.status == 307
+        assert redirected_to(conn, 307) == "https://whyse-workflow.fly.dev" <> concrete(path)
       end
     end
 
@@ -122,7 +107,6 @@ defmodule TalesForgeWeb.AccessControlTest do
             "/",
             "/new/tin_valley",
             "/play/#{@id}",
-            "/team",
             "/admin",
             "/admin/operate/costs"
           ] do
@@ -164,17 +148,7 @@ defmodule TalesForgeWeb.AccessControlTest do
       html = build_conn() |> get(~p"/admin/login") |> html_response(200)
       assert html =~ "Sign in"
 
-      # The installed team app: the manifest, its icons and the service
-      # worker. The browser reads them before the page has a session.
-      for asset <- [
-            "/favicon.ico",
-            "/robots.txt",
-            "/team-app/manifest.webmanifest",
-            "/team-app/icon-maskable-192.png",
-            "/team-app/icon-maskable-512.png",
-            "/team-app/apple-touch-icon.png",
-            "/team-sw.js"
-          ] do
+      for asset <- ["/favicon.ico", "/robots.txt"] do
         assert build_conn() |> get(asset) |> response(200)
       end
     end

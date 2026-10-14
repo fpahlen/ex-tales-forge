@@ -18,9 +18,7 @@ defmodule TalesForgeWeb.OnlineHeaderLiveTest do
   end
 
   for {path, prefix} <- [
-        {"/admin", "admin-online"},
-        {"/team", "team-online"},
-        {"/team/presentation", "team-online"}
+        {"/admin", "admin-online"}
       ] do
     @path path
     @prefix prefix
@@ -57,38 +55,9 @@ defmodule TalesForgeWeb.OnlineHeaderLiveTest do
              "Admin on local"
            )
 
-    for bot <- ~w(case bobby gentry), do: assert(has_element?(header, "#admin-online-bot-#{bot}"))
-
     render_keydown(element(header, "#admin-online-presence"), %{"key" => "Escape"})
     refute has_element?(header, "#admin-online-list")
     assert has_element?(header, "#admin-online-toggle[aria-expanded=false]")
-  end
-
-  test "founders on playtest and active bots are counted", %{conn: conn} do
-    now = DateTime.utc_now()
-
-    Peer.put(
-      [%{email: "max@example.com", page: "Playtest runs", app: "playtest", since: now}],
-      now
-    )
-
-    Workflow.BotCalls.seen(:case)
-
-    {:ok, view, _html} = live(conn, "/admin")
-    header = find_live_child(view, "admin-online")
-    html = render(header)
-    assert html =~ "Founders: 2"
-    assert html =~ ~r"Bots: [1-3]"
-
-    header |> element("#admin-online-toggle") |> render_click()
-
-    assert has_element?(
-             header,
-             "#admin-online-founder-max-example-com",
-             "Playtest runs on playtest"
-           )
-
-    assert has_element?(header, "#admin-online-bot-case", "Read the board")
   end
 
   test "Chat is a disabled placeholder behind the config flag", %{conn: conn} do
@@ -144,7 +113,6 @@ defmodule TalesForgeWeb.OnlineHeaderLiveTest do
       header |> element("#admin-online-toggle") |> render_click()
 
       row = "#admin-online-founder-fredrik-example-com"
-      assert has_element?(header, row <> " .font-semibold", "Fredrik")
       assert has_element?(header, row <> " li", "Admin on local")
       assert has_element?(header, row <> " li", "Playtest runs on playtest")
       assert Enum.count(LazyHTML.query(LazyHTML.from_fragment(render(header)), row <> " li")) == 2
@@ -155,31 +123,6 @@ defmodule TalesForgeWeb.OnlineHeaderLiveTest do
                  "#admin-online-founders > li"
                )
              ) == 1
-    end
-
-    test "a GitHub-login identity shows the name from the team data (Håkan)", %{conn: conn} do
-      now = DateTime.utc_now()
-
-      Peer.put(
-        [
-          %{
-            email: "hawkan.fredriksson@gmail.com",
-            login: "Hawkan-Fredriksson",
-            page: "Docs",
-            app: "playtest",
-            since: now
-          }
-        ],
-        now
-      )
-
-      {:ok, view, _html} = live(conn, "/admin")
-      header = find_live_child(view, "admin-online")
-      header |> element("#admin-online-toggle") |> render_click()
-
-      assert has_element?(header, "#admin-online-founder-hawkan-fredriksson-gmail-com", "Håkan")
-      refute render(header) =~ "Hawkan<"
-      assert render(header) =~ "Founders: 2"
     end
   end
 end
