@@ -8,6 +8,16 @@ defmodule TalesForge.Board.ScheduleTest do
 
   doctest Schedule
 
+  test "the panel order follows the team config and not the clock" do
+    team = Workflow.Team.Source.team()
+    ids = Enum.map(team.jobs, & &1.id)
+
+    for minute <- 0..59 do
+      now = DateTime.add(~U[2026-10-14 07:00:00Z], minute * 60)
+      assert Enum.map(Schedule.rows(team, now, %{}), & &1.id) == ids
+    end
+  end
+
   test "track/2 records an ok run" do
     Schedule.subscribe()
     assert {:ok, 2} = Schedule.track("sweep", fn -> {:ok, 2} end)

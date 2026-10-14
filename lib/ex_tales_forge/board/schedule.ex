@@ -104,7 +104,11 @@ defmodule TalesForge.Board.Schedule do
 
   @doc """
   The rows of the Upcoming panel: each job of `team` with its next time
-  after `now` (UTC), its owner and its last run, soonest first. Pure.
+  after `now` (UTC), its owner and its last run. Pure.
+
+  The rows keep the order of the job list in the team config, so the order
+  does not change with the clock (a sort by the next time moves the rows
+  each few minutes).
 
       iex> team = Workflow.Team.example()
       iex> [first, second] = TalesForge.Board.Schedule.rows(team, ~U[2026-10-16 07:10:00Z], %{})
@@ -115,7 +119,9 @@ defmodule TalesForge.Board.Schedule do
   """
   @spec rows(Workflow.Team.t(), DateTime.t(), %{String.t() => ScheduledRun.t()}) :: [row()]
   def rows(%Workflow.Team{} = team, %DateTime{} = now, last_runs) do
-    for {job, at} <- Workflow.Team.next_runs(team, now) do
+    for job <- team.jobs do
+      at = Workflow.Team.next_at(job, now)
+
       %{
         id: job.id,
         name: job.name,

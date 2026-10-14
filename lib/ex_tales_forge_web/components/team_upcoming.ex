@@ -14,7 +14,7 @@ defmodule TalesForgeWeb.TeamUpcoming do
 
   alias TalesForge.Board.Schedule
 
-  @doc "The panel: one row for each job, soonest first."
+  @doc "The panel: one row for each job, in the order of the team config."
   attr :rows, :list, required: true, doc: "`t:TalesForge.Board.Schedule.row/0` items"
 
   @spec panel(map()) :: Phoenix.LiveView.Rendered.t()
