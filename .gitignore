@@ -47,3 +47,6 @@ npm-debug.log
 
 # ExDoc HTML for /admin/code-docs (built in the Docker builder stage)
 /priv/code_docs/
+
+_build
+deps
