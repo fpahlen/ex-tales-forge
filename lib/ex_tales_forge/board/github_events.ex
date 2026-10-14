@@ -16,8 +16,8 @@ defmodule TalesForge.Board.GitHubEvents do
     card whose waiting PR has that head commit.
   - `Deploy to production` passed: queue `TalesForge.Board.Workers.AutoDone`,
     so cards whose PR is now on prod move to Done.
-  - A workflow run on main failed: wake the builder bot (`run.failed`, Bobby,
-    the devops bot) with the run. A founder gets no inbox item and no ping.
+  - A workflow run on main failed: wake the builder bot (`run.failed`, the
+    devops bot) with the run. A founder gets no inbox item and no ping.
   - A workflow run on main passed: give it to the inbox (`Workflow.Inbox`) as
     an event with no tag. It closes the open items of that workflow.
 

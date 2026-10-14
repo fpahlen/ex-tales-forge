@@ -5,8 +5,6 @@ defmodule TalesForge.Board.NotifyTest do
 
   alias TalesForge.Board.Workers.Notify
 
-  doctest Notify, only: [run_job: 3]
-
   setup do
     test_pid = self()
     {:ok, calls} = Agent.start_link(fn -> 0 end)
@@ -46,6 +44,13 @@ defmodule TalesForge.Board.NotifyTest do
         "payload" => %{"idea" => %{"id" => "42fd5696"}}
       }
     }
+  end
+
+  test "run_job wakes a bot about a run that names no card" do
+    job = Notify.run_job(:case, :run_failed, %{"workflow" => "CI"})
+
+    assert {job.changes.args["bot"], job.changes.args["event"], job.changes.args["payload"]["run"]} ==
+             {"case", "run.failed", %{"workflow" => "CI"}}
   end
 
   test "the first retries come within seconds, later ones back off up to 4 h" do

@@ -62,10 +62,6 @@ defmodule TalesForge.Board.Workers.Notify do
   (`run.failed`: a failed run on main). Body: `event`, `delivery_id`, `bot`,
   `transition` (actor `bot:board`) and `run` (repo, workflow, branch, sha, url,
   actor).
-
-      iex> job = TalesForge.Board.Workers.Notify.run_job(:bobby, :run_failed, %{"workflow" => "CI"})
-      iex> {job.changes.args["bot"], job.changes.args["event"], job.changes.args["payload"]["run"]}
-      {"bobby", "run.failed", %{"workflow" => "CI"}}
   """
   @spec run_job(BoardApi.bot(), atom(), map()) :: Oban.Job.changeset()
   def run_job(bot, event, run) when is_map(run) do
