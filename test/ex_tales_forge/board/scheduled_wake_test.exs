@@ -24,7 +24,9 @@ defmodule TalesForge.Board.ScheduledWakeTest do
               "name" => "Playtest run",
               "cron" => "0 7 * * 1-5",
               "owner" => "gentry",
-              "limit_min" => 30
+              "limit_min" => 30,
+              "queue" => "playtest",
+              "hold_min" => 45
             }
           ]
         })
@@ -131,7 +133,7 @@ defmodule TalesForge.Board.ScheduledWakeTest do
 
   test "the cron table wakes the bot jobs through ScheduledWake" do
     assert {"0 7 * * 1-5", TalesForge.Board.Workers.ScheduledWake,
-            [args: %{"job_id" => "playtest"}]} in Workflow.Team.crontab(
+            [args: %{"job_id" => "playtest"}, queue: :playtest, priority: 0]} in Workflow.Team.crontab(
              @team,
              TalesForge.Board.Workers.ScheduledWake
            )
@@ -141,6 +143,70 @@ defmodule TalesForge.Board.ScheduledWakeTest do
     {:ok, run} = Schedule.start_bot_run(@team, @job, @now)
     changeset = Notify.run_job(:gentry, @job, run)
     assert changeset.changes.args["event"] == "schedule.run"
+  end
+
+  describe "the exclusive run" do
+    test "the cron entry and the wake use the own queue with the highest priority" do
+      assert [{_, _, opts}] = Workflow.Team.crontab(@team, TalesForge.Board.Workers.ScheduledWake)
+      assert opts[:queue] == :playtest and opts[:priority] == 0
+      assert Workflow.Team.exclusive_queues(@team) == [playtest: 1]
+
+      {:ok, run} = Schedule.start_bot_run(@team, @job, @now)
+      changeset = Notify.run_job(:gentry, @job, run)
+      assert changeset.changes.queue == "playtest"
+      assert changeset.changes.priority == 0
+    end
+
+    test "other wakes to the bot wait while the run is open, until it reports" do
+      {:ok, run} = Schedule.start_bot_run(@team, @job, @now)
+      mention = %{"bot" => "gentry", "event" => "mention"}
+
+      assert Notify.held_for(mention, @team, @now) == 45 * 60
+      assert Notify.held_for(mention, @team, DateTime.add(@now, 600)) == 35 * 60
+      assert Notify.held_for(%{"bot" => "case", "event" => "mention"}, @team, @now) == 0
+      assert Notify.held_for(%{mention | "event" => "schedule.run"}, @team, @now) == 0
+
+      {:ok, _} = Schedule.finish_by_bot(run.id, :gentry, %{"status" => "ok"})
+      assert Notify.held_for(mention, @team, DateTime.add(@now, 600)) == 0
+    end
+
+    test "with no report the hold ends 45 min after the start" do
+      {:ok, _run} = Schedule.start_bot_run(@team, @job, @now)
+      mention = %{"bot" => "gentry", "event" => "mention"}
+
+      assert Notify.held_for(mention, @team, DateTime.add(@now, 44 * 60)) == 60
+      assert Notify.held_for(mention, @team, DateTime.add(@now, 45 * 60)) == 0
+    end
+
+    test "an exclusive job needs a bot owner and a hold of at least the limit" do
+      base = %{"id" => "x", "name" => "X", "cron" => "0 7 * * *", "queue" => "q"}
+
+      for bad <- [
+            Map.merge(base, %{"owner" => "gentry", "hold_min" => 10, "limit_min" => 30}),
+            Map.merge(base, %{"owner" => "ada", "hold_min" => 45})
+          ] do
+        assert_raise ArgumentError, fn ->
+          Workflow.Team.from_map(%{team_map() | "jobs" => [bad]})
+        end
+      end
+    end
+  end
+
+  defp team_map do
+    %{
+      "product_name" => "P",
+      "repo_url" => "https://example.com/o/p",
+      "docs_repo" => "o/p-docs",
+      "founders" => [%{"name" => "Ada"}],
+      "bots" => [
+        %{"id" => "case", "name" => "Case", "role" => "refiner"},
+        %{"id" => "bobby", "name" => "Bobby", "role" => "builder"},
+        %{"id" => "gentry", "name" => "Gentry", "role" => "checker"}
+      ],
+      "column_labels" =>
+        Map.new(~w(ideas refining check building done parked archived), &{&1, &1}),
+      "jobs" => []
+    }
   end
 
   defp auth(conn, token), do: put_req_header(conn, "authorization", "Bearer " <> token)
