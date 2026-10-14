@@ -1080,6 +1080,7 @@
       {
         "name": "Max",
         "github": "maxpahlen",
+        "emails": ["max@whyse.se"],
         "inbox": ["mention", "thread_message"]
       }
     ],
