@@ -5,6 +5,8 @@ defmodule Workflow.Inbox.Store do
 
   `add/3` runs in the `Ecto.Multi` of the change (`TalesForge.Board.Events`,
   `TalesForge.Chat`). Thus an item exists only when its source exists.
+  Each new item also adds its web push job (`Workflow.Push.job/1`) in the
+  same transaction.
   """
 
   import Ecto.Query
@@ -49,6 +51,15 @@ defmodule Workflow.Inbox.Store do
     )
     |> Map.merge(%{body: item.body || "", position: (position || 0) + 1, created_at: now})
     |> repo.insert!(on_conflict: :nothing)
+    |> tap(&push/1)
+  end
+
+  # The web push of the item goes into the same transaction (Workflow.Push).
+  defp push(record) do
+    case Workflow.Push.job(record) do
+      nil -> :ok
+      job -> {:ok, _job} = TalesForge.Workflow.Jobs.insert(job)
+    end
   end
 
   defp close(repo, %{recipient: who, scope: scope}, now) do

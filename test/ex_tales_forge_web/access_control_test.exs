@@ -163,7 +163,17 @@ defmodule TalesForgeWeb.AccessControlTest do
       html = build_conn() |> get(~p"/admin/login") |> html_response(200)
       assert html =~ "Sign in"
 
-      for asset <- ["/favicon.ico", "/robots.txt"] do
+      # The installed team app: the manifest, its icons and the service
+      # worker. The browser reads them before the page has a session.
+      for asset <- [
+            "/favicon.ico",
+            "/robots.txt",
+            "/team-app/manifest.webmanifest",
+            "/team-app/icon-maskable-192.png",
+            "/team-app/icon-maskable-512.png",
+            "/team-app/apple-touch-icon.png",
+            "/team-sw.js"
+          ] do
         assert build_conn() |> get(asset) |> response(200)
       end
     end

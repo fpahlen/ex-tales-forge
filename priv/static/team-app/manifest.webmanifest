@@ -1,0 +1,17 @@
+{
+  "id": "/team",
+  "name": "Tales Forge team",
+  "short_name": "Tales Forge team",
+  "description": "The founders' team page: the board, the inbox and the chat.",
+  "start_url": "/team",
+  "scope": "/team",
+  "display": "standalone",
+  "background_color": "#1f1a14",
+  "theme_color": "#1f1a14",
+  "icons": [
+    {"src": "/team-app/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "/team-app/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    {"src": "/team-app/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/team-app/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ]
+}

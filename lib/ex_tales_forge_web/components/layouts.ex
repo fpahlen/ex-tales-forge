@@ -16,6 +16,42 @@ defmodule TalesForgeWeb.Layouts do
   embed_templates "layouts/*"
 
   @doc """
+  True for the team pages (`/team` and the paths below it). The root layout
+  links the web app manifest on these pages only.
+
+      iex> TalesForgeWeb.Layouts.team_app?(%Plug.Conn{request_path: "/team"})
+      true
+      iex> TalesForgeWeb.Layouts.team_app?(%Plug.Conn{request_path: "/team/work-log"})
+      true
+      iex> TalesForgeWeb.Layouts.team_app?(%Plug.Conn{request_path: "/teams"})
+      false
+      iex> TalesForgeWeb.Layouts.team_app?(nil)
+      false
+  """
+  @spec team_app?(Plug.Conn.t() | nil) :: boolean()
+  def team_app?(%Plug.Conn{request_path: path}),
+    do: path == "/team" or String.starts_with?(path, "/team/")
+
+  def team_app?(_conn), do: false
+
+  @doc """
+  The head tags of the installed team app: the web app manifest
+  (`priv/static/team-app/manifest.webmanifest`) and the Home Screen icon and
+  title for iPhone.
+  """
+  @spec team_app_head(map()) :: Phoenix.LiveView.Rendered.t()
+  def team_app_head(assigns) do
+    ~H"""
+    <link rel="manifest" href="/team-app/manifest.webmanifest" />
+    <meta name="theme-color" content="#1f1a14" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Tales Forge team" />
+    <link rel="apple-touch-icon" href="/team-app/apple-touch-icon.png" />
+    """
+  end
+
+  @doc """
   Renders your app layout.
 
   This function is typically invoked from every template,
