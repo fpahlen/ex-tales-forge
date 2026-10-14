@@ -193,6 +193,11 @@ config :ex_tales_forge, TalesForge.Costs,
 config :ex_tales_forge, TalesForgeWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
+  # HTTP/2 is off (EEF-CVE-2026-105659: a client can trickle WINDOW_UPDATE
+  # frames and pin HTTP/2 stream processes; no fixed bandit release yet).
+  # Fly's proxy talks HTTP/1.1 to the app. Turn it on again when bandit ships
+  # a fix, together with the ignore in mix.exs.
+  http: [http_2_options: [enabled: false]],
   render_errors: [
     formats: [html: TalesForgeWeb.ErrorHTML, json: TalesForgeWeb.ErrorJSON],
     layout: false
