@@ -194,6 +194,34 @@ defmodule Workflow.ProductAppApiTest do
       assert %{source: :live, runs: 1} = TalesForgeWeb.TeamLiveNumbers.persona_scores(%{})
     end
 
+    test "only the persona scores use persona_scores_adapter" do
+      insert_cost!()
+      now = DateTime.utc_now()
+      local_costs = ProductApp.costs(now)
+
+      Application.put_env(:ex_tales_forge, ProductApp,
+        persona_scores_adapter: ProductApp.Http,
+        base_url: "https://product.example"
+      )
+
+      Application.put_env(:ex_tales_forge, :product_api, token: @product_token)
+
+      Req.Test.stub(ProductApp.Http, fn conn ->
+        assert conn.request_path == "/internal/product/persona-scores"
+
+        Req.Test.json(conn, %{
+          "scores" => %{
+            "since" => "2026-10-07",
+            "runs" => 4,
+            "by_persona" => %{"hawk" => %{"score" => 2.0}}
+          }
+        })
+      end)
+
+      assert %{runs: 4, by_persona: %{"hawk" => %{score: 2.0}}} = ProductApp.persona_scores()
+      assert ProductApp.costs(now) == local_costs
+    end
+
     test "the HTTP adapter gives empty data without a token or when the product app fails" do
       Application.put_env(:ex_tales_forge, ProductApp,
         adapter: ProductApp.Http,
