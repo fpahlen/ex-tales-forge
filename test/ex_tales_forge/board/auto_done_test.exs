@@ -26,6 +26,10 @@ defmodule TalesForge.Board.AutoDoneTest do
         opts[:down] ->
           Plug.Conn.send_resp(conn, 503, "down")
 
+        (match = Regex.run(~r{/pulls/(\d+)$}, conn.request_path)) &&
+            String.to_integer(List.last(match)) in Keyword.get(opts, :open, []) ->
+          Req.Test.json(conn, %{"state" => "open", "merged" => false})
+
         match = Regex.run(~r{/pulls/(\d+)$}, conn.request_path) ->
           Req.Test.json(conn, %{"merged" => true, "merge_commit_sha" => "m#{List.last(match)}"})
 
@@ -167,6 +171,74 @@ defmodule TalesForge.Board.AutoDoneTest do
       refute_received {:github, _}
       assert Board.get_idea!(card.id).column == "building"
     end
+  end
+
+  defp link_pr!(card, number, final) do
+    attrs = %{
+      "idea_id" => card.id,
+      "number" => number,
+      "url" => "https://github.com/whyse-ab/ex-tales-forge/pull/#{number}",
+      "head_sha" => "sha#{number}",
+      "player_note" => "No change for players."
+    }
+
+    attrs = if final == :unset, do: attrs, else: Map.put(attrs, "final", final)
+    {:ok, card} = Board.link_pr(attrs)
+    card
+  end
+
+  describe "cards with more than one PR" do
+    test "a PR linked without the final flag is final (the one-PR behavior)" do
+      github!()
+      card = building!("One PR", nil) |> link_pr!(1, :unset)
+      assert Board.get_idea!(card.id).pr_final
+
+      assert {:ok, [id]} = AutoDone.run()
+      assert id == card.id
+    end
+
+    test "a PR with final false keeps the card in Building when it ships" do
+      github!()
+      card = building!("Part 1 of 2", nil) |> link_pr!(1, false)
+
+      assert {:ok, []} = AutoDone.run()
+      assert Board.get_idea!(card.id).column == "building"
+
+      # The last part comes with final true; part 1 is merged, so the card moves.
+      link_pr!(card, 2, true)
+      assert {:ok, [_]} = AutoDone.run()
+      assert Board.get_idea!(card.id).column == "done"
+    end
+
+    test "another linked PR that is still open keeps the card in Building" do
+      github!(open: [4])
+      card = building!("Two PRs", 4) |> link_pr!(1, true)
+
+      assert {:ok, []} = AutoDone.run()
+      assert Board.get_idea!(card.id).column == "building"
+
+      github!()
+      assert {:ok, [_]} = AutoDone.run()
+      assert Board.get_idea!(card.id).column == "done"
+    end
+  end
+
+  test "two runs at the same time make one move" do
+    github!()
+    card = building!("In release", 1)
+
+    results =
+      1..2
+      |> Enum.map(fn _ -> Task.async(fn -> AutoDone.run() end) end)
+      |> Enum.map(&Task.await(&1, 15_000))
+
+    assert Enum.sort(results) == [{:ok, []}, {:ok, [card.id]}]
+
+    moves =
+      Board.get_idea!(card.id).transitions
+      |> Enum.filter(&(&1.from == "building" and &1.to == "done"))
+
+    assert length(moves) == 1
   end
 
   test "Done wakes no bot" do

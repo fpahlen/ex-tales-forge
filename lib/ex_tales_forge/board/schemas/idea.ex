@@ -36,6 +36,7 @@ defmodule TalesForge.Board.Idea do
     field :pr_number, :integer
     field :pr_url, :string
     field :pr_head_sha, :string
+    field :pr_final, :boolean, default: true
     field :player_note, :string
     field :tags, {:array, :string}, default: []
     belongs_to :goal, TalesForge.Board.Goal
@@ -85,6 +86,7 @@ defmodule TalesForge.Board.Idea do
       :pr_number,
       :pr_url,
       :pr_head_sha,
+      :pr_final,
       :player_note,
       :tags
     ])
