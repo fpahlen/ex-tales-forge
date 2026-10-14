@@ -18,11 +18,14 @@ defmodule TalesForgeWeb.TeamLive do
      (`TalesForge.AppRole`, area `:board`): playtest redirects it there;
   4. **What we're doing now** (`#live`): the live GitHub PR, CI and deploy feed,
      the nested `TalesForgeWeb.TeamPrFeedLive` (`TalesForge.PrFeed`, polled on
-     the server and pushed over PubSub).
+     the server and pushed over PubSub);
+  5. **Upcoming** (`#upcoming`), next to the PR feed: the scheduled jobs with
+     the next time, the owner and the last result, the nested
+     `TalesForgeWeb.TeamUpcomingLive` (`TalesForge.Board.Schedule`).
 
   **Phone** (below the `lg` width, 1024 px): CSS `order` alone changes the
   stack to inbox → New idea → boards → What have we done → quick stats →
-  What we're doing now. The list lives in `phone_panel_order/0`. Desktop
+  What we're doing now → Upcoming. The list lives in `phone_panel_order/0`. Desktop
   keeps the HTML order above.
 
   The nav links to the full presentation (`/team/presentation`).
@@ -56,6 +59,7 @@ defmodule TalesForgeWeb.TeamLive do
     {"done", "Done"},
     {"idea-board", "Going to do"},
     {"live", "Doing now"},
+    {"upcoming", "Upcoming"},
     {"/team/work-log", "Work log"},
     {"/team/presentation", "Presentation"}
   ]
@@ -65,7 +69,7 @@ defmodule TalesForgeWeb.TeamLive do
   presentation anchor, so the redirect hook leaves them alone.
 
       iex> TalesForgeWeb.TeamLive.anchors()
-      ["done", "idea-board", "live", "workspace"]
+      ["done", "idea-board", "live", "upcoming", "workspace"]
   """
   @spec anchors() :: [String.t()]
   def anchors,
@@ -79,7 +83,7 @@ defmodule TalesForgeWeb.TeamLive do
   """
   @spec phone_panel_order() :: [atom()]
   def phone_panel_order,
-    do: [:inbox, :new_idea, :boards, :what_we_did, :workspace, :live]
+    do: [:inbox, :new_idea, :boards, :what_we_did, :workspace, :live, :upcoming]
 
   @doc """
   The old crew anchors of this page and where they land now: the crew on the
@@ -229,6 +233,7 @@ defmodule TalesForgeWeb.TeamLive do
           ideas_tags={assigns[:ideas_tags] || []}
         />
         <.live_section socket={assigns[:socket]} />
+        <.upcoming socket={assigns[:socket]} />
       </main>
 
       <TeamLayout.footer team={@team} d={@d} />
@@ -286,6 +291,33 @@ defmodule TalesForgeWeb.TeamLive do
         {live_render(@socket, TalesForgeWeb.TeamPrFeedLive, id: "team-pr-feed")}
       <% else %>
         <TeamPrFeed.feed feed={PrFeed.snapshot()} now={DateTime.utc_now()} />
+      <% end %>
+    </section>
+    """
+  end
+
+  # "Upcoming": the scheduled jobs (TeamUpcomingLive, TalesForge.Board.Schedule),
+  # next to the PR feed. Without a socket (render/1 called directly in tests)
+  # the rows are shown statically.
+  attr :socket, :any, default: nil
+
+  defp upcoming(assigns) do
+    ~H"""
+    <section id="upcoming" class="order-5 space-y-5" aria-labelledby="upcoming-title">
+      <header class="max-w-3xl space-y-2">
+        <h2 id="upcoming-title" class="font-serif text-2xl font-bold sm:text-3xl">
+          Upcoming
+        </h2>
+        <p class="text-base leading-relaxed text-[var(--paper-muted)] sm:text-lg">
+          The next scheduled jobs: when they run, who does them, and the result of the last run.
+        </p>
+      </header>
+      <%= if @socket do %>
+        {live_render(@socket, TalesForgeWeb.TeamUpcomingLive, id: "team-upcoming")}
+      <% else %>
+        <TalesForgeWeb.TeamUpcoming.panel rows={
+          TalesForgeWeb.TeamUpcoming.rows(Workflow.Team.Source.team(), DateTime.utc_now())
+        } />
       <% end %>
     </section>
     """

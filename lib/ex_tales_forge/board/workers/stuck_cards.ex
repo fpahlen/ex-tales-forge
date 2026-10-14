@@ -2,7 +2,8 @@ defmodule TalesForge.Board.Workers.StuckCards do
   @moduledoc """
   Reminds about stuck cards (bot cost cut, decision 2026-10-13 "Bot work in
   Elixir"; it replaces the refiner's hourly stuck card check). Hourly
-  (`Oban.Plugins.Cron`, config), production only (`TalesForge.AppRole`).
+  (`Oban.Plugins.Cron`, job list in the team config), production only (`TalesForge.AppRole`).
+  Each run gets a row in `scheduled_runs` (`TalesForge.Board.Schedule.track/2`).
 
   A card is stuck when it is in Building for 1 hour or more and has no linked
   PR. The card gets one comment with a fixed text (`text/0`) as `bot:board`.
@@ -18,7 +19,7 @@ defmodule TalesForge.Board.Workers.StuckCards do
 
   alias TalesForge.AppRole
   alias TalesForge.Board
-  alias TalesForge.Board.{Comment, Idea, Transition}
+  alias TalesForge.Board.{Comment, Idea, Schedule, Transition}
   alias TalesForge.Workflow.Repo
 
   @author "bot:board"
@@ -72,8 +73,11 @@ defmodule TalesForge.Board.Workers.StuckCards do
   def stuck?(%Card{}, _now), do: false
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    if AppRole.role() == :production, do: run(DateTime.utc_now())
+  def perform(%Oban.Job{args: args}) do
+    if AppRole.role() == :production,
+      do:
+        Schedule.track(Map.get(args, "job_id", "stuck_cards"), fn -> run(DateTime.utc_now()) end)
+
     :ok
   end
 

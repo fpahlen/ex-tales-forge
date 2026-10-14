@@ -235,7 +235,7 @@ defmodule TalesForgeWeb.TeamLiveTest do
         |> LazyHTML.query("main > section")
         |> Enum.map(&(&1 |> LazyHTML.attribute("id") |> hd()))
 
-      assert ids == ~w(done workspace idea-board live)
+      assert ids == ~w(done workspace idea-board live upcoming)
     end
 
     test "phone order classes: board first, then done, workspace, live" do
@@ -247,7 +247,22 @@ defmodule TalesForgeWeb.TeamLiveTest do
       assert html =~ ~s(id="live" class="order-4 space-y-5")
 
       assert TalesForgeWeb.TeamLive.phone_panel_order() ==
-               [:inbox, :new_idea, :boards, :what_we_did, :workspace, :live]
+               [:inbox, :new_idea, :boards, :what_we_did, :workspace, :live, :upcoming]
+    end
+
+    test "the Upcoming panel comes after the PR feed and lists the scheduled jobs" do
+      html = render_with(@data)
+      assert html =~ ~s(id="upcoming" class="order-5 space-y-5")
+      {live_at, _} = :binary.match(html, ~s(id="live"))
+      {upcoming_at, _} = :binary.match(html, ~s(id="upcoming"))
+      assert upcoming_at > live_at
+
+      for id <- ~w(stuck_cards mention_sweep pr_feed_backup) do
+        assert html =~ ~s(id="upcoming-#{id}")
+      end
+
+      assert html =~ "No run yet"
+      assert html =~ ~s(phx-hook="TalesForgeWeb.TeamUpcoming.LocalTime")
     end
 
     test "null and missing numbers still render, never a zero" do

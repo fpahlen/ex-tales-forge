@@ -43,6 +43,7 @@ defmodule TalesForge.QaLogin do
   @allowed_views ~w(TalesForgeWeb.TeamLive TalesForgeWeb.TeamPresentationLive
                     TalesForgeWeb.TeamWorkLogLive
                     TalesForgeWeb.TeamPrFeedLive TalesForgeWeb.TeamWhatWeDidLive
+                    TalesForgeWeb.TeamUpcomingLive
                     TalesForgeWeb.OnlineHeaderLive
                     TalesForgeWeb.TeamChatLive)
 

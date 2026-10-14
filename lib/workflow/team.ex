@@ -23,6 +23,9 @@ defmodule Workflow.Team do
     * `column_labels`: the label of each of the seven board columns
     * `goals`: the seed goals (`key`, `title`); the live goals are rows in the
       database (`TalesForge.Board.Goal`)
+    * `jobs`: `t:job/0`, the scheduled jobs. This list is the only schedule
+      source: the Workflow Oban instance builds its cron table from it
+      (`crontab/1`), and the Upcoming panel on the team page shows it
     * `content`: the presentation text by key (`text/2`)
   """
 
@@ -51,6 +54,22 @@ defmodule Workflow.Team do
           inbox: [String.t()]
         }
 
+  @typedoc """
+  A scheduled job. `cron` is a cron line in UTC (Oban cron, no time zone).
+  `owner` is `"code"` for a job that plain code does (`worker` is the Oban
+  worker module, it starts no bot), or the id of the bot or the handle of
+  the founder who does the job. `limit_min` is the time limit of one run in
+  minutes.
+  """
+  @type job :: %{
+          id: String.t(),
+          name: String.t(),
+          cron: String.t(),
+          owner: String.t(),
+          worker: module() | nil,
+          limit_min: pos_integer()
+        }
+
   @type t :: %__MODULE__{
           product_name: String.t(),
           repo_url: String.t(),
@@ -61,6 +80,7 @@ defmodule Workflow.Team do
           bots: [bot()],
           column_labels: %{String.t() => String.t()},
           goals: [%{key: String.t(), title: String.t()}],
+          jobs: [job()],
           content: %{String.t() => String.t()}
         }
 
@@ -73,6 +93,7 @@ defmodule Workflow.Team do
             bots: [],
             column_labels: %{},
             goals: [],
+            jobs: [],
             content: %{}
 
   @roles ~w(refiner builder checker)a
@@ -117,15 +138,41 @@ defmodule Workflow.Team do
         end,
       column_labels: Map.fetch!(w, "column_labels"),
       goals: for(g <- Map.get(w, "goals", []), do: %{key: g["key"], title: g["title"]}),
+      jobs: for(j <- Map.get(w, "jobs", []), do: job!(j)),
       content: content
     }
 
     Enum.each(@roles, &bot(team, &1))
+    Enum.each(team.jobs, &owner!(team, &1))
 
     case Enum.reject(@states, &Map.has_key?(team.column_labels, &1)) do
       [] -> team
       missing -> raise ArgumentError, "no column label for #{inspect(missing)}"
     end
+  end
+
+  defp job!(j) do
+    cron = Map.fetch!(j, "cron")
+    _ = Oban.Cron.Expression.parse!(cron)
+    owner = Map.fetch!(j, "owner")
+    worker = j["worker"] && Module.concat([j["worker"]])
+
+    if owner == "code" and is_nil(worker),
+      do: raise(ArgumentError, "the code job #{inspect(j["id"])} has no worker")
+
+    %{
+      id: Map.fetch!(j, "id"),
+      name: Map.fetch!(j, "name"),
+      cron: cron,
+      owner: owner,
+      worker: worker,
+      limit_min: Map.get(j, "limit_min", 30)
+    }
+  end
+
+  defp owner!(team, %{owner: owner, id: id}) do
+    unless owner == "code" or bot_id(team, owner) != nil or owner in handles(team),
+      do: raise(ArgumentError, "the job #{inspect(id)} has an unknown owner #{inspect(owner)}")
   end
 
   defp role!(r) when r in ~w(refiner builder checker), do: String.to_atom(r)
@@ -159,7 +206,17 @@ defmodule Workflow.Team do
           "done" => "Done",
           "parked" => "Parked",
           "archived" => "Archive"
-        }
+        },
+        "jobs" => [
+          %{
+            "id" => "sweep",
+            "name" => "Sweep",
+            "cron" => "*/15 * * * *",
+            "owner" => "code",
+            "worker" => "Example.SweepWorker"
+          },
+          %{"id" => "check", "name" => "Check", "cron" => "0 7 * * 1-5", "owner" => "quill"}
+        ]
       },
       %{"hello" => "Hello from {product}."}
     )
@@ -283,6 +340,64 @@ defmodule Workflow.Team do
     do: Enum.at(~w(zero one two three four five six seven eight nine ten), n)
 
   def count_word(n), do: Integer.to_string(n)
+
+  @doc """
+  A job by id, or nil.
+
+      iex> Workflow.Team.job(Workflow.Team.example(), "check").owner
+      "quill"
+  """
+  @spec job(t(), String.t()) :: job() | nil
+  def job(%__MODULE__{jobs: jobs}, id), do: Enum.find(jobs, &(&1.id == id))
+
+  @doc """
+  True when plain code does the job (no bot).
+
+      iex> team = Workflow.Team.example()
+      iex> {Workflow.Team.code_job?(Workflow.Team.job(team, "sweep")), Workflow.Team.code_job?(Workflow.Team.job(team, "check"))}
+      {true, false}
+  """
+  @spec code_job?(job()) :: boolean()
+  def code_job?(%{owner: owner}), do: owner == "code"
+
+  @doc """
+  The Oban cron table of the code jobs: one `{cron, worker, opts}` entry for
+  each job, with the job id in the args. The cron lines are in UTC.
+
+      iex> Workflow.Team.crontab(Workflow.Team.example())
+      [{"*/15 * * * *", Example.SweepWorker, [args: %{"job_id" => "sweep"}]}]
+  """
+  @spec crontab(t()) :: [{String.t(), module(), keyword()}]
+  def crontab(%__MODULE__{jobs: jobs}) do
+    for job <- jobs, code_job?(job), do: {job.cron, job.worker, [args: %{"job_id" => job.id}]}
+  end
+
+  @doc """
+  The next run of each job after `now`, in UTC, soonest first.
+
+      iex> Workflow.Team.example()
+      ...> |> Workflow.Team.next_runs(~U[2026-10-16 07:10:00Z])
+      ...> |> Enum.map(fn {job, at} -> {job.id, at} end)
+      [{"sweep", ~U[2026-10-16 07:15:00Z]}, {"check", ~U[2026-10-19 07:00:00Z]}]
+  """
+  @spec next_runs(t(), DateTime.t()) :: [{job(), DateTime.t()}]
+  def next_runs(%__MODULE__{jobs: jobs}, %DateTime{} = now) do
+    jobs
+    |> Enum.map(&{&1, next_at(&1, now)})
+    |> Enum.sort_by(fn {_job, at} -> at end, DateTime)
+  end
+
+  @doc """
+  The next run of `job` after `now`, in UTC.
+
+      iex> job = Workflow.Team.job(Workflow.Team.example(), "check")
+      iex> Workflow.Team.next_at(job, ~U[2026-10-16 06:59:30Z])
+      ~U[2026-10-16 07:00:00Z]
+  """
+  @spec next_at(job(), DateTime.t()) :: DateTime.t()
+  def next_at(%{cron: cron}, %DateTime{} = now) do
+    cron |> Oban.Cron.Expression.parse!() |> Oban.Cron.Expression.next_at(now)
+  end
 
   @doc """
   The founder names, in board order (accents kept).

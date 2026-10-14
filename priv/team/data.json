@@ -1044,7 +1044,7 @@
     }
   },
   "workflow": {
-    "what": "The team config of Workflow (the team tools): product, repo, founders, bots, column labels and goals. Read by Workflow.Team.Source. The presentation text is in content.json.",
+    "what": "The team config of Workflow (the team tools): product, repo, founders, bots, column labels, goals and scheduled jobs. Read by Workflow.Team.Source. The cron lines of the jobs are in UTC; this list is the only schedule source of the Workflow Oban instance. The presentation text is in content.json.",
     "as_of": "2026-10-13",
     "source": "Board card 'Workflow split 2/5: Team config'; config :board_founder_handles and the bot lists in the code before the move",
     "product_name": "Tales Forge",
@@ -1135,6 +1135,11 @@
         "key": "G7",
         "title": "Our shared workspace (team tools)"
       }
+    ],
+    "jobs": [
+      {"id": "stuck_cards", "name": "Stuck card check", "cron": "7 * * * *", "owner": "code", "worker": "TalesForge.Board.Workers.StuckCards", "limit_min": 5},
+      {"id": "mention_sweep", "name": "Mention sweep", "cron": "*/15 * * * *", "owner": "code", "worker": "TalesForge.Board.Workers.MentionSweep", "limit_min": 5},
+      {"id": "pr_feed_backup", "name": "PR feed backup read", "cron": "*/30 * * * *", "owner": "code", "worker": "TalesForge.PrFeed.Reconcile", "limit_min": 5}
     ]
   }
 }

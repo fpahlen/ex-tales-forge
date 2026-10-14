@@ -4,6 +4,7 @@ Admin
 Done
 Going to do
 Doing <ago>
+Upcoming
 Work log
 Presentation
 What have we done
@@ -85,7 +86,20 @@ Done
 What we're doing <ago>
 Live from GitHub, updated every minute: the pull requests in the game's repo, whether their checks
 passed, and whether they're on playtest or in production yet.
-Live feed unavailableThis app has no GitHub token for the feed yet.Bundled numbers as of <date>
+Live feed unavailableThis app has no GitHub token for the feed yet.
+Upcoming
+The next scheduled jobs: when they run, who does them, and the result of the last run.
+<date> <time> UTC
+Stuck card checkCode
+No run yet
+<date> <time> UTC
+Mention sweepCode
+No run yet
+<date> <time> UTC
+PR feed backup readCode
+No run yet
+Times are in your local time zone. "Code" jobs run with no bot.
+Bundled numbers as of <date>
 Pull requests, commits, tests, decisions, AI spend, Jev latency and persona scores come live (from GitHub and from the app) when a source is up.
 Each group says “live” or “as of” its date. The other numbers come from
 docs/team-page/data.json
