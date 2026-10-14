@@ -11,6 +11,48 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-14: NPC combat: both sides roll
+
+- **Decision (fredrik@whyse.se, 2026-10-14, on the idea board):** build it. From Håkan's Ezzor playtest (Tin Valley, turns 27–29) and Case's read of the turn log.
+- **Why:** **The problem.** In Håkan's Ezzor playtest (Tin Valley, turns 27 to 29), only the player rolled in a fight. Each miss wounded the player, also when the foe did not fight back. The GM then told hits that no die gave, and it kept the story on Osric when the player attacked a miner.
+
+**What the code does now (main, `19d47c3`).**
+1. The server rolls one d20 for the player's combat skill. Equal or under is a hit (`Game.Mechanics`).
+2. Each failed combat roll gives the player one wound (`combat_failure?` in `Mechanics.apply_vitality/3`). The foe does not roll.
+3. NPCs have no wounds in the session state. Thus a hit changes nothing that the server keeps.
+4. The GM gets only the player's roll. Nothing tells it who was hit or how much.
+
+**Our rules already say more.** `priv/rules/combat.md` has the full design: the attack rolls against the defender's Parry, and NPCs have a wound track from CON. The decision log (skill split entry) says: "The code has no parry roll yet." Thus this card brings the code up to our own rules. It does not add new rules.
+
+**Proposed approach.** The server makes all rolls. The GM only tells them (call-type rule).
+1. One place for combat math: a new pure module `TalesForge.Game.Combat`. It takes the attacker, the defender and injected rolls, and it gives back one exchange. The other modules call it.
+2. The attack. The player rolls the combat skill against the defender's Parry from `combat.md`: Dodge/2 + 10 + (DEX - 10)/2.
+3. The counterattack. If the defender is still up, it rolls its own combat skill against the player's Parry. A miss by the player is only a miss. The player gets a wound only when the counterattack hits.
+4. NPC fighters. NPCs already get stats and skills from `Characters.Defaults.derive/3`. An NPC with no combat skill uses the untrained floor in `Mechanics.effective_level/2`. Thus a shopkeeper rarely hits, and a guard often hits.
+5. NPC wounds. The session keeps them in `world_state["npc_state"][id]`, with the same cap formula as the player (`wound_max/1`). At the cap the NPC is down. A minor foe has one wound.
+6. The target. The server takes the target from the Jev intent. It must be a person in the scene. If it is not clear, the turn asks the player, as for other unclear actions. The GM gets the target name from the server.
+7. The GM prompt. A new section lists the exchange: who attacked whom, both rolls, both results, and each wound. The GM tells only these. It does not add a hit or a target.
+8. The prose check. `Game.ProseCheck` gets a fifth kind, `:wound`. If the prose tells a hit or blood that the record does not have, the check logs one bug.
+9. Learning points do not change. A miss gives LP by the rules that we have now, for the player only.
+10. Flag. Everything is behind a new flag, for example `COMBAT_OPPOSED`. It is on for playtest first. It stays off on prod until Gentry passes it.
+
+**Not in version 1.** Damage against Toughness, Shaken, initiative, tactical options and group advantage from `combat.md`. A hit is one wound in version 1. These parts can come on their own cards.
+
+**Tests.** Pure tests use injected rolls. They cover a hit, a miss with no counterattack, and a miss with a counterattack that hits. They also cover an NPC that goes down and an unclear target. One fixture replays Håkan's turns 27 to 29 and checks that the record and the prose agree.
+
+**Cost: M.** About one new module, changes in `Mechanics` and the mechanics stage, one prompt section, one prose check rule, and tests. With damage and Toughness, the cost is L.
+
+**Risk.** Medium. Fights become more fair, but a strong NPC can now hurt a weak player more often. The flag and Gentry's playtest pass control this risk.
+
+**Deploy lane.** Game behavior, thus behind the flag: on for playtest, off on prod until Gentry passes it.
+
+**Verdict: feasible with caveats.** The rules are already written and the pipeline has a place for this. The caveats are the open questions on minor foes and NPC death.
+
+**Confidence.** High for the cause and the shape. I read the code and the rules. I did not replay the turns. Verdict: feasible with caveats. Rough cost: M.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-e6a933d4-6408-449a-86c2-85a122afe738)
+
+<!-- board:idea:e6a933d4-6408-449a-86c2-85a122afe738 -->
+
 ## 2026-10-14: Inbox Open Card button does nothing
 
 - **Decision (hawkan.fredriksson@gmail.com, 2026-10-14, on the idea board):** build it. When I have a Card notification in Inbox and get the choice to Open card, nothing happens when I click on open card. It should open the card
