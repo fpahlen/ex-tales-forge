@@ -99,12 +99,13 @@ GITHUB_DOCS_TOKEN=...
 
 Then open http://localhost:4000/ (you are sent to `/admin/login`). See `docs/DEPLOY-FLY.md`.
 
-The founders' page (`/team`) has a live PR feed ("Live: what we're shipping",
-`TalesForge.PrFeed`). GitHub webhooks update it (`docs/github-webhooks.md`,
-secret `GITHUB_WEBHOOK_SECRET`), and a full read every 30 min is the backup. It needs
-`GITHUB_FEED_TOKEN`, a fine-grained read-only token for `whyse-ab/ex-tales-forge`
-(Pull requests, Contents and Actions: read). Without it the section says
-"Live feed unavailable" and the rest of the page works as usual.
+The team tools (the founders' page `/team`, the idea board, the team chat,
+the decision queue and the docs viewer) are in the Workflow app
+(`whyse-ab/workflow`, https://whyse-workflow.fly.dev). For 30 days after the
+cutover, this app redirects the old paths there (307,
+`TalesForgeWeb.WorkflowRedirectController`). This app sends work-log turn
+events to Workflow (`TalesForge.WorkflowClient.Http`, `WORKFLOW_API_TOKEN`) and
+serves `GET /internal/product/*` to it (`PRODUCT_APP_API_TOKEN`).
 
 From the admin UI you can:
 

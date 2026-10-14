@@ -2,8 +2,7 @@ defmodule TalesForgeWeb.AdminLive.Hooks do
   @moduledoc """
   `on_mount` hooks for the router's live_sessions. `:require_team_member` (play
   and admin pages) halts with a redirect to `/admin/login` unless the session
-  belongs to an active ADMIN_GITHUB_TEAM member or is a valid QA session on a
-  `/team` LiveView (`TalesForgeWeb.QaGuard.mount/2`, read-only); `:maybe_team_member` (the login
+  belongs to an active ADMIN_GITHUB_TEAM member; `:maybe_team_member` (the login
   page) only assigns `:admin_email` when there is one. Both reload a tab whose
   static assets are stale.
   """
@@ -19,8 +18,7 @@ defmodule TalesForgeWeb.AdminLive.Hooks do
   def on_mount(:require_team_member, _params, session, socket) do
     case AdminAuth.current_email(session) do
       nil ->
-        with {:cont, socket} <- TalesForgeWeb.QaGuard.mount(session, socket),
-             do: {:cont, reload_on_stale_assets(socket)}
+        {:halt, redirect(socket, to: "/admin/login")}
 
       email ->
         {:cont, socket |> assign(:admin_email, email) |> reload_on_stale_assets()}

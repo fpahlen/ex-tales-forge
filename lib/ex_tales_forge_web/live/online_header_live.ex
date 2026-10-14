@@ -7,9 +7,8 @@ defmodule TalesForgeWeb.OnlineHeaderLive do
   - Founders: one row per person with a page open on production or playtest
     (`TalesForge.Online.people/1`); under the name, one smaller line per page
     and app ("Docs on playtest"), each once. The count is people, not tabs.
-  - Bots: counted when their latest activity is 10 minutes old or less
-    (`TalesForge.TeamOnline.online_minutes/0`); the list shows every bot with
-    that activity and its time.
+  - Bots: the bots that `TalesForge.Online.snapshot/1` gives (none since
+    Workflow moved to its own app, whyse-ab/workflow).
   - Each entry has a "Chat" button. It opens the team chat
     (`TalesForgeWeb.TeamChatLive`, config `:team_chat_live`, nested here) with
     that person's `@handle`. The chat lives on production: on playtest the

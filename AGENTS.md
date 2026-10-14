@@ -26,8 +26,8 @@ Skill growth (decision 2026-10-09): a failed or partial roll banks one improveme
 - **UI:** Phoenix LiveView + Tailwind
 - **Runtime:** Jido 2.x agents + actions
 - **Persistence:** plain Ecto + PostgreSQL (`GameSession`, `Turn`, `NpcInstance`, `Character`, `AICall`, …)
-- **Jobs:** Oban (queues `default` and `llm`; `ProcessScene`, `ProcessTurn`). Workflow (the team tools) has a second Oban instance, `TalesForge.Workflow.Oban`, for board and chat jobs (`TalesForge.Workflow.Jobs`).
-- **Workflow data:** `TalesForge.Workflow.Repo`, same database, Postgres schema `workflow`, migrations in `priv/workflow_repo/migrations`. Product-app code never calls it; Workflow code never calls `TalesForge.Repo` (`priv/team/data-boundary.txt`, `mix deploy.check_boundaries`).
+- **Jobs:** Oban (queues `default` and `llm`; `ProcessScene`, `ProcessTurn`).
+- **Workflow (team tools):** a separate app, `whyse-ab/workflow` (https://whyse-workflow.fly.dev). This app sends work-log turns to it (`TalesForge.WorkflowClient.Http`, `WORKFLOW_API_TOKEN`) and serves `GET /internal/product/*` to it (`PRODUCT_APP_API_TOKEN`). The old Workflow paths redirect there for 30 days (`TalesForge.AppRole.workflow_paths/0`).
 - **AI:** xAI Grok for prose (`TalesForge.LLM`); TypeSafe Jev (Hex `jev`) for typed answers from free text
 - **Authored content:** pack files under `priv/` (`priv/adventures/*`, `priv/npcs/*.json`, `priv/rules`, `priv/prompts`, `priv/characters`), loaded by `Game.Pack` / `NPC` and copied into each session at creation. Edited in git; the admin NPC definition pages are read-only.
 - **Admin:** `TalesForge.Admin` + LiveViews on plain Ecto changesets (`to_form/2`); JSON editors for complex maps like `world_state`.
@@ -112,8 +112,8 @@ The same rule is in `CONTRIBUTING.md`.
 Source: decision 2026-10-07 "GitHub team sign-in is the only login on production and playtest" ([#54](https://github.com/whyse-ab/ex-tales-forge/pull/54)), `TalesForge.AdminAuth`.
 
 - "Sign in with GitHub", checked against the team in `ADMIN_GITHUB_TEAM` (`whyse-ab/tales-forge`), is the only login. Only active members get in (pending invites don't count); membership is rechecked on every request and LiveView mount (cached for 5 minutes). Logins last up to 30 days.
-- **Every page and LiveView needs a signed-in team member**: play, character creation, the founders' page (`/team`), admin, costs, code docs and playtest reports. Any team member gets the admin pages; there is no second admin check.
-- Open signed out: `/health` (the Fly check), the login page, the GitHub OAuth request and callback, logout, the static files the login page needs, and the token-guarded machine-to-machine `GET /internal/costs` and `GET /internal/version` (both `COSTS_PEER_TOKEN`; 404 while unset). `/internal/version` returns only the app's role and running commit, for the other app's live PR feed on `/team`. The product-app API `GET /internal/product/costs|online|running-commits` (`PRODUCT_APP_API_TOKEN`) and the Workflow receive route `POST /internal/workflow/work-log/turns` (`WORKFLOW_API_TOKEN`) are the only data paths between Workflow and the product app (one token for each direction; 404 while unset).
+- **Every page and LiveView needs a signed-in team member**: play, character creation, admin, costs, code docs and playtest reports. Any team member gets the admin pages; there is no second admin check.
+- Open signed out: `/health` (the Fly check), the login page, the GitHub OAuth request and callback, logout, the static files the login page needs, and the token-guarded machine-to-machine `GET /internal/costs` and `GET /internal/version` (both `COSTS_PEER_TOKEN`; 404 while unset). `/internal/version` returns only the app's role and running commit. The product-app API `GET /internal/product/costs|online|running-commits` (`PRODUCT_APP_API_TOKEN`; 404 while unset) and the Workflow app's `POST /internal/workflow/work-log/turns` (`WORKFLOW_API_TOKEN`, sent by `TalesForge.WorkflowClient.Http`) are the only data paths between Workflow and the product app. The old Workflow paths (`TalesForge.AppRole.workflow_paths/0`) answer a 307 redirect to Workflow for 30 days, signed in or not.
 - **No unauthenticated route, LiveView event or endpoint may start an AI call.**
 - `test/ex_tales_forge_web/access_control_test.exs` holds the public route list and fails for any other route reachable signed out. A new public route needs a reason there and a decision.
 - Email magic links are gone (routes, form and sending code). `ADMIN_EMAILS` lets nobody in, and nothing sends mail.
@@ -157,7 +157,7 @@ Source: decision 2026-10-08 "Each thing lives in one place", `TalesForge.AppRole
 
 Source: decision 2026-10-10 "Admin area grouped by purpose", `TalesForgeWeb.AdminSections`, `TalesForge.AdminPaths`.
 
-- The admin pages are grouped by purpose: Founders (`/team`, the presentation, `/admin/founders/*`), Play and test (`/admin/play/*`), Operate (`/admin/operate/*`), Develop (`/admin/code-docs`), Docs (`/admin/docs`) and a collapsed Archive (`/admin/archive/*`). The nav and the admin home's cards both come from `TalesForgeWeb.AdminSections`; add a page there, not in the nav by hand.
+- The admin pages are grouped by purpose: Founders (`/admin/founders/*`, and links to `/team` and the decision queue on Workflow), Play and test (`/admin/play/*`), Operate (`/admin/operate/*`), Develop (`/admin/code-docs`), Docs (`/admin/docs`) and a collapsed Archive (`/admin/archive/*`). The nav and the admin home's cards both come from `TalesForgeWeb.AdminSections`; add a page there, not in the nav by hand.
 - Old admin URLs keep working: `TalesForge.AdminPaths` maps each moved prefix and the router sends the old ones to `TalesForgeWeb.AdminRedirectController` (302, after sign-in). A page that moves gets a line there and a row in `admin_reorg_test.exs`.
 
 ## Money and AI spend

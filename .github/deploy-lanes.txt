@@ -40,10 +40,6 @@
 # The founders' idea board (production only; design-idea-board.md). The shared
 # contract (TalesForge.BoardApi), its controller, route and the board tables'
 # migrations are [wiring]/shared, not here.
-lib/ex_tales_forge/board.ex
-lib/ex_tales_forge/board/
-test/ex_tales_forge/board_test.exs
-test/ex_tales_forge/board/
 # Founder surveys (production only): /admin/founders/survey, /admin/founders/surveys/*
 lib/ex_tales_forge/surveys.ex
 lib/ex_tales_forge/survey/
@@ -81,59 +77,14 @@ test/ex_tales_forge_web/admin/playtest_live_test.exs
 # Founders' pages: /team, /team/presentation and the live PR feed (the routes
 # are in the router and the signed-out GET /internal/version is a controller,
 # both shared)
-lib/ex_tales_forge/team_page.ex
-lib/ex_tales_forge/team_pace.ex
-lib/ex_tales_forge/team_online.ex
-lib/ex_tales_forge/pr_feed.ex
-lib/ex_tales_forge/pr_feed/
-lib/ex_tales_forge_web/live/team_live.ex
-lib/ex_tales_forge_web/live/team_presentation_live.ex
-lib/ex_tales_forge_web/live/team_pr_feed_live.ex
-lib/ex_tales_forge_web/live/team_work_log_live.ex
-lib/ex_tales_forge_web/live/team_what_we_did_live.ex
-# The Upcoming panel (board card 'Upcoming jobs panel, scheduled by Oban'); its
-# migration is shared.
-lib/ex_tales_forge_web/live/team_upcoming_live.ex
-test/ex_tales_forge/board/schedule_test.exs
-test/ex_tales_forge/pr_feed/what_we_did_test.exs
-test/ex_tales_forge_web/live/team_what_we_did_live_test.exs
 # Team chat (production only; card 'Team chat with mentions'). Its migration,
 # the bots' /internal/chat controller and route are shared.
-lib/ex_tales_forge/chat.ex
-lib/ex_tales_forge/chat/
-lib/ex_tales_forge_web/live/team_chat_live.ex
-test/ex_tales_forge/chat_test.exs
-test/ex_tales_forge_web/live/team_chat_live_test.exs
-lib/ex_tales_forge_web/components/team_*.ex
-assets/js/team_hooks.js
-priv/team/
 priv/static/images/team/
-test/ex_tales_forge/team_page_test.exs
-test/ex_tales_forge/team_online_test.exs
-test/ex_tales_forge_web/live/team_live_test.exs
-test/ex_tales_forge_web/live/team_presentation_live_test.exs
-test/ex_tales_forge/pr_feed_test.exs
-test/ex_tales_forge_web/live/team_pr_feed_live_test.exs
-test/ex_tales_forge_web/live/team_work_log_live_test.exs
-# The /team render snapshot
-test/fixtures/team_render/team.txt
-test/support/pr_feed_fixtures.ex
 # The inbox (board card 'Inbox: one triage queue per person'): the pure rules,
 # the store and the panel (the panel matches team_*.ex above). Its migration is
 # shared, and Workflow.Team stays shared.
-lib/workflow/inbox.ex
-lib/workflow/inbox/
-test/workflow/inbox_test.exs
-test/workflow/inbox/
-test/ex_tales_forge_web/live/team_inbox_test.exs
-# Web push of the installed team app (card "Install the team page as an app
-# (PWA)"). The migration, the root layout and the static files are shared.
-lib/workflow/push.ex
-lib/workflow/push/
-test/workflow/push_test.exs
 # The idea board's UI test (the board component is on the list above, and so
 # are the board's server modules and their tests, near the top)
-test/ex_tales_forge_web/live/team_idea_board_test.exs
 
 [game]
 # Game engine code. Used only by `mix deploy.check_boundaries` (game code must
@@ -167,4 +118,3 @@ lib/ex_tales_forge_web/components/play_components.ex
 lib/ex_tales_forge_web/router.ex
 lib/ex_tales_forge/application.ex
 lib/ex_tales_forge_web/controllers/costs_peer_controller.ex
-lib/ex_tales_forge_web/controllers/board_api_controller.ex

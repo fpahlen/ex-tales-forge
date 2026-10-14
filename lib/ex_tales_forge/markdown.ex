@@ -1,5 +1,5 @@
-defmodule TalesForge.Collab.Markdown do
-  @moduledoc false
+defmodule TalesForge.Markdown do
+  @moduledoc "Renders Markdown to safe HTML for the survey and playtest pages."
 
   # The importer already splits YAML front matter off before storing bodies;
   # this is a safety net so a body that still carries it never renders it.
@@ -28,8 +28,7 @@ defmodule TalesForge.Collab.Markdown do
 
   @doc """
   Renders Markdown to safe HTML. `links:` is a function applied to every link
-  and image URL first (the docs viewer maps the repo's relative links to admin
-  pages with `TalesForge.Collab.Links.rewrite/3`).
+  and image URL first (for example, to rewrite relative links).
   """
   def to_html(markdown, opts \\ [])
   def to_html(nil, _opts), do: {:safe, ""}

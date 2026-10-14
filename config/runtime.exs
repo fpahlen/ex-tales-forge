@@ -40,12 +40,6 @@ if config_env() == :dev do
       stacktrace: true,
       show_sensitive_data_on_connection_error: true,
       pool_size: 10
-
-    config :ex_tales_forge, TalesForge.Workflow.Repo,
-      url: database_url,
-      stacktrace: true,
-      show_sensitive_data_on_connection_error: true,
-      pool_size: 10
   end
 end
 
@@ -65,13 +59,6 @@ if config_env() == :prod do
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     # For machines with several cores, consider starting multiple pools of `pool_size`
     # pool_count: 4,
-    socket_options: maybe_ipv6
-
-  # Workflow (the team tools) has its own repo on the same database, with its
-  # own pool (TalesForge.Workflow.Repo).
-  config :ex_tales_forge, TalesForge.Workflow.Repo,
-    url: database_url,
-    pool_size: String.to_integer(System.get_env("WORKFLOW_POOL_SIZE") || "5"),
     socket_options: maybe_ipv6
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
@@ -264,37 +251,17 @@ end
 if config_env() != :test do
   config :ex_tales_forge, :costs_peer, token: System.get_env("COSTS_PEER_TOKEN")
 
-  # The product-app API that Workflow reads (GET /internal/product/*,
-  # Workflow.ProductApp.Http): PRODUCT_APP_API_TOKEN. Workflow's receive route
-  # for work-log turn events (POST /internal/workflow/work-log/turns,
-  # TalesForge.WorkflowClient.Http): WORKFLOW_API_TOKEN. One token for each
-  # direction. Unset = the route answers 404. Both clients use the local
-  # adapter until Workflow runs as its own app.
+  # The product-app API that the Workflow app reads (GET /internal/product/*):
+  # PRODUCT_APP_API_TOKEN. Unset = the route answers 404. The token that this
+  # app sends to the Workflow app's POST /internal/workflow/work-log/turns
+  # (TalesForge.WorkflowClient.Http): WORKFLOW_API_TOKEN. Unset = no turn is sent.
+  # WORKFLOW_URL overrides the Workflow base URL (default in config.exs).
   config :ex_tales_forge, :product_api, token: System.get_env("PRODUCT_APP_API_TOKEN")
   config :ex_tales_forge, :workflow_api, token: System.get_env("WORKFLOW_API_TOKEN")
 
-  # PRODUCT_APP_PERSONA_SCORES_URL (for example https://tales-forge-playtest.fly.dev):
-  # Workflow reads only the persona scores with the HTTP adapter from that app
-  # (playtest runs the persona playtests). Costs, online and the running
-  # commits stay on the local adapter. Unset = the local adapter for all.
-  case System.get_env("PRODUCT_APP_PERSONA_SCORES_URL") do
-    url when is_binary(url) and url != "" ->
-      config :ex_tales_forge, Workflow.ProductApp,
-        persona_scores_adapter: Workflow.ProductApp.Http,
-        base_url: String.trim(url)
-
-    _ ->
-      :ok
+  if workflow_url = System.get_env("WORKFLOW_URL") do
+    config :ex_tales_forge, TalesForge.WorkflowClient, base_url: workflow_url
   end
-
-  # Gentry's QA sign-in on /team (TalesForge.QaLogin). GENTRY_QA_TOKEN (secret,
-  # same value on both apps) turns on /team/qa-login; unset = 404. The session
-  # is read-only. QA_ALLOW_WRITES=true lets it write on playtest only (for later
-  # write-path tests); off by default, and production ignores it.
-  config :ex_tales_forge, :qa_login,
-    token: System.get_env("GENTRY_QA_TOKEN"),
-    allow_writes:
-      System.get_env("QA_ALLOW_WRITES", "false") |> String.trim() |> String.downcase() == "true"
 
   config :ex_tales_forge, :app_name, System.get_env("FLY_APP_NAME")
 
@@ -303,69 +270,6 @@ if config_env() != :test do
   # stays off on production, also when the variable is set there.
   code_heat_map = System.get_env("CODE_HEAT_MAP", "off") |> String.trim() |> String.downcase()
   config :ex_tales_forge, TalesForge.CodeHeat, enabled: code_heat_map in ~w(on true 1)
-end
-
-# The founders' idea board on /team (production only; tales-forge-docs
-# docs/design-idea-board.md). Every value is optional: a blank or missing one
-# turns that part off.
-# - GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_PRIVATE_KEY (PEM; "\n"
-#   escapes allowed): the GitHub App that commits the decisions.md entry when a
-#   card moves to Building. Unset = no commit, the card says so.
-# - BOARD_WEBHOOK_URL_<BOT> and BOARD_WEBHOOK_KEY_<BOT> (BOT = CASE, BOBBY,
-#   GENTRY): where a card move wakes that bot, and the key sent as the bearer
-#   token and used to sign the body (HMAC-SHA256). URL unset = that bot is not pinged.
-# - BOARD_BOT_TOKEN_<BOT>: the bearer token that bot uses on /internal/board.
-#   Unset = that bot cannot call the API.
-if config_env() != :test do
-  board_env = fn name ->
-    case System.get_env(name) do
-      nil -> nil
-      value -> if String.trim(value) == "", do: nil, else: value
-    end
-  end
-
-  config :ex_tales_forge, :github_app,
-    app_id: board_env.("GITHUB_APP_ID"),
-    installation_id: board_env.("GITHUB_APP_INSTALLATION_ID"),
-    private_key: board_env.("GITHUB_APP_PRIVATE_KEY")
-
-  board_bots =
-    for bot <- ~w(case bobby gentry)a do
-      up = bot |> Atom.to_string() |> String.upcase()
-
-      {bot,
-       [
-         webhook_url: board_env.("BOARD_WEBHOOK_URL_" <> up),
-         webhook_key: board_env.("BOARD_WEBHOOK_KEY_" <> up),
-         api_token: board_env.("BOARD_BOT_TOKEN_" <> up)
-       ]}
-    end
-
-  config :ex_tales_forge, :board_bots, board_bots
-
-  # Web push for the installed team app (Workflow.Push): the VAPID key pair,
-  # WEB_PUSH_VAPID_PUBLIC_KEY and WEB_PUSH_VAPID_PRIVATE_KEY (secrets,
-  # url-safe base64). Unset = push is off. Workflow.Push sets the subject:
-  # the team page URL of this app (TalesForge.AppRole).
-  config :web_push_ex, :vapid,
-    public_key: board_env.("WEB_PUSH_VAPID_PUBLIC_KEY"),
-    private_key: board_env.("WEB_PUSH_VAPID_PRIVATE_KEY")
-end
-
-# Live PR feed on /team (TalesForge.PrFeed): GITHUB_FEED_TOKEN (secret), a
-# fine-grained read-only token for whyse-ab/ex-tales-forge (Pull requests,
-# Contents and Actions: read). Unset = the feed says "Live feed unavailable" and
-# nothing is fetched. The other app's running commit (on playtest / on prod) is
-# read from its GET /internal/version with COSTS_PEER_TOKEN. Not read in test.
-if config_env() != :test do
-  config :ex_tales_forge, :pr_feed_token, System.get_env("GITHUB_FEED_TOKEN")
-end
-
-# GitHub webhook (POST /webhooks/github, TalesForge.GitEvents): GITHUB_WEBHOOK_SECRET
-# (secret), the same value as in the repo's webhook settings. Unset = the
-# endpoint answers 404. Setup: docs/github-webhooks.md. Not read in test.
-if config_env() != :test do
-  config :ex_tales_forge, :github_webhook_secret, System.get_env("GITHUB_WEBHOOK_SECRET")
 end
 
 # AI spending caps in decimal USD (e.g. "2.50"). Unset or empty = that cap is off,

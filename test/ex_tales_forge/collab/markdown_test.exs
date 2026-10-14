@@ -1,7 +1,7 @@
-defmodule TalesForge.Collab.MarkdownTest do
+defmodule TalesForge.MarkdownTest do
   use ExUnit.Case, async: true
 
-  alias TalesForge.Collab.Markdown
+  alias TalesForge.Markdown
 
   describe "strip_title_heading/2" do
     test "drops a leading H1 that matches the title" do
