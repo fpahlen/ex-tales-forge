@@ -121,7 +121,8 @@ defmodule TalesForgeWeb.CreateCharacterLive do
 
   def handle_event("skill", %{"skill" => skill, "delta" => delta}, socket) do
     draft = socket.assigns.draft
-    level = Map.get(CC.skill_levels(draft), skill, 0) + String.to_integer(delta)
+    step = CC.rules(draft.adventure_id)["creation"]["skills"] |> Map.get("level_step", 1)
+    level = Map.get(CC.skill_levels(draft), skill, 0) + String.to_integer(delta) * step
     update_draft(socket, CC.set_skill(draft, skill, level))
   end
 

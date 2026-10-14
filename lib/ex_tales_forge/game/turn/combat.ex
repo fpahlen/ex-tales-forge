@@ -5,7 +5,7 @@ defmodule TalesForge.Game.Turn.Combat do
 
     * `target/4` — before the roll: finds the person that the attack is aimed
       at. An unclear target blocks the action, and the turn asks the player.
-    * `exchange/4` — after the roll: the player's d20 is the attack, and the
+    * `exchange/4` — after the roll: the player's d100 is the attack, and the
       defender may counterattack.
     * `book/4` — after the board: keeps the NPC wounds and minor foes in
       `world_state["npc_state"]`, writes the exchange to the outcome record
@@ -67,7 +67,7 @@ defmodule TalesForge.Game.Turn.Combat do
   end
 
   @doc """
-  The exchange for `target`, with the player's d20 from `mechanical`.
+  The exchange for `target`, with the player's d100 from `mechanical`.
   Returns `{exchange, foe}`: `foe` is the minor foe fighter when the server
   made one. Returns `{%{"target_unclear" => names}, nil}` for an unclear
   target and `{nil, nil}` without a target or a roll.
@@ -116,8 +116,8 @@ defmodule TalesForge.Game.Turn.Combat do
     %{
       attack: Map.get(injected, :attack, mechanical.roll),
       counter_chance: Map.get_lazy(injected, :counter_chance, &:rand.uniform/0),
-      counter: Map.get_lazy(injected, :counter, fn -> :rand.uniform(20) end),
-      death: Map.get_lazy(injected, :death, fn -> :rand.uniform(20) end)
+      counter: Map.get_lazy(injected, :counter, fn -> :rand.uniform(100) end),
+      death: Map.get_lazy(injected, :death, fn -> :rand.uniform(100) end)
     }
   end
 

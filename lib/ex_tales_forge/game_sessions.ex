@@ -68,6 +68,7 @@ defmodule TalesForge.GameSessions do
          world =
            adventure_id
            |> materialize_world()
+           |> Map.put("game_system", TalesForge.Game.DiceSystem.default())
            |> put_character(character)
            |> IntentJev.put_mode(IntentJev.mode_for_new_session(intent_jev)) do
       insert_session(attrs, adventure_id, world, character_opts)

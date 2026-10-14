@@ -155,7 +155,7 @@ defmodule TalesForge.Playtest.Reports do
     against =
       if mechanical["effective_skill"], do: " vs #{mechanical["effective_skill"]}", else: ""
 
-    [mechanical["skill"], "d20 #{roll}#{against}", mechanical["outcome"]]
+    [mechanical["skill"], "d100 #{roll}#{against}", mechanical["outcome"]]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" · ")
   end

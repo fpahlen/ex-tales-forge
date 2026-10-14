@@ -151,14 +151,14 @@ defmodule TalesForge.Game.TurnTest do
       high = %MechanicalResolution{
         skill: "insight",
         roll: 3,
-        effective_skill: 14,
+        effective_skill: 70,
         outcome: "success"
       }
 
       low = %MechanicalResolution{
         skill: "insight",
         roll: 3,
-        effective_skill: 4,
+        effective_skill: 20,
         outcome: "success"
       }
 
@@ -177,7 +177,7 @@ defmodule TalesForge.Game.TurnTest do
       high = %MechanicalResolution{
         skill: "insight",
         roll: 3,
-        effective_skill: 14,
+        effective_skill: 70,
         outcome: "success"
       }
 
@@ -189,7 +189,7 @@ defmodule TalesForge.Game.TurnTest do
       high = %MechanicalResolution{
         skill: "insight",
         roll: 3,
-        effective_skill: 14,
+        effective_skill: 70,
         outcome: "success"
       }
 

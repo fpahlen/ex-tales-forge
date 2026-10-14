@@ -86,9 +86,9 @@ defmodule TalesForge.Game.Qa0857Test do
       assert mech.combat["defender_id"] == "foe_miner"
 
       assert mech.notes =~
-               ~r/^Attack: d20 20 vs \d+ \(melee_combat \d+, a miner's Parry \d+\): miss\./
+               ~r/^Attack: d100 20 vs \d+ \(melee_combat \d+, a miner's Parry \d+\): miss\./
 
-      assert mech.notes =~ "Counterattack: d20 1 vs"
+      assert mech.notes =~ "Counterattack: d100 1 vs"
       assert MechanicalResolution.encode(mech)["combat"]["defender_id"] == "foe_miner"
 
       assert t.outcome.board.world["combat_last"]["text"] == mech.notes
@@ -135,7 +135,7 @@ defmodule TalesForge.Game.Qa0857Test do
         },
         "foe_guard" => %{"name" => "a guard", "minor" => true, "location_id" => "inn_yard"}
       },
-      "combat_last" => %{"text" => "Attack: d20 3 vs 1: miss."}
+      "combat_last" => %{"text" => "Attack: d100 3 vs 1: miss."}
     }
 
     assert [
@@ -143,7 +143,7 @@ defmodule TalesForge.Game.Qa0857Test do
              %{id: "foe_miner", wounds_label: "down · 1/1 wounds"}
            ] = PlayComponents.present_npcs(world)
 
-    assert PlayComponents.last_exchange(world) == "Attack: d20 3 vs 1: miss."
+    assert PlayComponents.last_exchange(world) == "Attack: d100 3 vs 1: miss."
   end
 
   describe "a1bed2f5 time and price" do

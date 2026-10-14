@@ -23,7 +23,7 @@ defmodule TalesForge.AICalls.TagsTest do
   describe "Tags" do
     test "for_world: adventure id plus the default game system; an explicit system wins" do
       assert Tags.for_world(%{"adventure_id" => "tin_valley"}) ==
-               %{adventure_id: "tin_valley", game_system: "skill_d20"}
+               %{adventure_id: "tin_valley", game_system: "skill_d100"}
 
       assert Tags.for_world(%{"adventure_id" => "merovingia_x", "game_system" => "merovingia"}) ==
                %{adventure_id: "merovingia_x", game_system: "merovingia"}
@@ -37,7 +37,7 @@ defmodule TalesForge.AICalls.TagsTest do
 
       assert Tags.for_session(session.id) == %{
                adventure_id: "tin_valley",
-               game_system: "skill_d20"
+               game_system: "skill_d100"
              }
 
       assert Tags.for_session(Ecto.UUID.generate()) == %{adventure_id: nil, game_system: nil}
@@ -60,7 +60,7 @@ defmodule TalesForge.AICalls.TagsTest do
           usage: %{input_tokens: 1000, output_tokens: 100}
         })
 
-      assert %AICall{call_type: "llm", adventure_id: "tin_valley", game_system: "skill_d20"} =
+      assert %AICall{call_type: "llm", adventure_id: "tin_valley", game_system: "skill_d100"} =
                Repo.get_by!(AICall, game_session_id: session.id)
     end
 
@@ -90,7 +90,7 @@ defmodule TalesForge.AICalls.TagsTest do
           status: "ok",
           latency_ms: 1,
           adventure_id: "crossroads_ledger",
-          game_system: "skill_d20"
+          game_system: "skill_d100"
         })
 
       assert %AICall{adventure_id: "crossroads_ledger"} = Repo.get_by!(AICall, purpose: "intent")

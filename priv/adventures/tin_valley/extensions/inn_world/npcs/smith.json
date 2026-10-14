@@ -1,11 +1,24 @@
 {
   "id": "smith",
-  "derive": {"race": "human", "standing": "commoner", "occupation": "laborer"},
-  "skills": {"melee_combat": 6, "history": 5},
+  "derive": {
+    "race": "human",
+    "standing": "commoner",
+    "occupation": "laborer"
+  },
+  "skills": {
+    "melee_combat": 30,
+    "history": 25
+  },
   "fee_copper": 40,
   "motivations": {
     "mood": "uneasy",
-    "personality_traits": {"openness": 4, "conscientiousness": 8, "extraversion": 4, "agreeableness": 4, "neuroticism": 6}
+    "personality_traits": {
+      "openness": 4,
+      "conscientiousness": 8,
+      "extraversion": 4,
+      "agreeableness": 4,
+      "neuroticism": 6
+    }
   },
   "hooks": [
     "She sells and mends: a hunting knife 15 copper, a spearhead 20, a short sword 6 silver; sharpening 2 copper. A blade bought here is honest steel.",
@@ -14,20 +27,47 @@
     "She has been buying cheap tin at her back door after dark. Asked kindly she will admit it; pushed hard she shuts the forge."
   ],
   "stock": [
-    {"id": "hunting_knife", "name": "Hunting knife", "price_copper": 15, "quantity": 3},
-    {"id": "spearhead", "name": "Spearhead", "price_copper": 20, "quantity": 2},
-    {"id": "short_sword", "name": "Short sword", "price_copper": 60, "quantity": 1}
+    {
+      "id": "hunting_knife",
+      "name": "Hunting knife",
+      "price_copper": 15,
+      "quantity": 3
+    },
+    {
+      "id": "spearhead",
+      "name": "Spearhead",
+      "price_copper": 20,
+      "quantity": 2
+    },
+    {
+      "id": "short_sword",
+      "name": "Short sword",
+      "price_copper": 60,
+      "quantity": 1
+    }
   ],
   "public_facts": [
     {
       "id": "smith_night_work",
       "text": "Brask's forge off the Market Square rang past midnight again. Hilde Brask wants a strong arm at the bellows, and folk whisper that the tin she works these nights carries no Guild stamp.",
-      "visibility": ["valley_inn", "inn_yard", "market_square"]
+      "visibility": [
+        "valley_inn",
+        "inn_yard",
+        "market_square"
+      ]
     }
   ],
   "maslow": "safety",
   "concerns": [
-    {"text": "Keep the forge paying while the Guild pays late", "focus": "the forge", "priority": 6},
-    {"text": "Keep quiet about the cheap tin bought at her back door", "focus": "the cheap tin", "priority": 5}
+    {
+      "text": "Keep the forge paying while the Guild pays late",
+      "focus": "the forge",
+      "priority": 6
+    },
+    {
+      "text": "Keep quiet about the cheap tin bought at her back door",
+      "focus": "the cheap tin",
+      "priority": 5
+    }
   ]
 }

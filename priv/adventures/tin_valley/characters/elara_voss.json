@@ -12,10 +12,10 @@
     "CHA": 14
   },
   "skills": {
-    "insight": 2,
-    "persuasion": 3,
-    "stealth": 2,
-    "melee_combat": 1
+    "insight": 10,
+    "persuasion": 15,
+    "stealth": 10,
+    "melee_combat": 5
   },
   "learning_points": {},
   "learning_failures": {},

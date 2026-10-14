@@ -1,12 +1,25 @@
 {
   "id": "pip",
-  "derive": {"race": "human", "standing": "underclass", "occupation": "thief"},
-  "skills": {"stealth": 7, "insight": 5},
+  "derive": {
+    "race": "human",
+    "standing": "underclass",
+    "occupation": "thief"
+  },
+  "skills": {
+    "stealth": 35,
+    "insight": 25
+  },
   "fee_copper": 0,
   "motivations": {
     "agency_tier": "normal",
     "mood": "nervous",
-    "personality_traits": {"openness": 6, "conscientiousness": 3, "extraversion": 5, "agreeableness": 6, "neuroticism": 7}
+    "personality_traits": {
+      "openness": 6,
+      "conscientiousness": 3,
+      "extraversion": 5,
+      "agreeableness": 6,
+      "neuroticism": 7
+    }
   },
   "hooks": [
     "He whistles to warn the adit when strangers come up the west road.",
@@ -14,6 +27,10 @@
   ],
   "maslow": "safety",
   "concerns": [
-    {"text": "Get out of the gang without Rusk finding out", "focus": "getting out alive", "priority": 7}
+    {
+      "text": "Get out of the gang without Rusk finding out",
+      "focus": "getting out alive",
+      "priority": 7
+    }
   ]
 }

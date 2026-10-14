@@ -8,7 +8,7 @@ defmodule TalesForge.Game.Train do
   down or dead.
 
   The session is **one free improvement attempt** (no LP spent) with **+5**
-  on the d20 (`TalesForge.Game.Progression.train/3`, decision 2026-10-07).
+  on the d100 (`TalesForge.Game.Progression.train/3`, decision 2026-10-07).
   No LP or failures are needed.
   """
 
@@ -20,7 +20,7 @@ defmodule TalesForge.Game.Train do
   @doc """
   Runs a training action. Returns the character, the attempts (tagged with
   `trainer_npc_id`), `"took_place"` or `"declined"`, and the ticks that pass
-  (one when declined). Option: `:improvement_rolls` (injected d20s for
+  (one when declined). Option: `:improvement_rolls` (injected d100s for
   tests).
   """
   @spec apply(map(), map() | nil, [String.t()] | nil, struct(), keyword()) ::
@@ -71,7 +71,7 @@ defmodule TalesForge.Game.Train do
       not is_integer(npc_skill) ->
         {:error, :no_skill_rating}
 
-      npc_skill < raw + 5 ->
+      npc_skill < raw + Progression.trainer_bonus() ->
         {:error, :gap}
 
       not (is_integer(fee_rate) and fee_rate > 0) ->

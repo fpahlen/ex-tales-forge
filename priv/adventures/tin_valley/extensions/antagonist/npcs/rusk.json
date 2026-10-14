@@ -1,12 +1,27 @@
 {
   "id": "rusk",
-  "derive": {"race": "human", "standing": "underclass", "occupation": "soldier"},
-  "skills": {"melee_combat": 8, "deception": 7, "intimidation": 7, "tactics": 6},
+  "derive": {
+    "race": "human",
+    "standing": "underclass",
+    "occupation": "soldier"
+  },
+  "skills": {
+    "melee_combat": 40,
+    "deception": 35,
+    "intimidation": 35,
+    "tactics": 30
+  },
   "fee_copper": 0,
   "motivations": {
     "agency_tier": "actor",
     "mood": "confident",
-    "personality_traits": {"openness": 5, "conscientiousness": 6, "extraversion": 5, "agreeableness": 2, "neuroticism": 3}
+    "personality_traits": {
+      "openness": 5,
+      "conscientiousness": 6,
+      "extraversion": 5,
+      "agreeableness": 2,
+      "neuroticism": 3
+    }
   },
   "hooks": [
     "He offers a hard traveller a cut of the road toll to look the other way, or to join him; he means to cheat them later.",
@@ -15,6 +30,10 @@
   ],
   "maslow": "safety",
   "concerns": [
-    {"text": "Squeeze the valley for coin before the Guild looks his way", "focus": "the road toll", "priority": 8}
+    {
+      "text": "Squeeze the valley for coin before the Guild looks his way",
+      "focus": "the road toll",
+      "priority": 8
+    }
   ]
 }

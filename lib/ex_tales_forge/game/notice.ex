@@ -35,20 +35,20 @@ defmodule TalesForge.Game.Notice do
 
   @doc """
   The detail level of a rolled action. The effective skill sets the base
-  level. A success with a margin of 5 or more, or a natural 1, adds one level.
+  level. A success with a margin of 25 or more, or a critical success, adds one level.
   A failure keeps the base level. With no roll: the effective skill one level
   lower (see `passive_level/1`), or `:low` when there is no skill.
 
       iex> alias TalesForge.Game.Schemas.MechanicalResolution, as: M
-      iex> TalesForge.Game.Notice.level(%M{skill: "insight", roll: 4, effective_skill: 3, outcome: "failure"})
+      iex> TalesForge.Game.Notice.level(%M{skill: "insight", roll: 20, effective_skill: 15, outcome: "failure"})
       :low
-      iex> TalesForge.Game.Notice.level(%M{skill: "insight", roll: 9, effective_skill: 8, outcome: "partial_success"})
+      iex> TalesForge.Game.Notice.level(%M{skill: "insight", roll: 45, effective_skill: 40, outcome: "partial_success"})
       :medium
-      iex> TalesForge.Game.Notice.level(%M{skill: "insight", roll: 2, effective_skill: 8, outcome: "success"})
+      iex> TalesForge.Game.Notice.level(%M{skill: "insight", roll: 10, effective_skill: 40, outcome: "success"})
       :high
-      iex> TalesForge.Game.Notice.level(%M{skill: "insight", roll: 1, effective_skill: 4, outcome: "success"})
+      iex> TalesForge.Game.Notice.level(%M{skill: "insight", roll: 2, effective_skill: 20, outcome: "critical_success"})
       :medium
-      iex> TalesForge.Game.Notice.level(%M{skill: "insight", roll: 18, effective_skill: 14, outcome: "failure"})
+      iex> TalesForge.Game.Notice.level(%M{skill: "insight", roll: 90, effective_skill: 70, outcome: "failure"})
       :high
       iex> TalesForge.Game.Notice.level(%M{skill: nil, roll: nil, effective_skill: nil})
       :low
@@ -67,7 +67,7 @@ defmodule TalesForge.Game.Notice do
   The level on a turn with no roll: the character's perception skill (or
   insight, the same sense today) sets the base level, one level lower.
 
-      iex> TalesForge.Game.Notice.passive_level(%{"character" => %{"skills" => %{"insight" => 13}}})
+      iex> TalesForge.Game.Notice.passive_level(%{"character" => %{"skills" => %{"insight" => 65}}})
       :medium
       iex> TalesForge.Game.Notice.passive_level(%{})
       :low
@@ -191,7 +191,7 @@ defmodule TalesForge.Game.Notice do
     end
   end
 
-  defp bonus?(%{roll: 1}), do: true
+  defp bonus?(%{outcome: "critical_success"}), do: true
 
   defp bonus?(%{roll: roll, effective_skill: skill, outcome: "success"}),
     do: skill - roll >= @rules["success_margin"]

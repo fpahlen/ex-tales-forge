@@ -93,8 +93,8 @@ defmodule TalesForge.Game.RestGrowthTest do
     assert get_in(session.world_state, ["character", "learning_points", "stealth"]) == 20.0
   end
 
-  test "default: from level 10 an unreflected skill keeps its LP and the GM hears why" do
-    {user, session} = play("I go to sleep", 10)
+  test "default: from level 50 an unreflected skill keeps its LP and the GM hears why" do
+    {user, session} = play("I go to sleep", 50)
 
     assert user =~ "Their stealth has outgrown simple practice; they need to reflect on it"
     refute user =~ "They wake a little surer"
@@ -103,7 +103,7 @@ defmodule TalesForge.Game.RestGrowthTest do
 
   test "default: reflecting on the skill at the rest lets it grow" do
     {user, session} =
-      play("I go to sleep after going over my sneaking past the guards", 10)
+      play("I go to sleep after going over my sneaking past the guards", 50)
 
     refute user =~ "outgrown simple practice"
     assert get_in(session.world_state, ["character", "learning_points", "stealth"]) == 0.0
@@ -117,7 +117,7 @@ defmodule TalesForge.Game.RestGrowthTest do
     refute user =~ @heading
     [stable | _] = String.split(user, "## Perceived facts")
     refute stable =~ "## Growth"
-    assert get_in(session.world_state, ["character", "skills", "climbing"]) == 1
+    assert get_in(session.world_state, ["character", "skills", "climbing"]) in 2..7
     assert get_in(session.world_state, ["character", "learning_points", "climbing"]) == 0.0
     assert session.world_state["character"]["improved_since_rest"] == ["climbing"]
   end

@@ -71,17 +71,17 @@ defmodule TalesForge.Game.SkillSplitTest do
 
   describe "flag on" do
     test "two parts: the server rolls each part with the injected rolls", %{session: session} do
-      t = session |> with_skill(100) |> played("I attack twice", %{skill_split: true}, [12, 20])
+      t = session |> with_skill(100) |> played("I attack twice", %{skill_split: true}, [12, 60])
 
       mech = t.outcome.mechanical
-      assert [%{"level" => 50, "roll" => 12}, %{"level" => 50, "roll" => 20}] = mech.parts
+      assert [%{"level" => 50, "roll" => 12}, %{"level" => 50, "roll" => 60}] = mech.parts
       assert Enum.map(mech.parts, & &1["outcome"]) == ["success", "partial_success"]
       assert mech.outcome == "success"
       assert per_turn(t) =~ "## Skill split (rolled by the server)"
       assert per_turn(t) =~ "- Part 1: level 50, roll 12, result success"
-      assert per_turn(t) =~ "- Part 2: level 50, roll 20, result partial_success"
+      assert per_turn(t) =~ "- Part 2: level 50, roll 60, result partial_success"
       assert all_text(t) =~ "## Skill split"
-      refute all_text(t) =~ "at -2 skill per extra action"
+      refute all_text(t) =~ "at -10 skill per extra action"
       refute all_text(t) =~ "skill_split:on"
     end
 
@@ -89,14 +89,14 @@ defmodule TalesForge.Game.SkillSplitTest do
       t =
         session
         |> with_skill(160)
-        |> played("I make three attacks", %{skill_split: true}, [1, 30, 60])
+        |> played("I make three attacks", %{skill_split: true}, [10, 30, 80])
 
       assert Enum.map(t.outcome.mechanical.parts, & &1["level"]) == [54, 53, 53]
 
       assert Enum.map(t.outcome.mechanical.parts, & &1["outcome"]) ==
                ["success", "success", "failure"]
 
-      assert per_turn(t) =~ "- Part 3: level 53, roll 60, result failure"
+      assert per_turn(t) =~ "- Part 3: level 53, roll 80, result failure"
     end
 
     test "uneven parts from the player text", %{session: session} do
@@ -141,7 +141,7 @@ defmodule TalesForge.Game.SkillSplitTest do
 
       {updated, res} =
         SkillSplit.apply(character, action("three attacks"), handler, "three attacks",
-          rolls: [20, 20, 20]
+          rolls: [80, 80, 80]
         )
 
       assert length(res.parts) == 3
@@ -153,7 +153,7 @@ defmodule TalesForge.Game.SkillSplitTest do
 
     test "the turn records one learning chance for the split", %{session: session} do
       t =
-        session |> with_skill(160) |> played("three attacks", %{skill_split: true}, [20, 20, 20])
+        session |> with_skill(160) |> played("three attacks", %{skill_split: true}, [80, 80, 80])
 
       assert t.outcome.mechanical.lp_awarded == 1.0
     end

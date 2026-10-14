@@ -492,10 +492,10 @@ defmodule TalesForge.CharacterCreation do
   The price of raising a skill from level `from` to level `to` (0 when `to`
   is not above `from`), from `creation.json` `level_costs`.
 
-      iex> TalesForge.CharacterCreation.level_cost("tin_valley", 0, 5)
-      7
-      iex> TalesForge.CharacterCreation.level_cost("tin_valley", 3, 7)
-      10
+      iex> TalesForge.CharacterCreation.level_cost("tin_valley", 0, 25)
+      35
+      iex> TalesForge.CharacterCreation.level_cost("tin_valley", 15, 35)
+      50
   """
   @spec level_cost(String.t(), non_neg_integer(), non_neg_integer()) :: non_neg_integer()
   def level_cost(adventure_id, from, to),
@@ -760,21 +760,18 @@ defmodule TalesForge.CharacterCreation do
     end)
   end
 
-  defp refund_cost(sk, kept, level) do
+  defp refund_cost(sk, kept, level), do: cost(sk, kept, level)
+
+  # Levels rise in steps of `level_step` (5 on the d100 scale). Each level
+  # costs the `level_costs` entry of its step, so one step of 5 levels costs
+  # 5 times that entry: the d20 price, scaled with the budget.
+  defp cost(sk, from, to) when to > from do
+    step = Map.get(sk, "level_step", 1)
     costs = sk["level_costs"]
     last = List.last(costs)
 
-    if level > kept,
-      do: Enum.sum(for l <- (kept + 1)..level, do: Enum.at(costs, l - 1, last)),
-      else: 0
+    Enum.sum(for l <- (from + 1)..to//1, do: Enum.at(costs, div(l - 1, step), last))
   end
-
-  defp cost(sk, from, to) when to > from,
-    do:
-      Enum.sum(
-        for l <- (from + 1)..to,
-            do: Enum.at(sk["level_costs"], l - 1, List.last(sk["level_costs"]))
-      )
 
   defp cost(_sk, _from, _to), do: 0
 
@@ -847,9 +844,13 @@ defmodule TalesForge.CharacterCreation do
   end
 
   defp raise_lowest(levels, candidates, rest, left, sk) do
+    step = Map.get(sk, "level_step", 1)
+
     next =
       candidates
-      |> Enum.filter(&(levels[&1] < sk["cap"] and cost(sk, levels[&1], levels[&1] + 1) <= left))
+      |> Enum.filter(
+        &(levels[&1] < sk["cap"] and cost(sk, levels[&1], levels[&1] + step) <= left)
+      )
       |> Enum.min_by(&levels[&1], fn -> nil end)
 
     case {next, rest} do
@@ -860,8 +861,15 @@ defmodule TalesForge.CharacterCreation do
         levels
 
       {skill, _rest} ->
-        price = cost(sk, levels[skill], levels[skill] + 1)
-        raise_lowest(Map.update!(levels, skill, &(&1 + 1)), candidates, rest, left - price, sk)
+        price = cost(sk, levels[skill], levels[skill] + step)
+
+        raise_lowest(
+          Map.update!(levels, skill, &(&1 + step)),
+          candidates,
+          rest,
+          left - price,
+          sk
+        )
     end
   end
 

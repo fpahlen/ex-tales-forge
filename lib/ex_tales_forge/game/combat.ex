@@ -5,10 +5,10 @@ defmodule TalesForge.Game.Combat do
 
   One exchange has two steps:
 
-    1. The attack. The attacker rolls a d20 for the combat skill against the
+    1. The attack. The attacker rolls a d100 for the combat skill against the
        defender's Parry (`parry/1`). The roll hits when it is equal to or
-       less than `attack_target/2`, and is not a natural 20. A natural 1
-       always hits. A hit gives the defender one wound.
+       less than `attack_target/2` and is not in the critical failure band.
+       A roll of 1 always hits. A hit gives the defender one wound.
     2. The counterattack. A defender that is still up fights back when the
        chance roll is less than `counter_chance/1`. It rolls its own combat
        skill against the attacker's Parry. A hit gives the attacker one wound.
@@ -19,7 +19,7 @@ defmodule TalesForge.Game.Combat do
 
   NPC wounds live in `world_state["npc_state"][id]` (`book/4`). An NPC at the
   wound cap is down. A hit on an NPC that is down makes the death roll of
-  `combat.md`: a d20 greater than CON/2 kills it. The death stays in the
+  `combat.md`: a d100 greater than CON × 2.5 kills it. The death stays in the
   session. A minor foe (`minor_foe/4`) has 1 wound and the untrained floor.
   """
 
@@ -40,10 +40,10 @@ defmodule TalesForge.Game.Combat do
 
   @type fighter :: map()
   @type rolls :: %{
-          required(:attack) => 1..20,
+          required(:attack) => 1..100,
           optional(:counter_chance) => float(),
-          optional(:counter) => 1..20,
-          optional(:death) => 1..20
+          optional(:counter) => 1..100,
+          optional(:death) => 1..100
         }
   @type target ::
           {:npc, String.t()} | {:foe, String.t(), String.t()} | {:unclear, [String.t()]}
@@ -53,37 +53,42 @@ defmodule TalesForge.Game.Combat do
   def combat_skills, do: @combat_skills
 
   @doc """
-  Parry from `combat.md`: Dodge/2 + 10 + (DEX - 10)/2, rounded down. Dodge is
+  Parry from `combat.md`: Dodge/2 + 50 + 5 × ((DEX - 10)/2), rounded down. Dodge is
   the effective dodge level (`Mechanics.effective_level/2`), so an untrained
   fighter uses the untrained floor.
 
-      iex> TalesForge.Game.Combat.parry(%{"stats" => %{"DEX" => 10}, "skills" => %{"dodge" => 4}})
-      12
+      iex> TalesForge.Game.Combat.parry(%{"stats" => %{"DEX" => 10}, "skills" => %{"dodge" => 20}})
+      60
   """
   @spec parry(fighter()) :: integer()
   def parry(fighter) do
     dodge = Mechanics.effective_level(fighter, "dodge")
     dex = fighter |> get_in(["stats", "DEX"]) |> to_int(10)
-    div(dodge, 2) + 10 + Integer.floor_div(dex - 10, 2)
+    div(dodge, 2) + 50 + 5 * Integer.floor_div(dex - 10, 2)
   end
 
   @doc """
-  The highest roll that hits: the skill level less the Parry above 10, at
-  least 1. Parry 10 gives the skill level.
+  The highest roll that hits: the skill level less the Parry above 50, at
+  least 1. Parry 50 gives the skill level.
 
-      iex> TalesForge.Game.Combat.attack_target(8, 12)
-      6
-      iex> TalesForge.Game.Combat.attack_target(2, 14)
+      iex> TalesForge.Game.Combat.attack_target(40, 60)
+      30
+      iex> TalesForge.Game.Combat.attack_target(10, 70)
       1
   """
   @spec attack_target(integer(), integer()) :: pos_integer()
-  def attack_target(level, parry), do: max(1, level - (parry - 10))
+  def attack_target(level, parry), do: max(1, level - (parry - 50))
 
-  @doc "True when `roll` hits `target`: a natural 1, or equal to or less than the target and not 20."
-  @spec hit?(1..20, pos_integer()) :: boolean()
+  @doc """
+  True when the d100 `roll` hits `target`: a success or a critical success
+  from `Mechanics.resolve_check/2`. A roll of 1 always hits; a roll in the
+  critical failure band always misses.
+  """
+  @spec hit?(1..100, pos_integer()) :: boolean()
   def hit?(1, _target), do: true
-  def hit?(20, _target), do: false
-  def hit?(roll, target), do: roll <= target
+
+  def hit?(roll, target),
+    do: Mechanics.resolve_check(roll, target) in ~w(success critical_success)
 
   @doc """
   The combat skill of `fighter` and its effective level: `preferred` when it
@@ -123,7 +128,7 @@ defmodule TalesForge.Game.Combat do
 
     chance =
       0.5 +
-        0.03 * (min(lvl, 14) - 4) +
+        0.006 * (min(lvl, 70) - 20) +
         0.04 * (5 - trait.("agreeableness")) +
         0.02 * (trait.("extraversion") - 5) -
         0.05 * (trait.("neuroticism") - 5) +
@@ -157,9 +162,9 @@ defmodule TalesForge.Game.Combat do
 
   @doc """
   One exchange: `attacker` attacks `defender` with `skill`, and the
-  defender may counterattack. `rolls.attack` is the attacker's d20,
+  defender may counterattack. `rolls.attack` is the attacker's d100,
   `rolls.counter_chance` (0 to 1) decides the counterattack, `rolls.counter`
-  is the defender's d20 and `rolls.death` the defender's death roll.
+  is the defender's d100 and `rolls.death` the defender's death roll.
 
   Returns a string-keyed map: `attacker`, `defender`, `attack`, `counter`
   (nil without a counterattack), `defender_wounds`, `defender_wound_max`,
@@ -209,7 +214,7 @@ defmodule TalesForge.Game.Combat do
 
   defp take_hit(true, wounds, cap, _vitality, defender, rolls) when wounds >= cap do
     con = defender |> get_in(["stats", "CON"]) |> to_int(10)
-    if Map.get(rolls, :death, 1) > div(con, 2), do: {cap, "dead"}, else: {cap, "down"}
+    if Map.get(rolls, :death, 1) > con * 2.5, do: {cap, "dead"}, else: {cap, "down"}
   end
 
   defp take_hit(true, wounds, cap, _vitality, _defender, _rolls) do
@@ -517,7 +522,7 @@ defmodule TalesForge.Game.Combat do
   def prompt_section(%{"attack" => attack} = ex) do
     lines =
       [
-        "- #{ex["attacker"]} attacks #{ex["defender"]} (#{attack["skill"]} #{attack["level"]}, #{ex["defender"]}'s Parry #{attack["parry"]}): d20 #{attack["roll"]} against #{attack["target"]}. #{hit_word(attack["hit"])}.",
+        "- #{ex["attacker"]} attacks #{ex["defender"]} (#{attack["skill"]} #{attack["level"]}, #{ex["defender"]}'s Parry #{attack["parry"]}): d100 #{attack["roll"]} against #{attack["target"]}. #{hit_word(attack["hit"])}.",
         defender_line(ex),
         counter_line(ex)
       ]
@@ -533,20 +538,20 @@ defmodule TalesForge.Game.Combat do
 
   @doc """
   A one-line text of the exchange for the mechanical resolution and the UI:
-  the d20 against the target number with the Parry, the wounds and the
+  the d100 against the target number with the Parry, the wounds and the
   counterattack. Returns nil without an attack.
 
       iex> ex = %{"attacker" => "Ezzor", "defender" => "Brenna",
-      ...>   "attack" => %{"skill" => "melee_combat", "level" => 3, "parry" => 12, "roll" => 3, "target" => 1, "hit" => false},
+      ...>   "attack" => %{"skill" => "melee_combat", "level" => 15, "parry" => 60, "roll" => 15, "target" => 5, "hit" => false},
       ...>   "defender_wounds" => 0, "defender_wound_max" => 3, "defender_vitality" => "ok",
-      ...>   "counter" => %{"skill" => "melee_combat", "level" => 9, "parry" => 10, "roll" => 4, "target" => 9, "hit" => true}}
+      ...>   "counter" => %{"skill" => "melee_combat", "level" => 45, "parry" => 50, "roll" => 20, "target" => 45, "hit" => true}}
       iex> TalesForge.Game.Combat.summary(ex)
-      "Attack: d20 3 vs 1 (melee_combat 3, Brenna's Parry 12): miss. Brenna: 0/3 wounds. Counterattack: d20 4 vs 9 (melee_combat 9, Ezzor's Parry 10): hit, Ezzor takes 1 wound."
+      "Attack: d100 15 vs 5 (melee_combat 15, Brenna's Parry 60): miss. Brenna: 0/3 wounds. Counterattack: d100 20 vs 45 (melee_combat 45, Ezzor's Parry 50): hit, Ezzor takes 1 wound."
   """
   @spec summary(map() | nil) :: String.t() | nil
   def summary(%{"attack" => a} = ex) do
     attack =
-      "Attack: d20 #{a["roll"]} vs #{a["target"]} (#{a["skill"]} #{a["level"]}, #{ex["defender"]}'s Parry #{a["parry"]}): #{String.downcase(hit_word(a["hit"]))}."
+      "Attack: d100 #{a["roll"]} vs #{a["target"]} (#{a["skill"]} #{a["level"]}, #{ex["defender"]}'s Parry #{a["parry"]}): #{String.downcase(hit_word(a["hit"]))}."
 
     wounds =
       "#{ex["defender"]}: #{ex["defender_wounds"]}/#{ex["defender_wound_max"]} wounds#{vitality_tail(ex["defender_vitality"])}."
@@ -556,7 +561,7 @@ defmodule TalesForge.Game.Combat do
         %{} = c ->
           tail = if c["hit"], do: "hit, #{ex["attacker"]} takes 1 wound.", else: "miss."
 
-          "Counterattack: d20 #{c["roll"]} vs #{c["target"]} (#{c["skill"]} #{c["level"]}, #{ex["attacker"]}'s Parry #{c["parry"]}): " <>
+          "Counterattack: d100 #{c["roll"]} vs #{c["target"]} (#{c["skill"]} #{c["level"]}, #{ex["attacker"]}'s Parry #{c["parry"]}): " <>
             tail
 
         _ ->
@@ -598,7 +603,7 @@ defmodule TalesForge.Game.Combat do
         do: "Hit: #{ex["attacker"]} takes 1 wound.",
         else: "Miss: #{ex["attacker"]} takes no wound."
 
-    "- #{ex["defender"]} counterattacks #{ex["attacker"]} (#{c["skill"]} #{c["level"]}, Parry #{c["parry"]}): d20 #{c["roll"]} against #{c["target"]}. #{result}"
+    "- #{ex["defender"]} counterattacks #{ex["attacker"]} (#{c["skill"]} #{c["level"]}, Parry #{c["parry"]}): d100 #{c["roll"]} against #{c["target"]}. #{result}"
   end
 
   defp name(fighter), do: Map.get(fighter, "name") || Map.get(fighter, "id") || "the character"

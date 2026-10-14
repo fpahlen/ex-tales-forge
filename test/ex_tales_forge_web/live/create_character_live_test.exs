@@ -83,13 +83,13 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
 
       view |> element("#next-skills") |> render_click()
       assert has_element?(view, "#skills-step")
-      assert level(view, "ranged_combat") == 7
+      assert level(view, "ranged_combat") == 35
       assert view |> element("#skill-ranged_combat") |> render() =~ "Signature"
 
       view |> element("#next-name") |> render_click()
       assert has_element?(view, "#name-step")
       assert view |> element("#summary") |> render() =~ "Elf · Ranger · former hunter"
-      assert view |> element("#summary-skills") |> render() =~ "Ranged combat 7"
+      assert view |> element("#summary-skills") |> render() =~ "Ranged combat 35"
       view |> element("#name-form") |> render_change(%{"name" => "Sela Vorn"})
       assert view |> element("#summary") |> render() =~ "Sela Vorn"
 
@@ -120,7 +120,7 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
       assert row.race == "elf"
       assert row.stats.dex == 16
       # ranger package 3/2/1 + elf Ranged Combat +3, Survival +2 + hunter, then the spread
-      assert %{"ranged_combat" => 7, "tracking" => 5, "survival" => 5} = row.skills
+      assert %{"ranged_combat" => 35, "tracking" => 25, "survival" => 25} = row.skills
       assert map_size(row.skills) >= 5
       assert row.origin["source"] == "created"
       refute Repo.get_by(Character, game_session_id: session.id, slug: "elara_voss")
@@ -228,15 +228,15 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
 
     test "an occupation gives free levels and re-suggests the build", %{view: view} do
       assert view |> element("#occupation-soldier[aria-checked=true]") |> has_element?()
-      assert view |> element("#occupation-soldier") |> render() =~ "Melee combat +2"
+      assert view |> element("#occupation-soldier") |> render() =~ "Melee combat +10"
 
       view |> element("#occupation-merchant") |> render_click()
       view |> to_stats() |> element("#next-skills") |> render_click()
 
-      # Persuasion 2 from the merchant, Melee Combat 3 from the class package
-      assert view |> element("#skill-persuasion") |> render() =~ ~r/>\s*2\s*</
+      # Persuasion 10 from the merchant, Melee Combat 15 from the class package
+      assert view |> element("#skill-persuasion") |> render() =~ ~r/>\s*10\s*</
       assert view |> element("#skill-dec-melee_combat") |> has_element?()
-      assert skill_points(view) in 0..1
+      assert skill_points(view) in 0..5
     end
 
     test "levels cost points, stop at the budget and come back", %{view: view} do
@@ -244,18 +244,18 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
       view |> element("#suggest-skills") |> render_click()
       left = skill_points(view)
 
-      # Melee Combat is free at 5 (3 class + 2 soldier); a 6th level makes it a
-      # signature skill for 3 points
-      assert level(view, "melee_combat") == 5
+      # Melee Combat is free at 25 (15 class + 10 soldier); one more step (to 30)
+      # makes it a signature skill for 15 points
+      assert level(view, "melee_combat") == 25
       assert view |> element("#skill-dec-melee_combat[disabled]") |> has_element?()
 
       view |> element("#skill-dec-climbing") |> render_click()
       view |> element("#skill-dec-climbing") |> render_click()
-      assert skill_points(view) == left + 4
+      assert skill_points(view) == left + 20
 
       view |> element("#skill-inc-melee_combat") |> render_click()
-      assert level(view, "melee_combat") == 6
-      assert skill_points(view) == left + 1
+      assert level(view, "melee_combat") == 30
+      assert skill_points(view) == left + 5
       assert view |> element("#signature-count") |> render() =~ "1"
       assert view |> element("#skill-melee_combat") |> render() =~ "Signature"
     end
@@ -286,7 +286,7 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
     test "a forced level below the free one is refused", %{view: view} do
       view |> to_stats() |> element("#next-skills") |> render_click()
       html = render_click(view, "skill", %{"skill" => "melee_combat", "delta" => "-3"})
-      assert html =~ "Melee combat starts at 5 for free"
+      assert html =~ "Melee combat starts at 25 for free"
     end
   end
 

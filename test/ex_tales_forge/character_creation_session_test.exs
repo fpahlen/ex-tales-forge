@@ -50,7 +50,7 @@ defmodule TalesForge.CharacterCreationSessionTest do
       assert row.origin == %{"source" => "created", "adventure_id" => unquote(adventure)}
       assert row.race == "halfling"
       assert row.skills == character["skills"]
-      assert row.skills["stealth"] == 7
+      assert row.skills["stealth"] == 35
 
       assert Map.from_struct(row.ocean) |> Map.take([:openness]) == %{
                openness: character["ocean"]["openness"]

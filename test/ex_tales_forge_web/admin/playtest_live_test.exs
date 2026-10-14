@@ -373,7 +373,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
 
     assert html =~ "I ask the innkeeper about the orcs."
     assert html =~ "Brenna wipes the bar and lowers her voice."
-    assert html =~ "insight · d20 7 vs 9 · success"
+    assert html =~ "insight · d100 7 vs 9 · success"
     assert html =~ "Foreshadow the nest; Brenna is scared."
     assert html =~ "Game total"
     assert html =~ "$0.0150"

@@ -1,11 +1,25 @@
 {
   "id": "herb_wife",
-  "derive": {"race": "human", "standing": "commoner", "occupation": "scholar"},
-  "skills": {"history": 9, "insight": 8, "arcana": 5},
+  "derive": {
+    "race": "human",
+    "standing": "commoner",
+    "occupation": "scholar"
+  },
+  "skills": {
+    "history": 45,
+    "insight": 40,
+    "arcana": 25
+  },
   "fee_copper": 20,
   "motivations": {
     "mood": "watchful",
-    "personality_traits": {"openness": 7, "conscientiousness": 6, "extraversion": 4, "agreeableness": 7, "neuroticism": 3}
+    "personality_traits": {
+      "openness": 7,
+      "conscientiousness": 6,
+      "extraversion": 4,
+      "agreeableness": 7,
+      "neuroticism": 3
+    }
   },
   "hooks": [
     "She stitches wounds and sells salves: a poultice for 4 copper, a night on her sickbed for a silver or a favour.",
@@ -14,17 +28,30 @@
     "She would pay in salves for help gathering moss and roots on the west road, where she no longer goes alone."
   ],
   "stock": [
-    {"id": "poultice", "name": "Healing poultice", "price_copper": 4, "quantity": 5}
+    {
+      "id": "poultice",
+      "name": "Healing poultice",
+      "price_copper": 4,
+      "quantity": 5
+    }
   ],
   "public_facts": [
     {
       "id": "maude_west_road_news",
       "text": "Old Maude, the herb-wife in the cottage off the Market Square, asks every drover for news from the west road, and says the old adit up there has been knocking again, as it did before the miners sealed it.",
-      "visibility": ["valley_inn", "inn_yard", "market_square"]
+      "visibility": [
+        "valley_inn",
+        "inn_yard",
+        "market_square"
+      ]
     }
   ],
   "maslow": "belonging",
   "concerns": [
-    {"text": "Keep the village's people whole while the Guild digs deeper", "focus": "the village's people", "priority": 6}
+    {
+      "text": "Keep the village's people whole while the Guild digs deeper",
+      "focus": "the village's people",
+      "priority": 6
+    }
   ]
 }

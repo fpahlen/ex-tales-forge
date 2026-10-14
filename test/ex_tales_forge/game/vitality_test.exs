@@ -14,7 +14,7 @@ defmodule TalesForge.Game.VitalityTest do
 
   @character %{
     "stats" => %{"CON" => 10, "STR" => 12},
-    "skills" => %{"melee_combat" => 1, "climbing" => 3},
+    "skills" => %{"melee_combat" => 5, "climbing" => 15},
     "learning_points" => %{"melee_combat" => 1.0},
     "learning_failures" => %{},
     "wounds" => 0,
@@ -88,7 +88,7 @@ defmodule TalesForge.Game.VitalityTest do
 
   test "hitting cap from below is down, not a death roll" do
     character = Map.merge(@character, %{"wounds" => 2, "vitality" => "hurt"})
-    world = apply_to(character, fail("melee_combat"), [], death_roll: 20)
+    world = apply_to(character, fail("melee_combat"), [], death_roll: 100)
 
     assert get_in(world, ["character", "wounds"]) == 3
     assert get_in(world, ["character", "vitality"]) == "down"
@@ -97,7 +97,7 @@ defmodule TalesForge.Game.VitalityTest do
 
   test "excess past cap is a death roll, not wound 4" do
     character = Map.merge(@character, %{"wounds" => 3, "vitality" => "down"})
-    world = apply_to(character, fail("melee_combat"), [], death_roll: 20)
+    world = apply_to(character, fail("melee_combat"), [], death_roll: 100)
 
     assert get_in(world, ["character", "wounds"]) == 3
     assert get_in(world, ["character", "vitality"]) == "dead"
@@ -120,7 +120,7 @@ defmodule TalesForge.Game.VitalityTest do
         "learning_points" => %{"melee_combat" => 2.0}
       })
 
-    world = apply_to(character, fail("melee_combat", 1.0), [], death_roll: 20)
+    world = apply_to(character, fail("melee_combat", 1.0), [], death_roll: 100)
 
     assert get_in(world, ["character", "vitality"]) == "dead"
     assert get_in(world, ["character", "learning_points", "melee_combat"]) == 1.0
@@ -134,7 +134,8 @@ defmodule TalesForge.Game.VitalityTest do
         "learning_points" => %{"melee_combat" => 2.0}
       })
 
-    world = apply_to(character, fail("melee_combat", 1.0), [%{"harm" => "wound"}], death_roll: 20)
+    world =
+      apply_to(character, fail("melee_combat", 1.0), [%{"harm" => "wound"}], death_roll: 100)
 
     assert get_in(world, ["character", "vitality"]) == "dead"
     assert get_in(world, ["character", "wounds"]) == 3
@@ -223,7 +224,7 @@ defmodule TalesForge.Game.VitalityTest do
         player_action,
         handler,
         fail("melee_combat", 1.0),
-        death_roll: 20
+        death_roll: 100
       )
 
     session = GameSessions.get_session!(session.id)

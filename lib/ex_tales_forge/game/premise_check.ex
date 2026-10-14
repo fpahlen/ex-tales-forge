@@ -273,7 +273,7 @@ defmodule TalesForge.Game.PremiseCheck do
 
   @doc """
   Whether a turn's stored `mechanical_resolution` is a won fight: a combat
-  skill rolled with outcome `success` or `partial_success`.
+  skill rolled with outcome `critical_success`, `success` or `partial_success`.
 
       iex> TalesForge.Game.PremiseCheck.combat_win?(%{"skill" => "melee_combat", "outcome" => "success"})
       true
@@ -284,7 +284,7 @@ defmodule TalesForge.Game.PremiseCheck do
   def combat_win?(%{"skill" => skill, "outcome" => outcome}),
     do:
       skill in ~w(melee_combat ranged_combat unarmed_combat) and
-        outcome in ~w(success partial_success)
+        outcome in ~w(critical_success success partial_success)
 
   def combat_win?(_resolution), do: false
 

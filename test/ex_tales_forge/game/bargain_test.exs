@@ -70,7 +70,7 @@ defmodule TalesForge.Game.BargainTest do
     board =
       buy(session, "I buy the rope, but I haggle",
         catalogue_v2: true,
-        haggle_rolls: %{"persuasion" => 19}
+        haggle_rolls: %{"persuasion" => 60}
       )
 
     assert before - copper(board) == 110
