@@ -10,7 +10,7 @@ status: in-review
 
 Use [TypeSafe](https://docs.typesafe.ai) **Jev** (System One) for **numeric persona-feeling scores** in the playtest loop. It is not a drop-in for the current LLM rubric judge with quoted evidence.
 
-See also [Design: playtest loop](design-playtest-loop.md) (step 6 / Cost controls).
+See also [Design: playtest loop](design-playtest-loop.md) (step 6 / Cost controls) and [Design: Jev as player-intent gate](design-jev-intent-gate.md) (the second planned Jev use).
 
 ## Decision (first cut)
 

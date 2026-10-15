@@ -15,6 +15,21 @@ Target:
 - **Secrets:** one company vault (1Password or Infisical, see secrets card 1bdb4642). Every secret has an owner role, not a person.
 - **People:** personal accounts are only members, with 2FA. They never own tokens, apps or billing.
 
+## Status: Fly org move done (2026-10-14)
+
+The two Tales Forge Fly apps are now in the Fly org `whyse-ab` (Whyse AB). We did this on 2026-10-14, playtest first and then production.
+
+| App | New org | New database (org `whyse-ab`) | Old database (org `personal`) |
+|---|---|---|---|
+| `tales-forge-playtest` | `whyse-ab` | `tales-forge-playtest-db-wa` (Fly Postgres flex 18.1, arn, 1 GB, shared-cpu-1x 512 MB) | `tales-forge-playtest-db` (kept) |
+| `tales-forge` | `whyse-ab` | `tales-forge-db-wa` (Fly Postgres flex 18.1, arn, 1 GB, shared-cpu-1x 1 GB) | `tales-forge-db` (kept) |
+
+- We copied the data with `pg_dump` and `pg_restore`. The row count of each table is the same in the old and the new database.
+- `DATABASE_URL` on each app now points to the new database. The other Fly secrets stayed the same after the move.
+- The GitHub repo secrets `FLY_API_TOKEN` and `FLY_API_TOKEN_PLAYTEST` now contain new app deploy tokens. The old tokens did not work after the move.
+- **Old databases are kept.** `tales-forge-db` and `tales-forge-playtest-db` stay in the `personal` org as a backup. Do not delete them until Fredrik gives his OK.
+- Not done yet: the Fly org is `whyse-ab`, not `whyse` as in section 1. The builder app `fly-builder-crimson-raindrop-2162` and billing are not moved. The box Fly token is still Fredrik's user login.
+
 ## 2. Inventory
 
 Status: **V** = Verified on 2026-10-14. **A** = Assumed (not checked).
