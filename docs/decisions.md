@@ -11,6 +11,52 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-15: Build Workflow with Workflow: its own workspace
+
+- **Decision (fredrik@whyse.se, 2026-10-15, on the idea board):** build it. Goal: Workflow is its own first client. Workflow development gets its own workspace with its own board, goals, chat and repo (whyse-ab/workflow). The Tales Forge workspace keeps the game cards.
+- **Why:** **Goal.** Workflow is its own first client. Whyse gets a separate Workflow app for Workflow development, with its own board, goals, chat and repo (`whyse-ab/workflow`). The Tales Forge app keeps the game cards. We use Workflow to build Workflow.
+
+**Decision on the card (Fredrik, 14 Oct).** Each client gets its own Workflow app in its own Fly org. One app does not host many workspaces. This answers the first open question, and it makes the founder switcher question go away: each app has its own address.
+
+**What the code has today (`whyse-ab/workflow`, branch `card5`, high confidence).**
+1. One app serves one team. The data has no team id (`Workflow.Team`). This fits the decision, so we do not add workspaces to the database.
+2. The team config (founders, bots, column labels, seed goals) comes from `priv/team/data.json` and `priv/team/content.json`. The app reads these files when it compiles. So today one build serves one client only.
+3. The same `data.json` also holds the Tales Forge presentation and game data (personas, Jev, playtest numbers, costs). A Whyse app would show game content on `/team`.
+4. The PR feed follows one repo, set in `config/config.exs` (`whyse-ab/ex-tales-forge`).
+5. The product app links default to `https://tales-forge.fly.dev` (`TalesForge.AppRole`, `PRODUCT_APP_URL`, and some fixed links in admin sections). The Whyse app has no separate product app.
+6. The card links in board wake-ups still point to `tales-forge.fly.dev`, not to the Workflow host. This wake-up had that old link.
+7. A wake-up body has no field that names the app. With two apps, a bot cannot tell which host to call back.
+8. `scripts/copy_tables.sh` copies whole tables. It cannot move only some cards.
+
+**Plan.**
+1. Move the client config out of the build. Each app reads its client file at start-up (for example `CLIENT_CONFIG_PATH`, or `priv/clients/<client>/`). Tales Forge and Whyse each get one file.
+2. Split the game content from the Workflow config. The `/team` panels that need game data show only when the client has a product app.
+3. Make the PR feed repos and the product app URL part of the client config. A client can have zero product apps.
+4. Add `app` (the Fly app name) and `base_url` to each wake-up body. Build the card URL from the Workflow host.
+5. Set up the Whyse app with the Provisioner (card 4133ebf2): Fly org, app, database, GitHub sign-in team, bot tokens and webhooks for Case, Bobby and Gentry.
+6. Add a card move task: export the chosen cards with comments, history, votes, links, images, edits and approvals from one app, and import them in the other. Keep the original ids and dates. Run it as a dry run first, then compare counts.
+7. Move the open Workflow cards and the chosen goals. Leave a short comment on each old card with the new link, then archive it.
+8. Point the bots to two hosts. Each bot routine reads `base_url` from the wake-up.
+
+**Done when.**
+- The Whyse app runs in its own Fly org with its own board, chat, goals and repo.
+- The open Workflow cards are on the Whyse board with their full history.
+- The Tales Forge board has no open Workflow cards.
+- The Whyse `/team` page shows no game content.
+- A bot wake-up from each app calls back to the correct host.
+
+**Order.** The Provisioner (4133ebf2) must work first, or we set up the Whyse app by hand once and then check the Provisioner against it. Steps 1 to 4 can start now on the Tales Forge app, with no change that founders see.
+
+**Risks.**
+- A card move can lose comments or images. Mitigation: dry run, count compare, keep the old cards archived (not deleted).
+- Bots can call the wrong host. Mitigation: `base_url` in each wake-up, and each app has its own bot tokens.
+- Two boards split the attention of founders. Mitigation: the inbox on each app, and a link between the two apps in the header.
+
+**Cost.** L in total. Client config and wake-up fields: M. Card move task: M. Whyse app set-up: S with the Provisioner, M by hand. Verdict: feasible with caveats. Rough cost: L.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-e639078c-fb14-4365-8508-2917bca94fd8)
+
+<!-- board:idea:e639078c-fb14-4365-8508-2917bca94fd8 -->
+
 ## 2026-10-15: Installable app (PWA) with dice icon
 
 - **Decision (fredrik@whyse.se, 2026-10-15, on the idea board):** build it. Make Tales Forge (prod and playtest) installable as an app with the dice logo as the icon: manifest, install-only service worker, icons, iOS tags. Playtest installs as "Tales Forge Playtest".
