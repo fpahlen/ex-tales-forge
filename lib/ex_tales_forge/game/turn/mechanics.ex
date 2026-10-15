@@ -18,6 +18,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.SkillSplit
+  alias TalesForge.Game.TargetCheck
   alias TalesForge.Game.Turn
   alias TalesForge.Game.Turn.Combat, as: TurnCombat
   alias TalesForge.Game.TurnApply
@@ -62,6 +63,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
       resolved
       |> premise_block(player_action, turn.premise.first)
       |> apply_outcomes(world, apply?)
+      |> target_block(world)
 
     ruled_before_target =
       premised
@@ -158,6 +160,29 @@ defmodule TalesForge.Game.Turn.Mechanics do
     action = player_action.action
     unrolled = %{action | parameters: Map.delete(action.parameters, "skill")}
     {blocked, %PlayerAction{player_action | action: unrolled}}
+  end
+
+  # A dead person, or a social check at a person who is elsewhere
+  # (TalesForge.Game.TargetCheck): the action is blocked with the reason.
+  defp target_block({played, %{state_hints: %{"rejected" => true}} = handler}, _world),
+    do: {played, handler}
+
+  defp target_block({played, handler}, world) do
+    case TargetCheck.reason(world, played.action) do
+      nil ->
+        {played, handler}
+
+      reason ->
+        blocked = %HandlerResult{
+          handler: "narrate",
+          notes: "Target check: the action is blocked.",
+          state_hints: %{"target_rejected" => true, "rejected" => true, "reason" => reason}
+        }
+
+        action = played.action
+        unrolled = %{action | parameters: Map.delete(action.parameters || %{}, "skill")}
+        {%PlayerAction{played | action: unrolled}, blocked}
+    end
   end
 
   # TURN_STATE_FROM_MECHANICS=on (provisional rule): "pay for a room" with

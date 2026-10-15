@@ -144,7 +144,14 @@ defmodule TalesForge.GameSessionsTest do
       |> Repo.all()
       |> Enum.find(&(&1.game_session_id == session.id))
 
-    assert turn.mechanical_resolution["outcome"] in ["success", "partial_success", "failure"]
+    assert turn.mechanical_resolution["outcome"] in [
+             "critical_success",
+             "success",
+             "partial_success",
+             "failure",
+             "critical_failure"
+           ]
+
     assert is_integer(turn.mechanical_resolution["roll"])
 
     session = GameSessions.get_session!(session.id)

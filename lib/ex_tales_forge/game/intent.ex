@@ -169,6 +169,17 @@ defmodule TalesForge.Game.Intent do
 
   # Speaking to a person who is not here but is reachable (a speak with
   # an absent npc_id): the character goes to them.
+  # A persuasion, deception or intimidation at a person elsewhere stays a
+  # speak: the turn tells the player where the person is and rolls nothing
+  # (TalesForge.Game.TargetCheck; QA 2026-10-15, Henrik). Before, the game
+  # moved the character to them with no roll.
+  defp normalize_move(
+         %SingleAction{action_type: :speak, parameters: %{"skill" => skill}} = action,
+         _context
+       )
+       when skill in ~w(persuasion deception intimidation),
+       do: action
+
   defp normalize_move(%SingleAction{action_type: type, target: target} = action, context)
        when type in [:speak, :other, :freeform] and is_binary(target) do
     with %{"location_id" => _} <- context |> Map.get("npc_locations", %{}) |> Map.get(target),

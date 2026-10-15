@@ -73,7 +73,9 @@ defmodule TalesForge.Game.Context do
 
   defp npc_locations(npc_state, present_npcs) when is_map(npc_state) do
     npc_state
-    |> Enum.reject(fn {npc_id, _} -> npc_id in present_npcs end)
+    |> Enum.reject(fn {npc_id, detail} ->
+      npc_id in present_npcs or (is_map(detail) and detail["vitality"] == "dead")
+    end)
     |> Enum.filter(fn {_npc_id, detail} -> is_binary(detail["location_id"]) end)
     |> Map.new(fn {npc_id, detail} ->
       {npc_id, %{"name" => detail["name"] || npc_id, "location_id" => detail["location_id"]}}
@@ -449,20 +451,27 @@ defmodule TalesForge.Game.Context do
     end
   end
 
+  # QA 2026-10-15 (Gentry, session 99817343): an empty list means nobody is
+  # here. Only a world with no list at all (an old session) falls back to
+  # Marta. A dead person is never present: the GM must not play them.
   defp present_npcs_for(world) do
-    present = Map.get(world, "present_npcs")
+    state = Map.get(world, "npc_state") || %{}
 
-    cond do
-      is_list(present) and present != [] ->
-        present
+    present =
+      case Map.get(world, "present_npcs") do
+        list when is_list(list) -> list
+        _ -> if adventure_id(world) == "tin_valley", do: [], else: ["marta_kellen"]
+      end
 
-      adventure_id(world) == "tin_valley" ->
-        present || []
-
-      true ->
-        ["marta_kellen"]
-    end
+    Enum.reject(present, &dead?(state, &1))
   end
+
+  @doc "True when the npc_state marks `npc_id` as dead."
+  @spec dead?(map(), String.t()) :: boolean()
+  def dead?(npc_state, npc_id) when is_map(npc_state),
+    do: get_in(npc_state, [npc_id, "vitality"]) == "dead"
+
+  def dead?(_npc_state, _npc_id), do: false
 
   defp exit_names(world, exits) do
     Enum.into(exits, %{}, fn exit_id ->
