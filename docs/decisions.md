@@ -1580,3 +1580,12 @@ None right now. (Prose-only GM vs structured reply format: decided on 2026-10-08
 - A founder OK is still needed for a major version bump, for any code change needed by the fix, and for a fix that changes player-facing behaviour.
 - High and critical advisories are fixed immediately, also outside working hours, under the same rules.
 
+
+## 2026-10-15: Persona focus group v1
+
+- Decided by: Fredrik
+- **Decision:** the five playtest personas (Hawk, Paul, Lotta, Lars, and Ronny as the red team) answer a fixed question bank about the game. A founder runs `mix focus_group.run` after a playtest batch. `FOCUS_GROUP_ENABLED` is off by default.
+- The brief is the fixed product-gap list (`priv/playtest/focus_group/gaps.md`, from the playtest summary and the forum research) plus a summary of each persona's last finished run. The brief has a hard cap of 1,200 tokens.
+- Each persona gets one LLM call with purpose `persona_interview` and a typed reply. Its cost goes to its own bot spend bucket. Elixir checks the reply, groups the improvements by product gap and writes the report to `docs/research/`. A short digest goes on the idea card.
+- The persona text comes from `TalesForge.Playtest.Personas` only. A shared Personality API for NPCs and interview speakers is a later, separate card.
+- **Why:** the personas give structured feedback on the game for little cost. The answers are synthetic, so we read them next to real playtest and forum evidence.
