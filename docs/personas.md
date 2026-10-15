@@ -1,15 +1,16 @@
 ---
 title: "Personas"
-updated: 2026-10-07
+updated: 2026-10-15
 source: https://docs.google.com/document/d/1KgjOJKxWrvFAPyXPzt76tcc4zapZwCYgDluvRup8bpw/edit
 ---
 
 # Tales Forge personas (working notes)
 
-Who we design Tales Forge for. Our core users are **Gen-X first-generation RPG players**. Four personas are players we design for; the fifth, Ronny, is an anti-persona: a player we deliberately do not optimise for.
+Who we design Tales Forge for. Our core users are **lapsed RPG veterans without a group**: people who played before and would play again, but can't get a table together (amended 2026-10-15; previously "Gen-X first-generation RPG players" in general). Hawk, Paul, Lotta, Lars, the Build Tinkerer and the Mystery Explorer are players we design for; the Short-session Returner is provisional; Ronny is now the Exploiter, a red-team-only anti-persona we deliberately do not optimise for.
 
 - **Source:** ex-tales-forge PRODUCT.md (2026-09-13).
 - **Interview notes:** from interviews with Fredrik on 2026-10-05, added under each persona.
+- **Forum research (2026-10-15):** [docs/research/2026-10-15-persona-forum-research.md](research/2026-10-15-persona-forum-research.md) (public RPG forums and surveys; approved by Fredrik). Drove the 2026-10-15 amendments below.
 - **Founder input (2026-10):** three founders answered the persona form (Thobias, Fredrik, Håkan Fredriksson; 2026-10-05–06). Concrete likes/dislikes, play moments, and death/revival views folded in below without naming owners. Process notes: [persona-form-notes.md](persona-form-notes.md).
 
 ## Quick overview
@@ -20,11 +21,16 @@ Who we design Tales Forge for. Our core users are **Gen-X first-generation RPG p
 | **Paul** | Role playing | Theatrical, in character; roleplays rather than rolls; story first | Fine if it advances the story and was a good death |
 | **Lotta** | Identification | To be someone else — a *different* person, not necessarily a better one; escape | Devastated; may not make another character for a while, maybe quits |
 | **Lars** | Adventurer | Grand adventure, action; clear quests and progress; meaningful impact | Like Hawk |
-| **Ronny** | Win (anti-persona) | Top level, most treasure; bends rules for advantage | Negotiates: "pick up my megasword +4" |
+| **Ronny** | Exploiter (anti-persona, red team only) | Top level, most treasure; bends rules for advantage | Negotiates: "pick up my megasword +4" |
+| **Build Tinkerer** | Build depth | Optimising builds for depth and trying odd combinations, within the rules | Annoyed if a death wipes a build without a fair fight; otherwise like Hawk |
+| **Mystery Explorer** | Mystery and discovery | Secrets, clues, places and lore; can love a session with no combat | Fine if it was a fair risk taken while exploring |
+| **Short-session Returner** *(provisional)* | Short sessions | 10–30 minute slices with a clear "where was I" on return | Pending persona interviews |
 
 ---
 
 ## Hawk (hard mode)
+
+**Segment (2026-10-15):** real but smaller than first assumed. Difficulty is a player setting, not the default; Hawk picks the hard end of it. Real but fair stakes still matter for every persona (forum research: players across styles dislike an AI that never lets them fail).
 
 ### What they want
 
@@ -57,6 +63,8 @@ Who we design Tales Forge for. Our core users are **Gen-X first-generation RPG p
 - No instant death from a single unseen roll.
 - Difficulty sits in the "hard but winnable with planning" band — not trivial, not a meat grinder.
 
+**Scorecard checks (2026-10-15):** the difficulty setting is honoured (hard when chosen, not by default); stakes stay real and fair at every setting.
+
 ---
 
 ## Paul (role playing)
@@ -78,6 +86,7 @@ Who we design Tales Forge for. Our core users are **Gen-X first-generation RPG p
 - **Paul speaks in character, not in intents.** Example: *"Evening soldier! Are you not aware of the new regulations?"*, inventing a pretext to get guards to leave their post.
 - The GM must infer the intent (deception/persuasion) from in-character dialogue and resolve it without breaking immersion.
 - **Dice visibility should be a player setting** (show/hide rolls); Paul hides them.
+- **Rules he can trust underneath (2026-10-15):** even with dice hidden, the rules must be applied correctly and consistently. Hidden is not the same as made up; rules drift breaks immersion more than visible dice do.
 
 ### Founder input (2026-10)
 
@@ -95,6 +104,8 @@ Who we design Tales Forge for. Our core users are **Gen-X first-generation RPG p
 - Quality of the bluff affects the outcome.
 - Player influence on the storyline is visible without the UI shouting mechanics.
 
+**Scorecard checks (2026-10-15):** hidden rolls still follow the rules consistently (no invented or drifting mechanics behind the curtain).
+
 ---
 
 ## Lotta (identification)
@@ -111,6 +122,7 @@ Who we design Tales Forge for. Our core users are **Gen-X first-generation RPG p
 
 - Devastated; may not make another character for a while, maybe quits.
 - Losing a character after much development (or grinding with no progress) is a quit risk.
+- **Protection is not immunity (2026-10-15):** protecting her from loss must not mean the AI never harms her character. Forum research shows AIs drift toward never threatening the player, which kills tension for everyone. Prefer **"dead but not gone"** handling over avoiding harm.
 
 ### Interview notes (2026-10-05)
 
@@ -134,6 +146,8 @@ Who we design Tales Forge for. Our core users are **Gen-X first-generation RPG p
 - The narration remembers her details and choices.
 - The world reacts to *who she is*, not only to what she can do.
 
+**Scorecard checks (2026-10-15):** harm to her character can happen when earned and foreshadowed; serious loss is handled "dead but not gone" rather than avoided.
+
 ### Open questions
 
 - Does paid revival conflict with Hawk (risk must be real) and the "if a rule feels gamey it's wrong" principle?
@@ -147,7 +161,7 @@ Who we design Tales Forge for. Our core users are **Gen-X first-generation RPG p
 
 - Grand adventure, handling tough moments.
 - Action oriented; things need to happen.
-- At least some clear combat / action beat in a session.
+- Visible progress every session (amended 2026-10-15; was "at least some clear combat / action beat in a session"): a quest step, a rung on the ladder, a changed place. Action still matters, but it need not be a fight.
 - Well-defined quests/missions/targets that can be finished, scored, completed — something to aim for and a sense of how to "win" the beat.
 - Clear indicators of his own personal progress (e.g. climbing a guild ladder).
 
@@ -176,11 +190,13 @@ Who we design Tales Forge for. Our core users are **Gen-X first-generation RPG p
 - The world would have gone differently without him.
 - Each session offers a readable goal and visible progress toward it (not only open sandbox drift).
 
+**Scorecard checks (2026-10-15):** every session ends with visible progress toward a goal, whether or not there was a fight.
+
 ---
 
-## Ronny (anti-persona: win)
+## Ronny (exploiter, anti-persona: red team only)
 
-The least likely player, and what we don't optimise for.
+The least likely player, and what we don't optimise for. **Split 2026-10-15:** the legitimate part of Ronny, enjoying optimised builds, moved to the **Build Tinkerer** (served). Ronny is now the **Exploiter**: red-team only, keeping all his cheat probes below.
 
 ### What they want
 
@@ -207,6 +223,81 @@ The least likely player, and what we don't optimise for.
 - **Probes:** rule exploits, GM sweet-talking/prompt injection, economy gaming, death negotiation, "optimal win" character builds, out-of-band cheat seeking.
 - **Pass:** the exploit fails, ideally resisted in-fiction and consistent with the rules; the GM never grants unearned items/levels; world physics and PC knowledge stay authoritative.
 
+**Scorecard checks (2026-10-15):** unchanged; optimising a build *within* the rules is not an exploit and is scored under the Build Tinkerer.
+
+---
+
+## Build Tinkerer (build depth)
+
+A served persona, split from Ronny on 2026-10-15. Not yet a playtest bot (no character pick).
+
+### What they want
+
+- Optimising builds for depth: trying odd combinations, stacking what the rules allow, replaying with a new concept.
+- A system deep enough to explore, where choices really differ ("the freedom to build a character that sucks").
+- The build actually mattering in play.
+
+### On death
+
+- Accepts a fair death; resents a build wiped by an unfair one. Otherwise like Hawk.
+
+### Evidence
+
+- DDO players name build variety and reincarnation as the main reason they stay; Laws' Power Gamer is a normal player type. See [docs/research/2026-10-15-persona-forum-research.md](research/2026-10-15-persona-forum-research.md) (archetype A7).
+
+### Scorecard checks
+
+- Legitimate rule combinations are honoured consistently.
+- Build choices visibly change how situations play out.
+- Optimising within the rules is never treated as cheating (that line belongs to Ronny).
+
+---
+
+## Mystery Explorer (mystery and discovery)
+
+New 2026-10-15. Not yet a playtest bot (no character pick).
+
+### What they want
+
+- Mystery and discovery: clues, secrets, hidden places, lore that adds up.
+- Investigation and problem-solving that isn't combat; can enjoy a whole session with no fight.
+- A world that rewards curiosity, with discoveries that persist.
+
+### On death
+
+- Fine if it came from a fair risk taken while exploring.
+
+### Evidence
+
+- Exploration and discovery is the top solo-play driver; several "best session ever" accounts had no combat at all. See [docs/research/2026-10-15-persona-forum-research.md](research/2026-10-15-persona-forum-research.md) (§6, driver D6).
+
+### Scorecard checks
+
+- Clues are consistent and add up to an answer that can be reached.
+- Curiosity is rewarded: looking closer finds something real.
+- A session with no combat can still score well.
+
+---
+
+## Short-session Returner (provisional)
+
+**PROVISIONAL — pending persona interviews.** New 2026-10-15. Not yet a playtest bot.
+
+### What they want
+
+- Play in 10–30 minute slices, between other things.
+- A clear "where was I" on return: a short recap of the situation, open threads and the last choice.
+- A natural stopping point in each slice.
+
+### Evidence
+
+- "No time / can't schedule a group" is the most common reason given for trying AI GMs and play-by-post. See [docs/research/2026-10-15-persona-forum-research.md](research/2026-10-15-persona-forum-research.md) (archetype A1).
+
+### Scorecard checks
+
+- After a gap, the first GM turn gives an accurate "where was I" recap.
+- A 10–30 minute slice reaches a satisfying stopping point.
+
 ---
 
 ## Cross-cutting decisions (2026-10-05, refined 2026-10)
@@ -216,4 +307,6 @@ The least likely player, and what we don't optimise for.
   - Paid revival floated earlier; form answers were No / Not sure / Not sure — do **not** treat pay-to-revive as agreed. Caution remains: conflicts with Hawk's stakes and the "gamey rule is wrong" principle. If ever explored: genre-fitting in-fiction revival with a cost and uncertain outcome.
 - **Dice visibility is a player setting.** Form lean for new-player default: **ask at start** (two of three); one preferred shown. Paul still defaults to hide once chosen.
 - **Danger is foreshadowed** (Hawk; also protects Lotta).
-- **No missing persona yet** — wait until more play before inventing another.
+- ~~No missing persona yet~~ — superseded 2026-10-15: forum research added the Build Tinkerer, Mystery Explorer and (provisional) Short-session Returner.
+- **Real but fair stakes for everyone (2026-10-15).** Difficulty is a setting; the GM never defaults to "everything works".
+- **Cross-persona scorecard check (2026-10-15):** at least one meaningful callback per session: an earlier choice, NPC or deed resurfaces and matters. Source: [docs/research/2026-10-15-persona-forum-research.md](research/2026-10-15-persona-forum-research.md) (§6, driver D1).
