@@ -11,6 +11,33 @@ Open questions waiting for a decision live in the [decision queue](../decisions/
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
+## 2026-10-15: Provisioner: set up a new Workflow client without copying secrets
+
+- **Decision (fredrik@whyse.se, 2026-10-15, on the idea board):** build it. Goal: set up a new client (example: BabyNord) for Workflow with one command, so no person copies a password, API key or token between 1Password, GitHub and Fly.
+- **Why:** **Goal.** One command sets up a new Workflow client so nobody copies passwords, API keys or tokens between 1Password, GitHub and Fly.
+
+**Already decided (Fredrik, 14 Oct).** Each client gets its own Workflow app in its own Fly org. No shared multi-workspace app. Whyse (Workflow itself) is one client; Tales Forge is another. Agents (Grok Bot, Muse, Dot, …) are part of the client file, with their board tokens, webhook URLs and keys provisioned the same way.
+
+**What we have today.** Deploy and bot secrets are set by hand (`fly secrets set`, GitHub Actions secrets) as in DEPLOY-FLY.md. The whyse-ab/workflow repo exists but is still a shell (README only). The whyse-workflow cutover on 14 Oct showed the pain: many copy steps. Card Workflow split 6/6 (Team setup) still says “founder or Bobby by hand with a checklist for now” for Fly app, database and secrets — this card replaces that path.
+
+**Design (keep as on the card).**
+1. `clients/<client>.exs` — name, GitHub repo, Fly org and app, region, agents and roles, every secret with source: generated, 1Password, or entered once.
+2. `mix provision <client> --plan` — what is missing in GitHub, Fly and 1Password; never prints a value.
+3. `mix provision <client> --apply` — creates what is missing, in order, idempotent. Generated secrets go straight into Fly and GitHub. Third-party keys are read from the client’s 1Password vault via a service account (`op`). Fingerprints, place and date are stored; not the values.
+4. `mix provision <client> --rotate <SECRET>` — new value on both ends.
+5. Manual once per client (keep): create the Fly org with billing, create the 1Password vault, paste the client’s own third-party keys, and paste an agent platform’s webhook URL/key when that platform has no API.
+
+**Where it lives.** Mix tasks in whyse-ab/workflow (the product repo), driving `op`, `gh` and `flyctl`. First real run: provision the Whyse client (dogfood card e639078c), then Tales Forge.
+
+**Overlap.** Ideas card “Secrets: one source per client” (1bdb4642) is the longer story (one vault as source of truth, scheduled sync). This card is v1: generate, write, read 1Password, rotate on demand. Fold or park the Secrets card until we need vault-led sync.
+
+**Caveats.** Fly org + billing stays manual. Agent platforms without an API stay paste-once. `--apply` should run on a trusted founder machine with CLI auth, not in CI, until we have a locked-down runner. The secrets panel (set / missing / old) needs a small UI or CLI report in the same work.
+
+**Rough build order.** (1) Manifest schema + `--plan` against one real client. (2) `--apply` for Fly app, Postgres, generated secrets, GitHub Actions secrets. (3) 1Password reads for third-party keys. (4) Agent tokens and webhooks for Grok Bot. (5) `--rotate` and fingerprint store. (6) Dogfood Whyse, then Tales Forge. Verdict: feasible with caveats. Rough cost: L.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-4133ebf2-3675-4f0b-a751-027d6a527702)
+
+<!-- board:idea:4133ebf2-3675-4f0b-a751-027d6a527702 -->
+
 ## 2026-10-15: Build Workflow with Workflow: its own workspace
 
 - **Decision (fredrik@whyse.se, 2026-10-15, on the idea board):** build it. Goal: Workflow is its own first client. Workflow development gets its own workspace with its own board, goals, chat and repo (whyse-ab/workflow). The Tales Forge workspace keeps the game cards.
