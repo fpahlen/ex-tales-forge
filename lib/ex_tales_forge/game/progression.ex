@@ -51,6 +51,7 @@ defmodule TalesForge.Game.Progression do
   `TalesForge.Playtest.Growth` counts per run.
   """
 
+  alias TalesForge.Game.Mechanics
   alias TalesForge.Game.WorldClock
 
   @trainer_bonus 25
@@ -392,9 +393,21 @@ defmodule TalesForge.Game.Progression do
       |> Map.put_new("learning_points", %{})
       |> then(&if improved, do: put_in(&1, ["skills", skill], new_level), else: &1)
 
+    # The sheet shows the effective level (with the stat bonus or the
+    # untrained floor), so the entry also has it before and after (QA
+    # 2026-10-15: "melee combat +5 (5 to 10)" while the sheet went 10% to 15%).
     entry =
       %{"skill" => skill, "roll" => roll, "raw_skill" => level, "improved" => improved}
       |> then(&if improved, do: Map.put(&1, "gain", new_level - level), else: &1)
+      |> then(
+        &if improved,
+          do:
+            Map.merge(&1, %{
+              "effective_before" => Mechanics.effective_level(character, skill),
+              "effective_after" => Mechanics.effective_level(updated, skill)
+            }),
+          else: &1
+      )
 
     {updated, entry}
   end

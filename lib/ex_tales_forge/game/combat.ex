@@ -201,7 +201,13 @@ defmodule TalesForge.Game.Combat do
 
   Returns a string-keyed map: `attacker`, `defender`, `attack`, `counter`
   (nil without a counterattack), `defender_wounds`, `defender_wound_max`,
-  `defender_vitality` (`ok`, `hurt`, `down` or `dead`) and `attacker_wounded`.
+  `defender_vitality` (`ok`, `hurt`, `down` or `dead`), `self_wound` and
+  `attacker_wounded`.
+
+  A critical miss wounds the attacker (`combat.md`: the attack goes wrong and
+  the attacker takes normal weapon damage), so `self_wound` and
+  `attacker_wounded` are true (QA 2026-10-15 retest: the prose told the
+  wound and the sheet stayed at 0/3).
   """
   @spec exchange(fighter(), fighter(), String.t() | nil, rolls()) :: map()
   def exchange(attacker, defender, skill, rolls) do
@@ -221,6 +227,9 @@ defmodule TalesForge.Game.Combat do
       if vitality in ~w(ok hurt) do
         counterattack(attacker, Map.put(defender, "wounds", wounds), rolls)
       end
+
+    self_wound = result == "critical_failure"
+    attacker_wounds = Enum.count([self_wound, counter_hit?(counter)], & &1)
 
     %{
       "attacker" => name(attacker),
@@ -244,7 +253,9 @@ defmodule TalesForge.Game.Combat do
       "defender_wounds" => wounds,
       "defender_wound_max" => cap,
       "defender_vitality" => vitality,
-      "attacker_wounded" => (counter && counter["hit"]) || false
+      "self_wound" => self_wound,
+      "attacker_wounds" => attacker_wounds,
+      "attacker_wounded" => attacker_wounds > 0
     }
   end
 
@@ -277,6 +288,14 @@ defmodule TalesForge.Game.Combat do
     after_hit = wounds + 1
     {after_hit, vitality(after_hit, cap)}
   end
+
+  defp self_wound_line(%{"self_wound" => true} = ex),
+    do: "- #{ex["attacker"]} takes 1 wound from the critical miss. The server books it."
+
+  defp self_wound_line(_ex), do: nil
+
+  defp counter_hit?(%{"hit" => true}), do: true
+  defp counter_hit?(_counter), do: false
 
   defp counterattack(attacker, defender, rolls) do
     chance = counter_chance(defender)
@@ -581,6 +600,7 @@ defmodule TalesForge.Game.Combat do
     lines =
       [
         "- #{ex["attacker"]} attacks #{ex["defender"]} (#{level_text(attack)}, #{ex["defender"]}'s Parry #{attack["parry"]}): d100 #{attack["roll"]} against #{attack["target"]}. #{sentence(band_word(attack))}.#{critical_note(attack)}",
+        self_wound_line(ex),
         death_line(ex),
         defender_line(ex),
         counter_line(ex)
@@ -632,7 +652,11 @@ defmodule TalesForge.Game.Combat do
           if ex["defender_vitality"] in ~w(ok hurt), do: "No counterattack.", else: nil
       end
 
-    [attack, death_text(ex), wounds, counter] |> Enum.reject(&is_nil/1) |> Enum.join(" ")
+    self_wound = if ex["self_wound"], do: "#{ex["attacker"]} takes 1 wound."
+
+    [attack, self_wound, death_text(ex), wounds, counter]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
   end
 
   def summary(_exchange), do: nil
@@ -673,17 +697,17 @@ defmodule TalesForge.Game.Combat do
       ...> |> String.split("\\n")
       ...> |> Enum.drop(1)
       ["These people cannot come back. Never narrate them alive, moving, talking or acting.",
-       "- Marta Kellen is dead. The body lies at weary_pilgrim.", ""]
+       "- Marta Kellen is dead. The body lies at The Weary Pilgrim.", ""]
       iex> TalesForge.Game.Combat.fallen_section(%{"npc_state" => %{}})
       nil
   """
   @spec fallen_section(map() | nil) :: String.t() | nil
-  def fallen_section(%{"npc_state" => state}) when is_map(state) do
+  def fallen_section(%{"npc_state" => state} = world) when is_map(state) do
     lines =
       state
       |> Enum.filter(fn {_id, npc} -> is_map(npc) and npc["vitality"] in ~w(dead down) end)
       |> Enum.sort_by(fn {id, _npc} -> id end)
-      |> Enum.map(fn {id, npc} -> fallen_line(npc["name"] || id, npc) end)
+      |> Enum.map(fn {id, npc} -> fallen_line(world, npc["name"] || id, npc) end)
 
     if lines == [] do
       nil
@@ -696,12 +720,21 @@ defmodule TalesForge.Game.Combat do
 
   def fallen_section(_world), do: nil
 
-  defp fallen_line(name, %{"vitality" => "dead"} = npc),
-    do: "- #{name} is dead. The body lies at #{npc["location_id"] || "the place of the fight"}."
+  defp fallen_line(world, name, %{"vitality" => "dead"} = npc),
+    do: "- #{name} is dead. The body lies at #{body_place(world, npc["location_id"])}."
 
-  defp fallen_line(name, npc),
+  defp fallen_line(world, name, npc),
     do:
-      "- #{name} is down at #{npc["location_id"] || "the place of the fight"}: alive, but cannot fight, stand, talk or leave."
+      "- #{name} is down at #{body_place(world, npc["location_id"])}: alive, but cannot fight, stand, talk or leave."
+
+  # The GM gets the place name, not the world id (QA 2026-10-15: a raw id
+  # came out in the prose).
+  defp body_place(world, id) when is_binary(id) do
+    TalesForge.Game.World.runtime_location(world, id)["name"] ||
+      TalesForge.Game.Context.place_name(id)
+  end
+
+  defp body_place(_world, _id), do: "the place of the fight"
 
   # The locked effect of a critical attack (card 26706846, answer 4) for the GM.
   defp critical_note(%{"result" => "critical_success", "skill" => skill}),

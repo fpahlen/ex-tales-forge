@@ -473,12 +473,26 @@ defmodule TalesForge.Game.Context do
 
   def dead?(_npc_state, _npc_id), do: false
 
+  # QA 2026-10-15: an exit with no location entry ("kings_road") showed its
+  # raw id to the GM, and the id came out in the prose. The GM gets a name.
+  @doc """
+  A readable name for a place id that has no location entry.
+
+      iex> TalesForge.Game.Context.place_name("kings_road")
+      "Kings Road"
+  """
+  @spec place_name(String.t()) :: String.t()
+  def place_name(id) when is_binary(id) do
+    id |> String.split("_", trim: true) |> Enum.map_join(" ", &String.capitalize/1)
+  end
+
   defp exit_names(world, exits) do
     Enum.into(exits, %{}, fn exit_id ->
       name =
         world
         |> World.runtime_location(exit_id)
-        |> Map.get("name", exit_id)
+        |> Map.get("name")
+        |> Kernel.||(place_name(exit_id))
 
       {exit_id, name}
     end)

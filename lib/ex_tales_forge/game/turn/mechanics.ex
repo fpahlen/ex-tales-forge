@@ -63,7 +63,8 @@ defmodule TalesForge.Game.Turn.Mechanics do
       resolved
       |> premise_block(player_action, turn.premise.first)
       |> apply_outcomes(world, apply?)
-      |> target_block(world)
+      |> same_place(world, turn.raw_action)
+      |> target_block(world, turn.raw_action)
 
     ruled_before_target =
       premised
@@ -162,13 +163,18 @@ defmodule TalesForge.Game.Turn.Mechanics do
     {blocked, %PlayerAction{player_action | action: unrolled}}
   end
 
+  # A move to the place where the character is plays no walk, with or
+  # without TURN_APPLY_OUTCOMES (TalesForge.Game.TurnApply.same_place/3).
+  defp same_place({played, handler}, world, text),
+    do: {played, TurnApply.same_place(handler, world, text)}
+
   # A dead person, or a social check at a person who is elsewhere
   # (TalesForge.Game.TargetCheck): the action is blocked with the reason.
-  defp target_block({played, %{state_hints: %{"rejected" => true}} = handler}, _world),
+  defp target_block({played, %{state_hints: %{"rejected" => true}} = handler}, _world, _text),
     do: {played, handler}
 
-  defp target_block({played, handler}, world) do
-    case TargetCheck.reason(world, played.action) do
+  defp target_block({played, handler}, world, text) do
+    case TargetCheck.reason(world, played.action, text) do
       nil ->
         {played, handler}
 

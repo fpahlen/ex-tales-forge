@@ -506,24 +506,36 @@ defmodule TalesForge.Game.Mechanics do
   end
 
   defp apply_character_vitality(character, mechanical, facts, opts) do
-    hit =
-      if opts[:opposed],
-        do: opposed_hit?(opts[:combat]),
-        else: combat_failure?(mechanical)
-
+    hits = harm_count(mechanical, facts, opts)
     character = stamp_wound_max(character)
 
     cond do
       Map.get(character, "vitality") == "dead" ->
         Map.put(character, "vitality", "dead")
 
-      hit or wound_fact?(facts) ->
-        apply_harm(character, mechanical, opts)
+      hits > 0 ->
+        Enum.reduce(1..hits, character, &harm_once(&1, &2, mechanical, opts))
 
       true ->
         stamp_vitality(character)
     end
   end
+
+  # The wounds of the turn: the opposed exchange gives its count, the flat
+  # roll one wound on a failed combat roll, and a wound fact at least one.
+  defp harm_count(mechanical, facts, opts) do
+    hits =
+      cond do
+        opts[:opposed] -> opposed_hits(opts[:combat])
+        combat_failure?(mechanical) -> 1
+        true -> 0
+      end
+
+    if hits == 0 and wound_fact?(facts), do: 1, else: hits
+  end
+
+  defp harm_once(_hit, %{"vitality" => "dead"} = character, _mechanical, _opts), do: character
+  defp harm_once(_hit, character, mechanical, opts), do: apply_harm(character, mechanical, opts)
 
   defp apply_harm(character, mechanical, opts) do
     cap = wound_max(character)
@@ -571,8 +583,11 @@ defmodule TalesForge.Game.Mechanics do
 
   defp strip_turn_lp(character, _), do: character
 
-  defp opposed_hit?(%{"attacker_wounded" => true}), do: true
-  defp opposed_hit?(_combat), do: false
+  # Opposed combat: a counterattack hit and a critical miss (the attacker's
+  # own wound) each give one wound.
+  defp opposed_hits(%{"attacker_wounds" => n}) when is_integer(n) and n > 0, do: n
+  defp opposed_hits(%{"attacker_wounded" => true}), do: 1
+  defp opposed_hits(_combat), do: 0
 
   defp combat_failure?(%MechanicalResolution{outcome: outcome, skill: skill})
        when outcome in ["failure", "critical_failure"] and skill in @combat_skills,

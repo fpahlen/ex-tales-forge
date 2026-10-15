@@ -193,6 +193,10 @@ defmodule TalesForge.Game.Turn.Combat do
 
   # The play page shows the last exchange (QA 2026-10-14 08:57, #270).
   defp last(world, exchange) do
-    %{"tick" => world["world_tick"], "text" => Combat.summary(exchange)}
+    %{
+      "tick" => world["world_tick"],
+      "location_id" => world["location_id"],
+      "text" => Combat.summary(exchange)
+    }
   end
 end
