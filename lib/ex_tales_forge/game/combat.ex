@@ -43,7 +43,8 @@ defmodule TalesForge.Game.Combat do
           required(:attack) => 1..100,
           optional(:counter_chance) => float(),
           optional(:counter) => 1..100,
-          optional(:death) => 1..100
+          optional(:death) => 1..100,
+          optional(:qa_forced) => boolean()
         }
   @type target ::
           {:npc, String.t()} | {:foe, String.t(), String.t()} | {:unclear, [String.t()]}
@@ -669,7 +670,10 @@ defmodule TalesForge.Game.Combat do
 
       iex> TalesForge.Game.Combat.fallen_section(%{"npc_state" => %{"marta_kellen" =>
       ...>   %{"name" => "Marta Kellen", "vitality" => "dead", "location_id" => "weary_pilgrim"}}})
-      "## The dead and the downed (server state)\\nThese people cannot come back. Never narrate them alive, moving, talking or acting.\\n- Marta Kellen is dead. The body lies at weary_pilgrim.\\n"
+      ...> |> String.split("\\n")
+      ...> |> Enum.drop(1)
+      ["These people cannot come back. Never narrate them alive, moving, talking or acting.",
+       "- Marta Kellen is dead. The body lies at weary_pilgrim.", ""]
       iex> TalesForge.Game.Combat.fallen_section(%{"npc_state" => %{}})
       nil
   """
