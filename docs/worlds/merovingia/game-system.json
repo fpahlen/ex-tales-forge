@@ -1,0 +1,538 @@
+{
+  "$schema": "../../src/types/module-game-system.schema.json",
+  "genre": "Medieval Fantasy",
+  "gm_title": "Dungeon Master",
+  "player_default_term": "adventurer",
+  "setting_tone": "A realm of feudal baronies, ancient forests, and forgotten ruins. Chivalry clashes with ambition, magic is rare but real, and the common folk toil under the watchful eyes of noble houses. The world is dangerous beyond the walls — bandits, beasts, and darker things lurk in the wilds.",
+  "image_style": "Black and white pencil drawing, hand-drawn sketch, smooth shading with graphite pencils, clean linework, character portrait focus on facial features and upper body. Traditional pencil art on paper texture. No color, grayscale only. Natural, unblemished skin unless scars are specified in the character description.",
+  "scene_image_style": "Black and white pencil drawing, hand-drawn sketch, detailed shading with graphite pencils, crosshatching technique, atmospheric scene illustration. Traditional pencil art on paper texture. No color, grayscale only. IMPORTANT: Do not include any readable text, letters, signs, or words in the image.",
+  "race_label": "Race",
+  "fallback_narrative": "The Dungeon Master pauses, collecting their thoughts... (The last response was malformed. Please try again.)",
+  "transit_sensory": {
+    "dawn": ["First light creeps over the horizon", "Roosters crow in the distance", "Dew glistens on cobblestones", "The smell of fresh bread from a nearby bakery"],
+    "morning": ["Market vendors call out their wares", "Cart wheels rattle on cobblestones", "The morning bustle fills the streets", "Smoke rises from chimneys"],
+    "afternoon": ["The sun beats down on dusty roads", "Shadows grow shorter", "The clang of a blacksmith's hammer echoes", "Insects buzz in the warm air"],
+    "evening": ["Oil lamps flicker to life", "Tavern sounds spill into the street", "The last merchants pack their stalls", "Long shadows stretch across the ground"],
+    "night": ["Stars wheel overhead", "A distant owl hoots", "Torchlight dances on stone walls", "The town grows quiet save for the watch"],
+    "midnight": ["Deep silence blankets the land", "Only the wind stirs", "A lone dog barks somewhere far away", "The moon casts silver light on empty streets"]
+  },
+  
+  "skills": [
+    { "id": "melee_combat", "name": "Melee Combat", "domain": "martial", "aliases": ["Melee", "Combat"] },
+    { "id": "ranged_combat", "name": "Ranged Combat", "domain": "martial", "aliases": ["Ranged"] },
+    { "id": "unarmed_combat", "name": "Unarmed Combat", "domain": "martial", "aliases": ["Unarmed"] },
+    { "id": "dodge", "name": "Dodge", "domain": "martial" },
+    { "id": "tactics", "name": "Tactics", "domain": "martial" },
+    { "id": "throwing", "name": "Throwing", "domain": "martial" },
+    { "id": "shield_use", "name": "Shield Use", "domain": "martial" },
+    
+    { "id": "stealth", "name": "Stealth", "domain": "finesse" },
+    { "id": "lockpicking", "name": "Lockpicking", "domain": "finesse" },
+    { "id": "sleight_of_hand", "name": "Sleight of Hand", "domain": "finesse" },
+    { "id": "climbing", "name": "Climbing", "domain": "finesse" },
+    { "id": "acrobatics", "name": "Acrobatics", "domain": "finesse" },
+    { "id": "pickpocket", "name": "Pickpocket", "domain": "finesse" },
+    { "id": "escape_artist", "name": "Escape Artist", "domain": "finesse" },
+    
+    { "id": "persuasion", "name": "Persuasion", "domain": "social" },
+    { "id": "deception", "name": "Deception", "domain": "social" },
+    { "id": "intimidation", "name": "Intimidation", "domain": "social" },
+    { "id": "insight", "name": "Insight", "domain": "social" },
+    { "id": "etiquette", "name": "Etiquette", "domain": "social" },
+    { "id": "performance", "name": "Performance", "domain": "social" },
+    { "id": "bargaining", "name": "Bargaining", "domain": "social" },
+    { "id": "leadership", "name": "Leadership", "domain": "social" },
+    
+    { "id": "arcana", "name": "Arcana", "domain": "knowledge" },
+    { "id": "history", "name": "History", "domain": "knowledge" },
+    { "id": "herbalism", "name": "Herbalism", "domain": "knowledge" },
+    { "id": "nature", "name": "Nature", "domain": "knowledge" },
+    { "id": "religion", "name": "Religion", "domain": "knowledge" },
+    { "id": "medicine", "name": "Medicine", "domain": "knowledge" },
+    { "id": "geography", "name": "Geography", "domain": "knowledge" },
+    { "id": "law", "name": "Law", "domain": "knowledge" },
+    
+    { "id": "crafting", "name": "Crafting", "domain": "craft" },
+    { "id": "alchemy", "name": "Alchemy", "domain": "craft" },
+    { "id": "first_aid", "name": "First Aid", "domain": "craft" },
+    { "id": "cooking", "name": "Cooking", "domain": "craft" },
+    { "id": "smithing", "name": "Smithing", "domain": "craft" },
+    { "id": "leatherworking", "name": "Leatherworking", "domain": "craft" },
+    { "id": "carpentry", "name": "Carpentry", "domain": "craft" },
+    { "id": "enchanting", "name": "Enchanting", "domain": "craft" }
+  ],
+  
+  "variants": [
+    {
+      "id": "human",
+      "name": "Human",
+      "description": "Versatile and resilient, humans adapt quickly, thriving on trial and error.",
+      "stat_modifiers": {
+        "note": "+1 to any two stats (player choice)"
+      },
+      "skill_bonus": {
+        "type": "pool",
+        "amount": 5,
+        "description": "+5 starting skill points (freely distributed)"
+      },
+      "traits": [
+        {
+          "name": "Adaptability",
+          "description": "Reroll one failed skill check per session (+1 LP if reroll fails)"
+        }
+      ],
+      "ocean_modifiers": {
+        "openness": 0,
+        "conscientiousness": 0,
+        "extraversion": 0,
+        "agreeableness": 0,
+        "neuroticism": 0
+      },
+      "personality_notes": "Neutral baseline, full range of personalities"
+    },
+    {
+      "id": "elf",
+      "name": "Elf",
+      "description": "Graceful, long-lived, and attuned to nature/magic, elves learn from subtle mistakes.",
+      "stat_modifiers": {
+        "dexterity": 2,
+        "intelligence": 1,
+        "constitution": -1
+      },
+      "skill_bonus": {
+        "type": "specific",
+        "skills": {
+          "Ranged Combat": 3,
+          "Survival": 2
+        }
+      },
+      "traits": [
+        {
+          "name": "Keen Senses",
+          "description": "+2 to Perception-based skills in natural settings"
+        },
+        {
+          "name": "Elven Grace",
+          "description": "Ignore natural 20 fumble once per session on DEX-linked skills"
+        }
+      ],
+      "ocean_modifiers": {
+        "openness": 2,
+        "conscientiousness": 1,
+        "extraversion": -1,
+        "agreeableness": -1,
+        "neuroticism": -1
+      },
+      "personality_notes": "Artistic, patient, aloof and composed"
+    },
+    {
+      "id": "dwarf",
+      "name": "Dwarf",
+      "description": "Sturdy craftsmen, dwarves endure failures in harsh conditions, forging strength.",
+      "stat_modifiers": {
+        "constitution": 2,
+        "strength": 1,
+        "charisma": -1
+      },
+      "skill_bonus": {
+        "type": "specific",
+        "skills": {
+          "Melee Combat": 3,
+          "Survival": 2
+        }
+      },
+      "traits": [
+        {
+          "name": "Stonecunning",
+          "description": "+2 to skills involving stone/earth"
+        },
+        {
+          "name": "Resilience",
+          "description": "Reduce wounds taken by 1 (min 0) once per combat"
+        }
+      ],
+      "ocean_modifiers": {
+        "openness": -1,
+        "conscientiousness": 2,
+        "extraversion": -1,
+        "agreeableness": -2,
+        "neuroticism": -1
+      },
+      "personality_notes": "Traditional, reliable, grumpy but steady"
+    },
+    {
+      "id": "gnome",
+      "name": "Gnome",
+      "description": "Curious tinkerers, gnomes treat failures as experiments, innovating through insight.",
+      "stat_modifiers": {
+        "intelligence": 2,
+        "dexterity": 1,
+        "strength": -1
+      },
+      "skill_bonus": {
+        "type": "specific",
+        "skills": {
+          "Alchemy": 3,
+          "Lockpicking": 2
+        }
+      },
+      "traits": [
+        {
+          "name": "Tinker's Insight",
+          "description": "+2 to INT-based Crafting/Alchemy checks"
+        }
+      ],
+      "ocean_modifiers": {
+        "openness": 2,
+        "conscientiousness": -1,
+        "extraversion": 1,
+        "agreeableness": 1,
+        "neuroticism": 1
+      },
+      "personality_notes": "Curious, scattered, excitable and helpful"
+    },
+    {
+      "id": "halfling",
+      "name": "Halfling",
+      "description": "Cheerful, social, and resilient, halflings find joy in simple pleasures and navigate danger with surprising luck.",
+      "stat_modifiers": {
+        "dexterity": 2,
+        "charisma": 1,
+        "strength": -1
+      },
+      "skill_bonus": {
+        "type": "specific",
+        "skills": {
+          "Stealth": 3,
+          "Lockpicking": 2
+        }
+      },
+      "traits": [
+        {
+          "name": "Lucky",
+          "description": "Reroll one natural 20 fumble per session"
+        },
+        {
+          "name": "Brave",
+          "description": "+2 to resist fear effects"
+        }
+      ],
+      "ocean_modifiers": {
+        "openness": 1,
+        "conscientiousness": 0,
+        "extraversion": 2,
+        "agreeableness": 2,
+        "neuroticism": -2
+      },
+      "personality_notes": "Sociable, friendly, emotionally stable"
+    },
+    {
+      "id": "half_elf",
+      "name": "Half-Elf",
+      "description": "Bridging two worlds, half-elves combine human adaptability with elven grace.",
+      "stat_modifiers": {
+        "charisma": 1,
+        "intelligence": 1
+      },
+      "skill_bonus": {
+        "type": "pool",
+        "amount": 3,
+        "description": "+3 skill points (freely distributed)"
+      },
+      "traits": [
+        {
+          "name": "Versatile",
+          "description": "+1 to any two skills of choice"
+        },
+        {
+          "name": "Diplomatic",
+          "description": "+2 to CHA-based social skills"
+        }
+      ],
+      "ocean_modifiers": {
+        "openness": 1,
+        "conscientiousness": 0,
+        "extraversion": 0,
+        "agreeableness": 0,
+        "neuroticism": 1
+      },
+      "personality_notes": "Adaptable with slight identity tension"
+    }
+  ],
+  
+  "archetypes": [
+    {
+      "id": "warrior",
+      "name": "Warrior",
+      "description": "Masters of combat, high durability and devastating melee damage.",
+      "suggested_skills": ["Melee Combat", "Dodge", "Tactics"],
+      "primary_domain": "martial"
+    },
+    {
+      "id": "wizard",
+      "name": "Wizard",
+      "description": "Wielders of arcane magic. Powerful spells but physically fragile.",
+      "suggested_skills": ["Arcana", "History", "Enchanting"],
+      "primary_domain": "knowledge"
+    },
+    {
+      "id": "thief",
+      "name": "Thief",
+      "description": "Stealthy and cunning. Excels at locks, traps, and sneak attacks.",
+      "suggested_skills": ["Stealth", "Lockpicking", "Pickpocket"],
+      "primary_domain": "finesse"
+    },
+    {
+      "id": "druid",
+      "name": "Druid",
+      "description": "Nature's guardians. Shapeshifting abilities and nature magic.",
+      "suggested_skills": ["Nature", "Herbalism", "Survival"],
+      "primary_domain": "knowledge"
+    },
+    {
+      "id": "cleric",
+      "name": "Cleric",
+      "description": "Divine healers. Healing magic and protective blessings.",
+      "suggested_skills": ["Religion", "Medicine", "First Aid"],
+      "primary_domain": "craft"
+    },
+    {
+      "id": "ranger",
+      "name": "Ranger",
+      "description": "Wilderness experts. Ranged combat and tracking skills.",
+      "suggested_skills": ["Ranged Combat", "Survival", "Tracking"],
+      "primary_domain": "martial"
+    }
+  ],
+  
+  "currency": {
+    "primary": {
+      "name": "Gold",
+      "symbol": "g",
+      "abbrev": "GP",
+      "weight_oz": 0.5
+    },
+    "secondary": {
+      "name": "Silver",
+      "symbol": "s",
+      "abbrev": "SP",
+      "rate": 50,
+      "weight_oz": 0.5
+    },
+    "tertiary": {
+      "name": "Copper",
+      "symbol": "c",
+      "abbrev": "CP",
+      "rate": 500,
+      "weight_oz": 0.3
+    },
+    "anchor": "2 gold = 1 month skilled labor = 1000 copper = 100 silver",
+    "starting_wealth": {
+      "nobility": { "gold": 50, "silver": 100, "copper": 0 },
+      "gentry": { "gold": 10, "silver": 50, "copper": 200 },
+      "merchant": { "gold": 5, "silver": 100, "copper": 500 },
+      "commoner": { "gold": 0, "silver": 20, "copper": 300 },
+      "underclass": { "gold": 0, "silver": 0, "copper": 50 }
+    }
+  },
+  
+  "naming": {
+    "status_french_weight": {
+      "nobility": 100,
+      "gentry": 75,
+      "merchant": 50,
+      "commoner": 20,
+      "underclass": 0
+    },
+    "pools": {
+      "french": {
+        "male": ["Alphonse", "Beaumont", "Celestin", "Didier", "Etienne", "Fabien", "Gaston", 
+                 "Henri", "Isidore", "Jacques", "Laurent", "Marcel", "Nicolas", "Olivier", 
+                 "Philippe", "Remy", "Sebastien", "Thierry", "Valentin", "Xavier"],
+        "female": ["Celestine", "Delphine", "Eloise", "Fleur", "Genevieve", "Heloise", 
+                   "Isabelle", "Juliette", "Lucienne", "Marguerite", "Nicolette", "Odette",
+                   "Paulette", "Rosalie", "Solange", "Therese", "Vivienne", "Yvette"],
+        "houses": ["de Montfort", "d'Arouet", "de Beaumont", "de Valmonte", "de Clermont", 
+                   "de Fontaine", "de la Rochelle", "de Montclair", "d'Ombrecourt", "de Lys"],
+        "titles_male": ["Baron", "Comte", "Duc", "Seigneur", "Vicomte", "Chevalier"],
+        "titles_female": ["Baronne", "Comtesse", "Duchesse", "Dame", "Vicomtesse"]
+      },
+      "english": {
+        "male": ["Tom", "Will", "Jack", "Sam", "Ned", "Rob", "Ben", "Hal", "Wat", "Dick",
+                 "Jem", "Kit", "Nat", "Gil", "Hugh", "Alf", "Bert", "Clem", "Ed", "Frank"],
+        "female": ["Rose", "Mara", "Beth", "Kate", "Nell", "Bess", "Jane", "Meg", "Sal", "Nan",
+                   "Moll", "Peg", "Jenny", "Kitty", "Polly", "Doll", "Bridget", "Maude", "Agnes", "Edith"],
+        "descriptors": ["the Baker", "the Smith", "the Fisher", "the Tanner", "the Cooper",
+                        "the Weaver", "the Miller", "the Carter", "the Thatcher", "the Mason"],
+        "nicknames": ["Red", "Scar", "Rat", "Whisper", "Knuckles", "Shadow", "Crooked", 
+                      "Lucky", "One-Eye", "Fingers", "Muddy", "Sharp", "Slim", "Brick"]
+      },
+      "aurilian": {
+        "male": ["Marcus", "Quintus", "Gaius", "Lucius", "Titus", "Flavius", "Cassius",
+                 "Maximus", "Decimus", "Publius", "Servius", "Aulus", "Gnaeus", "Spurius"],
+        "female": ["Livia", "Aurelia", "Cornelia", "Flavia", "Julia", "Cassia", "Valeria",
+                   "Lucilla", "Domitia", "Claudia", "Octavia", "Porcia", "Tullia", "Fabia"],
+        "nomen": ["Aurelius", "Valerius", "Corvinus", "Maximus", "Severus", "Antonius",
+                  "Flavius", "Julius", "Claudius", "Cornelius", "Fabius", "Junius"],
+        "cognomen": ["Corvinus", "Magnus", "Felix", "Pius", "Augustus", "Priscus",
+                     "Rufus", "Niger", "Longus", "Crassus", "Pulcher", "Scaevola"]
+      }
+    },
+    "race_components": {
+      "elf": {
+        "prefixes": ["Ael", "Cel", "Gal", "Thal", "Sil", "Ara", "Elen", "Fael", "Liri", "Mith"],
+        "suffixes": ["indra", "ion", "wen", "dor", "iel", "orn", "anor", "elas", "ith", "ael"],
+        "style": "melodic, flowing vowels, soft consonants"
+      },
+      "dwarf": {
+        "prefixes": ["Thor", "Dur", "Brom", "Grim", "Krag", "Bor", "Dorn", "Thur", "Gar", "Mor"],
+        "suffixes": ["grim", "ak", "in", "or", "rim", "ur", "din", "mund", "rik", "dal"],
+        "clans": ["Stonefist", "Ironhammer", "Deepdelve", "Goldvein", "Fireforge", 
+                  "Rockshield", "Steelbeard", "Granitefist", "Bronzebrow", "Coalheart"],
+        "style": "harsh consonants, guttural sounds, clan suffixes"
+      },
+      "gnome": {
+        "prefixes": ["Fizzle", "Bimble", "Wobble", "Tinker", "Sprocket", "Gadget", "Widget", "Cog"],
+        "suffixes": ["wick", "bottom", "sprocket", "gear", "spring", "bolt", "pip", "snap"],
+        "style": "whimsical, compound names, mechanical references"
+      },
+      "halfling": {
+        "male": ["Bilbo", "Frodo", "Sam", "Merry", "Pippin", "Hamfast", "Holman", "Tolman"],
+        "female": ["Rosie", "Daisy", "Lily", "Pearl", "Ruby", "Marigold", "Primrose", "Peony"],
+        "surnames": ["Bramblefoot", "Puddifoot", "Goodbarrel", "Underhill", "Burrows",
+                     "Greenleaf", "Applebottom", "Hayward", "Mugwort", "Thornberry"],
+        "style": "homely, nature-inspired, comfortable-sounding"
+      }
+    },
+    "regional_modifiers": {
+      "aquilon": {
+        "flavor": "Nordic undertones",
+        "name_twist": "Add Nordic influence - names like Sigurd, Erik, Freya",
+        "examples": { "noble": "Baron Sigurd de Nordheim", "commoner": "Erik the Trapper" }
+      },
+      "arborin": {
+        "flavor": "Celtic/Nature",
+        "name_twist": "Add nature-Celtic influence - names like Rowan, Briar, Ashwin",
+        "examples": { "noble": "Lord Rowan de Sylvanbough", "commoner": "Briar the Forester" }
+      },
+      "ferroigne": {
+        "flavor": "Germanic undertones",
+        "name_twist": "Add Germanic influence - use 'von' instead of 'de'",
+        "examples": { "noble": "Graf Wilhelm von Eisenberg", "commoner": "Hans the Blacksmith" }
+      },
+      "glaciere": {
+        "flavor": "French Alpine",
+        "name_twist": "Pure French with mountain/ice imagery",
+        "examples": { "noble": "Comte Claude de Froidmont", "commoner": "Pierre the Ice-Cutter" }
+      },
+      "lumiere": {
+        "flavor": "Pure French courtly",
+        "name_twist": "Most refined French names, courtly titles",
+        "examples": { "noble": "Duc Alphonse de Beaumont", "commoner": "Pierre the Chandler" }
+      },
+      "marecage": {
+        "flavor": "Cajun/Bayou",
+        "name_twist": "French-Creole influence - names like Boudreaux, Thibault",
+        "examples": { "noble": "Seigneur Thibault de Marecage", "commoner": "Boudreaux the Poler" }
+      },
+      "montfort": {
+        "flavor": "Sturdy/Pastoral",
+        "name_twist": "Solid French names, agricultural overtones",
+        "examples": { "noble": "Baron Gareth de Montfort", "commoner": "Magnus the Shepherd" }
+      },
+      "pyremont": {
+        "flavor": "Mediterranean/Fire",
+        "name_twist": "Add Italian/Spanish influence - names like Marco, Fiora",
+        "examples": { "noble": "Conte Marco del Fuego", "commoner": "Ignatius the Forgehand" }
+      },
+      "sylvaine": {
+        "flavor": "French Woodland",
+        "name_twist": "Elegant French with forest/nature elements",
+        "examples": { "noble": "Dame Sylvie de Boisvert", "commoner": "Fabian the Woodcutter" }
+      },
+      "vallombre": {
+        "flavor": "Dark/Mysterious",
+        "name_twist": "French names with dark/shadow themes",
+        "examples": { "noble": "Lady Ravenna d'Ombrecourt", "commoner": "Shadow Jack" }
+      },
+      "ventdor": {
+        "flavor": "Maritime/Wind",
+        "name_twist": "French names with sea/wind elements",
+        "examples": { "noble": "Amiral Gale de Ventmarin", "commoner": "Caspian the Sailor" }
+      },
+      "rochedur": {
+        "flavor": "Mountain fortress",
+        "name_twist": "Sturdy French names, fortress/stone imagery",
+        "examples": { "noble": "Baron Durand de Rochedur", "commoner": "Pierre the Quarryman" }
+      }
+    }
+  },
+  
+  "domains": {
+    "martial": {
+      "display_name": "Martial",
+      "core_attributes": ["strength", "dexterity", "constitution"],
+      "description": "Combat and physical confrontation"
+    },
+    "finesse": {
+      "display_name": "Finesse",
+      "core_attributes": ["dexterity", "intelligence"],
+      "description": "Precision, stealth, and manipulation"
+    },
+    "social": {
+      "display_name": "Social",
+      "core_attributes": ["charisma", "wisdom"],
+      "description": "Interpersonal influence and perception"
+    },
+    "knowledge": {
+      "display_name": "Knowledge",
+      "core_attributes": ["intelligence", "wisdom"],
+      "description": "Academic learning and lore"
+    },
+    "craft": {
+      "display_name": "Craft",
+      "core_attributes": ["intelligence", "dexterity"],
+      "description": "Creation, repair, and practical application"
+    }
+  },
+  
+  "progression": {
+    "tiers": {
+      "novice": { "min": 1, "max": 5, "lp_threshold": 5, "improvement_modifier": 0 },
+      "adept": { "min": 6, "max": 10, "lp_threshold": 7, "improvement_modifier": 0 },
+      "expert": { "min": 11, "max": 15, "lp_threshold": 10, "improvement_modifier": -3 },
+      "master": { "min": 16, "max": 20, "lp_threshold": 15, "improvement_modifier": -5, "requires_trainer": true }
+    },
+    "floor_thresholds": [
+      { "min_level": 18, "floor": 6, "note": "Universal principles visible" },
+      { "min_level": 15, "floor": 4, "note": "Flow state, unconscious competence" },
+      { "min_level": 10, "floor": 2, "note": "Patterns starting to connect" },
+      { "min_level": 0, "floor": 0, "note": "Skills are still islands" }
+    ],
+    "echo_thresholds": [
+      { "min_level": 18, "bonus": 3, "tier": "master" },
+      { "min_level": 15, "bonus": 2, "tier": "expert" },
+      { "min_level": 10, "bonus": 1, "tier": "adept" },
+      { "min_level": 0, "bonus": 0, "tier": "novice" }
+    ],
+    "summit_sight_threshold": 18
+  },
+
+  "calendar": {
+    "epoch_year": 5,
+    "year_format": "Clovis {year}",
+    "months": ["Frostmelt", "Seedsow", "Bloomtide", "Longsun", "Haymonth", "Harvesttide", "Goldleaf", "Fogfall", "Hearthfire", "Deepwinter", "Wolfmoon", "Thawbreak"],
+    "start_month_index": 8,
+    "days_per_month": 30
+  },
+
+  "disposition_descriptors": {
+    "loyal_ally":   ["Sworn sword",         "Bound by honour",     "Unshakeable bond",    "Blood of my blood"],
+    "friendly":     ["Glad companion",      "Trusted confidant",   "Steadfast friend",    "Reliable ally"],
+    "warm":         ["Tentative warmth",    "Growing fondness",    "Genuine warmth",      "Near kinship"],
+    "neutral":      ["Measured indifference","Warily courteous",   "Grudging respect",    "Reluctant regard"],
+    "cool":         ["Guarded suspicion",   "Wary distance",       "Cautious reserve",    "Cool appraisal"],
+    "hostile":      ["Veiled malice",       "Barely civil",        "Simmering grudge",    "Thin-lipped tolerance"],
+    "bitter_enemy": ["Sworn to your ruin",  "Blood debt unpaid",   "Cold-eyed hatred",    "Seething contempt"]
+  }
+}

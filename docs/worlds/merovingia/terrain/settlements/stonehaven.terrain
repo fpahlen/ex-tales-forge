@@ -1,0 +1,29 @@
+---
+id: stonehaven
+name: Stonehaven (Capital of Rochedur)
+scale: settlement
+cell_size_meters: 50
+width: 16
+height: 12
+origin_x: 5
+origin_y: 2
+parent_ref: ../baronies/rochedur.terrain
+legend:
+  1: Castle Stonehaven
+  2: Market Square
+  3: Temple of the Light
+  4: Dwarven Quarter
+  5: The Gilded Goose Inn
+---
+++++++++++++++++
++......1.......+
++..............+
++....2....3....+
++..............+
++......5.......+
++..............+
++....4444......+
++....4444......+
++..............+
++++++///+++++++
+................

@@ -1,0 +1,389 @@
+---
+title: "Plan: porting character creation from the old app"
+updated: 2026-10-07
+status: plan; port on the unified Character from 2026-10-07
+---
+
+# Plan: porting character creation from the old app
+
+**Status:** draft, 2026-10-06, research and a proposal. Update 2026-10-07: PR 1 (#52) and PR 2 (#53) are merged and deployed; see [PRs](#prs). The old game's skill rules are ported in open PRs #62–#65; see [Skill rules](#skill-rules-ported-2026-10-07).
+
+Checked against the old app `fpahlen/tales-forge-new-31993d9d` on `development` (commit `20b791c`) and `whyse-ab/ex-tales-forge` on `main` (commit `0aa49e9`).
+
+## Summary
+
+The old app's character creation is a single-screen form with AI help. It does not involve the GM. The player picks a race, gender, class, home region and social status, and writes a short concept or has the AI write or expand one. One AI call then generates the full character: name, backstory, quote, stats, skills, starting gear priced against a wealth budget, appearance and personality. The server applies the racial bonuses afterwards. The player can edit the appearance and personality, add a pencil-sketch portrait if they want one, and save the character to their library. They start an adventure from there in a separate step. It takes one to three AI calls and a minute or two.
+
+What makes it work is that a few choices and one click give you a character who belongs in the world. The name follows the world's naming lists, the backstory uses the home region and turns racial and social disadvantages into concrete details, and the gear fits the character's social class. The AI picks the stats, so the 75-point buy in the rules is never actually applied.
+
+The new app has no creation step. Every session starts with Elara Voss. Most of the old flow ports easily: the prompts, the post-processing and the world data. The work is in five places: where the character is stored, getting the GM to see who the character is, loading creation data from the pack files, aligning the skill lists, and building the LiveView screen. Proposed order: let a session start with any character, make the GM see it, load creation data for one world, then build the screen and the AI step, then playtest support. Portraits and a character library come later.
+
+## How the old flow works
+
+### Steps
+
+1. **Getting there.** New users with no characters are sent to the Welcome page (`src/pages/Welcome.tsx`), then to `/play/characters`. There the creation dialog opens by itself, with a six-step spotlight tutorial the first time (`src/pages/play/CharactersPage.tsx`, `src/components/tutorial/CharacterCreationTutorial.tsx`). Returning players open it with a floating "Create Character" button. You need an active world (module) first.
+2. **The form** (`src/components/CharacterGenerator.tsx`, inside `src/components/generators/CharacterGeneratorDialog.tsx`). It sits on the left, with the result on the right. Each dropdown shows a short description of the selected option.
+   - **Race** (labelled from the world, e.g. "Heritage" in Penny Dreadful). Defaults to the first race in the list, Human. The list is filtered by a `playable` flag; for the go-to-market launch only Human, Elf, Dwarf and Half-Elf were playable (`docs/development/completed/feature-go-to-market.md`).
+   - **Gender:** Random (default), male or female.
+   - **Class:** defaults to the first archetype, Warrior. The launch allowed only Warrior, Thief and Ranger.
+   - **Home region:** a barony. Only shown if the world has regions. Defaults to Random, which the server resolves to a random barony.
+   - **Social status:** taken from the world's `currency.starting_wealth` keys, from nobility down to underclass. Defaults to commoner.
+   - **Aurilian heritage** checkbox (Latin names). Only shown if the world has that naming pool.
+   - **Character description,** free text up to 16,384 characters, with a sparkle button. On an empty field it writes a random two-sentence concept in the second person. If the player has already typed something, it expands that text and keeps every name, relationship and secret they wrote. This "player starts, AI expands" pattern is used across the app's generators (`src/components/ui/ai-textarea.tsx`).
+3. **Generate Character.** This needs a description. One call returns the whole character, shown on the right: name, race, background line, quote, backstory, six stats, five to eight skills with levels, appearance, personality and equipment. A toast and an amber "not saved yet" warning tell the player to save. The dialog ignores outside clicks and Escape, so the character isn't lost by accident (`docs/development/completed/feature-beta-character-creation.md`).
+4. **Edit.** Only appearance and personality can be edited. Name, stats, skills and gear can't. To change them the player generates again, which replaces everything. The player can't type a name; the AI always picks one (`name: undefined` is always sent).
+5. **Portrait** (optional). "Generate Portrait" either reuses a stored portrait with a similar prompt or makes a new one in the world's image style. Merovingia uses black-and-white pencil sketches.
+6. **Save Character to Library.** This calls the `insert_character` RPC and attaches the portrait. The character is tied to the world it was made in.
+7. **Starting play** is a separate step (`src/components/library/CharacterSessionStarter.tsx`). From the character card, "Begin Adventure" asks the player to pick a world, then reuses or creates the player's campaign for it. It finds the start location and the NPCs there, works out starting coins (the wealth budget minus the gear's value), seeds the inventory from the gear and creates the session. The chat page then has the GM write the opening scene.
+
+There is no single "randomise everything" button. The random options are gender, home region and the sparkle-written concept, and the defaults (Human, Warrior, commoner) mean a player can get a full character by pressing the sparkle button and then Generate.
+
+**Time:** not measured. My estimate is one to three minutes. The concept call is short (600 output tokens at most). The character call allows up to 3,000 output tokens, which should take roughly 5–15 s on the fast Grok model. A new portrait takes about 10–20 s, or no time at all when a similar one is reused.
+
+### Rules and world data
+
+The flow is generic: everything world-specific comes from the module's `game_system` record, stored in Supabase `module_content` and read through `get_effective_module_content`, so child modules inherit it (`supabase/functions/_shared/gameSystem.ts`). The files in the repo are `modules/merovingia/game-system.json` and `modules/penny-dreadful/game-system.json`. The Merovingia file is identical to [worlds/merovingia/game-system.json](../worlds/merovingia/game-system.json) in this repo.
+
+- **Races** (`variants`): stat modifiers and a skill bonus, which is either a pool of points (Human +5, Half-Elf +3) or set skills (Elf +3 Ranged Combat, +2 Survival). Each race also has traits and disadvantages.
+- **Archetypes:** the class list, with descriptions and suggested skills.
+- **Skills:** 38 in Merovingia, each in one of five domains.
+- **Starting wealth** by social status, used for the status list.
+- **Naming:** name pools and rules. French names are weighted more heavily the higher the status, English names are used for commoners, Latin names for Aurilian heritage, and there are race name components and regional twists. These are turned into prompt guidance by `supabase/functions/_shared/namingRules.ts`.
+- **Home region text:** the barony markdown, cut down to a short context by `supabase/functions/_shared/worldContext.ts`.
+- **Tone, genre, GM title and portrait style:** `setting_tone`, `genre`, `gm_title` and `image_style`.
+
+Some of it is hardcoded and Merovingia-specific, even though the flow looks generic:
+
+- **The wealth budget** (nobility 26,000 copper down to underclass 50) is hardcoded twice, in `supabase/functions/_shared/coinUtils.ts` and `src/lib/inventoryCalcs.ts`. It matches Merovingia's table, so Penny Dreadful's own `starting_wealth` is ignored.
+- **Minimum gear prices** are a keyword list in `supabase/functions/_shared/equipmentPricing.ts`.
+- **Social status traits** are read from `game_system.social_status_traits`, but neither world file has any. So in practice the narrative seeds are only the racial traits and disadvantages.
+- **The written rules** (`docs/game-rules/fantasy_rpg_game_mechanics_summary.md`) have the 75-point stat buy and 20–30 skill points capped at 5, the same rules the new app's Tin Valley and Crossroads packs carry. The generator doesn't use them: the AI picks base stats aiming for a total of 74–79, and gives five to eight skills at levels 1–15.
+
+### AI calls
+
+All AI calls go through `callAIWithDefaults` in `supabase/functions/_shared/aiProvider.ts`. The provider is a database setting: Grok by default (`grok-4-1-fast-non-reasoning` for text, `grok-imagine-image` for images), with Gemini 2.5 Flash as the alternative. Every system prompt starts with a security preamble that treats player text as in-game content only. Calls are rate-limited and logged to a content gateway.
+
+| Call | Edge function | Task, settings | Prompt (in `supabase/functions/_shared/prompts.ts` unless noted) | Output |
+|---|---|---|---|---|
+| Concept (sparkle), optional, repeatable | `generate-character-description` | `character-description`, temp 0.8, 600 tokens | `characterDescription` system prompt (two sentences, second person, background plus a hook) and `buildCharacterDescriptionPrompt` (generate, or expand while keeping the player's names) | Plain text |
+| Character, required, repeatable | `generate-character` | `character-generation`, temp 0.7, 3,000 tokens, JSON schema `_shared/schemas/characterResponse.ts` | `characterGenerator` system prompt (stats ignore requests like "max stats", typical total 74–79, at most one 18) and `buildCharacterPrompt` (race, class, concept, home region, gender, naming guidance, narrative seeds to weave in, wealth budget with price bands) | JSON character |
+| Portrait, optional | `generate-portrait` | `portrait-generation` | `buildCharacterPortraitPrompt` in `_shared/imageStyle.ts`, with the world's image style and the user's drawing style; checks for a similar existing portrait first | Image, stored in the `portraits` bucket |
+
+That is one to three calls per character. Every sparkle click or extra Generate adds one more.
+
+After the character call, the server fixes gear prices that are too low and adds the racial stat modifiers, clamped to 3–18. It adds set-skill bonuses (capped at 15) and records the race, class, social status and narrative seeds (as `traits`, hidden from the player). It also sets wounds: maximum = 3 + (CON − 10) / 2.
+
+### Data shape, storage and hand-off
+
+- **Generated character** (client type in `CharacterGenerator.tsx`): `name`, `gender`, `race`, `class`, `background`, `backstory`, `quote`, `personality`, `appearance`, the six stats in full words (`strength` … `charisma`), `skills: [{name, level, lp}]`, `equipment: [{name, copperValue, category}]` (category is equipped, consumable or pack), `traits: [{name, description, type}]`, `socialStatus` and `max_wounds`.
+- **Stored** in the Supabase `characters` table through `insert_character` (`supabase/migrations/20260528195900_remote_schema.sql`). The columns include the fields above plus `module_id` (required), `user_id`, `social_status`, `image_url`, `armor`, `level`, `current_wounds`, `max_wounds`, `is_shaken` and `personal_hook`. The portrait is linked through the `portraits` table.
+- **Hand-off:** `insert_game_session` gets `character_id`. Coins and inventory are worked out when the session starts and stored in `session_state`. Each turn, `langgraph-game-session` reads the character row. The GM prompt's "CURRENT CHARACTER" block (`buildDMSystemPrompt` in `prompts.ts`) has the name, race, class, social status, stats, wounds, armor, trait names and skill levels. A separate section tells the GM to use the backstory for complications.
+
+### What the founders probably like
+
+- **Fast, with a good result:** a handful of choices and one click give a complete character with a name, a voice (the quote) and a past.
+- **"Player starts, AI expands":** the sparkle button fills an empty field, or expands what the player wrote and keeps their names and secrets.
+- **Grounded in the world:** the backstory uses the home region's culture and tensions, the name fits the race, status and region, and the gear fits the social class.
+- **Weaknesses turned into story:** racial disadvantages become concrete details, such as a named creditor or a village that turned the character away, and the GM is told to bring them back in play.
+- **Hard to cheat:** the stats ignore requests like "max stats" in the description, and gear prices are checked on the server.
+- **A pencil-sketch portrait** in the world's style.
+- **Driven by world data:** the same screen works for Penny Dreadful (Heritage, Narrator, Victorian names) without code changes.
+- **Gentle onboarding:** the spotlight tutorial, descriptions under each choice, and protection against losing an unsaved character.
+
+### Rough edges
+
+- **The written rules aren't applied.** The AI picks the stats and skills, so the 75-point buy and the skill cap of 5 aren't enforced. Skills can start at up to 15.
+- **Some racial bonuses are lost.** The Human "+1 to any two stats" exists only as a note, so it's skipped. The skill pools (Human +5, Half-Elf +3) come back as `bonusSkillPoints`, which the screen never shows and the save never stores.
+- **Little editing.** The player can't choose a name or change stats, skills or gear. Generating again replaces everything.
+- **Values that are lost on save.** The prompt asks for `armor`, but it isn't in the JSON schema or saved. The server works out `max_wounds`, but `insert_character` has no field for it, so the database default of 3 is used. The `personal_hook` column is never filled.
+- **The portrait prompt gets the gear wrong.** Gear items are now objects, but `generate-portrait` joins them as strings, which probably puts "[object Object]" in the prompt. The `gender` it is sent is ignored.
+- **The home region may be missing from the concept.** Baronies are stored as content type `district`. `generate-character` looks them up as `district`, but `generate-character-description` looks for `barony`, so the sparkle concept probably never gets the home region. It is also sent the social status and Aurilian flag but doesn't use them.
+- **The backstory may never reach the GM.** On the default Grok path the GM's character block has no backstory, appearance or personality. They only go into the Gemini context cache (`_shared/caching/sessionCacheManager.ts`), and even that leaves out the backstory. So the hooks woven into the backstory may never reach the GM, even though its prompt calls the backstory its main source of story hooks.
+- **Merovingia's wealth table is hardcoded** (see above).
+- **Creation and starting play are two separate dialogs,** and the world has to be picked twice. The premortem notes that most users made one character and played once (`docs/development/premortem-may-2026.md`).
+- **No draft:** closing the dialog without saving loses the character. A draft was deferred after the beta.
+
+**Secrets:** no secrets are hardcoded in the character creation code. Elsewhere in the old repo, the production Supabase publishable (anon) key is hardcoded as a fallback in `supabase/functions/langgraph-game-session/comparison.test.ts` and in the setup guides under `docs/development/local_development/`. Publishable keys are meant to be public, but the value is written out there.
+
+## The new app today
+
+- **Elara Voss** is defined in `TalesForge.Game.World.default_world_state/0` (`lib/ex_tales_forge/game/world.ex`). Crossroads uses that state directly. Tin Valley gets her through `TalesForge.Game.Pack.materialize/1` (`lib/ex_tales_forge/game/pack.ex`), which copies `World.default_world_state()["character"]` and only changes `location_id`.
+- **The character has no table of its own.** It is the `"character"` map inside `game_sessions.world_state` (`lib/ex_tales_forge/schemas/game_session.ex`: `name`, `status`, `world_state`, `world_clock`). The map holds `id`, `name`, `race`, `location_id`, `stats` (`"STR"` … `"CHA"`), `skills` (snake_case name to level), `learning_points`, `learning_failures`, `wounds`, `wound_max`, `vitality`, `coins` (`gold`, `silver`, `copper`) and `inventory` (`[%{"id", "name", "quantity"}]`).
+- **Starting a session:** `HomeLive` has a button for Tin Valley and one for Crossroads, and each calls `GameSessions.create_session/1`. That builds the world, seeds NPCs and fronts, starts the session agent and enqueues the opening scene straight away (`ensure_scene/1` and the `ProcessScene` job). Players can't act until the scene exists (`submit_message/3` returns `{:error, :needs_scene}`), so the GM always opens.
+- **What the GM sees of the character:** `Context.character_summary/1` (`lib/ex_tales_forge/game/context.ex`), which has only the name, vitality, wounds, coins, inventory and location. Race, stats, skills and anything about who the character is never reach the scene or GM prompts. Stats and skills are only used on the server, by `TalesForge.Game.Mechanics`.
+- **Skills:** `Mechanics` has a hardcoded list of 17 skills, each tied to a stat (`@skill_stat`). The intent step offers only these. Merovingia has 38 skills, with different spelling ("Melee Combat" against `melee_combat`).
+- **Rules:** the Tin Valley and Crossroads packs (`priv/adventures/*/rules/`) are prose markdown fed to the GM. They have the point buy, races and the wealth budget table, but no structured data the code could build a form from.
+- **AI:** `TalesForge.LLM` does JSON-schema calls on `TIER1_MODEL` and `TIER2_MODEL`. Each call is recorded in `ai_calls` (`game_session_id` can be empty) and checked against the spending caps. Image generation is a stub (`lib/ex_tales_forge/images.ex`).
+
+## What maps easily and what needs rework
+
+**Maps easily**
+
+- **The prompts.** The concept and character prompts, the security wording and the JSON schema carry over almost word for word into an `LLM` call with a schema.
+- **The post-processing.** The racial modifiers, clamping to 3–18, price floors and the wealth budget are small pure functions. The wound formula is already the same: `Mechanics.wound_max/1` is 3 + (CON − 10) / 2.
+- **The data.** Merovingia's `game-system.json` is already in this repo, and Tin Valley's `economy.md` has the same wealth budget table.
+- **Naming guidance** is a pure function of the naming data.
+- **The opening scene.** The GM already opens every session. A character passed into `create_session` is in place before the scene job runs.
+
+**Needs rework**
+
+- **The character shape:** the stats need renaming, the skills become a snake_case map, the gear becomes inventory items plus coins (budget minus gear value), and the new fields (background, backstory, personality, appearance, quote, gender, archetype, social status, hidden seeds) need a home in the map.
+- **Data loading:** the old app read the game system from Supabase with inheritance. The new app reads pack files under `priv/adventures/`, so it needs a loader that validates the data and fails fast, like `Pack`.
+- **Tin Valley has no structured creation data.** Its races and point buy exist only as prose, and there's no archetype or class list. Its `races.md` also differs from Merovingia's JSON in places: Elf gets "+1 INT or WIS" against a fixed +1 INT, and Half-Elf gets +1 DEX +1 CHA against +1 CHA +1 INT.
+- **The skill lists** have to agree, or a created character's skills won't resolve in play.
+- **The screen:** a React dialog with state in the browser becomes a LiveView that keeps the draft on the server. The 5–15 s character call should run without blocking the screen, with progress sent over PubSub as scenes already are.
+- **The GM context** has to include who the character is, or the creation step makes no difference to the story.
+- **Spending caps:** creation happens before a session exists, so only the day cap applies, unless creation creates the session first.
+- **Portraits** need a real image pipeline and storage (Tigris).
+
+## Update 2026-10-07: derived defaults and Jev (direction from Fredrik via Case)
+
+Fredrik set a direction (via Case) that changes how a character is generated. It is recorded as a [design direction](decisions.md#2026-10-07-design-direction-derived-character-defaults-and-jev-for-descriptions), with the sketch in [Plan: one Character entity, section 7](plan-unify-character.md#7-defaults-from-class-race-standing-and-occupation-jev-for-descriptions).
+
+- **Defaults come from pure Elixir:** stats, skills, OCEAN, Maslow level and concerns are derived from class, race, social standing and occupation (`TalesForge.Characters.Defaults`). They are not picked by an AI.
+- **The player's description goes to one Jev call** that returns fixed labels with confidence: race, class, standing, occupation, OCEAN levels, Maslow level and concern focuses. The defaults fill every field Jev isn't confident about. The same call drafts NPCs for authors, and notable NPCs are hand-written overrides on top of the defaults.
+
+Effect on the steps below:
+
+- **Step 3 (creation data):** the structured creation file grows into the defaults tables: race, class, occupation and standing rows, plus the race OCEAN modifiers already in `races.md`.
+- **Step 6 (AI generation):** the old `character_sheet` LLM call with a JSON schema is **replaced** by Jev plus derivation, following the [call types](call-types.md) rule (no structured output from an LLM). A prose LLM call for the concept or backstory stays optional, because Jev can't write text. The name is typed by the player or picked by Elixir from the naming lists.
+- **Step 8 (point buy):** derivation keeps a PC inside the starting limits (stat range, skill cap 5, point budget) by construction. The validator stays as the check.
+- **Step 11 (a lasting character record):** the `characters` table exists since ex-tales-forge #48, with `owner_player_id` ready for carry-over. Reads come in phase 2.
+- **The screen (step 5):** after the description, the sheet shows guessed fields marked. Changing a dropdown (race, class, standing, occupation) re-runs the derivation instantly, with no AI call.
+- **Confirmed by Fredrik, 2026-10-07** ([decision](decisions.md#2026-10-07-character-defaults-the-four-answers)):
+  1. A global base label list that each world pack extends.
+  2. A Jev confidence threshold of 0.6 to start, with every confidence logged and the threshold tuned after playtests.
+  3. Small random variation, seeded per character (session id plus character key), so it's stable on reload.
+  4. **The player can edit everything Jev fills in, within the rules:** stats within the point budget, OCEAN, concerns, background and name. Each section offers "own input" or "AI assist", as in the per-section hybrid already decided. Edited fields keep the player's value when the derivation re-runs.
+- **Persona bots:** Ronny asking for 20 STR is caught by the limits whatever Jev says. Creation cost shows up as Jev rows, about $0.001 or less per character.
+
+## Plan 2026-10-07: the port on the unified Character
+
+New priority from Fredrik (via Case, 2026-10-07 15:53): port character creation onto the unified Character. This section supersedes the order under *Proposed port* below. That list stays as background.
+
+### The flow
+
+1. **Race and class first.** Each comes from the global label list (`priv/characters/defaults.json`) as extended by the world pack, and each choice shows its description.
+2. **Then one section at a time**, each offering **own input** or **AI assist** (the [per-section hybrid](decisions.md#2026-10-06-character-creation)):
+   - stats (the point buy);
+   - background (free text);
+   - social standing;
+   - origin (home region; only shown if the world has regions);
+   - occupation;
+   - personality (OCEAN) and concerns.
+3. **A free-text description** (in the background section, or at the start for Paul) goes through **one Jev description-to-struct call**. It returns fixed labels with confidence: race, class, standing, occupation, OCEAN levels, Maslow level and concern focuses.
+   - Answers at or above confidence 0.6 are used, and every confidence is logged.
+   - `Characters.Defaults` fills everything else.
+   - Jev can't write text, so an optional prose call can expand the background, as the old sparkle button did.
+4. **The player can edit everything, within the rules** ([decision](decisions.md#2026-10-07-character-defaults-the-four-answers)): stats within the point budget, OCEAN, concerns, background and name.
+   - Changing race, class, standing or occupation re-runs the derivation with no AI call.
+   - Fields the player has edited keep the player's value.
+5. **Begin adventure** calls `GameSessions.create_session/1` with the character, and the GM opens the scene as today. Elara stays as a quick start.
+
+### Fixing the old app's rough edges
+
+- **The 75-point buy is applied.** The base stats (before race) total at most 75, with each stat between 3 and 18. The final stats, after the race modifier, must also be 3–18.
+  - An unspent point is allowed, so a humble start is possible.
+  - A race bonus that would push a stat over 18 is an error the player sees, not a silent clamp.
+  - Later, skills follow the starting rules: 20–30 points, a cap of 5, background bonus points, and the Human +5 pool.
+- **A typed name.** The player types the name (1–40 characters). Elixir can suggest one from the naming lists; the AI never forces one.
+- **Racial bonuses are kept:**
+  - Human "+1 to any two stats" is a player choice;
+  - Elf "+1 INT or WIS" is a player choice;
+  - the fixed modifiers come from `defaults.json`;
+  - skill pools (Human +5, Half-Elf +2 to two skills) come with the skills section.
+- **The backstory reaches the GM.** A character section in the GM prompt carries race, class, standing, background and backstory, plus a short personality line. It is static per session, so it sits in the cached prefix (keeping the #34 prompt order and the prefix-stability test). The golden fixtures are updated on purpose in their own commit.
+
+### The first character is free
+
+- Creation costs are logged in `ai_calls` under their own purposes (`character_from_text`, `character_background`), so they can be told apart from play.
+- They don't count against the session cap; the day cap still applies.
+- When the [time pool](pricing-time-pool.md) billing lands, a player's first character is never charged.
+- The derivation and the point buy cost nothing, because they are pure Elixir. A Jev call costs well under $0.001.
+
+### Testable with the personas
+
+- The creation logic lives in a context module, `TalesForge.CharacterCreation`, not in the LiveView. That way the screen and the persona runner use the same functions.
+- **The persona runner gets a creation scenario:** `Runner.start(persona, module, scenario: "creation")`.
+  - `PlayerView` gets a creation view: each section as a question with options and descriptions, own input or AI assist, and the current sheet.
+  - The persona answers in its usual reply format (`option_id` or text).
+  - Once the character is finished, the run either stops (creation only) or goes on into play.
+- **What gets recorded:**
+  - steps and time to a finished character;
+  - backtracks (changed choices);
+  - rule violations the validator caught (Ronny);
+  - creation cost, logged apart from persona cost.
+- **The run is Jev-scored:** the existing affect scorer runs on the creation transcript, plus the automatic rule checks from [Scenario: character creation](design-playtest-loop.md#scenario-character-creation).
+
+### What blocks it: no unmerged unify phase
+
+- **Phases 0 and 1 are merged and deployed:** #48, #50 and #51. Every session already writes a `characters` row for the PC and keeps it updated each turn.
+- **Phase 2 (the read switch behind `CHARACTERS=on`) is not needed for creation.** Creation writes the PC where the game reads it today, `world_state["character"]` (name, race, stats, skills, coins, inventory, wounds), and `Characters.seed_session/2` writes the `characters` row from the same map. The created character plays through the existing PC path from turn 1.
+- **The minimum needed first** is small and part of PR 1: `seed_session` takes the created character's levers (OCEAN, Maslow, concerns) and origin (`source: created`) instead of the pack file's.
+  - The levers are set only on first insert, so the per-turn mirror never overwrites them.
+  - If the row were ever deleted, a re-run of the backfill would fall back to the pack file's levers. That is a known gap until phase 2.
+- **Who the character is reaches the GM through the existing path:** the extra keys (class, standing, background, backstory) go into `world_state["character"]`, and PR 5 renders them.
+  - Phase 2 must then render the same section from the `characters` row byte-identically. That adds one line to phase 2's golden check, not a dependency.
+
+### PRs
+
+Small PRs, each with CI green, the docs updated, and no merge or deploy without approval. Sizes include tests.
+
+| # | PR | Contents | LOC (rough) | Risk |
+|---|---|---|---|---|
+| 1 | **Race, class and the stat point buy on the unified Character** | `TalesForge.CharacterCreation`: new draft, choose race and class, set stats within the 75-point buy, race stat choices (Human two stats, Elf INT or WIS), typed name, validator with clear errors, `finalize/1` producing a pack-shaped character with levers derived through `Defaults`. `priv/characters/creation.json` (budget, ranges, race choices, class free skill points, starting kit). `create_session(%{character: …})` uses it instead of Elara; `seed_session` takes its levers. No UI and no prompt change. **Merged as [ex-tales-forge #52](https://github.com/whyse-ab/ex-tales-forge/pull/52)** (merge `71c0af8`, 2026-10-07) | +550 planned, +980 actual (505 code, 72 data, 401 tests) | low (domain only; Elara stays the default) |
+| 2 | **Creation screen** | LiveView `/new/:adventure`: race and class with descriptions, a stat point buy with points left, a typed name, Begin adventure. Home buttons lead there; "Quick start as Elara" stays. **Merged as [ex-tales-forge #53](https://github.com/whyse-ab/ex-tales-forge/pull/53)** (merge `00c370d`, 2026-10-07; production v51, playtest v39), behind the GitHub team sign-in from #54 | +450 planned, +867 / −22 actual (616 code incl. CSS, 248 tests, 3 docs) | low–medium (UI) |
+| 3 | **Persona runner: creation scenario** | Creation view in `PlayerView`, persona replies drive `CharacterCreation`, then play or stop; steps, time, backtracks, rule violations and cost recorded; Jev-scored creation run. First runs: Paul, Lotta, Ronny | +500 | medium (runner state, scoring) |
+| 4 | **The other sections, own input** | Background text, standing, origin, occupation, OCEAN and concerns, and the skill point buy (20–30, cap 5, Human +5, Half-Elf +2×2, Elf choice); re-derive on input change; edited fields keep the player's value | +550 | medium (many rules) |
+| 5 | **The GM sees who the character is** | A character section in the GM prompt (race, class, standing, background, backstory, personality line) in the cached prefix; a scene-prompt hook so the opening gives the character a reason to be there; golden fixtures updated in their own commit; a Paul comparison before and after | +250 | medium (prompt drift, cache) |
+| 6 | **AI assist** | One Jev description-to-struct call with fixed labels and confidence (0.6, logged); `Defaults` fills the gaps; an optional prose call to expand the background; an "AI assist" button per section; creation `ai_calls` purposes and first-character-free accounting | +450 | medium (label design, Jev limits) |
+| Later | Portraits, a character library across sessions (needs accounts), Merovingia as a playable world | own plans | — | — |
+
+**Order:** 1 → 2 → 3, then 4, 5 and 6 in any order. PR 3 needs only PR 1, so persona runs can start before the screen exists.
+
+The skill point buy and occupation from PR 4 are taken out and done first, as the skill-rules PRs [#62](https://github.com/whyse-ab/ex-tales-forge/pull/62)–[#65](https://github.com/whyse-ab/ex-tales-forge/pull/65) (below). The rest of PR 4 (background, standing, origin, OCEAN and concerns) is still to do.
+
+## Skill rules (ported 2026-10-07)
+
+On Fredrik's instruction, the old game's written skill rules are ported, so a solo character starts well rounded and keeps growing. The sources are the old app on `development`:
+
+- `docs/game-rules/fantasy_rpg_game_mechanics_summary.md`
+- `racial_mechanics_summary.md`
+- `skill_domains.md`
+- `modules/merovingia/game-system.json` (`variants`, `progression`)
+
+The rules live in `priv/characters/creation.json` (`skills`, `occupation`) and `TalesForge.Game.Mechanics`. [Decision 2026-10-07](decisions.md#2026-10-07-skill-rules-ported-from-the-old-game-signature-skills-up-to-7-growth-no-longer-stalls).
+
+| PR | Scope | Size | Base |
+|---|---|---|---|
+| [#62](https://github.com/whyse-ab/ex-tales-forge/pull/62) | Skill budget, costs, cap, signature skills, minimum skills, class package 3/2/1, race bonuses, suggested spread, untrained floor | +512 / −26 | main |
+| [#63](https://github.com/whyse-ab/ex-tales-forge/pull/63) | Past occupation (+2 core, +1 secondary), class defaults | +221 / −46 | #62 |
+| [#64](https://github.com/whyse-ab/ex-tales-forge/pull/64) | Progression: tiered LP 5/7/10/15, Expert −3 / Master −5, LP stat bonus, one failure; GM rules text and golden fixtures | +233 / −97 | main |
+| [#65](https://github.com/whyse-ab/ex-tales-forge/pull/65) | Creation screen (occupation picker, Skills step, inline validation) and persona builds | +388 / −37 | #63 |
+
+### The rules
+
+- **Budget:** 25 points, plus 5 for Human and 3 for Half-Elf. Levels 1–3 cost 1 each, 4–5 cost 2 each, and 6–7 cost 3 each. The normal cap is 5. Up to **2 signature skills** may go to **7**. A character needs at least **5 skills** at level 1 or more.
+- **Free levels** cost nothing and fill the lowest levels first. They come from:
+  - the class package: all three class skills at 3, 2 and 1;
+  - the race: Elf Ranged Combat 3 and Survival 2; Dwarf Melee Combat 3 and Survival 2; Gnome Arcana 3 and Lockpicking 2; Halfling Stealth 3 and Lockpicking 2;
+  - the past occupation: +2 on its core skills and +1 on its secondary ones.
+
+  Free levels stack. A skill above 5 becomes a signature skill. Levels cut off by the caps come back as points at the price of the lost levels, so a dwarf warrior who was a soldier has Melee Combat 3 + 3 + 2 = 8, which is capped at 7 with 3 points back.
+- **Suggested build:** the class, race and occupation skills plus filler skills tied to the highest stats (at least 6 skills), raised lowest first up to 5 until the points run out. The suggestion never buys a signature level; the player does that.
+- **Past occupation:** a player can pick laborer, innkeep, barkeep, merchant, guard, soldier, hunter, miner, priest, scholar, thief or noble. The class suggests one: warrior → soldier, thief → thief, ranger → hunter, cleric → priest, wizard → scholar, druid → hunter, no class → laborer.
+- **Untrained floor:** effective level = `max(skill + (stat − 10) ÷ 2, stat ÷ 3, (stat − 10) ÷ 2)`, rounded down.
+- **Progression** (as ported in #64; **superseded on 2026-10-07** for the default variant by [1 LP = one attempt](#growth-rule-replaced-2026-10-07-1-lp--one-improvement-attempt), below; the `baseline` variant keeps it):
+  - The LP needed to try depends on the tier: Novice (0–5) 5, Adept (6–10) 7, Expert (11–15) 10, Master (16+) 15.
+  - At least one failure since the last attempt.
+  - The improvement roll is `1d20 + modifier > level`, with modifier 0 / 0 / −3 / −5 by tier and a trainer lowering the target by 5. A Master still needs a trainer.
+  - Every roll's LP gets `(linked stat − 10) ÷ 4`, from 0 to +2.
+
+### Ambiguities in the old rules, and how they were resolved
+
+1. **Signature skill cost** (no old rule): levels 6–7 cost 3 each, continuing the curve. At 2 per level, a class skill could reach 7 for 4 points.
+2. **Half-Elf skill bonus:** the `.md` says +2 to any two skills, while `game-system.json` says a pool of 3. **The JSON wins** (Fredrik): +3 points.
+3. **Elf, Dwarf, Gnome and Halfling:** the `.md` offers choices ("Ranged or Arcana +3"), while the JSON has fixed skills. **The JSON's fixed values are used.**
+4. **Gnome "Alchemy 3":** the game has no alchemy skill. It maps to **Arcana**, because adding a skill would change the `valid_skills` list in the intent prompt.
+5. **Halfling:** the `.md` says Stealth or Cooking +3 and Persuasion or Trading +2. The JSON's Stealth 3 and Lockpicking 2 are used.
+6. **Skill budget "20–30":** 25, as Fredrik set.
+7. **"Backgrounds grant 3–5 free points":** this became the class package (3+2+1 = 6 free levels) plus the past occupation (Fredrik's list).
+8. **"+1 point per stat > 10 for linked skills" and the "wildcard" points:** **left out.** They weren't in Fredrik's list, they would double-count the stat bonus already added to every roll, and the budget is already generous.
+9. **Minimum "3–5 skills":** 5.
+10. **The untrained rule is "level 0 = Stat / 3"**; Fredrik said "floor: max(stat ÷ 3, stat bonus)". The floor applies to **every** roll, so training never makes a roll worse. Trade-off: at stat 10–12, skill levels 1–3 add nothing to the roll yet, though they still count for growth and the story. **Open question**, below.
+11. **Improvement target at Expert:** `skill_domains.md` says "Roll > Level − 3", which reads as easier; the JSON says `improvement_modifier: −3`, and the rules say high levels get harder. **The JSON wins:** the roll gets −3, and the GM rules text now reads "Roll − 3 > Level".
+12. **LP stat modifier for low stats:** the old rule caps it at +2 but says nothing about negatives. Here it is **0 to +2**: with a penalty, a success would be worth 0 LP or less.
+13. **"At least 3 failures":** relaxed to **1**, as Fredrik allowed ("drop or relax"). "Learning from failure" stays, but growth doesn't stall.
+14. **Occupation and the levers:** the occupation feeds the **skills only**. OCEAN, Maslow and concerns still come from "adventurer", who the character is now. **Open question**, below.
+15. **Which occupations a player can pick:** all except adventurer (no skills) and ruler.
+16. **Bought levels across a race or class change:** the draft keeps the **levels**, not the purchases. A new class that makes a skill free gives its points back, instead of pushing the skill past the cap.
+17. **Domains** (`skill_domains.md`, domain floors and echoes): not ported. Even a `domain` field would need data for skills the game doesn't have, so it waits for the domains work.
+18. **NPCs** (`Defaults.derive`): unchanged. The rules are for player characters, and the golden fixtures stay the same.
+
+### Open questions, resolved 2026-10-07 (Fredrik via Case, [decision](decisions.md#2026-10-07-skill-rules-the-open-questions-answered))
+
+- **Half-Elf stat modifiers:** keep the game's DEX +1, CHA +1. No change.
+- **Untrained floor:** **only for level-0 skills**, which is the literal old rule. A trained skill uses level + stat bonus, so levels 1–3 always count. Changed in #62, which replaces ambiguity 10 above.
+- **Past occupation and the levers:** the occupation now drives the OCEAN, Maslow and concerns defaults, as for NPCs; "adventurer" is only the fallback. Changed in #63, which replaces ambiguity 14 above. **The GM's sheet:** deferred to PR 5 ("The GM sees who the character is"), which adds race, class, background and the occupation in one character section with one golden update.
+- **Pace of growth:** unchanged for now. Playtest runs record per-skill growth (rolls, LP gained, attempts, improvements) on `playtest_runs.growth`, so the baseline shows the pace.
+
+### Growth rule replaced 2026-10-07: 1 LP = one improvement attempt
+
+The [Jev baseline](analysis-jev-baseline-2026-10-07.md#6-skill-growth-lp-from-playtest_runsgrowth-ex-tales-forge-66) found about 1.0 LP per run and **0 improvement attempts in 65 runs**: the #64 rule needed the tier's LP, a failure and a rest of an hour, and almost no run had all three. Fredrik replaced it ([decision](decisions.md#2026-10-07-skill-growth-spend-1-lp-for-one-improvement-attempt-supersedes-the-tiered-thresholds)). The code is in [ex-tales-forge #67](https://github.com/whyse-ab/ex-tales-forge/pull/67) (`TalesForge.Game.Progression`); it is open and waits for Fredrik's approval.
+
+- **The rule:** 1 LP buys one attempt on the skill that earned it. Roll d20; if the result is **≥ the current level**, the skill gets +1. The chance is **(21 − L)/20**. More LP means more attempts. LP are earned per roll as before, including the stat bonus.
+- **When (chosen in #67):** at the **end of every turn**, every whole LP a skill holds is spent at once. Fractions wait for the next roll, and the dead learn nothing.
+  - Rest almost never happened (0 attempts), the game has no reliable end-of-session event, and scene changes are unreliable today, so only a per-turn spend is sure to trigger.
+  - It also spends LP that sessions banked under #64.
+- **Trainers (chosen in #67):** a training session is **one free attempt (no LP) with +5** on the roll. The trainer must still be present and at least 5 levels above you, you pay the fee per day, and you must not be down or dead. The LP and failure gate is gone. Training costs coin and days, so it doesn't also cost LP; the +5 matters most where attempts usually fail, and past 20 only a trainer reaches the target.
+- **Expert −3 / Master −5 (chosen in #67): removed.** The curve already slows growth (90% at level 3, 45% at 12, 25% at 16, 5% at 20, a soft cap at 20). With the modifiers, the chance would be 0% from 16 up, a hard wall and two more non-intuitive rules.
+- **Baseline variant:** keeps the #64 rule and its rules text unchanged (`Progression.Tiered`, `variants/baseline/rules/`), so the A/B arm plays the old game.
+- **Growth log (#66):** each attempt is one `improvements` entry (`lp_spent` 1, or 0 with `bonus` 5 for a trainer), so `playtest_runs.growth` counts attempts and improvements as before.
+
+Expected growth of one skill that gets all of a run's LP (exact Markov-chain expectations from [`scripts/growth-model/growth_model.py`](scripts/growth-model/growth_model.py)):
+
+| Level L | p = (21 − L)/20 | Levels per run at 1 LP | at 2 LP | at 3 LP | Runs L → L+1 at 1 LP | at 2 LP | at 3 LP |
+|---|---|---|---|---|---|---|---|
+| 3 | 0.90 | 0.90 | 1.75 | 2.57 | 1.1 | 0.6 | 0.4 |
+| 5 | 0.80 | 0.80 | 1.56 | 2.28 | 1.2 | 0.6 | 0.4 |
+| 7 | 0.70 | 0.70 | 1.37 | 2.00 | 1.4 | 0.7 | 0.5 |
+| 12 | 0.45 | 0.45 | 0.88 | 1.28 | 2.2 | 1.1 | 0.7 |
+
+| Span | Runs at 1 LP | at 2 LP | at 3 LP |
+|---|---|---|---|
+| 3 → 5 | 2.3 | 1.1 | 0.8 |
+| 5 → 7 | 2.6 | 1.3 | 0.9 |
+| 7 → 12 | 8.5 | 4.2 | 2.8 |
+| 3 → 12 | 13.3 | 6.7 | 4.4 |
+| 3 → 20 | 49.9 | 25.0 | 16.6 |
+
+Under #64 at 1 LP per run, even with a rest and a failure every run, the next level took 5.7 runs from level 3, 6.3 from 5, 10.2 from 7 and 37 from 12.
+
+![Expected level of one skill over runs, new rule at 1–3 LP per run vs the #64 rule](images/growth-lp-attempts-2026-10-07.png)
+
+- **Caveats:**
+  - 1.0 LP per run is the whole character's average (Paul 0.12, Lars 2.19), and one skill gets less than that.
+  - The fast end comes from the LP-earning rate, not from this rule. A fight-heavy run (Ronny: 13.5 melee LP in one run) would take melee from 5 to about 14. If the rerun shows that is too fast, tune LP per roll (for example the stat bonus).
+
+## Proposed port
+
+In order, most important first. Sizes are rough: S is about a day, M is two to four days, L is one to two weeks.
+
+1. **Let a session start with any character (S).** `GameSessions.create_session/1` accepts a `character` map. `Pack.materialize/2` uses it instead of Elara, adds `location_id` and works out `wound_max` and `vitality`. Elara stays the default, so existing paths and tests keep working.
+2. **Make the GM see who the character is (S).** Add race, archetype, social status, background, backstory, personality, appearance, stats and skills to `Context.character_summary/1`, or put them in a separate character section of the GM prompt. In the scene prompt, ask the GM to give the character a reason to be in the opening scene, based on their background, as the old app did for random scenes. Keep the hidden seeds GM-only.
+3. **Load structured creation data for one world (M).** Add a loader such as `TalesForge.Game.CreationRules` for a structured file in each pack: races, archetypes, skills with linked stats, social classes with wealth budgets, naming lists, point-buy limits and the starting skill cap. Write that file for Tin Valley from its `races.md`, `core_mechanics.md` and `economy.md`; Crossroads shares the same rules. Merovingia's `game-system.json` already has nearly this shape.
+4. **Align skills with world data (S–M).** Take `Mechanics` skills and their linked stats from the loaded data, with the current 17 as the default, so the intent step and checks accept every skill a created character can have.
+5. **The creation screen (M).** A LiveView such as `/new/:adventure`, opened from the home page buttons. It has the choices with descriptions, a free-text concept with a "write it for me" or "expand mine" button, then Generate, then a review of the sheet with editable name, appearance and personality, then "Begin adventure". That calls `create_session` with the character and goes to `/play/:id`, where the GM opens. Keep the creation logic in a separate context module such as `TalesForge.CharacterCreation`, not inside the LiveView, so the playtest runner can drive it too.
+6. **AI generation and server checks (M).** Two `LLM` purposes, `character_concept` and `character_sheet`, ported from the old prompts and schema and recorded in `ai_calls`. Afterwards the server applies racial modifiers and clamping and checks the result against the world's limits (stat total, skill cap, known races, archetypes and skills). It applies the price floors, turns gear into inventory plus coins, and adds the naming guidance. Fix the old rough edges on the way: keep skill pools and the "+1 to any two" choice, and save armor and wounds.
+7. **Playtest support (M).** See the next section.
+8. **Apply the point buy for real (M, depends on the founders' answer).** Either the AI proposes a build inside the 75-point buy and the player can adjust it, or the server rescales whatever the AI returns. Both use the same validator from step 6.
+9. **Merovingia as a playable world (L).** Load `game-system.json` for creation and add an adventure pack with a start location and NPCs. Without the pack there's nowhere to play.
+10. **Portraits (M–L).** Image generation and Tigris storage in `TalesForge.Images`, reusing the old portrait prompt and world style. It runs in the background so it never delays the opening scene.
+11. **A character record that outlives a session (M).** A `characters` table for a library, the character museum and making the next character after a death. This ties to [D-010](../decisions/d-010-death-revival-fantasy.md) and the `characters` table in [Game data vs sessions](design-game-data-vs-sessions.md).
+
+Steps 1 and 2 are worth doing first on their own: they make any character, even a hand-written one, actually show up in play.
+
+## Persona bots in playtest
+
+The [playtest loop](design-playtest-loop.md) has a section, *Scenario: character creation* (open PR #10 in this repo), that lists what each persona does and what gets scored. This is how the port could support it:
+
+- **Same paths as a player.** The runner (`TalesForge.Playtest.Runner`) calls the `TalesForge.CharacterCreation` functions behind the screen, then `create_session` with the result. It then waits for the GM's opening, as today. A creation-only test stops there; a full test goes on to play.
+- **What the bot sees.** `PlayerView` gets a creation view: each choice as a question with options and descriptions, the concept field, and the generated sheet. That matches the persona reply the runner already uses for GM questions (`action` plus `option_id`). The bot picks an option or writes text, such as Paul's prose concept, Lotta's own name and details, or Ronny's attempts to get 20 STR.
+- **Automatic checks** reuse the step 6 validator: race, archetype and skills exist in the world data, stats and skill points are within limits, coins and gear match the social class, and the name fits the naming lists.
+- **What gets recorded:** time and steps from start to finished character, the number of regenerations, and creation `ai_calls` under their own purpose so creation cost can be told apart from play. The judge reads what the bot saw and the sheet it ended up with.
+
+## Open questions for the founders
+
+1. Should creation be a form with AI help like the old app, a conversation with the GM, or a form first with the GM filling in the story?
+2. Should the AI keep picking the stats as before, or should the 75-point buy in the rules really apply? If so, does the player adjust the numbers, or does the AI build inside the limits?
+3. Which world first: Tin Valley, which the new app can load but which has no structured race or class data yet, or Merovingia, which has the richest data but no adventure in the new app?
+4. Should Elara, or a few ready-made characters, stay as a quick start for players who want to play straight away?
+5. Are portraits part of the first version, given the extra cost and wait?
+6. Which parts of the generated character should the player be able to change: name, stats, skills, gear?
+7. Is a character tied to one session, or kept so it can be played again? What happens after a death: the same creation again, or a shorter one?
+8. Do we keep the five social classes, with their effect on money, gear and names?
+9. Should the hidden weaknesses woven into the backstory stay hidden from the player, as in the old app?
+10. Do all races and classes open at once, or a smaller set first, like the old launch's four races and three non-magic classes?
+11. What is a good target time for making a character?
+12. Should creation count against the per-session spending cap?

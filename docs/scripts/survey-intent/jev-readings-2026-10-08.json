@@ -1,0 +1,2503 @@
+{
+  "model": "jev-1.13.0",
+  "readings": [
+    {
+      "candidates": [
+        {
+          "id": "cobb",
+          "kind": "npc",
+          "text": "Cobb — Rusk's brute (present)"
+        },
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — innkeep (present)"
+        },
+        {
+          "id": "rusk",
+          "kind": "npc",
+          "text": "Rusk — road thief (present)"
+        },
+        {
+          "id": "market_square",
+          "kind": "place",
+          "text": "Market Square (exit)"
+        },
+        {
+          "id": "inn_yard",
+          "kind": "place",
+          "text": "Inn yard (exit)"
+        },
+        {
+          "id": "herb_cottage",
+          "kind": "place",
+          "text": "Maude's cottage (place beyond)"
+        },
+        {
+          "id": "mine_workings",
+          "kind": "place",
+          "text": "Mine workings (place beyond)"
+        },
+        {
+          "id": "old_adit",
+          "kind": "place",
+          "text": "Old adit (place beyond)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "smithy",
+          "kind": "place",
+          "text": "Brask's forge (place beyond)"
+        },
+        {
+          "id": "west_road",
+          "kind": "place",
+          "text": "West road (place beyond)"
+        },
+        {
+          "id": "drover",
+          "kind": "npc",
+          "text": "Mags Ferrow — elsewhere, at inn_yard"
+        },
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — elsewhere, at market_square"
+        },
+        {
+          "id": "herb_wife",
+          "kind": "npc",
+          "text": "Old Maude — elsewhere, at herb_cottage"
+        },
+        {
+          "id": "pip",
+          "kind": "npc",
+          "text": "Pip — elsewhere, at west_road"
+        },
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — elsewhere, at mine_workings"
+        },
+        {
+          "id": "smith",
+          "kind": "npc",
+          "text": "Hilde Brask — elsewhere, at smithy"
+        },
+        {
+          "id": "stable_lad",
+          "kind": "npc",
+          "text": "Tam Holt — elsewhere, at inn_yard"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "ale_mug",
+          "kind": "item",
+          "text": "Mug of Ale (for sale)"
+        },
+        {
+          "id": "hearth",
+          "kind": "fixture",
+          "text": "hearth (fixture)"
+        },
+        {
+          "id": "bar counter",
+          "kind": "fixture",
+          "text": "bar counter (fixture)"
+        }
+      ],
+      "cost": 1.31502e-4,
+      "id": "r108",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 0.0,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.0,
+          "interact": 0.0,
+          "move": 0.14,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.86,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later": {
+          "buy": 0.0,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.0,
+          "interact": 0.0,
+          "move": 0.65,
+          "none": 0.34,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.01,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later_target": {
+          "ale_mug": 0.0,
+          "bar counter": 0.0,
+          "cobb": 0.0,
+          "drover": 0.0,
+          "guild_steward": 0.81,
+          "hearth": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.0,
+          "innkeep": 0.01,
+          "market_square": 0.14,
+          "mine_workings": 0.0,
+          "none": 0.02,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.01,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.0,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "west_road": 0.0
+        },
+        "target": {
+          "ale_mug": 0.0,
+          "bar counter": 0.0,
+          "cobb": 0.0,
+          "drover": 0.0,
+          "guild_steward": 0.46,
+          "hearth": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.0,
+          "innkeep": 0.09,
+          "market_square": 0.44,
+          "mine_workings": 0.0,
+          "none": 0.0,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.01,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.0,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "west_road": 0.0
+        }
+      },
+      "reading": {
+        "action": "speak",
+        "confidence": 0.44,
+        "later": "move",
+        "later_target": "guild_steward",
+        "skill": null,
+        "target": "guild_steward"
+      }
+    },
+    {
+      "id": "r088",
+      "candidates": [
+        {
+          "id": "cobb",
+          "text": "Cobb — Rusk's brute (present)",
+          "kind": "npc"
+        },
+        {
+          "id": "innkeep",
+          "text": "Brenna Holt — innkeep (present)",
+          "kind": "npc"
+        },
+        {
+          "id": "rusk",
+          "text": "Rusk — road thief (present)",
+          "kind": "npc"
+        },
+        {
+          "id": "market_square",
+          "text": "Market Square (exit)",
+          "kind": "place"
+        },
+        {
+          "id": "inn_yard",
+          "text": "Inn yard (exit)",
+          "kind": "place"
+        },
+        {
+          "id": "herb_cottage",
+          "text": "Maude's cottage (place beyond)",
+          "kind": "place"
+        },
+        {
+          "id": "mine_workings",
+          "text": "Mine workings (place beyond)",
+          "kind": "place"
+        },
+        {
+          "id": "old_adit",
+          "text": "Old adit (place beyond)",
+          "kind": "place"
+        },
+        {
+          "id": "orc_approach",
+          "text": "Cut above the nest (place beyond)",
+          "kind": "place"
+        },
+        {
+          "id": "orc_nest",
+          "text": "Orc nest (place beyond)",
+          "kind": "place"
+        },
+        {
+          "id": "smithy",
+          "text": "Brask's forge (place beyond)",
+          "kind": "place"
+        },
+        {
+          "id": "west_road",
+          "text": "West road (place beyond)",
+          "kind": "place"
+        },
+        {
+          "id": "drover",
+          "text": "Mags Ferrow — elsewhere, at inn_yard",
+          "kind": "npc"
+        },
+        {
+          "id": "guild_steward",
+          "text": "Osric Vane — elsewhere, at market_square",
+          "kind": "npc"
+        },
+        {
+          "id": "herb_wife",
+          "text": "Old Maude — elsewhere, at herb_cottage",
+          "kind": "npc"
+        },
+        {
+          "id": "pip",
+          "text": "Pip — elsewhere, at west_road",
+          "kind": "npc"
+        },
+        {
+          "id": "prospector",
+          "text": "Caldern Voss — elsewhere, at mine_workings",
+          "kind": "npc"
+        },
+        {
+          "id": "smith",
+          "text": "Hilde Brask — elsewhere, at smithy",
+          "kind": "npc"
+        },
+        {
+          "id": "stable_lad",
+          "text": "Tam Holt — elsewhere, at inn_yard",
+          "kind": "npc"
+        },
+        {
+          "id": "travel_cloak",
+          "text": "travel cloak (carried)",
+          "kind": "item"
+        },
+        {
+          "id": "hunting_knife",
+          "text": "hunting knife (carried)",
+          "kind": "item"
+        },
+        {
+          "id": "ale_mug",
+          "text": "Mug of Ale (for sale)",
+          "kind": "item"
+        },
+        {
+          "id": "hearth",
+          "text": "hearth (fixture)",
+          "kind": "fixture"
+        },
+        {
+          "id": "bar counter",
+          "text": "bar counter (fixture)",
+          "kind": "fixture"
+        }
+      ],
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "target": {
+          "ale_mug": 0.04,
+          "bar counter": 0.0,
+          "cobb": 0.0,
+          "drover": 0.0,
+          "guild_steward": 0.0,
+          "hearth": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.02,
+          "innkeep": 0.61,
+          "market_square": 0.0,
+          "mine_workings": 0.01,
+          "none": 0.02,
+          "old_adit": 0.3,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.0,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "west_road": 0.0
+        },
+        "action": {
+          "other": 0.0,
+          "wait": 0.0,
+          "drop": 0.0,
+          "move": 0.0,
+          "observe": 0.0,
+          "interact": 0.0,
+          "speak": 0.2,
+          "combat": 0.0,
+          "use_item": 0.0,
+          "pickup": 0.0,
+          "buy": 0.78,
+          "sell": 0.0,
+          "trade": 0.01,
+          "spend": 0.01,
+          "train": 0.0,
+          "freeform": 0.0
+        },
+        "later": {
+          "none": 0.05,
+          "other": 0.0,
+          "wait": 0.0,
+          "drop": 0.0,
+          "move": 0.93,
+          "observe": 0.0,
+          "interact": 0.0,
+          "speak": 0.0,
+          "combat": 0.0,
+          "use_item": 0.0,
+          "pickup": 0.0,
+          "buy": 0.01,
+          "sell": 0.0,
+          "trade": 0.0,
+          "spend": 0.0,
+          "train": 0.0,
+          "freeform": 0.0
+        },
+        "later_target": {
+          "ale_mug": 0.02,
+          "bar counter": 0.0,
+          "cobb": 0.01,
+          "drover": 0.0,
+          "guild_steward": 0.0,
+          "hearth": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.02,
+          "innkeep": 0.39,
+          "market_square": 0.0,
+          "mine_workings": 0.01,
+          "none": 0.09999999999999999,
+          "old_adit": 0.45,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.0,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "west_road": 0.0
+        }
+      },
+      "reading": {
+        "target": "innkeep",
+        "action": "buy",
+        "later": "move",
+        "later_target": "old_adit",
+        "confidence": 0.59,
+        "skill": null
+      },
+      "cost": 1.3041e-4
+    },
+    {
+      "candidates": [
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — guild_steward (present)"
+        },
+        {
+          "id": "valley_inn",
+          "kind": "place",
+          "text": "Valley Inn (exit)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (exit)"
+        },
+        {
+          "id": "mine_workings",
+          "kind": "place",
+          "text": "Mine workings (exit)"
+        },
+        {
+          "id": "herb_cottage",
+          "kind": "place",
+          "text": "Maude's cottage (exit)"
+        },
+        {
+          "id": "inn_yard",
+          "kind": "place",
+          "text": "Inn yard (exit)"
+        },
+        {
+          "id": "smithy",
+          "kind": "place",
+          "text": "Brask's forge (exit)"
+        },
+        {
+          "id": "west_road",
+          "kind": "place",
+          "text": "West road (exit)"
+        },
+        {
+          "id": "old_adit",
+          "kind": "place",
+          "text": "Old adit (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "cobb",
+          "kind": "npc",
+          "text": "Cobb — elsewhere, at valley_inn"
+        },
+        {
+          "id": "drover",
+          "kind": "npc",
+          "text": "Mags Ferrow — elsewhere, at inn_yard"
+        },
+        {
+          "id": "herb_wife",
+          "kind": "npc",
+          "text": "Old Maude — elsewhere, at herb_cottage"
+        },
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — elsewhere, at valley_inn"
+        },
+        {
+          "id": "pip",
+          "kind": "npc",
+          "text": "Pip — elsewhere, at west_road"
+        },
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — elsewhere, at mine_workings"
+        },
+        {
+          "id": "rusk",
+          "kind": "npc",
+          "text": "Rusk — elsewhere, at valley_inn"
+        },
+        {
+          "id": "smith",
+          "kind": "npc",
+          "text": "Hilde Brask — elsewhere, at smithy"
+        },
+        {
+          "id": "stable_lad",
+          "kind": "npc",
+          "text": "Tam Holt — elsewhere, at inn_yard"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "guild post",
+          "kind": "fixture",
+          "text": "guild post (fixture)"
+        },
+        {
+          "id": "stalls",
+          "kind": "fixture",
+          "text": "stalls (fixture)"
+        }
+      ],
+      "cost": 1.2860400000000002e-4,
+      "id": "r109",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 0.0,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.01,
+          "interact": 0.0,
+          "move": 0.99,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.0,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later": {
+          "buy": 0.0,
+          "combat": 0.04,
+          "drop": 0.0,
+          "freeform": 0.02,
+          "interact": 0.0,
+          "move": 0.07,
+          "none": 0.75,
+          "observe": 0.08,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.0,
+          "spend": 0.01,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.01,
+          "wait": 0.02
+        },
+        "later_target": {
+          "cobb": 0.0,
+          "drover": 0.0,
+          "guild post": 0.0,
+          "guild_steward": 0.12,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.0,
+          "innkeep": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.29000000000000004,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.33,
+          "pip": 0.01,
+          "prospector": 0.0,
+          "rusk": 0.0,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "stalls": 0.0,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0,
+          "west_road": 0.25
+        },
+        "target": {
+          "cobb": 0.0,
+          "drover": 0.0,
+          "guild post": 0.0,
+          "guild_steward": 0.01,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.0,
+          "innkeep": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.01,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.47,
+          "pip": 0.01,
+          "prospector": 0.0,
+          "rusk": 0.0,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "stalls": 0.0,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0,
+          "west_road": 0.5
+        }
+      },
+      "reading": {
+        "action": "move",
+        "confidence": 0.48,
+        "later": null,
+        "later_target": null,
+        "skill": "stealth",
+        "target": "west_road"
+      }
+    },
+    {
+      "candidates": [
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — prospector (present)"
+        },
+        {
+          "id": "market_square",
+          "kind": "place",
+          "text": "Market Square (exit)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "valley_inn",
+          "kind": "place",
+          "text": "Valley Inn (place beyond)"
+        },
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — elsewhere, at market_square"
+        },
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — elsewhere, at valley_inn"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "shaft",
+          "kind": "fixture",
+          "text": "shaft (fixture)"
+        },
+        {
+          "id": "ore carts",
+          "kind": "fixture",
+          "text": "ore carts (fixture)"
+        }
+      ],
+      "cost": 1.0298400000000002e-4,
+      "id": "r135",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 0.0,
+          "combat": 0.43,
+          "drop": 0.0,
+          "freeform": 0.1,
+          "interact": 0.01,
+          "move": 0.09,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.09,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.28,
+          "wait": 0.0
+        },
+        "later": {
+          "buy": 0.0,
+          "combat": 0.28,
+          "drop": 0.0,
+          "freeform": 0.0,
+          "interact": 0.0,
+          "move": 0.01,
+          "none": 0.68,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.01,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.01,
+          "wait": 0.0
+        },
+        "later_target": {
+          "guild_steward": 0.0,
+          "hunting_knife": 0.04,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "none": 0.26,
+          "orc_approach": 0.15,
+          "orc_nest": 0.33,
+          "ore carts": 0.0,
+          "prospector": 0.22,
+          "shaft": 0.0,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0
+        },
+        "target": {
+          "guild_steward": 0.0,
+          "hunting_knife": 0.06,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "none": 0.11,
+          "orc_approach": 0.15,
+          "orc_nest": 0.37,
+          "ore carts": 0.0,
+          "prospector": 0.31,
+          "shaft": 0.0,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0
+        }
+      },
+      "reading": {
+        "action": "combat",
+        "confidence": 0.31,
+        "later": null,
+        "later_target": null,
+        "skill": "stealth",
+        "target": "orc_nest"
+      }
+    },
+    {
+      "candidates": [
+        {
+          "id": "cobb",
+          "kind": "npc",
+          "text": "Cobb — Rusk's brute (present)"
+        },
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — innkeep (present)"
+        },
+        {
+          "id": "rusk",
+          "kind": "npc",
+          "text": "Rusk — road thief (present)"
+        },
+        {
+          "id": "market_square",
+          "kind": "place",
+          "text": "Market Square (exit)"
+        },
+        {
+          "id": "inn_yard",
+          "kind": "place",
+          "text": "Inn yard (exit)"
+        },
+        {
+          "id": "herb_cottage",
+          "kind": "place",
+          "text": "Maude's cottage (place beyond)"
+        },
+        {
+          "id": "mine_workings",
+          "kind": "place",
+          "text": "Mine workings (place beyond)"
+        },
+        {
+          "id": "old_adit",
+          "kind": "place",
+          "text": "Old adit (place beyond)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "smithy",
+          "kind": "place",
+          "text": "Brask's forge (place beyond)"
+        },
+        {
+          "id": "west_road",
+          "kind": "place",
+          "text": "West road (place beyond)"
+        },
+        {
+          "id": "drover",
+          "kind": "npc",
+          "text": "Mags Ferrow — elsewhere, at inn_yard"
+        },
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — elsewhere, at market_square"
+        },
+        {
+          "id": "herb_wife",
+          "kind": "npc",
+          "text": "Old Maude — elsewhere, at herb_cottage"
+        },
+        {
+          "id": "pip",
+          "kind": "npc",
+          "text": "Pip — elsewhere, at west_road"
+        },
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — elsewhere, at mine_workings"
+        },
+        {
+          "id": "smith",
+          "kind": "npc",
+          "text": "Hilde Brask — elsewhere, at smithy"
+        },
+        {
+          "id": "stable_lad",
+          "kind": "npc",
+          "text": "Tam Holt — elsewhere, at inn_yard"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "ale_mug",
+          "kind": "item",
+          "text": "Mug of Ale (for sale)"
+        },
+        {
+          "id": "hearth",
+          "kind": "fixture",
+          "text": "hearth (fixture)"
+        },
+        {
+          "id": "bar counter",
+          "kind": "fixture",
+          "text": "bar counter (fixture)"
+        }
+      ],
+      "cost": 1.3108200000000003e-4,
+      "id": "r093",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 0.0,
+          "combat": 0.03,
+          "drop": 0.0,
+          "freeform": 0.13,
+          "interact": 0.01,
+          "move": 0.32,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.51,
+          "sell": 0.0,
+          "speak": 0.0,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later": {
+          "buy": 0.0,
+          "combat": 0.01,
+          "drop": 0.0,
+          "freeform": 0.0,
+          "interact": 0.0,
+          "move": 0.05,
+          "none": 0.93,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.01,
+          "sell": 0.0,
+          "speak": 0.0,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later_target": {
+          "ale_mug": 0.0,
+          "bar counter": 0.0,
+          "cobb": 0.39,
+          "drover": 0.0,
+          "guild_steward": 0.0,
+          "hearth": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.1,
+          "inn_yard": 0.33,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.18000000000000002,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.0,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "west_road": 0.0
+        },
+        "target": {
+          "ale_mug": 0.0,
+          "bar counter": 0.0,
+          "cobb": 0.23,
+          "drover": 0.0,
+          "guild_steward": 0.0,
+          "hearth": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.34,
+          "inn_yard": 0.42,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.01,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.0,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "west_road": 0.0
+        }
+      },
+      "reading": {
+        "action": "pickup",
+        "confidence": 0.39,
+        "later": null,
+        "later_target": null,
+        "skill": "melee_combat",
+        "target": "inn_yard"
+      }
+    },
+    {
+      "candidates": [
+        {
+          "id": "smith",
+          "kind": "npc",
+          "text": "Hilde Brask — smith (present)"
+        },
+        {
+          "id": "market_square",
+          "kind": "place",
+          "text": "Market Square (exit)"
+        },
+        {
+          "id": "herb_cottage",
+          "kind": "place",
+          "text": "Maude's cottage (place beyond)"
+        },
+        {
+          "id": "inn_yard",
+          "kind": "place",
+          "text": "Inn yard (place beyond)"
+        },
+        {
+          "id": "mine_workings",
+          "kind": "place",
+          "text": "Mine workings (place beyond)"
+        },
+        {
+          "id": "old_adit",
+          "kind": "place",
+          "text": "Old adit (place beyond)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "valley_inn",
+          "kind": "place",
+          "text": "Valley Inn (place beyond)"
+        },
+        {
+          "id": "west_road",
+          "kind": "place",
+          "text": "West road (place beyond)"
+        },
+        {
+          "id": "cobb",
+          "kind": "npc",
+          "text": "Cobb — elsewhere, at valley_inn"
+        },
+        {
+          "id": "drover",
+          "kind": "npc",
+          "text": "Mags Ferrow — elsewhere, at inn_yard"
+        },
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — elsewhere, at market_square"
+        },
+        {
+          "id": "herb_wife",
+          "kind": "npc",
+          "text": "Old Maude — elsewhere, at herb_cottage"
+        },
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — elsewhere, at valley_inn"
+        },
+        {
+          "id": "pip",
+          "kind": "npc",
+          "text": "Pip — elsewhere, at west_road"
+        },
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — elsewhere, at mine_workings"
+        },
+        {
+          "id": "rusk",
+          "kind": "npc",
+          "text": "Rusk — elsewhere, at valley_inn"
+        },
+        {
+          "id": "stable_lad",
+          "kind": "npc",
+          "text": "Tam Holt — elsewhere, at inn_yard"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "short_sword",
+          "kind": "item",
+          "text": "short sword (for sale)"
+        },
+        {
+          "id": "spearhead",
+          "kind": "item",
+          "text": "spearhead (for sale)"
+        },
+        {
+          "id": "forge",
+          "kind": "fixture",
+          "text": "forge (fixture)"
+        },
+        {
+          "id": "anvil",
+          "kind": "fixture",
+          "text": "anvil (fixture)"
+        },
+        {
+          "id": "rack of blades",
+          "kind": "fixture",
+          "text": "rack of blades (fixture)"
+        },
+        {
+          "id": "back door",
+          "kind": "fixture",
+          "text": "back door (fixture)"
+        }
+      ],
+      "cost": 1.2944400000000002e-4,
+      "id": "h-q11",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 0.11,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.0,
+          "interact": 0.0,
+          "move": 0.0,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.89,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later": {
+          "buy": 0.17,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.0,
+          "interact": 0.0,
+          "move": 0.0,
+          "none": 0.81,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.01,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later_target": {
+          "anvil": 0.0,
+          "back door": 0.0,
+          "cobb": 0.0,
+          "drover": 0.0,
+          "forge": 0.0,
+          "guild_steward": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.0,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.3,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rack of blades": 0.0,
+          "rusk": 0.0,
+          "short_sword": 0.34,
+          "smith": 0.36,
+          "spearhead": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0,
+          "west_road": 0.0
+        },
+        "target": {
+          "anvil": 0.0,
+          "back door": 0.0,
+          "cobb": 0.0,
+          "drover": 0.0,
+          "forge": 0.0,
+          "guild_steward": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.0,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.0,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rack of blades": 0.0,
+          "rusk": 0.0,
+          "short_sword": 0.76,
+          "smith": 0.24,
+          "spearhead": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0,
+          "west_road": 0.0
+        }
+      },
+      "reading": {
+        "action": "speak",
+        "confidence": 0.75,
+        "later": null,
+        "later_target": null,
+        "skill": null,
+        "target": "short_sword"
+      }
+    },
+    {
+      "candidates": [
+        {
+          "id": "cobb",
+          "kind": "npc",
+          "text": "Cobb — Rusk's brute (present)"
+        },
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — innkeep (present)"
+        },
+        {
+          "id": "rusk",
+          "kind": "npc",
+          "text": "Rusk — road thief (present)"
+        },
+        {
+          "id": "market_square",
+          "kind": "place",
+          "text": "Market Square (exit)"
+        },
+        {
+          "id": "inn_yard",
+          "kind": "place",
+          "text": "Inn yard (exit)"
+        },
+        {
+          "id": "herb_cottage",
+          "kind": "place",
+          "text": "Maude's cottage (place beyond)"
+        },
+        {
+          "id": "mine_workings",
+          "kind": "place",
+          "text": "Mine workings (place beyond)"
+        },
+        {
+          "id": "old_adit",
+          "kind": "place",
+          "text": "Old adit (place beyond)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "smithy",
+          "kind": "place",
+          "text": "Brask's forge (place beyond)"
+        },
+        {
+          "id": "west_road",
+          "kind": "place",
+          "text": "West road (place beyond)"
+        },
+        {
+          "id": "drover",
+          "kind": "npc",
+          "text": "Mags Ferrow — elsewhere, at inn_yard"
+        },
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — elsewhere, at market_square"
+        },
+        {
+          "id": "herb_wife",
+          "kind": "npc",
+          "text": "Old Maude — elsewhere, at herb_cottage"
+        },
+        {
+          "id": "pip",
+          "kind": "npc",
+          "text": "Pip — elsewhere, at west_road"
+        },
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — elsewhere, at mine_workings"
+        },
+        {
+          "id": "smith",
+          "kind": "npc",
+          "text": "Hilde Brask — elsewhere, at smithy"
+        },
+        {
+          "id": "stable_lad",
+          "kind": "npc",
+          "text": "Tam Holt — elsewhere, at inn_yard"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "ale_mug",
+          "kind": "item",
+          "text": "Mug of Ale (for sale)"
+        },
+        {
+          "id": "hearth",
+          "kind": "fixture",
+          "text": "hearth (fixture)"
+        },
+        {
+          "id": "bar counter",
+          "kind": "fixture",
+          "text": "bar counter (fixture)"
+        }
+      ],
+      "cost": 1.239e-4,
+      "id": "h-m14",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 0.49,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.02,
+          "interact": 0.0,
+          "move": 0.0,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.37,
+          "spend": 0.12,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later": {
+          "buy": 0.02,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.01,
+          "interact": 0.0,
+          "move": 0.0,
+          "none": 0.92,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.04,
+          "spend": 0.01,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later_target": {
+          "ale_mug": 0.16,
+          "bar counter": 0.0,
+          "cobb": 0.15000000000000002,
+          "drover": 0.0,
+          "guild_steward": 0.0,
+          "hearth": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.01,
+          "innkeep": 0.05,
+          "market_square": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.52,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.11,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "west_road": 0.0
+        },
+        "target": {
+          "ale_mug": 0.23,
+          "bar counter": 0.01,
+          "cobb": 0.27,
+          "drover": 0.0,
+          "guild_steward": 0.0,
+          "hearth": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.01,
+          "innkeep": 0.03,
+          "market_square": 0.0,
+          "mine_workings": 0.01,
+          "none": 0.25,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.19,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "west_road": 0.0
+        }
+      },
+      "reading": {
+        "action": "buy",
+        "confidence": 0.24,
+        "later": null,
+        "later_target": null,
+        "skill": "persuasion",
+        "target": "cobb"
+      }
+    },
+    {
+      "candidates": [
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — guild steward (present)"
+        },
+        {
+          "id": "valley_inn",
+          "kind": "place",
+          "text": "Valley Inn (exit)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (exit)"
+        },
+        {
+          "id": "mine_workings",
+          "kind": "place",
+          "text": "Mine workings (exit)"
+        },
+        {
+          "id": "herb_cottage",
+          "kind": "place",
+          "text": "Maude's cottage (exit)"
+        },
+        {
+          "id": "inn_yard",
+          "kind": "place",
+          "text": "Inn yard (exit)"
+        },
+        {
+          "id": "smithy",
+          "kind": "place",
+          "text": "Brask's forge (exit)"
+        },
+        {
+          "id": "west_road",
+          "kind": "place",
+          "text": "West road (exit)"
+        },
+        {
+          "id": "old_adit",
+          "kind": "place",
+          "text": "Old adit (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "cobb",
+          "kind": "npc",
+          "text": "Cobb — elsewhere, at valley_inn"
+        },
+        {
+          "id": "drover",
+          "kind": "npc",
+          "text": "Mags Ferrow — elsewhere, at inn_yard"
+        },
+        {
+          "id": "herb_wife",
+          "kind": "npc",
+          "text": "Old Maude — elsewhere, at herb_cottage"
+        },
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — elsewhere, at valley_inn"
+        },
+        {
+          "id": "pip",
+          "kind": "npc",
+          "text": "Pip — elsewhere, at west_road"
+        },
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — elsewhere, at mine_workings"
+        },
+        {
+          "id": "rusk",
+          "kind": "npc",
+          "text": "Rusk — elsewhere, at valley_inn"
+        },
+        {
+          "id": "smith",
+          "kind": "npc",
+          "text": "Hilde Brask — elsewhere, at smithy"
+        },
+        {
+          "id": "stable_lad",
+          "kind": "npc",
+          "text": "Tam Holt — elsewhere, at inn_yard"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "guild post",
+          "kind": "fixture",
+          "text": "guild post (fixture)"
+        },
+        {
+          "id": "stalls",
+          "kind": "fixture",
+          "text": "stalls (fixture)"
+        }
+      ],
+      "cost": 1.2264e-4,
+      "id": "h-p12",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 1.0,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.0,
+          "interact": 0.0,
+          "move": 0.0,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.0,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later": {
+          "buy": 0.06,
+          "combat": 0.41000000000000003,
+          "drop": 0.0,
+          "freeform": 0.16,
+          "interact": 0.05,
+          "move": 0.0,
+          "none": 0.21,
+          "observe": 0.0,
+          "other": 0.01,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.0,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.1,
+          "wait": 0.0
+        },
+        "later_target": {
+          "cobb": 0.0,
+          "drover": 0.0,
+          "guild post": 0.01,
+          "guild_steward": 0.11,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.04,
+          "inn_yard": 0.0,
+          "innkeep": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.48,
+          "old_adit": 0.0,
+          "orc_approach": 0.05,
+          "orc_nest": 0.03,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.0,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "stalls": 0.28,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0,
+          "west_road": 0.0
+        },
+        "target": {
+          "cobb": 0.0,
+          "drover": 0.0,
+          "guild post": 0.0,
+          "guild_steward": 0.03,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.0,
+          "innkeep": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.03,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.0,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "stalls": 0.9400000000000001,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0,
+          "west_road": 0.0
+        }
+      },
+      "reading": {
+        "action": "buy",
+        "confidence": 0.94,
+        "later": "combat",
+        "later_target": null,
+        "skill": null,
+        "target": "stalls"
+      }
+    },
+    {
+      "candidates": [
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — prospector (present)"
+        },
+        {
+          "id": "market_square",
+          "kind": "place",
+          "text": "Market Square (exit)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "valley_inn",
+          "kind": "place",
+          "text": "Valley Inn (place beyond)"
+        },
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — elsewhere, at market_square"
+        },
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — elsewhere, at valley_inn"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "shaft",
+          "kind": "fixture",
+          "text": "shaft (fixture)"
+        },
+        {
+          "id": "ore carts",
+          "kind": "fixture",
+          "text": "ore carts (fixture)"
+        }
+      ],
+      "cost": 1.01346e-4,
+      "id": "r197",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 0.0,
+          "combat": 0.06,
+          "drop": 0.0,
+          "freeform": 0.21,
+          "interact": 0.01,
+          "move": 0.15,
+          "observe": 0.57,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.0,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later": {
+          "buy": 0.0,
+          "combat": 0.23,
+          "drop": 0.0,
+          "freeform": 0.01,
+          "interact": 0.0,
+          "move": 0.0,
+          "none": 0.75,
+          "observe": 0.01,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.0,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later_target": {
+          "guild_steward": 0.0,
+          "hunting_knife": 0.0,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "none": 0.43,
+          "orc_approach": 0.01,
+          "orc_nest": 0.49,
+          "ore carts": 0.0,
+          "prospector": 0.07,
+          "shaft": 0.0,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0
+        },
+        "target": {
+          "guild_steward": 0.0,
+          "hunting_knife": 0.01,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "none": 0.19,
+          "orc_approach": 0.01,
+          "orc_nest": 0.74,
+          "ore carts": 0.0,
+          "prospector": 0.05,
+          "shaft": 0.0,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0
+        }
+      },
+      "reading": {
+        "action": "observe",
+        "confidence": 0.54,
+        "later": null,
+        "later_target": null,
+        "skill": "stealth",
+        "target": "orc_nest"
+      }
+    },
+    {
+      "candidates": [
+        {
+          "id": "cobb",
+          "kind": "npc",
+          "text": "Cobb — Rusk's brute (present)"
+        },
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — innkeep (present)"
+        },
+        {
+          "id": "rusk",
+          "kind": "npc",
+          "text": "Rusk — road thief (present)"
+        },
+        {
+          "id": "market_square",
+          "kind": "place",
+          "text": "Market Square (exit)"
+        },
+        {
+          "id": "inn_yard",
+          "kind": "place",
+          "text": "Inn yard (exit)"
+        },
+        {
+          "id": "herb_cottage",
+          "kind": "place",
+          "text": "Maude's cottage (place beyond)"
+        },
+        {
+          "id": "mine_workings",
+          "kind": "place",
+          "text": "Mine workings (place beyond)"
+        },
+        {
+          "id": "old_adit",
+          "kind": "place",
+          "text": "Old adit (place beyond)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "smithy",
+          "kind": "place",
+          "text": "Brask's forge (place beyond)"
+        },
+        {
+          "id": "west_road",
+          "kind": "place",
+          "text": "West road (place beyond)"
+        },
+        {
+          "id": "drover",
+          "kind": "npc",
+          "text": "Mags Ferrow — elsewhere, at inn_yard"
+        },
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — elsewhere, at market_square"
+        },
+        {
+          "id": "herb_wife",
+          "kind": "npc",
+          "text": "Old Maude — elsewhere, at herb_cottage"
+        },
+        {
+          "id": "pip",
+          "kind": "npc",
+          "text": "Pip — elsewhere, at west_road"
+        },
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — elsewhere, at mine_workings"
+        },
+        {
+          "id": "smith",
+          "kind": "npc",
+          "text": "Hilde Brask — elsewhere, at smithy"
+        },
+        {
+          "id": "stable_lad",
+          "kind": "npc",
+          "text": "Tam Holt — elsewhere, at inn_yard"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "ale_mug",
+          "kind": "item",
+          "text": "Mug of Ale (for sale)"
+        },
+        {
+          "id": "hearth",
+          "kind": "fixture",
+          "text": "hearth (fixture)"
+        },
+        {
+          "id": "bar counter",
+          "kind": "fixture",
+          "text": "bar counter (fixture)"
+        }
+      ],
+      "cost": 1.24026e-4,
+      "id": "h-q15",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 0.01,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.26,
+          "interact": 0.0,
+          "move": 0.0,
+          "observe": 0.0,
+          "other": 0.02,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.63,
+          "spend": 0.07,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.01
+        },
+        "later": {
+          "buy": 0.03,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.03,
+          "interact": 0.0,
+          "move": 0.0,
+          "none": 0.6,
+          "observe": 0.0,
+          "other": 0.01,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.02,
+          "spend": 0.31,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later_target": {
+          "ale_mug": 0.0,
+          "bar counter": 0.0,
+          "cobb": 0.01,
+          "drover": 0.0,
+          "guild_steward": 0.0,
+          "hearth": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.01,
+          "innkeep": 0.01,
+          "market_square": 0.01,
+          "mine_workings": 0.0,
+          "none": 0.42,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.54,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "west_road": 0.0
+        },
+        "target": {
+          "ale_mug": 0.01,
+          "bar counter": 0.0,
+          "cobb": 0.0,
+          "drover": 0.0,
+          "guild_steward": 0.0,
+          "hearth": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.02,
+          "innkeep": 0.01,
+          "market_square": 0.01,
+          "mine_workings": 0.0,
+          "none": 0.46,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rusk": 0.48,
+          "smith": 0.0,
+          "smithy": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.01,
+          "west_road": 0.0
+        }
+      },
+      "reading": {
+        "action": "speak",
+        "confidence": 0.46,
+        "later": null,
+        "later_target": null,
+        "skill": null,
+        "target": "rusk"
+      }
+    },
+    {
+      "candidates": [
+        {
+          "id": "smith",
+          "kind": "npc",
+          "text": "Hilde Brask — smith (present)"
+        },
+        {
+          "id": "market_square",
+          "kind": "place",
+          "text": "Market Square (exit)"
+        },
+        {
+          "id": "herb_cottage",
+          "kind": "place",
+          "text": "Maude's cottage (place beyond)"
+        },
+        {
+          "id": "inn_yard",
+          "kind": "place",
+          "text": "Inn yard (place beyond)"
+        },
+        {
+          "id": "mine_workings",
+          "kind": "place",
+          "text": "Mine workings (place beyond)"
+        },
+        {
+          "id": "old_adit",
+          "kind": "place",
+          "text": "Old adit (place beyond)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "valley_inn",
+          "kind": "place",
+          "text": "Valley Inn (place beyond)"
+        },
+        {
+          "id": "west_road",
+          "kind": "place",
+          "text": "West road (place beyond)"
+        },
+        {
+          "id": "cobb",
+          "kind": "npc",
+          "text": "Cobb — elsewhere, at valley_inn"
+        },
+        {
+          "id": "drover",
+          "kind": "npc",
+          "text": "Mags Ferrow — elsewhere, at inn_yard"
+        },
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — elsewhere, at market_square"
+        },
+        {
+          "id": "herb_wife",
+          "kind": "npc",
+          "text": "Old Maude — elsewhere, at herb_cottage"
+        },
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — elsewhere, at valley_inn"
+        },
+        {
+          "id": "pip",
+          "kind": "npc",
+          "text": "Pip — elsewhere, at west_road"
+        },
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — elsewhere, at mine_workings"
+        },
+        {
+          "id": "rusk",
+          "kind": "npc",
+          "text": "Rusk — elsewhere, at valley_inn"
+        },
+        {
+          "id": "stable_lad",
+          "kind": "npc",
+          "text": "Tam Holt — elsewhere, at inn_yard"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "spearhead",
+          "kind": "item",
+          "text": "Spearhead (for sale)"
+        },
+        {
+          "id": "short_sword",
+          "kind": "item",
+          "text": "Short sword (for sale)"
+        },
+        {
+          "id": "forge",
+          "kind": "fixture",
+          "text": "forge (fixture)"
+        },
+        {
+          "id": "anvil",
+          "kind": "fixture",
+          "text": "anvil (fixture)"
+        },
+        {
+          "id": "rack of blades",
+          "kind": "fixture",
+          "text": "rack of blades (fixture)"
+        },
+        {
+          "id": "back door",
+          "kind": "fixture",
+          "text": "back door (fixture)"
+        }
+      ],
+      "cost": 1.3759200000000002e-4,
+      "id": "r074",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 0.08,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.0,
+          "interact": 0.01,
+          "move": 0.0,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.76,
+          "spend": 0.0,
+          "trade": 0.15,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later": {
+          "buy": 0.04,
+          "combat": 0.06,
+          "drop": 0.0,
+          "freeform": 0.01,
+          "interact": 0.04,
+          "move": 0.08,
+          "none": 0.6,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.12,
+          "spend": 0.01,
+          "trade": 0.03,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.01
+        },
+        "later_target": {
+          "anvil": 0.0,
+          "back door": 0.0,
+          "cobb": 0.0,
+          "drover": 0.0,
+          "forge": 0.0,
+          "guild_steward": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.0,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "mine_workings": 0.01,
+          "none": 0.2,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.01,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rack of blades": 0.0,
+          "rusk": 0.38,
+          "short_sword": 0.0,
+          "smith": 0.4,
+          "spearhead": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0,
+          "west_road": 0.0
+        },
+        "target": {
+          "anvil": 0.0,
+          "back door": 0.0,
+          "cobb": 0.0,
+          "drover": 0.0,
+          "forge": 0.0,
+          "guild_steward": 0.0,
+          "herb_cottage": 0.0,
+          "herb_wife": 0.0,
+          "hunting_knife": 0.0,
+          "inn_yard": 0.0,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.01,
+          "old_adit": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "pip": 0.0,
+          "prospector": 0.0,
+          "rack of blades": 0.0,
+          "rusk": 0.1,
+          "short_sword": 0.0,
+          "smith": 0.89,
+          "spearhead": 0.0,
+          "stable_lad": 0.0,
+          "travel_cloak": 0.0,
+          "valley_inn": 0.0,
+          "west_road": 0.0
+        }
+      },
+      "reading": {
+        "action": "speak",
+        "confidence": 0.74,
+        "later": null,
+        "later_target": null,
+        "skill": null,
+        "target": "smith"
+      }
+    },
+    {
+      "candidates": [
+        {
+          "id": "innkeep",
+          "kind": "npc",
+          "text": "Brenna Holt — innkeep (present)"
+        },
+        {
+          "id": "market_square",
+          "kind": "place",
+          "text": "Market Square (exit)"
+        },
+        {
+          "id": "mine_workings",
+          "kind": "place",
+          "text": "Mine workings (place beyond)"
+        },
+        {
+          "id": "orc_approach",
+          "kind": "place",
+          "text": "Cut above the nest (place beyond)"
+        },
+        {
+          "id": "orc_nest",
+          "kind": "place",
+          "text": "Orc nest (place beyond)"
+        },
+        {
+          "id": "guild_steward",
+          "kind": "npc",
+          "text": "Osric Vane — elsewhere, at market_square"
+        },
+        {
+          "id": "prospector",
+          "kind": "npc",
+          "text": "Caldern Voss — elsewhere, at mine_workings"
+        },
+        {
+          "id": "travel_cloak",
+          "kind": "item",
+          "text": "travel cloak (carried)"
+        },
+        {
+          "id": "hunting_knife",
+          "kind": "item",
+          "text": "hunting knife (carried)"
+        },
+        {
+          "id": "ale_mug",
+          "kind": "item",
+          "text": "Mug of Ale (for sale)"
+        },
+        {
+          "id": "hearth",
+          "kind": "fixture",
+          "text": "hearth (fixture)"
+        },
+        {
+          "id": "bar counter",
+          "kind": "fixture",
+          "text": "bar counter (fixture)"
+        }
+      ],
+      "cost": 1.06554e-4,
+      "id": "r204",
+      "model": "jev-1.13.0",
+      "probabilities": {
+        "action": {
+          "buy": 0.0,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.0,
+          "interact": 0.0,
+          "move": 0.12,
+          "observe": 0.0,
+          "other": 0.0,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.88,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later": {
+          "buy": 0.0,
+          "combat": 0.0,
+          "drop": 0.0,
+          "freeform": 0.01,
+          "interact": 0.0,
+          "move": 0.04,
+          "none": 0.87,
+          "observe": 0.0,
+          "other": 0.01,
+          "pickup": 0.0,
+          "sell": 0.0,
+          "speak": 0.06999999999999999,
+          "spend": 0.0,
+          "trade": 0.0,
+          "train": 0.0,
+          "use_item": 0.0,
+          "wait": 0.0
+        },
+        "later_target": {
+          "ale_mug": 0.0,
+          "bar counter": 0.0,
+          "guild_steward": 0.8,
+          "hearth": 0.0,
+          "hunting_knife": 0.0,
+          "innkeep": 0.07,
+          "market_square": 0.01,
+          "mine_workings": 0.0,
+          "none": 0.11,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "prospector": 0.01,
+          "travel_cloak": 0.0
+        },
+        "target": {
+          "ale_mug": 0.0,
+          "bar counter": 0.0,
+          "guild_steward": 1.0,
+          "hearth": 0.0,
+          "hunting_knife": 0.0,
+          "innkeep": 0.0,
+          "market_square": 0.0,
+          "mine_workings": 0.0,
+          "none": 0.0,
+          "orc_approach": 0.0,
+          "orc_nest": 0.0,
+          "prospector": 0.0,
+          "travel_cloak": 0.0
+        }
+      },
+      "reading": {
+        "action": "speak",
+        "confidence": 0.87,
+        "later": null,
+        "later_target": null,
+        "skill": "persuasion",
+        "target": "guild_steward"
+      }
+    }
+  ]
+}
