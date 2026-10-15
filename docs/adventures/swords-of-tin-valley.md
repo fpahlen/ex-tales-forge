@@ -1,4 +1,4 @@
-# The Hired Swords of Tin Valley
+# Swords of Tin Valley
 
 Status: idea (Fredrik and Case, 2026-10-15).
 World: [Tin Valley](../worlds/tin-valley/).
@@ -16,28 +16,45 @@ This adventure builds relationships with NPCs over many sessions. The finale the
 
 ## Premise
 
-A cave-in in the tin mine killed most of the men in a Tin Valley village. The widows now run the mine and the village. Last year a band of raiders took their harvest. The band will come back at the first frost.
+The village tin mine is very rich. The miners' guild wants control of it. The village has always refused to let the guild in.
+
+A cave-in killed almost all the men who worked in the mine. One of the dead was the man who led the refusal. Now the widows run the mine and the village.
+
+The guild sends hired goons to take the mine. They come at the first frost.
+
+The guild hides a secret: its charter does not cover tin. The guild has no legal claim to the mine.
 
 The widows pool their small store of tin. They hire the player and a few misfit fighters to defend the village.
 
 ## Cast
 
-- **The headwoman.** She is hard and grieving, and she runs the village now. She does not trust outsiders. The player must earn her trust.
+- **The headwoman.** She is the widow of the man who led the refusal. She is hard and grieving, and she does not trust outsiders. The player must earn her trust.
 - **The boy.** He lost his father in the cave-in, and he attaches himself to the player. He wants to fight, and he is too young.
 - **The widows and the miners' children.** The player trains them to fight. Each one remembers how the player treated them.
-- **The hired fighters.** They are misfits who argue with each other. One of them has a secret link to the band.
-- **The band's leader.** He rides back at the first frost. He has a personal reason to come back (to be defined).
-- **The mine owner downriver.** He wants the village to fall so that he can take the mine.
+- **The hired fighters.** They are misfits who argue with each other. One of them has a secret link to the guild.
+- **The guild's goons and their leader.** They arrive at the first frost.
+- **The guild master.** He wants the mine. He must keep the charter secret.
 - **The sheriff (optional, from *Godless*).** He has lost his nerve. The player can help him find it again, or ignore him.
+
+## The secret
+
+The guild's charter does not cover tin. If the player finds and proves this, the guild loses its claim. Possible clues:
+
+- A copy of the charter in the guild hall or with a guild clerk.
+- The dead leader's papers. Did he know? Was the cave-in an accident? (To be decided.)
+- A guild member who wants out.
+
+Proof can change the finale. For example, the goons lose their pay or their cover, or a higher authority steps in.
 
 ## Structure
 
 1. **Arrival (session 1).** The player is hired. The headwoman sets hard terms. The boy follows the player.
-2. **The weeks before the frost (sessions 2 to N).** The player trains villagers, repairs walls, and scouts the band. The player chooses whom to help and whom to ignore. The fighters argue. Clues point to the traitor and to the mine owner.
-3. **The siege (finale).** The raid comes at the first frost. The result follows from the player's relationships:
+2. **The weeks before the frost (sessions 2 to N).** The player trains villagers, repairs walls, and scouts the guild. The player chooses whom to help and whom to ignore. The fighters argue. Clues point to the traitor and to the guild's secret.
+3. **The siege (finale).** The guild's goons come at the first frost. The result follows from the player's relationships:
    - Villagers that the player trained hold the line.
    - Villagers that the player ignored break.
    - The traitor acts in the direction that the player pushed them.
+   - If the player exposed the charter, the guild's position is weaker.
    - The sheriff and the boy act according to their bond with the player.
 4. **After (epilogue).** The story ends. The village remembers the player, and some NPCs remember the player in later adventures.
 
@@ -53,3 +70,4 @@ The widows pool their small store of tin. They hire the player and a few misfit 
 - How many sessions until the frost? (Proposal: 4 to 6.)
 - Does a solo player hire the fighters, or does the GM give them?
 - Can the player fail the village completely? (Proposal: yes, with a real ending.)
+- Was the cave-in an accident, or did the guild cause it?
