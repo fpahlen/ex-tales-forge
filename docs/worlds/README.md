@@ -1,0 +1,33 @@
+# Worlds and game packs
+
+Copies of every Tales Forge world, setting module, and adventure pack found in our GitHub repos (scanned 2026-10-06). Each folder keeps the original file and folder structure from its source. The copies here are snapshots. The source repos are still the master copies, so edit there and copy again.
+
+Two kinds of content live here:
+
+- **World/setting modules**: from the `modules/` folder of the Lovable/React app (`fpahlen/tales-forge-new-31993d9d`). Each has a `game-system.json` with genre, tone, skills, image style, calendar and so on. Merovingia also has full lore.
+- **Adventure packs**: from `priv/adventures/` in the Elixir app (`whyse-ab/ex-tales-forge`). These are playable starter adventures with a front-matter `adventure.md`, NPCs, fronts, locations and a shared rules set.
+
+| World | Type | Genre | Summary (from its own files) | Source repo @ branch | Commit (last change to this folder) | Files |
+|---|---|---|---|---|---|---|
+| [Merovingia](merovingia/README.md) | World/setting module | Medieval fantasy, political intrigue | "A fractured medieval realm where twelve baronies scheme beneath a crown worn by a boy who cannot hold it". Loosely based on medieval France, with Aurelian Empire ruins, non-human enclaves, guilds, a noble family, a starting state, terrain maps and a long sample story. | `fpahlen/tales-forge-new-31993d9d` @ `development` | `aa9057bdc7fe445d5e78f1f378b7320e8f07eb2f` (2026-03-18, "Add calendar system support") | 31 |
+| [Penny Dreadful](penny-dreadful/game-system.json) | World/setting module (game-system config only) | Victorian Gothic horror | "Gaslit London streets, fog-shrouded alleys, and crumbling estates. The supernatural hides in plain sight among polite society." Investigators and a Narrator in 1888 London. The folder has only `game-system.json` (skills, tone, image style, calendar, descriptors) and no lore files. | `fpahlen/tales-forge-new-31993d9d` @ `development` | `aa9057bdc7fe445d5e78f1f378b7320e8f07eb2f` (2026-03-18, "Add calendar system support") | 1 |
+| [Tin Valley](tin-valley/adventure.md) | Adventure pack (the current starter, see [D-008](../decision-queue/d-008-tin-valley-starter.md)) | Gritty low fantasy, mining frontier | "A cut of tin country under two plans: the orc nest that holds stolen goods, and the Miners Guild that wants the hill." Every session starts at the Valley Inn. Includes fronts (Miners Guild, orc nest, the thing below), a portent, NPCs, locations and rules. | `whyse-ab/ex-tales-forge` @ `main` | `a4c8eda060e8789dbb7872d3bed787418e89d46b` (2026-09-14) | 23 |
+| [Crossroads Ledger](crossroads-ledger/adventure.md) | Adventure pack | Fantasy mystery/intrigue | "A missing merchant ledger draws suspicious attention to Crossroads Hamlet." Starts at The Weary Pilgrim tavern with Marta Kellen. Includes 3 locations, 1 NPC and the same rules set as Tin Valley. | `whyse-ab/ex-tales-forge` @ `main` | `a4c8eda060e8789dbb7872d3bed787418e89d46b` (2026-09-14) | 10 |
+| [Generic Demo](generic-demo/README.md) | Demo pack/test fixture | Generic fantasy | "A minimal example of the new generic pack format." One inn, one barkeep, one rules stub. | `whyse-ab/ex-tales-forge` @ `main` | `eae140f2fb74b05b0af1570697860ae3883aacad` (2026-07-10) | 4 |
+
+Merovingia and Penny Dreadful were copied from the `development` tip `20b791c14771fb960074d6d927bad7a39d01b6e2`. The adventure packs were copied from the `main` tip `a4c8eda060e8789dbb7872d3bed787418e89d46b`.
+
+## Other copies and how they differ
+
+The table above uses the most recent version of each world. The other copies we found are older:
+
+- **Merovingia and Penny Dreadful**: identical (same git tree) on every branch of `fpahlen/tales-forge-new-31993d9d` (`development`, `main`, `staging`, `feature/inventory`, `feature/premortem`, `feature/two-tier-prompts`, `feature/world-generator-admin`, `initiera-max`). They are also identical on `fpahlen/project-pickr` `development`, `main` and 9 other branches. All the older copies are ancestors of the version here and differ only in `game-system.json`:
+  - `8258f29` (2026-03-04, "Add descriptor support") on `project-pickr` `feature/admin-ui`, `feature/go-to-market`, `feature/mercers-demise` and 6 other branches. These lack the `calendar` block. Merovingia uses the "Clovis {year}" calendar with 12 named months. Penny Dreadful uses 1888 AD with real month lengths.
+  - `74745cb` / `535d974` (2026-02-10) on `feature/drawing_styles` in `tales-forge2`, `tales-forge-new`, `tales-forge-new-28f9a357` and `project-pickr`, and on `project-pickr` `release/beta`, `fix/character-creation-ui` and `feature/modulateworld_JP`. These also lack the disposition descriptors.
+  - `a25fb3b` (2026-02-01, `project-pickr` `feature/extract-engine`) and `dcde005` (2026-01-19, `project-pickr` `feature/skill-trees`, `fix/beta-testing`). These have Merovingia only, with a much smaller `game-system.json`, and no Penny Dreadful.
+- **Tin Valley**: older copies are on `ex-tales-forge` `feature/tin-valley-atlas-people` (`d24e01e`, 2026-08-21) and `feature/fronts-data` / `feature/fronts-worldsim-tracer` (`bd0e564`, 2026-08-20). Both are ancestors of `main`. Compared with `main`, neither has the structured NPC sheets (`npcs/*.json`). The `bd0e564` copy also lacks the front write-ups (`fronts/*.md`) and the prospector NPC. Both have older rules (the "learn by failing" rationale and the economy/skills additions came later) and an older opening line. In `main`, Osric Vane is written as someone who "hires his own steel", and the orc nest call to arms can cause a wound. `decision-queue-admin` has the same files as `main`.
+- **Crossroads Ledger**: the older copy in `ex-tales-forge` (`eae140f`, 2026-07-10, on `feature/*` and `docs/game-architecture`) differs only in the 3 rules files. There is also a **different-format version in `fpahlen/text-forge` @ `main`** (`adventures/crossroads_ledger`, commit `0dd5950`, 2026-06-28). It has 15 files: `adventure.yaml`, `opening_context.md`, JSON NPC sheets, per-location `description.md`/`meta.json`/`items.json`, `connections.json` and `overlay.json`. It has no rules folder. It also has an extra NPC (`worried_merchant`) that the ex-tales-forge version lacks. It was not copied here because it is older. Copy it if we want that format.
+
+## Repos scanned
+
+Every branch of every `fpahlen/*` and `whyse-ab/*` repo was checked for folders named `modules` (any depth) and other world/adventure content. The only world content outside the repos above is in `tales-forge-new-31993d9d` and its forks/copies. `src/components/modules/` in those repos is React UI code for the module editor, not world content.

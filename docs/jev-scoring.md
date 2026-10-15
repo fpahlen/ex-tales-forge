@@ -1,0 +1,152 @@
+---
+title: "Jev persona-affect scoring"
+updated: 2026-10-08
+status: in-review
+---
+
+# Jev persona-affect scoring
+
+**Status:** building / in review, 2026-10-07 (Fredrik via Case). App branch `jev-persona-affect`.
+
+Use [TypeSafe](https://docs.typesafe.ai) **Jev** (System One) for **numeric persona-feeling scores** in the playtest loop. It is not a drop-in for the current LLM rubric judge with quoted evidence.
+
+See also [Design: playtest loop](design-playtest-loop.md) (step 6 / Cost controls).
+
+## Decision (first cut)
+
+- **What Jev scores:** how frustrated (1) → delighted (5) would **this** persona be, from (a) the **whole session** and (b) a **single interaction/turn**.
+- **Store:** the scale value and **confidence** (and preferably per-level probabilities) as part of the score.
+- **Persona-grounded:** the same event reads differently per persona. Example: Paul can be delighted that his effort was thwarted if it felt real and natural; other personas feel differently. Each Score question is grounded in that persona's preferences from [personas](personas.md), not a generic player.
+- **Rubric / Score levels:** rewrite as **concrete situation-level wording** of that affect scale for each persona (TypeSafe requires descriptive levels, not bare 1–5). See the [score primitive](https://docs.typesafe.ai).
+- **Quoted LLM rationale / evidence:** **deferred**. Confidence is the interesting second signal for now.
+- **Current path:** When `TYPESAFE_API_KEY` is set, `Playtest.Scorer` calls `Playtest.JevScorer` (primary). When unset, it falls back to the LLM rubric judge. Jev rows use `source=jev`, `kind=session_affect|turn_affect`; LLM rows keep `source=llm`, `kind=rubric` with evidence.
+
+## Proposed Score question shape
+
+*(For Case/Fredrik to confirm before build.)*
+
+- One Score question per scoring unit: `persona_session_affect` (whole run) and optionally `persona_turn_affect` per turn (or a batch of turn questions in one Jev call).
+- Five descriptive levels, low→high, e.g. for Paul: L0 "Left cold — the session felt mechanical or broke immersion" … L4 "Delighted — the world answered his play as real and natural, even when he failed". Levels are persona-specific copy derived from [personas](personas.md).
+- `state` = player-visible transcript only: opening scene + per-turn player action and GM narration. **No** gm_notes, gm_reasoning, or `player_aware=false` events (locked 2026-10-07).
+- Response mapping: Jev 0-indexed fractional score → store as 1–5 scale (`score+1`) or store 0–4 and label clearly; store confidence; store probabilities JSON.
+
+## Implementation notes (2026-10-07)
+
+- Hex [`jev`](https://hex.pm/packages/jev) `~> 0.2`, model pinned to `jev-1.13.0`.
+- `TYPESAFE_API_KEY` set on `tales-forge-playtest` (2026-10-07); not on production yet.
+- Levels live in `TalesForge.Playtest.AffectLevels` (editable copy per persona). Editing a persona's levels changes its rubric hash and so its `rubric_version`; see the stricter top below.
+- Scale stored as **1–5** (`jev_fractional + 1`); confidence and probabilities on the row.
+- `playtest_scores` extended with `source`, `kind`, `turn_number`, `confidence`, `probabilities`.
+- Req was bumped to `~> 0.7` (`override: true`) so Hex jev can resolve beside `jido_action`.
+
+## Stricter top for Paul and Lotta (2026-10-07)
+
+Decision: [A stricter Jev rubric before the next A/B](decisions.md#2026-10-07-a-stricter-jev-rubric-before-the-next-ab-the-personas-stay-as-they-are). PR: [ex-tales-forge #69](https://github.com/whyse-ab/ex-tales-forge/pull/69), merged 2026-10-08 as `cb6a5f6` (prod v64, playtest v53).
+
+In the 65-run baseline, Paul's most likely turn level was 5 on 124 of 130 turns and Lotta's was 4 on 130 of 130. That ceiling hid any change. The levels in `AffectLevels` now read as follows (the questions and personas are unchanged):
+
+- **Level 3:** also covers *smooth and polite but generic* play (Lotta: *pleasant but interchangeable*).
+- **Level 4:** the world answered something specific to *their* character, not just a polite guest.
+- **Level 5:** all of level 4 plus **concrete evidence of at least two of**: a surprise; a choice of theirs with a consequence; an NPC or the world calling back to earlier play; an NPC acting on their own goals; for Lotta also care when stakes hurt. "A pleasant but uneventful stretch is never this level."
+
+**Rubric versions.** The hash covers the levels, so only Paul's and Lotta's versions change:
+
+| persona | before | after |
+|---|---|---|
+| paul | `jev-affect-v1-dfec71a` | `jev-affect-v1-fd84ebb` |
+| lotta | `jev-affect-v1-4545d3b` | `jev-affect-v1-ce84a1a` |
+| lars / hawk / ronny | `fc771be` / `129f728` / `e8f0786` | unchanged |
+
+**Comparisons.** Never compare scores across rubric versions. For an A/B against the 2026-10-07 baseline, first re-score the baseline's Paul and Lotta runs with the new rubric. The stored transcripts and the same Jev model are enough, and no game calls are needed. Use [`scripts/jev-rescore/rescore.exs`](scripts/jev-rescore/rescore.exs).
+
+**Pilot** (all 26 baseline Paul and Lotta runs, scored with both rubrics, jev-1.13.0; raw rows in [`scripts/jev-rescore/rescore-2026-10-07.json`](scripts/jev-rescore/rescore-2026-10-07.json)):
+
+| | session mean (sd) | turn mean (sd) | turn argmax counts (130 turns) |
+|---|---|---|---|
+| Paul old | 4.67 (0.58) | 4.70 (0.40) | 3: 5, 4: 1, 5: 124 |
+| Paul new | 4.73 (0.36) | 4.36 (0.29) | 2: 1, 4: 75, 5: 54 |
+| Lotta old | 4.41 (0.07) | 4.17 (0.10) | 4: 130 |
+| Lotta new | 4.29 (0.29) | 3.91 (0.31) | 3: 24, 4: 94, 5: 12 |
+
+- **Turn scores** now spread, and Lotta's run-to-run spread grew.
+- **Paul's session score did not drop.** Over 10 turns, Jev still finds two kinds of evidence somewhere, so for Paul the turn means are the more sensitive A/B signal. If the session score must move too, a follow-up could scope level 5 to "most of the session".
+
+## Sharper borders for Paul (4 vs 5) and Lotta (3 vs 4) (2026-10-08)
+
+Decision: [Sharper Jev borders for Paul (4 vs 5) and Lotta (3 vs 4)](decisions.md#2026-10-08-sharper-jev-borders-for-paul-4-vs-5-and-lotta-3-vs-4). PR: [ex-tales-forge #80](https://github.com/whyse-ab/ex-tales-forge/pull/80), **not merged**: production and playtest still score with `fd84ebb` / `ce84a1a`. The source text lives in `TalesForge.Playtest.AffectLevels`, not in `personas.md`.
+
+On the stricter rubric above, Jev was unsure (confidence < 0.7) on 51% of Paul's and 75% of Lotta's baseline turns. The splits sat exactly on these borders. Each border now names what to look for in the turn, with an example from a real turn:
+
+- **Paul 4:** the reply answers something specific to him but *only answers him*: information he asked for, a price, a room, a welcome or a gift. Example: he asks what proof Osric wants and Brenna tells him, a carved bone idol (`9e1c1d34` T4).
+- **Paul 5** (first sharp version, replaced the same day; see *Paul's level 5 is a consequence* below): at least two kinds of evidence, *each visible in this turn's narration*:
+  - a surprise ("a new fact, event or arrival he did not ask about or point to");
+  - a consequence ("something changes because of a choice of his; an answer alone is not a consequence");
+  - a callback to a specific earlier word or deed;
+  - an NPC acting on their own goals in a way that changes the scene.
+
+  Asked-for information, warmth, gifts and prices never count. Example: he offers to help, Brenna puts him to stir the stewpot and volunteers a black iron door seen in the cut (`93213b5e` T4).
+- **Lotta 3:** the reply "would read the same for any traveller who said her line": her name used, her order served, her question answered, a price, a job offered to anyone. Example: Brenna welcomes "Hilde", names the price and mentions the bounty (`a9585b54` T1).
+- **Lotta 4:** the reply picks up something particular to her character that another traveller would not get: her race, craft or calling, her background or manner, or her earlier deeds. Example: she says she is more at home in the wilds, and Brenna says the job in the wilds might suit her better than swinging a pick (`f33a16a8` T2).
+
+| persona | #69 | first sharp | current in PR #80 |
+|---|---|---|---|
+| paul | `jev-affect-v1-fd84ebb` | `jev-affect-v1-7862783` | **`jev-affect-v1-df3c861`** (consequence) |
+| lotta | `jev-affect-v1-ce84a1a` | `jev-affect-v1-989546a` | `jev-affect-v1-989546a` |
+| lars / hawk / ronny | `fc771be` / `129f728` / `e8f0786` | unchanged | unchanged |
+
+**Re-score** of the baseline's and the post-rework series' Paul and Lotta runs from the stored transcripts: 36 Jev calls for $0.012, with raw rows in `scripts/jev-rescore/*-sharp.json`. Unsure share, baseline / post-rework:
+
+| | before | after |
+|---|---|---|
+| Lotta | 75% / 86% | **39% / 30%** |
+| Paul | 51% / 46% | 72% / 74% |
+
+- **Lotta:** the border works. Jev is now mostly sure she is at level 3.
+- **Paul:** it does not. His typical turn is both "an answer to his open question" and "vivid new detail he didn't ask for".
+
+Details: [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-confidence-weighted-headline-and-sharper-paullotta-borders).
+
+**Paul's level 5 is a consequence** (added 2026-10-08, decision [Paul's level 5 needs a consequence of his own choice or discovery](decisions.md#2026-10-08-pauls-level-5-needs-a-consequence-of-his-own-choice-or-discovery), same PR). On the first sharp version Jev split about 0.42 / 0.45 between 4 and 5, because a vivid answer full of new facts fits both "an answer" and "a surprise". Fredrik settled the border:
+
+- **Paul 4:** an NPC answers something specific he said, did or is. A vivid or rich answer is a 4, and so is a new fact, rumour or detail volunteered with it, even one he did not ask about. Example: he asks whether patrons lost kin, and Brenna tells him of Old Jarek's boy, orcs with eyes like hot coals and something older below (`f756f876` T3).
+- **Paul 5:** a consequence of his own choice or discovery, visible in this turn: the world reacts, so the situation changes because of it.
+  - Examples of a reaction: an NPC acts on what he learned or offered (sets out, changes plans, hands him a task or a key, takes a risk for him), or a door opens or a way forward appears because he asked.
+  - A vivid answer, a new fact, a warm reply, a gift or a price is never a consequence by itself.
+  - Surprise, callback and NPC goals no longer count for Paul; Lotta keeps them.
+  - Example: he offers his preacher's hands and Brenna puts him to stir the stewpot (`93213b5e` T4).
+
+Re-score of Paul's 13 baseline and 5 post-rework runs: 18 Jev calls for $0.0062, raw rows in `scripts/jev-rescore/*-paul-consequence.json`.
+
+| Paul | #69 | first sharp | consequence |
+|---|---|---|---|
+| Unsure share, baseline / post-rework | 51% / 46% | 72% / 74% | **33% / 48%** |
+| Weighted headline, baseline / post-rework | 4.39 / 4.26 | 4.44 / 4.34 | 4.41 / 4.27 |
+| Turn weighted Δ (CI) | −0.12 (−0.20…−0.05) | −0.10 (−0.21…0.00) | −0.14 (−0.24…−0.03) |
+
+- **Baseline:** the consequence rule settles most turns (87 of 130 sure: 49 at level 4, 38 at level 5).
+- **Post-rework:** less so. Its threat-heavy turns, where the world reacts but not to his delight, stay split.
+- **Unchanged:** Paul's headline and dip.
+
+Details: [post-rework analysis](analysis-jev-post-rework-2026-10-08.md#added-2026-10-08-pauls-level-5-needs-a-consequence-of-his-own-choice-or-discovery).
+
+**Headline on the playtest pages** (same PR, decision [The headline Jev score is a confidence-weighted average](decisions.md#2026-10-08-the-headline-jev-score-is-a-confidence-weighted-average)):
+
+- The confidence-weighted turn average, `sum(score × confidence) / sum(confidence)`.
+- The unsure share (confidence < 0.7) next to it.
+- The high / low / middle / unsure breakdown underneath.
+- The session score as a secondary line.
+
+## Closed decisions
+
+1. Score shape: session + per-turn in one Jev call — confirmed.
+2. TypeSafe API key on playtest — set 2026-10-07.
+3. Hex jev — yes.
+4. GM notes excluded from state — confirmed.
+5. Model `jev-1.13.0` — pinned.
+
+## Links and cost
+
+- [docs.typesafe.ai](https://docs.typesafe.ai)
+- Score primitive (ordered descriptive levels, fractional score, confidence, probabilities)
+- Hex [`jev`](https://hex.pm/packages/jev)
+- Cost note: ~$0.042/1M input tokens — much cheaper than the current LLM scorer

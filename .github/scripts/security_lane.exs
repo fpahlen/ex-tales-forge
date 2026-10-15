@@ -1,4 +1,4 @@
-# Decides the security deploy lane (tales-forge-docs docs/decisions.md,
+# Decides the security deploy lane (ex-tales-forge docs/decisions.md,
 # 2026-10-11 "Security-bump lane"). Plain `elixir`, no deps or compile needed:
 #
 #   elixir .github/scripts/security_lane.exs pr --base <sha> --head <sha> --pr pr.json --ci success

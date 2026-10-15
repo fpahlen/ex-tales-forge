@@ -1,7 +1,7 @@
 defmodule TalesForge.Game.Reflection do
   @moduledoc """
   Which skills a player's words reflect on, practise or study (decision
-  2026-10-09, skill growth from level 10, tales-forge-docs `docs/decisions.md`).
+  2026-10-09, skill growth from level 10, `docs/decisions.md`).
 
   From `reflection_level` (10) a skill only grows on a long rest if the
   character reflected on it, practised or studied it, or trained it since the

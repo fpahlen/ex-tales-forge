@@ -37,7 +37,7 @@ defmodule TalesForgeWeb.SurveyComponents do
       role="alert"
       class="space-y-2 rounded-lg border border-[var(--paper-danger-rule)] bg-[var(--paper-panel)] p-3 text-sm text-[var(--paper-danger-ink)]"
     >
-      <p class="font-semibold">Admin: the survey file in tales-forge-docs has a problem</p>
+      <p class="font-semibold">Admin: the survey file in `docs/` has a problem</p>
       <ul class="list-disc space-y-1 pl-5">
         <li :for={problem <- @problems} class="break-words">{problem}</li>
       </ul>

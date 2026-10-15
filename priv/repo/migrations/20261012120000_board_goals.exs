@@ -1,6 +1,6 @@
 defmodule TalesForge.Repo.Migrations.BoardGoals do
   @moduledoc """
-  Goals on the founders' idea board (tales-forge-docs `docs/design-idea-board.md`,
+  Goals on the founders' idea board (`docs/design-idea-board.md`,
   "Goals"). Add only: a goals table, one vote per founder per goal (a -1 has a
   reason), a nullable `goal_id` on each card, then the seed.
 

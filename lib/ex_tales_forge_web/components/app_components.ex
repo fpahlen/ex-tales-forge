@@ -1,7 +1,7 @@
 defmodule TalesForgeWeb.AppComponents do
   @moduledoc """
   Components that show which app you are on and link across the two apps
-  (admin split, tales-forge-docs decisions.md 2026-10-10):
+  (admin split, docs/decisions.md 2026-10-10):
 
   - `env_badge/1`: a pill with this app's role (PRODUCTION, PLAYTEST or
     LOCAL), its app name and the short commit it runs. Every admin page and

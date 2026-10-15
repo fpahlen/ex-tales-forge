@@ -2,10 +2,10 @@ defmodule TalesForge.Playtest.Personas do
   @moduledoc """
   Player personas for playtest bots, read from `priv/playtest/personas.md`.
 
-  That file is a verbatim copy of `docs/personas.md` in tales-forge-docs, the
+  That file is a verbatim copy of `docs/personas.md` in `docs/`, the
   single source of truth. Resync it from a docs checkout with:
 
-      cp ../tales-forge-docs/docs/personas.md priv/playtest/personas.md
+      cp docs/personas.md priv/playtest/personas.md
 
   Each level-2 section, headed "Name (play style)", is one persona; its whole
   text goes into the bot's system prompt. The bullets under its "How we test

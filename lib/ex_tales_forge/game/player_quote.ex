@@ -2,7 +2,7 @@ defmodule TalesForge.Game.PlayerQuote do
   @moduledoc """
   Which words of the player the GM gets as the quote in the `PlayerAction`
   (`overall_intent`), decided per turn from the Jev intent read's safety label
-  (tales-forge-docs `docs/design-jev-intent.md` §4).
+  (`docs/design-jev-intent.md` §4).
 
   - **Quote:** label `benign` with a confidence of at least the threshold
     (`PLAYER_QUOTE_MIN_BENIGN_CONFIDENCE`, default 0.90): the GM gets the

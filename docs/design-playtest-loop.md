@@ -1,0 +1,392 @@
+---
+title: "Design: playtest loop"
+updated: 2026-10-07
+status: draft
+---
+
+# Design: playtest loop
+
+**Status:** draft, 2026-10-07. Agreed in outline with Fredrik 2026-10-06; the details below are proposals. Jev persona-affect scoring in review — see [jev-scoring.md](jev-scoring.md) (`jev-persona-affect`).
+
+## Purpose
+
+This is the inner loop from the [roadmap](roadmap-2027.md) (§2) in practice: how persona bots play Tales Forge in the playtest environment, how we score their sessions, and how the findings turn into fixes, founder decisions and new features.
+
+The founders stay product owners. Bots play, record, score, group and fix clear bugs. Anything that needs judgement goes to the [decision queue](design-decision-queue-and-docs.md), and the founders pick the order of features.
+
+It also gives us **cost per session** from self-play, measured on the playtest key from November, which [pricing](roadmap-2027.md) depends on.
+
+**Biggest risk: judge calibration.** If the judge bot's scores don't match what the founders (and later real players) feel, every step after scoring optimises the wrong thing. See step 5 and the open decisions.
+
+## The loop at a glance
+
+```mermaid
+flowchart TD
+  A[Choose test: persona, module, build] --> B[Persona bots play in playtest]
+  B --> C[Record transcript, rolls, cost]
+  C --> D[Automatic checks + judge bot scores]
+  D --> E[Publish session report]
+  E --> F[Group findings across sessions]
+  F --> G{Clear bug or design question?}
+  G -- bug --> H[Bot fixes it, with a replay test]
+  G -- design --> I[Founders' decision queue]
+  I --> J[Feature, prioritised by founders]
+  J --> H
+  H --> K[Gate: tests + replay + no score drop]
+  K --> L[Production]
+  L --> A
+  M[Founders score sometimes] -.-> D
+  N[Real playtesters] -.-> F
+```
+
+## Where we start from (code, 2026-10-06)
+
+Checked in `ex-tales-forge` on `main` (commit `bd5af30`):
+
+- **No self-play, persona bots, judge or scorecard code exists yet.** The hits for "persona" in the code are NPC personalities, not player personas.
+- **`mix e2e.smoke`** (`lib/mix/tasks/e2e.smoke.ex`) is the closest thing. It plays a fixed three-turn tavern scenario against a running dev server with the real AI, checks each turn's latency against the 3 s limit and whether the expected NPCs show up and remember things, and writes `priv/playtest/reports/e2e-smoke.json` and `.md`. It runs by hand; it is not part of CI. The last saved report is from 2026-07-03.
+- **What's already recorded per session:** each turn stores the player's action, the narration and a `mechanical_resolution` map (roll and outcome). `session_events` carry a `player_aware` flag, so events the player never sees are already kept apart.
+- **Not recorded yet:** the GM's hidden reasoning as its own record (in review, see *Build progress*). AI token use and cost per call are recorded since ex-tales-forge #19, see *Build progress*.
+- **Playtest environment:** `fly.playtest.toml` and the playtest deploy workflow exist; see [environments](environments.md).
+
+## Build progress
+
+| Build step | What | Status |
+|---|---|---|
+| 1 | AI cost per LLM call: `ai_calls` table with tokens (in, out, cached, reasoning), model, cost, latency and status, linked to session and turn number | Done: [ex-tales-forge #19](https://github.com/whyse-ab/ex-tales-forge/pull/19), plus the fix [#21](https://github.com/whyse-ab/ex-tales-forge/pull/21) so rows are actually written in production; verified live 2026-10-06 |
+| 2 | Per-session and per-day spending caps with a hard stop, set by `AI_CAP_SESSION_USD` and `AI_CAP_DAY_USD` (unset = off; day = since midnight Stockholm time). A capped call sends nothing, is logged and stored as a `capped` row, and the player sees a calm "the Game Master is resting" message | Done: [ex-tales-forge #20](https://github.com/whyse-ab/ex-tales-forge/pull/20). Live on playtest ($1.00 per session, $10.00 per day); off in production |
+| 3 | GM hidden reasoning per turn: a short hidden `gm_notes` field in the GM reply, stored with the raw GM reply as a `gm_reasoning` session event (`player_aware: false`) in the turn's transaction; never shown to the player or fed back into prompts | Done: [ex-tales-forge #22](https://github.com/whyse-ab/ex-tales-forge/pull/22) |
+| 5 | Persona bot runner: `TalesForge.Playtest.Runner.start(persona, module, opts)` plays a new playtest session as a persona from [personas](personas.md), through the same paths a player uses. It sees only what the play page shows, and its moves come from an LLM call recorded in `ai_calls` as `persona`. It stops at module end, death, a spending cap, a timeout or the turn limit (default 15). Each run is stored in `playtest_runs`. Off unless `PLAYTEST_RUNNER_ENABLED=true`; started over `rpc` on playtest, never in production | Done: [ex-tales-forge #23](https://github.com/whyse-ab/ex-tales-forge/pull/23) |
+| 6 | Judge and session report: `TalesForge.Playtest.Scorer.score(run_id)` makes one judge call (`ai_calls` purpose `scorer`) that reads the session record (what the player saw, server rolls, hidden GM notes) and scores it 1–5 per criterion against the persona's scorecard in [personas](personas.md), quoting the turn behind each score. Rubric `v1-<hash of the scorecard>`, so a scorecard edit is a new version. Stored in `playtest_scores`; runs that end finished or stopped are scored automatically, and re-scoring is a button. Admin pages `/admin/playtest` (start a run, list runs) and `/admin/playtest/:id` (turns side by side with what happened behind the screen, cost by purpose, score card). Persona and scorer calls are kept out of the session cap and the game's cost and time; see *Cost controls*. **Jev persona-affect in review** (`jev-persona-affect`); see [jev-scoring.md](jev-scoring.md). Primary when `TYPESAFE_API_KEY` is set; LLM rubric remains the fallback. | Done: [ex-tales-forge #24](https://github.com/whyse-ab/ex-tales-forge/pull/24), live since 2026-10-06 |
+
+## The steps
+
+Each step lists what goes in, what comes out, and what gets stored.
+
+### 1. Choose the test
+
+A test is a persona, a module, a build and a goal. Example: Paul, Merovingia, the current `main` commit, "can Paul bluff past the guards at the Runekeeper's Tower?".
+
+The scenes in [Examples of play](examples-of-play.md) are the first test targets: each one already names a persona, a place and what a good outcome looks like.
+
+Character creation is a scenario of its own; see *Scenario: character creation*.
+
+- **In:** the persona (from [personas](personas.md)), a module, a build, a goal, optionally a starting scene.
+- **Out:** a test definition the bots can run again later.
+- **Stored:** the test definition (see *Data shapes*).
+
+### 2. Persona bots play in playtest
+
+One bot per persona plays the session against `tales-forge-playtest`, through the same paths a real player uses. Ronny plays as the red team: exploits, sweet-talking the GM, prompt injection, economy gaming, death negotiation.
+
+Bots play in their persona's style. Paul types in character with dice hidden; Hawk, Lars and Ronny play with dice shown.
+
+**The GM always opens; the persona responds.** Every session starts with the GM's opening narration of the first scene, as it does for a human player, who can't act before it exists. The bot's prompt starts with that opening on every turn, and the bot never makes the first move: if there is no opening, the run ends instead. The run report shows the opening before turn 1. Enforced in [ex-tales-forge #27](https://github.com/whyse-ab/ex-tales-forge/pull/27).
+
+The **GM's own turn prompt** also carries that opening, clearly labelled as already told to the player, so the GM does not re-narrate the arrival on turn 1 (the same bug hit human players). In review: ex-tales-forge branch `gm-opening-in-turn`.
+
+- **In:** a test definition and the playtest build.
+- **Out:** a played session in the playtest database.
+- **Stored:** the game session itself, as for any player.
+
+### 3. Record everything
+
+For every session we keep enough to replay and judge it without rerunning it.
+
+- **In:** the played session.
+- **Out:** a session record.
+- **Stored:** the transcript (player turns and GM replies), every dice roll, the GM's hidden reasoning and player-unaware events, AI cost (tokens and money, per call and in total) and time (per turn and in total), plus the build, model names and test id.
+
+Cost is counted on the playtest environment's own xAI key, so bot spending never mixes with player spending.
+
+### 4. Score in two layers
+
+**Layer 1: automatic checks.** Cheap and deterministic. Crashes and errors, timeouts, the 3 s latency limit, rule violations (impossible rolls, skills the character doesn't have, items from nowhere), mechanics leaking into narration when dice are hidden, and the GM contradicting world canon.
+
+**Layer 2: the judge bot.** A separate bot reads the session record and scores it against the persona's scorecard in [personas](personas.md). For Paul: was the intent read from in-character speech, did mechanics stay hidden, did NPCs stay in character, did bluff quality matter.
+
+The judge uses a different model or at least a different prompt from the GM, so the GM doesn't grade its own homework. It must quote the turns behind every score, so a human can check it quickly.
+
+- **In:** the session record and the persona's scorecard.
+- **Out:** a scorecard per session: check results, a score and reason per criterion, and findings.
+- **Stored:** the scorecard and the findings.
+
+### 5. Calibrate the judge
+
+Now and then a founder hand-scores a session the judge already scored, without seeing the judge's scores first. We compare the two.
+
+If they disagree a lot, we fix the judge's prompt, rubric or model before trusting its numbers again. Hand-scored sessions are kept as a reference set, so a new judge version can be checked against them before it goes live.
+
+- **In:** a judged session and a founder's scores.
+- **Out:** agreement per criterion and per persona.
+- **Stored:** the hand scores, linked to the session and the judge version.
+
+### 6. Publish a session report
+
+One readable page per session: the test, the build, cost and time, check results, scores with quoted evidence, and the findings.
+
+- **In:** the session record and scorecard.
+- **Out:** a session report.
+- **Stored:** the report (see *Where reports and findings live*).
+
+### 7. Group findings across sessions
+
+Patterns beat single sessions. A grouping bot merges findings that describe the same problem across sessions, personas and builds, and counts how often each one shows up.
+
+- **In:** findings from many sessions.
+- **Out:** consolidated findings with a count and links to the sessions behind them.
+- **Stored:** the consolidated findings.
+
+### 8. Sort: bug or design question
+
+- **Clear bugs** (a crash, a broken rule, a canon contradiction) go straight to a fixer bot.
+- **Design questions** (a persona trade-off, a taste call, "should Paul's bluff need a roll at all?") go to the founders' decision queue.
+
+When in doubt, it's a design question.
+
+- **In:** a consolidated finding.
+- **Out:** a fix task for a bot, or a decision-queue entry.
+- **Stored:** the finding's status and where it went.
+
+### 9. A feature carries its own test
+
+Every fix and feature ships with the scenario that exposed it, so the persona can replay it. Example: the Runekeeper's Tower scene becomes Paul's replay test for "bluff quality affects the outcome".
+
+Replay tests pile up into a regression suite that grows with every finding.
+
+- **In:** the finding and the sessions behind it.
+- **Out:** a replay scenario linked to the fix or feature.
+- **Stored:** the replay scenario, next to the test definitions.
+
+### 10. Founders prioritise, a bot builds
+
+The founders order the features. A bot picks the top one and builds it, with its replay scenario. Nobody assigns work to people; founders self-assign whatever they want to take on.
+
+- **In:** the ordered feature list.
+- **Out:** a pull request.
+- **Stored:** the PR, linked to the feature and its findings.
+
+### 11. Gate before production
+
+A change reaches production only when:
+
+1. the CI tests pass;
+2. its replay scenario passes in playtest (or a preview app, once previews are built);
+3. no other persona's score drops.
+
+What counts as a score drop is an open decision. Merging to `main` still needs Fredrik's OK, as in [environments](environments.md).
+
+- **In:** the PR, its replay scenario, scores for the current build.
+- **Out:** pass or fail with reasons.
+- **Stored:** the gate result on the PR.
+
+### 12. Track trends
+
+Persona scores and cost per session over time, per build. This shows whether we are getting better for the people we design for, and what a session costs as we go, which pricing needs.
+
+- **In:** scorecards and session records.
+- **Out:** trend lines per persona, per criterion, per build.
+- **Stored:** nothing new; computed from what's already stored.
+
+### 13. Bring in real people
+
+Invited playtesters, and later real players, feed findings into the same queue. They also tell us whether the personas are realistic: if real Pauls behave differently from the Paul bot, the bot is wrong, not the players.
+
+The monthly real playtests in the roadmap are where this happens first.
+
+- **In:** playtester sessions and feedback.
+- **Out:** findings, plus corrections to persona bots and scorecards.
+- **Stored:** the same session records and findings as for bots, marked as human.
+
+## Scenario: character creation
+
+Character creation is part of any RPG, and the personas test it too (Fredrik, 2026-10-06). It runs through the same steps as any other test; this section covers what is specific to it.
+
+### Why start here
+
+- **It's short.** A character should take minutes, so bots can make many of them per build for little money.
+- **Everyone goes through it.** Every new game starts with it, and so does the next character after a death. If it's slow or confusing, players leave before the adventure begins. Lotta may not make another character after a death at all, so the second time matters too.
+- **Problems show quickly.** Where a player gets stuck, bored or has to go back is easy to see in a short transcript.
+
+### Where we start from
+
+- **The app has no character creation yet.** In `ex-tales-forge` (`main`, commit `4d78ed7`), every session starts with the same pre-made character, Elara Voss, a human with fixed stats, skills, coins and gear (`lib/ex_tales_forge/game/world.ex`, reused for every adventure by `game/pack.ex`). The home page starts Tin Valley or Crossroads Hamlet; Merovingia isn't loaded in the Elixir app.
+- **The creation rules exist as game data.** The Tin Valley and Crossroads Ledger rules (`rules/core_mechanics.md`) have a 75-point stat buy (3–18 per stat), 20–30 skill points with a starting cap of 5, and background bonuses. Their `rules/economy.md` sets starting wealth by social class, with gear paid for out of that budget.
+- **Merovingia's [`game-system.json`](worlds/merovingia/game-system.json)** has what a creator would offer: six races (Human, Elf, Dwarf, Gnome, Halfling, Half-Elf) with stat modifiers, skill bonuses and traits; six archetypes (Warrior, Wizard, Thief, Druid, Cleric, Ranger) with suggested skills; 38 skills in five domains; starting wealth by social status, from nobility to underclass; and naming lists by race, region and status. It has no point-buy rules of its own.
+
+So bots can only run this scenario once the app has a creation step. Until then, this section describes what we would test.
+
+### What a persona does
+
+Each persona bot makes a character in its own style, following [personas](personas.md), and stops at the first in-game turn.
+
+| Persona | How it makes a character | What it tests |
+|---|---|---|
+| Hawk | Builds to survive: asks how wounds and combat work, picks a sturdy build. Dice on. | Is enough of the rules shown to make real choices? |
+| Paul | Describes who the character is, in character, and avoids numbers. Dice off. | Can a character come from prose, without stat tables forced on him? |
+| Lotta | Takes her time over name, looks and background; starts as an underdog (her "Ugly Duckling" arc). | Are her details kept, and is a humble start allowed? |
+| Lars | Wants to get to the adventure fast, with a reason to matter in the world. | How soon does he get to play, and does the character have a hook into the world? |
+| Ronny (red team) | Asks for extra points, stats over 18, rare gear or a race that isn't on the list; tries to talk or inject his way past the rules. | Do the rules hold, ideally in-fiction, without granting anything unearned? |
+
+### What gets scored
+
+The same two layers as step 4.
+
+- **Time and turns** from the first prompt to a finished character. Automatic.
+- **Confusion and backtracking:** questions about what something means, choices changed or undone, the same question asked twice, dead ends and errors. Long explanations the persona skips or complains about count as boredom. The judge quotes the turns.
+- **Fit with the world and its rules.** Automatic checks: race, archetype and skills exist in the world's data, stats and skill points stay within the limits, starting money and gear match the social class, and the name fits the naming lists. The judge checks the rest: tone, and a background that doesn't contradict canon.
+- **Would the persona carry on?** The bot ends with one out-of-character line: would it start playing now, and why or why not. The judge checks that answer against the transcript.
+- **AI cost of the step:** the number of calls, tokens and dollars, summed from the `ai_calls` rows for the step. Playtest caps are $1.00 per session and $10.00 per day, so a creation step that eats a large share of the session cap, or hits it, is a finding.
+
+```yaml
+session: s-2026-11-05-0007
+test: t-lotta-create-character
+creation:
+  turns: 9
+  time_s: 140
+  confusion: [turn 3, turn 6]
+  backtracks: 1
+  rules_ok: true
+  world_fit: pass
+  would_continue: true
+  cost: { calls: 7, usd: 0.04 }
+```
+
+### Open questions
+
+- Does character creation happen with the GM in conversation, through a form, or a mix (a form with the GM helping)? Paul and Lotta may want something different here from Lars.
+- Is it scored on its own, or as the first part of a normal session? Does it count against the $1.00 session cap, and how are its `ai_calls` told apart from play, given that they link to a session and a turn number today?
+- Which world comes first: Merovingia, which has the richest race, archetype and naming data but no point buy, or Tin Valley, the starter ([D-008](decision-queue/d-008-tin-valley-starter.md)) that the app can load?
+- What is a good target time and turn count for a finished character, and is it the same for every persona?
+- Does a pre-made character stay available for players who want to start right away?
+- After a death, does the player go through the same creation again, or a shorter one?
+
+## Data shapes (suggestions)
+
+Kept light on purpose. The fields are suggestions; the real schema comes with the first implementation.
+
+### Test definition
+
+```yaml
+id: t-paul-runekeeper-bluff
+persona: paul
+module: merovingia
+start: runekeeper-tower-night   # optional starting scene
+goal: "Can Paul bluff past the guards?"
+source: examples-of-play.md#2-paul-new-regulations
+dice_visible: false
+max_turns: 20
+```
+
+### Session record
+
+```yaml
+id: s-2026-11-03-0042
+test: t-paul-runekeeper-bluff
+build: bd5af30
+environment: tales-forge-playtest
+player: bot          # bot | human
+gm_model: grok-…     # whatever the GM ran on
+started_at: 2026-11-03T14:02:00+01:00
+turns: 14
+time:
+  total_s: 61
+  p95_turn_s: 2.8
+cost:
+  tokens_in: 48200
+  tokens_out: 6100
+  usd: 0.21
+# Transcript, rolls and hidden GM reasoning are stored per turn,
+# not in this summary.
+```
+
+### Scorecard
+
+```yaml
+session: s-2026-11-03-0042
+judge: judge-v1      # model + prompt version
+checks:
+  crashed: false
+  latency_ok: true
+  rule_violations: 0
+  canon_contradictions: 1
+criteria:
+  - id: paul.intent-from-speech
+    score: pass       # or 1–5; open decision
+    evidence: [turn 1, turn 4]
+  - id: paul.no-mechanics-leak
+    score: fail
+    evidence: [turn 7]
+    note: "Narration says 'you rolled well'."
+```
+
+### Finding
+
+```yaml
+id: f-0017
+title: "GM mentions dice when rolls are hidden"
+kind: bug            # bug | design
+personas: [paul, lotta]
+seen_in: [s-2026-11-03-0042, s-2026-11-04-0003]
+count: 2
+status: open         # open | fixing | queued | done
+goes_to: fixer-bot   # fixer-bot | decision-queue
+```
+
+### Feature with replay scenario
+
+```yaml
+id: feat-bluff-quality
+title: "Bluff quality affects the outcome"
+from_findings: [f-0021]
+decision: d-0xx      # if it went through the queue
+replay:
+  test: t-paul-runekeeper-bluff
+  expect:
+    - "A pretext that clashes with canon fails more often"
+    - "A pretext that uses the world can succeed"
+```
+
+## Where reports and findings live
+
+**Suggestion (open):**
+
+- **Session records, scorecards and reports** live in the playtest database and are shown in the playtest admin, next to the sessions themselves.
+- **Consolidated findings** leave the playtest app: design questions become decision-queue entries in this repo (`decisions/`), and clear bugs become GitHub issues on `ex-tales-forge` for the fixer bot.
+
+Things this depends on:
+
+- Nobody can sign in to the playtest admin yet: there is no mail key and no GitHub sign-in there ([environments](environments.md)).
+- Playtest has no `GITHUB_DOCS_TOKEN`, so it can't write decision-queue entries itself. Bots could do that through Git instead.
+- The decision-queue design lists "bot result feeds" and "persona scorecard dashboards" as out of scope for now. This doc proposes bringing them in.
+
+## Cost controls
+
+AI spend on playtest must never surprise anyone. Three layers, cheapest first:
+
+1. **A budget cap per session.** The harness stops a session when it passes its token or money cap, and marks it as stopped on budget (that's a finding too).
+2. **A daily cap on the playtest key.** Set at the provider if possible, so it holds even if our own code is broken.
+3. **A runaway stop.** If spending per hour jumps well above normal (a loop, a bot stuck retrying), all bots stop and nothing restarts on its own.
+
+How this is built (ex-tales-forge #20, #24):
+
+- **Session cap** (`AI_CAP_SESSION_USD`) counts only the game's own calls (`gm`, `intent`, `scene`), so a bot run is capped at what a human session would be.
+- **Persona cap per run** (`AI_CAP_PERSONA_RUN_USD`, $0.50 when unset) counts the persona bot's own calls. Hitting it stops the run with stop reason `persona_cap` and stores a `capped` row.
+- **The scorer** is its own bucket, outside the session cap.
+- **Jev persona-affect scoring** in review (`jev-persona-affect`); see [jev-scoring.md](jev-scoring.md). Primary auto-score when `TYPESAFE_API_KEY` is set; LLM rubric is the fallback when unset.
+- **Day cap** (`AI_CAP_DAY_USD`) is the safety net over everything: game, persona and scorer.
+- **Game cost and time leave the bot out.** Game time is from action submitted to turn done, plus scene time; the persona's thinking time, tokens and cost are stored apart on `playtest_runs` and shown as a separate "Persona (bot)" line. Raw wall clock is only shown labelled as including the bot.
+
+Raising a spending cap or adding an AI key needs Fredrik's OK ([environments](environments.md)). The actual numbers belong to the AI spend ceiling decision (`d-004`).
+
+## Open decisions
+
+Most important first.
+
+1. **Judge model and calibration method.** Which model and prompt the judge runs on (different from the GM's), how often founders hand-score, how many hand-scored sessions make a reference set, and how much agreement is enough to trust the judge. This is the biggest risk in the loop.
+2. **What counts as a regression.** Pass/fail per criterion or a weighted score, how big a drop blocks a release, and how to tell a real drop from noise between runs. Part of `d-002` (persona scorecards).
+3. **The session budget cap and the daily cap on the playtest key.** Numbers, and hard stop or throttling. Part of `d-004` (AI spend ceiling).
+4. **How many sessions per persona per build.** Enough to see patterns and beat AI randomness, few enough to stay within budget. Maybe a small set on every build and a bigger one nightly.
+5. **Where findings go.** GitHub issues, decision-queue items, or both (bugs to issues, design questions to the queue), and whether reports live only in the playtest admin.
+6. **When real testers join, and how they sign in to playtest.** Ties to the open sign-in question in [environments](environments.md) and to the monthly real playtests in the roadmap.
+7. **The character creation scenario.** Form or conversation, scored alone or as part of a session, and which world first. See its open questions under *Scenario: character creation*.

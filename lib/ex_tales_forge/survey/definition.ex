@@ -1,7 +1,7 @@
 defmodule TalesForge.Survey.Definition do
   @moduledoc """
   A survey definition: the questions of a survey, parsed and validated from
-  a JSON file (e.g. `docs/founder-survey-3.json` in tales-forge-docs).
+  a JSON file (e.g. `docs/founder-survey-3.json` in `docs/`).
 
   Wording lives in the JSON, not in code. `parse/1` checks the whole file and
   returns every problem it finds with its path (`sections[2].questions[1].options

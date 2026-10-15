@@ -5,7 +5,7 @@ defmodule TalesForgeWeb.AdminLive.SurveyLive.Show do
   the signed-in founder's status on each (not started, in progress, done) and
   opens the first; `/admin/founders/surveys/:id` opens any survey, active or not.
   Questions come from the survey file in
-  tales-forge-docs (`TalesForge.Survey.Source`); answers autosave per section
+  ex-tales-forge (`TalesForge.Survey.Source`); answers autosave per section
   into the signed-in user's response (`TalesForge.Surveys`), keyed by their
   GitHub login, so there is no name question. Shows who you answer as and the
   save state; read-only once the survey is closed.

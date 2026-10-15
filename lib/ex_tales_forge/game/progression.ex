@@ -2,7 +2,7 @@ defmodule TalesForge.Game.Progression do
   @moduledoc """
   Skill growth: you learn from failure, only in the
   skill you failed, and it sinks in while you sleep (decisions 2026-10-09,
-  tales-forge-docs `docs/decisions.md`, superseding the 2026-10-07 "LP spent
+  `docs/decisions.md`, superseding the 2026-10-07 "LP spent
   every turn" rule).
 
   - **Earning:** a failed or partial roll banks one improvement chance (1 LP)

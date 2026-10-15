@@ -9,7 +9,7 @@ defmodule TalesForge.Game.Features do
   - `"antagonist"` (`WORLD_ANTAGONIST=on`, needs `inn_world`): the Tinjacks,
     from `extensions/antagonist/`.
 
-  Design: tales-forge-docs
+  Design: ex-tales-forge
   `docs/design-tin-valley-world.md`.
   """
 

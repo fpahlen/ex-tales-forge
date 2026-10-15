@@ -8,7 +8,7 @@ defmodule TalesForge.Game.Economy do
   The world config holds the value (`unskilled_wage_copper_per_hour` in the
   adventure front matter, copied to `world_state["economy"]`). A world
   without the key uses the formula. Modifiers for skill, danger and region
-  come later (tales-forge-docs `docs/decisions.md`, 2026-10-12).
+  come later (`docs/decisions.md`, 2026-10-12).
   """
 
   @unskilled_minutes_per_copper 20

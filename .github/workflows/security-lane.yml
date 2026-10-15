@@ -1,4 +1,4 @@
-# The security lane's merge step (tales-forge-docs docs/decisions.md,
+# The security lane's merge step (ex-tales-forge docs/decisions.md,
 # 2026-10-11 "Security-bump lane"; .github/deploy-lanes.txt).
 #
 # Runs after every CI run of a pull request. When the PR qualifies

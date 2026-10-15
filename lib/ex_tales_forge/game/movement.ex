@@ -9,7 +9,7 @@ defmodule TalesForge.Game.Movement do
   when the text named an adjacent exit by its full name ("market square"), so
   "I step into the square" or "head up to the cut" stayed at the inn while
   the GM narrated the walk, and the next turn snapped back to Brenna's bar
-  (tales-forge-docs `docs/analysis-jev-baseline-2026-10-07.md`, §4).
+  (`docs/analysis-jev-baseline-2026-10-07.md`, §4).
 
   A location in the pack can carry three optional frontmatter keys:
 

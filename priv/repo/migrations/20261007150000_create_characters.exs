@@ -1,6 +1,6 @@
 defmodule TalesForge.Repo.Migrations.CreateCharacters do
   @moduledoc """
-  Phase 1 of docs/plan-unify-character.md (tales-forge-docs): one `characters`
+  Phase 1 of docs/plan-unify-character.md (this repo, `docs/`): one `characters`
   table for player characters and NPCs, plus `character_memories`, each
   character's own view of an event in the shared `session_events` table.
 

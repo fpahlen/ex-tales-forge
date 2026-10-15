@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.Turn do
   @moduledoc """
-  One turn as one pipe over a `%Turn{}` struct (tales-forge-docs
+  One turn as one pipe over a `%Turn{}` struct (ex-tales-forge
   `docs/architecture.md`):
 
       session

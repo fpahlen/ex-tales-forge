@@ -1,7 +1,7 @@
 defmodule TalesForge.IntentJev do
   @moduledoc """
   The player-intent read as one TypeSafe Jev call, wired into live turns behind
-  `INTENT_JEV` (tales-forge-docs `docs/design-jev-intent.md`).
+  `INTENT_JEV` (`docs/design-jev-intent.md`).
 
   The mode is fixed per session when it is created and stored as
   `world_state["intent_jev"]` (only when it is not `off`), like the other

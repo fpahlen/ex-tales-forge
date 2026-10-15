@@ -1,4 +1,4 @@
-# Hourly dependency audit (tales-forge-docs docs/decisions.md, 2026-10-11
+# Hourly dependency audit (ex-tales-forge docs/decisions.md, 2026-10-11
 # "Security-bump lane"). Runs `mix hex.audit` (retired packages) and
 # `mix deps.audit` (mix_audit: published advisories). For each package with an
 # advisory it runs `mix deps.update <package>` within the requirement in

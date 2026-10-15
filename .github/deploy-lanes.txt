@@ -1,6 +1,6 @@
 # Deploy lanes: the one place that says which files are admin work.
 #
-# Decision 2026-10-09 (Fredrik, tales-forge-docs docs/decisions.md "A fast
+# Decision 2026-10-09 (Fredrik, ex-tales-forge docs/decisions.md "A fast
 # deploy lane for admin work"). Read by TalesForge.DeployLanes:
 #   - .github/workflows/playtest.yml picks the lane of each merge to main
 #     (.github/scripts/deploy_lane.exs),

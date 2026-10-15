@@ -1,7 +1,7 @@
 defmodule TalesForge.Surveys do
   @moduledoc """
   Founder surveys: answers stored per user, defined by JSON files in
-  tales-forge-docs (`TalesForge.Survey.Source`, `TalesForge.Survey.Definition`).
+  ex-tales-forge (`TalesForge.Survey.Source`, `TalesForge.Survey.Definition`).
 
   A user is the signed-in GitHub team member (`%{login: ..., email: ...}`);
   there is one `TalesForge.Survey.Response` per user per survey id. Saving a

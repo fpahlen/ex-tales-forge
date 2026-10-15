@@ -1,7 +1,7 @@
 defmodule TalesForge.DeployLanes do
   @moduledoc """
   Which deploy lane a merge to `main` takes, and the boundary between game and
-  admin code (tales-forge-docs `docs/decisions.md`, 2026-10-09, "A fast deploy
+  admin code (`docs/decisions.md`, 2026-10-09, "A fast deploy
   lane for admin work").
 
   The lists live in one file, `.github/deploy-lanes.txt`:

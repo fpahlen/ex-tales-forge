@@ -199,7 +199,7 @@ defmodule TalesForgeWeb.Router do
   # Workflow moved to its own app (whyse-workflow, board card "Workflow split
   # 5/5"). For 30 days, its old URLs here redirect to the same path and query
   # there (307, so a POST stays a POST). Workflow does its own sign-in.
-  # Remove this scope after the 30 days (tales-forge-docs decisions.md).
+  # Remove this scope after the 30 days (docs/decisions.md).
   scope "/", TalesForgeWeb do
     for path <- TalesForge.AppRole.workflow_paths() do
       match :*, path, WorkflowRedirectController, :show

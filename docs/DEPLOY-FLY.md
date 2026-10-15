@@ -74,7 +74,7 @@ fly secrets set \
 | `PHX_HOST` | Host for URL generation (update when adding a custom domain) |
 | `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | Required. GitHub OAuth app for "Sign in with GitHub", the only login (every page needs it). One OAuth app per host: callback `https://<PHX_HOST>/admin/auth/github/callback` (prod: `https://tales-forge.fly.dev/admin/auth/github/callback`), scopes `read:org user:email`. Without both nobody can sign in |
 | `ADMIN_GITHUB_TEAM` | Required, `org/team-slug` (`whyse-ab/tales-forge`). Only active members of this team can sign in, and every member gets the admin pages too; unset = nobody can sign in |
-| `GITHUB_DOCS_TOKEN` | Fine-grained or classic PAT with read access to `whyse-ab/tales-forge-docs` and to `whyse-ab` members (the team check for sign-in uses it) |
+| `GITHUB_DOCS_TOKEN` | Fine-grained or classic PAT with read access to `whyse-ab/ex-tales-forge` and to `whyse-ab` members (the team check for sign-in uses it) |
 | `XAI_API_KEY` | Existing Grok LLM key for the game |
 
 Optional: `TALES_FORGE_DOCS_PATH` is for local/dev sync only; production should use `GITHUB_DOCS_TOKEN`.
@@ -98,7 +98,7 @@ This app keeps two tokens for the link to Workflow:
 
 Normally you don't run `fly deploy` by hand. A push to `main` that passes CI deploys to
 **playtest** first (see [Playtest environment](#playtest-environment)). Whether production
-follows automatically depends on the merge's **deploy lane** (tales-forge-docs decision
+follows automatically depends on the merge's **deploy lane** (ex-tales-forge decision
 2026-10-09 "A fast deploy lane for admin work" and 2026-10-11 "Security-bump lane"):
 
 | Lane | When | Playtest | Production |
@@ -261,7 +261,7 @@ In the UI: **Admin → Decisions → Sync from repo**.
 
 ## 6. Custom domain `admin.tales-forge.ai`
 
-Not in use. `tales-forge.ai` stays on Netlify for now (tales-forge-docs
+Not in use. `tales-forge.ai` stays on Netlify for now (ex-tales-forge
 `docs/decisions.md`, 2026-10-06), no environment gets Fly certificates or DNS
 changes, and deploys are checked on `tales-forge.fly.dev` and
 `tales-forge-playtest.fly.dev`. Kept for when that decision changes:

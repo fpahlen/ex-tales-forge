@@ -1,6 +1,6 @@
 defmodule TalesForge.CodingStandardsTest do
   @moduledoc """
-  Coding standards (tales-forge-docs docs/coding-standards.md): every public
+  Coding standards (docs/coding-standards.md): every public
   function of the backfilled modules has a `@doc` (or `@doc false` when it is
   internal). Add a module here once it is backfilled; Credo's
   `Readability.Specs` check covers the same files for `@spec` (`.credo.exs`).

@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Deploy.CheckBoundaries do
   @moduledoc """
-  Fails when game or shared code depends on admin code (tales-forge-docs
+  Fails when game or shared code depends on admin code (ex-tales-forge
   `docs/decisions.md`, 2026-10-09, "A fast deploy lane for admin work").
 
       mix deploy.check_boundaries

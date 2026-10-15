@@ -1,5 +1,5 @@
 {
-  "note": "Prototype data for WORLD_AGENTS=on (world agents hold facts; see tales-forge-docs docs/design-world-agents.md). Facts restate the pack (adventure.md, world/*.md, npcs/*.md, rules/economy.md); they are not new canon. Price facts carry item, copper and aliases so the server can quote and charge them (round 2).",
+  "note": "Prototype data for WORLD_AGENTS=on (world agents hold facts; see docs/design-world-agents.md). Facts restate the pack (adventure.md, world/*.md, npcs/*.md, rules/economy.md); they are not new canon. Price facts carry item, copper and aliases so the server can quote and charge them (round 2).",
   "locations": [
     {
       "id": "tin_valley_region",

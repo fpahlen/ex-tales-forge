@@ -10,7 +10,7 @@ defmodule TalesForge.Playtest.RunMeta do
   The commit (`git_sha/0`) comes from `GIT_SHA`, baked into the image by the
   Dockerfile (`--build-arg GIT_SHA=...` in the deploy workflows). The Fly image id in
   `build` is not a commit, so before this runs had to be mapped to releases by
-  time (tales-forge-docs `docs/analysis-jev-scores-2026-10-07.md`).
+  time (`docs/analysis-jev-scores-2026-10-07.md`).
 
   Flags (`flags/2`) hold no secrets: on/off switches, model names and rubric
   versions only.

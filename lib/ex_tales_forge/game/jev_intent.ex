@@ -5,7 +5,7 @@ defmodule TalesForge.Game.JevIntent do
   Jev never writes free text: every field is a choice over labels that this
   module proposes, and the numbers (durations, coin amounts, prices) are parsed
   from the player's text in Elixir, not by the model. See
-  `tales-forge-docs/docs/design-jev-intent.md`.
+  `docs/design-jev-intent.md`.
 
   The call answers six fields in one round-trip:
 

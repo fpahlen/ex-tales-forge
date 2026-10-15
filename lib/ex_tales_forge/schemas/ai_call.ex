@@ -2,7 +2,7 @@ defmodule TalesForge.Schemas.AICall do
   @moduledoc """
   One unit of recorded work: tokens, cost in micro-USD and latency, linked to a session and turn.
 
-  `call_type` follows docs/call-types.md in tales-forge-docs:
+  `call_type` follows docs/call-types.md in `docs/`:
 
   - `"llm"`: an xAI (or other provider) chat completion. `conv_id` is the
     `x-grok-conv-id` it was sent with.

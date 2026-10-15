@@ -31,7 +31,7 @@ defmodule TalesForgeWeb.LinkCrawlTest do
     File.write!(Path.join(dir, "index.html"), "<html><body>Code docs</body></html>")
     Application.put_env(:ex_tales_forge, :code_docs_dir, dir)
 
-    # A local tales-forge-docs checkout for the doc images (no GitHub in tests).
+    # A local ex-tales-forge checkout for the doc images (no GitHub in tests).
     File.mkdir_p!(Path.join(dir, "repo/docs/images"))
     File.write!(Path.join(dir, "repo/docs/images/score.png"), <<137, 80, 78, 71>>)
     Application.put_env(:ex_tales_forge, :tales_forge_docs_path, Path.join(dir, "repo"))

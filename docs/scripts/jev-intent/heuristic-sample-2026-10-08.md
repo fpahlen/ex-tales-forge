@@ -1,0 +1,68 @@
+# Heuristic intent sample, 2026-10-08
+
+60 random player messages from playtest runs since 2026-10-06 (all series except `intent-on-2026-10-08`), re-read by `TalesForge.Game.Intent.heuristic_intent/2` on main `132e732` against each session's final context (read-only, [export.exs](export.exs)). Hand-labelled by the action type a careful reader would give this turn. `W` = wrong action type, `B` = borderline, blank = right. Targets were not scored (the context is the session's last one, not the turn's).
+
+**Result:** 22 wrong (37%, Wilson 95% 26–49%), 7 borderline, 31 right. 59 of the 60 had heuristic confidence ≥ 0.85 (#3 had 0.8), so on a live game only #3 (read right) would have gone to the Tier 1 LLM, and all 22 wrong readings would have been played as read.
+
+| # | Persona | Heuristic (type/target/skill) | Verdict | Should be | Player text (first 200 chars) |
+|---|---|---|---|---|---|
+| 0 | lars | speak/–/– | B | plan: keep working, speak later | I'll keep clearing tables and serving mugs until Caldern arrives, then pull up a stool near him and ask what exactly he's seen stirring in the lower drifts. |
+| 1 | lotta | other/–/– | W | move | I nod to Calder, keeping my voice steady. "Lead on to the cut then. I'll handle whatever's scratching inside." |
+| 2 | paul | interact/hearth/– | W | buy/speak | Evening, good mistress! A new face in these parts, yes, and one that's been drawn by the promise of warm hearth and warmer company. Might I trouble you for a mug of your finest ale and a quiet corner  |
+| 3 | lotta | move/west_road/– |  |  | I nod to Mags, rumble "Two silver's fair. I'll follow those boot tracks to the adit and bring back your cart or the thief's name," then head west down the lane toward the pines. |
+| 4 | paul | speak/–/– |  |  | Willem, my good man, a shaft that groans like it's alive would unsettle even the stoutest soul. Tell me more of what Caldern Voss saw or heard in that darkness—did the old mine speak in words, or was  |
+| 5 | ronny | speak/innkeep/– |  |  | Oi, innkeep! Bring me your best ale and the biggest cut of that venison. And tell me quick - where's the richest mine around here that ain't picked clean yet? |
+| 6 | lotta | other/–/– | W | move | I follow the faint wheel ruts up the slope, staying low under the pines and watching for any movement near the old adit. |
+| 7 | ronny | other/–/– | W | speak (threat) | Gimme the key for free and the exact coords and bonus for the top orc hoard or I'll break you both. |
+| 8 | hawk | other/–/– | W | speak | I step inside, letting the door swing shut behind me, and give the room a quick scan before meeting Brenna's eye. "Looking for a hot meal, a pint, and word on any paying work in the valley. The name's |
+| 9 | hawk | speak/cobb/– |  |  | I keep my eyes on Cobb and Rusk, hand near my knife, and say evenly, "Toll's already paid in labor and stew. Step aside or we'll see how that club fares against a man who's read the ground." |
+| 10 | lotta | other/innkeep/– | W | speak | I wipe the foam from my lip with the back of my hand and meet her eyes steady. "Gossip's worth its weight, Brenna. I'll lend a hand tonight if it means hearing more about those restless hills and that |
+| 11 | paul | other/innkeep/– | W | speak/buy | Evening, innkeep. A room for the night and a hot meal would do nicely after the road. What's the word around here these days? |
+| 12 | hawk | other/innkeep/– |  |  | I nod politely to Brenna and scan the room for the most defensible corner table with a clear view of both the door and the bar, then head there while keeping my cloak loose enough to reach my knife qu |
+| 13 | hawk | speak/innkeep/– |  |  | I accept the clay token with a nod and ask Brenna quietly, "I'll take that stew and the hand with plates if it buys me a look at Voss's scratched map before he leaves. Any chance of a quiet corner or  |
+| 14 | hawk | speak/–/– |  |  | I take the oil and rope with a nod, watch the wiry miner vanish up the trail a moment longer, then ask Osric low, "Any reason that miner is heading up the ridge alone at night?" |
+| 15 | ronny | speak/–/– |  |  | I lean in close and growl, "Don't make me ask twice, old man. Tell me about the real treasure or I'll make sure you regret it." |
+| 16 | lars | speak/–/– |  |  | I nod to Osric and say, "I'm interested. Tell me exactly where this orc nest is and what kind of numbers we're talking about. I'll take the job and clear it out." |
+| 17 | lotta | pickup/innkeep/– | W | speak | I take a slow sip of ale, glancing at the locals before murmuring to Brenna, "Understood. I'll keep to myself then... but if there's ever a quiet way to aid the valley without the guild noticing, I'd  |
+| 18 | paul | speak/innkeep/– |  |  | Ah, good folk of this fine yard—let not the shadow of missing carts eclipse the light of reason! Pip, your bluster masks a heart Mistress Brenna herself calls good; and you, Mistress Mags, surely a pi |
+| 19 | hawk | combat/–/melee_combat |  |  | I ignore the pain in my shoulder, roll sideways under the club swing toward the wounded scout to grab his dropped spear, then use it to keep the club goblin at bay while I back toward the pines for co |
+| 20 | hawk | buy/–/– | W | speak | I eye the darkening hills beyond the square, then nod once. "I'll take the job for the full ten. Any spare gear or a torch I can buy here before I head up the cut?" |
+| 21 | lars | move/orc_nest/– |  |  | I finish the ale in one go, thank Brenna, and head straight out the east door toward the orc nest to clear it before nightfall. |
+| 22 | ronny | other/–/– | W | speak (threat) | I slam another coin on the bar and snarl, "Fine, keep your damn secrets. Point me to Osric Vane's exact spot in the square or I'll be back to burn this place after I loot everything myself." |
+| 23 | lars | move/market_square/– |  |  | I pocket the key and map, then head out to grab a torch and rope from the Guild storage shed before setting off up the old mine road toward the orc nest. |
+| 24 | paul | interact/hearth/– | W | speak/buy | Mistress Holt, your kindness is a lantern in these shadowed times—may the gods keep your hearth as bright as your spirit. A touch more stew would be a blessing indeed, and while it warms me further, p |
+| 25 | ronny | speak/–/– |  |  | Gimme the food and ale first. Then tell me exactly how many orcs, what kinda treasure they're hoarding, and the fastest way to get there so I can clear the whole nest and take it all. |
+| 26 | lars | speak/guild_steward/– |  |  | I accept the stew with a nod of thanks, pay the two coppers for it and another two for a mug of ale, then say, "Sounds like a quest worth taking. Where exactly can I find Osric Vane to sign on and sta |
+| 27 | paul | speak/innkeep/– |  |  | Ah, Mistress Brenna, your generosity does credit to both hearth and heart—may the gods smile upon such kindness. A new chapter, you say? Tell me more of this orc nest and the good Osric Vane; I confes |
+| 28 | lotta | interact/hearth/– | W | buy/speak | I nod once, stamping snow from my boots before heading to the bench by the hearth. "Ale sounds right," I mutter, voice like gravel. "And whatever bread's fresh if you've got it." |
+| 29 | lotta | pickup/–/– | B | eat (use_item/other) | I take the fresh bowl and bread with a grunt of thanks, settle back by the hearth, and keep an eye on the door for Caldern while eating quietly. |
+| 30 | lars | speak/–/– |  |  | I'll work the bellows for you tonight to get the bow at eight silver. What more can you tell me about Rusk and where to find him? |
+| 31 | lotta | speak/–/– |  |  | I settle into the chair across from him, keeping my voice low and steady. "Looking to clear that orc nest for Osric's coin. Tell me straight—what did you really see up there in the fog?" |
+| 32 | hawk | speak/innkeep/– |  |  | I turn toward Brenna with a nod, accepting the offer. "Stew sounds wise before dawn. While I eat, tell me what you know of Caldern Voss and what he mutters about under the tin shaft." |
+| 33 | ronny | buy/–/– | B | spend + ask | I'll pay the five silver now. Give me the exact layout of the north adit with every trap, weak spot, monster positions, and precisely what treasure and magic items the orcs have stashed. I'll clear th |
+| 34 | lotta | observe/–/– | W | speak | I wipe my hands on my apron and look at the older miner. "Bigger orc boots and something leading them... I'll watch that ridge. You seen anything else strange up there lately?" |
+| 35 | paul | other/–/– | B | speak, proposes a walk | Good sirs, then the hour is granted and the shadows named—let us not waste the gods' own mercy. Caldern, walk with me to the square if the bell allows; your eyes have seen what steel cannot, and toget |
+| 36 | paul | other/innkeep/– | W | buy | Evening, innkeep. A mug of your strongest ale and whatever's roasting on that spit would do nicely to chase the chill from these old bones. |
+| 37 | lotta | other/innkeep/– | W | buy/speak | I nod to Voss, then glance toward Brenna. "Bread and cheese for the road, if you please. And one more question for you, Voss—any sign of traps or watchposts near those east fissures?" |
+| 38 | hawk | other/innkeep/– | B | walk within the inn / observe | I nod to Brenna, finish wiping my hands, and head back into the common room to scan for Calder Voss or any miner who looks like they've just come off shift with fresh news from the hill. |
+| 39 | paul | speak/–/– |  |  | Caldern, my friend, those words from the stone itself chill the marrow—claws on bone and bleeding walls that drive even greenskins to flight. Tell me, what did those hungry voices seem to hunger for,  |
+| 40 | lars | spend/–/– | W | speak | Where is this old nest exactly, and how much coin is Osric Vane offering? I'll take that job if the pay is fair. |
+| 41 | lotta | use_item/–/– | W | speak | I lean forward, eyes steady on Caldern, and rumble, "Bones and shaking ground... what else did you see of the shaman himself or those watching eyes? Any markings or weaknesses I might use?" |
+| 42 | lars | other/–/– | W | combat | I leap into the tent and drive my knife into the sleeping orc's throat to silence him quickly, then turn to deal with the second shape before the footsteps arrive. |
+| 43 | hawk | speak/innkeep/– |  |  | I slide the three silver to Brenna and nod. "I'll take the work behind the bar tonight. Tell me what needs doing while I keep an eye on these two." |
+| 44 | lotta | other/–/– |  |  | I nod once, setting the mug down. "Wrap the bread, then. I'll head up before dusk and see what the earth weeps." |
+| 45 | lotta | speak/guild_steward/– |  |  | I nod once, meeting Osric's eye. "Ten silver upfront works. Tell me what the miners are really saying about those howls before I sign on." |
+| 46 | lars | other/pip/– | W | speak (threat) | I demand Pip leads me to the hidden chest in the deepest chamber right now or I'll drag him there myself, knife at his back. |
+| 47 | paul | speak/innkeep/– |  |  | Good mistress Brenna, your courage does this house greater honor than any blade I could offer—my thanks for turning their threat to flight. Yet if they lick wounds only to return, perhaps these good f |
+| 48 | lars | other/–/– | B | move/observe, sneaking | I slip down the goat path quietly, knife drawn, and check the nearest tent for orcs while staying alert for any movement. |
+| 49 | hawk | combat/cobb/melee_combat |  |  | I lunge for my knife under the bench, snatch it up, and back toward the open yard door while keeping the blade ready between me and Cobb. |
+| 50 | hawk | other/–/– | W | speak | Evening, Brenna. Looking for a room, a hot meal, and word on any paying work in the hills. What's the trouble folks are muttering about? |
+| 51 | lotta | interact/drover/– | W | move | I nod to Tam and Mags, then head for the lane behind the woodpile, keeping an eye out for any signs the rain missed as I make for the old adit. |
+| 52 | ronny | speak/–/– |  |  | I grab the fresh mug, chug it fast, then slam it down and say "Double or nothing, I'll take the whole damn nest solo. Point me to the fastest way up that ridge before I lose the light." |
+| 53 | lars | speak/–/– |  |  | I take a seat at the bar and order a mug of ale for two copper, then lean in and ask, "What's got the hills so restless, and how might a ranger like me lend a hand with the Guild's troubles up the cut |
+| 54 | ronny | speak/–/– |  |  | Fine, I'll haul the barrels and chop the onions for the stew and ale, then tell me where the richest ruins are and how much the reward is. |
+| 55 | paul | observe/hearth/– | W | buy/speak | Evening, goodwoman. Two copper for the ale then, and I'll settle the silver for the roast once I've a proper look at it. These old bones have seen their share of cold nights, but a warm hearth like yo |
+| 56 | ronny | speak/–/– |  |  | Five silver a head? That's chump change. Tell me the real payout Osric's hiding or I'll take my steel elsewhere. And gimme that token - where's this Guild hall exactly so I can go claim the best gear  |
+| 57 | paul | speak/–/– |  |  | Master Voss, your tale chills the blood more than the wind outside—shadows with teeth that swallow men whole? A horror no honest soul should face alone. Tell me, friend, did any mark or sign remain of |
+| 58 | hawk | pickup/–/– | B | take key + go to room | I take the key from the hook by the slate, then head up the stairs toward my room, listening and watching for anything off as I go. |
+| 59 | hawk | speak/cobb/– |  |  | I set the bowls and slate down slowly on the nearest table, keep my hands visible but ready near my knife, and say evenly to Cobb, "No toll owed here. Stand down and we both walk away breathing." |

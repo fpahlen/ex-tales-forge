@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.OutcomeRecordReplayTest do
   @moduledoc """
-  Replay fixtures for the outcome record (turn pipeline PR 1, tales-forge-docs
+  Replay fixtures for the outcome record (turn pipeline PR 1, ex-tales-forge
   `docs/design-turn-pipeline.md` §8 and §9). Each fixture plays stored turns
   with `TURN_OUTCOME_RECORD=on` and asserts the outcome record and the books,
   not the prose words:

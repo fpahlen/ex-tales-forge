@@ -16,7 +16,7 @@ This is the spec and the map: how the game runs today, what we are building arou
 
 The big calls are written down so we do not reopen them by accident.
 
-> **Update 2026-10-07: Ash removed.** The Ash authoring layer (`Authoring.*`, `Authoring.Importer`, `mix tales.import_pack`) and the admin Ash resources (`AdminResources.*`) are gone, and the `adventures` / `locations` / `npc_definitions` tables are dropped. Authored content is the pack files under `priv/`; admin and play are plain Ecto. See tales-forge-docs `docs/decisions.md` (2026-10-07) and `docs/plan-remove-ash.md`. The PR plan below is history and still names Ash where it did at the time.
+> **Update 2026-10-07: Ash removed.** The Ash authoring layer (`Authoring.*`, `Authoring.Importer`, `mix tales.import_pack`) and the admin Ash resources (`AdminResources.*`) are gone, and the `adventures` / `locations` / `npc_definitions` tables are dropped. Authored content is the pack files under `priv/`; admin and play are plain Ecto. See `docs/decisions.md` (2026-10-07) and `docs/plan-remove-ash.md`. The PR plan below is history and still names Ash where it did at the time.
 
 ---
 
@@ -66,7 +66,7 @@ One `GameSession` (`lib/ex_tales_forge/schemas/game_session.ex`) is one instance
 | `turns` | Auditable history: `player_action`, `narrative`, `mechanical_resolution` |
 | `scenes` | Per `(session, location_id)` exposition + optional `image_url` |
 | `npc_instances` | Per-session NPC: `personality` (authored copy) + `runtime_state` |
-| `characters` | One row per character, player or NPC (`controller` `player` \| `gm` \| `bot`), with OCEAN, Maslow level and concerns. Written at session create, kept in step after every turn (`TalesForge.Characters.mirror/1`, a double-write next to `npc_instances` and `world_state`), and backfilled for older sessions with `TalesForge.Characters.backfill/0`; **nothing reads it yet** (phase 1 of the Character plan in tales-forge-docs) |
+| `characters` | One row per character, player or NPC (`controller` `player` \| `gm` \| `bot`), with OCEAN, Maslow level and concerns. Written at session create, kept in step after every turn (`TalesForge.Characters.mirror/1`, a double-write next to `npc_instances` and `world_state`), and backfilled for older sessions with `TalesForge.Characters.backfill/0`; **nothing reads it yet** (phase 1 of the Character plan in `docs/`) |
 | `character_memories` | One character's own view (felt, salience, secret) of an event in `session_events`. Mirrored from each NPC's `runtime_state["memories"]` (matched on tick + text, never duplicated); nothing reads it yet |
 
 NPC skills, stats and OCEAN defaults come from `TalesForge.Characters.Defaults`: pure Elixir from race, class, standing, occupation and seniority. The global labels are in `priv/characters/defaults.json`, and each pack can add its own in `character_defaults.json`. An NPC file's `derive` block holds the inputs, and its authored keys are overrides. NPC skills are on the PC scale (journeyman 8, master 12) and are used only by `Train`. The GM prompt never shows them.
