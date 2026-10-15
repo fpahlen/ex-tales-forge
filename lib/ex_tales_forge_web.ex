@@ -17,7 +17,7 @@ defmodule TalesForgeWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images vendor favicon.ico robots.txt)
+  def static_paths, do: ~w(assets app fonts images vendor favicon.ico robots.txt sw.js)
 
   def router do
     quote do

@@ -119,15 +119,46 @@ defmodule TalesForge.Game.Turn.Combat do
   end
 
   defp rolls(turn, mechanical) do
-    injected = Keyword.get(turn.opts, :combat_rolls, %{})
+    forced = qa_rolls(turn)
+    injected = turn.opts |> Keyword.get(:combat_rolls, %{}) |> Map.merge(forced)
 
     %{
       attack: Map.get(injected, :attack, mechanical.roll),
       counter_chance: Map.get_lazy(injected, :counter_chance, &:rand.uniform/0),
       counter: Map.get_lazy(injected, :counter, fn -> :rand.uniform(100) end),
-      death: Map.get_lazy(injected, :death, fn -> :rand.uniform(100) end)
+      death: Map.get_lazy(injected, :death, fn -> :rand.uniform(100) end),
+      qa_forced: forced != %{}
     }
   end
+
+  @doc """
+  The forced combat rolls for QA, playtest only (QA 2026-10-15: Gentry could
+  not test critical hits and misses). An admin sets them in the session's
+  world_state JSON (admin, session page):
+
+      "qa_rolls": {"attack": 1, "death": 100}
+
+  `attack` is the player's attack d100 (1 is a critical hit when the attack
+  target is above 10; 100 is a critical miss), `death` the death roll on a
+  downed defender. Each value must be 1 to 100. They stay until the admin
+  removes them. On any other role than playtest they do nothing.
+  """
+  @spec qa_rolls(Turn.t()) :: %{optional(:attack | :death) => 1..100}
+  def qa_rolls(%Turn{role: :playtest} = turn) do
+    case Map.get(Turn.world_before(turn), "qa_rolls") do
+      %{} = rolls ->
+        for {key, atom} <- [{"attack", :attack}, {"death", :death}],
+            value = rolls[key],
+            is_integer(value) and value in 1..100,
+            into: %{},
+            do: {atom, value}
+
+      _ ->
+        %{}
+    end
+  end
+
+  def qa_rolls(_turn), do: %{}
 
   @doc """
   Books the exchange on the board: carries the combat state of the world
@@ -162,6 +193,10 @@ defmodule TalesForge.Game.Turn.Combat do
 
   # The play page shows the last exchange (QA 2026-10-14 08:57, #270).
   defp last(world, exchange) do
-    %{"tick" => world["world_tick"], "text" => Combat.summary(exchange)}
+    %{
+      "tick" => world["world_tick"],
+      "location_id" => world["location_id"],
+      "text" => Combat.summary(exchange)
+    }
   end
 end

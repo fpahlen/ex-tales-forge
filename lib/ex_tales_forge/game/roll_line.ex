@@ -73,6 +73,11 @@ defmodule TalesForge.Game.RollLine do
 
   defp improvement_text(_improvements), do: nil
 
+  # The sheet numbers: the effective level before and after (QA 2026-10-15).
+  defp improved(%{"skill" => skill, "effective_before" => before, "effective_after" => later})
+       when is_integer(before) and is_integer(later) and later > before,
+       do: "#{skill_name(skill)} +#{later - before} (#{before} to #{later})"
+
   defp improved(%{"skill" => skill, "raw_skill" => before, "gain" => gain})
        when is_integer(before) and is_integer(gain),
        do: "#{skill_name(skill)} +#{gain} (#{before} to #{before + gain})"

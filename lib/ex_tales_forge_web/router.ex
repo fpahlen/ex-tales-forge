@@ -9,7 +9,8 @@ defmodule TalesForgeWeb.Router do
   there is no separate admin login.
 
   The only public routes are the login page, the GitHub OAuth request/callback,
-  logout, the Fly health check (`/health`) and the token-guarded machine-to-machine
+  logout, the Fly health check (`/health`), the web app manifest
+  (`/manifest.webmanifest`) and the token-guarded machine-to-machine
   `/internal/costs`, `/internal/version` and `/internal/product/*`. The Workflow paths
   (`TalesForge.AppRole.workflow_paths/0`) redirect to the Workflow app for 30 days. Static assets are served by the endpoint before the router.
   """
@@ -52,6 +53,10 @@ defmodule TalesForgeWeb.Router do
 
   # Fly health check (fly.toml / fly.playtest.toml). No session, no pipeline.
   get "/health", TalesForgeWeb.HealthController, :show
+
+  # The installable app's manifest (TalesForgeWeb.WebAppController). Public, so
+  # the browser can read it without a session; icons and /sw.js are static.
+  get "/manifest.webmanifest", TalesForgeWeb.WebAppController, :manifest
 
   scope "/admin", TalesForgeWeb do
     pipe_through :public_browser

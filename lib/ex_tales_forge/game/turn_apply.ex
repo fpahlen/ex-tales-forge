@@ -379,6 +379,45 @@ defmodule TalesForge.Game.TurnApply do
 
   def named_move(handler, _world, _text), do: handler
 
+  @doc """
+  A move to the place where the character is plays no walk, with or without
+  `TURN_APPLY_OUTCOMES` (QA 2026-10-15 retest, session 9a1ff8c2: "I go
+  inside the inn" in the Weary Pilgrim told a walk down to the cellar, and
+  the location stayed the inn). The move is a move to here when its target
+  is the current place, or when the text names the inn and the character
+  is in a rest place. The GM gets the reason, so the prose stays here too.
+
+      iex> alias TalesForge.Game.Schemas.HandlerResult
+      iex> world = %{"location_id" => "inn", "locations" => %{"inn" => %{"name" => "The Weary Pilgrim"}}}
+      iex> h = %HandlerResult{handler: "move", target: "inn", state_hints: %{"location_id" => "inn"}}
+      iex> TalesForge.Game.TurnApply.same_place(h, world, "I walk over to the bar.").state_hints["reason"]
+      "The character is already in The Weary Pilgrim. There is no walk and no other room."
+  """
+  @spec same_place(HandlerResult.t(), map(), String.t() | nil) :: HandlerResult.t()
+  def same_place(%HandlerResult{handler: "move"} = handler, world, text) do
+    here = world["location_id"]
+    target = (handler.state_hints || %{})["location_id"] || handler.target
+
+    if is_binary(here) and
+         (target == here or
+            (is_binary(text) and generic_here?(text, world) and
+               not names_target?(text, world, target, here))),
+       do: stay(world, here),
+       else: handler
+  end
+
+  def same_place(handler, _world, _text), do: handler
+
+  # "Down to the cellar of the inn": the text names a word of the target
+  # place that the current place does not have, so the move stays a move.
+  defp names_target?(_text, _world, target, _here) when not is_binary(target), do: false
+
+  defp names_target?(text, world, target, here) do
+    own = place_words(here, World.runtime_location(world, here))
+    other = place_words(target, World.runtime_location(world, target)) -- own
+    overlap(words(text), other) > 0
+  end
+
   # The text names the place where the character is ("I go into the Weary
   # Pilgrim inn" in the inn). The character stays, and the GM narrates no
   # walk. Gentry's playtest session 141e1b85 on 2026-10-13.
@@ -388,8 +427,14 @@ defmodule TalesForge.Game.TurnApply do
     %HandlerResult{
       handler: "narrate",
       target: here_id,
-      notes: "The character is already in #{name}. The character stays here. Narrate no walk.",
-      state_hints: %{"same_place" => true}
+      notes:
+        "The character is already in #{name}. The character stays here. " <>
+          "Narrate no walk. Tell no other room.",
+      state_hints: %{
+        "same_place" => true,
+        "rejected" => true,
+        "reason" => "The character is already in #{name}. There is no walk and no other room."
+      }
     }
   end
 

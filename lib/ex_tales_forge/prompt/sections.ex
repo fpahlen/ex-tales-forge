@@ -322,6 +322,18 @@ defmodule TalesForge.Prompt.Sections.Combat do
   def render(ctx), do: TalesForge.Game.Combat.prompt_section(Map.get(ctx.data, :combat))
 end
 
+defmodule TalesForge.Prompt.Sections.Fallen do
+  @moduledoc """
+  The dead and the downed people of the world, from the server state
+  (`TalesForge.Game.Combat.fallen_section/1`). Empty when nobody is dead or
+  down.
+  """
+  use TalesForge.Prompt.Section, id: :fallen, slot: :turn
+
+  @impl true
+  def render(ctx), do: TalesForge.Game.Combat.fallen_section(Map.get(ctx.data, :world_state))
+end
+
 defmodule TalesForge.Prompt.Sections.RestGrowth do
   @moduledoc false
   use TalesForge.Prompt.Section, id: :rest_growth, slot: :turn

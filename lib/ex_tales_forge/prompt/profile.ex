@@ -91,6 +91,7 @@ defmodule TalesForge.Prompt.Profile do
       Sections.Premise,
       Sections.SkillSplit,
       Sections.Combat,
+      Sections.Fallen,
       Sections.RestGrowth,
       Sections.PlayerRequest
     ]

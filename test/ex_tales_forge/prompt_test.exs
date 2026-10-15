@@ -101,7 +101,7 @@ defmodule TalesForge.PromptTest do
     test "every flag off" do
       assert ids(:gm, %{}) ==
                @static ++
-                 ~w(character_sheet opening perceived_facts intent_context npcs gestures scene_now premise rest_growth player_request gm_turn_action)a
+                 ~w(character_sheet opening perceived_facts intent_context npcs gestures scene_now premise fallen rest_growth player_request gm_turn_action)a
 
       assert ids(:scene, %{}) == ids(:gm, %{}) -- [:gm_turn_action]
     end
@@ -125,7 +125,7 @@ defmodule TalesForge.PromptTest do
 
       assert ids(:gm, on) ==
                @static ++
-                 ~w(character_sheet opening perceived_facts intent_context npcs world_facts prices npc_reactions npc_memory gestures scene_now outcome_record noticed_details premise rest_growth player_request gm_turn_action)a
+                 ~w(character_sheet opening perceived_facts intent_context npcs world_facts prices npc_reactions npc_memory gestures scene_now outcome_record noticed_details premise fallen rest_growth player_request gm_turn_action)a
     end
   end
 end

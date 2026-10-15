@@ -73,7 +73,9 @@ defmodule TalesForge.Game.Context do
 
   defp npc_locations(npc_state, present_npcs) when is_map(npc_state) do
     npc_state
-    |> Enum.reject(fn {npc_id, _} -> npc_id in present_npcs end)
+    |> Enum.reject(fn {npc_id, detail} ->
+      npc_id in present_npcs or (is_map(detail) and detail["vitality"] == "dead")
+    end)
     |> Enum.filter(fn {_npc_id, detail} -> is_binary(detail["location_id"]) end)
     |> Map.new(fn {npc_id, detail} ->
       {npc_id, %{"name" => detail["name"] || npc_id, "location_id" => detail["location_id"]}}
@@ -449,19 +451,39 @@ defmodule TalesForge.Game.Context do
     end
   end
 
+  # QA 2026-10-15 (Gentry, session 99817343): an empty list means nobody is
+  # here. Only a world with no list at all (an old session) falls back to
+  # Marta. A dead person is never present: the GM must not play them.
   defp present_npcs_for(world) do
-    present = Map.get(world, "present_npcs")
+    state = Map.get(world, "npc_state") || %{}
 
-    cond do
-      is_list(present) and present != [] ->
-        present
+    present =
+      case Map.get(world, "present_npcs") do
+        list when is_list(list) -> list
+        _ -> if adventure_id(world) == "tin_valley", do: [], else: ["marta_kellen"]
+      end
 
-      adventure_id(world) == "tin_valley" ->
-        present || []
+    Enum.reject(present, &dead?(state, &1))
+  end
 
-      true ->
-        ["marta_kellen"]
-    end
+  @doc "True when the npc_state marks `npc_id` as dead."
+  @spec dead?(map(), String.t()) :: boolean()
+  def dead?(npc_state, npc_id) when is_map(npc_state),
+    do: get_in(npc_state, [npc_id, "vitality"]) == "dead"
+
+  def dead?(_npc_state, _npc_id), do: false
+
+  # QA 2026-10-15: an exit with no location entry ("kings_road") showed its
+  # raw id to the GM, and the id came out in the prose. The GM gets a name.
+  @doc """
+  A readable name for a place id that has no location entry.
+
+      iex> TalesForge.Game.Context.place_name("kings_road")
+      "Kings Road"
+  """
+  @spec place_name(String.t()) :: String.t()
+  def place_name(id) when is_binary(id) do
+    id |> String.split("_", trim: true) |> Enum.map_join(" ", &String.capitalize/1)
   end
 
   defp exit_names(world, exits) do
@@ -469,7 +491,8 @@ defmodule TalesForge.Game.Context do
       name =
         world
         |> World.runtime_location(exit_id)
-        |> Map.get("name", exit_id)
+        |> Map.get("name")
+        |> Kernel.||(place_name(exit_id))
 
       {exit_id, name}
     end)

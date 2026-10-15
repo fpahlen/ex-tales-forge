@@ -13,6 +13,13 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 
 **Moved 2026-10-15.** This log was `docs/decisions.md` in `whyse-ab/tales-forge-docs` (now retired; the git history came with the move). The Workflow entries (idea board, team page, chat, inbox, Workflow split) moved to `docs/decision-history.md` in [whyse-ab/workflow](https://github.com/whyse-ab/workflow/blob/main/docs/decision-history.md). New Tales Forge decisions come here: the board writes each entry to this file (Tales Forge client file, `decision_log`).
 
+## 2026-10-15: Only add maintained or well-regarded dependencies
+
+- Decided by: Fredrik
+- Only add a dependency (Hex package, npm package, and so on) when it is actively maintained or held in high standing (widely used, stable, trusted maintainers).
+- In the pull request, name the package and say why it meets the rule.
+- The pull request template and CONTRIBUTING.md carry the checklist line for this rule.
+
 ## 2026-10-15: Installable app (PWA) with dice icon
 
 - **Decision (fredrik@whyse.se, 2026-10-15, on the idea board):** build it. Make Tales Forge (prod and playtest) installable as an app with the dice logo as the icon: manifest, install-only service worker, icons, iOS tags. Playtest installs as "Tales Forge Playtest".

@@ -42,7 +42,7 @@ defmodule TalesForge.Game.RollLineTest do
     }
 
     assert RollLine.text(mechanical) ==
-             "Attack: d100 14 vs 8 (melee_combat 10, Marta Kellen's Parry 52): near miss. " <>
+             "Attack: d100 14 vs 8 (melee_combat 10, Marta Kellen's Parry 52): miss (near miss). " <>
                "Marta Kellen: 0/3 wounds. No counterattack. Skill improved: melee combat +6 (5 to 11)."
   end
 
