@@ -1,6 +1,6 @@
 ---
 title: Decision log
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # Decision log
@@ -10,6 +10,44 @@ Decisions made by the founders. Newest at the top. Each entry: date, decision, w
 Open questions waiting for a decision live in the [decision queue](../decisions/README.md); once decided, they are recorded here.
 
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
+
+## 2026-10-15: Installable app (PWA) with dice icon
+
+- **Decision (fredrik@whyse.se, 2026-10-15, on the idea board):** build it. Make Tales Forge (prod and playtest) installable as an app with the dice logo as the icon: manifest, install-only service worker, icons, iOS tags. Playtest installs as "Tales Forge Playtest".
+- **Why:** **Goal.** Players and founders can install Tales Forge as an app on a phone or a computer. The icon is the dice logo. Prod installs as "Tales Forge". Playtest installs as "Tales Forge Playtest". Version 1 does not cache pages for offline use and does not send web push.
+
+**Scope note.** The Done card "Install the team page as an app (PWA)" (47efd154) was `/team` plus web push in Workflow. This card is the player game app on prod and playtest only.
+
+**What main has now (high confidence).**
+1. No working game PWA. `priv/static/` has no `app/` icons and no `sw.js`.
+2. The root layout still calls `team_app_head`, which points at `/team-app/*`. Those files were removed in the Workflow split (#259), so the team install tags are stale.
+3. The blank `favicon.ico` is still on main.
+4. The dice source is `priv/static/images/logo.svg`.
+
+**What PR #294 already covers (open, branch `pwa-installable`, CI green: Test, Dialyzer, Dependency warnings).**
+1. `GET /manifest.webmanifest` is public (outside the auth gate). Name is "Tales Forge" or "Tales Forge Playtest" from `AppRole` at runtime. `start_url` `/`, `display` `standalone`, theme `#1b1713`.
+2. Icons in `priv/static/app/`: 192, 512, maskable 512, apple-touch 180, from the dice logo. `favicon.ico` is replaced.
+3. `/sw.js` is install-only. It caches nothing, so LiveView and auth pages stay on the network.
+4. Root layout uses `app_head` on every page: manifest, theme-color, iOS meta tags, icons, and SW registration. It replaces the stale `team_app_head`.
+5. Static paths add `app` and `sw.js`. Tests cover the public manifest, playtest name, icons, SW, and head tags on the login page.
+
+**Plan (remaining).**
+1. Founder check of this refinement.
+2. Merge #294 after CI (already green) and a short smoke: open the install prompt or Add to Home Screen on prod and on playtest; confirm the names and the dice icon.
+3. No feature flag. This is install chrome only. It does not change game behaviour.
+
+**Cost: S.** The PR already does the work. Left is merge plus the install smoke on both hosts.
+
+**Risk.** Low. The service worker does not cache authenticated HTML. iPhone install is Add to Home Screen (Safari), not a Chrome-style prompt. The long playtest name may truncate on a small home screen; the name still differs from prod.
+
+**Deploy lane.** Game on prod and playtest. Founders-only prod rule: merge straight to prod after CI and smoke. No flag needed.
+
+**Verdict: feasible.** Bobby's PR matches the card. Case proposes we approve and merge.
+
+**Confidence.** High. I read the PR diff and the checks. I did not install the app in a browser. Verdict: feasible. Rough cost: S.
+- **Link:** [the card on the idea board](https://tales-forge.fly.dev/team#idea-49ed3d1c-d517-41f5-966f-e5af11af40e7)
+
+<!-- board:idea:49ed3d1c-d517-41f5-966f-e5af11af40e7 -->
 
 ## 2026-10-14: Fix Inbox long text hover over Open button
 
