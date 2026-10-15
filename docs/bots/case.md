@@ -19,7 +19,7 @@ Note: the saved profile description (in `profile.json`) still holds the first pe
 
 1. In the Grok Bot app, create an agent named **Case**, title `WG-Architect`. Paste the persona from "Persona/style" and the "Standing rules" section into the description.
 2. Set agent setting `notifyOnAgentUpdates: true`.
-3. Connect the GitHub connector with access to `whyse-ab/tales-forge-docs` and `whyse-ab/ex-tales-forge`. Connect Google Drive (idea docs).
+3. Connect the GitHub connector with access to `whyse-ab/ex-tales-forge` and `whyse-ab/workflow`. Connect Google Drive (idea docs).
 4. Make sure the box has the user-level Auto-review rules (see "Auto-review rules"). They live in `/home/box/agent-data/settings.json` and are shared by all agents.
 5. Create the six routines in "Routines". Copy each prompt from the old routine in the Grok Bot app.
 6. For "Idea board wake-up", create a new webhook trigger. The URL and key change when you recreate it. Set them again on the production Fly app (from the Workflow cutover, on `whyse-workflow`) as `BOARD_WEBHOOK_URL_CASE` and `BOARD_WEBHOOK_KEY_CASE` (see `docs/infrastructure-setup.md`, Step 8). Never paste the values into a doc, chat or commit.
@@ -86,7 +86,7 @@ The routine folders were not on the box when this doc was written (2026-10-12). 
 | `idea-board-wake-up` – Idea board wake-up | Webhook (`BOARD_WEBHOOK_URL_CASE`, key `BOARD_WEBHOOK_KEY_CASE`). Events: `idea.to_refining`, `idea.back_to_refining`, `question.answered` (card in Refining), `mention`, `chat.thread_message` (payload `thread_id`) | Refines a card, answers a mention, reads a new message in a thread that Case is in, reads answered questions. Checks `X-Board-Signature`, refuses old timestamps, drops repeated `X-Board-Delivery` ids |
 | `stuck-card-check` – Stuck card check | Hourly | Looks at Building. When a card has no PR after more than 1 hour, reminds Bobby |
 | `pragmatic-review-on-merge` – Pragmatic review on merge | GitHub PR merge trigger | Reviews each merged PR |
-| `daily-branch-prune` – Daily branch prune | Weekdays 08:02 Stockholm time | Deletes fully merged branches with no open PR on `ex-tales-forge` and `tales-forge-docs` |
+| `daily-branch-prune` – Daily branch prune | Weekdays 08:02 Stockholm time | Deletes fully merged branches with no open PR on `ex-tales-forge` and `workflow` |
 | `hourly-bobby-gentry-update` – Hourly Bobby & Gentry update | Hourly | Reports what Bobby and Gentry did |
 | `unanswered-mention-sweep` – Unanswered mention sweep | Every 15 minutes | Finds unanswered `@Case`, `@Bobby`, `@Gentry` and `@devops` mentions on the board and in chat. Replies or nudges. State: `/workspace/mention-sweep/state.json` |
 
@@ -96,15 +96,15 @@ When you recreate the webhook routine, Grok Bot gives a new URL and key. Set the
 
 User-level allow rules in `/home/box/agent-data/settings.json` (`autoReviewInstructions`, enabled, no block rules). Summary of the 12 rules:
 
-1. Edit files in `whyse-ab/tales-forge-docs` and push to main with subagents.
-2. Launch and steer executors for `tales-forge-docs` work.
+1. Edit docs in `docs/` of `whyse-ab/ex-tales-forge` or `whyse-ab/workflow` through a PR.
+2. Launch and steer executors for docs work.
 3. Create automations under `sand-data/automations` on trusted user request.
 4. Launch and steer executors for `whyse-ab/ex-tales-forge` work.
 5. Move idea cards between columns on the board API (`/internal/board/ideas/`; from the Workflow cutover, on `https://whyse-workflow.fly.dev`).
 6. Post messages to the team chat API (`/internal/chat`; from the Workflow cutover, on `https://whyse-workflow.fly.dev`). Read and add manual work log entries (`/internal/work-log/entries`, same bearer token; see "Board bot API" in `bobby.md`).
 7. Run read-only `flyctl` commands for the Fly apps `tales-forge` and `tales-forge-playtest`.
 8. Push feature branches and open PRs on `ex-tales-forge`. Never force-push or push direct to main.
-9. Delete fully merged branches with no open PR on `ex-tales-forge` and `tales-forge-docs`.
+9. Delete fully merged branches with no open PR on `ex-tales-forge` and `workflow`.
 10. Post comments, refinements and links on any idea card on the board API.
 11. Merge PRs on `ex-tales-forge` with `gh pr merge` only with a founder Approve (board or chat), or for an admin-only fast-lane or same-major security-lane change with green CI.
 12. Run `gh workflow run deploy-production.yml` only for a commit that passed playtest and Gentry's check, or a fast-lane or security-lane change.

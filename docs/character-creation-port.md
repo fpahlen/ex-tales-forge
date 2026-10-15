@@ -43,7 +43,7 @@ There is no single "randomise everything" button. The random options are gender,
 
 ### Rules and world data
 
-The flow is generic: everything world-specific comes from the module's `game_system` record, stored in Supabase `module_content` and read through `get_effective_module_content`, so child modules inherit it (`supabase/functions/_shared/gameSystem.ts`). The files in the repo are `modules/merovingia/game-system.json` and `modules/penny-dreadful/game-system.json`. The Merovingia file is identical to [worlds/merovingia/game-system.json](../worlds/merovingia/game-system.json) in this repo.
+The flow is generic: everything world-specific comes from the module's `game_system` record, stored in Supabase `module_content` and read through `get_effective_module_content`, so child modules inherit it (`supabase/functions/_shared/gameSystem.ts`). The files in the repo are `modules/merovingia/game-system.json` and `modules/penny-dreadful/game-system.json`. The Merovingia file is identical to [worlds/merovingia/game-system.json](worlds/merovingia/game-system.json) in this repo.
 
 - **Races** (`variants`): stat modifiers and a skill bonus, which is either a pool of points (Human +5, Half-Elf +3) or set skills (Elf +3 Ranged Combat, +2 Survival). Each race also has traits and disadvantages.
 - **Archetypes:** the class list, with descriptions and suggested skills.
@@ -360,7 +360,7 @@ In order, most important first. Sizes are rough: S is about a day, M is two to f
 8. **Apply the point buy for real (M, depends on the founders' answer).** Either the AI proposes a build inside the 75-point buy and the player can adjust it, or the server rescales whatever the AI returns. Both use the same validator from step 6.
 9. **Merovingia as a playable world (L).** Load `game-system.json` for creation and add an adventure pack with a start location and NPCs. Without the pack there's nowhere to play.
 10. **Portraits (M–L).** Image generation and Tigris storage in `TalesForge.Images`, reusing the old portrait prompt and world style. It runs in the background so it never delays the opening scene.
-11. **A character record that outlives a session (M).** A `characters` table for a library, the character museum and making the next character after a death. This ties to [D-010](../decisions/d-010-death-revival-fantasy.md) and the `characters` table in [Game data vs sessions](design-game-data-vs-sessions.md).
+11. **A character record that outlives a session (M).** A `characters` table for a library, the character museum and making the next character after a death. This ties to [D-010](decision-queue/d-010-death-revival-fantasy.md) and the `characters` table in [Game data vs sessions](design-game-data-vs-sessions.md).
 
 Steps 1 and 2 are worth doing first on their own: they make any character, even a hand-written one, actually show up in play.
 

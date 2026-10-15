@@ -1,6 +1,6 @@
 defmodule TalesForge.Repo.Migrations.CreateBoardTables do
   @moduledoc """
-  The founders' idea board (tales-forge-docs `docs/design-idea-board.md`):
+  The founders' idea board (`docs/design-idea-board.md`):
   ideas (cards), one vote per founder per idea, comments, the append-only
   column history and links (PR, playtest, decision). A card may point at the
   Collab decision it was imported from (`collab_decision_id`).

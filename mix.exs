@@ -12,7 +12,7 @@ defmodule TalesForge.MixProject do
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
-      # Coding standards (tales-forge-docs docs/coding-standards.md): Dialyzer,
+      # Coding standards (docs/coding-standards.md): Dialyzer,
       # ExDoc and test coverage. CI runs all of them.
       dialyzer: dialyzer(),
       name: "Tales Forge",
@@ -181,7 +181,7 @@ defmodule TalesForge.MixProject do
       quality: ["format.check", "credo --strict"],
       # Project warnings only (not Hex deps). Reprints even if already compiled.
       warnings: ["compile --force --all-warnings --warnings-as-errors"],
-      # Same checks as CI (tales-forge-docs docs/coding-standards.md).
+      # Same checks as CI (docs/coding-standards.md).
       precommit: [
         "compile --warnings-as-errors",
         "deps.unlock --unused",

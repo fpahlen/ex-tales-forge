@@ -2,7 +2,7 @@ defmodule TalesForge.Game.PromptGoldenTest do
   @moduledoc """
   Byte-identical prompts for a fixed session of each adventure.
 
-  The Character plan (tales-forge-docs `docs/plan-unify-character.md`) moves
+  The Character plan (`docs/plan-unify-character.md`) moves
   player characters and NPCs into one `characters` table in phases. Until a
   phase deliberately changes what the models see, every prompt must stay
   exactly the same: the intent context, the opening-scene request and the GM

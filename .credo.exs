@@ -72,7 +72,7 @@
           {Credo.Check.Warning.UnusedStringOperation, []},
           {Credo.Check.Warning.UnusedTupleOperation, []},
           {Credo.Check.Warning.UnsafeExec, []},
-          # Coding standards (tales-forge-docs docs/coding-standards.md): every
+          # Coding standards (ex-tales-forge docs/coding-standards.md): every
           # module has a @moduledoc (`@moduledoc false` only for internals).
           {Credo.Check.Readability.ModuleDoc, []},
           # @spec on every public function, enforced for the modules backfilled

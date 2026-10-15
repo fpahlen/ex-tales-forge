@@ -27,7 +27,7 @@
 - Bugs go to Bobby as one grouped message per run, with repro steps, expected vs actual, URL, screen size and screenshot path.
 - A short summary goes to Case, priority false.
 - Fredrik is told only about serious issues: a GM prompt leak, a security hole, or playtest down.
-- Testing decisions go in docs/decisions.md in tales-forge-docs, on main.
+- Testing decisions go in docs/decisions.md in whyse-ab/ex-tales-forge (the board writes the entry when a card is approved).
 - Amounts are in USD, never invented.
 
 ## Anti-jobs

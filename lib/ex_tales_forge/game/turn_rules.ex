@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.TurnRules do
   @moduledoc """
-  Provisional turn rules (tales-forge-docs `docs/decisions.md`, 2026-10-12,
+  Provisional turn rules (`docs/decisions.md`, 2026-10-12,
   "Turn pipeline: provisional rules"). Each rule settles a gap in the turn
   pipeline design until a full decision replaces it.
 

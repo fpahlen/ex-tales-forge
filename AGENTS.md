@@ -1,8 +1,8 @@
 # ex-tales-forge — Agent Rules
 
 Rules for anyone, human or bot, who changes this repo. They summarise decisions
-recorded in tales-forge-docs (`docs/decisions.md`, newest first) and the docs
-named in each section. Last checked against `main` and tales-forge-docs on
+recorded in `docs/` (`docs/decisions.md`, newest first) and the docs
+named in each section. Last checked against `main` and `docs/` on
 2026-10-08.
 
 ## Project
@@ -13,7 +13,7 @@ master narrates.
 
 ex-tales-forge stands on its own. Nothing is synced from an earlier app: the
 rules, prompts, packs and code here are maintained in this repo, and any
-history lives in tales-forge-docs.
+history lives in `docs/`.
 
 Who we build for is in [PRODUCT.md](PRODUCT.md). Core table: **Hawk** (hard mode), **Paul** (role-playing, mechanics invisible), **Lotta** (identification, world and character), **Lars** (adventure). **Ronny** (win, loot, highest level) is the anti-persona — do not add systems that exist to let him win.
 
@@ -34,7 +34,7 @@ Skill growth (decision 2026-10-09): a failed or partial roll banks one improveme
 
 ## How changes land
 
-Sources: tales-forge-docs `docs/decisions.md` ("Docs go straight to main",
+Sources: `docs/decisions.md` ("Docs go straight to main",
 "Decisions are recorded in this file", "Branching and environments"),
 `docs/environments.md`.
 
@@ -45,12 +45,12 @@ Sources: tales-forge-docs `docs/decisions.md` ("Docs go straight to main",
 3. **CI must be green.** The Test and Dialyzer jobs are required checks on `main`.
 4. Before you finish, rebase on `origin/main`; other agents merge in parallel.
 
-### Docs (tales-forge-docs)
+### Docs (this repo, `docs/`)
 
 1. Documentation is committed **straight to `main`**, without pull requests. Pull with `git pull --rebase` before pushing. If something is wrong, revert it.
 2. **Every decision goes into `docs/decisions.md`**, newest at the top. Each entry has a date, the decision, why, and a link to the details.
 3. Changing a decision means adding a new entry that supersedes the old one; old entries are not rewritten.
-4. Design notes, plans and history belong in tales-forge-docs, not in this repo's code or code docs. Module docs describe what the code does now.
+4. Design notes, plans and history belong in `docs/`, not in this repo's code or code docs. Module docs describe what the code does now.
 
 ### Git workflow
 
@@ -67,18 +67,18 @@ Use kebab-case names that describe the work (`feature/two-tier-llm`, `fix/oban-m
 ## Non-negotiables
 
 1. **Plain Ecto + Repo everywhere** (play loop, Jido, Oban, GameSessions, NPC logic, admin). Ash was removed on 2026-10-07 ([#47](https://github.com/whyse-ab/ex-tales-forge/pull/47)); revisit only if an in-app adventure editor needs it. Authored content lives in pack files, not database tables. Don't add a second data layer without a decision entry.
-2. **Call-type rule** (decision 2026-10-07, tales-forge-docs `docs/call-types.md`): known structured input + structured output = Elixir function; unstructured input + structured output = Jev; prose output = LLM. Asking the LLM for structured output is a smell. Elixir is exact, free and instant, Jev is fast and cheap, the LLM is the slowest and most expensive: use the LLM last, with the smallest input possible.
-3. **One Character type** for player characters and NPCs: OCEAN, personality-filtered memory, a Maslow level and concerns; only the controller differs (`player`, `gm` or `bot`). `TalesForge.Characters` keeps a `characters` row per PC and NPC in step after every turn; the game still reads `world_state["character"]` and `npc_instances` until the Character plan's read switch (tales-forge-docs `docs/plan-unify-character.md`). Don't add a separate PC or NPC model.
+2. **Call-type rule** (decision 2026-10-07, `docs/call-types.md`): known structured input + structured output = Elixir function; unstructured input + structured output = Jev; prose output = LLM. Asking the LLM for structured output is a smell. Elixir is exact, free and instant, Jev is fast and cheap, the LLM is the slowest and most expensive: use the LLM last, with the smallest input possible.
+3. **One Character type** for player characters and NPCs: OCEAN, personality-filtered memory, a Maslow level and concerns; only the controller differs (`player`, `gm` or `bot`). `TalesForge.Characters` keeps a `characters` row per PC and NPC in step after every turn; the game still reads `world_state["character"]` and `npc_instances` until the Character plan's read switch (`docs/plan-unify-character.md`). Don't add a separate PC or NPC model.
 4. **Intent before the GM; the GM gets a typed struct plus a short quote.** The intent step runs first: one Jev call (`INTENT_JEV=on`, `TalesForge.IntentJev`), with the Elixir heuristic as the fallback. There is no intent LLM call (decision 2026-10-12). The GM gets the validated, typed `PlayerAction` plus a short, sanitised quote of the player's words (`overall_intent`, at most 500 characters), so it keeps the player's tone. This is intended (decisions 2026-10-07 "GM pipeline direction" and 2026-10-08). When Jev gives no quote, `overall_intent` is a typed summary of the message, sanitised the same way. The full raw message never goes to the GM.
 5. **The server owns mechanics.** It rolls dice and applies LP, inventory, coins, prices and time; the LLM narrates and never invents mechanics. A player's claim about the character's own state (an item, coins, a purchase or a kill the session doesn't back) is checked in Elixir against the session (`TalesForge.Game.PremiseCheck`), not by Jev; a false one reaches the GM as a short correction in the per-turn prompt (decision 2026-10-09).
 6. Important authored state stays human-readable: `priv/rules/*.md`, `priv/prompts/*.txt`, pack files.
 7. LLM replies use structured JSON with a strict schema (Tier 1 `PlayerAction` via `TalesForge.Game.Intent`; the scene and GM reply via `TalesForge.LLM`).
 8. Turn history is auditable: every turn is persisted in the `Turn` schema.
-9. **Secret names only, never values**, in code, docs, commits, PRs, logs and chat. Secrets live in Fly secrets or GitHub Actions secrets (tales-forge-docs `docs/fly-secrets.md`).
+9. **Secret names only, never values**, in code, docs, commits, PRs, logs and chat. Secrets live in Fly secrets or GitHub Actions secrets (`docs/fly-secrets.md`).
 
 ## Language: positive framing and ASD-STE100
 
-Decision: tales-forge-docs `docs/decisions.md`, 2026-10-10, "Positive framing and ASD-STE100 language standard" (Fredrik).
+Decision: `docs/decisions.md`, 2026-10-10, "Positive framing and ASD-STE100 language standard" (Fredrik).
 
 **1. Say confidence, not doubt.** In the UI, playtest reports, scores, prompts that show in reports, and docs, write "confidence" or "certainty". Do not write "unsure", "uncertain", "uncertainty" or "unsureness". Give the positive quantity directly. Do not use minimized negatives ("not unlikely", "fewer failures") or double negatives.
 
@@ -120,7 +120,7 @@ Source: decision 2026-10-07 "GitHub team sign-in is the only login on production
 
 ## Feature flags
 
-Environment variables read through `TalesForge.Config`. Flags marked "new sessions" are fixed per session at creation (`world_state["features"]`), so changing them affects new sessions only (`INTENT_JEV` is pinned as `world_state["intent_jev"]`). Current per-app values are in tales-forge-docs `docs/fly-secrets.md`; `fly.playtest.toml` `[env]` sets some for playtest.
+Environment variables read through `TalesForge.Config`. Flags marked "new sessions" are fixed per session at creation (`world_state["features"]`), so changing them affects new sessions only (`INTENT_JEV` is pinned as `world_state["intent_jev"]`). Current per-app values are in `docs/fly-secrets.md`; `fly.playtest.toml` `[env]` sets some for playtest.
 
 | Flag | What it does | Default | Production | Playtest |
 |------|--------------|---------|------------|----------|
@@ -162,7 +162,7 @@ Source: decision 2026-10-10 "Admin area grouped by purpose", `TalesForgeWeb.Admi
 
 ## Money and AI spend
 
-Sources: decision 2026-10-07 "All amounts in USD", `TalesForge.AICalls`, tales-forge-docs `docs/fly-secrets.md`.
+Sources: decision 2026-10-07 "All amounts in USD", `TalesForge.AICalls`, `docs/fly-secrets.md`.
 
 - **All amounts are in USD.** AI costs are stored as integer **micro-USD** (`ai_calls`, `playtest_runs`); never floats. The provider-billed cost wins when present, otherwise it comes from `:llm_prices` in config. The costs page shows SEK beside USD at a fixed dated rate; fixed costs may be configured as SEK per year in `config :ex_tales_forge, TalesForge.Costs`.
 - **Every unit of work in a turn gets an `ai_calls` row** with a `call_type` (`llm`, `jev`, `function`) and adventure and game-system tags. Persona and scorer (bot) costs are kept apart from game cost.
@@ -189,7 +189,7 @@ Sources: `test/ex_tales_forge/game/prompt_prefix_test.exs`, `test/ex_tales_forge
 
 ## Environments and deploys
 
-Sources: tales-forge-docs `docs/environments.md`, `docs/infrastructure.md`, decision 2026-10-06 "tales-forge.ai stays on Netlify for now".
+Sources: `docs/environments.md`, `docs/infrastructure.md`, decision 2026-10-06 "tales-forge.ai stays on Netlify for now".
 
 - Production: Fly app `tales-forge` ([tales-forge.fly.dev](https://tales-forge.fly.dev)). Playtest: `tales-forge-playtest` ([tales-forge-playtest.fly.dev](https://tales-forge-playtest.fly.dev)), deployed automatically from `main` first; production follows by hand after the build is checked on playtest (decision 2026-10-09 "Deploy order: playtest first, then production"). Region `arn`. Each app has its own secrets and its own xAI key.
 - **Deploy lanes** (decision 2026-10-09 "A fast deploy lane for admin work"): a merge whose changed files, and all files changed since the commit production runs (tag `deployed/production`), are on the `[admin]` list in `.github/deploy-lanes.txt` (surveys, costs, playtest admin pages, `/team`) deploys to playtest **and production** automatically. A dependency bump that fixes a published advisory takes the **security lane** (decision 2026-10-11): only `mix.lock` (and `mix.exs` dep pins) changes, every package keeps its major version, the PR has the label `security` or the title prefix `security:` plus an advisory id, and CI is green. `security-lane.yml` merges it, and playtest.yml deploys playtest, runs a smoke check and deploys production for that sha (`docs/DEPLOY-FLY.md`, "Security lane"). Anything else, including a mixed PR, is the normal lane: playtest first; a founder's Approve ships it to production. The lane is in the "Deploy to playtest" run summary. Keep admin work in admin-only PRs; touching the router, shared CSS/JS, config or game code makes it normal. Game and shared code must never depend on `[admin]` files (`mix deploy.check_boundaries`, CI). Credo strict runs on admin files too (since 2026-10-11); the `@spec` check covers the backfilled files listed in `.credo.exs`.
@@ -201,14 +201,14 @@ Sources: tales-forge-docs `docs/environments.md`, `docs/infrastructure.md`, deci
 
 - **Ash** (`ash`, `ash_postgres`, `ash_phoenix`, igniter) and the authoring tables, 2026-10-07 ([#47](https://github.com/whyse-ab/ex-tales-forge/pull/47)).
 - **Email magic-link sign-in** and the `ADMIN_EMAILS` allowlist, 2026-10-07 ([#54](https://github.com/whyse-ab/ex-tales-forge/pull/54)).
-- **`jido_ai`**: the unused dependency was dropped (module audit, tales-forge-docs `docs/module-audit-2026-10-07.md`). LLM calls go through `TalesForge.LLM` only.
+- **`jido_ai`**: the unused dependency was dropped (module audit, `docs/module-audit-2026-10-07.md`). LLM calls go through `TalesForge.LLM` only.
 - GM bookkeeping fields: the GM no longer returns `state_updates`, `overlay_deltas` or `new_facts`; the server owns state, and with `WORLD_AGENTS` on, facts are read from the narration after the turn (`TalesForge.World.Extract`).
 
 ## Elixir coding guidelines
 
 ### Docs, types and tests (mandatory)
 
-Humans may need to understand the code one day, including code written by bots. The full standard is tales-forge-docs `docs/coding-standards.md` (decision 2026-10-07 "Coding standards: documented, typed, tested, enforced in CI").
+Humans may need to understand the code one day, including code written by bots. The full standard is `docs/coding-standards.md` (decision 2026-10-07 "Coding standards: documented, typed, tested, enforced in CI").
 
 - `@moduledoc` on every module (`@moduledoc false` only for real internals): what it is for and how it fits in. Credo checks it.
 - `@doc` on every public function (`@doc false` if public only for tests): what it returns and when it fails. Add a doctest where an example helps and the function is pure. `test/ex_tales_forge/coding_standards_test.exs` checks the backfilled modules.
@@ -217,7 +217,7 @@ Humans may need to understand the code one day, including code written by bots. 
 - **ExDoc**: `mix docs` must build without warnings (CI runs `mix docs --warnings-as-errors`).
 - **Tests for every change**; a bug fix gets a test that fails without it. `mix test --cover` fails below the threshold in `mix.exs`; raise it as coverage grows, never lower it to pass.
 - **CI enforces all of this** in two required jobs: **Test** (compile with warnings as errors, format, Credo, tests with coverage, docs, `mix hex.audit`) and **Dialyzer**.
-- Module docs describe current behaviour, not where the code came from or how it used to work; history goes to tales-forge-docs.
+- Module docs describe current behaviour, not where the code came from or how it used to work; history goes to `docs/`.
 - Older modules are backfilled when you touch them; then add them to the lists above.
 
 ### Formatting

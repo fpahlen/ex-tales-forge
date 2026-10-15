@@ -98,7 +98,7 @@ A walled market town characterized by:
 ### Family
 
 <!-- TRUTH: ABSOLUTE -->
-Garrick is one half of the Beaumont cousins—the only genuinely trusting alliance among Merovingia's rulers. His cousin [Baroness Nyra Beaumont](./vallombre.md) controls Vallombre, and together they operate under the guidance of their grandmother, [Lady Marguerite Beaumont](../families/beaumont.md).
+Garrick is one half of the Beaumont cousins—the only genuinely trusting alliance among Merovingia's rulers. His cousin [Baroness Nyra Beaumont](vallombre.md) controls Vallombre, and together they operate under the guidance of their grandmother, [Lady Marguerite Beaumont](../families/beaumont.md).
 
 <!-- TRUTH: CONTESTED | resolution: discoverable -->
 He inherited Montfort at age 15 after his father Lord Aldric's death from a wasting illness (some whisper poison from Rochedur). His quarter-elven blood—inherited through his grandmother—manifests only as slightly pointed ears (hidden by his hair) and unusually keen eyesight.

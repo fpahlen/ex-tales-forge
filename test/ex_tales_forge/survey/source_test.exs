@@ -106,10 +106,10 @@ defmodule TalesForge.Survey.SourceTest do
       :ok
     end
 
-    test "reads docs/<id>.json from tales-forge-docs main" do
+    test "reads docs/<id>.json from ex-tales-forge main" do
       Req.Test.stub(Source, fn conn ->
         assert conn.request_path ==
-                 "/repos/whyse-ab/tales-forge-docs/contents/docs/test-survey.json"
+                 "/repos/whyse-ab/ex-tales-forge/contents/docs/test-survey.json"
 
         assert conn.query_string == "ref=main"
         assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer test-token"]
@@ -122,13 +122,13 @@ defmodule TalesForge.Survey.SourceTest do
       end)
 
       assert {:ok, loaded} = Source.load("test-survey")
-      assert loaded.source == "tales-forge-docs main (blob abcdef1)"
-      assert Source.describe("test-survey") =~ "GitHub whyse-ab/tales-forge-docs@main"
+      assert loaded.source == "ex-tales-forge main (blob abcdef1)"
+      assert Source.describe("test-survey") =~ "GitHub whyse-ab/ex-tales-forge@main"
     end
 
     test "lists docs/ through the Contents API" do
       Req.Test.stub(Source, fn conn ->
-        assert conn.request_path == "/repos/whyse-ab/tales-forge-docs/contents/docs"
+        assert conn.request_path == "/repos/whyse-ab/ex-tales-forge/contents/docs"
         assert conn.query_string == "ref=main"
 
         Req.Test.json(conn, [
@@ -156,7 +156,7 @@ defmodule TalesForge.Survey.SourceTest do
 
     test "HTTP errors fall back to the snapshot" do
       for {status, expected} <- [
-            {404, "is not in whyse-ab/tales-forge-docs@main"},
+            {404, "is not in whyse-ab/ex-tales-forge@main"},
             {500, "HTTP 500"}
           ] do
         Cache.clear()

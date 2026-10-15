@@ -84,7 +84,7 @@ config :ex_tales_forge, :llm_prices, %{
 }
 
 # Skill growth (TalesForge.Game.Progression; decisions 2026-10-09 and the
-# d100 switch in tales-forge-docs docs/decisions.md):
+# d100 switch in docs/decisions.md):
 #   attempt_floor        an improvement roll needs d100 >= this and >= the level
 #   lp_per_roll_divisor  one roll costs ceil(level / divisor) banked LP (min 1)
 #   reflection_level     from this level a skill grows only after reflection

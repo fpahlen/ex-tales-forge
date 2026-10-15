@@ -13,7 +13,7 @@ defmodule TalesForge.Game.IntentClarification do
   wrong; a fight, a move, or spending coin is not), or, for a move or a fight,
   the target read itself is unsure, so the top two targets compete. At most one
   question per turn: the caller never asks again on the answer
-  (`TalesForge.IntentJev`). See `tales-forge-docs/docs/design-jev-intent.md` §4.
+  (`TalesForge.IntentJev`). See `docs/design-jev-intent.md` §4.
 
   The question payload keeps the shape of
   `TalesForge.Game.Intent.build_clarification/2`, so the LiveView and the

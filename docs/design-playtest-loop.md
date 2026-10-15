@@ -212,7 +212,7 @@ Character creation is part of any RPG, and the personas test it too (Fredrik, 20
 
 - **The app has no character creation yet.** In `ex-tales-forge` (`main`, commit `4d78ed7`), every session starts with the same pre-made character, Elara Voss, a human with fixed stats, skills, coins and gear (`lib/ex_tales_forge/game/world.ex`, reused for every adventure by `game/pack.ex`). The home page starts Tin Valley or Crossroads Hamlet; Merovingia isn't loaded in the Elixir app.
 - **The creation rules exist as game data.** The Tin Valley and Crossroads Ledger rules (`rules/core_mechanics.md`) have a 75-point stat buy (3–18 per stat), 20–30 skill points with a starting cap of 5, and background bonuses. Their `rules/economy.md` sets starting wealth by social class, with gear paid for out of that budget.
-- **Merovingia's [`game-system.json`](../worlds/merovingia/game-system.json)** has what a creator would offer: six races (Human, Elf, Dwarf, Gnome, Halfling, Half-Elf) with stat modifiers, skill bonuses and traits; six archetypes (Warrior, Wizard, Thief, Druid, Cleric, Ranger) with suggested skills; 38 skills in five domains; starting wealth by social status, from nobility to underclass; and naming lists by race, region and status. It has no point-buy rules of its own.
+- **Merovingia's [`game-system.json`](worlds/merovingia/game-system.json)** has what a creator would offer: six races (Human, Elf, Dwarf, Gnome, Halfling, Half-Elf) with stat modifiers, skill bonuses and traits; six archetypes (Warrior, Wizard, Thief, Druid, Cleric, Ranger) with suggested skills; 38 skills in five domains; starting wealth by social status, from nobility to underclass; and naming lists by race, region and status. It has no point-buy rules of its own.
 
 So bots can only run this scenario once the app has a creation step. Until then, this section describes what we would test.
 
@@ -256,7 +256,7 @@ creation:
 
 - Does character creation happen with the GM in conversation, through a form, or a mix (a form with the GM helping)? Paul and Lotta may want something different here from Lars.
 - Is it scored on its own, or as the first part of a normal session? Does it count against the $1.00 session cap, and how are its `ai_calls` told apart from play, given that they link to a session and a turn number today?
-- Which world comes first: Merovingia, which has the richest race, archetype and naming data but no point buy, or Tin Valley, the starter ([D-008](../decisions/d-008-tin-valley-starter.md)) that the app can load?
+- Which world comes first: Merovingia, which has the richest race, archetype and naming data but no point buy, or Tin Valley, the starter ([D-008](decision-queue/d-008-tin-valley-starter.md)) that the app can load?
 - What is a good target time and turn count for a finished character, and is it the same for every persona?
 - Does a pre-made character stay available for players who want to start right away?
 - After a death, does the player go through the same creation again, or a shorter one?

@@ -11,7 +11,7 @@ import json
 import re
 import sys
 
-GH = 'https://github.com/whyse-ab/tales-forge-docs/blob/main/docs/'
+GH = 'https://github.com/whyse-ab/ex-tales-forge/blob/main/docs'
 
 
 def rel(text):

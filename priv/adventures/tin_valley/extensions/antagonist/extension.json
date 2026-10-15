@@ -1,5 +1,5 @@
 {
-  "_doc": "WORLD_ANTAGONIST (feature antagonist, needs inn_world): the Tinjacks. Design: tales-forge-docs docs/design-tin-valley-world.md.",
+  "_doc": "WORLD_ANTAGONIST (feature antagonist, needs inn_world): the Tinjacks. Design: docs/design-tin-valley-world.md.",
   "npc_hooks": {
     "innkeep": ["Tam has seen Maude's grandson Pip riding with Rusk's crew on the west road. Brenna thinks someone should tell Maude at her cottage, or ask her what the boy has said."],
     "herb_wife": ["Her grandson Pip has fallen in with Rusk's Tinjacks on the west road. She would give a great deal, and tell a great deal, to have him home."],

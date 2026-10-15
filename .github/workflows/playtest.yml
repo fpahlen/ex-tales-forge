@@ -1,5 +1,5 @@
 # Deploy main to the long-lived PLAYTEST environment (Fly app tales-forge-playtest,
-# config fly.playtest.toml), and pick the merge's DEPLOY LANE (tales-forge-docs
+# config fly.playtest.toml), and pick the merge's DEPLOY LANE (ex-tales-forge
 # decisions 2026-10-09 "Deploy order: playtest first, then production" and "A
 # fast deploy lane for admin work").
 #

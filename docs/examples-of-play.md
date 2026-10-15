@@ -401,6 +401,6 @@ At the next table, a well-dressed woman with a forgettable face has been watchin
 
 ## Sources
 
-- **Setting** (Merovingia module, `modules/merovingia/` in `tales-forge-new`, also copied to [`worlds/merovingia/`](../worlds/merovingia/) in this repo): `README.md`, `TRUTH_TAG.md`, `baronies/rochedur.md`, `baronies/arborin.md`, `baronies/montfort.md`, `guilds/thieves-guild.md`, `guilds/miners-guild.md`, `starting-state/starting-state.md` and `.json`, `terrain/baronies/rochedur.terrain`, `terrain/settlements/stonehaven.terrain`, and `game-system.json` (skills, races, coins, naming lists, attitude words).
+- **Setting** (Merovingia module, `modules/merovingia/` in `tales-forge-new`, also copied to [`worlds/merovingia/`](worlds/merovingia/) in this repo): `README.md`, `TRUTH_TAG.md`, `baronies/rochedur.md`, `baronies/arborin.md`, `baronies/montfort.md`, `guilds/thieves-guild.md`, `guilds/miners-guild.md`, `starting-state/starting-state.md` and `.json`, `terrain/baronies/rochedur.terrain`, `terrain/settlements/stonehaven.terrain`, and `game-system.json` (skills, races, coins, naming lists, attitude words).
 - **Rules and GM behaviour** (`ex-tales-forge`): `priv/rules/` (1d20 roll-under, learning by failure, skill domains, effort-based prices, wounds), `priv/prompts/gm_system.txt` and `intent_system.txt`, and `PRODUCT.md`.
 - **Personas and scorecards:** [personas.md](personas.md) and [roadmap-2027.md](roadmap-2027.md).

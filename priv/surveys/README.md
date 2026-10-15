@@ -1,7 +1,7 @@
 # Survey definitions
 
 The founder survey page (`/admin/survey`, `TalesForge.Survey.Source`) reads
-`docs/<id>.json` from **tales-forge-docs main** through the GitHub Contents API
+`docs/<id>.json` from **ex-tales-forge main** through the GitHub Contents API
 (server `GITHUB_DOCS_TOKEN`, cached 60 s). A wording change is a docs commit;
 no deploy needed. `TALES_FORGE_DOCS_PATH` (a local docs checkout) wins in
 development.
@@ -11,8 +11,8 @@ when GitHub can't be reached, the token is missing, or the docs copy fails
 validation (the page then shows an admin error with every problem). Refresh a
 snapshot when you change a survey's questions:
 
-    cp ../tales-forge-docs/docs/founder-survey-3.json priv/surveys/
-    cp ../tales-forge-docs/docs/founder-survey-4-intent.json priv/surveys/
+    cp docs/founder-survey-3.json priv/surveys/
+    cp docs/founder-survey-4-intent.json priv/surveys/
 
 Every `docs/*survey*.json` is discovered (one directory listing, cached 60 s;
 the snapshots here are listed when that fails). Each survey is at

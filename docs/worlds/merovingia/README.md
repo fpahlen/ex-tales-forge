@@ -5,14 +5,14 @@
 ## Atmosphere
 
 <!-- TRUTH: ABSOLUTE -->
-Merovingia is a land of mist and memory, where crumbling Aurelian arches stand sentinel over forgotten roads and elven whispers drift from forests no human has entered in generations. The twelve baronies claw at each other like wolves over a carcass, their lords and ladies spinning plots as intricate as spiderwebs while young [King Clovis IV](./king-clovis-iv.md) plays at ruling from a throne too large for him. Ancient magic stirs in flooded temples and collapsed coliseums; artifacts of terrible power wait in the dark for those bold or foolish enough to claim them. Let these images linger in your mind as you walk the paths of Merovingia.
+Merovingia is a land of mist and memory, where crumbling Aurelian arches stand sentinel over forgotten roads and elven whispers drift from forests no human has entered in generations. The twelve baronies claw at each other like wolves over a carcass, their lords and ladies spinning plots as intricate as spiderwebs while young [King Clovis IV](king-clovis-iv.md) plays at ruling from a throne too large for him. Ancient magic stirs in flooded temples and collapsed coliseums; artifacts of terrible power wait in the dark for those bold or foolish enough to claim them. Let these images linger in your mind as you walk the paths of Merovingia.
 
 ## Overview
 
 <!-- TRUTH: ABSOLUTE -->
 A fractured medieval realm loosely inspired by medieval France, where human dominance shapes politics while non-human societies (elves, dwarves, halflings, orcs) live in secluded enclaves—either by their own reclusive choices or human-enforced isolation.
 
-Merovingia remains divided among twelve powerful baronies, each vying for control under the ineffectual reign of **[King Clovis IV](./king-clovis-iv.md)**—a haughty, inexperienced young monarch crowned at seventeen after his father's sudden death. Now twenty-two, Clovis is easily flattered, spite-driven, and transparently manipulated by those who understand his vanities. Every baron tolerates him precisely *because* he is weak; a puppet king is preferable to the chaos of succession, and his very inadequacy prevents any single baron from gaining too much influence through the crown.
+Merovingia remains divided among twelve powerful baronies, each vying for control under the ineffectual reign of **[King Clovis IV](king-clovis-iv.md)**—a haughty, inexperienced young monarch crowned at seventeen after his father's sudden death. Now twenty-two, Clovis is easily flattered, spite-driven, and transparently manipulated by those who understand his vanities. Every baron tolerates him precisely *because* he is weak; a puppet king is preferable to the chaos of succession, and his very inadequacy prevents any single baron from gaining too much influence through the crown.
 
 <!-- TRUTH: PERSPECTIVE | holder: Common observation -->
 The king's impotence has emboldened the baronies to pursue their own agendas, forging secret alliances, exploiting ancient ruins, and occasionally warring over resources and artifacts.
@@ -41,18 +41,18 @@ Cultural tensions run deep, with most non-humans confined to enclaves by human d
 <!-- TRUTH: ABSOLUTE -->
 | Barony | Region | Specialty | Baron/Baroness |
 |--------|--------|-----------|----------------|
-| [Aquilon](./baronies/aquilon.md) | Northern Coast | Naval power, sea crystals | Baroness Elara Thorne |
-| [Sylvaine](./baronies/sylvaine.md) | Northwest Woods | Forest magic, archery | Baroness Lirael Duval |
-| [Montfort](./baronies/montfort.md) | Central Plains | Agriculture, trade | Baron Garrick Beaumont |
-| [Ferroigne](./baronies/ferroigne.md) | Eastern Badlands | Iron, forges, armor | Baron Thrain Leclerc |
-| [Vallombre](./baronies/vallombre.md) | Center-East Valleys | Espionage, shadow magic | Baroness Nyra Beaumont |
-| [Pyremont](./baronies/pyremont.md) | Southern Mountains | Fire magic, fortresses | Baron Drakon Roux |
-| [Rochedur](./baronies/rochedur.md) | Central Highlands | Stone, rune magic | Baroness Mira Laurent |
-| [Lumière](./baronies/lumiere.md) | Southwest Hills | Light magic, vineyards | Baron Alain de Lumière |
-| [Marécage](./baronies/marecage.md) | Eastern Marshlands | Poisons, ambush warfare | Baroness Sable Moreau |
-| [Ventd'or](./baronies/ventdor.md) | Western Steppes | Cavalry, wind magic | Baron Rolf Girard |
-| [Glacière](./baronies/glaciere.md) | Northeastern Tundra | Ice magic, frost trolls | Baroness Isolde Blanc |
-| [Arborin](./baronies/arborin.md) | Southeast Woods | Living defenses, healing | Baron Eldric Fontaine |
+| [Aquilon](baronies/aquilon.md) | Northern Coast | Naval power, sea crystals | Baroness Elara Thorne |
+| [Sylvaine](baronies/sylvaine.md) | Northwest Woods | Forest magic, archery | Baroness Lirael Duval |
+| [Montfort](baronies/montfort.md) | Central Plains | Agriculture, trade | Baron Garrick Beaumont |
+| [Ferroigne](baronies/ferroigne.md) | Eastern Badlands | Iron, forges, armor | Baron Thrain Leclerc |
+| [Vallombre](baronies/vallombre.md) | Center-East Valleys | Espionage, shadow magic | Baroness Nyra Beaumont |
+| [Pyremont](baronies/pyremont.md) | Southern Mountains | Fire magic, fortresses | Baron Drakon Roux |
+| [Rochedur](baronies/rochedur.md) | Central Highlands | Stone, rune magic | Baroness Mira Laurent |
+| [Lumière](baronies/lumiere.md) | Southwest Hills | Light magic, vineyards | Baron Alain de Lumière |
+| [Marécage](baronies/marecage.md) | Eastern Marshlands | Poisons, ambush warfare | Baroness Sable Moreau |
+| [Ventd'or](baronies/ventdor.md) | Western Steppes | Cavalry, wind magic | Baron Rolf Girard |
+| [Glacière](baronies/glaciere.md) | Northeastern Tundra | Ice magic, frost trolls | Baroness Isolde Blanc |
+| [Arborin](baronies/arborin.md) | Southeast Woods | Living defenses, healing | Baron Eldric Fontaine |
 
 ## Alliance Web
 
@@ -90,7 +90,7 @@ Arborin ←→ Sylvaine (woodland unity)
 ## Notable Families
 
 <!-- TRUTH: ABSOLUTE -->
-- [House Beaumont](./families/beaumont.md) - The only genuinely trusting alliance among rulers, anchored by a hidden matriarch with elven blood
+- [House Beaumont](families/beaumont.md) - The only genuinely trusting alliance among rulers, anchored by a hidden matriarch with elven blood
 
 ## External Powers
 
@@ -99,15 +99,15 @@ Three powerful guilds headquartered beyond Merovingia's borders maintain formal 
 
 | Guild | Formal Name | Headquarters | Embassy | Ambassador |
 |-------|-------------|--------------|---------|------------|
-| [Miners Guild](./guilds/miners-guild.md) | The Brethren of the Deep Vein | Irondeep | Ferroigne | Master Dolgrim Ironvow |
-| [Thieves Guild](./guilds/thieves-guild.md) | The Grey Consortium | Velantis | Montfort | Lady Serina Vex |
-| [Ancient Aurelias](./guilds/ancient-aurelias.md) | The Aurelian Continuity | Aurelia Nova | Lumière | Magister Corvinus Ashborne |
+| [Miners Guild](guilds/miners-guild.md) | The Brethren of the Deep Vein | Irondeep | Ferroigne | Master Dolgrim Ironvow |
+| [Thieves Guild](guilds/thieves-guild.md) | The Grey Consortium | Velantis | Montfort | Lady Serina Vex |
+| [Ancient Aurelias](guilds/ancient-aurelias.md) | The Aurelian Continuity | Aurelia Nova | Lumière | Magister Corvinus Ashborne |
 
-An ancient agreement called the **Triumvirate Compact** prevents open warfare between the guilds, though they constantly undermine each other's interests. For full details, see the [Guild Overview](./guilds/README.md).
+An ancient agreement called the **Triumvirate Compact** prevents open warfare between the guilds, though they constantly undermine each other's interests. For full details, see the [Guild Overview](guilds/README.md).
 
 ## Starting State
 
-For the "New Game" snapshot describing current events when play begins, see [Starting State](./starting-state/README.md).
+For the "New Game" snapshot describing current events when play begins, see [Starting State](starting-state/README.md).
 
 The Starting State captures:
 - Where key NPCs are positioned at game start
@@ -119,7 +119,7 @@ This is **module content** (like the "Current Events" section of a published adv
 
 ## Related Documentation
 
-- [King Clovis IV](./king-clovis-iv.md) - The ineffectual young monarch
-- [Starting State](./starting-state/README.md) - The "New Game" snapshot
+- [King Clovis IV](king-clovis-iv.md) - The ineffectual young monarch
+- [Starting State](starting-state/README.md) - The "New Game" snapshot
 - [Adventure Design Guide](https://github.com/fpahlen/tales-forge-new-31993d9d/blob/development/docs/adventure-design/README.md) - The "And Then..." principle for creating interconnected adventures (in the tales-forge-new repo, not copied here)
 - [Geography Feature Branch Plan](https://github.com/fpahlen/tales-forge-new-31993d9d/blob/development/docs/development/branches/feat-geography.md) (in the tales-forge-new repo, not copied here)

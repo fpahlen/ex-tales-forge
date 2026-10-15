@@ -3,12 +3,12 @@ defmodule TalesForge.Playtest.AffectLevels do
   Persona-grounded 1–5 affect levels for TypeSafe Jev Score questions.
 
   Five descriptive levels, low→high, for **this** persona, and the question
-  they answer. Derived from `priv/playtest/personas.md` / tales-forge-docs
+  they answer. Derived from `priv/playtest/personas.md` / ex-tales-forge
   personas. Edit here when persona notes change; the Jev rubric version hashes
   this text.
 
   Paul, Lotta and Lars answer "how frustrated (low) to delighted (high)".
-  Two personas have their own question, matching their levels (tales-forge-docs
+  Two personas have their own question, matching their levels (ex-tales-forge
   `docs/analysis-jev-scores-2026-10-07.md`, recommendations 6 and 7):
 
   - **Hawk** is scored on one axis: how much real, fair danger he faced. The
@@ -20,7 +20,7 @@ defmodule TalesForge.Playtest.AffectLevels do
     question used to ask how delighted he would be, which contradicted his
     inverted levels. Keep Ronny out of any averaged "player delight" figure.
 
-  **Paul and Lotta have a stricter top** (2026-10-07, tales-forge-docs
+  **Paul and Lotta have a stricter top** (2026-10-07, ex-tales-forge
   `docs/decisions.md`, "A stricter Jev rubric before the next A/B"). In the
   65-run baseline Lotta's most likely level was 4 on 130 of 130 turns and
   Paul's was 5 on 124 of 130, so no change could show. Level 3 now also covers
@@ -33,7 +33,7 @@ defmodule TalesForge.Playtest.AffectLevels do
   The personas themselves are unchanged; they model real players.
 
   **Sharper borders for Paul (4 vs 5) and Lotta (3 vs 4)** (2026-10-08,
-  tales-forge-docs `docs/decisions.md`, "Sharper Jev borders for Paul and
+  `docs/decisions.md`, "Sharper Jev borders for Paul and
   Lotta"). On the #69 rubric Jev split between those two levels on about half
   of Paul's turns and most of Lotta's. Each border now names what to look for
   in the turn, with a short example from a real playtest turn: Paul stays at 4
@@ -42,7 +42,7 @@ defmodule TalesForge.Playtest.AffectLevels do
   line would get the same reply. Their rubric versions changed again
   (`jev-affect-v1-7862783`, `jev-affect-v1-989546a`).
 
-  **Paul's level 5 is a consequence** (2026-10-08, tales-forge-docs
+  **Paul's level 5 is a consequence** (2026-10-08, ex-tales-forge
   `docs/decisions.md`, "Paul's level 5 needs a consequence of his own choice
   or discovery").
   The sharper border still left Jev split about 0.42/0.45 between 4 and 5,

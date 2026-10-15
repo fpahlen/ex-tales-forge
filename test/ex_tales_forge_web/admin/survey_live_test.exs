@@ -99,7 +99,7 @@ defmodule TalesForgeWeb.AdminLive.SurveyLiveTest do
     use_docs_dir(~s({"format": 1, "id": "test-survey"}))
     {:ok, view, html} = live(conn, ~p"/admin/founders/surveys/test-survey")
 
-    assert html =~ "the survey file in tales-forge-docs has a problem"
+    assert html =~ "the survey file in `docs/` has a problem"
     assert html =~ "version is missing"
     assert render_click(view, "reload") =~ "version is missing"
 

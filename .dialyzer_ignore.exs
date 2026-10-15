@@ -1,4 +1,4 @@
-# Dialyzer warnings we accept for now (see tales-forge-docs docs/coding-standards.md).
+# Dialyzer warnings we accept for now (see ex-tales-forge docs/coding-standards.md).
 #
 # Legacy baseline: list a warning here only with a reason and an owner, e.g.
 #   {"lib/ex_tales_forge/some_module.ex", :guard_fail}

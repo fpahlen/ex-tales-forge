@@ -1,10 +1,10 @@
-# Contributing to tales-forge-docs
+# Writing rules (moved from tales-forge-docs CONTRIBUTING.md)
 
 These rules apply to every doc, analysis, decision and survey in this repo.
 
 ## Language: positive framing and ASD-STE100
 
-Decision: tales-forge-docs `docs/decisions.md`, 2026-10-10, "Positive framing and ASD-STE100 language standard" (Fredrik).
+Decision: `docs/decisions.md`, 2026-10-10, "Positive framing and ASD-STE100 language standard" (Fredrik).
 
 **1. Say confidence, not doubt.** In the UI, playtest reports, scores, prompts that show in reports, and docs, write "confidence" or "certainty". Do not write "unsure", "uncertain", "uncertainty" or "unsureness". Give the positive quantity directly. Do not use minimized negatives ("not unlikely", "fewer failures") or double negatives.
 

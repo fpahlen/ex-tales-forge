@@ -1,6 +1,6 @@
 defmodule TalesForge.DeployLanes.Security do
   @moduledoc """
-  The **security** deploy lane (tales-forge-docs `docs/decisions.md`,
+  The **security** deploy lane (`docs/decisions.md`,
   2026-10-11, "Security-bump lane"): a dependency bump that fixes a published
   advisory ships to playtest, passes a smoke check and goes to production
   without a founder OK.

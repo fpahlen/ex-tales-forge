@@ -1,6 +1,6 @@
 defmodule TalesForge.Playtest.JevHeadline do
   @moduledoc """
-  The headline Jev score for playtest pages (tales-forge-docs `docs/decisions.md`,
+  The headline Jev score for playtest pages (`docs/decisions.md`,
   2026-10-08, "the headline Jev score is a confidence-weighted average").
 
   Jev rates every turn on the persona's 1–5 scale and returns a confidence
@@ -16,7 +16,7 @@ defmodule TalesForge.Playtest.JevHeadline do
   headline is `nil`.
 
   The field names `unsure_share`, `unsure` and `unsure_below/0` stay until the
-  rename PR (tales-forge-docs decisions.md, 2026-10-10, positive framing). The
+  rename PR (docs/decisions.md, 2026-10-10, positive framing). The
   text that this module makes uses the confidence form.
   """
 

@@ -1,13 +1,13 @@
 defmodule TalesForge.Survey.Source do
   @moduledoc """
   Loads a survey definition (`TalesForge.Survey.Definition`) by id, from
-  `docs/<id>.json` in tales-forge-docs, so a wording change is a docs commit
+  `docs/<id>.json` in this repo, so a wording change is a docs commit
   and needs no deploy.
 
   Where it reads from, first match wins:
 
     1. a local docs checkout when `TALES_FORGE_DOCS_PATH` is set (development);
-    2. otherwise GitHub (`whyse-ab/tales-forge-docs`, branch `main`) through the
+    2. otherwise GitHub (`whyse-ab/ex-tales-forge`, branch `main`) through the
        Contents API with the server's `GITHUB_DOCS_TOKEN`;
     3. otherwise, or when that fails, the snapshot shipped in
        `priv/surveys/<id>.json`.
@@ -36,7 +36,7 @@ defmodule TalesForge.Survey.Source do
   alias TalesForge.Survey.Definition
 
   @api "https://api.github.com"
-  @default_repo "whyse-ab/tales-forge-docs"
+  @default_repo "whyse-ab/ex-tales-forge"
   @default_ref "main"
   @ttl_ms :timer.seconds(60)
   @error_ttl_ms :timer.seconds(20)
@@ -261,7 +261,7 @@ defmodule TalesForge.Survey.Source do
     case Req.get(github_req(token), url: url, params: [ref: ref()]) do
       {:ok, %{status: 200, body: %{"content" => content, "sha" => sha}}} ->
         case Base.decode64(String.replace(content, ~r/\s/, "")) do
-          {:ok, raw} -> {:ok, raw, "tales-forge-docs #{ref()} (blob #{String.slice(sha, 0, 7)})"}
+          {:ok, raw} -> {:ok, raw, "ex-tales-forge #{ref()} (blob #{String.slice(sha, 0, 7)})"}
           :error -> {:error, "GitHub returned #{path} in an unexpected encoding"}
         end
 

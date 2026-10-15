@@ -98,7 +98,7 @@ A labyrinthine town characterized by:
 ### Family
 
 <!-- TRUTH: ABSOLUTE -->
-Nyra is one half of the Beaumont cousins—the only genuinely trusting alliance among Merovingia's rulers. Her cousin [Baron Garrick Beaumont](./montfort.md) controls Montfort, and together they operate under the guidance of their grandmother, [Lady Marguerite Beaumont](../families/beaumont.md).
+Nyra is one half of the Beaumont cousins—the only genuinely trusting alliance among Merovingia's rulers. Her cousin [Baron Garrick Beaumont](montfort.md) controls Montfort, and together they operate under the guidance of their grandmother, [Lady Marguerite Beaumont](../families/beaumont.md).
 
 <!-- TRUTH: CONTESTED | resolution: discoverable -->
 She inherited Vallombre at age 17 after her mother Lady Celeste's assassination by political rivals. Her quarter-elven blood—inherited through her grandmother—is the source of the "shadowed lineage" Baron Alain de Lumière exposed. Her "half-elf kin" are actually relatives from her grandmother Marguerite's elven mother, who still lives deep in Sylvaine's forests.

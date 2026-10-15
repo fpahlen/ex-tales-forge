@@ -32,9 +32,9 @@ Violations are adjudicated by a rotating tribunal of senior members from all thr
 <!-- TRUTH: ABSOLUTE -->
 | Guild | Formal Name | Headquarters | Embassy Location | Ambassador |
 |-------|-------------|--------------|------------------|------------|
-| [Miners Guild](./miners-guild.md) | The Brethren of the Deep Vein | Irondeep | Ferroigne | Master Dolgrim Ironvow |
-| [Thieves Guild](./thieves-guild.md) | The Grey Consortium | Velantis | Montfort | Lady Serina Vex |
-| [Ancient Aurelias](./ancient-aurelias.md) | The Aurelian Continuity | Aurelia Nova | Lumière | Magister Corvinus Ashborne |
+| [Miners Guild](miners-guild.md) | The Brethren of the Deep Vein | Irondeep | Ferroigne | Master Dolgrim Ironvow |
+| [Thieves Guild](thieves-guild.md) | The Grey Consortium | Velantis | Montfort | Lady Serina Vex |
+| [Ancient Aurelias](ancient-aurelias.md) | The Aurelian Continuity | Aurelia Nova | Lumière | Magister Corvinus Ashborne |
 
 ## Guild Dynamics
 

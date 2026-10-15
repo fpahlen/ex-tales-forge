@@ -2,7 +2,7 @@ defmodule TalesForge.Survey.Snapshot do
   @moduledoc """
   A survey file exactly as it was when answers were saved under it
   (`survey_definitions`), one row per distinct SHA-256. Written on save by
-  `TalesForge.Surveys`, so later wording edits in tales-forge-docs never
+  `TalesForge.Surveys`, so later wording edits in `docs/` never
   change what an old answer was an answer to.
   """
 

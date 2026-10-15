@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.SceneChangeTest do
   @moduledoc """
-  Scene changes (tales-forge-docs `docs/analysis-jev-baseline-2026-10-07.md`,
+  Scene changes (`docs/analysis-jev-baseline-2026-10-07.md`,
   §4 and recommendation 1). In 38 of 65 attempts to leave the inn the GM was
   still describing the inn on the next turn: the intent heuristic missed the
   move ("I step into the square"), the location never changed, and the GM,

@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.TinjacksTest do
   @moduledoc """
-  WORLD_ANTAGONIST: the Tinjacks act on world time (tales-forge-docs
+  WORLD_ANTAGONIST: the Tinjacks act on world time (ex-tales-forge
   `docs/design-tin-valley-world.md`): rumour → incident → road toll at the
   inn → burning; fights against them and talking their lookout round feed
   back into the world. The toll is taken even when the player is out, and then

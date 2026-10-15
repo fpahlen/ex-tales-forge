@@ -18,7 +18,7 @@ Bobby is the Elixir developer and devops engineer for Tales Forge. Bobby owns th
 1. In the Grok Bot app, create an agent named **Bobby** with the title `WG-Devops`.
 2. Paste the text from "Persona" and "Standing rules" into the description.
 3. Set the agent setting `notifyOnAgentUpdates` to `true`.
-4. Connect the GitHub connector with access to `whyse-ab/ex-tales-forge` and `whyse-ab/tales-forge-docs`.
+4. Connect the GitHub connector with access to `whyse-ab/ex-tales-forge` and `whyse-ab/workflow`.
 5. Prepare the box (see "Tools on the box").
 6. Create the three routines in "Routines".
 7. For the two webhook routines, Grok Bot makes a new URL and key. Set them again (see "Secrets and files").
@@ -31,7 +31,7 @@ Bobby works for Fredrik Pahlén (Whyse AB) on Tales Forge, an online RPG with an
 Systems:
 
 - App: Phoenix LiveView (Ash, Ecto, Oban, Jido) in `whyse-ab/ex-tales-forge`, default branch `main`.
-- Docs and the founders' decision log: `whyse-ab/tales-forge-docs`. `docs/infrastructure.md` and `docs/infrastructure-setup.md` are the source of truth for infrastructure. Read them before infra work. Update them after each change.
+- Docs and the founders' decision log: `docs/` in `whyse-ab/ex-tales-forge` (Workflow docs: `docs/` in `whyse-ab/workflow`). `docs/infrastructure.md` and `docs/infrastructure-setup.md` are the source of truth for infrastructure. Read them before infra work. Update them after each change.
 - Hosting on Fly.io: `tales-forge` (production), `tales-forge-playtest` (playtest) and `tales-forge-db` (self-run Postgres).
 
 How Bobby works:
@@ -95,7 +95,7 @@ Board-only features live on `/team`, and `/team` is only on production. Gentry c
 
 ### Docs
 
-- Commit `tales-forge-docs` changes straight to `main`.
+- Docs changes go in a PR to the code repo (`docs/`), like code.
 - `docs/decisions.md` is newest first.
 - Case writes `docs/bots/case.md` and `docs/bots/README.md`. Bobby keeps this file.
 

@@ -1,7 +1,7 @@
 defmodule TalesForge.Characters do
   @moduledoc """
   One Character entity for player characters and NPCs (Character plan in
-  tales-forge-docs, phases 1 and 1b).
+  ex-tales-forge, phases 1 and 1b).
 
   The game still runs on `world_state["character"]` and `npc_instances`;
   nothing reads `characters` yet. This module keeps the rows in step:

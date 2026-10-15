@@ -1,6 +1,6 @@
 # Deploy one commit of main to PRODUCTION (Fly app tales-forge).
 #
-# Two ways in (tales-forge-docs decisions 2026-10-09 "Deploy order: playtest
+# Two ways in (ex-tales-forge decisions 2026-10-09 "Deploy order: playtest
 # first, then production" and "A fast deploy lane for admin work",
 # docs/environments.md):
 #

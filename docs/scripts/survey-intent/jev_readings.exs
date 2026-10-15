@@ -3,9 +3,9 @@
 # Run from an ex-tales-forge checkout of the `intent-eval` branch (PR #81),
 # which has TalesForge.Game.JevIntent and TalesForge.IntentEval:
 #
-#     mix run --no-start ../tales-forge-docs/docs/scripts/survey-intent/jev_readings.exs \
-#       ../tales-forge-docs/docs/scripts/survey-intent/selection.json \
-#       ../tales-forge-docs/docs/scripts/survey-intent/jev-readings-2026-10-08.json
+#     mix run --no-start docs/scripts/survey-intent/jev_readings.exs \
+#       docs/scripts/survey-intent/selection.json \
+#       docs/scripts/survey-intent/jev-readings-2026-10-08.json
 #
 # The key is TYPESAFE_INTENT_PLAYTEST_API_KEY (billed to playtest; never printed).
 # Refuses any id whose split is not "tune". Readings already in the output file

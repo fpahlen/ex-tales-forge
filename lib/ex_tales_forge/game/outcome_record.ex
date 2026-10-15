@@ -1,7 +1,7 @@
 defmodule TalesForge.Game.OutcomeRecord do
   @moduledoc """
   The outcome record of one turn: what the mechanics booked (stage 3 of the
-  turn pipeline, tales-forge-docs `docs/design-turn-pipeline.md`).
+  turn pipeline, `docs/design-turn-pipeline.md`).
 
   The record holds the played action with its result (`accepted` or
   `rejected`, and the reason for a rejection), the coin delta, the items the

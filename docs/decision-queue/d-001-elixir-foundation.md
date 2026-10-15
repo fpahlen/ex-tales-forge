@@ -29,7 +29,7 @@ Seeded from Roadmap 2027 rev. 3 (2026-10-05). North star: the first paying custo
 
 ## Decision
 
-Decided 2026-10-07 by Fredrik: Elixir is the platform. Recorded in the decision log: [2026-10-07: Elixir is the platform](../docs/decisions.md#2026-10-07-elixir-is-the-platform). Background: [Why Elixir](../docs/why-elixir.md).
+Decided 2026-10-07 by Fredrik: Elixir is the platform. Recorded in the decision log: [2026-10-07: Elixir is the platform](../decisions.md#2026-10-07-elixir-is-the-platform). Background: [Why Elixir](../why-elixir.md).
 
 ## Discussion
 

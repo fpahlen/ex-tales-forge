@@ -40,7 +40,7 @@ defmodule TalesForgeWeb.AdminLive.SurveyLive.Index do
         <div class="min-w-0 space-y-1">
           <h2 class="font-serif text-2xl font-bold text-[var(--paper-ink)]">Founder surveys</h2>
           <p class="text-sm text-[var(--paper-muted)]">
-            Every survey file in tales-forge-docs. Open tabs show on <.link
+            Every survey file in `docs/`. Open tabs show on <.link
               navigate={~p"/admin/founders/survey"}
               class="text-[var(--paper-accent)] underline"
             >

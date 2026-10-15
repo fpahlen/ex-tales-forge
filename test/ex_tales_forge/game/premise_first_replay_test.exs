@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.PremiseFirstReplayTest do
   @moduledoc """
-  Replay fixtures for turn pipeline PR 2, premise first (tales-forge-docs
+  Replay fixtures for turn pipeline PR 2, premise first (ex-tales-forge
   `docs/design-turn-pipeline.md` §8 and §9). With `TURN_PREMISE_FIRST=on` and
   `TURN_OUTCOME_RECORD=on`, the premise check runs before the mechanics and the
   NPCs. A claim that the state contradicts blocks the action. The blocked

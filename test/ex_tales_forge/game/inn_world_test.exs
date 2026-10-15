@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.InnWorldTest do
   @moduledoc """
-  INN_WORLD: the places and people around the Valley Inn (tales-forge-docs
+  INN_WORLD: the places and people around the Valley Inn (ex-tales-forge
   `docs/design-tin-valley-world.md`), loaded as a pack extension for sessions
   created with the flag on.
   """

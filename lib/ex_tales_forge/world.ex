@@ -1,7 +1,7 @@
 defmodule TalesForge.World do
   @moduledoc """
   World agents prototype (`WORLD_AGENTS=on`, default off; design sketch in
-  tales-forge-docs `docs/design-world-agents.md`).
+  `docs/design-world-agents.md`).
 
   Persons, locations (nested: Valley Inn < Tin Valley village < Tin Valley)
   and items are `TalesForge.World.Agent` processes holding their own facts.

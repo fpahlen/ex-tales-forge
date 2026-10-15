@@ -130,7 +130,7 @@ Footnote from `pace.median_hours_open_to_merge_oct` (0.24 h ≈ 15 min). Deploy 
 
 **Rule cards:**
 
-1. **Decisions are written down.** Every decision goes into one log, `docs/decisions.md` in `tales-forge-docs`, with the date, the decision, why, and a link to the details. Changing a decision means adding a new entry, never editing history.
+1. **Decisions are written down.** Every decision goes into one log, `docs/decisions.md` in `ex-tales-forge`, with the date, the decision, why, and a link to the details. Changing a decision means adding a new entry, never editing history.
    - Stat: **`decisions.total` decisions in five days** (5–9 Oct).
    - Plus a decision queue of `decisions.queue.total` bigger questions (`decisions.queue.open` still open), and a future-ideas list (`decisions.future_ideas.count` ideas so far: *speculative intent while typing*, *memory consolidation and attitude drift* and *a founder kanban on /team*).
 2. **Docs go straight to main; code goes through PRs.** Writing things down should be fast, so docs need no review step. Code always gets a PR, CI and a founder's OK on the board card. Any founder approves PRs there. An approved change goes to playtest, Gentry checks it, and then Bobby deploys that sha to production.
@@ -457,7 +457,7 @@ From `gentry_findings`:
 - **One place for each thing.** When a card is approved, it writes its own entry in the decision log (`docs/decisions.md`), so the board and the log never disagree.
 - **Every founder decides.** Any founder can send a card to Building, and that move is the founder OK. Any founder also approves the PR on the card. The approved change goes to playtest, Gentry checks it, and then Bobby deploys that sha to production. Changes that only touch admin pages ship straight away.
 
-**Small print:** the board grew out of the founders' decision queue (`/admin/founders/decisions`). The rules for every move are in [`docs/design-board-states.md`](../design-board-states.md).
+**Small print:** the board grew out of the founders' decision queue (`/admin/founders/decisions`). The rules for every move are in [`docs/design-board-states.md`](https://github.com/whyse-ab/workflow/blob/main/docs/design-board-states.md).
 
 ---
 

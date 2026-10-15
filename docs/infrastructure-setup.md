@@ -6,6 +6,8 @@ status: runbook
 
 # Infrastructure setup and rebuild from scratch
 
+> **2026-10-15:** `tales-forge-docs` is retired. Its docs are in `docs/` of this repo (game) and of `whyse-ab/workflow` (Workflow). The board writes the decision log to `docs/decisions.md` of `ex-tales-forge` (Tales Forge) and `workflow` (Whyse). Rows below that name `tales-forge-docs` are history until the next infrastructure check.
+
 This document tells you how the Tales Forge integration is connected. It also tells you how to build it again from nothing.
 
 **Rule:** This document contains no secret values. It gives the name of each secret, where the value comes from, and who owns it. Do not add a value to this document, to a commit, to a log or to a chat message.
@@ -34,8 +36,8 @@ This document is the source of truth for **how the parts connect and how to rebu
 | Environments, deploy lanes, and what needs a founder OK | [environments.md](environments.md) |
 | How to set each Fly secret (dashboard and CLI) | [fly-secrets.md](fly-secrets.md) |
 | First deploy of a Fly app, Postgres and custom domain | ex-tales-forge [docs/DEPLOY-FLY.md](https://github.com/whyse-ab/ex-tales-forge/blob/main/docs/DEPLOY-FLY.md) |
-| Board states, moves, gates and wake-ups | [design-board-states.md](design-board-states.md) |
-| Why the idea board exists and how it works | [design-idea-board.md](design-idea-board.md) |
+| Board states, moves, gates and wake-ups | [design-board-states.md](https://github.com/whyse-ab/workflow/blob/main/docs/design-board-states.md) |
+| Why the idea board exists and how it works | [design-idea-board.md](https://github.com/whyse-ab/workflow/blob/main/docs/design-idea-board.md) |
 | Decisions (lanes, playtest first, security lane, approvals, auto-Done, language) | [decisions.md](decisions.md) |
 | Which files are on the admin (fast) lane | ex-tales-forge [.github/deploy-lanes.txt](https://github.com/whyse-ab/ex-tales-forge/blob/main/.github/deploy-lanes.txt) |
 

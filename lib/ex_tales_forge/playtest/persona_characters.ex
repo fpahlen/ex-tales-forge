@@ -6,7 +6,7 @@ defmodule TalesForge.Playtest.PersonaCharacters do
   The picks (name, race, class, past occupation, base stats, race bonus, skill
   levels and a one-line concept)
   are data in `priv/playtest/characters.json`, derived from the persona notes.
-  The reasoning is in `docs/playtest-persona-characters.md` in tales-forge-docs.
+  The reasoning is in `docs/playtest-persona-characters.md` in `docs/`.
   They are built through `TalesForge.CharacterCreation`, the same functions the
   creation screen uses, with a fixed seed per persona, so every run of a persona
   plays the same character (same derived OCEAN, Maslow level, concerns and coins).

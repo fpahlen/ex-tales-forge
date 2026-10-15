@@ -109,7 +109,7 @@ serves `GET /internal/product/*` to it (`PRODUCT_APP_API_TOKEN`).
 
 From the admin UI you can:
 
-- **Decision queue** and **shared docs** (synced from `tales-forge-docs`)
+- **Decision queue** and **shared docs** (from `docs/` in this repo)
 - List and delete game sessions; edit `world_state` JSON
 - Inspect and edit per-session NPC runtime state (stock, mood, memories)
 - Browse turn history (read-only)

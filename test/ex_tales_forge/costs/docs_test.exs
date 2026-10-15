@@ -1,6 +1,6 @@
 defmodule TalesForge.Costs.DocsTest do
   @moduledoc """
-  Coding standards for the costs modules (tales-forge-docs
+  Coding standards for the costs modules (ex-tales-forge
   docs/coding-standards.md): a `@moduledoc` and a `@doc` on every public
   function. `@spec`s are checked by Credo (`Readability.Specs`, `.credo.exs`).
   """
