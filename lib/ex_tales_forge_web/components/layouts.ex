@@ -16,38 +16,35 @@ defmodule TalesForgeWeb.Layouts do
   embed_templates "layouts/*"
 
   @doc """
-  True for the team pages (`/team` and the paths below it). The root layout
-  links the web app manifest on these pages only.
-
-      iex> TalesForgeWeb.Layouts.team_app?(%Plug.Conn{request_path: "/team"})
-      true
-      iex> TalesForgeWeb.Layouts.team_app?(%Plug.Conn{request_path: "/team/work-log"})
-      true
-      iex> TalesForgeWeb.Layouts.team_app?(%Plug.Conn{request_path: "/teams"})
-      false
-      iex> TalesForgeWeb.Layouts.team_app?(nil)
-      false
+  The head tags of the installable app (PWA): the web app manifest
+  (`TalesForgeWeb.WebAppController`), the theme colour, the icons and the
+  Home Screen title for iPhone, plus the registration of the install-only
+  service worker (`priv/static/sw.js`). The name is "Tales Forge Playtest"
+  on playtest.
   """
-  @spec team_app?(Plug.Conn.t() | nil) :: boolean()
-  def team_app?(%Plug.Conn{request_path: path}),
-    do: path == "/team" or String.starts_with?(path, "/team/")
+  @spec app_head(map()) :: Phoenix.LiveView.Rendered.t()
+  def app_head(assigns) do
+    assigns =
+      assigns
+      |> assign(:app_name, TalesForgeWeb.WebAppController.app_name())
+      |> assign(:theme_color, TalesForgeWeb.WebAppController.theme_color())
 
-  def team_app?(_conn), do: false
-
-  @doc """
-  The head tags of the installed team app: the web app manifest
-  (`priv/static/team-app/manifest.webmanifest`) and the Home Screen icon and
-  title for iPhone.
-  """
-  @spec team_app_head(map()) :: Phoenix.LiveView.Rendered.t()
-  def team_app_head(assigns) do
     ~H"""
-    <link rel="manifest" href="/team-app/manifest.webmanifest" />
-    <meta name="theme-color" content="#1f1a14" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content={@theme_color} />
+    <meta name="application-name" content={@app_name} />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Tales Forge team" />
-    <link rel="apple-touch-icon" href="/team-app/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content={@app_name} />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/app/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/app/apple-touch-icon.png" />
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js"))
+      }
+    </script>
     """
   end
 

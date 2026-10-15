@@ -18,6 +18,7 @@ defmodule TalesForgeWeb.AccessControlTest do
   # needs a reason; everything else must require a team member.
   @public [
     {:get, "/health"},
+    {:get, "/manifest.webmanifest"},
     {:get, "/admin/login"},
     {:get, "/admin/auth/github"},
     {:get, "/admin/auth/github/callback"},
