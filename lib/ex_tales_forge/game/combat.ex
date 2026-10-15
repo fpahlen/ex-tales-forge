@@ -113,12 +113,12 @@ defmodule TalesForge.Game.Combat do
   The word for an attack band, as the player reads it.
 
       iex> Enum.map(~w(critical_success success partial_success failure critical_failure), &TalesForge.Game.Combat.result_word/1)
-      ["critical hit", "hit", "near miss", "miss", "critical miss"]
+      ["critical hit", "hit", "miss (near miss)", "miss", "critical miss"]
   """
   @spec result_word(String.t() | nil) :: String.t()
   def result_word("critical_success"), do: "critical hit"
   def result_word("success"), do: "hit"
-  def result_word("partial_success"), do: "near miss"
+  def result_word("partial_success"), do: "miss (near miss)"
   def result_word("critical_failure"), do: "critical miss"
   def result_word(_), do: "miss"
 
@@ -214,6 +214,7 @@ defmodule TalesForge.Game.Combat do
     before = defender |> Map.get("wounds", 0) |> to_int(0) |> min(cap)
     vitality_before = Map.get(defender, "vitality") || vitality(before, cap)
     {wounds, vitality} = take_hit(hit, before, cap, vitality_before, defender, rolls)
+    death = death_roll(hit, before, cap, vitality_before, defender, rolls)
 
     counter =
       if vitality in ~w(ok hurt) do
@@ -233,8 +234,11 @@ defmodule TalesForge.Game.Combat do
         "target" => target,
         "roll" => rolls.attack,
         "hit" => hit,
-        "result" => result
+        "result" => result,
+        "untrained" => untrained?(attacker, attack_skill)
       },
+      "death" => death,
+      "qa_forced" => Map.get(rolls, :qa_forced, false),
       "counter" => counter,
       "defender_wounds" => wounds,
       "defender_wound_max" => cap,
@@ -242,6 +246,23 @@ defmodule TalesForge.Game.Combat do
       "attacker_wounded" => (counter && counter["hit"]) || false
     }
   end
+
+  # QA 2026-10-15: the death roll of a hit on a downed defender, so the line
+  # can show it. The defender dies when the d100 is above CON × 2.5
+  # (`combat.md`), so `"kills_above"` is that number, rounded down.
+  defp death_roll(true, wounds, cap, vitality, defender, rolls)
+       when wounds >= cap and vitality != "dead" do
+    con = defender |> get_in(["stats", "CON"]) |> to_int(10)
+    roll = Map.get(rolls, :death, 1)
+    %{"roll" => roll, "kills_above" => trunc(con * 2.5), "dead" => roll > con * 2.5}
+  end
+
+  defp death_roll(_hit, _wounds, _cap, _vitality, _defender, _rolls), do: nil
+
+  # A fighter with level 0 in the skill rolls the untrained floor
+  # (`Mechanics.untrained_floor/1`). A minor foe is always untrained.
+  defp untrained?(%{"minor" => true}, _skill), do: true
+  defp untrained?(fighter, skill), do: Mechanics.raw_level(fighter, skill) <= 0
 
   defp take_hit(false, wounds, _cap, vitality, _defender, _rolls), do: {wounds, vitality}
   defp take_hit(true, wounds, _cap, "dead", _defender, _rolls), do: {wounds, "dead"}
@@ -275,7 +296,8 @@ defmodule TalesForge.Game.Combat do
         "target" => target,
         "roll" => roll,
         "hit" => hit?(roll, target),
-        "result" => result(roll, target)
+        "result" => result(roll, target),
+        "untrained" => untrained?(defender, skill)
       }
     end
   end
@@ -557,7 +579,8 @@ defmodule TalesForge.Game.Combat do
   def prompt_section(%{"attack" => attack} = ex) do
     lines =
       [
-        "- #{ex["attacker"]} attacks #{ex["defender"]} (#{attack["skill"]} #{attack["level"]}, #{ex["defender"]}'s Parry #{attack["parry"]}): d100 #{attack["roll"]} against #{attack["target"]}. #{sentence(band_word(attack))}.#{critical_note(attack)}",
+        "- #{ex["attacker"]} attacks #{ex["defender"]} (#{level_text(attack)}, #{ex["defender"]}'s Parry #{attack["parry"]}): d100 #{attack["roll"]} against #{attack["target"]}. #{sentence(band_word(attack))}.#{critical_note(attack)}",
+        death_line(ex),
         defender_line(ex),
         counter_line(ex)
       ]
@@ -583,12 +606,12 @@ defmodule TalesForge.Game.Combat do
       iex> TalesForge.Game.Combat.summary(ex)
       "Attack: d100 15 vs 5 (melee_combat 15, Brenna's Parry 60): miss. Brenna: 0/3 wounds. Counterattack: d100 20 vs 45 (melee_combat 45, Ezzor's Parry 50): hit, Ezzor takes 1 wound."
       iex> TalesForge.Game.Combat.summary(put_in(ex, ["attack", "result"], "partial_success"))
-      "Attack: d100 15 vs 5 (melee_combat 15, Brenna's Parry 60): near miss. Brenna: 0/3 wounds. Counterattack: d100 20 vs 45 (melee_combat 45, Ezzor's Parry 50): hit, Ezzor takes 1 wound."
+      "Attack: d100 15 vs 5 (melee_combat 15, Brenna's Parry 60): miss (near miss). Brenna: 0/3 wounds. Counterattack: d100 20 vs 45 (melee_combat 45, Ezzor's Parry 50): hit, Ezzor takes 1 wound."
   """
   @spec summary(map() | nil) :: String.t() | nil
   def summary(%{"attack" => a} = ex) do
     attack =
-      "Attack: d100 #{a["roll"]} vs #{a["target"]} (#{a["skill"]} #{a["level"]}, #{ex["defender"]}'s Parry #{a["parry"]}): #{band_word(a)}."
+      "Attack: d100 #{a["roll"]}#{forced_tail(ex)} vs #{a["target"]} (#{level_text(a)}, #{ex["defender"]}'s Parry #{a["parry"]}): #{band_word(a)}."
 
     wounds =
       "#{ex["defender"]}: #{ex["defender_wounds"]}/#{ex["defender_wound_max"]} wounds#{vitality_tail(ex["defender_vitality"])}."
@@ -601,17 +624,80 @@ defmodule TalesForge.Game.Combat do
               do: "#{band_word(c)}, #{ex["attacker"]} takes 1 wound.",
               else: "#{band_word(c)}."
 
-          "Counterattack: d100 #{c["roll"]} vs #{c["target"]} (#{c["skill"]} #{c["level"]}, #{ex["attacker"]}'s Parry #{c["parry"]}): " <>
+          "Counterattack: d100 #{c["roll"]} vs #{c["target"]} (#{level_text(c)}, #{ex["attacker"]}'s Parry #{c["parry"]}): " <>
             tail
 
         _ ->
           if ex["defender_vitality"] in ~w(ok hurt), do: "No counterattack.", else: nil
       end
 
-    [attack, wounds, counter] |> Enum.reject(&is_nil/1) |> Enum.join(" ")
+    [attack, death_text(ex), wounds, counter] |> Enum.reject(&is_nil/1) |> Enum.join(" ")
   end
 
   def summary(_exchange), do: nil
+
+  # "unarmed_combat 20 untrained": level 0 in the skill rolls the untrained
+  # floor, 5 × (stat ÷ 3) (QA 2026-10-15: "unarmed_combat 20" with skill 0).
+  defp level_text(%{"untrained" => true} = a), do: "#{a["skill"]} #{a["level"]} untrained"
+  defp level_text(a), do: "#{a["skill"]} #{a["level"]}"
+
+  defp forced_tail(%{"qa_forced" => true}), do: " (QA forced)"
+  defp forced_tail(_ex), do: ""
+
+  @doc """
+  The death roll text of an exchange, or nil when the hit made no death roll.
+
+      iex> TalesForge.Game.Combat.death_text(%{"defender" => "Marta Kellen",
+      ...>   "death" => %{"roll" => 83, "kills_above" => 27, "dead" => true}})
+      "Death roll: d100 83, above 27 kills: Marta Kellen dies."
+      iex> TalesForge.Game.Combat.death_text(%{"defender" => "Marta Kellen",
+      ...>   "death" => %{"roll" => 12, "kills_above" => 27, "dead" => false}})
+      "Death roll: d100 12, above 27 kills: Marta Kellen lives, still down."
+  """
+  @spec death_text(map()) :: String.t() | nil
+  def death_text(%{"death" => %{"roll" => roll, "kills_above" => above} = d} = ex) do
+    fate = if d["dead"], do: "dies", else: "lives, still down"
+    "Death roll: d100 #{roll}, above #{above} kills: #{ex["defender"]} #{fate}."
+  end
+
+  def death_text(_ex), do: nil
+
+  @doc """
+  The GM prompt section for the dead and the downed people of the world
+  (QA 2026-10-15, session 99817343: a dead Marta talked again in the
+  cellar). Nil when nobody is dead or down.
+
+      iex> TalesForge.Game.Combat.fallen_section(%{"npc_state" => %{"marta_kellen" =>
+      ...>   %{"name" => "Marta Kellen", "vitality" => "dead", "location_id" => "weary_pilgrim"}}})
+      "## The dead and the downed (server state)\\nThese people cannot come back. Never narrate them alive, moving, talking or acting.\\n- Marta Kellen is dead. The body lies at weary_pilgrim.\\n"
+      iex> TalesForge.Game.Combat.fallen_section(%{"npc_state" => %{}})
+      nil
+  """
+  @spec fallen_section(map() | nil) :: String.t() | nil
+  def fallen_section(%{"npc_state" => state}) when is_map(state) do
+    lines =
+      state
+      |> Enum.filter(fn {_id, npc} -> is_map(npc) and npc["vitality"] in ~w(dead down) end)
+      |> Enum.sort_by(fn {id, _npc} -> id end)
+      |> Enum.map(fn {id, npc} -> fallen_line(npc["name"] || id, npc) end)
+
+    if lines == [] do
+      nil
+    else
+      "## The dead and the downed (server state)\n" <>
+        "These people cannot come back. Never narrate them alive, moving, talking or acting.\n" <>
+        Enum.join(lines, "\n") <> "\n"
+    end
+  end
+
+  def fallen_section(_world), do: nil
+
+  defp fallen_line(name, %{"vitality" => "dead"} = npc),
+    do: "- #{name} is dead. The body lies at #{npc["location_id"] || "the place of the fight"}."
+
+  defp fallen_line(name, npc),
+    do:
+      "- #{name} is down at #{npc["location_id"] || "the place of the fight"}: alive, but cannot fight, stand, talk or leave."
 
   # The locked effect of a critical attack (card 26706846, answer 4) for the GM.
   defp critical_note(%{"result" => "critical_success", "skill" => skill}),
@@ -633,6 +719,13 @@ defmodule TalesForge.Game.Combat do
   defp band_word(_), do: "miss"
 
   defp sentence(word), do: String.capitalize(word)
+
+  defp death_line(ex) do
+    case death_text(ex) do
+      nil -> nil
+      text -> "- " <> text
+    end
+  end
 
   defp defender_line(ex) do
     state =
@@ -657,7 +750,7 @@ defmodule TalesForge.Game.Combat do
         do: "#{sentence(band_word(c))}: #{ex["attacker"]} takes 1 wound.",
         else: "#{sentence(band_word(c))}: #{ex["attacker"]} takes no wound."
 
-    "- #{ex["defender"]} counterattacks #{ex["attacker"]} (#{c["skill"]} #{c["level"]}, Parry #{c["parry"]}): d100 #{c["roll"]} against #{c["target"]}. #{result}"
+    "- #{ex["defender"]} counterattacks #{ex["attacker"]} (#{level_text(c)}, Parry #{c["parry"]}): d100 #{c["roll"]} against #{c["target"]}. #{result}"
   end
 
   defp name(fighter), do: Map.get(fighter, "name") || Map.get(fighter, "id") || "the character"

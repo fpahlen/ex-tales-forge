@@ -104,7 +104,13 @@ defmodule TalesForge.Game.NpcReactions do
   @spec react(String.t(), map(), integer(), String.t(), struct() | nil, [map()]) ::
           {[reaction()], map()}
   def react(session_id, world, turn_number, raw_action, mechanical, findings \\ []) do
-    present = List.wrap(world["present_npcs"])
+    # A dead person does not react (QA 2026-10-15, session 99817343).
+    state = world["npc_state"] || %{}
+
+    present =
+      world["present_npcs"]
+      |> List.wrap()
+      |> Enum.reject(&TalesForge.Game.Context.dead?(state, &1))
 
     npcs =
       if enabled?() and present != [] do
