@@ -229,6 +229,64 @@ defmodule TalesForge.LLM do
     end
   end
 
+  @persona_interview_schema %{
+    "type" => "object",
+    "required" => ["answers", "top_improvements", "quit_risks"],
+    "properties" => %{
+      "answers" => %{
+        "type" => "array",
+        "items" => %{
+          "type" => "object",
+          "required" => ["q_id", "text"],
+          "properties" => %{
+            "q_id" => %{"type" => "string"},
+            "text" => %{"type" => "string"}
+          }
+        }
+      },
+      "top_improvements" => %{"type" => "array", "items" => %{"type" => "string"}},
+      "quit_risks" => %{"type" => "array", "items" => %{"type" => "string"}}
+    }
+  }
+  @persona_interview_max_tokens 900
+
+  @doc """
+  One persona's focus-group interview (`TalesForge.Playtest.FocusGroup`):
+  `answers` (`q_id`, `text`), `top_improvements` and `quit_risks`. Purpose
+  `persona_interview`, a bot spend bucket. The mock reply answers the bank
+  questions with a fixed text.
+  """
+  @spec complete_persona_interview(String.t(), String.t(), keyword()) :: result(map())
+  def complete_persona_interview(system, user, opts \\ []) do
+    model = tier2_model()
+
+    if mock?(model) do
+      {:ok, mock_persona_interview()}
+    else
+      complete_json(
+        model,
+        simple_messages(system, user),
+        @persona_interview_schema,
+        Config.tier2_temperature(),
+        tier: :persona_interview,
+        max_tokens: @persona_interview_max_tokens,
+        session_id: opts[:session_id]
+      )
+    end
+  end
+
+  defp mock_persona_interview do
+    %{
+      "answers" =>
+        for(
+          q <- TalesForge.Playtest.FocusGroup.Questions.bank(),
+          do: %{"q_id" => q.id, "text" => "Mock answer."}
+        ),
+      "top_improvements" => ["Mock: more danger in the first turns."],
+      "quit_risks" => []
+    }
+  end
+
   @fact_extract_schema %{
     "type" => "object",
     "required" => ["facts"],

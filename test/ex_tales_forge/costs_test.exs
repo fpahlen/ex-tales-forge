@@ -23,12 +23,13 @@ defmodule TalesForge.CostsTest do
 
   describe "buckets" do
     test "game is every purpose that isn't a bot purpose" do
-      assert AICalls.buckets() == ["game", "persona", "scorer"]
+      assert AICalls.buckets() == ["game", "persona", "scorer", "persona_interview"]
       assert AICalls.bucket("gm") == "game"
       assert AICalls.bucket("intent") == "game"
       assert AICalls.bucket("scene") == "game"
       assert AICalls.bucket("persona") == "persona"
       assert AICalls.bucket("scorer") == "scorer"
+      assert AICalls.bucket("persona_interview") == "persona_interview"
     end
 
     test "spend_by_bucket sums calls, cost, capped and errors per bucket" do
@@ -38,11 +39,13 @@ defmodule TalesForge.CostsTest do
       insert!("gm", nil, ~U[2026-10-15 09:00:00Z], status: "capped")
       insert!("persona", 50, ~U[2026-10-15 09:00:00Z])
       insert!("persona", 0, ~U[2026-10-15 09:00:00Z], status: "capped")
+      insert!("persona_interview", 70, ~U[2026-10-15 09:00:00Z])
 
       assert AICalls.spend_by_bucket(~U[2026-10-15 00:00:00Z], @now) == %{
                "game" => %{calls: 4, cost_micro_usd: 1_500, capped: 1, errors: 1},
                "persona" => %{calls: 2, cost_micro_usd: 50, capped: 1, errors: 0},
-               "scorer" => %{calls: 0, cost_micro_usd: 0, capped: 0, errors: 0}
+               "scorer" => %{calls: 0, cost_micro_usd: 0, capped: 0, errors: 0},
+               "persona_interview" => %{calls: 1, cost_micro_usd: 70, capped: 0, errors: 0}
              }
     end
   end

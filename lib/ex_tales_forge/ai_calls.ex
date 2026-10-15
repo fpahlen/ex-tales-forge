@@ -26,7 +26,7 @@ defmodule TalesForge.AICalls do
   @ticks_per_micro_usd 10_000
   @day_zone "Europe/Stockholm"
   # Playtest bot calls: outside the session cap and the game's cost figures.
-  @bot_purposes ~w(persona scorer)
+  @bot_purposes ~w(persona scorer persona_interview)
   @default_persona_run_micro_usd 500_000
 
   @doc """
@@ -128,7 +128,7 @@ defmodule TalesForge.AICalls do
 
   @doc """
   Spend buckets, in display order: "game" (gm, intent, scene and any other game
-  call) and one bucket per playtest bot purpose ("persona", "scorer").
+  call) and one bucket per playtest bot purpose ("persona", "scorer", "persona_interview").
   """
   def buckets, do: ["game" | @bot_purposes]
 
