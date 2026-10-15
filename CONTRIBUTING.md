@@ -30,3 +30,13 @@ Decision: tales-forge-docs `docs/decisions.md`, 2026-10-10, "Positive framing an
 | `@doc "Returns the confident share (0 to 1)."` | `@doc "Basically gives you roughly how sure-ish Jev was."` |
 
 Old names (for example `unsure_share`, `unsure_pct`) change to the confidence form when you touch them. A separate rename PR does the rest. Do not change the GM, Jev or intent prompts for wording only: a prompt change needs its own decision, and the baseline GM prompt golden test stays byte-identical.
+
+## Dependencies
+
+Only add a dependency (Hex package, npm package, and so on) when it is actively maintained or held in high standing (widely used, stable, trusted maintainers). Decision: `docs/decisions.md`, 2026-10-15, "Only add maintained or well-regarded dependencies" (Fredrik).
+
+In the pull request, name the package and say why it meets the rule.
+
+Checklist line for each pull request:
+
+- New dependency? Actively maintained or high standing (widely used, stable, trusted maintainers); name it and why in the PR.
