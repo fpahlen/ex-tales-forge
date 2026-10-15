@@ -28,6 +28,7 @@ Also in this folder:
 - [Design: the Tin Valley world around the inn](design-tin-valley-world.md): new places and people for every player type (`INN_WORLD`), the Tinjacks antagonist on world time (`WORLD_ANTAGONIST`), flags and cost
 - [Design: playtest loop](design-playtest-loop.md): how persona bots play, get scored, and feed fixes and decisions (draft)
 - [Jev persona-affect scoring](jev-scoring.md): TypeSafe Jev for numeric persona-feeling scores (first cut 2026-10-07; not built yet)
+- [Design: Jev as player-intent gate](design-jev-intent-gate.md): Jev checks player input up front; the GM gets a typed turn brief instead of prose (draft, 2026-10-07). The later approved direction is [Design: player intent as one Jev call](design-jev-intent.md) (2026-10-08).
 - [Analysis: Jev scores from the playtests (2026-10-07)](analysis-jev-scores-2026-10-07.md): per persona, by turn, correlations (dice failures and NPC brush-offs drive low scores), Hawk's low confidence, recommendations
 - [Analysis: Jev after the inn-world, scene-change and Brenna rework (2026-10-08)](analysis-jev-post-rework-2026-10-08.md): 23-run post-rework series vs the 2026-10-07 baseline (new rubric for Paul and Lotta): leaving the inn, echo and tics, the Tinjacks, growth, cost, a turn hang
 - [Analysis: INTENT_CALL_EVERY_TURN off vs on (2026-10-08)](analysis-intent-every-turn-2026-10-08.md): 20-run playtest batch on ex-tales-forge #76 with the flag off and on: quote rate, clarification loops, Jev, safety labels, cost (game vs persona), latency, hangs

@@ -58,6 +58,16 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 
 <!-- board:idea:49ed3d1c-d517-41f5-966f-e5af11af40e7 -->
 
+## 2026-10-14: Times in UTC, shown in the local time of the viewer
+
+- Decided by: Fredrik
+- Store every time in UTC: database columns, logs, JSON and API payloads.
+- Schedule every job, timer and cron rule in UTC.
+- Show each time in the local time zone of the viewer. The browser does the change from UTC, so each founder sees their own time zone.
+- Send times to the browser as ISO 8601 in UTC (for example `2026-10-14T06:00:00Z`).
+- Existing code that shows a fixed zone (for example Stockholm) moves to the local time of the viewer when we change that code, and a cleanup PR does the rest.
+- Applies to the product app and to Workflow.
+
 ## 2026-10-14: Switch to D100 percentage system
 
 - **Decision (hawkan.fredriksson@gmail.com, 2026-10-14, on the idea board):** build it. System change from D20-system to D100-system so we work in percentage, applicable for all skills
