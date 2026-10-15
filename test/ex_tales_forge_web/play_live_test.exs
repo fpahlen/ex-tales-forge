@@ -41,6 +41,7 @@ defmodule TalesForgeWeb.PlayLiveTest do
       |> Enum.find(&(&1.game_session_id == session.id))
 
     assert is_integer(turn.mechanical_resolution["roll"])
+
     assert turn.mechanical_resolution["outcome"] in [
              "critical_success",
              "success",
