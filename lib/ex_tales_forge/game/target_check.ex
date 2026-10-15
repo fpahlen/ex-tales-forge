@@ -11,8 +11,17 @@ defmodule TalesForge.Game.TargetCheck do
 
   A blocked action rolls nothing and costs no game time
   (`TalesForge.Game.Turn.Mechanics`).
+
+  The check finds the person from the action target (a world id or a
+  name). When the target names nobody, the check reads the player's text
+  for the name of a dead person (QA 2026-10-15 retest, session 9a1ff8c2:
+  "I persuade Marta" at her body had no target, because the intent step
+  sees only the living, and the turn rolled persuasion). The social skill
+  comes from the action or from the verb in the text, so the intent
+  classifier and the fallback reading get the same result.
   """
 
+  alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Schemas.SingleAction
   alias TalesForge.Game.World
 
@@ -34,11 +43,22 @@ defmodule TalesForge.Game.TargetCheck do
       iex> TalesForge.Game.TargetCheck.reason(world, %{action | action_type: :observe})
       nil
   """
-  @spec reason(map(), SingleAction.t()) :: String.t() | nil
-  def reason(world, %SingleAction{target: target} = action) when is_binary(target) do
-    npc = get_in(world, ["npc_state", target])
-    skill = (action.parameters || %{})["skill"]
+  @spec reason(map(), SingleAction.t(), String.t() | nil) :: String.t() | nil
+  def reason(world, action, text \\ nil)
 
+  def reason(world, %SingleAction{} = action, text) when is_map(world) do
+    state = npc_state(world)
+    skill = social_skill(action, text)
+
+    case find_target(state, action.target, text) do
+      nil -> nil
+      target -> target_reason(world, action, skill, target, state[target])
+    end
+  end
+
+  def reason(_world, _action, _text), do: nil
+
+  defp target_reason(world, action, skill, target, npc) do
     cond do
       not is_map(npc) ->
         nil
@@ -56,7 +76,60 @@ defmodule TalesForge.Game.TargetCheck do
     end
   end
 
-  def reason(_world, _action), do: nil
+  defp npc_state(world) do
+    case world["npc_state"] do
+      %{} = state -> state
+      _ -> %{}
+    end
+  end
+
+  defp social_skill(action, text) do
+    skill = (action.parameters || %{})["skill"] |> Mechanics.normalize_skill_name()
+
+    cond do
+      skill in @social_skills ->
+        skill
+
+      is_binary(text) and Mechanics.infer_check_skill(text) in @social_skills ->
+        Mechanics.infer_check_skill(text)
+
+      true ->
+        skill
+    end
+  end
+
+  # The world id of the target: the action target as an id or a name, else
+  # a dead person that the text names.
+  defp find_target(state, target, text) do
+    named = if is_binary(target), do: by_name(state, target, fn _ -> true end)
+
+    cond do
+      is_binary(target) and Map.has_key?(state, target) -> target
+      is_binary(named) -> named
+      is_binary(text) -> by_name(state, text, &dead?/1)
+      true -> nil
+    end
+  end
+
+  defp dead?(npc), do: is_map(npc) and npc["vitality"] == "dead"
+
+  # The id of the first person (by id) whose full name or a name word of
+  # four letters or more is a word of `text`.
+  defp by_name(state, text, keep?) do
+    words = words(text)
+
+    state
+    |> Enum.filter(fn {_id, npc} -> is_map(npc) and keep?.(npc) end)
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.find_value(fn {id, npc} ->
+      names = words("#{npc["name"]} #{String.replace(id, "_", " ")}")
+      if Enum.any?(names, &(String.length(&1) >= 4 and &1 in words)), do: id
+    end)
+  end
+
+  defp words(text) do
+    text |> String.downcase() |> String.split(~r/[^\p{L}\p{N}]+/u, trim: true)
+  end
 
   defp name(npc, id), do: npc["name"] || id
 

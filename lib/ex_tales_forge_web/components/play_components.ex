@@ -365,17 +365,29 @@ defmodule TalesForgeWeb.PlayComponents do
   @doc """
   The people of the Present panel: the present NPCs, then the minor foes
   (#270) at the current location. Each person has a `wounds_label` when the
-  person has a wound or is down or dead (QA 2026-10-14 08:57).
+  person has a wound or is down (QA 2026-10-14 08:57). A dead person is
+  never present (QA 2026-10-15 retest, session 9a1ff8c2: a dead Marta, kept
+  as a minor foe, stayed in the panel with an empty `present_npcs`).
+
+      iex> TalesForgeWeb.PlayComponents.present_npcs(%{"location_id" => "inn", "present_npcs" => [],
+      ...>   "npc_state" => %{"marta_kellen" => %{"name" => "Marta Kellen", "minor" => true,
+      ...>   "location_id" => "inn", "vitality" => "dead"}}})
+      []
   """
   def present_npcs(world_state) when is_map(world_state) do
-    npc_ids = List.wrap(Map.get(world_state, "present_npcs", []))
     npc_state = Map.get(world_state, "npc_state") || %{}
+
+    npc_ids =
+      world_state
+      |> Map.get("present_npcs", [])
+      |> List.wrap()
+      |> Enum.reject(&(get_in(npc_state, [&1, "vitality"]) == "dead"))
 
     foe_ids =
       npc_state
       |> Enum.filter(fn {id, npc} ->
-        is_map(npc) and npc["minor"] == true and id not in npc_ids and
-          npc["location_id"] == world_state["location_id"]
+        is_map(npc) and npc["minor"] == true and npc["vitality"] != "dead" and
+          id not in npc_ids and npc["location_id"] == world_state["location_id"]
       end)
       |> Enum.map(&elem(&1, 0))
       |> Enum.sort()
@@ -394,11 +406,27 @@ defmodule TalesForgeWeb.PlayComponents do
     end)
   end
 
-  @doc "The last combat exchange text of the world (`combat_last`), or nil."
+  @doc """
+  The last combat exchange text of the world (`combat_last`), or nil. The
+  text shows only at the place of the fight (QA 2026-10-15: the panel still
+  showed the fight with Marta after the move to the square).
+
+      iex> world = %{"location_id" => "square", "combat_last" => %{"text" => "Attack", "location_id" => "inn"}}
+      iex> TalesForgeWeb.PlayComponents.last_exchange(world)
+      nil
+      iex> TalesForgeWeb.PlayComponents.last_exchange(%{world | "location_id" => "inn"})
+      "Attack"
+  """
   def last_exchange(world_state) when is_map(world_state) do
     case Map.get(world_state, "combat_last") do
-      %{"text" => text} when is_binary(text) -> text
-      _ -> nil
+      %{"text" => text, "location_id" => at} when is_binary(text) and is_binary(at) ->
+        if at == world_state["location_id"], do: text
+
+      %{"text" => text} when is_binary(text) ->
+        text
+
+      _ ->
+        nil
     end
   end
 
