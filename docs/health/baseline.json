@@ -795,226 +795,150 @@
     "all": [
       {
         "members": [
-          "lib/ex_tales_forge/actions/npc/emit_initiative.ex",
-          "lib/ex_tales_forge/actions/npc/react_to_time.ex",
-          "lib/ex_tales_forge/agents/npc_agent.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/npc_initiative.ex",
-          "lib/ex_tales_forge/npc_registry.ex",
-          "lib/ex_tales_forge/npc_signals.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 12
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/actions/npc/adjust_concern.ex",
-          "lib/ex_tales_forge/actions/npc/react_to_time.ex",
-          "lib/ex_tales_forge/agents/npc_agent.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/npc_registry.ex",
-          "lib/ex_tales_forge/npc_signals.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 11
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/actions/npc/on_overheard.ex",
-          "lib/ex_tales_forge/actions/npc/update_memory.ex",
-          "lib/ex_tales_forge/agents/npc_agent.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/npc_registry.ex",
-          "lib/ex_tales_forge/npc_signals.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 11
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/characters/defaults.ex",
-          "lib/ex_tales_forge/fronts.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/inventory.ex",
-          "lib/ex_tales_forge/game/pack.ex",
-          "lib/ex_tales_forge/game/perception.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 11
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/characters/thought.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/llm.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/prompt/profile.ex",
-          "lib/ex_tales_forge/prompt/sections.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex",
-          "lib/ex_tales_forge/world.ex"
-        ],
-        "size": 11
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
           "lib/ex_tales_forge/game/context.ex",
           "lib/ex_tales_forge/game/prompts.ex",
-          "lib/ex_tales_forge/game/scene_processor.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/prompt/profile.ex",
-          "lib/ex_tales_forge/prompt/sections.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex",
-          "lib/ex_tales_forge/world.ex"
-        ],
-        "size": 11
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/actions/npc/on_player_talked.ex",
-          "lib/ex_tales_forge/agents/npc_agent.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/npc_registry.ex",
-          "lib/ex_tales_forge/npc_signals.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 10
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/inventory.ex",
-          "lib/ex_tales_forge/game/premise_check.ex",
-          "lib/ex_tales_forge/game/turn/outcome.ex",
-          "lib/ex_tales_forge/game/turn/premise.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 10
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/characters.ex",
-          "lib/ex_tales_forge/characters/compression.ex",
-          "lib/ex_tales_forge/characters/memory.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 9
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/action_handler.ex",
-          "lib/ex_tales_forge/game/catalogue.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/inventory.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 9
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/inventory.ex",
-          "lib/ex_tales_forge/game/turn/mechanics.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex",
-          "lib/ex_tales_forge/world/prices.ex"
-        ],
-        "size": 9
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/npc_reactions.ex",
-          "lib/ex_tales_forge/game/turn.ex",
-          "lib/ex_tales_forge/game/turn/adapters.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 9
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
           "lib/ex_tales_forge/game/turn.ex",
           "lib/ex_tales_forge/game/turn/combat.ex",
           "lib/ex_tales_forge/game/turn/mechanics.ex",
           "lib/ex_tales_forge/game/turn_processor.ex",
           "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
           "lib/ex_tales_forge/workers/process_turn.ex"
         ],
-        "size": 9
+        "size": 11
       },
       {
         "members": [
-          "lib/ex_tales_forge/game/combat.ex",
           "lib/ex_tales_forge/game/context.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
           "lib/ex_tales_forge/game/turn.ex",
           "lib/ex_tales_forge/game/turn/npcs.ex",
           "lib/ex_tales_forge/game/turn/premise.ex",
           "lib/ex_tales_forge/game/turn_processor.ex",
           "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
+          "lib/ex_tales_forge/workers/process_turn.ex"
+        ],
+        "size": 11
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/game/context.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
+          "lib/ex_tales_forge/game/turn.ex",
+          "lib/ex_tales_forge/game/turn/adapters.ex",
+          "lib/ex_tales_forge/game/turn_processor.ex",
+          "lib/ex_tales_forge/game_sessions.ex",
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
+          "lib/ex_tales_forge/workers/process_turn.ex"
+        ],
+        "size": 10
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/game/context.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
+          "lib/ex_tales_forge/game/turn.ex",
+          "lib/ex_tales_forge/game/turn/gm.ex",
+          "lib/ex_tales_forge/game/turn_processor.ex",
+          "lib/ex_tales_forge/game_sessions.ex",
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
+          "lib/ex_tales_forge/workers/process_turn.ex"
+        ],
+        "size": 10
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/game/context.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
+          "lib/ex_tales_forge/game/turn.ex",
+          "lib/ex_tales_forge/game/turn/notice.ex",
+          "lib/ex_tales_forge/game/turn_processor.ex",
+          "lib/ex_tales_forge/game_sessions.ex",
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
+          "lib/ex_tales_forge/workers/process_turn.ex"
+        ],
+        "size": 10
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/game/context.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
+          "lib/ex_tales_forge/game/turn.ex",
+          "lib/ex_tales_forge/game/turn/prompt.ex",
+          "lib/ex_tales_forge/game/turn_processor.ex",
+          "lib/ex_tales_forge/game_sessions.ex",
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
+          "lib/ex_tales_forge/workers/process_turn.ex"
+        ],
+        "size": 10
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/game/context.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
+          "lib/ex_tales_forge/game/turn/outcome.ex",
+          "lib/ex_tales_forge/game/turn_processor.ex",
+          "lib/ex_tales_forge/game_sessions.ex",
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
+          "lib/ex_tales_forge/workers/process_turn.ex",
+          "lib/ex_tales_forge/world/extract.ex"
+        ],
+        "size": 10
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/characters/thought.ex",
+          "lib/ex_tales_forge/game/context.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
+          "lib/ex_tales_forge/game/turn_processor.ex",
+          "lib/ex_tales_forge/game_sessions.ex",
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
           "lib/ex_tales_forge/workers/process_turn.ex"
         ],
         "size": 9
       },
       {
         "members": [
-          "lib/ex_tales_forge/game/combat.ex",
           "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn/outcome.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
+          "lib/ex_tales_forge/game/scene_processor.ex",
           "lib/ex_tales_forge/game/turn_processor.ex",
           "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex",
-          "lib/ex_tales_forge/world.ex",
-          "lib/ex_tales_forge/world/extract.ex"
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
+          "lib/ex_tales_forge/workers/process_turn.ex"
+        ],
+        "size": 9
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/game/context.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
+          "lib/ex_tales_forge/game/turn.ex",
+          "lib/ex_tales_forge/game/turn_processor.ex",
+          "lib/ex_tales_forge/game_sessions.ex",
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
+          "lib/ex_tales_forge/workers/process_turn.ex"
         ],
         "size": 9
       },
@@ -1048,66 +972,14 @@
       },
       {
         "members": [
-          "lib/ex_tales_forge/game/combat.ex",
           "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/intent.ex",
-          "lib/ex_tales_forge/game/inventory.ex",
-          "lib/ex_tales_forge/game/player_quote.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
+          "lib/ex_tales_forge/game/scene_processor.ex",
           "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/intent_jev.ex",
-          "lib/ex_tales_forge/npc.ex"
-        ],
-        "size": 8
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/inventory.ex",
-          "lib/ex_tales_forge/game/train.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 8
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn.ex",
-          "lib/ex_tales_forge/game/turn/gm.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 8
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn.ex",
-          "lib/ex_tales_forge/game/turn/notice.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 8
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn.ex",
-          "lib/ex_tales_forge/game/turn/prompt.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
+          "lib/ex_tales_forge/workers/process_scene.ex"
         ],
         "size": 8
       },
@@ -1123,54 +995,6 @@
           "lib/ex_tales_forge_web/router.ex"
         ],
         "size": 8
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/characters.ex",
-          "lib/ex_tales_forge/characters/memory.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/prompt/profile.ex",
-          "lib/ex_tales_forge/prompt/sections.ex"
-        ],
-        "size": 7
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/inventory.ex",
-          "lib/ex_tales_forge/game/jev_intent.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/intent_jev.ex",
-          "lib/ex_tales_forge/npc.ex"
-        ],
-        "size": 7
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/inventory.ex",
-          "lib/ex_tales_forge/game/outcome_record.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/prompt/profile.ex",
-          "lib/ex_tales_forge/prompt/sections.ex"
-        ],
-        "size": 7
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/scene_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/workers/process_scene.ex",
-          "lib/ex_tales_forge/world.ex"
-        ],
-        "size": 7
       },
       {
         "members": [
@@ -1220,6 +1044,24 @@
           "lib/ex_tales_forge/game/inventory.ex",
           "lib/ex_tales_forge/game/pack.ex",
           "lib/ex_tales_forge/npc.ex"
+        ],
+        "size": 4
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/game/combat.ex",
+          "lib/ex_tales_forge/game/context.ex",
+          "lib/ex_tales_forge/game_sessions.ex",
+          "lib/ex_tales_forge/intent_jev.ex"
+        ],
+        "size": 4
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/game/combat.ex",
+          "lib/ex_tales_forge/game/context.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex"
         ],
         "size": 4
       },
@@ -1560,81 +1402,18 @@
     "compile-connected": [
       {
         "members": [
-          "lib/ex_tales_forge/actions/npc/emit_initiative.ex",
-          "lib/ex_tales_forge/actions/npc/react_to_time.ex",
-          "lib/ex_tales_forge/agents/npc_agent.ex",
-          "lib/ex_tales_forge/game/combat.ex",
           "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/npc_initiative.ex",
-          "lib/ex_tales_forge/npc_registry.ex",
-          "lib/ex_tales_forge/npc_signals.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 12
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/actions/npc/adjust_concern.ex",
-          "lib/ex_tales_forge/actions/npc/react_to_time.ex",
-          "lib/ex_tales_forge/agents/npc_agent.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/npc_registry.ex",
-          "lib/ex_tales_forge/npc_signals.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 11
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/actions/npc/on_overheard.ex",
-          "lib/ex_tales_forge/actions/npc/update_memory.ex",
-          "lib/ex_tales_forge/agents/npc_agent.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/npc_registry.ex",
-          "lib/ex_tales_forge/npc_signals.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 11
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/actions/npc/on_player_talked.ex",
-          "lib/ex_tales_forge/agents/npc_agent.ex",
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/turn_processor.ex",
-          "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
-          "lib/ex_tales_forge/npc_registry.ex",
-          "lib/ex_tales_forge/npc_signals.ex",
-          "lib/ex_tales_forge/workers/process_turn.ex"
-        ],
-        "size": 10
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/game/combat.ex",
-          "lib/ex_tales_forge/game/context.ex",
-          "lib/ex_tales_forge/game/npc_reactions.ex",
+          "lib/ex_tales_forge/game/prompts.ex",
           "lib/ex_tales_forge/game/turn.ex",
           "lib/ex_tales_forge/game/turn/adapters.ex",
           "lib/ex_tales_forge/game/turn_processor.ex",
           "lib/ex_tales_forge/game_sessions.ex",
-          "lib/ex_tales_forge/npc.ex",
+          "lib/ex_tales_forge/llm.ex",
+          "lib/ex_tales_forge/prompt/profile.ex",
+          "lib/ex_tales_forge/prompt/sections.ex",
           "lib/ex_tales_forge/workers/process_turn.ex"
         ],
-        "size": 9
+        "size": 10
       }
     ]
   },
@@ -1646,12 +1425,12 @@
   "summary": {
     "complex_function_count": 154,
     "cycle_count": {
-      "all": 78,
-      "compile-connected": 5
+      "all": 67,
+      "compile-connected": 1
     },
     "largest_cycle": {
-      "all": 12,
-      "compile-connected": 12
+      "all": 11,
+      "compile-connected": 10
     },
     "web_reference_edges": 6,
     "web_reference_files": 4

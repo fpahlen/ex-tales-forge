@@ -481,12 +481,9 @@ defmodule TalesForge.Game.Context do
     Enum.reject(present, &dead?(state, &1))
   end
 
-  @doc "True when the npc_state marks `npc_id` as dead."
+  @doc "See `TalesForge.Game.NpcState.dead?/2`."
   @spec dead?(map(), String.t()) :: boolean()
-  def dead?(npc_state, npc_id) when is_map(npc_state),
-    do: get_in(npc_state, [npc_id, "vitality"]) == "dead"
-
-  def dead?(_npc_state, _npc_id), do: false
+  defdelegate dead?(npc_state, npc_id), to: TalesForge.Game.NpcState
 
   # QA 2026-10-15: an exit with no location entry ("kings_road") showed its
   # raw id to the GM, and the id came out in the prose. The GM gets a name.
