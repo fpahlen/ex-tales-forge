@@ -13,6 +13,8 @@ defmodule TalesForge.Schemas.CharacterMemory do
   @kinds ~w(memory promise reaction fact)
   @tiers ~w(working short long)
 
+  @type t :: %__MODULE__{}
+
   schema "character_memories" do
     field :kind, :string
     field :text, :string
