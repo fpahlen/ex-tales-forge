@@ -2,6 +2,8 @@
 id: valley_inn
 name: Valley Inn
 parent: tin_valley_village
+at: [2, 3]
+scale: building
 exits:
   - market_square
 fixtures:

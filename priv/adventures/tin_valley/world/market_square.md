@@ -2,6 +2,7 @@
 id: market_square
 name: Market Square
 parent: tin_valley_village
+at: [4, 4]
 exits:
   - valley_inn
   - orc_approach

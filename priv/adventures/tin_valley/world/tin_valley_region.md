@@ -1,6 +1,7 @@
 ---
 id: tin_valley_region
 name: Tin Valley
+scale: region
 fixtures:
   - valley road
   - tin hills

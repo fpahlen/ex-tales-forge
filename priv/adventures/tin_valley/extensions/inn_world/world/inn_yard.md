@@ -2,6 +2,7 @@
 id: inn_yard
 name: Inn yard
 parent: tin_valley_village
+at: [1, 3]
 exits:
   - valley_inn
   - market_square

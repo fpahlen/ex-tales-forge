@@ -2,6 +2,8 @@
 id: tin_valley_village
 name: Tin Valley village
 parent: tin_valley_region
+at: [0, 0]
+scale: settlement
 fixtures:
   - muddy street
   - ore carts

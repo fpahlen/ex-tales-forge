@@ -13,6 +13,14 @@ Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas
 
 **Moved 2026-10-15.** This log was `docs/decisions.md` in `whyse-ab/tales-forge-docs` (now retired; the git history came with the move). The Workflow entries (idea board, team page, chat, inbox, Workflow split) moved to `docs/decision-history.md` in [whyse-ab/workflow](https://github.com/whyse-ab/workflow/blob/main/docs/decision-history.md). New Tales Forge decisions come here: the board writes each entry to this file (Tales Forge client file, `decision_log`).
 
+## 2026-10-16: Travel time comes from place positions (board card 7aba0394, PR 2)
+
+- Decided by: Fredrik (Case's proposal after Fredrik pointed at the map model of the original game; open question 3 was deferred)
+- A place can carry `at: [x, y]` (its position in its parent, in the parent's cells), `cell_m` (metres per cell) and `scale` (building 2 m, settlement 20 m, region 200 m per cell by default). The pack check fails at load on a bad value.
+- `TalesForge.Game.Travel` measures the straight line between two places in their lowest common ancestor. A place stands at `[0, 0]` of its own cells (its entry). The walk speed is 80 m a minute, and the time is rounded to the nearest 15-minute tick.
+- Thus a step inside a building or the village costs no tick, and travel at region scale costs ticks by distance (Tin Valley: square to mine 1 tick, inn to the Cut 2 ticks). A move between places with no position keeps the old cost of 1 tick.
+- Same flag as PR 1: HIERARCHICAL_LOCATIONS (on in playtest, off on production). No painted grid map and no fog of war in this card.
+
 ## 2026-10-16: Places form a tree; "go in", "go out" and travel use it (board card 7aba0394, PR 1)
 
 - Decided by: Fredrik (card in Building; the four open questions were deferred, so the build uses Case's recommendations)

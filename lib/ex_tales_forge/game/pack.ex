@@ -60,6 +60,7 @@ defmodule TalesForge.Game.Pack do
 
     validate_graph!(adventure["starting_location_id"], locations)
     validate_tree!(locations)
+    validate_positions!(locations)
     Fronts.validate!(fronts)
 
     %{
@@ -236,6 +237,48 @@ defmodule TalesForge.Game.Pack do
         end
     end
   end
+
+  @doc """
+  Checks the travel keys of each place (board card 7aba0394, PR 2): `at` is
+  `[x, y]` (numbers) on a place with a parent, `scale` is building,
+  settlement or region, and `cell_m` is a positive number.
+
+      iex> TalesForge.Game.Pack.validate_positions!(%{"v" => %{"scale" => "settlement"}, "inn" => %{"parent" => "v", "at" => [1, 2]}})
+      :ok
+      iex> TalesForge.Game.Pack.validate_positions!(%{"inn" => %{"at" => [1, 2]}})
+      ** (ArgumentError) location inn: at needs a parent
+  """
+  @spec validate_positions!(map()) :: :ok
+  def validate_positions!(locations) do
+    Enum.each(locations, fn {id, loc} -> position!(id, loc) end)
+  end
+
+  defp position!(id, loc) do
+    case loc["at"] do
+      nil ->
+        :ok
+
+      [x, y] when is_number(x) and is_number(y) ->
+        loc["parent"] || at_error!(id, "at needs a parent")
+
+      other ->
+        at_error!(id, "at must be [x, y], got #{inspect(other)}")
+    end
+
+    unless loc["scale"] in [nil, "building", "settlement", "region"],
+      do:
+        at_error!(
+          id,
+          "scale must be building, settlement or region, got #{inspect(loc["scale"])}"
+        )
+
+    unless is_nil(loc["cell_m"]) or (is_number(loc["cell_m"]) and loc["cell_m"] > 0),
+      do: at_error!(id, "cell_m must be a positive number, got #{inspect(loc["cell_m"])}")
+
+    :ok
+  end
+
+  defp at_error!(id, message), do: raise(ArgumentError, "location #{id}: #{message}")
 
   # Areas (a village, a region) are places that only the tree reaches: no
   # exits of their own and no exit to them. Without the feature
@@ -424,14 +467,37 @@ defmodule TalesForge.Game.Pack do
 
   # Optional movement keys (`TalesForge.Game.Movement`): other names for the
   # place, the exit "leave" means, whether travel through it stops here, and
-  # the place it is in (`parent`).
+  # the place it is in (`parent`), with its position there (`at`) and the
+  # size of its own cells (`scale`, `cell_m`), see TalesForge.Game.Travel.
   defp put_movement_keys(location, attrs) do
     location
     |> maybe_put_location("aliases", attrs["aliases"] && List.wrap(attrs["aliases"]))
     |> maybe_put_location("door", attrs["door"])
     |> maybe_put_location("checkpoint", if(attrs["checkpoint"] == true, do: true))
     |> maybe_put_location("parent", attrs["parent"])
+    |> maybe_put_location("at", attrs["at"] && attrs["at"] |> List.wrap() |> Enum.map(&number/1))
+    |> maybe_put_location("scale", attrs["scale"])
+    |> maybe_put_location("cell_m", attrs["cell_m"] && number(attrs["cell_m"]))
   end
+
+  # The frontmatter parser gives strings: "-4" and "2.5" become numbers; any
+  # other value stays, so validate_positions!/1 names it.
+  defp number(value) when is_number(value), do: value
+
+  defp number(value) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {n, ""} ->
+        n
+
+      _ ->
+        case Float.parse(String.trim(value)) do
+          {f, ""} -> f
+          _ -> value
+        end
+    end
+  end
+
+  defp number(value), do: value
 
   defp maybe_put_location(location, _key, nil), do: location
   defp maybe_put_location(location, key, value), do: Map.put(location, key, value)
