@@ -40,7 +40,7 @@ def house(x,y,w=2.2,h=1.6,roof=RED):
     ax.fill([x-w/2-0.3,x,x+w/2+0.3],[y+h/2,y+h/2+1.2,y+h/2],color=roof,alpha=0.75,ec=INK,lw=0.6,zorder=6.1)
 for (x,y) in [(68,50),(71,53),(74,49),(72,46),(66,46.5),(76,53),(77,46)]: house(x,y)
 label(ax,72,41.5,"The village",size=18,font=SC)
-label(ax,72,38.6,"Market Square · Valley Inn · headwoman's house",size=10,style="italic")
+label(ax,72,38.6,"eleven households · about 34 souls",size=10,style="italic")
 label(ax,62.5,53.5,"Valley Inn",size=11,font=SC,ha="right")
 label(ax,62.5,51,"at the foot of the tin road",size=9,style="italic",ha="right")
 # wagon yard
@@ -49,9 +49,9 @@ for dx in (58.2,60.8):
     ax.add_patch(plt.Rectangle((dx-0.8,45),1.6,1,color=(0.55,0.38,0.2),ec=INK,lw=0.5,zorder=6.2))
 label(ax,59.5,42.2,"Wagon yard",size=10,font=SC)
 # graves
-for gx,gy in [(68,32),(70,32.5),(72,31.8),(69,30),(71,30.4),(73,30.2),(74,32.2)]:
+for gx,gy in [(67,32),(69,32.4),(71,31.8),(73,32.3),(75,31.9),(67.6,29.9),(69.6,30.3),(71.6,29.8),(73.6,30.2),(75.6,29.9)]:
     ax.plot([gx,gx],[gy-0.6,gy+0.6],color=INK,lw=0.8,zorder=6); ax.plot([gx-0.35,gx+0.35],[gy+0.25,gy+0.25],color=INK,lw=0.8,zorder=6)
-label(ax,71,27.6,"Graves of the cave-in dead",size=10,style="italic")
+label(ax,71,27.6,"Graves of the ten cave-in dead",size=10,style="italic")
 # smelting sheds and sluice
 for (x,y) in [(90,58),(93,57)]: house(x,y,w=2.6,h=1.5,roof=(0.4,0.35,0.3))
 for k in range(3):
@@ -95,7 +95,7 @@ for kx,ky in [(105,26.5),(109,25),(107.5,29)]:
     t=np.linspace(0,np.pi,30); ax.fill(kx+1.6*np.cos(t),ky+1.1*np.sin(t),color=(0.35,0.3,0.25),ec=INK,lw=0.8,zorder=6.5)
     tt=np.linspace(0,1,20); ax.plot(kx+0.4*np.sin(tt*9),ky+1.1+tt*2.5,color=INK,lw=0.5,alpha=0.6,zorder=6.5)
 label(ax,112,27,"Charcoal kilns",size=11,font=SC,ha="left")
-label(ax,112,24.7,"Tilda Burrow's family",size=9,style="italic",ha="left")
+label(ax,112,24.7,"the Burrow household",size=9,style="italic",ha="left")
 # fields
 for fx0,fy0 in [(52,56),(56,59),(60,62)]:
     for k in range(4):

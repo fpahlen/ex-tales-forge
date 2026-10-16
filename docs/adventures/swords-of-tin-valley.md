@@ -1,6 +1,6 @@
 # Swords of Tin Valley
 
-Status: design draft. It extends the idea doc of 2026-10-15 with Fredrik's decisions of 2026-10-15 and 2026-10-16 (population, no gunpowder, the Ferrow hook).
+Status: design draft. It extends the idea doc of 2026-10-15 with Fredrik's decisions of 2026-10-15 and 2026-10-16 (a small family mine of 11 households, no gunpowder, the Ferrow hook).
 World: [Tin Valley](../worlds/tin-valley/).
 Inspiration: *Seven Samurai* (Kurosawa, 1954), *Godless* (Netflix, 2017), and George R. R. Martin's way with factions.
 Format: solo player. About 4 to 6 sessions.
@@ -28,7 +28,7 @@ This adventure builds relationships with NPCs over several sessions. The finale 
 
 The village tin mine is very rich. The Miners Guild wants it. The village has always refused to let the guild in.
 
-Last spring a cave-in killed 27 of the 32 men who worked underground. One of the dead was Tomas Harrow. He led the refusal. Now the widows run the mine and the village, with old men, older boys and a few hired hands (see "Village and valley population").
+The village is small: 11 families, about 44 people. Last spring a cave-in killed 10 of the 12 men who worked underground. One of the dead was Tomas Harrow. He led the refusal. Now the widows run the mine and the village, with an old man, two survivors, the older children and two hired hands (see "Village and valley population").
 
 Before he died, Tomas borrowed 60 gold from the Coldwater counting house in Ferrow, the market town beyond the pass. He paid for a water-wheel pump and its rod line, so the village could dig deeper without the guild. The loan falls due at the winter reckoning.
 
@@ -95,11 +95,11 @@ The mine is worked the old way. There is no gunpowder and no blasting.
 - **Smelting.** The tin ore is smelted with charcoal in the smelting sheds. Tin ore needs no long roasting, unlike the Swedish copper ores below. (Design assumption, not from the sources.)
 - **Fuel.** The fires, the smelting and the props all need wood. Woodcutters and charcoal burners work in the timber wood above the mine. Every household owes some days of wood and charcoal work.
 
-All of this is shown in fiction, never as rules text. It gives the GM real things to sabotage, repair and argue about: the woodpile, the sluice, the whim horses, the props, the charcoal kilns.
+All of this is shown in fiction, never as rules text. It gives the GM real things to sabotage, repair and argue about: the woodpile, the sluice, the whim horse, the props, the charcoal kilns.
 
 ## Village and valley population
 
-The 12 NPCs in the cast are the main active cast. But a mine cannot run on a handful of people. The village needs a believable population around them, so the GM can fill scenes.
+The 13 NPCs in the cast are the main active cast. Even a small family mine needs every household, so the village needs a believable population around them. This lets the GM fill scenes.
 
 ### What the sources say
 
@@ -127,86 +127,87 @@ We looked at Swedish copper mines before machines and gunpowder. Fröå gruva ou
 
 ### What we take from this
 
-- **Ratios, not totals.** Falun used about 4 to 5 men for each daily fire, counting breaking and moving the rock. Fröå had roughly 8 to 9 people in the community for each worker at the mine (618 people in 1768 against 73 at one shaft in 1779; different years, so this is rough). Falun's full chain, with distant fuel workers, came to 15 or more people per mine and furnace worker.
-- **Tin Valley is a small Fröå.** It is a farming village with a mine, not a mining town. We use about 8 people per mine worker. Fuel work is shared out as part-time duty across all households, as at Fröå, instead of a large full-time fuel crew as at Falun.
+Tin Valley is not a company works like Fröå or Falun. It is a small family mine: 11 families and a lone sheriff, about 44 people before the cave-in. The research still shapes it:
+
+- **The croft pattern (Fröå).** Every household farms a little, and the women do most of it. Every household owes days of wood, charcoal and carting. A household with no one at the mine loses out (the Fröå poorhouse rule).
+- **The fire ratio (Falun).** Falun needed about 4 to 5 men for each daily fire, counting breaking and moving the rock. Tin Valley's 8 breakers kept about 2 fires a night. Today's 4 keep 1.
+- **Fewer hands per worker.** Fröå had roughly 8 to 9 people in the community per worker at the mine (618 people in 1768 against 73 at one shaft in 1779; different years, so this is rough). Tin Valley had under 4 (44 people, 12 underground). A family mine has no company specialists, officials or distant fuel suppliers. Everyone does two jobs.
 - **Smaller fires.** The drifts are narrow, so we assume fires of about 1 m³ of wood each, not Falun's 5 m³. (Design assumption.)
 
-### Headcount, before and after the cave-in
+### Households
 
-Before the cave-in the valley had **about 280 people in about 48 households**. Today, on day 1, it has **about 250**. The cave-in killed 27 men. One family has since left for Ferrow.
+Eleven families, plus the sheriff, who lives alone. Before the cave-in: **44 people**. The cave-in killed **10**. Now: **34**.
 
-| Group | Before the cave-in | Now (day 1) | Notes |
+| # | Household | Before | Lost in the cave-in | Now | Who works where now |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **Harrow** (Harrow house) | Tomas, Marit, Elin 16, Ebba 9 | Tomas | 3 | Marit keeps the tally and leads the village. Elin is in Ferrow on day 1, then sorts and carts. |
+| 2 | **Carrow** | Jon, Rosa, Wil 12, Lill 6 | Jon | 3 | Rosa sorts ore. Wil wants to go underground. |
+| 3 | **Pell** | Davy, Agnes, three children under 7 | Davy | 4 | Agnes farms and sorts. She has no one to send underground. |
+| 4 | **Fenn** | Aron, Ide, Kit 15, Sigrid 11 | Aron | 3 | Kit carries ore underground. Ide sorts and burns charcoal. |
+| 5 | **Wray** | Jessop 61, Berit 58, their son Per, his wife Sanna, two children | Per | 5 | Jessop leads underground again. Sanna carries ore. Berit runs the sorting floor. |
+| 6 | **Moss** | Ansel 27, his brother Tor, Ansel's wife Greta, a baby | Tor | 3 | Ansel sets fires and props. Greta farms for two households. |
+| 7 | **Tanner** | Gunnar 55, his son Hob 34, Hob's wife Lene, two children | Gunnar | 4 | Hob, lamed, drives the whim horse. Lene carts. |
+| 8 | **Burrow** (at the kilns) | Edvin, Tilda 45, Oskar 17, Liv 14 | Edvin and Oskar | 2 | Tilda and Liv burn charcoal and cut wood. |
+| 9 | **Brask** (the forge) | Rolf, Hilde, her nephew Bram 18 | Rolf | 2 | Hilde smiths and smelts. Bram now breaks rock underground. |
+| 10 | **Holt** (Valley Inn) | Brenna, her nephew Tam 14 | none | 2 | Brenna keeps the inn and lodges the two hired day-men. |
+| 11 | **Old Maude's cottage** | Old Maude, her grandson Pip 15 | none | 2 | Maude heals. Pip runs errands, or runs with the Tinjacks if that extension is on. |
+| – | **Sheriff's house** | Elias Crane, alone | none | 1 | Crane dug out the dead. |
+| | **Total** | **44** | **10** | **34** | |
+
+The guild's people in the valley (Osric, a clerk and Caldern) are not counted.
+
+### Work by role
+
+Most jobs are shared across households. The numbers are rough full-time equivalents.
+
+| Role | Before the cave-in | Now (day 1) | Who now |
 | --- | --- | --- | --- |
-| Fire-setters and breakers | 18 | 6 | Now Jessop Wray, 2 able survivors and 3 hired day-men. Only Jessop and Ansel can lay a fire that cracks the face and not the roof. |
-| Ore carriers in the drifts | 8 | 8 | Now 6 older boys (14 to 16) and 2 widows. The village argues about the widows going down. |
-| Shaft crew at the horse whim | 3 | 1 | Plus 2 whim horses. One hired day-man. |
-| Timbermen (props) | 2 | 1 | Now Ansel Moss, who also sets fires. |
-| Foreman | 1 | 0 | The foreman died. Jessop leads, unofficially. |
-| **Underground total** | **32** | **16** | Before, a wagon of tin took 2 to 3 days. Now it takes about 5. |
-| Sorters | 12 | 16 | Women, children, old men. Now also the two crippled survivors and more widows. |
-| Pump and whim keeper | 1 | 1 | Simeon Rudd. |
-| Smiths | 2 | 2 | Hilde Brask and her nephew. Picks, wedges and sledges need constant work. |
-| Smelters | 4 | 4 | Garth Hollin and three hands. They work at the sheds, so all survived. |
-| Woodcutters | 8 | 6 | Two left for wages in Ferrow. |
-| Charcoal burners | 4 | 4 | Tilda Burrow's family, at the kilns in the timber wood. Every household also owes wood and charcoal days in autumn. |
-| Carters | 4 | 3 | Nan Tolley and two others. Old Rook rejoins if hired. |
-| Full-time farmers | about 12 (6 households) | about 12 | Every other household also keeps a plot, cows, sheep and goats. The women do most of it. |
-| Inn, healer, sheriff | 6 | 6 | Brenna, Tam and two hands. Old Maude. Sheriff Crane. |
-| Elders (60+) not working | about 20 | about 20 | Some, like Jessop, came back to work. |
-| Children under 14 | about 110 | about 110 | About 50 have lost a father. |
-| Guild people in the valley | 3 | 3 | Osric, a clerk and Caldern. Not counted in the village total. |
-
-The groups overlap. Many people do two jobs, and the totals are rounded.
+| Fire-setters and breakers | 8 | 4 | Jessop, Ansel, Bram, one day-man. Only Jessop and Ansel can lay a fire that cracks the face and not the roof. |
+| Ore carriers in the drifts | 3 | 3 | Kit, Sanna, one day-man. The village argues about a widow going down. |
+| Foreman and timberman | 1 (Tomas) | shared | Jessop leads. Ansel sets the props. |
+| **Underground total** | **12** | **7** | Including 2 hired day-men from Ferrow. |
+| Whim and pump | 1 (Jessop) | 1 | Hob, who cannot go down any more. |
+| Sorting | about 4 | about 4 | Berit leads. Rosa, Agnes, Ide, Elin and the children. |
+| Smithing and smelting | 2 | 1 to 2 | Hilde, with whoever she can borrow. |
+| Charcoal and wood | about 3 | about 2 | The Burrows, plus every household's duty days. |
+| Carting | shared | shared | Lene, Elin and the Wray and Tanner horses. Old Rook if hired. |
+| Farming | everyone | everyone | Mostly the women. Greta and Agnes carry the most. |
 
 ### What the cave-in changed
 
-- **27 dead, 21 widows.** Six of the dead were unmarried.
-- **Half the crew, half the skill.** The underground crew is half its old size, and many of them are boys, widows or hired men. Output has halved.
-- **Hired labour costs.** The 4 Ferrow day-men are paid about 24 copper a day each in tin and board (unskilled day rate, `rules/economy.md`). Over 30 days that is nearly 6 gold, the price of two more fighters. Cutting them frees money and costs tin. That is a real choice for the player.
-- **Who gets a share.** By the village's old custom, a household shares in the tin only if someone from it works the mine. (This mirrors the Fröå rule that a croft with no worker went to the poorhouse.) Agnes has no one old enough, which is one reason she wants to sell. Ide keeps her share because her son Kit carries ore. Wil wants to go down the mine to keep the Carrow share, and his mother will not let him.
-- **Every fighter in training is a worker lost.** See the rule of thumb under "The deadline clock".
+- **10 dead, 7 widows.** Seven of the 11 families lost a husband and father: Marit, Rosa, Agnes, Ide, Sanna, Tilda and Hilde are widows. Nine families lost someone. Tilda lost a husband and a son. Twelve children lost their father.
+- **Half the crew, less skill.** The underground crew fell from 12 to 7. Two of the 7 are hired and two are young. Only two people left know how to lay a safe fire.
+- **Hired labour costs.** The 2 Ferrow day-men (Lem Drury and another) are paid about 24 copper a day each in tin and board (unskilled day rate, `rules/economy.md`). Over 30 days that is about 2.9 gold, roughly one fighter's wage. Cutting them frees that money, but it costs about 4 days on the third wagon (see "The deadline clock"). It is a real choice, and usually a bad trade.
+- **Who gets a share.** By the village's old custom, the tin is shared by the hands each household puts into the mine, and underground hands count double. (This mirrors the Fröå rule that a croft with no worker went to the poorhouse.) Agnes has no one to send, so her share has almost gone. That is one reason she wants to sell. Ide keeps a share because Kit carries ore. Wil wants to go down to win back the Carrow share, and his mother will not let him.
+- **Every fighter in training is a worker lost.** With so few people, the player trains the same people who dig, sort and burn charcoal.
+- **Eleven votes.** Each household has one vote on selling. The sheriff has none.
 
 ### Supporting cast
 
-Short lines for the GM to fill scenes. OCEAN is given where it matters. The cast table above stays the main active cast. Names marked *canon* already exist in the Tin Valley inn-world pack (`priv/adventures/tin_valley/extensions/`).
-
-**The mine and the sheds**
-
-- **Jessop Wray**, 61, the old foreman, back at work. Wants the props done right this time. O 3, C 9, E 4, A 5, N 6.
-- **Berit Wray**, 58, his wife. Runs the sorting floor. Wants the children kept out of the drifts.
-- **Ansel Moss**, 27, survivor. He was at the shaft foot, not in the deep drift. Guilt. Believes it was the guild. O 5, C 6, E 3, A 5, N 8.
-- **Hob Tanner**, 34, survivor with a crushed leg. Now sorts ore. Wants to be useful. Drinks with Crane. O 4, C 5, E 5, A 6, N 8.
-- **Kit Fenn**, 15, Ide's son. Carries ore underground. Wants to be a man, and is afraid of the dark.
-- **Rosa Carrow**, Wil's mother. Sorts ore and has not spoken since the cave-in. Wants Wil away from swords and from the mine.
-- **Simeon Rudd**, pump and whim keeper. Worries about winter fodder for the whim horses, and about the sluice.
-- **Garth Hollin**, 50, smelter master. Wants a fair share. Osric has offered him a guild wage. O 5, C 7, E 4, A 4, N 5.
-- **Lem Drury**, hired Ferrow day-man. Wants a full wage. Gossips with guild men at the inn for drink.
-- **Hilde Brask** (*canon*), the smith. Keeps the picks and wedges sharp. Buys cheap tin and does not ask where it comes from.
-
-**Wood, roads and fields**
-
-- **Tilda Burrow**, 45, charcoal burner. Lives at the kilns. Sees who passes in the woods at night, Dace's men included.
-- **The Lunde brothers, Orm and Arvid**, woodcutters. Sell timber to the guild too. Want the best price.
-- **Nan Tolley**, 40, widow and carter. Wants a seat on a wagon in the run.
-- **Coll Pruett**, farmer. Sells food to the widows on credit. Worries they cannot pay.
-- **Mags Ferrow** (*canon*), a drover who works the roads. Her family name comes from the town. Hires out mules.
+Every named villager belongs to one of the households above. The main cast stays as it is. OCEAN is given where it matters. Names marked *canon* already exist in the Tin Valley inn-world pack (`priv/adventures/tin_valley/extensions/`).
 
 **The village**
 
-- **Old Maude** (*canon*), herb-wife and healer, the village's memory. She remembers that the guild tried once before, "and the Margrave's men sent them home". It is a soft lead to the charter.
-- **Tam Holt** (*canon*), 14, Brenna's nephew at the inn yard. Sees who comes and goes at night. Can spot Tobin with Osric's man.
-- **Pip** (*canon*), 15, Maude's grandson. Only if the Tinjacks extension is on. He is in too deep with Rusk's gang.
+- **Jessop Wray** (Wray), 61, the old foreman, back underground. Wants the props done right this time. O 3, C 9, E 4, A 5, N 6.
+- **Berit Wray** (Wray), 58, his wife. Runs the sorting floor. Wants the children kept out of the drifts.
+- **Sanna Wray** (Wray), Per's widow. Carries ore underground, against Berit's wishes. Wants her children to keep a share.
+- **Ansel Moss** (Moss), 27, survivor. He was at the shaft foot, not in the deep drift. Guilt. Believes it was the guild. O 5, C 6, E 3, A 5, N 8.
+- **Hob Tanner** (Tanner), 34, survivor with a crushed leg. Drives the whim horse. Wants to be useful. Drinks with Crane. O 4, C 5, E 5, A 6, N 8.
+- **Kit Fenn** (Fenn), 15, Ide's son. Carries ore underground. Wants to be a man, and is afraid of the dark.
+- **Rosa Carrow** (Carrow), Wil's mother. Sorts ore and has not spoken since the cave-in. Wants Wil away from swords and from the mine.
+- **Tilda Burrow** (Burrow), 45. Lost her husband and her son. Burns charcoal at the kilns with her daughter Liv. Sees who passes in the woods at night, Dace's men included. Leans towards selling.
+- **Hilde Brask** (Brask, *canon*), the smith, and now the smelter too. Buys cheap tin and does not ask where it comes from. Osric has offered her a guild wage.
+- **Bram Brask** (Brask), 18, her nephew. Left the forge to break rock. Strong, and new to fire.
+- **Old Maude** (Maude's cottage, *canon*), herb-wife and healer, the village's memory. She remembers that the guild tried once before, "and the Margrave's men sent them home". It is a soft lead to the charter.
+- **Tam Holt** (Holt, *canon*), 14, Brenna's nephew at the inn yard. Sees who comes and goes at night. Can spot Tobin with Osric's man.
+- **Pip** (Maude's cottage, *canon*), 15, Maude's grandson. Only if the Tinjacks extension is on. He is in too deep with Rusk's gang.
+- **Lem Drury**, hired Ferrow day-man, lodging at the inn (Holt). Wants a full wage. Gossips with guild men for drink.
 
-**Dace's hired blades**
+**Outside the village**
 
-- **Marten Cole**, Dace's second. Wants the bonus more than Dace does, and pushes harder. O 3, C 4, E 6, A 2, N 4.
-- **Fitch**, 17, the youngest blade. Scared. He is the frightened man who breaks the no-killing order in session 5, unless someone reached him first. O 5, C 3, E 4, A 6, N 9.
-
-**Ferrow**
-
-- **Pol Garrick**, keeper of the Drover's Rest. Wants no trouble in his yard.
-- **Silky Joss**, card sharp. He took Elin's gold. Wants the next mark, not a fight.
-- **Rafe and Dob Coker**, footpads (option B). Want their winter rent.
+- **Fitch**, 17, Dace's youngest blade. Scared. He is the frightened man who breaks the no-killing order in session 5, unless someone reached him first. O 5, C 3, E 4, A 6, N 9.
+- **Silky Joss**, card sharp at the Drover's Rest in Ferrow. He took Elin's gold.
+- **Rafe and Dob Coker**, Ferrow footpads (option B). Want their winter rent.
 - **Master Ambrose Quill**, the Ferrow lawyer who wrote to Tomas. Wants his fee before he searches the registry.
 
 **Texture from the sources.** Falun miners carried a silver coin as a charm against the dangers below. [6] Wil can carry his father's coin.
@@ -303,7 +304,23 @@ The guild's charter grants rights "to iron, copper and lead and the ores thereof
 
 The pass closes on day 30. The exact day is hidden. Snow portents start on day 24. The run takes three days. So the wagons should leave by day 26. Each day after that adds risk.
 
-The village needs three wagons of tin to cover 60 gold. Today it has one in the sheds. Each further wagon takes about 5 days of mining and smelting by today's crew (16 underground, see "Village and valley population"). Before the cave-in it took 2 to 3 days. Every worker the player trains to fight, or takes on an errand, is not digging. As a rule of thumb, each 3 underground workers taken off the work add 1 day per wagon. The charcoal and wood duties work the same way.
+The village needs three wagons of tin to cover 60 gold, at about 20 gold a wagon.
+
+- **Wagon 1** is already in the tin sheds.
+- **Wagon 2** is ore that was dug before the cave-in. It lies on the sorting floor, unsorted and unsmelted. It needs about 60 worker-days of surface work (sorting, charcoal, smelting) and one charcoal burn of about a week. The surface workers also farm, cook and mind children, so they give it about half their time. With no distractions it is ready around day 17.
+- **Wagon 3** must be dug from the rich face beside the old cave-in. It needs about 100 worker-days underground (7 workers for about 14 days), then about 4 days of smelting. With the full crew from day 5, digging ends on day 18 and smelting on day 22.
+
+Loading and the last checks take until day 25, so the wagons leave on day 26.
+
+**The slack is small.** There are about 3 spare days before the wagons must leave: about 21 underground worker-days. Rules of thumb:
+
+- Every 7 underground worker-days spent on training, errands or guard duty push wagon 3 back by one day.
+- Cutting the 2 hired day-men costs about 4 days. That alone eats all the slack.
+- Surface workers taken for training slow wagon 2 at about half that rate, because their time is already split.
+
+So the player can train the whole underground crew for about 3 days in total, or the surface folk for longer, before the dates break. Training the boys and widows means less tin. Leaving them untrained means a weaker defence. That is the trade-off.
+
+These are design numbers, tuned to the clock. They are not from the sources. A check against the world's labour-anchored prices (`rules/economy.md`): wagon 3 takes about 140 worker-days in all and sells for 20 gold, about 10 months of skilled pay. That fits a rich vein.
 
 A trip to Ferrow and back takes 6 days. It is the price of the banker and charter paths.
 
@@ -370,7 +387,7 @@ The player may choose the Ferrow trip here. It costs 6 days. In Ferrow there is 
 
 ### 4. Fractures (days 18 to 24)
 
-Agnes calls a vote to sell to the guild. Osric's offer is real money. Brenna backs her sister quietly. Marit cannot win the vote alone. The player's earlier tellings and kindnesses decide who votes how.
+Agnes calls a vote to sell to the guild. Osric's offer is real money. Each of the 11 households has one vote, so the winner needs 6. Agnes starts with 3 (Pell, Holt, because Brenna backs her sister quietly, and Burrow). Marit starts with 3 (Harrow, Fenn, Wray). The other 5 are open. The player's earlier tellings and kindnesses decide who votes how.
 
 The plant acts. Tobin is caught near the wagons, or he is not. If the player turned him, he warns them instead.
 
@@ -383,7 +400,7 @@ Snow on the high peaks. Old Rook says the pass has a week, maybe less.
 
 ### 5. The pass (days 25 to 28)
 
-The wagons go. The player chooses who rides with them and who stays. Dace's men harass the road: a felled tree, a spooked team, an arrow from the scree. The guild's orders forbid open killing. A frightened man breaks those orders anyway.
+The wagons go. The player chooses who rides with them and who stays. Three wagons need three drivers (Old Rook if hired, Lene Tanner, Elin). The village has only about 20 people old enough to hold a stave, the two day-men included. Every guard on the road is one fewer defender at the mine. Dace's men harass the road: a felled tree, a spooked team, an arrow from the scree. The guild's orders forbid open killing. A frightened man breaks those orders anyway.
 
 At the same time, Osric moves on the mine. The defenders are the villagers the player trained, and whoever stayed behind.
 
@@ -446,7 +463,7 @@ Examples of weighting:
 
 Examples of compression:
 
-- Day 3: "The stranger let me carry the water to the fighters and said I did it well."
+- Day 5: "The stranger let me carry the water to the fighters and said I did it well."
 - Day 20: "The stranger trusts me."
 - Epilogue: "The stranger taught me to stand."
 
