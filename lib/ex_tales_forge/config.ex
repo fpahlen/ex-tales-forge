@@ -241,11 +241,12 @@ defmodule TalesForge.Config do
   Hierarchical locations (board card 7aba0394): each place can name its
   `parent`, and "go in", "go out", "leave" and travel use the tree
   (`TalesForge.Game.Movement`). A session feature, read when a session is
-  created: HIERARCHICAL_LOCATIONS=on. Default off (on in the playtest app).
+  created. Default on, in every app (founder approval 16 Oct, after the
+  playtest pass). HIERARCHICAL_LOCATIONS=off turns it off.
   """
   @spec hierarchical_locations?() :: boolean()
   def hierarchical_locations?,
-    do: System.get_env("HIERARCHICAL_LOCATIONS", "off") in ~w(on true 1)
+    do: System.get_env("HIERARCHICAL_LOCATIONS", "on") not in ~w(off false 0)
 
   def ollama_api_base, do: System.get_env("OLLAMA_API_BASE", "http://localhost:11434")
 

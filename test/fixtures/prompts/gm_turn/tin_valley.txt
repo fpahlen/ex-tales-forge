@@ -765,6 +765,7 @@ Recent turns:
 - none
 Available exits:
 - market_square (Market Square)
+- tin_valley_village (Tin Valley village)
 - none
 Present NPCs:
 - innkeep: Brenna Holt (innkeep, mood: cheerful)

@@ -8,7 +8,8 @@ defmodule TalesForge.Game.Features do
     Inn, from the pack extension `extensions/inn_world/`.
   - `"antagonist"` (`WORLD_ANTAGONIST=on`, needs `inn_world`): the Tinjacks,
     from `extensions/antagonist/`.
-  - `"hierarchical_locations"` (`HIERARCHICAL_LOCATIONS=on`): movement uses
+  - `"hierarchical_locations"` (default on; `HIERARCHICAL_LOCATIONS=off`
+    turns it off): movement uses
     the place tree (`parent`), see `TalesForge.Game.Movement`.
 
   Design: ex-tales-forge
