@@ -84,6 +84,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Show do
     |> assign(:metrics, Reports.metrics(run.game_session_id))
     |> assign(:score, Reports.latest_score(run.id))
     |> assign(:character_changes, CharacterChanges.for_session(run.game_session_id))
+    |> assign(:memory_tiers, TalesForge.Characters.Memory.overview(run.game_session_id))
     |> assign_turn_affects(Reports.turn_affect_scores(run.id))
   end
 
@@ -349,6 +350,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Show do
       </.section_card>
 
       <.character_changes changes={@character_changes} />
+      <.memory_tiers rows={@memory_tiers} />
 
       <.section_card title="Turns" id="turns">
         <article :if={@opening} id="turn-opening" class="space-y-1">

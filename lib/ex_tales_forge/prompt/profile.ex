@@ -84,6 +84,7 @@ defmodule TalesForge.Prompt.Profile do
       Sections.Prices,
       Sections.NpcReactions,
       Sections.NpcMemory,
+      Sections.CharacterMemory,
       Sections.Gestures,
       Sections.SceneNow,
       Sections.OutcomeRecord,
@@ -105,6 +106,7 @@ defmodule TalesForge.Prompt.Profile do
     do: Ctx.flag?(ctx, :npc_reactions) or Ctx.flag?(ctx, :world_agents)
 
   defp include?(Sections.NpcMemory, ctx), do: Ctx.flag?(ctx, :npc_dialogue_memory)
+  defp include?(Sections.CharacterMemory, ctx), do: Ctx.flag?(ctx, :character_memory)
 
   defp include?(Sections.OutcomeRecord, ctx),
     do: Ctx.flag?(ctx, :turn_outcome_record) or Ctx.flag?(ctx, :turn_apply_outcomes)

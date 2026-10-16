@@ -1617,3 +1617,12 @@ None right now. (Prose-only GM vs structured reply format: decided on 2026-10-08
 - Each persona gets one LLM call with purpose `persona_interview` and a typed reply. Its cost goes to its own bot spend bucket. Elixir checks the reply, groups the improvements by product gap and writes the report to `docs/research/`. A short digest goes on the idea card.
 - The persona text comes from `TalesForge.Playtest.Personas` only. A shared Personality API for NPCs and interview speakers is a later, separate card.
 - **Why:** the personas give structured feedback on the game for little cost. The answers are synthetic, so we read them next to real playtest and forum evidence.
+
+## 2026-10-16: Character memory PR 1: tiers, interests, scene end, recall (card fc3c9371)
+
+- `character_memories` gets `tier` (working, short, long), `about` (ids) and `weight`. Existing rows are short-term.
+- `TalesForge.Characters.Memory` is pure Elixir, with no LLM call. Interests come from OCEAN (a trait of 7 or more), role and concern focus. A pack sets `interests:` per NPC. The player character uses its own OCEAN.
+- Scene end is a `player.travel` event (the place left) or a long rest. The player character and every NPC at that place get one short-term row per shared event there that they have no row for yet. NPCs also keep events the player does not see.
+- Recall uses `about` overlap with the place, the present NPCs and the player character. The heaviest and newest rows come first, 5 per NPC at most.
+- CHARACTER_MEMORY is off, shadow or on. Shadow (playtest) writes rows and shows them in the playtest "Character memory" view. Only on adds the prompt section. Production is off.
+- Q3 (when compression runs) is posted as options on the card. PR 3 builds the compression.

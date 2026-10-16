@@ -428,3 +428,27 @@ defmodule TalesForge.Prompt.Sections.NoticedDetails do
     "## Noticing (#{level})\n" <> body
   end
 end
+
+defmodule TalesForge.Prompt.Sections.CharacterMemory do
+  @moduledoc """
+  What the present NPCs recall from earlier scenes, by association
+  (`TalesForge.Characters.Memory`, board card fc3c9371). Only with
+  CHARACTER_MEMORY=on.
+  """
+  use TalesForge.Prompt.Section, id: :character_memory, slot: :turn
+
+  @impl true
+  def render(ctx) do
+    present = Map.get(ctx.data.intent_context, "present_npcs", [])
+
+    if present == [] do
+      nil
+    else
+      location = get_in(ctx.data, [:world_state, "location_id"])
+
+      ctx.data.session_id
+      |> TalesForge.Characters.Memory.recall_for_scene(present, location)
+      |> TalesForge.Characters.Memory.section()
+    end
+  end
+end
