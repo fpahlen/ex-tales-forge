@@ -1,14 +1,14 @@
 defmodule TalesForge.Game.PlayPanel do
   @moduledoc """
   Pure read models of the play screen panels: the people present, the
-  character quick stats and the coin line. `TalesForgeWeb.PlayComponents`
+  character quick stats and the coin line. TalesForgeWeb.PlayComponents
   delegates here (and keeps the doctests), and `TalesForge.Playtest.PlayerView`
   calls this module so the domain layer does not reference the web layer.
   """
 
   alias TalesForge.Game.Inventory
 
-  @doc "The people of the Present panel. See `TalesForgeWeb.PlayComponents.present_npcs/1`."
+  @doc "The people of the Present panel. See TalesForgeWeb.PlayComponents.present_npcs/1."
   def present_npcs(world_state) when is_map(world_state) do
     npc_state = Map.get(world_state, "npc_state") || %{}
     npc_ids = living_present(world_state, npc_state)
@@ -73,7 +73,7 @@ defmodule TalesForge.Game.PlayPanel do
     end
   end
 
-  @doc "The coins as gold, silver and copper. See `TalesForgeWeb.PlayComponents.format_coins/1`."
+  @doc "The coins as gold, silver and copper. See TalesForgeWeb.PlayComponents.format_coins/1."
   def format_coins(coins) when is_map(coins) do
     normal = Inventory.normalize_coins(coins)
 
