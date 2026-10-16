@@ -9,10 +9,10 @@ defmodule TalesForge.Playtest.PlayerView do
   persona responds to it rather than making the first move.
   """
 
+  alias TalesForge.Game.PlayPanel
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForgeWeb.PlayComponents
 
   @transcript_entries 12
 
@@ -26,7 +26,7 @@ defmodule TalesForge.Playtest.PlayerView do
       opening(opening),
       "Turn #{turn} of #{turn_limit}.",
       "Where: #{Map.get(world, "location_name", "Unknown")} · Time: #{Map.get(world, "world_clock", "—")}",
-      "Character: #{Map.get(character, "name", "—")} · #{PlayComponents.quick_stats(character)}",
+      "Character: #{Map.get(character, "name", "—")} · #{PlayPanel.quick_stats(character)}",
       "Inventory: #{inventory(character)}",
       "Here: #{npcs(world)}",
       "Story since the opening (latest last):\n" <> transcript(session, opening),
@@ -53,7 +53,7 @@ defmodule TalesForge.Playtest.PlayerView do
   end
 
   defp npcs(world) do
-    case PlayComponents.present_npcs(world) do
+    case PlayPanel.present_npcs(world) do
       [] -> "nobody"
       npcs -> Enum.map_join(npcs, ", ", &"#{&1.name} (#{&1.role})")
     end
