@@ -395,11 +395,6 @@
       "function": "TalesForge.Game.Pack.validate_graph!"
     },
     {
-      "abc_size": 47,
-      "file": "lib/ex_tales_forge/game/play_panel.ex",
-      "function": "TalesForge.Game.PlayPanel.present_npcs"
-    },
-    {
       "cyclomatic_complexity": 12,
       "file": "lib/ex_tales_forge/game/player_quote.ex",
       "function": "TalesForge.Game.PlayerQuote.decide"
@@ -1603,7 +1598,7 @@
     "cyclomatic_complexity": 9
   },
   "summary": {
-    "complex_function_count": 154,
+    "complex_function_count": 153,
     "cycle_count": {
       "all": 76,
       "compile-connected": 5

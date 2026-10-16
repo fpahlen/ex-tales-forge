@@ -11,34 +11,39 @@ defmodule TalesForge.Game.PlayPanel do
   @doc "The people of the Present panel. See `TalesForgeWeb.PlayComponents.present_npcs/1`."
   def present_npcs(world_state) when is_map(world_state) do
     npc_state = Map.get(world_state, "npc_state") || %{}
+    npc_ids = living_present(world_state, npc_state)
+    foe_ids = minor_foes_here(npc_state, npc_ids, world_state["location_id"])
+    Enum.map(npc_ids ++ foe_ids, &person(&1, Map.get(npc_state, &1) || %{}))
+  end
 
-    npc_ids =
-      world_state
-      |> Map.get("present_npcs", [])
-      |> List.wrap()
-      |> Enum.reject(&(get_in(npc_state, [&1, "vitality"]) == "dead"))
+  defp living_present(world_state, npc_state) do
+    world_state
+    |> Map.get("present_npcs", [])
+    |> List.wrap()
+    |> Enum.reject(&(get_in(npc_state, [&1, "vitality"]) == "dead"))
+  end
 
-    foe_ids =
-      npc_state
-      |> Enum.filter(fn {id, npc} ->
-        is_map(npc) and npc["minor"] == true and npc["vitality"] != "dead" and
-          id not in npc_ids and npc["location_id"] == world_state["location_id"]
-      end)
-      |> Enum.map(&elem(&1, 0))
-      |> Enum.sort()
+  defp minor_foes_here(npc_state, npc_ids, location_id) do
+    npc_state
+    |> Enum.filter(fn {id, npc} -> minor_foe_here?(npc, id, npc_ids, location_id) end)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.sort()
+  end
 
-    Enum.map(npc_ids ++ foe_ids, fn npc_id ->
-      detail = Map.get(npc_state, npc_id) || %{}
+  defp minor_foe_here?(npc, id, npc_ids, location_id) do
+    is_map(npc) and npc["minor"] == true and npc["vitality"] != "dead" and
+      id not in npc_ids and npc["location_id"] == location_id
+  end
 
-      %{
-        id: npc_id,
-        name: Map.get(detail, "name", npc_id),
-        role: Map.get(detail, "role", "present"),
-        concern_priority: Map.get(detail, "concern_priority", 0),
-        portrait_url: Map.get(detail, "portrait_url"),
-        wounds_label: wounds_label(detail)
-      }
-    end)
+  defp person(npc_id, detail) do
+    %{
+      id: npc_id,
+      name: Map.get(detail, "name", npc_id),
+      role: Map.get(detail, "role", "present"),
+      concern_priority: Map.get(detail, "concern_priority", 0),
+      portrait_url: Map.get(detail, "portrait_url"),
+      wounds_label: wounds_label(detail)
+    }
   end
 
   defp wounds_label(%{"vitality" => "dead"}), do: "dead"
