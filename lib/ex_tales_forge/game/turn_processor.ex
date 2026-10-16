@@ -410,6 +410,7 @@ defmodule TalesForge.Game.TurnProcessor do
              TalesForge.Config.character_memory()
            ),
          :ok <- NPCRegistry.sync(session),
+         thought = store_thought(session, turn, world_after, ctx),
          :ok <- maybe_emit_turn_signals(session, world_after, handler, raw_action) do
       {:ok,
        %{
@@ -421,7 +422,7 @@ defmodule TalesForge.Game.TurnProcessor do
              gm_result.narrative,
              turn.id,
              MechanicalResolution.encode(mechanical)
-           ),
+           ) ++ thought_entries(turn.id, thought),
          mechanical_resolution: MechanicalResolution.encode(mechanical),
          llm_provider: LLM.provider(),
          llm_source: LLM.llm_source(LLM.provider()),
@@ -756,6 +757,37 @@ defmodule TalesForge.Game.TurnProcessor do
       n -> n + 1
     end
   end
+
+  # Board card 845b6b15, PR 3: the player character's thought, stored on the
+  # turn (also in shadow), shown only with CHARACTER_MEMORY=on.
+  defp store_thought(session, turn, world_after, ctx) do
+    mode = TalesForge.Config.character_memory()
+    events = Map.get(ctx, :events, [])
+
+    case TalesForge.Characters.Thought.for_turn(
+           session.id,
+           events,
+           world_after,
+           turn.turn_number,
+           mode
+         ) do
+      nil ->
+        nil
+
+      thought ->
+        turn |> Ecto.Changeset.change(thought: thought) |> Repo.update!()
+        if mode == :on, do: thought
+    end
+  rescue
+    e ->
+      Logger.warning("thought not stored session=#{session.id} #{Exception.message(e)}")
+      nil
+  end
+
+  defp thought_entries(_turn_id, nil), do: []
+
+  defp thought_entries(turn_id, thought),
+    do: [TalesForge.Characters.Thought.entry(turn_id, thought)]
 
   defp build_entries(raw_action, narrative, turn_id, mechanical) do
     [
