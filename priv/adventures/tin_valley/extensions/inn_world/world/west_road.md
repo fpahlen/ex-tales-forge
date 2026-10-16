@@ -1,6 +1,7 @@
 ---
 id: west_road
 name: West road
+parent: tin_valley_region
 exits:
   - market_square
   - old_adit

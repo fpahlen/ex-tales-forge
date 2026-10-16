@@ -1,6 +1,7 @@
 ---
 id: smithy
 name: Brask's forge
+parent: tin_valley_village
 exits:
   - market_square
 fixtures:

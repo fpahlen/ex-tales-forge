@@ -1,6 +1,7 @@
 ---
 id: herb_cottage
 name: Maude's cottage
+parent: tin_valley_village
 exits:
   - market_square
 fixtures:

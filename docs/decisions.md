@@ -1,6 +1,6 @@
 ---
 title: Decision log
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # Decision log
@@ -12,6 +12,16 @@ Open questions waiting for a decision live in the [decision queue](decision-queu
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
 **Moved 2026-10-15.** This log was `docs/decisions.md` in `whyse-ab/tales-forge-docs` (now retired; the git history came with the move). The Workflow entries (idea board, team page, chat, inbox, Workflow split) moved to `docs/decision-history.md` in [whyse-ab/workflow](https://github.com/whyse-ab/workflow/blob/main/docs/decision-history.md). New Tales Forge decisions come here: the board writes each entry to this file (Tales Forge client file, `decision_log`).
+
+## 2026-10-16: Places form a tree; "go in", "go out" and travel use it (board card 7aba0394, PR 1)
+
+- Decided by: Fredrik (card in Building; the four open questions were deferred, so the build uses Case's recommendations)
+- Each place file can name the place it is in with `parent` (an inn is in a village, a village is in a region). The village and the region are place files, and a player can stand in them.
+- The place files are the one source of the tree. `TalesForge.World` reads `parent` from the pack; `world_agents.json` keeps only the facts.
+- The pack check fails at load when a parent is missing, the chain has a loop, or a chain has more than 5 places.
+- With the session feature `hierarchical_locations` (flag HIERARCHICAL_LOCATIONS, on in playtest, off on production): each place links to its parent and children in addition to the hand-written exits; "leave" and "go out" use the door, then the only exit, then the parent; "go in" selects a named child or the only child; travel goes up and down the tree within 3 steps and stops at checkpoints; Jev sees "Valley Inn (exit, in Tin Valley village)". No new LLM call.
+- The Orc nest is in the Cut, so the tree keeps the Cut as the checkpoint on the way to the nest.
+- PR 2 adds a position and a scale per place, and game time for travel from the distance.
 
 ## 2026-10-15: Only add maintained or well-regarded dependencies
 

@@ -47,6 +47,13 @@ defmodule TalesForge.Game.Context do
     character = Map.get(world, "character", %{})
     npc_stock = NPC.stock_map(session.id, present_npcs)
 
+    # With hierarchical locations the exits include the parent and the
+    # children (TalesForge.Game.Movement.exits/2).
+    exits =
+      if TalesForge.Game.Movement.tree?(world),
+        do: TalesForge.Game.Movement.exits(world, location_id),
+        else: Map.get(location, "exits", [])
+
     %{
       "session_id" => session.id,
       "location_id" => location_id,
@@ -55,8 +62,8 @@ defmodule TalesForge.Game.Context do
       "fixtures" => Map.get(location, "fixtures", []),
       "ground_items" => Map.get(location, "ground_items", []),
       "npc_stock" => npc_stock,
-      "exits" => Map.get(location, "exits", []),
-      "exit_names" => exit_names(world, Map.get(location, "exits", [])),
+      "exits" => exits,
+      "exit_names" => exit_names(world, exits),
       "present_npcs" => present_npcs,
       "npc_details" => npc_details(present_npcs, npc_state),
       "character" => character_summary(character),
@@ -69,7 +76,15 @@ defmodule TalesForge.Game.Context do
       "places" => Map.get(world, "locations") || World.locations(),
       "npc_locations" => npc_locations(npc_state, present_npcs)
     }
+    |> put_features(world)
   end
+
+  # Session features that change movement (hierarchical locations), only
+  # when the session has any, so other contexts stay as before.
+  defp put_features(context, %{"features" => [_ | _] = features}),
+    do: Map.put(context, "features", features)
+
+  defp put_features(context, _world), do: context
 
   defp npc_locations(npc_state, present_npcs) when is_map(npc_state) do
     npc_state

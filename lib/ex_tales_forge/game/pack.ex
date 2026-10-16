@@ -59,6 +59,7 @@ defmodule TalesForge.Game.Pack do
       |> unique_ids!("front")
 
     validate_graph!(adventure["starting_location_id"], locations)
+    validate_tree!(locations)
     Fronts.validate!(fronts)
 
     %{
@@ -68,7 +69,7 @@ defmodule TalesForge.Game.Pack do
       initial_present_npc_ids: List.wrap(adventure["initial_present_npc_ids"]),
       situation_lines: List.wrap(adventure["situation_lines"]),
       economy: economy(adventure),
-      locations: locations,
+      locations: areas_for(locations, features),
       npcs: npcs,
       player_character: player_character,
       fronts: fronts
@@ -187,6 +188,82 @@ defmodule TalesForge.Game.Pack do
     end)
 
     :ok
+  end
+
+  @max_depth 5
+
+  @doc """
+  Checks the place tree (`parent`, board card 7aba0394): each parent is a
+  place, there is no loop, and a chain has at most #{@max_depth} places.
+  Raises `ArgumentError` on a broken tree, so a bad pack fails at load.
+
+      iex> TalesForge.Game.Pack.validate_tree!(%{"region" => %{}, "inn" => %{"parent" => "region"}})
+      :ok
+      iex> TalesForge.Game.Pack.validate_tree!(%{"a" => %{"parent" => "b"}, "b" => %{"parent" => "a"}})
+      ** (ArgumentError) location a: the parent chain has a loop (a, b, a)
+  """
+  @spec validate_tree!(map()) :: :ok
+  def validate_tree!(locations) do
+    Enum.each(locations, fn {id, _loc} -> chain!(locations, id, [id]) end)
+  end
+
+  defp chain!(locations, id, [current | _] = trail) do
+    case get_in(locations, [current, "parent"]) do
+      nil ->
+        if length(trail) > @max_depth do
+          raise ArgumentError,
+                "location #{id}: the parent chain has #{length(trail)} places, more than #{@max_depth}"
+        end
+
+        :ok
+
+      parent when not is_binary(parent) ->
+        raise ArgumentError,
+              "location #{current}: parent must be a place id, got #{inspect(parent)}"
+
+      parent ->
+        cond do
+          not Map.has_key?(locations, parent) ->
+            raise ArgumentError,
+                  "location #{current} parent #{inspect(parent)} missing from locations"
+
+          parent in trail ->
+            loop = trail |> Enum.reverse() |> Kernel.++([parent]) |> Enum.join(", ")
+            raise ArgumentError, "location #{id}: the parent chain has a loop (#{loop})"
+
+          true ->
+            chain!(locations, id, [parent | trail])
+        end
+    end
+  end
+
+  # Areas (a village, a region) are places that only the tree reaches: no
+  # exits of their own and no exit to them. Without the feature
+  # "hierarchical_locations" the session does not get them, so movement and
+  # the prompts stay as before.
+  defp areas_for(locations, features) do
+    if "hierarchical_locations" in TalesForge.Game.Features.normalize(features),
+      do: locations,
+      else: Map.reject(locations, &area?(&1, locations))
+  end
+
+  defp area?({id, loc}, locations) do
+    List.wrap(loc["exits"]) == [] and
+      not Enum.any?(locations, fn {_other, o} -> id in List.wrap(o["exits"]) end) and
+      Enum.any?(locations, fn {_other, o} -> o["parent"] == id end)
+  end
+
+  @doc """
+  The parent of each place of the pack (`parent` in the place files), by
+  place id, with every area. `TalesForge.World` reads it: the place files
+  are the one source of the tree.
+  """
+  @spec parents(String.t()) :: %{String.t() => String.t() | nil}
+  def parents(adventure_id) do
+    adventure_id
+    |> load(TalesForge.Game.Features.all())
+    |> Map.fetch!(:locations)
+    |> Map.new(fn {id, loc} -> {id, loc["parent"]} end)
   end
 
   # The world config of the economy (TalesForge.Game.Economy).
@@ -346,12 +423,14 @@ defmodule TalesForge.Game.Pack do
   end
 
   # Optional movement keys (`TalesForge.Game.Movement`): other names for the
-  # place, the exit "leave" means, and whether travel through it stops here.
+  # place, the exit "leave" means, whether travel through it stops here, and
+  # the place it is in (`parent`).
   defp put_movement_keys(location, attrs) do
     location
     |> maybe_put_location("aliases", attrs["aliases"] && List.wrap(attrs["aliases"]))
     |> maybe_put_location("door", attrs["door"])
     |> maybe_put_location("checkpoint", if(attrs["checkpoint"] == true, do: true))
+    |> maybe_put_location("parent", attrs["parent"])
   end
 
   defp maybe_put_location(location, _key, nil), do: location

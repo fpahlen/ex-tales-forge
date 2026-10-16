@@ -8,6 +8,8 @@ defmodule TalesForge.Game.Features do
     Inn, from the pack extension `extensions/inn_world/`.
   - `"antagonist"` (`WORLD_ANTAGONIST=on`, needs `inn_world`): the Tinjacks,
     from `extensions/antagonist/`.
+  - `"hierarchical_locations"` (`HIERARCHICAL_LOCATIONS=on`): movement uses
+    the place tree (`parent`), see `TalesForge.Game.Movement`.
 
   Design: ex-tales-forge
   `docs/design-tin-valley-world.md`.
@@ -15,7 +17,7 @@ defmodule TalesForge.Game.Features do
 
   alias TalesForge.Config
 
-  @known ~w(inn_world antagonist)
+  @known ~w(inn_world antagonist hierarchical_locations)
   @requires %{"antagonist" => "inn_world"}
 
   @typedoc "A known feature name."
@@ -25,7 +27,7 @@ defmodule TalesForge.Game.Features do
   The known features, in load order.
 
       iex> TalesForge.Game.Features.all()
-      ["inn_world", "antagonist"]
+      ["inn_world", "antagonist", "hierarchical_locations"]
   """
   @spec all() :: [t()]
   def all, do: @known
@@ -36,7 +38,11 @@ defmodule TalesForge.Game.Features do
   """
   @spec for_new_session() :: [t()]
   def for_new_session do
-    [{"inn_world", Config.inn_world?()}, {"antagonist", Config.world_antagonist?()}]
+    [
+      {"inn_world", Config.inn_world?()},
+      {"antagonist", Config.world_antagonist?()},
+      {"hierarchical_locations", Config.hierarchical_locations?()}
+    ]
     |> Enum.filter(fn {_feature, on?} -> on? end)
     |> Enum.map(fn {feature, _on?} -> feature end)
     |> normalize()

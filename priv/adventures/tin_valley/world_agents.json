@@ -24,7 +24,6 @@
       "id": "tin_valley_village",
       "name": "Tin Valley village",
       "kind": "village",
-      "parent": "tin_valley_region",
       "facts": [
         {
           "kind": "fact",
@@ -35,7 +34,6 @@
     {
       "id": "valley_inn",
       "kind": "building",
-      "parent": "tin_valley_village",
       "facts": [
         {
           "kind": "price",
@@ -97,25 +95,21 @@
     {
       "id": "market_square",
       "kind": "place",
-      "parent": "tin_valley_village",
       "facts": []
     },
     {
       "id": "mine_workings",
       "kind": "place",
-      "parent": "tin_valley_region",
       "facts": []
     },
     {
       "id": "orc_approach",
       "kind": "place",
-      "parent": "tin_valley_region",
       "facts": []
     },
     {
       "id": "orc_nest",
       "kind": "place",
-      "parent": "tin_valley_region",
       "facts": []
     }
   ],
