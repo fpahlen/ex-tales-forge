@@ -1,0 +1,92 @@
+<html><head><link rel="stylesheet" href="b-common.css"><style>
+.sheet{left:40px;top:34px;width:1080px;height:932px;padding:34px 44px;transform:rotate(-.6deg)}
+.title{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px double #3a2c20;padding-bottom:8px}
+.title h1{font-family:'IM Fell English SC';font-weight:400;font-size:40px;letter-spacing:2px}
+.lbl{font-family:'IM Fell English SC';font-size:14px;letter-spacing:.8px;color:#4a3a2c}
+.line{border-bottom:1.4px solid #3a2c20;height:40px;display:flex;align-items:flex-end;padding:0 6px 2px}
+.line .hand{font-size:31px;line-height:1}
+.grid3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:26px;margin-top:16px}
+.traits{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-top:10px}
+.tr{border:2px solid #3a2c20;border-radius:6px;text-align:center;padding:6px 4px 4px;position:relative;background:rgba(255,255,255,.15)}
+.tr .sc{font-size:22px}.tr .n{font-size:11px;font-family:'Cardo';font-style:italic;color:#5a4a3a}
+.tr .hand{font-size:46px;line-height:1.05;display:block}
+.cols{display:grid;grid-template-columns:1.25fr 1fr;gap:34px;margin-top:34px}
+table{width:100%;border-collapse:collapse}
+td,th{border-bottom:1px solid #8a7660;padding:3px 6px;height:30px;font-size:17px}
+th{font-family:'IM Fell English SC';font-weight:400;font-size:13px;text-align:left;border-bottom:2px solid #3a2c20;color:#4a3a2c}
+td.h{font-family:'Caveat';font-size:27px;color:#1f2f5c;text-align:center}
+.cb{display:inline-block;width:16px;height:16px;border:1.5px solid #3a2c20;vertical-align:middle;position:relative}
+.cb.x::after{content:'✗';position:absolute;left:0;top:-9px;font-family:'Caveat';font-size:26px;color:#1f2f5c}
+.ruled{background-image:repeating-linear-gradient(transparent 0 33px,#a9b8c9 33px 34px);line-height:34px;font-size:25px;padding:0 6px}
+.margin{position:absolute;font-size:24px;transform:rotate(-6deg)}
+.ring{position:absolute;width:190px;height:190px;border-radius:50%;border:10px solid rgba(120,80,40,.13);box-shadow:inset 0 0 0 3px rgba(120,80,40,.08)}
+.die{position:absolute}
+.card{position:absolute;padding:20px 22px}
+</style></head><body>
+<div class="paper sheet">
+ <div class="ring" style="right:40px;top:560px"></div>
+ <div class="title"><h1>Character Record</h1><div style="text-align:right"><div class="sc" style="font-size:17px">Tales Forge</div><div style="font-style:italic;font-size:14px">Swords of Tin Valley · a chronicle in ink</div></div></div>
+ <div class="grid3">
+  <div><div class="line"><span class="hand">Corin Ashby</span></div><div class="lbl">Name</div></div>
+  <div><div class="line"><span class="hand">Sellsword</span></div><div class="lbl">Calling</div></div>
+  <div><div class="line"><span class="hand">down from the pass</span></div><div class="lbl">Hails from</div></div>
+ </div>
+ <div class="grid3" style="grid-template-columns:2fr 1fr">
+  <div><div class="line"><span class="hand">Tall, broken nose, speaks little. Old burn on left hand.</span></div><div class="lbl">Look &amp; manner</div></div>
+  <div><div class="line"><span class="hand">10</span><span style="margin-left:auto;font-size:15px;font-style:italic">of 10</span></div><div class="lbl">Hit points</div></div>
+ </div>
+ <div style="margin-top:22px" class="lbl">Traits <span style="font-family:Cardo;font-style:italic;text-transform:none">· roll 3d6 × 5, or assign as you please</span></div>
+ <div class="traits">
+  <div class="tr"><div class="sc">Str</div><span class="hand">55</span><div class="n">Strength</div></div>
+  <div class="tr"><div class="sc">Dex</div><span class="hand">62</span><div class="n">Dexterity</div></div>
+  <div class="tr"><div class="sc">Con</div><span class="hand"><s style="font-size:30px;color:#6b6f80">45</s> 48</span><div class="n">Constitution</div></div>
+  <div class="tr"><div class="sc">Int</div><span class="hand">40</span><div class="n">Intelligence</div></div>
+  <div class="tr"><div class="sc">Wis</div><span class="hand">58</span><div class="n">Wisdom</div></div>
+  <div class="tr"><div class="sc">Cha</div><span class="hand">35</span><div class="n">Charisma</div></div>
+ </div>
+ <div class="cols">
+  <div>
+   <div class="lbl" style="margin-bottom:4px">Skills <span style="font-family:Cardo;font-style:italic;text-transform:none">· roll d100 under · tick on a failure, test it at rest</span></div>
+   <table><tr><th>Skill</th><th style="text-align:center">Base</th><th style="text-align:center">Now</th><th style="text-align:center">Learned?</th></tr>
+   <tr><td>Swordplay</td><td style="text-align:center">35</td><td class="h">45</td><td style="text-align:center"><span class="cb"></span></td></tr>
+   <tr><td>Perception</td><td style="text-align:center">47</td><td class="h">52</td><td style="text-align:center"><span class="cb"></span></td></tr>
+   <tr><td>Riding</td><td style="text-align:center">40</td><td class="h">40</td><td style="text-align:center"><span class="cb"></span></td></tr>
+   <tr><td>Stealth</td><td style="text-align:center">38</td><td class="h">38</td><td style="text-align:center"><span class="cb"></span></td></tr>
+   <tr><td>Persuasion</td><td style="text-align:center">32</td><td class="h">32</td><td style="text-align:center"><span class="cb"></span></td></tr>
+   <tr><td>Haggling</td><td style="text-align:center">30</td><td class="h">30</td><td style="text-align:center"><span class="cb"></span></td></tr>
+   <tr><td>Healing</td><td style="text-align:center">25</td><td class="h">25</td><td style="text-align:center"><span class="cb"></span></td></tr>
+   <tr><td>Lore: Tin Valley</td><td style="text-align:center">10</td><td class="h">10</td><td style="text-align:center"><span class="cb"></span></td></tr>
+   <tr><td class="hand" style="font-size:24px">Knots &amp; rope</td><td style="text-align:center" class="hand">20</td><td class="h">20</td><td style="text-align:center"><span class="cb"></span></td></tr>
+   </table>
+  </div>
+  <div>
+   <div class="lbl" style="margin-bottom:4px">Gear &amp; purse</div>
+   <div class="ruled hand" style="height:170px">Longsword, notched<br>Oilskin cloak · flint &amp; steel<br>Letter of passage (sealed)<br>14 silver in coin</div>
+   <div class="lbl" style="margin:16px 0 4px">Who I am, in my own words</div>
+   <div class="ruled hand" style="height:104px">"I sell my sword, not my name. Folk forget that at their peril."</div>
+   <div class="lbl" style="margin-top:18px">At the table</div>
+   <div style="font-size:17px;margin-top:6px;line-height:1.7"><span class="cb x"></span>&nbsp; Roll my dice in the open<br><span class="cb"></span>&nbsp; Let the GM roll behind the screen</div>
+  </div>
+ </div>
+ <div style="position:absolute;bottom:22px;left:44px;right:44px;border-top:1.5px solid #3a2c20;padding-top:8px;display:flex;justify-content:space-between;font-style:italic;font-size:15px"><span>No levels. No experience points. You grow by doing, and by failing.</span><span class="sc" style="font-style:normal">Folio I</span></div>
+ <div class="margin red" style="left:600px;top:262px;transform:rotate(-2deg);font-size:23px">← rolled Con twice, kept the 48!</div>
+ <div class="margin pencil" style="left:820px;top:458px;font-size:21px;transform:rotate(-3deg)">need a better blade</div>
+</div>
+
+<div class="felt" style="left:1160px;top:46px;width:400px;height:430px">
+ <div class="sc" style="position:absolute;top:24px;left:0;right:0;text-align:center;color:#d8e6d2;font-size:19px;letter-spacing:2px">The Dice Tray</div>
+ <svg class="die" style="left:60px;top:110px" width="140" height="150" viewBox="0 0 140 150"><g transform="rotate(-12 70 75)"><polygon points="70,6 132,58 112,128 28,128 8,58" fill="#efe3c6" stroke="#5a4428" stroke-width="3"/><polygon points="70,22 112,82 70,126 28,82" fill="#f8efd8" stroke="#8a6d45" stroke-width="2"/><text x="70" y="94" text-anchor="middle" font-family="IM Fell English SC" font-size="34" fill="#3a2516">40</text></g></svg>
+ <svg class="die" style="left:210px;top:150px" width="140" height="150" viewBox="0 0 140 150"><g transform="rotate(16 70 75)"><polygon points="70,6 132,58 112,128 28,128 8,58" fill="#7a1f1c" stroke="#3a0d0b" stroke-width="3"/><polygon points="70,22 112,82 70,126 28,82" fill="#94302b" stroke="#4a1210" stroke-width="2"/><text x="70" y="96" text-anchor="middle" font-family="IM Fell English SC" font-size="38" fill="#f3e6c8">7</text></g></svg>
+ <div style="position:absolute;bottom:30px;left:0;right:0;text-align:center;color:#e8efe0"><div style="font-family:Caveat;font-size:44px;line-height:1">47</div><div style="font-style:italic;font-size:16px;color:#bcd0b8">tens die + ones die · d100</div></div>
+</div>
+<div class="paper card" style="left:1175px;top:510px;width:370px;height:250px;transform:rotate(2deg);background-color:#fbf6e8">
+ <div class="sc" style="font-size:18px;border-bottom:1px solid #a9b8c9;padding-bottom:6px">GM's note, pinned</div>
+ <div class="hand" style="font-size:25px;line-height:1.25;margin-top:10px">Ferrow is a market town over the pass from Tin Valley. Snow will close the pass this winter. Bring a cloak, and keep your temper with the guild.</div>
+ <div style="position:absolute;top:-12px;left:170px;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#e66,#7a1010)"></div>
+</div>
+<div style="position:absolute;left:1180px;top:800px;display:flex;flex-direction:column;gap:14px">
+ <div style="background:#2b2118;color:#f3ead6;border:2px solid #c9a46a;border-radius:6px;padding:14px 22px;font-family:'IM Fell English SC';font-size:21px;letter-spacing:1px;width:360px;text-align:center;box-shadow:0 6px 14px rgba(0,0,0,.5)">Seal the sheet &amp; begin ➜</div>
+ <div style="color:#e9d9bb;font-style:italic;font-size:16px;text-align:center;width:360px">Click any field to write in it. Click the tray to roll.</div>
+</div>
+<svg style="position:absolute;left:1150px;top:930px;transform:rotate(-12deg)" width="420" height="30"><rect x="0" y="8" width="340" height="14" fill="#c8932f"/><rect x="0" y="8" width="340" height="4" fill="#e0b050"/><rect x="340" y="8" width="26" height="14" fill="#b9b2a5"/><polygon points="366,8 410,15 366,22" fill="#e8c9a0"/><polygon points="398,13 410,15 398,17" fill="#333"/><rect x="0" y="8" width="18" height="14" fill="#d97a8a"/></svg>
+</body></html>

@@ -1,0 +1,76 @@
+<html><head><link rel="stylesheet" href="a-common.css"><style>
+.wrap{display:grid;grid-template-columns:330px 1fr 380px;gap:22px;padding:22px 28px}
+.steps{display:flex;gap:10px;padding:18px 28px 0}
+.step{flex:1;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;background:#161c26;border:1px solid #242c3a;color:#8a93a5;font-size:14px}
+.step b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#252e3d;font-size:13px;color:#c8cfdb}
+.step.done b{background:#2f6b4f;color:#d8ffe9}.step.on{border-color:#e8b04f;color:#fff}.step.on b{background:#e8b04f;color:#1a1408}
+.portrait{height:380px;border-radius:12px;background:radial-gradient(ellipse at 50% 35%,#3a4a63 0,#1b2230 70%);position:relative;overflow:hidden}
+.field{margin-top:14px}.field label{display:block;font-size:12px;color:#8a93a5;margin-bottom:6px}
+.input{background:#0f141c;border:1px solid #2b3445;border-radius:9px;padding:10px 12px;font-size:15px}
+.bg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.bg div{padding:10px;border-radius:9px;border:1px solid #2b3445;font-size:13.5px;background:#121822}
+.bg div.on{border-color:#e8b04f;background:#2a2416}
+.trait{display:grid;grid-template-columns:64px 1fr 120px 54px;align-items:center;gap:14px;padding:17px 0;border-bottom:1px solid #222a37}
+.trait .ab{font-weight:700;font-size:16px;letter-spacing:1px}
+.trait .nm{font-size:12px;color:#8a93a5}
+.bar{height:8px;background:#0f141c;border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,#c48a2c,#e8c27a)}
+.val{font-size:22px;font-weight:700;text-align:right}
+.pm{display:flex;gap:6px}.pm span{width:30px;height:30px;border-radius:8px;background:#252e3d;display:grid;place-items:center;font-weight:700;color:#c8cfdb}
+.skill{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #222a37;font-size:14px}
+.skill b{font-variant-numeric:tabular-nums}
+.tag{font-size:11px;padding:2px 7px;border-radius:5px;background:#1f2a3a;color:#8fb3e6;margin-left:6px}
+.info{background:#1b2230;border:1px solid #2b3445;border-radius:10px;padding:14px;font-size:13.5px;line-height:1.5;color:#c8cfdb}
+</style></head><body>
+<div class="top"><div class="logo">TALES FORGE<small>SWORDS OF TIN VALLEY</small></div>
+<div class="nav"><span class="on">New Character</span><span>Adventures</span><span>Library</span></div>
+<div class="right"><span class="pill">Autosaved</span><span>Settings</span></div></div>
+<div class="steps"><div class="step done"><b>✓</b>Origin</div><div class="step on"><b>2</b>Traits &amp; Skills</div><div class="step"><b>3</b>Gear</div><div class="step"><b>4</b>Voice &amp; Review</div></div>
+<div class="wrap">
+ <div class="card" style="padding:18px">
+  <div class="portrait"><svg viewBox="0 0 300 300" width="100%" height="100%"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#55667f"/><stop offset="1" stop-color="#232c3b"/></linearGradient></defs><path d="M150 70c-30 0-48 24-48 54 0 22 10 40 22 50l-2 14c-40 10-70 34-78 112h212c-8-78-38-102-78-112l-2-14c12-10 22-28 22-50 0-30-18-54-48-54z" fill="url(#g)"/><path d="M102 118c4-34 22-50 48-50s46 18 48 52c-14-18-30-24-48-24s-34 6-48 22z" fill="#2a2f38"/></svg>
+  <div style="position:absolute;bottom:12px;left:12px;right:12px;display:flex;justify-content:space-between"><span class="pill">Change portrait</span><span class="pill">Randomise</span></div></div>
+  <div class="field"><label>Name</label><div class="input">Corin Ashby</div></div>
+  <div class="field"><label>Background</label>
+   <div class="bg"><div class="on">Sellsword</div><div>Drover</div><div>Miner's child</div><div>Guild clerk</div><div>Hedge-priest</div><div>Outlaw</div></div></div>
+  <div class="info" style="margin-top:14px"><span class="gold">Sellsword.</span> You came down the pass with a notched blade and no employer. +10 Swordplay, +5 Perception.</div>
+ </div>
+ <div class="card" style="padding:22px 26px">
+  <div style="display:flex;justify-content:space-between;align-items:center"><div><div class="h">Traits</div><div style="font-size:24px;font-weight:700;margin-top:6px">Shape who Corin is</div></div>
+  <div style="text-align:right"><div class="muted" style="font-size:12px">Points left</div><div class="gold" style="font-size:28px;font-weight:700">12</div></div></div>
+  <div style="margin-top:10px">
+  <div class="trait"><div><div class="ab">STR</div><div class="nm">Strength</div></div><div class="bar"><i style="width:55%"></i></div><div class="pm"><span>−</span><span>+</span></div><div class="val">55</div></div>
+  <div class="trait"><div><div class="ab">DEX</div><div class="nm">Dexterity</div></div><div class="bar"><i style="width:62%"></i></div><div class="pm"><span>−</span><span>+</span></div><div class="val">62</div></div>
+  <div class="trait"><div><div class="ab">CON</div><div class="nm">Constitution</div></div><div class="bar"><i style="width:48%"></i></div><div class="pm"><span>−</span><span>+</span></div><div class="val">48</div></div>
+  <div class="trait"><div><div class="ab">INT</div><div class="nm">Intelligence</div></div><div class="bar"><i style="width:40%"></i></div><div class="pm"><span>−</span><span>+</span></div><div class="val">40</div></div>
+  <div class="trait"><div><div class="ab">WIS</div><div class="nm">Wisdom</div></div><div class="bar"><i style="width:58%"></i></div><div class="pm"><span>−</span><span>+</span></div><div class="val">58</div></div>
+  <div class="trait" style="border:0"><div><div class="ab">CHA</div><div class="nm">Charisma</div></div><div class="bar"><i style="width:35%"></i></div><div class="pm"><span>−</span><span>+</span></div><div class="val">35</div></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:16px"><span class="btn">⚄ Roll traits instead</span><span class="btn">Reset</span></div>
+  <div class="info" style="margin-top:18px;display:flex;gap:14px;align-items:flex-start"><div style="font-size:22px">ⓘ</div><div><b>No XP, no levels.</b> Every check is a d100 roll under your skill. Fail a roll and you may learn from it: the skill can rise after you rest.</div></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px">
+   <div class="info"><div class="muted" style="font-size:12px">Hit points</div><div style="font-size:20px;font-weight:700">10</div></div>
+   <div class="info"><div class="muted" style="font-size:12px">Carry limit</div><div style="font-size:20px;font-weight:700">11 items</div></div>
+   <div class="info"><div class="muted" style="font-size:12px">Starting purse</div><div style="font-size:20px;font-weight:700">14 silver</div></div></div>
+ </div>
+ <div style="display:flex;flex-direction:column;gap:22px">
+ <div class="card" style="padding:20px 22px">
+  <div class="h">Starting skills (d100, roll under)</div>
+  <div style="margin-top:8px">
+  <div class="skill"><span>Swordplay <span class="tag">Sellsword</span></span><b>45%</b></div>
+  <div class="skill"><span>Perception <span class="tag">Sellsword</span></span><b>52%</b></div>
+  <div class="skill"><span>Riding</span><b>40%</b></div>
+  <div class="skill"><span>Stealth</span><b>38%</b></div>
+  <div class="skill"><span>Persuasion</span><b>32%</b></div>
+  <div class="skill"><span>Haggling</span><b>30%</b></div>
+  <div class="skill"><span>Healing</span><b>25%</b></div>
+  <div class="skill" style="border:0"><span>Lore: Tin Valley</span><b>10%</b></div></div>
+ </div>
+ <div class="card" style="padding:20px 22px">
+  <div class="h">Play preferences</div>
+  <div class="skill" style="margin-top:8px"><span>Show dice rolls</span><span class="toggle"></span></div>
+  <div class="skill"><span>Show skill numbers</span><span class="toggle"></span></div>
+  <div class="skill" style="border:0"><span>Narration length</span><span class="muted">Medium</span></div>
+ </div>
+ <div style="display:flex;gap:10px;justify-content:flex-end"><span class="btn">Back</span><span class="btn pri">Continue to Gear →</span></div>
+ </div>
+</div></body></html>

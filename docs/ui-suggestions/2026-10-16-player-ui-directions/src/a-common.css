@@ -1,0 +1,19 @@
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1600px;height:1000px;overflow:hidden;font-family:'Inter',sans-serif;background:#0f1218;color:#e6e8ee;font-size:15px}
+.top{height:60px;display:flex;align-items:center;padding:0 28px;border-bottom:1px solid #232a36;background:#131821;gap:24px}
+.logo{font-family:'Cinzel';font-weight:700;font-size:20px;letter-spacing:2px;color:#e8c27a}
+.logo small{font-family:'Inter';font-size:11px;color:#7d8697;letter-spacing:1px;margin-left:10px;font-weight:500}
+.nav{display:flex;gap:6px;margin-left:30px}
+.nav span{padding:8px 14px;border-radius:8px;color:#9aa3b5;font-size:14px}
+.nav span.on{background:#1e2532;color:#fff}
+.right{margin-left:auto;display:flex;gap:14px;align-items:center;color:#9aa3b5;font-size:13px}
+.pill{background:#1e2532;border:1px solid #2b3445;padding:6px 12px;border-radius:999px;font-size:12.5px;color:#c8cfdb}
+.card{background:#161c26;border:1px solid #242c3a;border-radius:14px}
+.h{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#7d8697;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:10px;font-weight:600;font-size:14px;background:#252e3d;color:#e6e8ee;border:1px solid #33405a}
+.btn.pri{background:#e8b04f;color:#1a1408;border-color:#e8b04f}
+.gold{color:#e8c27a}
+.muted{color:#8a93a5}
+.toggle{width:40px;height:22px;border-radius:11px;background:#e8b04f;position:relative;display:inline-block;vertical-align:middle}
+.toggle::after{content:'';position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#1a1408}
+.toggle.off{background:#3a4456}.toggle.off::after{left:3px;right:auto;background:#c8cfdb}

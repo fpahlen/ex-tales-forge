@@ -1,0 +1,82 @@
+<html><head><link rel="stylesheet" href="a-common.css"><style>
+.wrap{display:grid;grid-template-columns:300px 1fr 340px;gap:20px;padding:20px 24px;height:940px}
+.col{display:flex;flex-direction:column;gap:18px;min-height:0}
+.trs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.trs div{background:#0f141c;border:1px solid #242c3a;border-radius:9px;padding:8px;text-align:center}
+.trs b{display:block;font-size:19px}.trs span{font-size:11px;color:#8a93a5;letter-spacing:1px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #222a37;font-size:14px}
+.up{color:#6fd39c;font-size:11.5px;margin-left:6px}
+.hp{height:10px;background:#0f141c;border-radius:5px;overflow:hidden;margin-top:8px}.hp i{display:block;height:100%;width:80%;background:#c9524a}
+.feed{flex:1;padding:20px 30px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.gm{display:flex;gap:14px}
+.av{width:38px;height:38px;border-radius:10px;flex:none;display:grid;place-items:center;font-weight:700;font-size:13px}
+.gm .av{background:#2a2416;color:#e8c27a;border:1px solid #5a4824}
+.msg{font-family:'Lora';font-size:16px;line-height:1.58;color:#dfe2e8}
+.who{font-size:12px;color:#8a93a5;margin-bottom:4px;font-family:'Inter'}
+.me{align-self:flex-end;max-width:78%;background:#1f3047;border:1px solid #2d4566;border-radius:14px 14px 4px 14px;padding:12px 16px;font-size:15px;line-height:1.5}
+.roll{align-self:center;display:flex;gap:14px;align-items:center;background:#1b1418;border:1px solid #5a2e33;border-radius:12px;padding:10px 16px;font-size:14px}
+.d{width:44px;height:44px;border-radius:10px;background:#c9524a;color:#fff;font-weight:800;display:grid;place-items:center;font-size:17px}
+.inputbar{margin:0 24px 22px;background:#0f141c;border:1px solid #33405a;border-radius:14px;padding:12px 14px}
+.chips{display:flex;gap:8px;margin-bottom:10px}.chips span{font-size:12.5px;padding:6px 11px;border-radius:999px;background:#1e2532;border:1px solid #2b3445;color:#c8cfdb}
+.q{padding:12px 0;border-bottom:1px solid #222a37}.q b{font-size:14.5px}.q p{font-size:13px;color:#9aa3b5;margin-top:4px;line-height:1.45}
+.inv{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.inv div{aspect-ratio:1;background:#0f141c;border:1px solid #242c3a;border-radius:9px;display:grid;place-items:center;font-size:24px;position:relative}
+.inv div small{position:absolute;bottom:3px;right:5px;font-size:10px;color:#8a93a5}
+.npc{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #222a37}
+.npc .av{background:#24324a;color:#c8d6f0}
+.att{font-size:11.5px;padding:2px 8px;border-radius:5px}
+</style></head><body>
+<div class="top"><div class="logo">TALES FORGE<small>SWORDS OF TIN VALLEY</small></div>
+<div class="nav"><span class="on">Play</span><span>Character</span><span>Journal</span><span>Map</span></div>
+<div class="right"><span class="pill">📍 The Drover's Rest, Ferrow</span><span class="pill">Day 1 · Evening</span><span>Dice: <span class="toggle"></span></span></div></div>
+<div class="wrap">
+ <div class="col">
+  <div class="card" style="padding:18px">
+   <div style="display:flex;gap:12px;align-items:center"><div class="av" style="width:52px;height:52px;background:#33405a;border-radius:12px;font-size:18px">CA</div><div><div style="font-weight:700;font-size:17px">Corin Ashby</div><div class="muted" style="font-size:13px">Sellsword</div></div></div>
+   <div style="margin-top:14px;font-size:12.5px;display:flex;justify-content:space-between"><span class="muted">Hit points</span><span>8 / 10</span></div><div class="hp"><i></i></div>
+   <div class="trs"><div><span>STR</span><b>55</b></div><div><span>DEX</span><b>62</b></div><div><span>CON</span><b>48</b></div><div><span>INT</span><b>40</b></div><div><span>WIS</span><b>58</b></div><div><span>CHA</span><b>35</b></div></div>
+  </div>
+  <div class="card" style="padding:16px 18px;flex:1">
+   <div class="h">Skills</div>
+   <div class="row"><span>Swordplay</span><b>45%</b></div>
+   <div class="row"><span>Perception<span class="up">▲ lesson</span></span><b>52%</b></div>
+   <div class="row"><span>Persuasion</span><b>32%</b></div>
+   <div class="row"><span>Stealth</span><b>38%</b></div>
+   <div class="row"><span>Riding</span><b>40%</b></div>
+   <div class="row"><span>Haggling</span><b>30%</b></div>
+   <div class="row" style="border:0"><span>Lore: Tin Valley</span><b>10%</b></div>
+   <div class="muted" style="font-size:12px;margin-top:10px;line-height:1.45">▲ a failed roll that may teach. No XP, no levels.</div>
+  </div>
+ </div>
+ <div class="card" style="display:flex;flex-direction:column;min-height:0">
+  <div style="padding:16px 30px;border-bottom:1px solid #242c3a;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:16px">Chapter II · The Widows' Purse</div><div class="muted" style="font-size:12.5px">Game Master is narrating</div></div><span class="pill">Speaking in character</span></div>
+  <div class="feed">
+   <div class="gm"><div class="av">GM</div><div><div class="who">Game Master</div><div class="msg">Rain comes off the mountain in grey sheets, and the Drover's Rest smells of wet wool and tallow. Three guildsmen hold the table nearest the fire as though they had paid for the hearth itself. By the door, a girl of perhaps sixteen sits with her back to the wall, one hand pressed flat over something under her coat. Two sellswords are still laughing at whatever she asked them.</div></div></div>
+   <div class="me"><div class="who" style="color:#9fb6d6">Corin (you)</div>"Half this room has watched you guard that coat."</div>
+   <div class="gm"><div class="av">GM</div><div><div class="who">Elin Harrow</div><div class="msg">She looks at you the way miners look at a cracked beam. <i>"It's the widows' purse, not mine. Eleven families, and the guild says the mine owes them nothing."</i> Across the room, one of the guildsmen turns his head.</div></div></div>
+   <div class="roll"><div class="d">67</div><div><b>Perception</b> · needed 52 or less · <span style="color:#ff8c84;font-weight:600">Failure</span><div style="font-size:12.5px;color:#6fd39c;margin-top:2px">A lesson: Perception may rise when you next rest</div></div></div>
+   <div class="gm"><div class="av">GM</div><div><div class="msg">When you look again, the bench by the fire holds only two men. The third is gone, and the door to the yard swings on its leather hinge.</div></div></div>
+   <div class="me"><div class="who" style="color:#9fb6d6">Corin (you)</div>"Stay close. If he's gone for friends, they'll be waiting in the yard."</div>
+   <div class="gm"><div class="av">GM</div><div><div class="who">Elin Harrow</div><div class="msg"><i>"Through the kitchen. The pot-boy showed me last night."</i> Her hand stays on her coat.</div></div></div>
+  </div>
+  <div class="inputbar"><div class="chips"><span>Ask Elin about the guild</span><span>Check the yard</span><span>Offer to walk her home</span><span>⚄ Make a roll</span></div>
+   <div style="display:flex;align-items:center;gap:12px"><div style="flex:1;color:#6b7486;font-size:15px">Say or do something as Corin…</div><span class="btn pri" style="padding:9px 16px">Send ↵</span></div></div>
+ </div>
+ <div class="col">
+  <div class="card" style="padding:16px 18px">
+   <div class="h">Quests</div>
+   <div class="q"><b>⚑ The Widows' Purse</b><p>Elin Harrow is hiring blades for the widows of Tin Valley. Hear her out.</p></div>
+   <div class="q" style="border:0"><b>❄ The Closing Pass</b><p>The pass closes with the first heavy snow, about a month from now.</p><div class="hp" style="height:6px"><i style="width:4%;background:#8fb3e6"></i></div></div>
+  </div>
+  <div class="card" style="padding:16px 18px">
+   <div class="h">People nearby</div>
+   <div class="npc"><div class="av">EH</div><div style="flex:1"><b style="font-size:14px">Elin Harrow</b><div class="muted" style="font-size:12px">16 · carries the widows' purse</div></div><span class="att" style="background:#2a2416;color:#e8c27a">Wary</span></div>
+   <div class="npc" style="border:0"><div class="av" style="background:#3a1c20;color:#ffb3ad">TG</div><div style="flex:1"><b style="font-size:14px">Guildsmen (2)</b><div class="muted" style="font-size:12px">Miners Guild, by the fire</div></div><span class="att" style="background:#3a1c20;color:#ff8c84">Hostile</span></div>
+  </div>
+  <div class="card" style="padding:16px 18px;flex:1">
+   <div class="h">Inventory · 6 / 11</div>
+   <div class="inv"><div>🗡<small>notched</small></div><div>🧥<small>oilskin</small></div><div>🪙<small>14</small></div><div>🔥<small>flint</small></div><div>💧<small>water</small></div><div>✉<small>sealed</small></div><div></div><div></div></div>
+   <div class="muted" style="font-size:12.5px;margin-top:12px">Selected: <span style="color:#e6e8ee">Longsword (notched)</span></div>
+  </div>
+ </div>
+</div></body></html>
