@@ -20,7 +20,9 @@ defmodule TalesForge.Game.InnWorldTest do
 
   setup do
     previous =
-      for key <- ~w(INN_WORLD WORLD_ANTAGONIST), into: %{}, do: {key, System.get_env(key)}
+      for key <- ~w(INN_WORLD WORLD_ANTAGONIST HIERARCHICAL_LOCATIONS),
+          into: %{},
+          do: {key, System.get_env(key)}
 
     on_exit(fn ->
       for {key, value} <- previous do
@@ -29,6 +31,9 @@ defmodule TalesForge.Game.InnWorldTest do
 
       for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
     end)
+
+    # These tests read the world without the place tree (default on).
+    System.put_env("HIERARCHICAL_LOCATIONS", "off")
 
     System.delete_env("INN_WORLD")
     System.delete_env("WORLD_ANTAGONIST")
@@ -47,6 +52,14 @@ defmodule TalesForge.Game.InnWorldTest do
 
       System.delete_env("INN_WORLD")
       assert Features.for_new_session() == [], "the antagonist needs the inn world"
+    end
+
+    test "hierarchical locations are on by default; HIERARCHICAL_LOCATIONS=off turns them off" do
+      System.delete_env("HIERARCHICAL_LOCATIONS")
+      assert Features.for_new_session() == ["hierarchical_locations"]
+
+      System.put_env("HIERARCHICAL_LOCATIONS", "off")
+      assert Features.for_new_session() == []
     end
 
     test "on?/2 reads the session's features" do

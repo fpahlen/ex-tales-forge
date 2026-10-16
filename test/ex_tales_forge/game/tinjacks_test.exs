@@ -21,7 +21,9 @@ defmodule TalesForge.Game.TinjacksTest do
 
   setup do
     previous =
-      for key <- ~w(INN_WORLD WORLD_ANTAGONIST), into: %{}, do: {key, System.get_env(key)}
+      for key <- ~w(INN_WORLD WORLD_ANTAGONIST HIERARCHICAL_LOCATIONS),
+          into: %{},
+          do: {key, System.get_env(key)}
 
     on_exit(fn ->
       for {key, value} <- previous do
@@ -30,6 +32,9 @@ defmodule TalesForge.Game.TinjacksTest do
 
       for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
     end)
+
+    # These tests read the world without the place tree (default on).
+    System.put_env("HIERARCHICAL_LOCATIONS", "off")
 
     :ok
   end
