@@ -38,7 +38,7 @@ The guild knows this. It does not need to take the mine by force. It only needs 
 
 The guild hides a secret: its charter does not cover tin. In law, the guild cannot hold a tin mine.
 
-The widows pool a small purse of tin. They send Maud's daughter Elin over the pass to Ferrow to hire a fighter. She finds the player. The player must hire a few more fighters, travel to the valley, train the village, and get the wagons through.
+The widows pool a small purse of tin. They send Marit's daughter Elin over the pass to Ferrow to hire a fighter. She finds the player. The player must hire a few more fighters, travel to the valley, train the village, and get the wagons through.
 
 ## The player's job
 
@@ -58,8 +58,8 @@ OCEAN key: O openness, C conscientiousness, E extraversion, A agreeableness, N n
 
 | NPC | OCEAN | Maslow | Current concerns | Wants from the player | Secret |
 | --- | --- | --- | --- | --- | --- |
-| **Maud Harrow**, headwoman, Tomas's widow | O 3, C 8, E 5, A 3, N 8 | Esteem (to be the leader Tomas was) | The loan. The widows doubting her. Outsiders with swords. | Obedience to her terms. Later, honesty. | Tomas saved money on pit props to pay for the pump. She signed the timber order herself. |
-| **Elin Harrow**, the recruiter, 16, Maud's daughter | O 7, C 6, E 6, A 6, N 7 | Esteem (to be trusted with something that matters) | The purse. Her mother's orders. Ferrow, which frightens and tempts her. | To say yes. To be treated as the widows' voice, not as a child. | She lost 1 gold of the purse to a card sharp on her first night in Ferrow. Part of her wants to stay in Ferrow and never go back. |
+| **Marit Harrow**, headwoman, Tomas's widow | O 3, C 8, E 5, A 3, N 8 | Esteem (to be the leader Tomas was) | The loan. The widows doubting her. Outsiders with swords. | Obedience to her terms. Later, honesty. | Tomas saved money on pit props to pay for the pump. She signed the timber order herself. |
+| **Elin Harrow**, the recruiter, 16, Marit's daughter | O 7, C 6, E 6, A 6, N 7 | Esteem (to be trusted with something that matters) | The purse. Her mother's orders. Ferrow, which frightens and tempts her. | To say yes. To be treated as the widows' voice, not as a child. | She lost 1 gold of the purse to a card sharp on her first night in Ferrow. Part of her wants to stay in Ferrow and never go back. |
 | **Wil Carrow**, the boy, 12 | O 8, C 3, E 8, A 8, N 5 | Love and belonging | His father is gone. His mother does not talk. He wants to matter. | To be taught to fight. To be taken along. | He heard his father say "Tomas is cutting the props too thin." He has told no one. |
 | **Agnes Pell**, widow willing to sell | O 5, C 7, E 3, A 8, N 8 | Safety | Three small children. Food for the winter. | Help to make the others listen. A fair price. | Osric has already offered her 4 gold for her share. She has not said no. |
 | **Ide Fenn**, widow who wants blood | O 2, C 5, E 7, A 2, N 9 | Esteem (her husband's name) | Proof that the guild killed him. Revenge. | A sword hand that hits the guild. | She once tried to fire the guild store and failed. Sheriff Crane let it go. |
@@ -250,7 +250,7 @@ The cave-in stays ambiguous. The GM keeps both readings alive to the end.
 
 ### Evidence that it was an accident
 
-- The props in the deep drift were cut thin. Maud signed the timber order.
+- The props in the deep drift were cut thin. Marit signed the timber order.
 - Wil heard his father say the props were too thin.
 - It rained hard for a week before. Water seeped through the hanging wall.
 - Tomas ordered double fire-settings in the deep drift to reach the rich vein before the bank's man came. Fire cracks the roof as well as the face.
@@ -260,7 +260,7 @@ The cave-in stays ambiguous. The GM keeps both readings alive to the end.
 
 Each NPC believes what their personality and needs make easy.
 
-- **Maud** needs it to be the guild. Otherwise her own thrift killed them.
+- **Marit** needs it to be the guild. Otherwise her own thrift killed them.
 - **Ide** and **Gid** believe it was the guild. Any proof is enough.
 - **Agnes** believes it was an accident. She needs it to be over.
 - **Crane** says accident. If it was murder, he would have to act.
@@ -311,7 +311,7 @@ A trip to Ferrow and back takes 6 days. It is the price of the banker and charte
 
 | Session | Days | Main pressure |
 | --- | --- | --- |
-| 1. Ferrow and the road | 1 to 4 | The hook. Recruitment. The pass road. Maud's terms. |
+| 1. Ferrow and the road | 1 to 4 | The hook. Recruitment. The pass road. Marit's terms. |
 | 2. The village | 5 to 10 | Training or mining. First sabotage. |
 | 3. The question | 11 to 17 | The cave-in. The banker's visit. The Ferrow trip, if taken. |
 | 4. Fractures | 18 to 24 | The plant. The sale vote. Snow portents. |
@@ -330,7 +330,7 @@ The guild's existing `dawdle_in_town` trigger ticks while the player waits in th
 
 **Day 1, Ferrow.** The player is at the Drover's Rest, a carters' inn by the Ferrow market. Elin Harrow is there too. She is 16, she carries the widows' purse under her coat, and two sellswords have already laughed at her.
 
-- **Option A: the inn.** Elin comes to the player's table. She has rehearsed a speech, and it comes out wrong. She offers Maud's terms: board, a share of the sale, and pay only after the tin is sold. The player can bargain, ask questions or say no. Insight shows she is hiding something (the lost gold).
+- **Option A: the inn.** Elin comes to the player's table. She has rehearsed a speech, and it comes out wrong. She offers Marit's terms: board, a share of the sale, and pay only after the tin is sold. The player can bargain, ask questions or say no. Insight shows she is hiding something (the lost gold).
 - **Option B: the robbery (fallback).** If option A does not take (the player refuses, ignores her or is elsewhere), Elin leaves at dusk. Two footpads, Rafe and Dob Coker, saw her purse at the card table. They corner her in the inn yard, in sight of the player. Helping her opens the hook again, now with gratitude. If the player walks past, Elin loses half the purse, and a further refusal leads to the ending "The Stranger Who Rode On".
 
 Once the player says yes, the rest of day 1 is recruitment in Ferrow. Ness, Aldo, Gid and Old Rook are there. Tobin turns up in the evening. Elin may also go to the Coldwater counting house to ask Malwick for more time. He says no, politely. The player can go with her and meet him early.
@@ -341,9 +341,9 @@ A second day in Ferrow is allowed, but it costs a day on the clock.
 
 The road is three days of talk. It is the first chance to learn what each fighter wants, and to see who argues with whom.
 
-**Evening of day 4, the Valley Inn.** Brenna points the company to Maud. Maud sets hard terms: no drinking with guild men, no promises to the widows behind her back, pay only after the tin is sold. Wil follows the player out. Osric visits the player politely. He offers more silver to ride on. This is the second refusal moment.
+**Evening of day 4, the Valley Inn.** Brenna points the company to Marit. Marit sets hard terms: no drinking with guild men, no promises to the widows behind her back, pay only after the tin is sold. Wil follows the player out. Osric visits the player politely. He offers more silver to ride on. This is the second refusal moment.
 
-- **Callback:** Elin tells her mother how the player treated her, and whether the player kept her secret about the lost gold. Maud's first opinion of the player is Elin's telling.
+- **Callback:** Elin tells her mother how the player treated her, and whether the player kept her secret about the lost gold. Marit's first opinion of the player is Elin's telling.
 - **End beat (visible progress):** the company is hired and in the valley. The day count is shown in fiction ("Twenty-six days to the reckoning").
 
 ### 2. The village (days 5 to 10)
@@ -365,16 +365,16 @@ The cave-in question opens. Caldern talks for copper. Crane drinks. Wil carries 
 
 The player may choose the Ferrow trip here. It costs 6 days. In Ferrow there is Harlan, Wenna and the registry.
 
-- **Callback:** what the player said about the cave-in in sessions 1 and 2. Maud or Ide repeats it to Malwick, in their own words.
+- **Callback:** what the player said about the cave-in in sessions 1 and 2. Marit or Ide repeats it to Malwick, in their own words.
 - **End beat:** one clear finding (a clue, an ally, or a wagon load).
 
 ### 4. Fractures (days 18 to 24)
 
-Agnes calls a vote to sell to the guild. Osric's offer is real money. Brenna backs her sister quietly. Maud cannot win the vote alone. The player's earlier tellings and kindnesses decide who votes how.
+Agnes calls a vote to sell to the guild. Osric's offer is real money. Brenna backs her sister quietly. Marit cannot win the vote alone. The player's earlier tellings and kindnesses decide who votes how.
 
 The plant acts. Tobin is caught near the wagons, or he is not. If the player turned him, he warns them instead.
 
-Harlan sends a letter, or comes himself. He offers a lease: the guild works the deep drift, the widows keep the mine and a tenth of the tin. It is a real offer. Maud hates it.
+Harlan sends a letter, or comes himself. He offers a lease: the guild works the deep drift, the widows keep the mine and a tenth of the tin. It is a real offer. Marit hates it.
 
 Snow on the high peaks. Old Rook says the pass has a week, maybe less.
 
@@ -406,7 +406,7 @@ The player meets Malwick at Coldwater. With tin, the loan is paid. Without tin, 
 
 The epilogue says what became of each named NPC, in plain lines. Then it ends.
 
-- **Callback:** an end-of-arc letter from an NPC who matters to the player. Usually Wil or Maud.
+- **Callback:** an end-of-arc letter from an NPC who matters to the player. Usually Wil or Marit.
 
 ## Endings
 
@@ -417,7 +417,7 @@ Every ending is a real ending. The world stores it, and later adventures in Tin 
 - **The Iron Road.** The wagons arrive in time. The loan is paid. The village keeps the mine. The guild is still hungry, and the next adventure knows it.
 - **The Banker's Word.** Malwick extends the loan to spring. The player found his fear and gave him cover. He remembers this as a debt. He also remembers who knows his secret.
 - **The Charter.** The guild cannot bid. The mine is safe. Harlan's people face a hard winter. Some of them come to the valley looking for work.
-- **The Lease.** Harlan and Maud sign. The widows keep the mine and a share. Ide never forgives the player. Agnes's children eat.
+- **The Lease.** Harlan and Marit sign. The widows keep the mine and a share. Ide never forgives the player. Agnes's children eat.
 
 Variants combine. A road run that loses one wagon can still win with the banker.
 
@@ -425,10 +425,10 @@ Each success has a cost line: who died, who left, what Wil became.
 
 ### Failure modes
 
-- **The Stranger Who Rode On.** The player refuses Elin in Ferrow, takes Osric's silver, or leaves before the run. Elin goes home with whoever she could hire. The guild buys the mine in spring. Elin remembers the player's face, and Maud remembers it through Elin's telling. In later adventures neither of them will open her door.
+- **The Stranger Who Rode On.** The player refuses Elin in Ferrow, takes Osric's silver, or leaves before the run. Elin goes home with whoever she could hire. The guild buys the mine in spring. Elin remembers the player's face, and Marit remembers it through Elin's telling. In later adventures neither of them will open her door.
 - **Snow on the Sheds.** The player idles or spends the days badly. The pass closes with tin in the sheds. The bank forecloses. The village does not blame the player loudly. Brenna gives them a room for free, which is worse.
 - **Ash on the Road.** The player loses the run. The wagons burn or arrive late, or the mine falls. Survivors remember who stood with them. Some NPCs die, and their memories end with them.
-- **Sold.** The vote goes to Agnes, and the player does not stop it, or helps it. Not a pure failure. The village eats, and the mine is gone. Maud leaves the valley.
+- **Sold.** The vote goes to Agnes, and the player does not stop it, or helps it. Not a pure failure. The village eats, and the mine is gone. Marit leaves the valley.
 
 ## NPC memory and relationships
 
@@ -436,7 +436,7 @@ NPCs remember what matters to their personality. The GM stores each memory with 
 
 Examples of weighting:
 
-- **Maud** (C 8, N 8) remembers kept and broken terms. She forgets kindness quickly.
+- **Marit** (C 8, N 8) remembers kept and broken terms. She forgets kindness quickly.
 - **Agnes** (A 8, N 8) remembers what the player did for her children.
 - **Dace** (E 8, N 2) remembers respect and plain dealing.
 - **Malwick** (N 8) remembers being embarrassed in public above all.
@@ -478,7 +478,7 @@ The GM triggers the nest only if the player strays far off the map or off the pl
 
 - **Hawk.** The robbery fallback in Ferrow, a hard deadline, a split force at the finale, and a fair but real chance to lose. Each danger is foreshadowed: snow portents, rock groans, the plant's tells.
 - **Paul.** Most wins are talk: the vote, the banker, Dace at the Narrows, Harlan's lease. Speech quality matters.
-- **Lotta.** She starts as a stranger hired by a girl in a Ferrow inn, and an outsider Maud does not trust. The village slowly comes to see who she is. Wil's letter is her recognition.
+- **Lotta.** She starts as a stranger hired by a girl in a Ferrow inn, and an outsider Marit does not trust. The village slowly comes to see who she is. Wil's letter is her recognition.
 - **Lars.** A clear goal each session (say yes and hire, load a wagon, win the vote, cross the pass). A visible clock. The world changes because of him.
 - **Mystery Explorer.** The charter has six clues that add up. The cave-in rewards looking closer, even though it never resolves. Session 3 can be all investigation.
 - **Build Tinkerer.** Many ways to win: a social build wins in Ferrow, a martial build wins the pass, a Law and Insight build wins the charter path. The company the player recruits is a build choice too.
@@ -514,8 +514,7 @@ Inspirational maps live in `swords-of-tin-valley/maps/`. They are drawn with cod
 
 - How much does a wagon of tin sell for? (Proposal: about 20 gold per wagon, so three wagons pay the loan.)
 - Does a player who refuses in session 1 get a short closing scene, or does the session just end?
-- Which NPCs carry their memories into later adventures? (Proposal: Maud, Wil, Dace, Malwick, and any surviving fighter.)
+- Which NPCs carry their memories into later adventures? (Proposal: Marit, Wil, Dace, Malwick, and any surviving fighter.)
 - Should the hidden pass-closing day be fixed per world, or rolled per play?
-- The headwoman **Maud** Harrow and the canon herb-wife **Old Maude** have nearly the same name. Should the headwoman be renamed (for example Marit Harrow)?
 - Should the Tinjacks (Rusk, Cobb, Pip) be active in this adventure, or switched off like the orc nest? (Proposal: off by default. The Ferrow footpads in option B are not the Tinjacks.)
 - The canon west road and old adit are drawn on the valley map along the pass road. Is the west road the same road as the pass road? (Proposal: yes, its first stretch.)

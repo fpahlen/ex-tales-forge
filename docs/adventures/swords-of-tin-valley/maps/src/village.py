@@ -44,7 +44,7 @@ label(ax,77.5,48.9,"stalls",size=9.5,style="italic")
 # buildings
 bldg(50,54,10,7); cap(50,61.5,"Valley Inn","Brenna Holt · hearth and bar")
 bldg(71,66.5,9,5,roof=GREY); cap(71,72,"Guild office","Osric Vane, steward")
-bldg(46,76,11,7,rot=-4); cap(46,84.5,"Harrow house","the headwoman, Maud Harrow")
+bldg(46,76,11,7,rot=-4); cap(46,84.5,"Harrow house","the headwoman, Marit Harrow")
 ax.plot(*wobble([(39,70),(39,82),(53,82),(53,70),(48,70)],0.1),color=INK,lw=0.8,ls=(0,(1,1.2)),zorder=5)  # yard fence
 bldg(82,38,6,5,roof=GREY); cap(82,33.5,"Sheriff's house","Elias Crane")
 bldg(64,36,5,4,rot=8); cap(64,31.5,"Pell cottage","Agnes Pell")
