@@ -11,7 +11,7 @@ defmodule TalesForge.Schemas.CharacterMemory do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   @kinds ~w(memory promise reaction fact)
-  @tiers ~w(working short long)
+  @tiers ~w(working short long faded)
 
   @type t :: %__MODULE__{}
 
@@ -27,6 +27,8 @@ defmodule TalesForge.Schemas.CharacterMemory do
     field :tier, :string, default: "short"
     field :about, {:array, :string}, default: []
     field :weight, :float, default: 1.0
+    # Board card 845b6b15: the character's belief from compression; it can be wrong.
+    field :belief, :string
 
     belongs_to :character, TalesForge.Schemas.Character
     belongs_to :session_event, TalesForge.Schemas.SessionEvent
@@ -53,7 +55,8 @@ defmodule TalesForge.Schemas.CharacterMemory do
       :tick,
       :tier,
       :about,
-      :weight
+      :weight,
+      :belief
     ])
     |> validate_required([:character_id, :kind, :text])
     |> validate_inclusion(:kind, @kinds)

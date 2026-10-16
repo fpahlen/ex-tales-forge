@@ -1626,3 +1626,13 @@ None right now. (Prose-only GM vs structured reply format: decided on 2026-10-08
 - Recall uses `about` overlap with the place, the present NPCs and the player character. The heaviest and newest rows come first, 5 per NPC at most.
 - CHARACTER_MEMORY is off, shadow or on. Shadow (playtest) writes rows and shows them in the playtest "Character memory" view. Only on adds the prompt section. Production is off.
 - Q3 (when compression runs) is posted as options on the card. PR 3 builds the compression.
+
+## 2026-10-16: Character memory PR 2: Jev compression (card 845b6b15)
+
+- `TalesForge.Characters.Compression` makes one typed Jev call per character with new short-term rows. It runs in a task after the turn commits.
+- Jev reads the rows, the interests, OCEAN and mood. Per association (at most 6) it answers a weight, a feeling, a belief that can be wrong, and the row the character remembers best. Jev gives no free text, so Elixir writes the gist (20 words at most): the feeling, then the core row.
+- Fredrik's answer 5 (16 Oct): "no memory stays uncompressed the memory is always the characters *interpretation* of facts and promises, but in the end it at least \"Mags promised to help me\"". So every kind of row is compressed. A promise or a deal keeps its core in the gist. Exact numbers stay in game data (coins, debts, stock, quests).
+- Timing is option 4 of Q3 (Fredrik's answer 1): on a long rest, or at the next scene end after a WorldClock dawn when one game day passed with no compression. Card 6c0777e0 is not needed (answer 2). Before the first compression, the clock starts at the oldest short-term row, so old rows count as short-term.
+- Fade: a new long-term row below weight 0.25 is not written. At each compression long-term rows lose weight (×0.7, or ×0.9 for strong feelings: grateful, afraid, angry, resentful). Compressed short-term rows and faded rows get the new tier `faded`; the row stays, so the NPC mirror does not add it again.
+- Rows of engine events (`turn.*`, `player.dawdled`) stay out of the call, so compression does not amplify them. The other row-quality fixes are card 8c519067.
+- Behind CHARACTER_MEMORY: shadow on playtest, off on production. Usage goes to `ai_calls` as purpose `memory.compress`.

@@ -92,3 +92,6 @@ config :ex_tales_forge, TalesForge.Canon, classifier: TalesForge.Canon.Classifie
 
 config :ex_tales_forge, :workflow_client_req_options,
   plug: {Req.Test, TalesForge.WorkflowClient.Http}
+
+# Character memory compression (TalesForge.Characters.Compression) runs inline.
+config :ex_tales_forge, :character_memory_compress, :sync

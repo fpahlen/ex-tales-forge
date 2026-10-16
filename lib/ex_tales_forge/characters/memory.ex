@@ -123,6 +123,11 @@ defmodule TalesForge.Characters.Memory do
 
   defp rest_location(e), do: if(long_rest?(e), do: get(e, :location_id))
 
+  @doc "True when the events of a turn hold a long rest."
+  @spec long_rest_in?([map()]) :: boolean()
+  def long_rest_in?(events),
+    do: Enum.any?(events, &(get(&1, :kind) == "time.passed" and long_rest?(&1)))
+
   defp long_rest?(e) do
     delta = (get(e, :payload) || %{})["delta_ticks"]
     is_integer(delta) and Progression.long_rest?(delta)

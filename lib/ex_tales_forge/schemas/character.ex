@@ -53,6 +53,9 @@ defmodule TalesForge.Schemas.Character do
     field :mood, :string
     field :relationships, :map, default: %{}
     field :runtime, :map, default: %{}
+    # Board card 845b6b15: the world tick of the last memory compression.
+    # Written only by `TalesForge.Characters.Compression`, never mirrored.
+    field :memory_compressed_tick, :integer
 
     field :lock_version, :integer, default: 1
 
