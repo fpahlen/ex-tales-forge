@@ -10,7 +10,7 @@ defmodule TalesForge.Game.FirstMeeting do
     * the NPC's memories (`runtime_state["memories"]`, written from the GM's
       `npc_memory_updates` and from fronts) that name the character (full or
       first name) or have a `"who"`. Secret memories and "Overheard ..."
-      memories (`TalesForge.Actions.NPC.OnOverheard`) do not count: to hear
+      memories (written by the NPC on_overheard action) do not count: to hear
       someone in the room is not to meet them. With no character name, any
       other memory counts;
     * the NPC's dialogue lines (`world_state["npc_memory"]`,
