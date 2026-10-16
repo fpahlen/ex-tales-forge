@@ -2,6 +2,8 @@
 id: west_road
 name: West road
 parent: tin_valley_region
+at: [-4, 0]
+cell_m: 200
 exits:
   - market_square
   - old_adit

@@ -210,7 +210,13 @@ defmodule TalesForge.Game.TurnProcessor do
       |> apply_location_presence(session)
 
     {world_paused, improvements, training} =
-      apply_pause_or_train(world_present, session, handler, player_action, opts)
+      apply_pause_or_train(
+        world_present,
+        session,
+        handler,
+        player_action,
+        Keyword.put(opts, :moved_from, get_in(world_traded, ["character", "location_id"]))
+      )
 
     fronts = Fronts.sim_fronts(session.id)
     people = NPC.sim_people(session.id)
@@ -272,8 +278,22 @@ defmodule TalesForge.Game.TurnProcessor do
     apply_training(world, session, player_action, opts)
   end
 
-  defp apply_pause_or_train(world, _session, handler, _player_action, _opts),
-    do: {WorldClock.advance(world, ActionHandler.tick_delta(handler)), [], nil}
+  defp apply_pause_or_train(world, _session, handler, _player_action, opts),
+    do: {WorldClock.advance(world, ticks(world, handler, opts[:moved_from])), [], nil}
+
+  # Hierarchical locations (board card 7aba0394, PR 2): a move costs the walk
+  # time from the place tree (TalesForge.Game.Travel), when the places have
+  # positions. Other actions, and a rejected move, keep their cost.
+  defp ticks(world, %{handler: "move"} = handler, from) do
+    default = ActionHandler.tick_delta(handler)
+    to = get_in(world, ["character", "location_id"])
+
+    if default == 1 and is_binary(from) and from != to,
+      do: TalesForge.Game.Travel.ticks(world, from, to) || default,
+      else: default
+  end
+
+  defp ticks(_world, handler, _from), do: ActionHandler.tick_delta(handler)
 
   # Decisions 2026-10-09: banked LP (one per failure) are
   # resolved only on a long rest (sleep, or a wait of six hours or more): at

@@ -2,6 +2,8 @@
 id: orc_approach
 name: Cut above the nest
 parent: tin_valley_region
+at: [10, 2]
+cell_m: 100
 exits:
   - market_square
   - orc_nest
