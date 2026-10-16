@@ -82,7 +82,10 @@ defmodule TalesForge.Prompt.Sections.Npcs do
     do:
       TalesForge.NPC.format_gm_sections(
         ctx.data.session_id,
-        Map.get(ctx.data.intent_context, "present_npcs", [])
+        Map.get(ctx.data.intent_context, "present_npcs", []),
+        dialogue_memory: get_in(ctx.data, [:world_state, "npc_memory"]),
+        character: get_in(ctx.data, [:world_state, "character", "name"]),
+        first_meeting: TalesForge.Prompt.Ctx.flag?(ctx, :npc_first_meeting)
       )
 end
 

@@ -33,6 +33,9 @@ kill_timeout = "30s"
   # docs/design-tin-valley-world.md); off on production (fly.toml).
   INN_WORLD = "on"
   WORLD_ANTAGONIST = "on"
+  # NPCs know a first meeting in the GM prompt (TalesForge.Game.FirstMeeting,
+  # board card 84e11f16). Playtest only: production stays off.
+  NPC_FIRST_MEETING = "on"
   # Hourly call-time sample for /admin/operate/code-heat (TalesForge.CodeHeat).
   # Playtest only: production stays off.
   CODE_HEAT_MAP = "on"
