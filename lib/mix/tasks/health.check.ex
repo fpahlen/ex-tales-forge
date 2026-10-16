@@ -4,8 +4,14 @@ defmodule Mix.Tasks.Health.Check do
   The code health ratchet. Measures today's numbers and compares them with
   `docs/health/baseline.json`. The build fails when:
 
-    * an xref cycle count goes up, or a cycle appears that is not the same as
-      (or smaller than) a baseline cycle (a new or a bigger cycle);
+    * an xref cycle count goes up, or a cycle appears that does not fit in
+      the baseline tangle it overlaps (a new or a bigger cycle). The tangle
+      is the union of the baseline cycles that share files with each other.
+      `mix xref graph --format cycles` lists only some of the cycles, so
+      cutting one path can bring an older path between the same files into
+      the list; that is not a new cycle. A compile-connected cycle is also
+      compared with the tangles of all cycles, because every
+      compile-connected cycle is a cycle;
     * a file in `lib/ex_tales_forge/` gets a new xref reference to a file in
       `lib/ex_tales_forge_web/` that is not in the baseline;
     * a function goes over the Credo cyclomatic complexity (#{9}) or ABC size
@@ -209,14 +215,32 @@ defmodule Mix.Tasks.Health.Check do
           else: []
 
       count ++
-        for cycle <- cycles, not Enum.any?(old, &subset?(cycle, &1)) do
+        for cycle <- cycles,
+            not known_cycle?(cycle, old ++ Map.get(baseline["cycles"], "all", [])) do
           "#{label} cycle of #{cycle["size"]} is new or bigger: #{Enum.join(cycle["members"], ", ")}"
         end
     end)
   end
 
-  defp subset?(cycle, old),
-    do: MapSet.subset?(MapSet.new(cycle["members"]), MapSet.new(old["members"]))
+  # A cycle is known when its files fit in the baseline tangle it overlaps.
+  defp known_cycle?(cycle, old) do
+    members = MapSet.new(cycle["members"])
+    old = Enum.map(old, &MapSet.new(&1["members"]))
+    MapSet.subset?(members, tangle(members, MapSet.new(), old))
+  end
+
+  # The union of the baseline cycles that share files with `seen`, grown
+  # until no other baseline cycle touches it.
+  defp tangle(seen, acc, old) do
+    case Enum.split_with(old, &(not MapSet.disjoint?(&1, seen))) do
+      {[], _rest} ->
+        acc
+
+      {joined, rest} ->
+        grown = Enum.reduce(joined, acc, &MapSet.union/2)
+        tangle(grown, grown, rest)
+    end
+  end
 
   defp reference_errors(baseline, current) do
     allowed = MapSet.new(for r <- baseline["web_references"], to <- r["to"], do: {r["from"], to})
