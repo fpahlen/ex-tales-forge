@@ -42,16 +42,17 @@ for sx in (76,79):
     ax.add_patch(plt.Rectangle((sx-1,46),2,1.6,color=(0.7,0.6,0.4),ec=INK,lw=0.7,zorder=5))
 label(ax,77.5,48.9,"stalls",size=9.5,style="italic")
 # buildings
-bldg(50,54,10,7); cap(50,61.5,"Valley Inn","Brenna Holt · hearth and bar")
+bldg(50,54,10,7); cap(50,61.5,"Valley Inn","Holt household · Brenna and Tam")
 bldg(71,66.5,9,5,roof=GREY); cap(71,72,"Guild office","Osric Vane, steward")
 bldg(46,76,11,7,rot=-4); cap(46,84.5,"Harrow house","the headwoman, Marit Harrow")
 ax.plot(*wobble([(39,70),(39,82),(53,82),(53,70),(48,70)],0.1),color=INK,lw=0.8,ls=(0,(1,1.2)),zorder=5)  # yard fence
-bldg(82,38,6,5,roof=GREY); cap(82,33.5,"Sheriff's house","Elias Crane")
-bldg(64,36,5,4,rot=8); cap(64,31.5,"Pell cottage","Agnes Pell")
-bldg(28,62,5,4,rot=-10); cap(28,57.6,"Fenn cottage","Ide Fenn")
-bldg(60,74,5,4,rot=6); cap(62,79.8,"Carrow cottage","Wil and his mother")
-for (x,y,r) in [(36,40,5),(52,40,-6),(30,70,12),(70,80,-8)]: bldg(x,y,4.2,3.4,rot=r)
-label(ax,44,36,"widows' cottages",size=9.5,style="italic")
+bldg(82,38,6,5,roof=GREY); cap(82,33.5,"Sheriff's house","Elias Crane, lives alone")
+bldg(64,36,5,4,rot=8); cap(64,31.5,"Pell cottage","Agnes and three children")
+bldg(28,62,5,4,rot=-10); cap(28,57.6,"Fenn cottage","Ide, Kit and Sigrid")
+bldg(60,74,5,4,rot=6); cap(62,79.8,"Carrow cottage","Rosa, Wil and Lill")
+bldg(36,40,5,4,rot=5); cap(36,35.6,"Moss cottage","Ansel and Greta")
+bldg(52,40,6,4.4,rot=-6); cap(52,35.6,"Wray house","Jessop, Berit, Sanna")
+bldg(78,80,5,4,rot=-8); cap(80,85.6,"Tanner cottage","Hob and Lene")
 # wagon yard
 ax.add_patch(plt.Rectangle((14,38),15,9,fill=False,ec=INK,lw=1.2,ls=(0,(3,1.5)),zorder=5))
 for wx in (17,21.5,26):
@@ -68,10 +69,10 @@ x,y=wobble(stock,0.2); ax.plot(x,y,color=INK,lw=2.2,zorder=4,ls=(0,(2,0.8)))
 x2,y2=wobble([(10,30),(40,13),(62,20)],0.2); ax.plot(x2,y2,color=INK,lw=2.2,zorder=4,ls=(0,(2,0.8)))
 label(ax,24,88.5,"old stockade · needs repair",size=10,style="italic",rot=2)
 # graves
-for gx in np.arange(66,79,2.2):
+for gx in np.arange(67,77,2.2):
     for gy in (18,21):
         ax.plot([gx,gx],[gy-0.8,gy+0.8],color=INK,lw=0.9,zorder=5); ax.plot([gx-0.45,gx+0.45],[gy+0.35,gy+0.35],color=INK,lw=0.9,zorder=5)
-cap(72,14.5,"Graves","the cave-in dead")
+cap(71.4,14.5,"Graves","the ten cave-in dead")
 # bridge
 for d in (-2.3,2.3): ax.plot([88,95],[49+d,48.5+d],color=INK,lw=1.4,zorder=7)
 ax.fill([88,95,95,88],[46.7,46.2,50.8,51.3],color=(0.6,0.45,0.28),zorder=6.9)
@@ -107,9 +108,9 @@ label(ax,39,51.6,"Inn yard",size=10,font=SC)
 bldg(106,40,6,4,roof=GREY)
 for k in range(2):
     t=np.linspace(0,1,20); ax.plot(107+0.5*np.sin(t*8+k),42.2+t*3,color=INK,lw=0.5,alpha=0.6,zorder=6)
-cap(106,35.6,"Brask's forge","Hilde Brask, smith")
+cap(106,35.6,"Brask's forge","Brask household · Hilde and Bram")
 # Maude's cottage (canon)
-bldg(20,80,5,4,rot=-6); cap(20,75.4,"Maude's cottage","Old Maude, herb-wife")
+bldg(20,80,5,4,rot=-6); cap(20,75.4,"Maude's cottage","Old Maude and Pip")
 # horse whim at the shaft
 th=np.linspace(0,2*np.pi,50); ax.plot(124+2.2*np.cos(th),86+2.2*np.sin(th),color=INK,lw=0.9,ls=(0,(2,1)),zorder=6)
 ax.plot([124,126.2],[86,87.5],color=INK,lw=1.4,zorder=6); ax.plot(124,86,"o",ms=3,color=INK,zorder=6)
@@ -121,6 +122,7 @@ label(ax,85,67.5,"the tin road",size=10,style="italic",rot=28)
 # hills NE
 for (hx,hy) in [(128,78),(136,86),(142,74),(124,96)]: hill(ax,hx,hy,s=3.5)
 forest(ax,132,30,9,8,n=26,s=1.4,conifer=True)
+cap(122,19,"To the kilns","the Burrow household",size=11)
 border(ax,W,H)
 cartouche(ax,40,101,"The Village","Tin Valley",w=40,h=11)
 compass(ax,140,13,r=5.5)
