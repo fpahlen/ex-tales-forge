@@ -33,7 +33,7 @@ Region is `arn` (Stockholm) for all three. The `tales-forge.ai` domain stays on 
 
 Playtest first, then production (decision 2026-10-09, [ex-tales-forge #91](https://github.com/whyse-ab/ex-tales-forge/pull/91)):
 
-1. Push a branch and open a PR. GitHub Actions runs the two required jobs: **`Test`** (compile with warnings as errors, format check, Credo strict, tests with coverage, the docs build and `mix hex.audit`) and **`Dialyzer`**.
+1. Push a branch and open a PR. GitHub Actions runs the two required jobs: **`Test`** (compile with warnings as errors, format check, Credo strict, the code health ratchet `mix health.check`, tests with coverage, the docs build and `mix hex.audit`) and **`Dialyzer`**.
 2. Later (not built yet), a preview app also starts for the PR, with its link posted on the PR.
 3. When the checks are green and the change is reviewed, merge to `main` (Fredrik's OK).
 4. On `main`, Actions (`.github/workflows/ci.yml`) runs `Test` and `Dialyzer` again. CI itself deploys nothing.
