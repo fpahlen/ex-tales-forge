@@ -1,0 +1,14 @@
+{
+  "id": "ezzor-t19-mags-first-meeting",
+  "source": "playtest",
+  "credit": "Håkan, Ezzor playtest on the playtest app, Tin Valley, turn 19 (team chat, 13 Oct 2026)",
+  "card": "84e11f16",
+  "adventure_id": "tin_valley",
+  "features": ["INN_WORLD"],
+  "character": "Ezzor",
+  "action": "I walk out to the inn yard.",
+  "present_npcs": ["drover", "stable_lad"],
+  "npc_memory": {},
+  "bad_gm_line": "Back again? If you're still thinking on that salt of mine, two silver gets it done.",
+  "expect": {"drover": "first_meeting", "stable_lad": "first_meeting"}
+}

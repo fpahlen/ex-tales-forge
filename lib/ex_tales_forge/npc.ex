@@ -10,6 +10,7 @@ defmodule TalesForge.NPC do
 
   alias TalesForge.Characters.{Defaults, Levers}
   alias TalesForge.Game.Features
+  alias TalesForge.Game.FirstMeeting
   alias TalesForge.Game.Pack
   alias TalesForge.Game.WorldClock
   alias TalesForge.Repo
@@ -379,16 +380,34 @@ defmodule TalesForge.NPC do
     end)
   end
 
-  def format_gm_sections(session_id, present_npc_ids) do
+  @doc """
+  The GM prompt sections for the present NPCs. With the option
+  `first_meeting: true` (flag NPC_FIRST_MEETING), each NPC gets `"meeting"`
+  (`TalesForge.Game.FirstMeeting`) and the GM gets the first-meeting rule;
+  then `:dialogue_memory` (`world_state["npc_memory"]`) and `:character`
+  (the character's name) are read.
+  """
+  def format_gm_sections(session_id, present_npc_ids, opts \\ []) do
     present =
       session_id
       |> list_instances()
       |> Enum.filter(&(&1.npc_id in present_npc_ids))
 
-    npc_json =
+    meeting =
       present
-      |> Enum.map(&prompt_npc_context/1)
-      |> Jason.encode!(pretty: true)
+      |> Enum.map(&{&1.npc_id, &1.runtime_state})
+      |> FirstMeeting.mark(opts[:dialogue_memory] || %{}, opts[:character])
+
+    contexts =
+      Enum.map(present, fn inst ->
+        context = prompt_npc_context(inst)
+
+        if opts[:first_meeting],
+          do: Map.put(context, "meeting", to_string(meeting[inst.npc_id])),
+          else: context
+      end)
+
+    npc_json = Jason.encode!(contexts, pretty: true)
 
     memory_lines =
       present
@@ -406,13 +425,20 @@ defmodule TalesForge.NPC do
         do: "(none)",
         else: Enum.join(memory_lines, "\n")
 
+    rule =
+      if opts[:first_meeting],
+        do:
+          contexts
+          |> Enum.map(&{&1["name"], meeting[&1["id"]], Map.has_key?(&1, "hooks")})
+          |> FirstMeeting.rule()
+
     """
     ## Present NPCs (merged definition + runtime)
     #{npc_json}
 
     ## NPC Memories (recent)
     #{memory_block}
-    """
+    """ <> if(rule, do: "\n" <> rule <> "\n", else: "")
   end
 
   defp to_sim(%NpcInstance{} = inst) do

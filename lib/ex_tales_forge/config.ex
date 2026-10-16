@@ -160,6 +160,16 @@ defmodule TalesForge.Config do
     do: System.get_env("NPC_DIALOGUE_MEMORY", "off") in ~w(on true 1)
 
   @doc """
+  NPCs know a first meeting (board card 84e11f16): each present NPC in the GM
+  prompt is marked first meeting or has met (`TalesForge.Game.FirstMeeting`),
+  and the GM gets the first-meeting rule: NPC_FIRST_MEETING=on. Default off
+  (on in the playtest app).
+  """
+  @spec npc_first_meeting?() :: boolean()
+  def npc_first_meeting?,
+    do: System.get_env("NPC_FIRST_MEETING", "off") in ~w(on true 1)
+
+  @doc """
   Turn pipeline PR 3: coins, items, location and clock come only from stage 3.
   The server runs the prose post-check (`TalesForge.Game.ProseCheck`, log
   only), and rejects a room payment with nobody here who rents rooms:
