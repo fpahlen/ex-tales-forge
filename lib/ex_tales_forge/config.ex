@@ -162,12 +162,13 @@ defmodule TalesForge.Config do
   @doc """
   NPCs know a first meeting (board card 84e11f16): each present NPC in the GM
   prompt is marked first meeting or has met (`TalesForge.Game.FirstMeeting`),
-  and the GM gets the first-meeting rule: NPC_FIRST_MEETING=on. Default off
-  (on in the playtest app).
+  and the GM gets the first-meeting rule. Default on, in every app (founder
+  approval 16 Oct, after the playtest pass). NPC_FIRST_MEETING=off turns it
+  off.
   """
   @spec npc_first_meeting?() :: boolean()
   def npc_first_meeting?,
-    do: System.get_env("NPC_FIRST_MEETING", "off") in ~w(on true 1)
+    do: System.get_env("NPC_FIRST_MEETING", "on") not in ~w(off false 0)
 
   @doc """
   Turn pipeline PR 3: coins, items, location and clock come only from stage 3.

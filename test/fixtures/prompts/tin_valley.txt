@@ -898,6 +898,7 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
       "She is short-handed on busy nights: a guest who lends a hand eats free and hears all the miners' gossip."
     ],
     "id": "innkeep",
+    "meeting": "first_meeting",
     "memories": [],
     "mood": "cheerful",
     "name": "Brenna Holt",
@@ -924,6 +925,10 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
 
 ## NPC Memories (recent)
 (none)
+
+## Meeting the character
+First meeting: Brenna Holt has never met the character. They do not know the character and have never talked with them. No "back again", no "as I said", no "still thinking on" and no earlier offer. They may know the character by rumour or reputation, but they do not speak as if they talked before.
+Hooks are things an NPC can offer or say now. They are not things the NPC said to the character before.
 
 
 ---
@@ -1732,6 +1737,7 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
       "She is short-handed on busy nights: a guest who lends a hand eats free and hears all the miners' gossip."
     ],
     "id": "innkeep",
+    "meeting": "first_meeting",
     "memories": [],
     "mood": "cheerful",
     "name": "Brenna Holt",
@@ -1758,6 +1764,10 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
 
 ## NPC Memories (recent)
 (none)
+
+## Meeting the character
+First meeting: Brenna Holt has never met the character. They do not know the character and have never talked with them. No "back again", no "as I said", no "still thinking on" and no earlier offer. They may know the character by rumour or reputation, but they do not speak as if they talked before.
+Hooks are things an NPC can offer or say now. They are not things the NPC said to the character before.
 
 
 ---
@@ -2591,6 +2601,7 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
       "She is short-handed on busy nights: a guest who lends a hand eats free and hears all the miners' gossip."
     ],
     "id": "innkeep",
+    "meeting": "first_meeting",
     "memories": [],
     "mood": "cheerful",
     "name": "Brenna Holt",
@@ -2617,6 +2628,10 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
 
 ## NPC Memories (recent)
 (none)
+
+## Meeting the character
+First meeting: Brenna Holt has never met the character. They do not know the character and have never talked with them. No "back again", no "as I said", no "still thinking on" and no earlier offer. They may know the character by rumour or reputation, but they do not speak as if they talked before.
+Hooks are things an NPC can offer or say now. They are not things the NPC said to the character before.
 
 
 ---
