@@ -401,6 +401,14 @@ defmodule TalesForge.Game.TurnProcessor do
              Map.get(ctx, :events, []),
              TalesForge.Config.character_memory()
            ),
+         # PR 2 (board card 845b6b15): Jev compression in a task, after commit.
+         :ok <-
+           TalesForge.Characters.Compression.after_turn(
+             session.id,
+             Map.get(ctx, :events, []),
+             Map.get(world_after, "world_tick"),
+             TalesForge.Config.character_memory()
+           ),
          :ok <- NPCRegistry.sync(session),
          :ok <- maybe_emit_turn_signals(session, world_after, handler, raw_action) do
       {:ok,
