@@ -11,6 +11,7 @@ defmodule TalesForge.Schemas.CharacterMemory do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   @kinds ~w(memory promise reaction fact)
+  @tiers ~w(working short long)
 
   schema "character_memories" do
     field :kind, :string
@@ -19,6 +20,11 @@ defmodule TalesForge.Schemas.CharacterMemory do
     field :salience, :float, default: 0.5
     field :secret, :boolean, default: false
     field :tick, :integer
+    # Board card fc3c9371: the tier, the ids the memory is about (people,
+    # places, items) and the weight from the character's interests.
+    field :tier, :string, default: "short"
+    field :about, {:array, :string}, default: []
+    field :weight, :float, default: 1.0
 
     belongs_to :character, TalesForge.Schemas.Character
     belongs_to :session_event, TalesForge.Schemas.SessionEvent
@@ -28,6 +34,9 @@ defmodule TalesForge.Schemas.CharacterMemory do
 
   @doc "The allowed memory kinds."
   def kinds, do: @kinds
+
+  @doc "The allowed memory tiers."
+  def tiers, do: @tiers
 
   def changeset(memory, attrs) do
     memory
@@ -39,12 +48,18 @@ defmodule TalesForge.Schemas.CharacterMemory do
       :felt,
       :salience,
       :secret,
-      :tick
+      :tick,
+      :tier,
+      :about,
+      :weight
     ])
     |> validate_required([:character_id, :kind, :text])
     |> validate_inclusion(:kind, @kinds)
+    |> validate_inclusion(:tier, @tiers)
+    |> validate_number(:weight, greater_than_or_equal_to: 0.0)
     |> validate_number(:salience, greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0)
     |> assoc_constraint(:character)
     |> check_constraint(:kind, name: :character_memories_kind_check)
+    |> check_constraint(:tier, name: :character_memories_tier_check)
   end
 end

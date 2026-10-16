@@ -373,6 +373,14 @@ defmodule TalesForge.Game.TurnProcessor do
            NPC.apply_gm_updates(session.id, gm_result, Map.get(world_after, "world_tick")),
          # Double-write to `characters` (nothing reads it yet); never fails the turn.
          :ok <- Characters.mirror(session),
+         # Character memory (board card fc3c9371): scene end moves working
+         # memory to short-term; never fails the turn.
+         :ok <-
+           TalesForge.Characters.Memory.on_turn(
+             session.id,
+             Map.get(ctx, :events, []),
+             TalesForge.Config.character_memory()
+           ),
          :ok <- NPCRegistry.sync(session),
          :ok <- maybe_emit_turn_signals(session, world_after, handler, raw_action) do
       {:ok,

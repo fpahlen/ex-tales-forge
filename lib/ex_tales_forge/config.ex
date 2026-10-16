@@ -171,6 +171,27 @@ defmodule TalesForge.Config do
     do: System.get_env("NPC_FIRST_MEETING", "on") not in ~w(off false 0)
 
   @doc """
+  Character memory (board card fc3c9371): at scene end the characters keep
+  short-term memories with associations and weights, and the GM prompt
+  recalls them by association. CHARACTER_MEMORY=on writes and recalls;
+  `shadow` writes the rows and builds the recall but keeps it out of the
+  prompt; `off` (default) does nothing.
+
+      iex> TalesForge.Config.character_memory_mode("shadow")
+      :shadow
+      iex> TalesForge.Config.character_memory_mode("nonsense")
+      :off
+  """
+  @spec character_memory() :: :off | :shadow | :on
+  def character_memory, do: character_memory_mode(System.get_env("CHARACTER_MEMORY", "off"))
+
+  @doc false
+  @spec character_memory_mode(String.t()) :: :off | :shadow | :on
+  def character_memory_mode(value) when value in ~w(on true 1), do: :on
+  def character_memory_mode("shadow"), do: :shadow
+  def character_memory_mode(_value), do: :off
+
+  @doc """
   Turn pipeline PR 3: coins, items, location and clock come only from stage 3.
   The server runs the prose post-check (`TalesForge.Game.ProseCheck`, log
   only), and rejects a room payment with nobody here who rents rooms:

@@ -42,6 +42,10 @@ kill_timeout = "30s"
   # Opposed combat rolls and NPC wounds (TalesForge.Game.Combat). Playtest
   # only: production stays off (fly.toml) until Gentry passes it.
   COMBAT_OPPOSED = "on"
+  # Character memory in shadow mode (board card fc3c9371): scene-end rows are
+  # written, the recall is built, the GM prompt stays the same. Production
+  # stays off (fly.toml).
+  CHARACTER_MEMORY = "shadow"
 
 [http_service]
   internal_port = 4000

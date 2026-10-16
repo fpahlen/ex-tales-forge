@@ -254,4 +254,36 @@ defmodule TalesForgeWeb.CharacterChangesComponents do
       do: x |> trunc() |> Integer.to_string(),
       else: :erlang.float_to_binary(x, decimals: 1)
   end
+
+  attr :rows, :list, required: true
+
+  @doc "Character memory (board card fc3c9371): interests and rows per tier per character."
+  @spec memory_tiers(map()) :: Phoenix.LiveView.Rendered.t()
+  def memory_tiers(assigns) do
+    ~H"""
+    <section
+      id="memory-tiers"
+      class="min-w-0 space-y-2 rounded-lg border border-[var(--paper-rule)] bg-[var(--paper-panel)] p-3 sm:p-4"
+    >
+      <h2 class="font-serif text-lg font-semibold text-[var(--paper-ink)]">Character memory</h2>
+      <p class="text-xs text-[var(--paper-muted)]">
+        Rows per tier and the interests that set each weight. CHARACTER_MEMORY=shadow writes the
+        rows and keeps the recall out of the GM prompt.
+      </p>
+      <p :if={@rows == []} class="text-sm text-[var(--paper-muted)]">No characters yet.</p>
+      <div :for={r <- @rows} id={"mem-#{r.slug}"} class="text-sm text-[var(--paper-ink)]">
+        <p>
+          <span class="font-semibold">{r.slug}</span>
+          · working {r.working} · short {r.short} · long {r.long}
+        </p>
+        <p class="text-xs text-[var(--paper-muted)]">
+          Interests: {if r.interests == [], do: "none", else: Enum.join(r.interests, ", ")}
+        </p>
+        <ul class="ml-4 list-disc text-xs">
+          <li :for={m <- r.recent}>{m.text} (weight {m.weight})</li>
+        </ul>
+      </div>
+    </section>
+    """
+  end
 end
