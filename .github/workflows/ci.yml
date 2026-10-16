@@ -101,6 +101,15 @@ jobs:
       - name: Credo
         run: mix credo --strict
 
+      # Code health ratchet (docs/health/baseline.json): no new or bigger xref
+      # cycles, no new lib/ex_tales_forge -> lib/ex_tales_forge_web references,
+      # no new function over the Credo complexity/ABC limits, no score above
+      # its ceiling. --base checks that the baseline itself only shrinks.
+      - name: Code health ratchet
+        run: |
+          git fetch --depth=1 origin "${{ github.base_ref || 'main' }}"
+          mix health.check --base FETCH_HEAD
+
       # Coverage: `mix test --cover` fails below the threshold in mix.exs
       # (test_coverage). The HTML report is uploaded as an artifact.
       - name: Test (with coverage)

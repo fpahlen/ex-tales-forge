@@ -188,6 +188,7 @@ defmodule TalesForge.MixProject do
         "format",
         "quality",
         "deploy.check_boundaries",
+        "health.check",
         "test --cover --warnings-as-errors",
         "docs --warnings-as-errors",
         "dialyzer"

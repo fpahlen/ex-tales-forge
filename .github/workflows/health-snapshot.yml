@@ -1,0 +1,66 @@
+# Weekly code health snapshot: `mix health.snapshot` writes
+# docs/health/YYYY-MM-DD.md (the numbers `mix health.check` gates on, next to
+# docs/health/baseline.json) and this job opens a PR with it.
+name: Health snapshot
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  # Keep in sync with ci.yml.
+  ELIXIR_VERSION: "1.18.4"
+  OTP_VERSION: "27.3.4.16"
+
+jobs:
+  snapshot:
+    name: Snapshot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: erlef/setup-beam@v1
+        id: beam
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Restore deps and _build
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ runner.os }}-otp${{ steps.beam.outputs.otp-version }}-ex${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            mix-${{ runner.os }}-otp${{ steps.beam.outputs.otp-version }}-ex${{ steps.beam.outputs.elixir-version }}-
+
+      - name: Install deps and compile
+        run: mix deps.get && mix compile
+
+      - name: Write the snapshot
+        run: mix health.snapshot
+
+      - name: Open a PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          day=$(date -u +%F)
+          branch="health-snapshot-$day"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add docs/health/
+          git commit -m "Code health snapshot $day"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "Code health snapshot $day" \
+            --body "Weekly snapshot from \`mix health.snapshot\`. See docs/health/$day.md."

@@ -15,6 +15,7 @@ Applies to [ex-tales-forge](https://github.com/whyse-ab/ex-tales-forge). Tooling
 2. **`@doc` on every public function.** Say what it returns and when it fails, not how it works line by line. Mark internal functions that are public only for tests with `@doc false`. Add a doctest (`iex>` example) where an example says it faster than prose and the function is pure.
 3. **`@spec` on every public function**, checked by **Dialyzer** (dialyxir). Give structs a `@type t`, and use `Struct.t()` in specs rather than `%Struct{}`.
 4. **Credo strict** (`mix credo --strict`), no new issues.
+   **Code health ratchet** (`mix health.check`, [docs/health/README.md](health/README.md)): no new or bigger xref cycles, no new `lib/ex_tales_forge` → `lib/ex_tales_forge_web` references, no new function over the Credo complexity/ABC limits, no score above its baseline ceiling.
 5. **Formatted** (`mix format --check-formatted`).
 6. **ExDoc**: `mix docs` builds a browsable docs site from the above, and it must build without warnings.
    Each release also builds it (Docker builder stage) and serves it to admins only at `/admin/code-docs`, behind the same admin login as `/admin/costs`. Live in production and playtest since 2026-10-07 (PR #44). Locally, `mix docs -f html -o priv/code_docs` makes it show up there.
