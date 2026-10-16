@@ -1636,3 +1636,11 @@ None right now. (Prose-only GM vs structured reply format: decided on 2026-10-08
 - Fade: a new long-term row below weight 0.25 is not written. At each compression long-term rows lose weight (×0.7, or ×0.9 for strong feelings: grateful, afraid, angry, resentful). Compressed short-term rows and faded rows get the new tier `faded`; the row stays, so the NPC mirror does not add it again.
 - Rows of engine events (`turn.*`, `player.dawdled`) stay out of the call, so compression does not amplify them. The other row-quality fixes are card 8c519067.
 - Behind CHARACTER_MEMORY: shadow on playtest, off on production. Usage goes to `ai_calls` as purpose `memory.compress`.
+
+## 2026-10-16: Character memory PR 3: the thought bubble (card 845b6b15)
+
+- The player character's thought is its own stream entry, `role: "thought"`, right after the GM entry of its turn, in the same `payload.entries` (Slick's thought-bubble spec). It is never streamed. A failed turn sends no entries, so no thought shows on its own. It is stored on `turns.thought` and shown again on reload.
+- Look: a 2px left rule (`--paper-thought-rule`), italic serif text (`--paper-thought-ink`), `role="note"`, the label "Thought", an "about" chip only for a person trigger (the NPC the character remembers), and a 3-line clamp with "Show all" above 160 characters.
+- At most one per turn. A person trigger (an old memory of a present NPC) beats a sleep trigger (a long rest). A second person trigger in the same scene is dropped.
+- Text: Jev answers typed labels and scores, not prose, so the card's fallback applies: one small typed LLM call (`TalesForge.LLM.complete_thought/3`) per sleep trigger and per person trigger, for the thought only. The output is prose that a person reads, which docs/call-types.md gives to the LLM. ai_calls logs it with its own purpose `thought` (call type `llm`, the type for prose). The text is at most 220 characters, and a reply with a digit is dropped.
+- CHARACTER_MEMORY: `on` shows thoughts; `shadow` (playtest) stores and logs them without showing them; `off` (production) makes no call.

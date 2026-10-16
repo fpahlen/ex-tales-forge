@@ -140,6 +140,9 @@
   --paper-quiet-ink: #3f3f46;
   --paper-danger-ink: #b91c1c;
   --paper-danger-rule: #fca5a5;
+  /* The player character's thought (board card 845b6b15, Slick's spec) */
+  --paper-thought-ink: var(--paper-muted);
+  --paper-thought-rule: color-mix(in srgb, var(--paper-accent) 45%, transparent);
 }
 
 :root[data-theme="dark"]:has(.admin-shell),
@@ -166,6 +169,8 @@
   --paper-quiet-ink: #e4e4e7;
   --paper-danger-ink: #fca5a5;
   --paper-danger-rule: #7f1d1d;
+  --paper-thought-ink: var(--paper-muted);
+  --paper-thought-rule: color-mix(in srgb, var(--paper-accent) 45%, transparent);
   color-scheme: dark;
 }
 

@@ -94,14 +94,15 @@ defmodule TalesForgeWeb.PlayComponents do
         >
           <div id="narrative-log" class="contents" phx-update="stream">
             <div :for={{dom_id, entry} <- @streams.entries} id={dom_id} class="space-y-1">
-              <p class={entry_heading_class(entry)}>
+              <.thought_entry :if={entry.role == "thought"} id={dom_id} entry={entry} />
+              <p :if={entry.role != "thought"} class={entry_heading_class(entry)}>
                 {entry_heading(entry)}
               </p>
-              <div class={entry_body_class(entry)}>
+              <div :if={entry.role != "thought"} class={entry_body_class(entry)}>
                 <span class="play-narrative-body">{entry.text}</span>
               </div>
               <p
-                :if={Map.get(entry, :roll)}
+                :if={entry.role != "thought" and Map.get(entry, :roll)}
                 class="play-roll-line font-mono text-xs text-[var(--paper-muted)]"
                 data-roll-line
               >
@@ -268,6 +269,85 @@ defmodule TalesForgeWeb.PlayComponents do
         </div>
       </div>
     </section>
+    """
+  end
+
+  # Slick's thought spec: about 160 characters is about 3 lines at 390 px.
+  @thought_clamp_chars 160
+
+  attr :id, :string, required: true
+  attr :entry, :map, required: true
+
+  @doc """
+  The player character's thought (board card 845b6b15): its own quiet entry
+  after the GM entry, with a thin accent rule, italic serif text, an
+  optional "about" chip for a known NPC, and a 3-line clamp with "Show all"
+  for long text. Never streamed, never under a "Game Master" heading.
+  """
+  def thought_entry(assigns) do
+    assigns =
+      assigns
+      |> assign(:about, Map.get(assigns.entry, :about_name))
+      |> assign(:long, String.length(assigns.entry.text || "") > @thought_clamp_chars)
+
+    ~H"""
+    <div
+      id={"#{@id}-thought"}
+      role="note"
+      aria-label={if @about, do: "Thought about #{@about}", else: "Thought"}
+      data-role="thought"
+      class={[
+        "play-thought ml-3 sm:ml-6 max-w-none sm:max-w-xl border-l-2 border-[var(--paper-thought-rule)] py-0.5 pl-3",
+        @long && "clamp"
+      ]}
+    >
+      <p class="play-label flex min-h-5 items-center gap-2">
+        <span aria-hidden="true" class="text-[13px] leading-none">💭</span>
+        <span>{entry_heading(@entry)}</span>
+        <span
+          :if={@about}
+          data-role="thought-about"
+          class="inline-flex items-center gap-[5px] text-[11.5px] font-normal normal-case tracking-normal text-[var(--paper-muted)]"
+        >
+          about
+          <span class="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--paper-rule)] bg-[var(--paper-margin)] text-[8.5px] font-semibold uppercase">
+            <img
+              :if={@entry[:about_portrait]}
+              src={@entry[:about_portrait]}
+              alt=""
+              class="h-full w-full object-cover"
+            />
+            <span :if={!@entry[:about_portrait]}>{npc_initials(@about)}</span>
+          </span>
+          {@about}
+        </span>
+      </p>
+      <p
+        id={"#{@id}-thought-text"}
+        class={[
+          "play-narrative-body mt-0.5 text-sm italic leading-relaxed text-[var(--paper-thought-ink)]",
+          @long && "line-clamp-3"
+        ]}
+      >
+        {@entry.text}
+      </p>
+      <button
+        :if={@long}
+        type="button"
+        id={"#{@id}-thought-more"}
+        aria-expanded="false"
+        aria-controls={"#{@id}-thought-text"}
+        class="flex min-h-11 w-full items-center px-1 text-left text-[13px] font-medium text-[var(--paper-accent)]"
+        phx-click={
+          JS.toggle_class("line-clamp-3", to: "##{@id}-thought-text")
+          |> JS.toggle_attribute({"aria-expanded", "true", "false"})
+          |> JS.toggle(to: "##{@id}-thought-more [data-label]", display: "inline")
+        }
+      >
+        <span data-label>Show all</span>
+        <span data-label style="display: none">Show less</span>
+      </button>
+    </div>
     """
   end
 
@@ -460,6 +540,7 @@ defmodule TalesForgeWeb.PlayComponents do
 
   def entry_heading(%{role: "scene", location_name: name}), do: "You arrive at #{name}"
   def entry_heading(%{role: "gm"}), do: "Game Master"
+  def entry_heading(%{role: "thought"}), do: "Thought"
   def entry_heading(%{role: "player"}), do: "You"
   def entry_heading(%{role: "npc", npc_name: name}) when is_binary(name), do: name
   def entry_heading(_), do: "Narrator"

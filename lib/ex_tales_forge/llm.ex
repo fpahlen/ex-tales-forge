@@ -446,6 +446,46 @@ defmodule TalesForge.LLM do
     }
   end
 
+  @thought_schema %{
+    "type" => "object",
+    "required" => ["thought"],
+    "properties" => %{"thought" => %{"type" => "string"}}
+  }
+  @thought_max_tokens 120
+
+  @doc """
+  The player character's thought (board card 845b6b15,
+  `TalesForge.Characters.Thought`): one or two sentences of inner voice,
+  typed as `%{"thought" => text}`. Purpose `thought`, conv id
+  `<session>:thought`, temperature 0.7. Each call writes one ai_calls row,
+  also the mock call.
+  """
+  @spec complete_thought(String.t(), String.t(), call_opts()) :: result(map())
+  def complete_thought(system, user, opts \\ []) do
+    model = tier1_model()
+
+    if mock?(model) do
+      AICalls.record(%{
+        purpose: "thought",
+        model: "mock",
+        status: "ok",
+        latency_ms: 0,
+        call_type: "llm",
+        game_session_id: opts[:session_id],
+        conv_id: "tales-forge-thought"
+      })
+
+      {:ok, %{"thought" => "Something about this stays with me, warm and a little uneasy."}}
+    else
+      complete_json(model, simple_messages(system, user), @thought_schema, 0.7,
+        tier: :thought,
+        max_tokens: @thought_max_tokens,
+        session_id: opts[:session_id],
+        turn_number: opts[:turn_number]
+      )
+    end
+  end
+
   @board_similar_schema %{
     "type" => "object",
     "required" => ["title", "matches"],
