@@ -100,7 +100,26 @@ defmodule TalesForge.World do
     raw = if File.exists?(path), do: path |> File.read!() |> Jason.decode!(), else: %{}
 
     by_id = fn key -> raw |> Map.get(key, []) |> Map.new(&{&1["id"], &1}) end
-    %{locations: by_id.("locations"), persons: by_id.("persons"), items: by_id.("items")}
+
+    %{
+      locations: with_parents(by_id.("locations"), pack_parents(adventure_id)),
+      persons: by_id.("persons"),
+      items: by_id.("items")
+    }
+  end
+
+  # The place files are the one source of the tree (board card 7aba0394):
+  # `parent` comes from the pack, the facts from world_agents.json.
+  defp pack_parents(adventure_id) do
+    TalesForge.Game.Pack.parents(adventure_id)
+  rescue
+    ArgumentError -> %{}
+  end
+
+  defp with_parents(locations, parents) do
+    Enum.reduce(parents, locations, fn {id, parent}, acc ->
+      Map.update(acc, id, %{"id" => id, "parent" => parent}, &Map.put(&1, "parent", parent))
+    end)
   end
 
   # --- 1. collect ------------------------------------------------------------------

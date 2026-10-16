@@ -1,6 +1,7 @@
 ---
 id: orc_nest
 name: Orc nest
+parent: orc_approach
 exits:
   - orc_approach
 fixtures:

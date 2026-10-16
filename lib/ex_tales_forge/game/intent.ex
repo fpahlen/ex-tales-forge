@@ -29,6 +29,9 @@ defmodule TalesForge.Game.Intent do
   # later rather than this turn's action (those get a low confidence).
   @move_verbs ~r/\b(go|goes|going|head|heads|heading|walk|walks|walking|travel|move|moving|enter|enters|leave|leaves|leaving|step|steps|stepping|run|runs|proceed|return|returns|returning|set off|set out|make (?:my|our) way|lead the way|follow|climb|climbs|descend|hike|hurry|stride|strides|cross|seek|find|join|visit|approach|approaches|press on|push on|continue|slip out|duck out)\b/iu
   @way_out ~r/\b(?:leave|leaves|leaving|exit|exits|quit) (?:the )?(?:inn|tavern|common room|place|building|bar)\b|\b(?:take my leave|step(?:s|ping)? out(?:side)?|head(?:s|ing)? out(?:side)?|go(?:es|ing)? out(?:side)?|walk(?:s|ing)? out(?:side)?|slip(?:s|ping)? out|duck(?:s|ing)? out|out of the inn|push(?:es|ing)? (?:open )?the (?:inn )?door)\b/iu
+  # "go in", "step inside": into a child place (hierarchical locations,
+  # `TalesForge.Game.Movement.way_in/3`).
+  @way_in ~r/\b(?:go(?:es|ing)?|step(?:s|ping)?|head(?:s|ing)?|walk(?:s|ing)?|duck(?:s|ing)?|slip(?:s|ping)?|come(?:s)?) (?:back )?in(?:side|doors)?\b/iu
   # "for the door", "outside": the way out only right after a verb of motion.
   @way_out_after_verb ~r/\b(?:outside|out the door|for the door|through the door|out into|out the back)\b/iu
   @seek_npc ~r/\b(?:find|seek out|seek|look for|go to|go see|head to|head for|make for|head over to|track down|visit)\s+(?:(?:the|master|mistress|sir|ser|old|good)\s+)*$/iu
@@ -192,7 +195,10 @@ defmodule TalesForge.Game.Intent do
 
   defp normalize_move(action, _context), do: action
 
-  defp movement_world(context), do: %{"locations" => Map.get(context, "places") || %{}}
+  defp movement_world(context) do
+    %{"locations" => Map.get(context, "places") || %{}}
+    |> Map.merge(Map.take(context, ["features"]))
+  end
 
   @doc "The clarification payload shown to the player (question, options, original text)."
   @spec build_clarification(IntentExtraction.t(), String.t()) :: map()
@@ -375,6 +381,7 @@ defmodule TalesForge.Game.Intent do
     if Regex.match?(@move_verbs, text) do
       verb_led_place(world, from, text, lowered) ||
         if(way_out?(text, lowered), do: Movement.way_out(world, from)) ||
+        if(Regex.match?(@way_in, text), do: Movement.way_in(world, from, text)) ||
         sought_npc_location(lowered, context)
     end
   end

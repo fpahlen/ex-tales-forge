@@ -216,6 +216,16 @@ defmodule TalesForge.Config do
   """
   def world_antagonist?, do: System.get_env("WORLD_ANTAGONIST", "off") in ~w(on true 1)
 
+  @doc """
+  Hierarchical locations (board card 7aba0394): each place can name its
+  `parent`, and "go in", "go out", "leave" and travel use the tree
+  (`TalesForge.Game.Movement`). A session feature, read when a session is
+  created: HIERARCHICAL_LOCATIONS=on. Default off (on in the playtest app).
+  """
+  @spec hierarchical_locations?() :: boolean()
+  def hierarchical_locations?,
+    do: System.get_env("HIERARCHICAL_LOCATIONS", "off") in ~w(on true 1)
+
   def ollama_api_base, do: System.get_env("OLLAMA_API_BASE", "http://localhost:11434")
 
   defp auto_provider do

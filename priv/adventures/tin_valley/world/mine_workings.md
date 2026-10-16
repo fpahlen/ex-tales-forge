@@ -1,6 +1,7 @@
 ---
 id: mine_workings
 name: Mine workings
+parent: tin_valley_region
 exits:
   - market_square
 fixtures:

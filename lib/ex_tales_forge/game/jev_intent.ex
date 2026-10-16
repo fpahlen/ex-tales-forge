@@ -287,7 +287,11 @@ defmodule TalesForge.Game.JevIntent do
 
     exit_cands =
       Enum.map(exits, fn id ->
-        %{kind: :place, id: id, text: "#{Map.get(exit_names, id, id)} (exit)"}
+        %{
+          kind: :place,
+          id: id,
+          text: "#{Map.get(exit_names, id, id)} (#{where(context, id, "exit")})"
+        }
       end)
 
     other =
@@ -298,10 +302,24 @@ defmodule TalesForge.Game.JevIntent do
       |> Enum.sort()
       |> Enum.map(fn id ->
         name = get_in(context, ["places", id, "name"]) || id
-        %{kind: :place, id: id, text: "#{name} (place beyond)"}
+        %{kind: :place, id: id, text: "#{name} (#{where(context, id, "place beyond")})"}
       end)
 
     exit_cands ++ other
+  end
+
+  # With hierarchical locations a place candidate names the place it is in,
+  # for example "Valley Inn (exit, in Tin Valley village)" (board card
+  # 7aba0394). Jev still selects only from the list.
+  defp where(context, id, label) do
+    world = %{"locations" => Map.get(context, "places", %{}), "features" => context["features"]}
+
+    with true <- TalesForge.Game.Movement.tree?(world),
+         parent when is_binary(parent) <- TalesForge.Game.Movement.parent(world, id) do
+      "#{label}, in #{TalesForge.Game.Movement.name(world, parent)}"
+    else
+      _ -> label
+    end
   end
 
   defp item_candidates(context) do

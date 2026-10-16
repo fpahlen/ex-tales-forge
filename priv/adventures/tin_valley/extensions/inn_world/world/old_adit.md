@@ -1,6 +1,7 @@
 ---
 id: old_adit
 name: Old adit
+parent: west_road
 exits:
   - west_road
 fixtures:

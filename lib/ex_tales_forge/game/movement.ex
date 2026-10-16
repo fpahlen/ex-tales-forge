@@ -20,6 +20,21 @@ defmodule TalesForge.Game.Movement do
     approach), so "go to the orc nest" from the village ends at the cut.
 
   Travel reaches places up to three exits away in one turn.
+
+  **Hierarchical locations** (board card 7aba0394, session feature
+  `"hierarchical_locations"`, flag HIERARCHICAL_LOCATIONS). A place can name
+  the place it is in with `parent` (an inn is in a village, a village is in a
+  region). With the feature on:
+
+  - each place links to its parent and to its children (`exits/2`), in
+    addition to the hand-written exits, so travel goes up the tree and back
+    down (inn, village, region, mine) within the same #{3} steps and stops
+    at checkpoints;
+  - "leave" and "go out" use the `door`, then the only exit, then the parent
+    (`way_out/2`);
+  - "go in" selects a child by name or alias, or the only child (`way_in/3`).
+
+  With the feature off, movement uses only the hand-written exits.
   """
 
   @max_hops 3
@@ -38,6 +53,60 @@ defmodule TalesForge.Game.Movement do
   def places(%{"locations" => locations}) when is_map(locations), do: locations
   def places(_world), do: %{}
 
+  @doc "True when the world (a world_state or a movement world) has hierarchical locations."
+  @spec tree?(map() | nil) :: boolean()
+  def tree?(world), do: TalesForge.Game.Features.on?(world, "hierarchical_locations")
+
+  @doc """
+  The ids a character can go to from `id` in one step: the hand-written
+  exits, and with hierarchical locations also the parent and the children.
+  Only known places.
+
+      iex> world = %{"features" => ["hierarchical_locations"], "locations" => %{
+      ...>   "region" => %{}, "village" => %{"parent" => "region"},
+      ...>   "inn" => %{"parent" => "village", "exits" => ["yard"]}, "yard" => %{"exits" => ["inn"]}}}
+      iex> TalesForge.Game.Movement.exits(world, "inn")
+      ["yard", "village"]
+      iex> TalesForge.Game.Movement.exits(world, "village")
+      ["region", "inn"]
+      iex> TalesForge.Game.Movement.exits(Map.delete(world, "features"), "village")
+      []
+  """
+  @spec exits(map(), String.t() | nil) :: [String.t()]
+  def exits(world, id) when is_binary(id) do
+    locations = places(world)
+    hand = locations |> Map.get(id, %{}) |> Map.get("exits", []) |> List.wrap()
+    tree = if tree?(world), do: List.wrap(parent(world, id)) ++ children(world, id), else: []
+
+    (hand ++ tree)
+    |> Enum.filter(&Map.has_key?(locations, &1))
+    |> Enum.reject(&(&1 == id))
+    |> Enum.uniq()
+  end
+
+  def exits(_world, _id), do: []
+
+  @doc "The parent of `id` (its `parent` key), when that place exists."
+  @spec parent(map(), String.t() | nil) :: String.t() | nil
+  def parent(world, id) when is_binary(id) do
+    locations = places(world)
+
+    case get_in(locations, [id, "parent"]) do
+      p when is_binary(p) -> if Map.has_key?(locations, p), do: p
+      _ -> nil
+    end
+  end
+
+  def parent(_world, _id), do: nil
+
+  @doc "The children of `id` (the places whose `parent` is `id`), sorted by id."
+  @spec children(map(), String.t() | nil) :: [String.t()]
+  def children(world, id) when is_binary(id) do
+    for {child, %{"parent" => ^id}} <- places(world), into: [], do: child
+  end
+
+  def children(_world, _id), do: []
+
   @doc """
   Location ids reachable from `from` within #{@max_hops} exits, nearest first,
   as `{id, hops}`. `from` itself is not included.
@@ -51,31 +120,23 @@ defmodule TalesForge.Game.Movement do
   """
   @spec reachable(map(), String.t() | nil) :: [{String.t(), pos_integer()}]
   def reachable(world, from) when is_binary(from) do
-    locations = places(world)
-    bfs(locations, [{from, 0}], MapSet.new([from]), [])
+    bfs(world, [{from, 0}], MapSet.new([from]), [])
   end
 
   def reachable(_world, _from), do: []
 
-  defp bfs(_locations, [], _seen, acc), do: Enum.reverse(acc)
+  defp bfs(_world, [], _seen, acc), do: Enum.reverse(acc)
 
-  defp bfs(locations, [{id, hops} | queue], seen, acc) when hops >= @max_hops do
-    bfs(locations, queue, seen, if(hops > 0, do: [{id, hops} | acc], else: acc))
+  defp bfs(world, [{id, hops} | queue], seen, acc) when hops >= @max_hops do
+    bfs(world, queue, seen, if(hops > 0, do: [{id, hops} | acc], else: acc))
   end
 
-  defp bfs(locations, [{id, hops} | queue], seen, acc) do
-    next =
-      locations
-      |> Map.get(id, %{})
-      |> Map.get("exits", [])
-      |> List.wrap()
-      |> Enum.filter(&Map.has_key?(locations, &1))
-      |> Enum.reject(&MapSet.member?(seen, &1))
-      |> Enum.uniq()
+  defp bfs(world, [{id, hops} | queue], seen, acc) do
+    next = world |> exits(id) |> Enum.reject(&MapSet.member?(seen, &1))
 
     seen = Enum.reduce(next, seen, &MapSet.put(&2, &1))
     acc = if hops > 0, do: [{id, hops} | acc], else: acc
-    bfs(locations, queue ++ Enum.map(next, &{&1, hops + 1}), seen, acc)
+    bfs(world, queue ++ Enum.map(next, &{&1, hops + 1}), seen, acc)
   end
 
   @doc """
@@ -98,7 +159,7 @@ defmodule TalesForge.Game.Movement do
   def route(world, from, to) when is_binary(from) and is_binary(to) and from != to do
     locations = places(world)
 
-    case path(locations, from, to) do
+    case path(world, from, to) do
       nil -> :error
       steps -> {:ok, first_stop(locations, steps, to)}
     end
@@ -113,29 +174,24 @@ defmodule TalesForge.Game.Movement do
   defp checkpoint?(%{"checkpoint" => true}), do: true
   defp checkpoint?(_location), do: false
 
-  # Shortest path (excluding `from`) within @max_hops, or nil.
-  defp path(locations, from, to) do
-    do_path(locations, [{from, []}], MapSet.new([from]), to)
+  # Shortest path (excluding `from`) within @max_hops, or nil. `world`
+  # (not only the locations) so that `exits/2` sees the features.
+  defp path(world, from, to) do
+    do_path(world, [{from, []}], MapSet.new([from]), to)
   end
 
-  defp do_path(_locations, [], _seen, _to), do: nil
+  defp do_path(_world, [], _seen, _to), do: nil
 
-  defp do_path(locations, [{id, trail} | queue], seen, to) do
+  defp do_path(world, [{id, trail} | queue], seen, to) do
     if length(trail) >= @max_hops do
-      do_path(locations, queue, seen, to)
+      do_path(world, queue, seen, to)
     else
-      exits =
-        locations
-        |> Map.get(id, %{})
-        |> Map.get("exits", [])
-        |> List.wrap()
-        |> Enum.filter(&Map.has_key?(locations, &1))
-        |> Enum.reject(&MapSet.member?(seen, &1))
+      exits = world |> exits(id) |> Enum.reject(&MapSet.member?(seen, &1))
 
       case Enum.find(exits, &(&1 == to)) do
         nil ->
           seen = Enum.reduce(exits, seen, &MapSet.put(&2, &1))
-          do_path(locations, queue ++ Enum.map(exits, &{&1, trail ++ [&1]}), seen, to)
+          do_path(world, queue ++ Enum.map(exits, &{&1, trail ++ [&1]}), seen, to)
 
         found ->
           trail ++ [found]
@@ -145,11 +201,17 @@ defmodule TalesForge.Game.Movement do
 
   @doc """
   The exit "leave" or "go outside" means from `from`: the location's `door`,
-  or its only exit. nil when the place has several exits and no door.
+  or its only exit, or (hierarchical locations) its parent. nil when the
+  place has several exits, no door and no parent.
 
       iex> world = %{"locations" => %{"inn" => %{"exits" => ["square"]}, "square" => %{}}}
       iex> TalesForge.Game.Movement.way_out(world, "inn")
       "square"
+      iex> tree = %{"features" => ["hierarchical_locations"], "locations" => %{
+      ...>   "village" => %{}, "yard" => %{}, "cellar" => %{},
+      ...>   "inn" => %{"parent" => "village", "exits" => ["yard", "cellar"]}}}
+      iex> TalesForge.Game.Movement.way_out(tree, "inn")
+      "village"
   """
   @spec way_out(map(), String.t() | nil) :: String.t() | nil
   def way_out(world, from) when is_binary(from) do
@@ -163,11 +225,50 @@ defmodule TalesForge.Game.Movement do
         only
 
       _ ->
-        nil
+        if tree?(world), do: parent(world, from)
     end
   end
 
   def way_out(_world, _from), do: nil
+
+  @doc """
+  The child place "go in" means from `from` (hierarchical locations only):
+  the child that `text` names by name or alias, else the only child. nil
+  with the feature off, or with several children and none named.
+
+      iex> world = %{"features" => ["hierarchical_locations"], "locations" => %{
+      ...>   "village" => %{},
+      ...>   "inn" => %{"name" => "Valley Inn", "parent" => "village", "aliases" => ["the tavern"]},
+      ...>   "smithy" => %{"name" => "Smithy", "parent" => "village"}}}
+      iex> TalesForge.Game.Movement.way_in(world, "village", "I go into the tavern")
+      "inn"
+      iex> TalesForge.Game.Movement.way_in(world, "village", "I go inside")
+      nil
+      iex> TalesForge.Game.Movement.way_in(world, "inn", "I go inside")
+      nil
+  """
+  @spec way_in(map(), String.t() | nil, String.t()) :: String.t() | nil
+  def way_in(world, from, text) when is_binary(from) and is_binary(text) do
+    if tree?(world) do
+      lowered = normalize(text)
+      locations = places(world)
+      kids = children(world, from)
+
+      named =
+        Enum.find(kids, fn id ->
+          id
+          |> match_terms(Map.get(locations, id, %{}))
+          |> Enum.any?(&Regex.match?(~r/(?<![\w])#{Regex.escape(&1)}(?![\w])/u, lowered))
+        end)
+
+      named || only(kids)
+    end
+  end
+
+  def way_in(_world, _from, _text), do: nil
+
+  defp only([one]), do: one
+  defp only(_list), do: nil
 
   @doc """
   Resolves an intent target (a location id, a place name or alias, in any

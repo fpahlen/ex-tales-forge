@@ -33,6 +33,9 @@ kill_timeout = "30s"
   # docs/design-tin-valley-world.md); off on production (fly.toml).
   INN_WORLD = "on"
   WORLD_ANTAGONIST = "on"
+  # Hierarchical locations: "go in", "go out" and travel use the place tree
+  # (TalesForge.Game.Movement, board card 7aba0394). Playtest only for now.
+  HIERARCHICAL_LOCATIONS = "on"
   # Hourly call-time sample for /admin/operate/code-heat (TalesForge.CodeHeat).
   # Playtest only: production stays off.
   CODE_HEAT_MAP = "on"
