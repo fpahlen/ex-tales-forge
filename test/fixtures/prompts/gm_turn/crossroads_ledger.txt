@@ -780,6 +780,7 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
     "appearance": "Sharp-eyed woman in her forties, sleeves rolled, hands never far from a club or towel.",
     "concern_focus": "missing ledger",
     "id": "marta_kellen",
+    "meeting": "first_meeting",
     "memories": [],
     "mood": "cautious",
     "name": "Marta Kellen",
@@ -812,6 +813,9 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
 
 ## NPC Memories (recent)
 (none)
+
+## Meeting the character
+First meeting: Marta Kellen has never met the character. They do not know the character and have never talked with them. No "back again", no "as I said", no "still thinking on" and no earlier offer. They may know the character by rumour or reputation, but they do not speak as if they talked before.
 
 
 ---
