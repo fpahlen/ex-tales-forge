@@ -512,7 +512,14 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
       }
     })
 
-    :ok = NPC.record_memory(session.id, "innkeep", "The stranger asked about the orcs.", tick)
+    :ok =
+      NPC.record_memory(%NPC.Note{
+        session_id: session.id,
+        npc_id: "innkeep",
+        summary: "The stranger asked about the orcs.",
+        tick: tick
+      })
+
     {:ok, _} = NPC.bump_relationship(session.id, "innkeep", 0.05)
 
     world =

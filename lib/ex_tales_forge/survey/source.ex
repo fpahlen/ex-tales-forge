@@ -121,7 +121,7 @@ defmodule TalesForge.Survey.Source do
       {:ok, raw, source} ->
         case Definition.parse(raw) do
           {:ok, definition} ->
-            {:ok, Cache.put({:survey, id}, loaded(definition, raw, source, []), @ttl_ms)}
+            {:ok, Cache.put({:survey, id}, loaded(definition, {raw, source}, []), @ttl_ms)}
 
           {:error, errors} ->
             fallback(id, previous, Enum.map(errors, &"#{source}: #{&1}"))
@@ -161,7 +161,7 @@ defmodule TalesForge.Survey.Source do
 
     with {:ok, raw} <- File.read(path),
          {:ok, definition} <- Definition.parse(raw) do
-      {:ok, loaded(definition, raw, source, problems ++ note)}
+      {:ok, loaded(definition, {raw, source}, problems ++ note)}
     else
       {:error, errors} when is_list(errors) ->
         {:error, problems ++ Enum.map(errors, &"#{source}: #{&1}")}
@@ -174,7 +174,7 @@ defmodule TalesForge.Survey.Source do
     end
   end
 
-  defp loaded(definition, raw, source, problems) do
+  defp loaded(definition, {raw, source}, problems) do
     %{
       definition: definition,
       raw: raw,

@@ -116,17 +116,27 @@ defmodule TalesForgeWeb.AdminLive.SurveyLiveTest do
     {:ok, loaded} = TalesForge.Survey.Source.load("test-survey")
 
     {:ok, _} =
-      Surveys.save_section(loaded, %{login: "ada", email: "ada@example.com"}, "general", %{
-        "one" => "Yes",
-        "week" => "Evenings"
-      })
+      Surveys.save_section(
+        loaded,
+        %{login: "ada", email: "ada@example.com"},
+        {"general",
+         %{
+           "one" => "Yes",
+           "week" => "Evenings"
+         }}
+      )
 
     {:ok, _} =
-      Surveys.save_section(loaded, %{login: "bo", email: nil}, "paul", %{
-        "paul-excerpt" => "Too high",
-        "paul-excerpt.why" => "Too kind",
-        "paul-archetypes" => %{"0" => "2", "1" => "3 Love"}
-      })
+      Surveys.save_section(
+        loaded,
+        %{login: "bo", email: nil},
+        {"paul",
+         %{
+           "paul-excerpt" => "Too high",
+           "paul-excerpt.why" => "Too kind",
+           "paul-archetypes" => %{"0" => "2", "1" => "3 Love"}
+         }}
+      )
 
     {:ok, view, html} = live(conn, ~p"/admin/founders/surveys/test-survey/results")
     assert html =~ "Survey results"
@@ -202,12 +212,17 @@ defmodule TalesForgeWeb.AdminLive.SurveyLiveTest do
     assert view |> element("#survey-tab-open-survey [data-status=in_progress]") |> has_element?()
 
     {:ok, _} =
-      Surveys.save_section(open, %{login: "ada", email: nil}, "paul", %{
-        "paul-excerpt" => "Too low"
-      })
+      Surveys.save_section(
+        open,
+        %{login: "ada", email: nil},
+        {"paul",
+         %{
+           "paul-excerpt" => "Too low"
+         }}
+      )
 
     {:ok, _} =
-      Surveys.save_section(open, %{login: "ada", email: nil}, "general", %{"one" => "Yes"})
+      Surveys.save_section(open, %{login: "ada", email: nil}, {"general", %{"one" => "Yes"}})
 
     {:ok, view, _html} = live(conn, ~p"/admin/founders/survey")
     assert view |> element("#survey-tab-open-survey [data-status=done]") |> has_element?()
@@ -241,7 +256,9 @@ defmodule TalesForgeWeb.AdminLive.SurveyLiveTest do
   test "all surveys: every file with each founder's status", %{conn: conn} do
     three_surveys()
     {:ok, open} = TalesForge.Survey.Source.load("open-survey")
-    {:ok, _} = Surveys.save_section(open, %{login: "bo", email: nil}, "general", %{"pace" => "2"})
+
+    {:ok, _} =
+      Surveys.save_section(open, %{login: "bo", email: nil}, {"general", %{"pace" => "2"}})
 
     {:ok, view, html} = live(conn, ~p"/admin/founders/surveys")
     assert html =~ "Founder surveys"
