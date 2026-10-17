@@ -502,10 +502,6 @@ defmodule TalesForge.Game.Combat do
     })
   end
 
-  @doc "See `TalesForge.Game.NpcState.carry/2`."
-  @spec carry(map(), map()) :: map()
-  defdelegate carry(before, after_state), to: TalesForge.Game.NpcState
-
   @doc """
   Writes the defender's wounds of `exchange` to `world["npc_state"]`. A
   minor foe also gets its scene entry (`foe` is its fighter map). Returns

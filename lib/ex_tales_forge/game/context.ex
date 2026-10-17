@@ -20,6 +20,7 @@ defmodule TalesForge.Game.Context do
   alias TalesForge.Game.Gestures
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Movement
+  alias TalesForge.Game.NpcState
   alias TalesForge.Game.Perception
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.World
@@ -478,12 +479,8 @@ defmodule TalesForge.Game.Context do
         _ -> if adventure_id(world) == "tin_valley", do: [], else: ["marta_kellen"]
       end
 
-    Enum.reject(present, &dead?(state, &1))
+    Enum.reject(present, &NpcState.dead?(state, &1))
   end
-
-  @doc "See `TalesForge.Game.NpcState.dead?/2`."
-  @spec dead?(map(), String.t()) :: boolean()
-  defdelegate dead?(npc_state, npc_id), to: TalesForge.Game.NpcState
 
   # QA 2026-10-15: an exit with no location entry ("kings_road") showed its
   # raw id to the GM, and the id came out in the prose. The GM gets a name.

@@ -18,6 +18,7 @@ defmodule TalesForge.Game.Turn.Combat do
 
   alias TalesForge.Characters.Defaults
   alias TalesForge.Game.Combat
+  alias TalesForge.Game.NpcState
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.Turn
 
@@ -168,7 +169,7 @@ defmodule TalesForge.Game.Turn.Combat do
   @spec book(map(), map(), map() | nil, map() | nil) :: map()
   def book(board, world_before, exchange, foe) do
     before = Map.get(world_before, "npc_state") || %{}
-    carried = Combat.carry(before, Map.get(board.world, "npc_state"))
+    carried = NpcState.carry(before, Map.get(board.world, "npc_state"))
     carried_world = Map.put(board.world, "npc_state", carried)
 
     {world, events} =
