@@ -116,10 +116,16 @@ jobs:
       # cycles, no new lib/ex_tales_forge -> lib/ex_tales_forge_web references,
       # no new function over the Credo complexity/ABC limits, no score above
       # its ceiling. --base checks that the baseline itself only shrinks.
+      # The base is the PR's base branch, or on a push to main the merge's
+      # first parent: main may have moved on by the time this runs.
       - name: Code health ratchet
         run: |
-          git fetch --depth=1 origin "${{ github.base_ref || 'main' }}"
-          mix health.check --base FETCH_HEAD
+          if [ "${{ github.event_name }}" = push ]; then
+            git fetch --depth=2 origin "$GITHUB_SHA" && base="$GITHUB_SHA^1"
+          else
+            git fetch --depth=1 origin "${{ github.base_ref || 'main' }}" && base=FETCH_HEAD
+          fi
+          mix health.check --base "$base"
 
       # Coverage: `mix test --cover` fails below the threshold in mix.exs
       # (test_coverage). The HTML report is uploaded as an artifact.
