@@ -3,7 +3,7 @@ defmodule TalesForge.Game.Turn.Adapters do
   The IO of a turn (`TalesForge.Game.Turn`). The stages call these functions
   and do no other IO, so a test gives plain functions instead of mocks.
 
-    * `npc` — the NPC reactions (`TalesForge.Game.NpcReactions.react/6`; the
+    * `npc` — the NPC reactions (`TalesForge.Game.NpcReactions.react/1`; the
       Jev call with its timeout, `NPC_REACTIONS_TIMEOUT_MS`, default 600 ms);
     * `gm` — the GM call (`TalesForge.LLM.complete_turn/5`);
     * `stream` — gets each GM text chunk (`{:turn_stream, chunk}` on the
@@ -19,7 +19,7 @@ defmodule TalesForge.Game.Turn.Adapters do
       `COMBAT_OPPOSED=on`).
   """
 
-  defstruct npc: &TalesForge.Game.NpcReactions.react/6,
+  defstruct npc: &TalesForge.Game.NpcReactions.react/1,
             gm: &TalesForge.LLM.complete_turn/5,
             stream: &__MODULE__.broadcast/2,
             profiles: &TalesForge.NPC.notice_profiles/2,
@@ -28,7 +28,7 @@ defmodule TalesForge.Game.Turn.Adapters do
             character_rules: &TalesForge.Characters.Defaults.rules/1
 
   @type t :: %__MODULE__{
-          npc: function(),
+          npc: (TalesForge.Game.NpcReactions.Moment.t() -> {[map()], map()}),
           gm: function(),
           stream: (String.t(), String.t() -> term()),
           profiles: (String.t(), [String.t()] -> [map()]),
