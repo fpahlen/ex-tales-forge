@@ -72,7 +72,10 @@ pull_request runs (it changes only the two history files) and the snapshot
 workflow dispatches CI on the branch instead. GitHub does not count a
 dispatched run's own checks on a PR, so that run sets commit statuses
 named Test and Dialyzer on the branch head with its results (job "Report
-dispatched checks"): the required checks pass with no approval. The first rows are the merges that changed the then committed
+dispatched checks"): the required checks pass with no approval. That
+run, like any PR that changes only `docs/`, skips the tests, the
+ratchet, Credo and Dialyzer (CI job "Changed files"): no code changed.
+The first rows are the merges that changed the then committed
 `baseline.json` (#324, #325, #326), measured again at each merge commit. The 4+ parameter
 counts up to #334 were measured on each merge commit's `lib/` too. When
 main changes the history files, the snapshot workflow merges main with
