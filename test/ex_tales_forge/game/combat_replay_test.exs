@@ -31,7 +31,7 @@ defmodule TalesForge.Game.CombatReplayTest do
             {world["npc_state"][id], nil}
 
           {:foe, id, name} ->
-            Combat.minor_foe(id, name, rules, 29) |> then(&{&1, &1})
+            Combat.minor_foe({id, name}, rules, 29) |> then(&{&1, &1})
         end
 
       rolls =
@@ -39,7 +39,7 @@ defmodule TalesForge.Game.CombatReplayTest do
         |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
         |> Map.put(:attack, turn["attack_roll"])
 
-      ex = Combat.exchange(attacker, defender, "melee_combat", rolls)
+      ex = Combat.exchange({attacker, defender}, "melee_combat", rolls)
       expect = turn["expect"]
 
       assert ex["defender"] == expect["target"], "turn #{turn["turn"]}"
@@ -53,7 +53,7 @@ defmodule TalesForge.Game.CombatReplayTest do
       assert ProseCheck.check(turn["agreeing_prose"], record) == [],
              "turn #{turn["turn"]}: the agreeing prose tells the record"
 
-      {booked, _events} = Combat.book(world, ex, foe, world["npc_state"])
+      {booked, _events} = Combat.book(world, {ex, foe}, world["npc_state"])
       booked
     end)
   end
@@ -66,7 +66,7 @@ defmodule TalesForge.Game.CombatReplayTest do
       attacker = put_in(@fixture["character"], ["skills", "melee_combat"], turn["melee_combat"])
 
       ex =
-        Combat.exchange(attacker, osric, "melee_combat", %{
+        Combat.exchange({attacker, osric}, "melee_combat", %{
           attack: turn["attack_roll"],
           counter_chance: 0.99
         })
