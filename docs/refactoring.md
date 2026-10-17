@@ -54,6 +54,13 @@ a player or founder can see in the PR body.
   query, and GameSessions reaches the workers and both processors. The
   query moved to the leaf `TalesForge.Scenes.opening/1` (#360): cycles 30 → 26,
   largest 8 → 4.
+- **Put the assembly above the parts it assembles.** `Game.Context` and
+  `Game.Prompts` built the context and held the prompt files, and also
+  rendered messages through `Prompt.Profile`, whose sections read back
+  from both. The rendering moved to `TalesForge.Prompt.Assemble`, which
+  calls Context, Prompts and Profile and is called by none of them; the
+  role's GM task fragments, plain data, moved next to the files they name
+  (`Prompts.gm_task_fragments/1`). The 5-file prompt group went away.
 
 ## Moving code
 

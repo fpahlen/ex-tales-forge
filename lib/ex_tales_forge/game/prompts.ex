@@ -1,6 +1,7 @@
 defmodule TalesForge.Game.Prompts do
   @moduledoc """
-  Prompt files and message assembly for the narration calls (scene and GM turn).
+  Prompt files of the narration calls (scene and GM turn) and the order
+  `TalesForge.Prompt.Assemble` puts them in.
 
   Message order is fixed so xAI's prompt cache can reuse the longest prefix:
 
@@ -17,9 +18,7 @@ defmodule TalesForge.Game.Prompts do
   guards this.
   """
 
-  alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
-  alias TalesForge.Prompt
-  alias TalesForge.Prompt.{Ctx, Profile}
+  alias TalesForge.Prompt.Ctx
 
   @doc "System prompt of the intent step (`priv/prompts/intent_system.txt`)."
   @spec intent_system() :: String.t()
@@ -32,27 +31,37 @@ defmodule TalesForge.Game.Prompts do
   @doc """
   Task prompt of a GM turn, message 3, for an app role. The
   prompt is the fragments in `priv/prompts/gm_system/` that
-  `TalesForge.Prompt.Profile.gm_task_fragments/1` lists for the role.
+  `gm_task_fragments/1` lists for the role.
   """
   @spec gm_system(atom()) :: String.t()
   def gm_system(role \\ :local) do
     %Ctx{call: :gm, role: role}
-    |> Profile.gm_task_fragments()
+    |> gm_task_fragments()
     |> Enum.map_join(&read_prompt("gm_system/#{&1}.txt"))
   end
+
+  @doc """
+  The fragments of the GM task prompt (`priv/prompts/gm_system/`) for the app
+  role. Production has a lean reply with no `gm_notes` and no
+  `location_name`, so its prompt leaves out the fragments that ask for them.
+
+      iex> TalesForge.Game.Prompts.gm_task_fragments(%TalesForge.Prompt.Ctx{role: :production})
+      ~w(head output)
+      iex> TalesForge.Game.Prompts.gm_task_fragments(%TalesForge.Prompt.Ctx{role: :playtest})
+      ~w(head location_name output gm_notes)
+  """
+  @spec gm_task_fragments(Ctx.t()) :: [String.t()]
+  def gm_task_fragments(%Ctx{role: :production}), do: ~w(head output)
+  def gm_task_fragments(%Ctx{}), do: ~w(head location_name output gm_notes)
 
   @doc "Task prompt of the opening/arrival scene, message 3 (`scene_system.txt`)."
   @spec scene_system() :: String.t()
   def scene_system, do: read_prompt("scene_system.txt")
 
-  @doc "Messages for the opening/arrival scene call."
-  @spec scene_messages(map()) :: [%{role: String.t(), content: String.t()}]
-  def scene_messages(gm_context), do: messages(gm_context, :scene, data: [])
-
   defmodule GmTurn do
     @moduledoc """
     What a GM turn adds to the context in
-    `TalesForge.Game.Prompts.gm_messages/3`: the server's mechanical
+    `TalesForge.Prompt.Assemble.gm_messages/3`: the server's mechanical
     resolution, the validated PlayerAction, the handler and the turn number.
     """
 
@@ -67,36 +76,6 @@ defmodule TalesForge.Game.Prompts do
             handler: HandlerResult.t(),
             turn_number: integer()
           }
-  end
-
-  @doc """
-  Messages for a GM turn. Per-turn content, including the action, goes last.
-  `opts[:role]` picks the app role (default `TalesForge.AppRole.role/1`).
-  """
-  @spec gm_messages(map(), GmTurn.t(), keyword()) :: [%{role: String.t(), content: String.t()}]
-  def gm_messages(
-        gm_context,
-        %GmTurn{player_action: %PlayerAction{}, handler: %HandlerResult{}} = turn,
-        opts \\ []
-      ) do
-    messages(gm_context, :gm, Keyword.put(opts, :data, Map.from_struct(turn)))
-  end
-
-  # `opts`: `:role` (default `TalesForge.AppRole.role/0`), `:flags` and the
-  # call's `:data`.
-  defp messages(gm_context, call, opts) do
-    ctx = Ctx.from_gm_context(gm_context, call, opts)
-
-    ctx
-    |> Prompt.new()
-    |> Prompt.add_all(Profile.sections(ctx))
-    |> Prompt.to_messages()
-  end
-
-  @doc "The whole scene context of a session as one flat string (for tests and debugging)."
-  @spec build_scene_user(TalesForge.Schemas.GameSession.t()) :: String.t()
-  def build_scene_user(%TalesForge.Schemas.GameSession{} = session) do
-    TalesForge.Game.Context.format_gm_prompt(TalesForge.Game.Context.build_gm_context(session))
   end
 
   @doc """

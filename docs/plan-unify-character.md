@@ -121,7 +121,7 @@ To keep the first PRs small, `Mechanics`, `Inventory`, `Train` and `Vitality` ke
 ## 4. What breaks, and how each piece is kept safe
 
 - **GM prompts and the cache prefix:**
-  - `Context.session_stable_section/1` reads only the PC's name and race. It must render **byte-identical** text from the Character.
+  - `Assemble.session_stable_section/1` reads only the PC's name and race. It must render **byte-identical** text from the Character.
   - The per-turn sections (`NPC.format_gm_sections/2`, the intent context with `player_inventory` and NPC stock, `NpcReactions.prompt_section/1`, world facts) must also render identically in phase 2.
   - Guard: golden tests on whole prompts for a fixed session, next to `prompt_prefix_test.exs`. The #34 message order and the prefix-stability test stay unchanged, and no lever goes into the prefix.
 - **Admin forms:**

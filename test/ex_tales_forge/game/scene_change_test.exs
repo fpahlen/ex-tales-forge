@@ -21,6 +21,7 @@ defmodule TalesForge.Game.SceneChangeTest do
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
   alias TalesForge.Jido
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 
@@ -242,7 +243,7 @@ defmodule TalesForge.Game.SceneChangeTest do
       t7 = heuristic(@paul_t7, context.intent_context)
 
       messages =
-        Prompts.gm_messages(context, %Prompts.GmTurn{
+        Assemble.gm_messages(context, %Prompts.GmTurn{
           mechanical: nil,
           player_action: t7,
           handler: ActionHandler.resolve(t7),

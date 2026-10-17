@@ -114,7 +114,7 @@ Marta (`priv/npcs/marta_kellen.json`) has `agency_tier: "normal"`, OCEAN, and `c
 
 The other holes we have to close:
 
-1. **Omniscient GM prompt.** `Context.format_gm_prompt/1` concatenates pack rules, formatted intent (including `situation_lines` and recent-turn **player** text slices), and `NPC.format_gm_sections/2`. It does **not** dump raw `world_state`. The leak today is `NPC.merged_npc_context/1` putting the full `runtime_state` (memories, concern wait-ticks, initiative flags) into the present-NPC JSON. Front clocks would be a second leak if injected the same way. `context_summary` → `situation_lines` can persist invented hidden facts across later turns.
+1. **Omniscient GM prompt.** `Assemble.format_gm_prompt/1` concatenates pack rules, formatted intent (including `situation_lines` and recent-turn **player** text slices), and `NPC.format_gm_sections/2`. It does **not** dump raw `world_state`. The leak today is `NPC.merged_npc_context/1` putting the full `runtime_state` (memories, concern wait-ticks, initiative flags) into the present-NPC JSON. Front clocks would be a second leak if injected the same way. `context_summary` → `situation_lines` can persist invented hidden facts across later turns.
 2. **GM invents mechanics.** `Mechanics` rolls 1d20 and awards LP, but social outcomes are unbounded: a nat-1 intimidation can be narrated as "he tells you everything" because `gm_system.txt` does not constrain by relative power, personality, or beliefs. (`overlay_deltas` were decoded and never applied; removed from the GM schema in Oct 2026.)
 3. **Memories are not retrieved.** Last-5 of present NPCs is not "last year's slight." If the fact never reaches the prompt, the sim does not matter.
 4. **OTP is global, not a session crash domain.** An NPC agent crash is isolated by Jido, but there is no session-shaped supervisor for WorldSim / fronts / extras. Geography is not (and must not become) a supervision tree.
@@ -443,7 +443,7 @@ The persisted `session_events` row uses the table `binary_id` primary key as the
 - `player.dawdled` when `time.passed` and current location is in a trigger's `player_in` list (guild).
 - `front.weakened` / `front.cleared` from front status transitions (not required for Proofs 1–2).
 
-Hidden events (`player_aware: false`) **must not** appear in `Context.format_gm_prompt/1` or `Prompts.build_scene_user/1`. They **must** appear in WorldSim's input and as `session_events` rows.
+Hidden events (`player_aware: false`) **must not** appear in `Assemble.format_gm_prompt/1` or `Assemble.build_scene_user/1`. They **must** appear in WorldSim's input and as `session_events` rows.
 
 #### Tracer notice-check (live move path)
 
@@ -675,7 +675,7 @@ If output contains a new `front_id` → drop. If a `hire` step is legal, extras 
 Single module `TalesForge.Game.Perception`. **Context and SceneProcessor both call this — no second implementation.** If we write it twice we will leak.
 
 ```elixir
-# Session entry used by Context.format_gm_prompt/1 and SceneProcessor.generate_scene/2.
+# Session entry used by Assemble.format_gm_prompt/1 and SceneProcessor.generate_scene/2.
 def visible_world(%GameSession{} = session) :: map()
 
 # Pure core for tests (no Repo). Session entry loads fronts + player-aware events then calls this.
@@ -717,7 +717,7 @@ PR-3 changes `NPC.format_gm_sections/2` / `merged_npc_context/1`. **Do not** del
 
 **Never** in the prompt: `concern_wait_ticks`, `concern.priority`, `initiative_pending`, `initiative_emitted`, `initiative_emitted_at_tick`, full `runtime_state`, front clocks, `resources`.
 
-Crossroads prompt-fixture tests **land in PR-3** (not PR-4): after `create_session` Crossroads, `Context.format_gm_prompt/1` still contains Marta, her concern **focus** (`missing ledger`), and ale stock; it does not contain `concern_wait_ticks` or `initiative_emitted`.
+Crossroads prompt-fixture tests **land in PR-3** (not PR-4): after `create_session` Crossroads, `Assemble.format_gm_prompt/1` still contains Marta, her concern **focus** (`missing ledger`), and ale stock; it does not contain `concern_wait_ticks` or `initiative_emitted`.
 
 PR-4 thickens prompt **files** (`gm_system.txt` / `scene_system.txt`) and memory **shape**. PR-3 Perception is: filter `public_facts` by location, hide `player_aware: false` events, NPC allow-list.
 
@@ -985,12 +985,12 @@ end
 
 Prefer **one Multi** so a failed tick cannot leave a Turn row without front patches. `apply_location_updates/1` inside `apply_world_updates/5` must use `World.runtime_location/2`.
 
-Do not tick fronts *before* the table GM: this turn's GM is pre-move on purpose. **Leak tests must not use that call.** They build `Context.format_gm_prompt/1` and `Prompts.build_scene_user/1` from the **persisted** session after the Multi:
+Do not tick fronts *before* the table GM: this turn's GM is pre-move on purpose. **Leak tests must not use that call.** They build `Assemble.format_gm_prompt/1` and `Assemble.build_scene_user/1` from the **persisted** session after the Multi:
 
 - At `orc_approach` after a miss: scene/GM prompt must **not** contain prepared/alert/scout; `session_events` **must** contain `player.failed_notice` with `player_aware: false`.
 - At `orc_nest` after the next move: scene/GM prompt **must** contain the authored prepared sentence; raw keys `clocks.alert` / `resources.coin` never appear.
 
-### `Context.format_gm_prompt/1`
+### `Assemble.format_gm_prompt/1`
 
 Add a "Perceived world" section (a level-2 heading in the prompt) from `Perception.visible_world/1`. NPC JSON uses the allow-list. Pass `mechanical_resolution` into the GM user prompt only as **outcome bounds** once PR-9 exists; today the GM still guesses tone before the server roll (`TurnProcessor` calls LLM *then* `apply_mechanics`). That ordering is a smell. **Do not silently invert this in the tracer.** PR-9: **roll first, then GM**. That is a behavior change and needs its own PR so Crossroads playtests stay comparable until then.
 
@@ -1258,7 +1258,7 @@ Playable via `GameSessions.create_session(%{name: "Tin Valley", adventure_id: "t
 1. Player travels `valley_inn → market_square → orc_approach` with a **plain move** (no skill). Live text that Intent will accept: `"I go to the market square"` then `"go to the orc approach"` (`Intent.exit_mentioned_in_action?/3` matches `orc_approach`, `"orc approach"`, or the full location name `"Cut above the nest"` — not the substring `"the cut"`).
 2. `Events.from_turn` emits `player.failed_notice`, `player_aware: false` (outcome `"none"` is not success).
 3. Nest rule applies `raise_alert` → `clocks.alert = "prepared"` + approach memory on the **front** + `public_facts` row visible **only** at `orc_nest`.
-4. Travel-turn table GM is pre-move (vacuously clean). The **leak surface** is `ProcessScene` / `Context.format_gm_prompt` on the **persisted** session at `orc_approach`: must **not** contain prepared/alert/scout. `session_events` **must** contain the hidden row.
+4. Travel-turn table GM is pre-move (vacuously clean). The **leak surface** is `ProcessScene` / `Assemble.format_gm_prompt` on the **persisted** session at `orc_approach`: must **not** contain prepared/alert/scout. `session_events` **must** contain the hidden row.
 5. Player moves `orc_approach → orc_nest`. Scene (and next GM context) **must** include the authored sentence `"The camp is standing to arms — sentries doubled, fires banked, blades out."` Nest is not surprised. Raw `clocks.alert` / `resources.coin` never appear as keys in the prompt.
 
 Noticed-scouts is a **test injection** (move + stealth/insight + outcome success), not a live `"I sneak there"` path.

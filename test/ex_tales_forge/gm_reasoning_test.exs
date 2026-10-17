@@ -11,6 +11,7 @@ defmodule TalesForge.GMReasoningTest do
   alias TalesForge.GameSessions
   alias TalesForge.GMReasoning
   alias TalesForge.Jido
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
 
@@ -52,7 +53,7 @@ defmodule TalesForge.GMReasoningTest do
 
     session = GameSessions.get_session!(session.id)
     refute turn.narrative =~ "smuggler"
-    refute Context.format_gm_prompt(Context.build_gm_context(session)) =~ "smuggler"
+    refute Assemble.format_gm_prompt(Context.build_gm_context(session)) =~ "smuggler"
 
     refute Enum.any?(
              Perception.visible_world(session)["player_aware_events"],

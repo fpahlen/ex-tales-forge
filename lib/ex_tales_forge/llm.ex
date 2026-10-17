@@ -177,7 +177,7 @@ defmodule TalesForge.LLM do
   def llm_source("mock"), do: "mock"
   def llm_source(_), do: "api"
 
-  @doc "Opening/arrival scene. `messages` come from `Prompts.scene_messages/1`."
+  @doc "Opening/arrival scene. `messages` come from `TalesForge.Prompt.Assemble.scene_messages/1`."
   @spec complete_scene([map()], map(), call_opts()) ::
           result(%{location_name: String.t(), narrative: String.t()})
   def complete_scene(messages, intent_context, opts \\ [])
@@ -527,7 +527,7 @@ defmodule TalesForge.LLM do
   end
 
   @doc """
-  GM turn. `messages` come from `Prompts.gm_messages/3`. The reply is decoded
+  GM turn. `messages` come from `TalesForge.Prompt.Assemble.gm_messages/3`. The reply is decoded
   into a `GMStructuredResponse`.
 
   The call streams (`stream: true`). With `:on_text`, the function gets

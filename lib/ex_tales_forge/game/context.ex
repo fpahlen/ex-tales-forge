@@ -8,10 +8,8 @@ defmodule TalesForge.Game.Context do
   - `build_gm_context/1`: the GM/scene context (rules, intent context, world
     state, opening scene, and the gestures of recent
     turns, `TalesForge.Game.Gestures`). The turn adds `:npc_reactions`, `:world_facts`
-    and `:price_lines` before `TalesForge.Game.Prompts` turns it into messages.
-  - `session_stable_section/1` and `per_turn_section/1`: the two user
-    messages. Only the per-turn section may change between turns; see the
-    prompt-cache notes in `TalesForge.Game.Prompts`.
+    and `:price_lines` before `TalesForge.Prompt.Assemble` turns it into
+    messages.
   """
 
   # NON-NEGOTIABLE: Core runtime. Pure Ecto + game logic only.
@@ -184,42 +182,6 @@ defmodule TalesForge.Game.Context do
   end
 
   @doc """
-  The whole GM/scene context as one flat string: rules, then session-stable
-  content, then per-turn state. The LLM receives the same sections as separate
-  messages (see `TalesForge.Game.Prompts.gm_messages/3`); this flat view is for
-  tests and debugging.
-  """
-  @spec format_gm_prompt(map()) :: String.t()
-  def format_gm_prompt(context) do
-    [context.rules, session_stable_section(context), per_turn_section(context)]
-    |> join_sections()
-  end
-
-  @doc """
-  Content that stays the same for the whole session (until the opening scene is
-  replaced): the character's fixed sheet, the adventure, and the opening scene
-  the player has already heard. Never put per-turn values (coins, wounds,
-  inventory, turn numbers, clocks, NPC moods) here: it sits before the per-turn
-  state so the prompt cache can reuse it on every turn.
-  """
-  @spec session_stable_section(map()) :: String.t()
-  def session_stable_section(context), do: slot_text(context, :session)
-
-  @doc "Everything that can change from turn to turn. Always last in the prompt."
-  @spec per_turn_section(map()) :: String.t()
-  def per_turn_section(context), do: slot_text(context, :turn)
-
-  # The scene profile: the per-turn state with no GM turn tail.
-  defp slot_text(context, slot) do
-    ctx = TalesForge.Prompt.Ctx.from_gm_context(context, :scene)
-
-    ctx
-    |> TalesForge.Prompt.new()
-    |> TalesForge.Prompt.add_all(TalesForge.Prompt.Profile.sections(ctx))
-    |> TalesForge.Prompt.render_slot(slot)
-  end
-
-  @doc """
   What the character's sleep made of the
   failures they banked (`context[:rest_growth]`, set by
   `TalesForge.Game.TurnProcessor`: `attempts`, the improvement rolls the rest
@@ -380,12 +342,6 @@ defmodule TalesForge.Game.Context do
   defp moved_line(world, from, here) do
     "Just now: the character left #{Movement.name(world, from)} for #{here}. " <>
       "Narrate the way and the arrival here; whoever was at #{Movement.name(world, from)} stays there."
-  end
-
-  defp join_sections(sections) do
-    sections
-    |> Enum.reject(&(is_nil(&1) or &1 == ""))
-    |> Enum.join("\n\n---\n\n")
   end
 
   @doc false
