@@ -35,8 +35,10 @@ branch `health-history`, with one open PR for it; merging that PR adds the
 rows to main. GitHub holds every pull_request run on a PR that
 github-actions[bot] opened until a human approves it, so CI skips that PR's
 pull_request runs (it changes only the two history files) and the snapshot
-workflow dispatches CI on the branch instead: the required Test and Dialyzer
-checks run with no approval. The first rows are the merges that changed `baseline.json`
+workflow dispatches CI on the branch instead. GitHub does not count a
+dispatched run's own checks on a PR, so that run sets commit statuses
+named Test and Dialyzer on the branch head with its results (job "Report
+dispatched checks"): the required checks pass with no approval. The first rows are the merges that changed `baseline.json`
 (#324, #325, #326), measured again at each merge commit.
 
 `lib/ex_tales_forge -> ExTalesForgeWeb` is measured with xref (real compile, export and

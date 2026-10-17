@@ -249,3 +249,35 @@ jobs:
 
       - name: Report dependency warnings
         run: elixir .github/scripts/dep_warnings.exs deps-compile.log .github/dep-warnings-known.txt
+
+  # A workflow_dispatch run's own checks are not counted on a pull request
+  # (GitHub counts only checks of push / pull_request-like runs), and check
+  # runs made through the Checks API from a job join that same run. The
+  # dispatched run on the health-history branch (see the pull_request
+  # paths-ignore above) therefore sets commit statuses named Test and
+  # Dialyzer on the branch head, with the outcome of its own jobs, so the
+  # rolling PR gets its required checks with no approval. Only on
+  # workflow_dispatch; a failed or cancelled job reports failure.
+  report_dispatch:
+    name: Report dispatched checks
+    if: always() && github.event_name == 'workflow_dispatch'
+    needs: [test, dialyzer]
+    runs-on: ubuntu-24.04
+    permissions:
+      statuses: write
+    steps:
+      - name: Set the Test and Dialyzer statuses on the branch head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST: ${{ needs.test.result }}
+          DIALYZER: ${{ needs.dialyzer.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          for pair in "Test:$TEST" "Dialyzer:$DIALYZER"; do
+            name=${pair%%:*}
+            result=${pair#*:}
+            if [ "$result" = success ]; then state=success; else state=failure; fi
+            gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+              -f context="$name" -f state="$state" -f target_url="$RUN_URL" \
+              -f description="Dispatched CI run: $name $result"
+          done
