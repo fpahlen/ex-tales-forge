@@ -260,7 +260,7 @@ if config_env() != :test do
   config :ex_tales_forge, :workflow_api, token: System.get_env("WORKFLOW_API_TOKEN")
 
   if workflow_url = System.get_env("WORKFLOW_URL") do
-    config :ex_tales_forge, TalesForge.WorkflowClient, base_url: workflow_url
+    config :ex_tales_forge, :workflow_client, base_url: workflow_url
   end
 
   config :ex_tales_forge, :app_name, System.get_env("FLY_APP_NAME")
