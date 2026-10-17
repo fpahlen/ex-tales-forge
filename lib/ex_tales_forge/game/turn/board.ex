@@ -352,21 +352,21 @@ defmodule TalesForge.Game.Turn.Board do
     end
   end
 
-  defp maybe_apply_inventory(world_state, %__MODULE__{session: %{id: session_id}} = board) do
-    case Inventory.apply_server_inventory(
-           world_state,
-           session_id,
-           board.player_action.action,
-           board.handler
-         ) do
-      {:ok, updated, %{applied: applied} = details} when is_list(applied) ->
-        Logger.info("inventory applied session=#{session_id} changes=#{inspect(applied)}")
-        {updated, {:ok, details}}
+  defp maybe_apply_inventory(world_state, %__MODULE__{player_action: %{action: action}} = board) do
+    if Inventory.applies?(board.handler, action),
+      do: apply_inventory(world_state, board.session.id, action),
+      else: {world_state, nil}
+  end
 
-      {:ok, updated, nil} ->
-        {updated, nil}
+  # The inventory step is pure; the NPC stock it reads and the stock it
+  # changes are loaded and saved here.
+  defp apply_inventory(world_state, session_id, action) do
+    keys = Inventory.npc_stock_keys(action, Map.get(world_state, "present_npcs", []))
 
-      {:ok, updated, details} ->
+    case Inventory.apply_transaction(world_state, NPC.stock_map(session_id, keys), action) do
+      {:ok, updated, details, npc_updates} ->
+        :ok = NPC.persist_stock_updates(session_id, npc_updates)
+        Logger.info("inventory applied session=#{session_id} changes=#{inspect(details.applied)}")
         {updated, {:ok, details}}
 
       {:error, reason} ->
