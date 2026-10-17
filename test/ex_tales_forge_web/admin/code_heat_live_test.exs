@@ -27,9 +27,7 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLiveTest do
           {TalesForge.AppRole, :role, 1} => {90_000, 45_000},
           {TalesForge.AppRole, :playtest?, 1} => {1_200_000, 30_000}
         },
-        DateTime.add(now, -1, :hour),
-        now,
-        3
+        %CodeHeat.Sample{started_at: DateTime.add(now, -1, :hour), ended_at: now, modules: 3}
       )
   end
 
@@ -55,7 +53,14 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLiveTest do
 
   test "no sample in the last 24 hours: says so and disables the filters", %{conn: conn} do
     now = DateTime.utc_now()
-    {:ok, _} = CodeHeat.save(%{}, DateTime.add(now, -26, :hour), DateTime.add(now, -25, :hour), 1)
+
+    {:ok, _} =
+      CodeHeat.save(%{}, %CodeHeat.Sample{
+        started_at: DateTime.add(now, -26, :hour),
+        ended_at: DateTime.add(now, -25, :hour),
+        modules: 1
+      })
+
     {:ok, view, html} = live(conn, ~p"/admin/operate/code-heat")
 
     assert has_element?(view, "#code-heat-empty", "There is no sample in the last 24 hours.")

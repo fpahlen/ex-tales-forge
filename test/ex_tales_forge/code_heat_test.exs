@@ -35,7 +35,7 @@ defmodule TalesForge.CodeHeatTest do
     assert length(CodeHeat.traced_modules()) == 3
   end
 
-  describe "save/4" do
+  describe "save/2" do
     test "keeps the functions with the most time and the newest samples" do
       put_config(max_rows: 2, keep: 2)
       now = DateTime.utc_now()
@@ -48,12 +48,11 @@ defmodule TalesForge.CodeHeatTest do
 
       for i <- 1..3 do
         assert {:ok, _} =
-                 CodeHeat.save(
-                   totals,
-                   DateTime.add(now, -i, :day),
-                   DateTime.add(now, i, :second),
-                   7
-                 )
+                 CodeHeat.save(totals, %CodeHeat.Sample{
+                   started_at: DateTime.add(now, -i, :day),
+                   ended_at: DateTime.add(now, i, :second),
+                   modules: 7
+                 })
       end
 
       assert Repo.aggregate(CodeHeatSnapshot, :count) == 2
@@ -82,9 +81,11 @@ defmodule TalesForge.CodeHeatTest do
         {:ok, _} =
           CodeHeat.save(
             %{{TalesForge.AppRole, :role, 1} => {calls, calls * 10}},
-            DateTime.add(ended, -1, :hour),
-            ended,
-            4
+            %CodeHeat.Sample{
+              started_at: DateTime.add(ended, -1, :hour),
+              ended_at: ended,
+              modules: 4
+            }
           )
       end
 
@@ -103,13 +104,13 @@ defmodule TalesForge.CodeHeatTest do
                merged.rows
 
       assert [%{label: "TalesForge.AppRole", calls: 5}] =
-               CodeHeat.tiles(merged.rows, :module, :calls)
+               CodeHeat.tiles(merged.rows, level: :module, metric: :calls)
     end
 
     test "an empty window gives no rows and no tiles" do
       merged = CodeHeat.window(24)
       assert %{samples: 0, modules: 0, rows: [], started_at: nil, ended_at: nil} = merged
-      assert CodeHeat.tiles(merged.rows, :module, :total) == []
+      assert CodeHeat.tiles(merged.rows, level: :module, metric: :total) == []
 
       from = ~U[2026-10-12 00:00:00Z]
 
@@ -126,7 +127,7 @@ defmodule TalesForge.CodeHeatTest do
     end
   end
 
-  describe "tiles/4" do
+  describe "tiles/2" do
     @rows [
       %{
         "app" => "a",
@@ -141,7 +142,7 @@ defmodule TalesForge.CodeHeatTest do
     ]
 
     test "colors by average time and marks AI modules and hot spots" do
-      [first | _] = tiles = CodeHeat.tiles(@rows, :module, :avg)
+      [first | _] = tiles = CodeHeat.tiles(@rows, level: :module, metric: :avg)
       assert first.label == "TalesForge.LLM"
       assert first.value == 1000.0
       assert first.ai
@@ -151,13 +152,19 @@ defmodule TalesForge.CodeHeatTest do
     end
 
     test "filters by the minimum value" do
-      assert ["M"] == @rows |> CodeHeat.tiles(:module, :calls, min: 100) |> Enum.map(& &1.label)
-      assert [] == CodeHeat.tiles([], :function, :total)
+      assert ["M"] ==
+               @rows
+               |> CodeHeat.tiles(level: :module, metric: :calls, min: 100)
+               |> Enum.map(& &1.label)
+
+      assert [] == CodeHeat.tiles([], level: :function, metric: :total)
     end
 
     test "a tile with zero calls is a cold tile" do
       rows = [%{"app" => "a", "module" => "M", "function" => "g/0", "calls" => 0, "time_us" => 0}]
-      assert [%{hot: false, heat: +0.0, avg_us: +0.0}] = CodeHeat.tiles(rows, :function, :calls)
+
+      assert [%{hot: false, heat: +0.0, avg_us: +0.0}] =
+               CodeHeat.tiles(rows, level: :function, metric: :calls)
     end
   end
 

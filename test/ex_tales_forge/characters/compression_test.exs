@@ -35,14 +35,32 @@ defmodule TalesForge.Characters.CompressionTest do
 
   describe "timing (option 4)" do
     test "a long rest is always due" do
-      assert Compression.due?(true, false, nil, 10)
+      assert Compression.due?(
+               %Compression.Trigger{long_rest: true, scene_end: false, now: 10},
+               nil
+             )
     end
 
     test "a scene end is due after a dawn and one game day" do
-      refute Compression.due?(false, true, 10, 50)
-      refute Compression.due?(false, false, 10, 200)
-      assert Compression.due?(false, true, 10, 110)
-      refute Compression.due?(false, true, nil, 110)
+      refute Compression.due?(
+               %Compression.Trigger{long_rest: false, scene_end: true, now: 50},
+               10
+             )
+
+      refute Compression.due?(
+               %Compression.Trigger{long_rest: false, scene_end: false, now: 200},
+               10
+             )
+
+      assert Compression.due?(
+               %Compression.Trigger{long_rest: false, scene_end: true, now: 110},
+               10
+             )
+
+      refute Compression.due?(
+               %Compression.Trigger{long_rest: false, scene_end: true, now: 110},
+               nil
+             )
     end
   end
 
@@ -80,7 +98,7 @@ defmodule TalesForge.Characters.CompressionTest do
       %{"kind" => "time.passed", "location_id" => "inn", "payload" => %{"delta_ticks" => 40}}
     ]
 
-    assert :ok = Compression.after_turn(session.id, rest, 50, :shadow)
+    assert :ok = Compression.after_turn(session.id, rest, now: 50, mode: :shadow)
 
     [long] = pc |> Characters.list_memories() |> Enum.filter(&(&1.tier == "long"))
     assert long.text =~ "grateful: "
@@ -98,8 +116,8 @@ defmodule TalesForge.Characters.CompressionTest do
 
   test "no compression without a scene end or a rest", %{session: session, pc: pc} do
     short!(pc, "Mags laughed", ["mags"], 5)
-    assert :ok = Compression.after_turn(session.id, [], 500, :shadow)
-    assert :ok = Compression.after_turn(session.id, [], 500, :off)
+    assert :ok = Compression.after_turn(session.id, [], now: 500, mode: :shadow)
+    assert :ok = Compression.after_turn(session.id, [], now: 500, mode: :off)
     assert Repo.aggregate(CharacterMemory, :count) >= 1
     assert {"short", "Mags laughed"} in tiers(pc)
   end

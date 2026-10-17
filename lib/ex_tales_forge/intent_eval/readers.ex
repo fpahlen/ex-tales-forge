@@ -19,6 +19,17 @@ defmodule TalesForge.IntentEval.Readers do
   @jev_model "jev-1.13.0"
   @default_timeout_ms 4_000
 
+  defmodule Input do
+    @moduledoc """
+    One eval item and its live context, as `TalesForge.IntentEval.Readers.read/3`
+    takes them.
+    """
+    defstruct [:item, context: %{}]
+
+    @typedoc "One eval item and its live context."
+    @type t :: %__MODULE__{item: map(), context: map()}
+  end
+
   @typedoc "A reader's normalised reading of one item."
   @type reading :: %{
           required(:reader) => atom(),
@@ -39,16 +50,18 @@ defmodule TalesForge.IntentEval.Readers do
           optional(:probabilities) => %{atom() => %{atom() => float()}}
         }
 
-  @doc "Reads `item` with `reader` over its live `context`."
-  @spec read(atom(), map(), map(), keyword()) :: reading()
-  def read(:heuristic, item, context, _opts), do: heuristic(item, context)
-  def read(:jev, item, context, opts), do: jev(item, context, Keyword.get(opts, :jev, []))
+  @doc "Reads the input's item with `reader` over its live context."
+  @spec read(atom(), Input.t(), keyword()) :: reading()
+  def read(:heuristic, %Input{item: item, context: context}, _opts), do: heuristic(item, context)
+
+  def read(:jev, %Input{item: item, context: context}, opts),
+    do: jev(item, context, Keyword.get(opts, :jev, []))
 
   # --- heuristic ---------------------------------------------------------------
 
   defp heuristic(item, context) do
     extraction = Intent.heuristic_intent(item["text"], context)
-    from_extraction(:heuristic, extraction, :ok, 0.0)
+    from_extraction(extraction)
   end
 
   # --- jev ---------------------------------------------------------------------
@@ -66,7 +79,9 @@ defmodule TalesForge.IntentEval.Readers do
       ]
       |> maybe_key(Keyword.get(jev_opts, :api_key))
 
-    case cached_post(state, questions, post_opts, Keyword.get(jev_opts, :cache_dir)) do
+    request = %{state: state, questions: questions}
+
+    case cached_post(request, post_opts, Keyword.get(jev_opts, :cache_dir)) do
       {:ok, reply, cached?} ->
         reading = JevIntent.decode(reply, candidates, text: item["text"], context: context)
         reading |> from_jev() |> Map.put(:cached, cached?)
@@ -89,11 +104,11 @@ defmodule TalesForge.IntentEval.Readers do
   # (model, state, questions), so re-running with unchanged requests (e.g. while
   # tuning post-processing or the calibration map) costs nothing, and any change
   # to the request misses the cache and calls Jev again.
-  defp cached_post(state, questions, post_opts, nil) do
+  defp cached_post(%{state: state, questions: questions}, post_opts, nil) do
     with {:ok, reply} <- Jev.HTTP.post(state, questions, post_opts), do: {:ok, reply, false}
   end
 
-  defp cached_post(state, questions, post_opts, dir) do
+  defp cached_post(%{state: state, questions: questions}, post_opts, dir) do
     path = Path.join(dir, request_key(state, questions, post_opts[:model]) <> ".etf")
 
     case File.read(path) do
@@ -163,15 +178,16 @@ defmodule TalesForge.IntentEval.Readers do
 
   # --- shared ------------------------------------------------------------------
 
-  defp from_extraction(reader, %IntentExtraction{} = extraction, status, cost) do
+  # The heuristic's reading: free, and always read.
+  defp from_extraction(%IntentExtraction{} = extraction) do
     primary =
       Enum.at(extraction.actions, extraction.primary_index) || List.first(extraction.actions)
 
     deferred = deferred_action(extraction)
 
     %{
-      reader: reader,
-      status: status,
+      reader: :heuristic,
+      status: :ok,
       action: action_type(primary),
       target: target(primary),
       skill: skill(primary),
@@ -182,7 +198,7 @@ defmodule TalesForge.IntentEval.Readers do
       benign_probability: 1.0,
       action_probabilities: %{},
       top2: [action_type(primary)] |> Enum.reject(&is_nil/1),
-      cost: cost,
+      cost: 0.0,
       cached: false
     }
   end

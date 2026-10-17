@@ -142,7 +142,10 @@ defmodule TalesForge.WorldTest do
 
     test "a question gets the listed price, nothing is charged", %{agents: agents, world: world} do
       {^world, lines} =
-        Prices.resolve(agents, world, world, "Is there a room free, and a bowl of stew?", nil)
+        Prices.resolve(agents, world, %Prices.Turn{
+          world_before: world,
+          raw_action: "Is there a room free, and a bowl of stew?"
+        })
 
       assert lines == [
                "Price: Bowl of stew, 5 copper",
@@ -161,7 +164,10 @@ defmodule TalesForge.WorldTest do
       world = put_in(world, ["character", "coins"], %{"silver" => 1})
 
       {after_pay, lines} =
-        Prices.resolve(agents, world, world, "I slide a silver coin over for the stew.", nil)
+        Prices.resolve(agents, world, %Prices.Turn{
+          world_before: world,
+          raw_action: "I slide a silver coin over for the stew."
+        })
 
       assert lines == ["Purchase: Bowl of stew, 5 copper, paid (server)"]
       assert TalesForge.Game.Inventory.coin_total_copper(after_pay["character"]["coins"]) == 5
@@ -186,13 +192,18 @@ defmodule TalesForge.WorldTest do
       world: world
     } do
       text = "I place five copper coins on the bar. Any news from the valley?"
-      {after_pay, lines} = Prices.resolve(agents, world, world, text, nil)
+
+      {after_pay, lines} =
+        Prices.resolve(agents, world, %Prices.Turn{world_before: world, raw_action: text})
+
       assert lines == ["Purchase: Bowl of stew, 5 copper, paid (server)"]
       assert TalesForge.Game.Inventory.coin_total_copper(after_pay["character"]["coins"]) == 1095
       assert Prices.amount("three silver and five copper") == 35
 
       text = "I count out three silver and five copper and slide them over, taking the bowl."
-      {_, lines} = Prices.resolve(agents, world, world, text, nil)
+
+      {_, lines} =
+        Prices.resolve(agents, world, %Prices.Turn{world_before: world, raw_action: text})
 
       assert Enum.sort(lines) == [
                "Purchase: Bowl of stew, 5 copper, paid (server)",
@@ -202,14 +213,20 @@ defmodule TalesForge.WorldTest do
 
     test "paying buys what is named outside questions", %{agents: agents, world: world} do
       {_, lines} =
-        Prices.resolve(agents, world, world, "I'll pay for the room. Is the stew any good?", nil)
+        Prices.resolve(agents, world, %Prices.Turn{
+          world_before: world,
+          raw_action: "I'll pay for the room. Is the stew any good?"
+        })
 
       assert lines == ["Purchase: Private room, one night, 3 silver, paid (server)"]
     end
 
     test "the amount picks among the items named", %{agents: agents, world: world} do
       text = "Two copper it is for that fine ale. And aye, the stew sounds a blessing."
-      {_, lines} = Prices.resolve(agents, world, world, text, nil)
+
+      {_, lines} =
+        Prices.resolve(agents, world, %Prices.Turn{world_before: world, raw_action: text})
+
       assert lines == ["Purchase: Mug of ale, 2 copper, paid (server)"]
     end
 
@@ -217,13 +234,21 @@ defmodule TalesForge.WorldTest do
       world = put_in(world, ["character", "coins"], %{"copper" => 3})
 
       {^world, lines} =
-        Prices.resolve(agents, world, world, "I pay for a room for the night.", nil)
+        Prices.resolve(agents, world, %Prices.Turn{
+          world_before: world,
+          raw_action: "I pay for a room for the night."
+        })
 
       assert lines == ["Purchase: Private room, one night, 3 silver, not paid (has 3 copper)"]
     end
 
     test "nothing mentioned, no lines; money words", %{agents: agents, world: world} do
-      assert {_, []} = Prices.resolve(agents, world, world, "I look around the common room.", nil)
+      assert {_, []} =
+               Prices.resolve(agents, world, %Prices.Turn{
+                 world_before: world,
+                 raw_action: "I look around the common room."
+               })
+
       assert TalesForge.Prompt.Sections.Prices.text([]) == nil
       assert Prices.money(30) == "3 silver"
       assert Prices.money(535) == "1 gold 3 silver 5 copper"
