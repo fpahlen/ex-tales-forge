@@ -249,7 +249,9 @@ defmodule TalesForge.Game.CombatTest do
       }
 
       carried =
-        Combat.carry(before, %{"gate_guard" => %{"name" => "Gate Guard", "mood" => "angry"}})
+        TalesForge.Game.NpcState.carry(before, %{
+          "gate_guard" => %{"name" => "Gate Guard", "mood" => "angry"}
+        })
 
       assert carried["gate_guard"] == %{
                "name" => "Gate Guard",
