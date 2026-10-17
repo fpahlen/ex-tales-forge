@@ -15,10 +15,19 @@ defmodule TalesForge.GMReasoning do
 
   @kind "gm_reasoning"
 
+  defmodule At do
+    @moduledoc "Where a reasoning event goes: the session and the world tick (nil counts as 0)."
+    defstruct [:session_id, :tick]
+
+    @typedoc "The session and world tick of a reasoning event."
+    @type t :: %__MODULE__{session_id: Ecto.UUID.t(), tick: integer() | nil}
+  end
+
   @doc "Adds a `:gm_reasoning` step after `:turn`. A failed insert is logged and never aborts the turn."
-  def multi_insert(multi, session_id, tick, %GMStructuredResponse{} = gm_result) do
+  @spec multi_insert(Ecto.Multi.t(), At.t(), GMStructuredResponse.t()) :: Ecto.Multi.t()
+  def multi_insert(multi, %At{} = at, %GMStructuredResponse{} = gm_result) do
     Ecto.Multi.run(multi, :gm_reasoning, fn _repo, %{turn: turn} ->
-      {:ok, insert(session_id, tick, turn, gm_result)}
+      {:ok, insert(at, turn, gm_result)}
     end)
   end
 
@@ -30,14 +39,14 @@ defmodule TalesForge.GMReasoning do
     |> Repo.all()
   end
 
-  defp insert(session_id, tick, turn, gm_result) do
+  defp insert(%At{session_id: session_id} = at, turn, gm_result) do
     %SessionEvent{}
     |> SessionEvent.changeset(%{
       game_session_id: session_id,
       kind: @kind,
       actor: "gm",
       player_aware: false,
-      tick: tick || 0,
+      tick: at.tick || 0,
       payload: %{
         "turn_id" => turn.id,
         "turn_number" => turn.turn_number,
