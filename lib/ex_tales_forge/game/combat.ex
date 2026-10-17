@@ -23,6 +23,26 @@ defmodule TalesForge.Game.Combat do
   session. A minor foe (`minor_foe/4`) has 1 wound and the untrained floor.
   """
 
+  defmodule Hit do
+    @moduledoc """
+    One attack on the defender, as `TalesForge.Game.Combat.exchange/4` books
+    it: whether it hit, the defender's wounds, wound cap and vitality before
+    it, the defender and the death roll (d100).
+    """
+
+    @enforce_keys [:hit, :wounds, :cap, :vitality, :defender, :roll]
+    defstruct @enforce_keys
+
+    @type t :: %__MODULE__{
+            hit: boolean(),
+            wounds: non_neg_integer(),
+            cap: pos_integer(),
+            vitality: String.t(),
+            defender: map(),
+            roll: integer()
+          }
+  end
+
   alias TalesForge.Characters.Defaults
   alias TalesForge.Game.Mechanics
 
@@ -216,11 +236,9 @@ defmodule TalesForge.Game.Combat do
     hit = hit?(rolls.attack, target)
     result = result(rolls.attack, target)
 
-    cap = wound_max(defender)
-    before = defender |> Map.get("wounds", 0) |> to_int(0) |> min(cap)
-    vitality_before = Map.get(defender, "vitality") || vitality(before, cap)
-    {wounds, vitality} = take_hit(hit, before, cap, vitality_before, defender, rolls)
-    death = death_roll(hit, before, cap, vitality_before, defender, rolls)
+    %Hit{cap: cap} = on_defender = hit_on(defender, hit, rolls)
+    {wounds, vitality} = take_hit(on_defender)
+    death = death_roll(on_defender)
 
     counter =
       if vitality in ~w(ok hurt) do
@@ -258,35 +276,50 @@ defmodule TalesForge.Game.Combat do
     }
   end
 
+  # The attack on `defender`, with its wounds, wound cap and vitality before it.
+  defp hit_on(defender, hit, rolls) do
+    cap = wound_max(defender)
+    before = defender |> Map.get("wounds", 0) |> to_int(0) |> min(cap)
+
+    %Hit{
+      hit: hit,
+      wounds: before,
+      cap: cap,
+      vitality: Map.get(defender, "vitality") || vitality(before, cap),
+      defender: defender,
+      roll: Map.get(rolls, :death, 1)
+    }
+  end
+
   # QA 2026-10-15: the death roll of a hit on a downed defender, so the line
   # can show it. The defender dies when the d100 is above CON × 2.5
   # (`combat.md`), so `"kills_above"` is that number, rounded down.
-  defp death_roll(true, wounds, cap, vitality, defender, rolls)
+  defp death_roll(%Hit{hit: true, wounds: wounds, cap: cap, vitality: vitality, roll: roll} = hit)
        when wounds >= cap and vitality != "dead" do
-    con = defender |> get_in(["stats", "CON"]) |> to_int(10)
-    roll = Map.get(rolls, :death, 1)
+    con = con(hit)
     %{"roll" => roll, "kills_above" => trunc(con * 2.5), "dead" => roll > con * 2.5}
   end
 
-  defp death_roll(_hit, _wounds, _cap, _vitality, _defender, _rolls), do: nil
+  defp death_roll(%Hit{}), do: nil
 
   # A fighter with level 0 in the skill rolls the untrained floor
   # (`Mechanics.untrained_floor/1`). A minor foe is always untrained.
   defp untrained?(%{"minor" => true}, _skill), do: true
   defp untrained?(fighter, skill), do: Mechanics.raw_level(fighter, skill) <= 0
 
-  defp take_hit(false, wounds, _cap, vitality, _defender, _rolls), do: {wounds, vitality}
-  defp take_hit(true, wounds, _cap, "dead", _defender, _rolls), do: {wounds, "dead"}
+  defp take_hit(%Hit{hit: false, wounds: wounds, vitality: vitality}), do: {wounds, vitality}
+  defp take_hit(%Hit{wounds: wounds, vitality: "dead"}), do: {wounds, "dead"}
 
-  defp take_hit(true, wounds, cap, _vitality, defender, rolls) when wounds >= cap do
-    con = defender |> get_in(["stats", "CON"]) |> to_int(10)
-    if Map.get(rolls, :death, 1) > con * 2.5, do: {cap, "dead"}, else: {cap, "down"}
+  defp take_hit(%Hit{wounds: wounds, cap: cap} = hit) when wounds >= cap do
+    if hit.roll > con(hit) * 2.5, do: {cap, "dead"}, else: {cap, "down"}
   end
 
-  defp take_hit(true, wounds, cap, _vitality, _defender, _rolls) do
+  defp take_hit(%Hit{wounds: wounds, cap: cap}) do
     after_hit = wounds + 1
     {after_hit, vitality(after_hit, cap)}
   end
+
+  defp con(%Hit{defender: defender}), do: defender |> get_in(["stats", "CON"]) |> to_int(10)
 
   defp self_wound_line(%{"self_wound" => true} = ex),
     do: "- #{ex["attacker"]} takes 1 wound from the critical miss. The server books it."
