@@ -276,11 +276,13 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        raw,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        raw
       )
 
     reload(session.id)
@@ -299,11 +301,13 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        raw,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        raw
       )
 
     reload(session.id)
@@ -316,11 +320,13 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        raw,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        raw
       )
 
     reload(session.id)

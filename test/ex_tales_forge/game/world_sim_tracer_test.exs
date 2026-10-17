@@ -158,7 +158,13 @@ defmodule TalesForge.Game.WorldSimTracerTest do
     refute pre =~ @hiring
 
     %{world: world_board} =
-      TurnProcessor.apply_board(session, character, handler, player_action, mechanical)
+      TurnProcessor.apply_board(%TurnProcessor.Board{
+        session: session,
+        character: character,
+        handler: handler,
+        player_action: player_action,
+        mechanical: mechanical
+      })
 
     prompt =
       Context.format_gm_prompt(Context.build_gm_context(%{session | world_state: world_board}))
@@ -189,11 +195,13 @@ defmodule TalesForge.Game.WorldSimTracerTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        "I buy a mug of ale",
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        "I buy a mug of ale"
       )
 
     session = reload(session.id)
@@ -282,7 +290,18 @@ defmodule TalesForge.Game.WorldSimTracerTest do
       })
 
     handler = ActionHandler.resolve(player_action)
-    {:ok, _} = TurnProcessor.simulate!(session, raw, player_action, handler, mechanical)
+
+    {:ok, _} =
+      TurnProcessor.simulate!(
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: mechanical
+        },
+        raw
+      )
+
     reload(session.id)
   end
 
@@ -293,11 +312,13 @@ defmodule TalesForge.Game.WorldSimTracerTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        raw,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        raw
       )
 
     reload(session.id)
@@ -314,11 +335,13 @@ defmodule TalesForge.Game.WorldSimTracerTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        "look around",
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        "look around"
       )
 
     reload(session.id)
