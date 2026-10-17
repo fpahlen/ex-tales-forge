@@ -2,8 +2,8 @@ defmodule TalesForgeWeb.PlayComponents do
   @moduledoc false
   use TalesForgeWeb, :html
 
-  alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
+  alias TalesForge.Game.PlayPanel
 
   attr :session_id, :string, required: true
   attr :session_name, :string, required: true
@@ -454,37 +454,7 @@ defmodule TalesForgeWeb.PlayComponents do
       ...>   "location_id" => "inn", "vitality" => "dead"}}})
       []
   """
-  def present_npcs(world_state) when is_map(world_state) do
-    npc_state = Map.get(world_state, "npc_state") || %{}
-
-    npc_ids =
-      world_state
-      |> Map.get("present_npcs", [])
-      |> List.wrap()
-      |> Enum.reject(&(get_in(npc_state, [&1, "vitality"]) == "dead"))
-
-    foe_ids =
-      npc_state
-      |> Enum.filter(fn {id, npc} ->
-        is_map(npc) and npc["minor"] == true and npc["vitality"] != "dead" and
-          id not in npc_ids and npc["location_id"] == world_state["location_id"]
-      end)
-      |> Enum.map(&elem(&1, 0))
-      |> Enum.sort()
-
-    Enum.map(npc_ids ++ foe_ids, fn npc_id ->
-      detail = Map.get(npc_state, npc_id) || %{}
-
-      %{
-        id: npc_id,
-        name: Map.get(detail, "name", npc_id),
-        role: Map.get(detail, "role", "present"),
-        concern_priority: Map.get(detail, "concern_priority", 0),
-        portrait_url: Map.get(detail, "portrait_url"),
-        wounds_label: wounds_label(detail)
-      }
-    end)
-  end
+  defdelegate present_npcs(world_state), to: PlayPanel
 
   @doc """
   The last combat exchange text of the world (`combat_last`), or nil. The
@@ -512,31 +482,8 @@ defmodule TalesForgeWeb.PlayComponents do
 
   def last_exchange(_world_state), do: nil
 
-  defp wounds_label(%{"vitality" => "dead"}), do: "dead"
-
-  defp wounds_label(%{"wounds" => wounds} = detail) when is_integer(wounds) do
-    max = detail["wound_max"] || 3
-
-    case {detail["vitality"], wounds} do
-      {"down", _} -> "down · #{wounds}/#{max} wounds"
-      {_, 0} -> nil
-      _ -> "#{wounds}/#{max} wounds"
-    end
-  end
-
-  defp wounds_label(_detail), do: nil
-
-  def quick_stats(character) when is_map(character) do
-    wounds = Map.get(character, "wounds", 0)
-    wound_max = Map.get(character, "wound_max", 3)
-    coins = format_coins(Map.get(character, "coins", %{}))
-    wounds_part = "#{wounds}/#{wound_max} wounds · #{coins}"
-
-    case Map.get(character, "vitality", "ok") do
-      "ok" -> wounds_part
-      vitality -> "#{vitality} · #{wounds_part}"
-    end
-  end
+  @doc "See `TalesForge.Game.PlayPanel.quick_stats/1`."
+  defdelegate quick_stats(character), to: PlayPanel
 
   def entry_heading(%{role: "scene", location_name: name}), do: "You arrive at #{name}"
   def entry_heading(%{role: "gm"}), do: "Game Master"
@@ -624,13 +571,7 @@ defmodule TalesForgeWeb.PlayComponents do
       iex> TalesForgeWeb.PlayComponents.format_coins(%{"gold" => 2, "silver" => 7})
       "2g 7s 0c"
   """
-  def format_coins(coins) when is_map(coins) do
-    normal = Inventory.normalize_coins(coins)
-
-    "#{Map.get(normal, "gold", 0)}g #{Map.get(normal, "silver", 0)}s #{Map.get(normal, "copper", 0)}c"
-  end
-
-  def format_coins(_), do: "—"
+  defdelegate format_coins(coins), to: PlayPanel
 
   defp wound_percent(character) do
     wounds = Map.get(character, "wounds", 0)
