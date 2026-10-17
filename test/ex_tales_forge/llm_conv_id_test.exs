@@ -7,6 +7,7 @@ defmodule TalesForge.LLMConvIdTest do
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameSessions
   alias TalesForge.LLM
+  alias TalesForge.Prompt.Assemble
 
   @reply %{
     "choices" => [
@@ -82,7 +83,7 @@ defmodule TalesForge.LLMConvIdTest do
 
     assert {:ok, _} =
              LLM.complete_scene(
-               TalesForge.Game.Prompts.scene_messages(context),
+               Assemble.scene_messages(context),
                context.intent_context,
                session_id: session_id
              )

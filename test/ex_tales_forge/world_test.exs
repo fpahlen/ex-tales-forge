@@ -18,6 +18,7 @@ defmodule TalesForge.WorldTest do
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.LLM
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Schemas.AICall
   alias TalesForge.World
   alias TalesForge.Schemas.SessionEvent
@@ -251,10 +252,10 @@ defmodule TalesForge.WorldTest do
       turn_number: 2
     }
 
-    plain = Prompts.gm_messages(context, turn)
+    plain = Assemble.gm_messages(context, turn)
 
     with_facts =
-      Prompts.gm_messages(Map.put(context, :world_facts, agents), turn,
+      Assemble.gm_messages(Map.put(context, :world_facts, agents), turn,
         flags: %{world_agents: true}
       )
 

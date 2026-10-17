@@ -16,6 +16,7 @@ defmodule TalesForge.GMOutputTrimTest do
   alias TalesForge.Jido
   alias TalesForge.LLM
   alias TalesForge.NPC
+  alias TalesForge.Prompt.Assemble
 
   setup do
     on_exit(fn ->
@@ -146,7 +147,7 @@ defmodule TalesForge.GMOutputTrimTest do
     assert Enum.any?(memories, &(&1["summary"] =~ "asked nothing and paid"))
 
     # The next GM turn sees the summary as its situation.
-    assert Context.format_gm_prompt(Context.build_gm_context(session)) =~
+    assert Assemble.format_gm_prompt(Context.build_gm_context(session)) =~
              "Marta is wary of the door"
   end
 end

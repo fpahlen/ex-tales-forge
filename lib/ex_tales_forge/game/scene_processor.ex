@@ -9,10 +9,10 @@ defmodule TalesForge.Game.SceneProcessor do
 
   alias TalesForge.Game.Context
   alias TalesForge.Game.Mechanics
-  alias TalesForge.Game.Prompts
   alias TalesForge.Game.World
   alias TalesForge.LLM
   alias TalesForge.NPC
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, Scene}
@@ -93,7 +93,7 @@ defmodule TalesForge.Game.SceneProcessor do
   defp generate_scene(%GameSession{} = session, location_id) do
     gm_context = Context.build_gm_context(session) |> put_world_facts(session)
 
-    case LLM.complete_scene(Prompts.scene_messages(gm_context), gm_context.intent_context,
+    case LLM.complete_scene(Assemble.scene_messages(gm_context), gm_context.intent_context,
            session_id: session.id
          ) do
       {:ok, %{location_name: location_name, narrative: narrative}} ->

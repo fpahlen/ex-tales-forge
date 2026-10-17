@@ -13,6 +13,7 @@ defmodule TalesForge.Game.ForgeCottageHooksTest do
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.NPC
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 
@@ -101,7 +102,7 @@ defmodule TalesForge.Game.ForgeCottageHooksTest do
       ids = Enum.map(session.world_state["public_facts"], & &1["id"])
       assert Enum.all?(@rumours, &(&1 in ids))
 
-      per_turn = session |> Context.build_gm_context() |> Context.per_turn_section()
+      per_turn = session |> Context.build_gm_context() |> Assemble.per_turn_section()
       assert per_turn =~ "## Perceived facts"
       assert per_turn =~ "Brask's forge off the Market Square rang past midnight"
       assert per_turn =~ "Old Maude, the herb-wife"
