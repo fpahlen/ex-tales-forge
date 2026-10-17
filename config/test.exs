@@ -86,7 +86,7 @@ config :jev,
 config :ex_tales_forge, :intent_jev_shadow, :sync
 
 # Session versus canon: tests stub the Jev labeller (TalesForge.Canon.Classifier).
-config :ex_tales_forge, TalesForge.Canon, classifier: TalesForge.Canon.ClassifierStub
+config :ex_tales_forge, :canon_classifier, TalesForge.Canon.ClassifierStub
 
 # The Workflow client (TalesForge.WorkflowClient.Http) calls Req.Test stubs.
 

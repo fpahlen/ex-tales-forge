@@ -110,7 +110,7 @@ config :ex_tales_forge, TalesForge.AppRole,
 # The Workflow app (whyse-ab/workflow). The product app sends work-log turn
 # events to it (TalesForge.WorkflowClient.Http) and redirects the old Workflow
 # paths to it for 30 days (TalesForgeWeb.WorkflowRedirectController).
-config :ex_tales_forge, TalesForge.WorkflowClient, base_url: "https://whyse-workflow.fly.dev"
+config :ex_tales_forge, :workflow_client, base_url: "https://whyse-workflow.fly.dev"
 
 # Admin costs page (/admin/costs). Edit cost figures HERE, in one place.
 # fixed_monthly: one entry per fixed cost. amount is a tagged union:
