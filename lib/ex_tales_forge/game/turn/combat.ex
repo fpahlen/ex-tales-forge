@@ -3,11 +3,11 @@ defmodule TalesForge.Game.Turn.Combat do
   The opposed combat steps of stage 3 (`TalesForge.Game.Turn.Mechanics`),
   only with `COMBAT_OPPOSED=on`. The math is in `TalesForge.Game.Combat`.
 
-    * `target/4` — before the roll: finds the person that the attack is aimed
+    * `target/3` — before the roll: finds the person that the attack is aimed
       at. An unclear target blocks the action, and the turn asks the player.
-    * `exchange/4` — after the roll: the player's d100 is the attack, and the
+    * `exchange/3` — after the roll: the player's d100 is the attack, and the
       defender may counterattack.
-    * `book/4` — after the board: keeps the NPC wounds and minor foes in
+    * `book/3` — after the board: keeps the NPC wounds and minor foes in
       `world_state["npc_state"]`, writes the exchange to the outcome record
       and adds the `npc.down` or `npc.dead` event.
 
@@ -22,6 +22,17 @@ defmodule TalesForge.Game.Turn.Combat do
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.Turn
 
+  defmodule Fight do
+    @moduledoc """
+    What `TalesForge.Game.Turn.Combat.exchange/3` returns: the `exchange`
+    (or nil) and the minor `foe` fighter when the server made one.
+    """
+    defstruct [:exchange, :foe]
+
+    @typedoc "An exchange and the minor foe the server made, if any."
+    @type t :: %__MODULE__{exchange: map() | nil, foe: map() | nil}
+  end
+
   @doc "True when opposed combat is on for `turn`."
   @spec on?(Turn.t()) :: boolean()
   def on?(turn), do: Turn.flag?(turn, :combat_opposed)
@@ -32,11 +43,13 @@ defmodule TalesForge.Game.Turn.Combat do
   player, the played action has no skill, and the target is
   `{:unclear, names}`. Without a combat roll, the target is nil.
   """
-  @spec target(Turn.t(), map(), PlayerAction.t(), HandlerResult.t()) ::
+  @spec target(Turn.t(), PlayerAction.t(), HandlerResult.t()) ::
           {PlayerAction.t(), HandlerResult.t(), Combat.target() | nil}
-  def target(turn, world, played, handler) do
+  def target(turn, played, handler) do
     if on?(turn) and combat_roll?(handler) do
-      case Combat.target(played.action.target, target_text(played, turn.raw_action), world) do
+      text = target_text(played, turn.raw_action)
+
+      case Combat.target(played.action.target, text, Turn.world_before(turn)) do
         {:unclear, names} -> {unrolled(played), ask(names), {:unclear, names}}
         found -> {played, handler, found}
       end
@@ -76,45 +89,48 @@ defmodule TalesForge.Game.Turn.Combat do
   end
 
   @doc """
-  The exchange for `target`, with the player's d100 from `mechanical`.
-  Returns `{exchange, foe}`: `foe` is the minor foe fighter when the server
-  made one. Returns `{%{"target_unclear" => names}, nil}` for an unclear
-  target and `{nil, nil}` without a target or a roll.
+  The exchange for `target`, with the player's d100 from `mechanical`, in
+  a `Fight`. Its `foe` is the minor foe fighter when the server made one.
+  For an unclear target the exchange is `%{"target_unclear" => names}`; it
+  is nil without a target or a roll.
   """
-  @spec exchange(Turn.t(), map(), Combat.target() | nil, map()) :: {map() | nil, map() | nil}
-  def exchange(_turn, _world, {:unclear, names}, _mechanical),
-    do: {%{"target_unclear" => names}, nil}
+  @spec exchange(Turn.t(), Combat.target() | nil, map()) :: Fight.t()
+  def exchange(_turn, {:unclear, names}, _mechanical),
+    do: %Fight{exchange: %{"target_unclear" => names}}
 
-  def exchange(_turn, _world, nil, _mechanical), do: {nil, nil}
-  def exchange(_turn, _world, _target, %{roll: nil}), do: {nil, nil}
+  def exchange(_turn, nil, _mechanical), do: %Fight{}
+  def exchange(_turn, _target, %{roll: nil}), do: %Fight{}
 
-  def exchange(turn, world, target, mechanical) do
-    {defender, foe} = defender(turn, world, target)
-    character = Map.get(world, "character", %{})
+  def exchange(turn, target, mechanical) do
+    {defender, foe} = defender(turn, target)
+    character = Map.get(Turn.world_before(turn), "character", %{})
 
     player =
       Map.merge(character, %{"id" => "player", "name" => character["name"] || "the character"})
 
-    {Combat.exchange(player, defender, mechanical.skill, rolls(turn, mechanical)), foe}
+    %Fight{
+      exchange: Combat.exchange(player, defender, mechanical.skill, rolls(turn, mechanical)),
+      foe: foe
+    }
   end
 
-  defp defender(turn, world, {:npc, id}) do
-    state = get_in(world, ["npc_state", id]) || %{}
+  defp defender(turn, {:npc, id}) do
+    state = get_in(Turn.world_before(turn), ["npc_state", id]) || %{}
 
     if state["minor"] == true do
       {state, nil}
     else
       case turn.adapters.fighter.(turn.session.id, id) do
-        nil -> new_foe(turn, world, id, state["name"] || id)
+        nil -> new_foe(turn, id, state["name"] || id)
         profile -> {Map.merge(profile, Map.take(state, ~w(wounds vitality))), nil}
       end
     end
   end
 
-  defp defender(turn, world, {:foe, id, name}), do: new_foe(turn, world, id, name)
+  defp defender(turn, {:foe, id, name}), do: new_foe(turn, id, name)
 
-  defp new_foe(turn, world, id, name) do
-    rules = turn.adapters.character_rules.(world["adventure_id"])
+  defp new_foe(turn, id, name) do
+    rules = turn.adapters.character_rules.(Turn.world_before(turn)["adventure_id"])
     foe = Combat.minor_foe(id, name, rules, Defaults.seed(turn.session.id, id))
     {foe, foe}
   end
@@ -162,12 +178,12 @@ defmodule TalesForge.Game.Turn.Combat do
   def qa_rolls(_turn), do: %{}
 
   @doc """
-  Books the exchange on the board: carries the combat state of the world
+  Books the fight on the board: carries the combat state of the world
   before the turn into the new npc_state, writes the defender's wounds,
   puts the exchange in the outcome record (`"combat"`) and adds the events.
   """
-  @spec book(map(), map(), map() | nil, map() | nil) :: map()
-  def book(board, world_before, exchange, foe) do
+  @spec book(map(), map(), Fight.t()) :: map()
+  def book(board, world_before, %Fight{exchange: exchange, foe: foe}) do
     before = Map.get(world_before, "npc_state") || %{}
     carried = NpcState.carry(before, Map.get(board.world, "npc_state"))
     carried_world = Map.put(board.world, "npc_state", carried)
@@ -182,15 +198,14 @@ defmodule TalesForge.Game.Turn.Combat do
           {carried_world, []}
       end
 
-    outcome =
-      case {Map.get(board, :outcome), exchange} do
-        {record, ex} when is_map(record) and is_map(ex) -> Map.put(record, "combat", ex)
-        {record, _} -> record
-      end
-
     %{board | world: world, events: board.events ++ events}
-    |> Map.put(:outcome, outcome)
+    |> Map.put(:outcome, with_combat(Map.get(board, :outcome), exchange))
   end
+
+  defp with_combat(record, exchange) when is_map(record) and is_map(exchange),
+    do: Map.put(record, "combat", exchange)
+
+  defp with_combat(record, _exchange), do: record
 
   # The play page shows the last exchange (QA 2026-10-14 08:57, #270).
   defp last(world, exchange) do
