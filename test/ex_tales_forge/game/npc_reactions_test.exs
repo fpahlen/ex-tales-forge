@@ -108,7 +108,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
     assert state =~ "I tell her I'm the Guild's new assessor"
     assert state =~ "How it comes across: failure (persuasion attempt)."
     # The opening scene is what the player last heard.
-    assert state =~ String.slice(GameSessions.opening_scene(session.id).narrative, -40, 40)
+    assert state =~ String.slice(TalesForge.Scenes.opening(session.id).narrative, -40, 40)
     refute state =~ "gm_notes"
     refute state =~ "secret"
 

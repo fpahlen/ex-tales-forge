@@ -102,7 +102,7 @@ defmodule TalesForge.Playtest.Reports do
 
   @doc "The GM's opening narration the player (or persona) saw before turn 1, or nil."
   def opening(session_id) do
-    case TalesForge.GameSessions.opening_scene(session_id) do
+    case TalesForge.Scenes.opening(session_id) do
       nil -> nil
       scene -> %{location_name: scene.location_name, narrative: scene.narrative}
     end

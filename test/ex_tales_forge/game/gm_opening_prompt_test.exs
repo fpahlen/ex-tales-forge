@@ -19,7 +19,7 @@ defmodule TalesForge.Game.GMOpeningPromptTest do
     {:ok, session} = GameSessions.create_session(%{name: "GM Opening Prompt"})
 
     opening =
-      GameSessions.opening_scene(session.id) ||
+      TalesForge.Scenes.opening(session.id) ||
         Repo.insert!(%Scene{
           game_session_id: session.id,
           location_id: "weary_pilgrim",
@@ -49,7 +49,7 @@ defmodule TalesForge.Game.GMOpeningPromptTest do
   test "GM prompt omits the opening section when no scene exists yet" do
     Oban.Testing.with_testing_mode(:manual, fn ->
       {:ok, session} = GameSessions.create_session(%{name: "GM Opening Missing"})
-      assert GameSessions.opening_scene(session.id) == nil
+      assert TalesForge.Scenes.opening(session.id) == nil
 
       prompt = Context.format_gm_prompt(Context.build_gm_context(session))
 

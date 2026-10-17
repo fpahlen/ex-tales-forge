@@ -24,9 +24,9 @@ defmodule TalesForge.Game.Context do
   alias TalesForge.Game.Perception
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.World
-  alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Repo
+  alias TalesForge.Scenes
   alias TalesForge.Schemas.{GameSession, Scene, Turn}
 
   @doc ~s(The session's adventure id; `"crossroads_ledger"` when the world state has none.)
@@ -159,7 +159,7 @@ defmodule TalesForge.Game.Context do
       intent_context: intent,
       formatted_intent: format_intent_context(intent),
       world_state: world,
-      opening_scene: GameSessions.opening_scene(session.id),
+      opening_scene: Scenes.opening(session.id),
       recent_gestures: recent_gestures(session)
     }
   end

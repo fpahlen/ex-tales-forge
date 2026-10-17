@@ -357,7 +357,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     run = seed_run(score: true, reasoning: true)
 
     opening =
-      GameSessions.opening_scene(run.game_session_id) ||
+      TalesForge.Scenes.opening(run.game_session_id) ||
         Repo.insert!(%Scene{
           game_session_id: run.game_session_id,
           location_id: "valley_inn",
