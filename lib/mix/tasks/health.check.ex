@@ -23,7 +23,10 @@ defmodule Mix.Tasks.Health.Check do
     * a LiveView gets a new xref reference to another LiveView
       (`live_view_references`, `Mix.Tasks.Health.Check.LiveViews`);
     * a file in `lib/ex_tales_forge/` gets a new xref reference to a file in
-      `lib/ex_tales_forge_web/` that is not in the baseline;
+      `lib/ex_tales_forge_web/` that is not in the baseline. The edges from
+      `lib/ex_tales_forge/application.ex` to the web children it starts
+      (endpoint, telemetry, presence) do not count: Phoenix generates that
+      supervision tree;
     * a function goes over the Credo cyclomatic complexity (#{9}) or ABC size
       (#{30}) limit and is not in the baseline, or a baseline function scores
       higher than its baseline value (its ceiling);
@@ -56,7 +59,11 @@ defmodule Mix.Tasks.Health.Check do
   # The version of how the numbers are counted, kept in each history row so
   # the chart marks a drop that comes from counting, not refactoring.
   # 2: the `all` cycles leave out the router.
-  @counting 2
+  # 3: domain -> web references leave out application.ex's web children.
+  @counting 3
+  @application "lib/ex_tales_forge/application.ex"
+  @supervised ~w(lib/ex_tales_forge_web/endpoint.ex lib/ex_tales_forge_web/telemetry.ex
+                 lib/ex_tales_forge_web/presence.ex)
 
   @impl Mix.Task
   def run(args) do
@@ -88,7 +95,12 @@ defmodule Mix.Tasks.Health.Check do
   # Measures `ref` in a temporary worktree with its own `mix health.check`.
   # It reuses this checkout's build, and its deps when `mix.lock` is the same.
   defp measure(ref) do
-    dir = Path.join(System.tmp_dir!(), "health-base-#{System.unique_integer([:positive])}")
+    dir =
+      Path.join(
+        System.tmp_dir!(),
+        "health-base-#{System.pid()}-#{System.unique_integer([:positive])}"
+      )
+
     out = dir <> ".json"
     {_, 0} = git(["worktree", "add", "--detach", "--quiet", dir, ref])
 
@@ -200,6 +212,8 @@ defmodule Mix.Tasks.Health.Check do
       nil -> {String.trim(line), acc}
     end
   end
+
+  defp add_reference(acc, @application, sink) when sink in @supervised, do: acc
 
   defp add_reference(acc, source, sink) do
     if String.starts_with?(source, @domain) and String.starts_with?(sink, @web),

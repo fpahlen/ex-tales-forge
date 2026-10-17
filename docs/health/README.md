@@ -15,6 +15,9 @@ that pays debt down needs no extra file. The numbers:
   with the router every page would be in a cycle with every other.
 - `web_references`: each `lib/ex_tales_forge/` file that references a
   `lib/ex_tales_forge_web/` file in the xref graph, and the files it references.
+  `lib/ex_tales_forge/application.ex` starting the endpoint, telemetry and
+  presence does not count: Phoenix generates that supervision tree, and the
+  app has to start them somewhere. `online.ex` -> `presence.ex` counts.
 - `complex_functions`: each function over the Credo limits (cyclomatic
   complexity 9, ABC size 30) with its scores. A score is that function's
   ceiling; a missing score means the limit is its ceiling.
@@ -23,7 +26,8 @@ that pays debt down needs no extra file. The numbers:
   and the LiveViews it references (none on 2026-10-17). The router no
   longer shows pages that render each other; this list does.
 - `counting`: the version of how the numbers are counted (2 since the
-  router left the `all` cycles).
+  router left the `all` cycles, 3 since application.ex's web children left
+  the domain -> web references).
 - `wide_functions`: each `def`/`defp` head with 4 or more parameters
   (counted from the AST, `@impl` callbacks skipped), with its file and count.
 
@@ -46,7 +50,9 @@ PR, xref cycles, largest cycle, compile-connected cycles (count and largest),
 domain -> web references, functions over the complexity limits,
 functions with 4+ parameters and `counting` (blank is 1). A bar where
 `counting` changes is marked "counting changed": the router left the `all`
-cycles at that merge (65 → 30 on the same code), not a refactor. Lower is
+cycles at that merge (65 → 30 on the same code), and application.ex's
+web children left the domain -> web references at #345 (4 → 1),
+not refactors. Lower is
 better. `mix health.snapshot` measures HEAD, puts its row in the CSV and
 redraws `trend.svg`: one stacked bar per merge (xref cycles + complex
 functions + domain -> web refs + functions with 4+ parameters, total on

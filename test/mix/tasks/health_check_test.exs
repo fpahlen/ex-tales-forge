@@ -198,6 +198,29 @@ defmodule Mix.Tasks.Health.CheckTest do
              ]
     end
 
+    test "application.ex -> the web children it starts does not count; other files do" do
+      out = """
+      lib/ex_tales_forge/application.ex
+      |-- lib/ex_tales_forge_web/endpoint.ex (compile)
+      |-- lib/ex_tales_forge_web/presence.ex
+      |-- lib/ex_tales_forge_web/telemetry.ex
+      `-- lib/ex_tales_forge_web/other.ex
+      lib/ex_tales_forge/online.ex
+      `-- lib/ex_tales_forge_web/presence.ex
+      """
+
+      assert Check.parse_web_references(out) == [
+               %{
+                 "from" => "lib/ex_tales_forge/application.ex",
+                 "to" => ["lib/ex_tales_forge_web/other.ex"]
+               },
+               %{
+                 "from" => "lib/ex_tales_forge/online.ex",
+                 "to" => ["lib/ex_tales_forge_web/presence.ex"]
+               }
+             ]
+    end
+
     test "credo issues, one entry per function with its highest scores" do
       issues = [
         %{
