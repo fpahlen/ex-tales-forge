@@ -11,7 +11,13 @@ defmodule Mix.Tasks.Health.Check do
       cutting one path can bring an older path between the same files into
       the list; that is not a new cycle. A compile-connected cycle is also
       compared with the tangles of all cycles, because every
-      compile-connected cycle is a cycle;
+      compile-connected cycle is a cycle. The `all` cycles leave out
+      `lib/ex_tales_forge_web/router.ex`: every LiveView links to the router
+      with `~p` and the router names every LiveView, so each page would be
+      in a cycle with every other. The compile-connected cycles keep the
+      router;
+    * a LiveView gets a new xref reference to another LiveView
+      (`live_view_references`, `Mix.Tasks.Health.Check.LiveViews`);
     * a file in `lib/ex_tales_forge/` gets a new xref reference to a file in
       `lib/ex_tales_forge_web/` that is not in the baseline;
     * a function goes over the Credo cyclomatic complexity (#{9}) or ABC size
@@ -33,13 +39,21 @@ defmodule Mix.Tasks.Health.Check do
   """
   use Mix.Task
 
-  alias Mix.Tasks.Health.Check.Params
+  alias Mix.Tasks.Health.Check.{LiveViews, Params}
 
   @baseline "docs/health/baseline.json"
   @limits %{"cyclomatic_complexity" => 9, "abc_size" => 30}
   @domain "lib/ex_tales_forge/"
   @web "lib/ex_tales_forge_web/"
-  @labels %{"all" => [], "compile-connected" => ["--label", "compile-connected"]}
+  @router "lib/ex_tales_forge_web/router.ex"
+  @labels %{
+    "all" => ["--exclude", @router],
+    "compile-connected" => ["--label", "compile-connected"]
+  }
+  # The version of how the numbers are counted, kept in each history row so
+  # the chart marks a drop that comes from counting, not refactoring.
+  # 2: the `all` cycles leave out the router.
+  @counting 2
 
   @impl Mix.Task
   def run(args) do
@@ -78,12 +92,15 @@ defmodule Mix.Tasks.Health.Check do
   @spec collect() :: map()
   def collect do
     cycles = Map.new(@labels, fn {name, args} -> {name, cycles(args)} end)
+    plain = mix(["xref", "graph", "--format", "plain"])
 
     numbers = %{
       "date" => Date.to_iso8601(Date.utc_today()),
+      "counting" => @counting,
       "limits" => @limits,
       "cycles" => cycles,
-      "web_references" => web_references(),
+      "web_references" => parse_web_references(plain),
+      "live_view_references" => LiveViews.references(LiveViews.files(), edges(plain)),
       "complex_functions" => complex_functions(),
       "wide_functions" => Params.collect()
     }
@@ -99,11 +116,14 @@ defmodule Mix.Tasks.Health.Check do
       "cycle_count" => Map.new(cycles, fn {k, v} -> {k, length(v)} end),
       "largest_cycle" => Map.new(cycles, fn {k, v} -> {k, max_size(v)} end),
       "web_reference_files" => length(refs),
-      "web_reference_edges" => refs |> Enum.flat_map(& &1["to"]) |> length(),
+      "web_reference_edges" => edge_count(refs),
+      "live_view_reference_edges" => edge_count(numbers["live_view_references"]),
       "complex_function_count" => length(numbers["complex_functions"]),
       "wide_function_count" => length(numbers["wide_functions"])
     }
   end
+
+  defp edge_count(refs), do: refs |> Enum.flat_map(& &1["to"]) |> length()
 
   defp max_size([]), do: 0
   defp max_size(cycles), do: cycles |> Enum.map(& &1["size"]) |> Enum.max()
@@ -158,7 +178,19 @@ defmodule Mix.Tasks.Health.Check do
       else: acc
   end
 
-  defp web_references, do: parse_web_references(mix(["xref", "graph", "--format", "plain"]))
+  @doc "Every `{source, sink}` file reference in `mix xref graph --format plain` output."
+  @spec edges(String.t()) :: [{String.t(), String.t()}]
+  def edges(out) do
+    out
+    |> String.split("\n")
+    |> Enum.flat_map_reduce(nil, fn line, source ->
+      case Regex.run(~r/^[|`]-- (\S+)/, line) do
+        [_, sink] -> {[{source, sink}], source}
+        nil -> {[], String.trim(line)}
+      end
+    end)
+    |> elem(0)
+  end
 
   defp complex_functions do
     config = Path.join(System.tmp_dir!(), "health_credo.exs")
@@ -251,10 +283,22 @@ defmodule Mix.Tasks.Health.Check do
   end
 
   defp reference_errors(baseline, current) do
-    allowed = MapSet.new(for r <- baseline["web_references"], to <- r["to"], do: {r["from"], to})
+    new_references(baseline["web_references"], current["web_references"], "#{@domain} -> #{@web}") ++
+      live_view_errors(baseline, current)
+  end
 
-    for r <- current["web_references"], to <- r["to"], {r["from"], to} not in allowed do
-      "new #{@domain} -> #{@web} reference: #{r["from"]} -> #{to}"
+  # A baseline from before the LiveView rule has no list: nothing to
+  # compare with (the PR that adds the list).
+  defp live_view_errors(%{"live_view_references" => allowed}, current),
+    do: new_references(allowed, current["live_view_references"], "LiveView -> LiveView")
+
+  defp live_view_errors(_baseline, _current), do: []
+
+  defp new_references(allowed, current, kind) do
+    allowed = MapSet.new(for r <- allowed, to <- r["to"], do: {r["from"], to})
+
+    for r <- current, to <- r["to"], {r["from"], to} not in allowed do
+      "new #{kind} reference: #{r["from"]} -> #{to}"
     end
   end
 
