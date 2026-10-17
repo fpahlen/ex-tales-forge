@@ -189,10 +189,12 @@ defmodule TalesForge.Game.PromptGoldenTest do
 
     Prompts.gm_messages(
       context,
-      %MechanicalResolution{skill: "insight", roll: 14, outcome: "success"},
-      player_action,
-      %HandlerResult{handler: "observe", skill: "insight"},
-      turn_number,
+      %Prompts.GmTurn{
+        mechanical: %MechanicalResolution{skill: "insight", roll: 14, outcome: "success"},
+        player_action: player_action,
+        handler: %HandlerResult{handler: "observe", skill: "insight"},
+        turn_number: turn_number
+      },
       opts
     )
   end

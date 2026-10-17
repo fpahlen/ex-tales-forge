@@ -291,12 +291,14 @@ defmodule TalesForge.Game.TrainTest do
 
     {:ok, payload} =
       TurnProcessor.simulate!(
-        session,
-        player_action.overall_intent,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"},
-        improvement_rolls: rolls
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"},
+          opts: [improvement_rolls: rolls]
+        },
+        player_action.overall_intent
       )
 
     {reload(session.id), latest_turn(session.id), payload}

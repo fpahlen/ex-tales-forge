@@ -527,7 +527,7 @@ defmodule TalesForge.LLM do
   end
 
   @doc """
-  GM turn. `messages` come from `Prompts.gm_messages/5`. The reply is decoded
+  GM turn. `messages` come from `Prompts.gm_messages/3`. The reply is decoded
   into a `GMStructuredResponse`.
 
   The call streams (`stream: true`). With `:on_text`, the function gets

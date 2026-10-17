@@ -17,7 +17,7 @@ defmodule TalesForge.Game.Prompts do
   guards this.
   """
 
-  alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction}
+  alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Prompt
   alias TalesForge.Prompt.{Ctx, Profile}
 
@@ -47,40 +47,45 @@ defmodule TalesForge.Game.Prompts do
 
   @doc "Messages for the opening/arrival scene call."
   @spec scene_messages(map()) :: [%{role: String.t(), content: String.t()}]
-  def scene_messages(gm_context), do: messages(gm_context, :scene, [], [])
+  def scene_messages(gm_context), do: messages(gm_context, :scene, data: [])
+
+  defmodule GmTurn do
+    @moduledoc """
+    What a GM turn adds to the context in
+    `TalesForge.Game.Prompts.gm_messages/3`: the server's mechanical
+    resolution, the validated PlayerAction, the handler and the turn number.
+    """
+
+    alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction}
+
+    @enforce_keys [:mechanical, :player_action, :handler, :turn_number]
+    defstruct @enforce_keys
+
+    @type t :: %__MODULE__{
+            mechanical: MechanicalResolution.t() | nil,
+            player_action: PlayerAction.t(),
+            handler: HandlerResult.t(),
+            turn_number: integer()
+          }
+  end
 
   @doc """
   Messages for a GM turn. Per-turn content, including the action, goes last.
   `opts[:role]` picks the app role (default `TalesForge.AppRole.role/1`).
   """
-  @spec gm_messages(
-          map(),
-          MechanicalResolution.t() | nil,
-          PlayerAction.t(),
-          HandlerResult.t(),
-          integer(),
-          keyword()
-        ) ::
-          [%{role: String.t(), content: String.t()}]
+  @spec gm_messages(map(), GmTurn.t(), keyword()) :: [%{role: String.t(), content: String.t()}]
   def gm_messages(
         gm_context,
-        mechanical,
-        %PlayerAction{} = player_action,
-        %HandlerResult{} = handler,
-        turn_number,
+        %GmTurn{player_action: %PlayerAction{}, handler: %HandlerResult{}} = turn,
         opts \\ []
       ) do
-    messages(gm_context, :gm, opts,
-      mechanical: mechanical,
-      player_action: player_action,
-      handler: handler,
-      turn_number: turn_number
-    )
+    messages(gm_context, :gm, Keyword.put(opts, :data, Map.from_struct(turn)))
   end
 
-  # `opts`: `:role` (default `TalesForge.AppRole.role/0`).
-  defp messages(gm_context, call, opts, data) do
-    ctx = Ctx.from_gm_context(gm_context, call, Keyword.put(opts, :data, data))
+  # `opts`: `:role` (default `TalesForge.AppRole.role/0`), `:flags` and the
+  # call's `:data`.
+  defp messages(gm_context, call, opts) do
+    ctx = Ctx.from_gm_context(gm_context, call, opts)
 
     ctx
     |> Prompt.new()
