@@ -123,7 +123,10 @@ defmodule TalesForge.Game.Turn.Store do
     |> Ecto.Multi.update(:session, GameSession.changeset(session, session_attrs(world)))
     |> Ecto.Multi.insert(:turn, turn_changeset(store))
     |> push_work_log(Map.get(ctx, :founder))
-    |> GMReasoning.multi_insert(session.id, Map.get(world, "world_tick"), ctx.gm_result)
+    |> GMReasoning.multi_insert(
+      %GMReasoning.At{session_id: session.id, tick: Map.get(world, "world_tick")},
+      ctx.gm_result
+    )
     |> insert_events(session.id, ctx.events)
     |> Fronts.persist_tick_multi(session.id, ctx.sim)
     |> NPC.persist_tick_multi(session.id, ctx.sim)
