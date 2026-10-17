@@ -11,7 +11,8 @@ defmodule Mix.Tasks.Health.SnapshotTest do
       "largest_cycle" => %{"all" => 10, "compile-connected" => 5},
       "web_reference_files" => 1,
       "web_reference_edges" => 2,
-      "complex_function_count" => 80
+      "complex_function_count" => 80,
+      "wide_function_count" => 124
     }
   }
 
@@ -26,7 +27,8 @@ defmodule Mix.Tasks.Health.SnapshotTest do
              "compile_connected_cycles" => 1,
              "compile_connected_largest" => 5,
              "web_refs" => 2,
-             "complex_functions" => 80
+             "complex_functions" => 80,
+             "params_4plus" => 124
            }
   end
 
@@ -41,16 +43,26 @@ defmodule Mix.Tasks.Health.SnapshotTest do
     assert rows |> Snapshot.csv() |> Snapshot.parse() == rows
   end
 
-  test "the chart stacks cycles, complex functions and web refs, with the total on top" do
+  test "rows only in the kept file are added in date order" do
+    a = Snapshot.row(@numbers, "2026-10-17T08:00:00+02:00", 84)
+    b = Snapshot.row(@numbers, "2026-10-17T09:00:00+02:00", 85)
+    c = Snapshot.row(@numbers, "2026-10-17T10:00:00+02:00", 86)
+    old = Map.delete(b, "params_4plus")
+
+    assert Snapshot.keep_rows([a, c], [a, old]) == [a, old, c]
+    assert Snapshot.keep_rows([a, c], [a]) == [a, c]
+  end
+
+  test "the chart stacks cycles, complex functions, web refs and 4+ param functions, with the total on top" do
     rows = [Snapshot.row(@numbers, "2026-10-17", 84), Snapshot.row(@numbers, "2026-10-18", 85)]
     svg = Snapshot.svg(rows)
 
     assert svg =~ "total, lower is better"
-    # 2 bars of 3 segments, plus the background and 3 legend boxes.
-    assert length(Regex.scan(~r/<rect /, svg)) == 2 * 3 + 1 + 3
+    # 2 bars of 4 segments, plus the background and 4 legend boxes.
+    assert length(Regex.scan(~r/<rect /, svg)) == 2 * 4 + 1 + 4
     # One dashed line per segment between the two bars.
-    assert length(Regex.scan(~r/stroke-dasharray/, svg)) == 3
-    assert svg =~ ~s(font-weight="bold">146</text>)
+    assert length(Regex.scan(~r/stroke-dasharray/, svg)) == 4
+    assert svg =~ ~s(font-weight="bold">270</text>)
     assert svg =~ "#85"
   end
 end
