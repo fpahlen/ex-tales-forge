@@ -25,7 +25,7 @@ defmodule TalesForgeWeb.AdminGithubAuthController do
         path -> put_session(conn, "admin_return_to", path)
       end
 
-    case GitHub.authorize_url() do
+    case GitHub.authorize_url(redirect_uri()) do
       {:ok, %{url: url, state: state}} ->
         conn
         |> put_session(@state_key, state)
@@ -43,7 +43,7 @@ defmodule TalesForgeWeb.AdminGithubAuthController do
     state = get_session(conn, @state_key)
     conn = delete_session(conn, @state_key)
 
-    case GitHub.callback(params, state) do
+    case GitHub.callback(params, state, redirect_uri()) do
       {:ok, %{login: login} = identity} ->
         return_to = AdminAuth.safe_return_to(get_session(conn, "admin_return_to")) || ~p"/admin"
 
@@ -79,4 +79,8 @@ defmodule TalesForgeWeb.AdminGithubAuthController do
       |> halt()
     end
   end
+
+  # The absolute OAuth callback URL, built from this endpoint so the domain
+  # module TalesForge.AdminAuth.GitHub need not reference the web layer.
+  defp redirect_uri, do: TalesForgeWeb.Endpoint.url() <> GitHub.callback_path()
 end

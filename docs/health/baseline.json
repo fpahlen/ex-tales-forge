@@ -776,11 +776,6 @@
       "function": "TalesForgeWeb.CreateCharacterLive.mount"
     },
     {
-      "abc_size": 47,
-      "file": "lib/ex_tales_forge_web/components/play_components.ex",
-      "function": "TalesForgeWeb.PlayComponents.present_npcs"
-    },
-    {
       "abc_size": 34,
       "file": "lib/ex_tales_forge_web/components/play_components.ex",
       "function": "TalesForgeWeb.PlayComponents.skill_rows"
@@ -944,34 +939,6 @@
       },
       {
         "members": [
-          "lib/ex_tales_forge/playtest/jev_scorer.ex",
-          "lib/ex_tales_forge/playtest/player_view.ex",
-          "lib/ex_tales_forge/playtest/run_meta.ex",
-          "lib/ex_tales_forge/playtest/runner.ex",
-          "lib/ex_tales_forge/product_api.ex",
-          "lib/ex_tales_forge/product_api/running_commits.ex",
-          "lib/ex_tales_forge_web/components/play_components.ex",
-          "lib/ex_tales_forge_web/controllers/product_api_controller.ex",
-          "lib/ex_tales_forge_web/router.ex"
-        ],
-        "size": 9
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/playtest/jev_scorer.ex",
-          "lib/ex_tales_forge/playtest/player_view.ex",
-          "lib/ex_tales_forge/playtest/run_meta.ex",
-          "lib/ex_tales_forge/playtest/runner.ex",
-          "lib/ex_tales_forge_web/components/app_components.ex",
-          "lib/ex_tales_forge_web/components/layouts.ex",
-          "lib/ex_tales_forge_web/components/play_components.ex",
-          "lib/ex_tales_forge_web/live/admin/turn_live/index.ex",
-          "lib/ex_tales_forge_web/router.ex"
-        ],
-        "size": 9
-      },
-      {
-        "members": [
           "lib/ex_tales_forge/game/context.ex",
           "lib/ex_tales_forge/game/prompts.ex",
           "lib/ex_tales_forge/game/scene_processor.ex",
@@ -985,30 +952,6 @@
       },
       {
         "members": [
-          "lib/ex_tales_forge/playtest/jev_scorer.ex",
-          "lib/ex_tales_forge/playtest/player_view.ex",
-          "lib/ex_tales_forge/playtest/run_meta.ex",
-          "lib/ex_tales_forge/playtest/runner.ex",
-          "lib/ex_tales_forge_web/components/app_components.ex",
-          "lib/ex_tales_forge_web/components/play_components.ex",
-          "lib/ex_tales_forge_web/plugs/telemetry_chrome.ex",
-          "lib/ex_tales_forge_web/router.ex"
-        ],
-        "size": 8
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/admin_auth.ex",
-          "lib/ex_tales_forge/admin_auth/github.ex",
-          "lib/ex_tales_forge_web/endpoint.ex",
-          "lib/ex_tales_forge_web/live/admin/turn_live/index.ex",
-          "lib/ex_tales_forge_web/live_auth.ex",
-          "lib/ex_tales_forge_web/router.ex"
-        ],
-        "size": 6
-      },
-      {
-        "members": [
           "lib/ex_tales_forge/game/combat.ex",
           "lib/ex_tales_forge/game/context.ex",
           "lib/ex_tales_forge/game/roll_line.ex",
@@ -1017,26 +960,6 @@
           "lib/ex_tales_forge/workers/process_turn.ex"
         ],
         "size": 6
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/admin_auth.ex",
-          "lib/ex_tales_forge/admin_auth/github.ex",
-          "lib/ex_tales_forge_web/endpoint.ex",
-          "lib/ex_tales_forge_web/live/admin/hooks.ex",
-          "lib/ex_tales_forge_web/router.ex"
-        ],
-        "size": 5
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge/admin_auth.ex",
-          "lib/ex_tales_forge/admin_auth/github.ex",
-          "lib/ex_tales_forge_web/endpoint.ex",
-          "lib/ex_tales_forge_web/plugs/require_team_member.ex",
-          "lib/ex_tales_forge_web/router.ex"
-        ],
-        "size": 5
       },
       {
         "members": [
@@ -1104,6 +1027,14 @@
       {
         "members": [
           "lib/ex_tales_forge/playtest/jev_scorer.ex",
+          "lib/ex_tales_forge/playtest/run_meta.ex",
+          "lib/ex_tales_forge/playtest/runner.ex"
+        ],
+        "size": 3
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/playtest/jev_scorer.ex",
           "lib/ex_tales_forge/playtest/runner.ex",
           "lib/ex_tales_forge/playtest/scorer.ex"
         ],
@@ -1119,11 +1050,34 @@
       },
       {
         "members": [
+          "lib/ex_tales_forge_web/components/play_components.ex",
+          "lib/ex_tales_forge_web/live/play_live.ex",
+          "lib/ex_tales_forge_web/router.ex"
+        ],
+        "size": 3
+      },
+      {
+        "members": [
           "lib/ex_tales_forge_web/components/survey_components.ex",
           "lib/ex_tales_forge_web/live/admin/survey_live/index.ex",
           "lib/ex_tales_forge_web/router.ex"
         ],
         "size": 3
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge_web/endpoint.ex",
+          "lib/ex_tales_forge_web/live/admin/turn_live/index.ex",
+          "lib/ex_tales_forge_web/router.ex"
+        ],
+        "size": 3
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge/admin_auth.ex",
+          "lib/ex_tales_forge/admin_auth/github.ex"
+        ],
+        "size": 2
       },
       {
         "members": [
@@ -1247,6 +1201,13 @@
       {
         "members": [
           "lib/ex_tales_forge_web/controllers/online_peer_controller.ex",
+          "lib/ex_tales_forge_web/router.ex"
+        ],
+        "size": 2
+      },
+      {
+        "members": [
+          "lib/ex_tales_forge_web/controllers/product_api_controller.ex",
           "lib/ex_tales_forge_web/router.ex"
         ],
         "size": 2
@@ -1390,13 +1351,6 @@
           "lib/ex_tales_forge_web/router.ex"
         ],
         "size": 2
-      },
-      {
-        "members": [
-          "lib/ex_tales_forge_web/live/play_live.ex",
-          "lib/ex_tales_forge_web/router.ex"
-        ],
-        "size": 2
       }
     ],
     "compile-connected": [
@@ -1423,25 +1377,19 @@
     "cyclomatic_complexity": 9
   },
   "summary": {
-    "complex_function_count": 154,
+    "complex_function_count": 153,
     "cycle_count": {
-      "all": 67,
+      "all": 65,
       "compile-connected": 1
     },
     "largest_cycle": {
       "all": 11,
       "compile-connected": 10
     },
-    "web_reference_edges": 6,
-    "web_reference_files": 4
+    "web_reference_edges": 4,
+    "web_reference_files": 2
   },
   "web_references": [
-    {
-      "from": "lib/ex_tales_forge/admin_auth/github.ex",
-      "to": [
-        "lib/ex_tales_forge_web/endpoint.ex"
-      ]
-    },
     {
       "from": "lib/ex_tales_forge/application.ex",
       "to": [
@@ -1454,12 +1402,6 @@
       "from": "lib/ex_tales_forge/online.ex",
       "to": [
         "lib/ex_tales_forge_web/presence.ex"
-      ]
-    },
-    {
-      "from": "lib/ex_tales_forge/playtest/player_view.ex",
-      "to": [
-        "lib/ex_tales_forge_web/components/play_components.ex"
       ]
     }
   ]
