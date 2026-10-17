@@ -222,7 +222,9 @@ defmodule TalesForge.Game.SceneChangeTest do
       end)
 
       action = heuristic(@paul_t6, intent(session))
-      assert {:ok, payload} = TurnProcessor.run(session.id, @paul_t6, PlayerAction.encode(action))
+
+      assert {:ok, payload} =
+               TurnProcessor.run(session.id, {@paul_t6, PlayerAction.encode(action)})
 
       # Recorded: location, name, who is present; a new scene is due.
       assert payload.world_state["location_id"] == "market_square"

@@ -22,7 +22,7 @@ defmodule TalesForge.Workers.ProcessTurn do
     # founder: the signed-in founder who played the turn (work log), or absent.
     gm = [gm_quote: args["gm_quote"], gm_note: args["gm_note"], founder: args["founder"]]
 
-    case TurnProcessor.run(session_id, raw_action, player_action, gm) do
+    case TurnProcessor.run(session_id, {raw_action, player_action}, gm) do
       {:ok, _payload} -> :ok
       {:error, {:spend_cap, _kind} = reason} -> {:cancel, reason}
       {:error, reason} -> {:error, reason}

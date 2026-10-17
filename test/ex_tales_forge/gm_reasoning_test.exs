@@ -39,7 +39,7 @@ defmodule TalesForge.GMReasoningTest do
     {session, player_action} = session_with_action()
     stub_gm(@gm_reply)
 
-    assert {:ok, %{turn_count: 1}} = TurnProcessor.run(session.id, "look around", player_action)
+    assert {:ok, %{turn_count: 1}} = TurnProcessor.run(session.id, {"look around", player_action})
 
     turn = Repo.get_by!(Turn, game_session_id: session.id, turn_number: 1)
     assert [event] = GMReasoning.list_for_session(session.id)

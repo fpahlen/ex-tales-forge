@@ -73,7 +73,7 @@ defmodule TalesForge.Game.Turn do
 
   @doc """
   A new turn. Reads the feature flags and the role one time. `opts` are the
-  intent options of `TalesForge.Game.TurnProcessor.run/4` plus `:adapters`
+  intent options of `TalesForge.Game.TurnProcessor.run/3` plus `:adapters`
   and `:flags` (both for tests).
   """
   @spec new(GameSession.t(), integer(), String.t(), PlayerAction.t(), keyword()) :: t()
