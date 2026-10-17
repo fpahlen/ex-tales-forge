@@ -86,12 +86,12 @@ defmodule TalesForge.NPCInitiativeTest do
     }
 
     :ok =
-      NPCSignals.emit_turn_signals(
-        session.id,
-        session.world_state,
-        handler,
-        "I study the chalk marks on the slate"
-      )
+      NPCSignals.emit_turn_signals(%NPCSignals.Turn{
+        session_id: session.id,
+        world_state: session.world_state,
+        handler: handler,
+        raw_action: "I study the chalk marks on the slate"
+      })
 
     Process.sleep(100)
 
@@ -115,12 +115,12 @@ defmodule TalesForge.NPCInitiativeTest do
     }
 
     :ok =
-      NPCSignals.emit_turn_signals(
-        session.id,
-        session.world_state,
-        handler,
-        "Marta, tell me about the ledger"
-      )
+      NPCSignals.emit_turn_signals(%NPCSignals.Turn{
+        session_id: session.id,
+        world_state: session.world_state,
+        handler: handler,
+        raw_action: "Marta, tell me about the ledger"
+      })
 
     Process.sleep(100)
 

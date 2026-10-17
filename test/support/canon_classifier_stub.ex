@@ -6,7 +6,7 @@ defmodule TalesForge.Canon.ClassifierStub do
   `{:error, reason}`. The default gives every item the label `"other"`.
   """
 
-  @behaviour TalesForge.Canon.Classifier
+  @behaviour TalesForge.Canon.Classifier.Adapter
 
   @impl true
   def classify(items, _session_id) do

@@ -3,7 +3,7 @@ defmodule TalesForge.Online do
   Who is online right now, for "Online now" on `/team` (board card "Who's
   online right now", decision 2026-10-10).
 
-  - **Founders** are tracked with Phoenix Presence (`TalesForgeWeb.Presence`)
+  - **Founders** are tracked with Phoenix Presence (`TalesForge.Presence`)
     on the PubSub this app already runs. `TalesForgeWeb.LiveAuth` calls
     `track/2` when a signed-in LiveView connects, so every admin and team page
     counts, with the page name from `page_label/1`. Presence removes the entry
@@ -19,19 +19,13 @@ defmodule TalesForge.Online do
   """
 
   alias TalesForge.AppRole
-  alias TalesForge.Online.Peer
-  alias TalesForgeWeb.Presence
+  alias TalesForge.Online.{Founders, Peer}
+  alias TalesForge.Presence
 
   @topic "online"
-  @changed_topic "online:changed"
 
-  @typedoc "One founder on one app."
-  @type founder :: %{
-          email: String.t(),
-          page: String.t(),
-          app: String.t(),
-          since: DateTime.t()
-        }
+  @typedoc "One founder on one app (`t:TalesForge.Online.Founders.t/0`)."
+  @type founder :: Founders.t()
 
   # Module names as strings, so this shared module does not depend on the
   # admin LiveViews (`mix deploy.check_boundaries`).
@@ -88,13 +82,8 @@ defmodule TalesForge.Online do
   @spec subscribe() :: :ok
   def subscribe do
     :ok = Phoenix.PubSub.subscribe(TalesForge.PubSub, @topic)
-    Phoenix.PubSub.subscribe(TalesForge.PubSub, @changed_topic)
+    Phoenix.PubSub.subscribe(TalesForge.PubSub, Founders.changed_topic())
   end
-
-  @doc false
-  @spec broadcast_changed() :: :ok
-  def broadcast_changed,
-    do: Phoenix.PubSub.broadcast(TalesForge.PubSub, @changed_topic, {:online, :changed})
 
   @doc """
   Tracks the LiveView process of `socket` for the founder `email`, once it is
@@ -149,41 +138,13 @@ defmodule TalesForge.Online do
   end
 
   @doc """
-  Validates entries from the other app (or from `local/0`) into `t:founder/0`.
-  Entries with a missing field are left out.
-
-      iex> TalesForge.Online.normalize([%{"email" => "a@x.se", "page" => "Docs",
-      ...>   "app" => "playtest", "since" => "2026-10-10T12:00:00Z"}, %{"email" => 1}])
-      [%{email: "a@x.se", login: nil, page: "Docs", app: "playtest", since: ~U[2026-10-10 12:00:00Z]}]
-  """
-  @spec normalize(term()) :: [founder()]
-  def normalize(list) when is_list(list), do: Enum.flat_map(list, &entry/1)
-  def normalize(_), do: []
-
-  defp entry(%{"email" => e, "page" => p, "app" => a, "since" => s} = m)
-       when is_binary(e) and is_binary(p) and is_binary(a) and is_binary(s) do
-    case DateTime.from_iso8601(s) do
-      {:ok, since, _} ->
-        [%{email: e, login: login(m["login"]), page: p, app: a, since: since}]
-
-      _ ->
-        []
-    end
-  end
-
-  defp entry(_), do: []
-
-  defp login(login) when is_binary(login) and login != "", do: String.downcase(login)
-  defp login(_), do: nil
-
-  @doc """
   Every founder online on both apps: this app's Presence plus the other app's
   last answer while it is fresh (`TalesForge.Online.Peer`): one entry per
   founder, app and page. `people/1` groups them by person.
   """
   @spec founders() :: [founder()]
   def founders do
-    (normalize(local()) ++ Peer.founders())
+    (Founders.normalize(local()) ++ Peer.founders())
     |> Enum.uniq_by(&{&1.email, &1.app, &1.page})
     |> Enum.sort_by(&{&1.email, &1.app, &1.page})
   end

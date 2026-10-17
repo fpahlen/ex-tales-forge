@@ -14,6 +14,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Index do
   import TalesForgeWeb.AdminComponents
   import TalesForgeWeb.CharacterChangesComponents
 
+  alias TalesForge.Config
   alias TalesForge.Markdown
 
   alias TalesForge.Playtest.{
@@ -38,7 +39,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Index do
     {:ok,
      socket
      |> assign(:page_title, "Playtest runs")
-     |> assign(:enabled, Runner.enabled?())
+     |> assign(:enabled, Config.playtest_runner?())
      |> assign(:personas, Enum.map(Personas.list(), &{"#{&1.name} (#{&1.style})", &1.id}))
      |> assign(:modules, Runner.modules())
      |> assign(

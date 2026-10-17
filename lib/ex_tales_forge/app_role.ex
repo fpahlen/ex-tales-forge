@@ -8,7 +8,7 @@ defmodule TalesForge.AppRole do
   playtest runs only on playtest. The other app redirects those admin pages
   (`TalesForgeWeb.Plugs.HomeApp`), links to
   them from the admin nav, and refuses to store that data
-  (`TalesForge.Surveys.save_section/4`, `TalesForge.Playtest.Runner.enabled?/0`).
+  (`TalesForge.Surveys.save_section/4`, `TalesForge.Config.playtest_runner?/0`).
 
   The role comes from the app name (`FLY_APP_NAME`, set by Fly; config
   `:app_name`, `app_name/0`): a name containing
