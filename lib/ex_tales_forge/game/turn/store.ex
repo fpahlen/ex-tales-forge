@@ -101,13 +101,13 @@ defmodule TalesForge.Game.Turn.Store do
     if Mechanics.dead?(world) do
       :ok
     else
-      NPCSignals.emit_turn_signals(
-        session.id,
-        world,
-        store.ctx.handler,
-        store.raw_action,
-        session.world_state
-      )
+      NPCSignals.emit_turn_signals(%NPCSignals.Turn{
+        session_id: session.id,
+        world_state: world,
+        handler: store.ctx.handler,
+        raw_action: store.raw_action,
+        world_before: session.world_state
+      })
     end
   end
 

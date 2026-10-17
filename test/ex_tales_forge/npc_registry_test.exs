@@ -156,7 +156,13 @@ defmodule TalesForge.NPCRegistryTest do
       notes: "test"
     }
 
-    :ok = NPCSignals.emit_turn_signals(session.id, session.world_state, handler, "hello marta")
+    :ok =
+      NPCSignals.emit_turn_signals(%NPCSignals.Turn{
+        session_id: session.id,
+        world_state: session.world_state,
+        handler: handler,
+        raw_action: "hello marta"
+      })
 
     Process.sleep(100)
 
@@ -181,7 +187,12 @@ defmodule TalesForge.NPCRegistryTest do
         source: "/test"
       )
 
-    assert :ok = NPCSignals.call_agent(pid, signal, "session", "ghost", "world.time.passed")
+    assert :ok =
+             NPCSignals.call_agent(pid, signal, %NPCSignals.Delivery{
+               session_id: "session",
+               npc_id: "ghost",
+               type: "world.time.passed"
+             })
   end
 
   defp insert_session_without_scene(name) do
