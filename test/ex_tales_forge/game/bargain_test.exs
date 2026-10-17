@@ -1,7 +1,8 @@
 defmodule TalesForge.Game.BargainTest do
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Game.{ActionHandler, Inventory, TurnProcessor}
+  alias TalesForge.Game.{ActionHandler, Inventory}
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
   alias TalesForge.NPC
@@ -39,7 +40,7 @@ defmodule TalesForge.Game.BargainTest do
       }
     }
 
-    TurnProcessor.apply_board(%TurnProcessor.Board{
+    Board.resolve(%Board{
       session: session,
       character: session.world_state["character"],
       handler: ActionHandler.resolve(action),

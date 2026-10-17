@@ -11,7 +11,7 @@ defmodule TalesForge.Game.Turn.Adapters do
     * `profiles` — the present NPCs for the noticed details
       (`TalesForge.NPC.notice_profiles/2`; only with `SKILL_DETAIL_LEVEL=on`);
     * `store` — persists the turn and signals
-      (the persist step of `TalesForge.Game.TurnProcessor`);
+      (the persist step, `TalesForge.Game.Turn.Store.persist/1`);
     * `fighter` — the combat fighter of one NPC
       (`TalesForge.NPC.combat_profile/2`; only with `COMBAT_OPPOSED=on`);
     * `character_rules` — the character defaults rules of an adventure, for
@@ -23,7 +23,7 @@ defmodule TalesForge.Game.Turn.Adapters do
             gm: &TalesForge.LLM.complete_turn/5,
             stream: &__MODULE__.broadcast/2,
             profiles: &TalesForge.NPC.notice_profiles/2,
-            store: &TalesForge.Game.TurnProcessor.persist_and_signal/5,
+            store: &TalesForge.Game.Turn.Store.persist/1,
             fighter: &TalesForge.NPC.combat_profile/2,
             character_rules: &TalesForge.Characters.Defaults.rules/1
 
@@ -32,7 +32,7 @@ defmodule TalesForge.Game.Turn.Adapters do
           gm: function(),
           stream: (String.t(), String.t() -> term()),
           profiles: (String.t(), [String.t()] -> [map()]),
-          store: function(),
+          store: (TalesForge.Game.Turn.Store.t() -> {:ok, map()} | {:error, term()}),
           fighter: (String.t(), String.t() -> map() | nil),
           character_rules: (String.t() | nil -> map())
         }

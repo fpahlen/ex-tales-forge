@@ -10,6 +10,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.WorldClock
   alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.WorldSim
   alias TalesForge.GameSessions
   alias TalesForge.Jido
@@ -158,7 +159,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
     refute pre =~ @hiring
 
     %{world: world_board} =
-      TurnProcessor.apply_board(%TurnProcessor.Board{
+      Board.resolve(%Board{
         session: session,
         character: character,
         handler: handler,
@@ -195,7 +196,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: handler,
@@ -293,7 +294,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: handler,
@@ -312,7 +313,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: handler,
@@ -335,7 +336,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: handler,

@@ -106,7 +106,7 @@ defmodule TalesForge.Game.TurnTest do
   test "a failed GM call is data; persist passes the turn through", %{session: session} do
     adapters = %Adapters{
       gm: fn _m, _a, _h, _n, _o -> {:error, :timeout} end,
-      store: fn _s, _w, _n, _r, _c -> flunk("the store must not run") end
+      store: fn _store -> flunk("the store must not run") end
     }
 
     result =

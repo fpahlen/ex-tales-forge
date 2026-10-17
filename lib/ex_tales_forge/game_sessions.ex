@@ -20,7 +20,7 @@ defmodule TalesForge.GameSessions do
   alias TalesForge.Game.Pack
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.PlayerAction
-  alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.Store
   alias TalesForge.Game.World
   alias TalesForge.IntentJev
   alias TalesForge.NPC
@@ -361,7 +361,7 @@ defmodule TalesForge.GameSessions do
   defp maybe_shadow(:shadow, session, context, raw_action, opts, current) do
     if is_nil(Keyword.get(opts, :option_id)) do
       text = shadow_text(session, raw_action, opts)
-      turn_number = TurnProcessor.next_turn_number(session.id)
+      turn_number = Store.next_turn_number(session.id)
       IntentJev.shadow(Map.put(context, "turn_number", turn_number), text, current)
     end
 
@@ -384,7 +384,7 @@ defmodule TalesForge.GameSessions do
   # INTENT_JEV=on: the Jev read drives the turn (TalesForge.IntentJev). The
   # heuristic reads only when Jev fails or times out.
   defp resolve_and_enqueue_jev(%GameSession{} = session, raw_action, opts) do
-    turn_number = TurnProcessor.next_turn_number(session.id)
+    turn_number = Store.next_turn_number(session.id)
     context = session |> Context.build_intent_context() |> Map.put("turn_number", turn_number)
     started_at = DateTime.utc_now()
     started = System.monotonic_time(:millisecond)
@@ -440,7 +440,7 @@ defmodule TalesForge.GameSessions do
       latency_ms: elapsed_ms,
       started_at: started_at,
       game_session_id: session.id,
-      turn_number: TurnProcessor.next_turn_number(session.id)
+      turn_number: Store.next_turn_number(session.id)
     }
     |> put_meta(meta)
     |> Map.merge(Tags.for_world(session.world_state))

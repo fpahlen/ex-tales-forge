@@ -26,8 +26,7 @@ defmodule TalesForge.Game.Turn.Outcome do
   alias TalesForge.Game.OutcomeRecord
   alias TalesForge.Game.ProseCheck
   alias TalesForge.Game.Turn
-  alias TalesForge.Game.Turn.Premise
-  alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.{Board, Premise, Store}
   alias TalesForge.World, as: WorldAgents
   alias TalesForge.World.Extract
 
@@ -45,9 +44,7 @@ defmodule TalesForge.Game.Turn.Outcome do
 
     result =
       Steps.time(:persist, fn ->
-        world_final = TurnProcessor.turn_patches(board.world, gm_result, turn.injected)
-
-        turn.adapters.store.(turn.session, world_final, turn.number, turn.history_action, %{
+        write(turn, board, %{
           handler: handler,
           mechanical: mechanical,
           gm_result: gm_result,
@@ -55,9 +52,7 @@ defmodule TalesForge.Game.Turn.Outcome do
             board.events ++
               Premise.events(turn.premise.findings, board.world) ++
               record_events(turn, board) ++
-              List.wrap(mismatches) ++ List.wrap(repeats),
-          sim: board.sim,
-          founder: turn.opts[:founder]
+              List.wrap(mismatches) ++ List.wrap(repeats)
         })
       end)
 
@@ -66,6 +61,17 @@ defmodule TalesForge.Game.Turn.Outcome do
   end
 
   def persist(%Turn{} = turn), do: turn
+
+  # The store adapter's write: the world after the allow-listed GM patches.
+  defp write(%Turn{} = turn, board, ctx) do
+    turn.adapters.store.(%Store{
+      session: turn.session,
+      world: Board.turn_patches(board.world, ctx.gm_result, turn.injected),
+      number: turn.number,
+      raw_action: turn.history_action,
+      ctx: Map.merge(ctx, %{sim: board.sim, founder: turn.opts[:founder]})
+    })
+  end
 
   defp prose_check(turn, narrative, board) do
     record = Map.get(board, :outcome)

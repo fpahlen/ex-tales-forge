@@ -18,6 +18,7 @@ defmodule TalesForge.Game.SceneChangeTest do
   doctest TalesForge.Game.Intent, only: [resolve_move_target: 2]
 
   alias TalesForge.Game.{ActionHandler, Context, Intent, Movement, Prompts, TurnProcessor}
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
   alias TalesForge.Jido
@@ -271,7 +272,7 @@ defmodule TalesForge.Game.SceneChangeTest do
       }
 
       world =
-        TurnProcessor.apply_board(%TurnProcessor.Board{
+        Board.resolve(%Board{
           session: session,
           character: session.world_state["character"],
           handler: ActionHandler.resolve(action),

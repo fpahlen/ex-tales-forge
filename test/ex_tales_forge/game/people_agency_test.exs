@@ -10,6 +10,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.WorldSim
   alias TalesForge.GameSessions
   alias TalesForge.Jido
@@ -276,7 +277,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: handler,
@@ -301,7 +302,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: handler,
@@ -320,7 +321,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: handler,

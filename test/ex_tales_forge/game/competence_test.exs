@@ -7,6 +7,7 @@ defmodule TalesForge.Game.CompetenceTest do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.Playtest.Growth
@@ -284,7 +285,7 @@ defmodule TalesForge.Game.CompetenceTest do
 
     {:ok, payload} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: ActionHandler.resolve(player_action),
@@ -319,7 +320,7 @@ defmodule TalesForge.Game.CompetenceTest do
 
     {:ok, payload} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: handler,

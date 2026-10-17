@@ -7,6 +7,7 @@ defmodule TalesForge.Game.VitalityTest do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.Repo
@@ -219,7 +220,7 @@ defmodule TalesForge.Game.VitalityTest do
 
     {:ok, payload} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: handler,

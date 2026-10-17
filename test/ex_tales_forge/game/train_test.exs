@@ -8,6 +8,7 @@ defmodule TalesForge.Game.TrainTest do
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.Game.Train
   alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameSessions
   alias TalesForge.Jido
@@ -291,7 +292,7 @@ defmodule TalesForge.Game.TrainTest do
 
     {:ok, payload} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: player_action,
           handler: handler,
