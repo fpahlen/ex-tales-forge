@@ -202,10 +202,17 @@ defmodule TalesForge.Game.NpcReactionsTest do
       "confidence" => 0.8
     }
 
-    plain = Prompts.gm_messages(context, mech, action, handler, 2)
+    turn = %Prompts.GmTurn{
+      mechanical: mech,
+      player_action: action,
+      handler: handler,
+      turn_number: 2
+    }
+
+    plain = Prompts.gm_messages(context, turn)
 
     with_reaction =
-      Prompts.gm_messages(Map.put(context, :npc_reactions, [reaction]), mech, action, handler, 2,
+      Prompts.gm_messages(Map.put(context, :npc_reactions, [reaction]), turn,
         flags: %{npc_reactions: true}
       )
 

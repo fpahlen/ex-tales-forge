@@ -298,10 +298,12 @@ defmodule TalesForge.Game.PromptPrefixTest do
     |> Map.put(:world_facts, @world_facts)
     |> Map.put(:price_lines, ["Purchase: Bowl of stew, 5 copper, paid (server)"])
     |> Prompts.gm_messages(
-      %MechanicalResolution{skill: "insight", roll: 14, outcome: "success"},
-      player_action,
-      handler,
-      turn_number,
+      %Prompts.GmTurn{
+        mechanical: %MechanicalResolution{skill: "insight", roll: 14, outcome: "success"},
+        player_action: player_action,
+        handler: handler,
+        turn_number: turn_number
+      },
       flags: %{world_agents: true, npc_reactions: true}
     )
   end

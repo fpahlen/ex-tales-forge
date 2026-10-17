@@ -1,7 +1,7 @@
 defmodule TalesForge.Game.Turn.Prompt do
   @moduledoc """
   Stage 5 of a turn: the GM context and the GM messages
-  (`TalesForge.Game.Prompts.gm_messages/6`, built by `TalesForge.Prompt`).
+  (`TalesForge.Game.Prompts.gm_messages/3`, built by `TalesForge.Prompt`).
   Writes `prompt`: `context` and `messages`.
   """
 
@@ -32,18 +32,21 @@ defmodule TalesForge.Game.Turn.Prompt do
         |> put_player_request(turn.opts[:gm_note])
 
       messages =
-        Prompts.gm_messages(
-          context,
-          outcome.mechanical,
-          gm_action(Map.get(outcome, :played) || turn.intent, turn.opts[:gm_quote]),
-          outcome.handler,
-          turn.number,
-          flags: turn.flags,
-          role: turn.role
-        )
+        Prompts.gm_messages(context, gm_turn(turn), flags: turn.flags, role: turn.role)
 
       %{turn | prompt: %{context: context, messages: messages}}
     end)
+  end
+
+  # What the turn adds to the GM prompt: the resolution, the action the GM
+  # plays (with the player's quote), the handler and the turn number.
+  defp gm_turn(%Turn{outcome: outcome} = turn) do
+    %Prompts.GmTurn{
+      mechanical: outcome.mechanical,
+      player_action: gm_action(Map.get(outcome, :played) || turn.intent, turn.opts[:gm_quote]),
+      handler: outcome.handler,
+      turn_number: turn.number
+    }
   end
 
   # The location the character left this turn, or nil (the scene block in

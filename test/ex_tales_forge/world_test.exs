@@ -244,10 +244,17 @@ defmodule TalesForge.WorldTest do
     {action, handler} = action(context, "ask Brenna for a room")
     mech = %MechanicalResolution{}
 
-    plain = Prompts.gm_messages(context, mech, action, handler, 2)
+    turn = %Prompts.GmTurn{
+      mechanical: mech,
+      player_action: action,
+      handler: handler,
+      turn_number: 2
+    }
+
+    plain = Prompts.gm_messages(context, turn)
 
     with_facts =
-      Prompts.gm_messages(Map.put(context, :world_facts, agents), mech, action, handler, 2,
+      Prompts.gm_messages(Map.put(context, :world_facts, agents), turn,
         flags: %{world_agents: true}
       )
 
