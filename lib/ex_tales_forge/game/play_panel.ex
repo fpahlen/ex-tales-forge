@@ -25,12 +25,12 @@ defmodule TalesForge.Game.PlayPanel do
 
   defp minor_foes_here(npc_state, npc_ids, location_id) do
     npc_state
-    |> Enum.filter(fn {id, npc} -> minor_foe_here?(npc, id, npc_ids, location_id) end)
+    |> Enum.filter(&minor_foe_here?(&1, npc_ids, location_id))
     |> Enum.map(&elem(&1, 0))
     |> Enum.sort()
   end
 
-  defp minor_foe_here?(npc, id, npc_ids, location_id) do
+  defp minor_foe_here?({id, npc}, npc_ids, location_id) do
     is_map(npc) and npc["minor"] == true and npc["vitality"] != "dead" and
       id not in npc_ids and npc["location_id"] == location_id
   end
