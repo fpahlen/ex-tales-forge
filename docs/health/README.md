@@ -3,7 +3,9 @@
 The ratchet measures only code we write, which is `lib/`. It never
 measures `deps/` or generated framework code, and framework-dictated shapes
 are exempt: `@impl` callbacks are not counted for parameters, and the `~p`
-edges into the router are not counted as cycles (#338), nor
+edges into the router are not counted as cycles (#338), nor are Ecto
+association edges between schemas (a parent's `has_many` and its child's
+`belongs_to`), nor
 application.ex starting the web endpoint, telemetry and presence as
 domain -> web references (#345).
 
@@ -19,7 +21,13 @@ that pays debt down needs no extra file. The numbers:
   `lib/ex_tales_forge_web/router.ex`) and every `--label compile-connected`
   cycle (with the router), with its size and member files. Every LiveView
   links to the router with `~p` and the router names every LiveView, so
-  with the router every page would be in a cycle with every other.
+  with the router every page would be in a cycle with every other. A cycle
+  through an Ecto association edge does not count either
+  (`Mix.Tasks.Health.Check.Schemas`). That's an edge from a file with
+  `use Ecto.Schema` to a file whose modules it names only as `belongs_to`,
+  `has_many`, `has_one` or `many_to_many` targets. A schema that also uses
+  the other module in any other way (a struct, a call, an import) keeps the
+  edge.
 - `web_references`: each `lib/ex_tales_forge/` file that references a
   `lib/ex_tales_forge_web/` file in the xref graph, and the files it references.
   `lib/ex_tales_forge/application.ex` starting the endpoint, telemetry and
@@ -34,7 +42,8 @@ that pays debt down needs no extra file. The numbers:
   longer shows pages that render each other; this list does.
 - `counting`: the version of how the numbers are counted (2 since the
   router left the `all` cycles, 3 since application.ex's web children left
-  the domain -> web references).
+  the domain -> web references, 4 since Ecto association edges left the
+  cycles).
 - `wide_functions`: each `def`/`defp` head with 4 or more parameters
   (counted from the AST, `@impl` callbacks skipped), with its file and count.
 
@@ -58,8 +67,9 @@ domain -> web references, functions over the complexity limits,
 functions with 4+ parameters and `counting` (blank is 1). A bar where
 `counting` changes is marked "counting changed": the router left the `all`
 cycles at that merge (65 → 30 on the same code), and application.ex's
-web children left the domain -> web references at #345 (4 → 1),
-not refactors. Lower is
+web children left the domain -> web references at #345 (4 → 1), and the
+Ecto association edges left the cycles at counting 4 (26 → 20 on the same
+code), not refactors. Lower is
 better. `mix health.snapshot` measures HEAD, puts its row in the CSV and
 redraws `trend.svg`: one stacked bar per merge (xref cycles + complex
 functions + domain -> web refs + functions with 4+ parameters, total on

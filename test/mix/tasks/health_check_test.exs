@@ -5,6 +5,7 @@ defmodule Mix.Tasks.Health.CheckTest do
 
   doctest Mix.Tasks.Health.Check.Params
   doctest Mix.Tasks.Health.Check.LiveViews
+  doctest Mix.Tasks.Health.Check.Schemas
 
   @limits %{"cyclomatic_complexity" => 9, "abc_size" => 30}
 
@@ -178,6 +179,68 @@ defmodule Mix.Tasks.Health.CheckTest do
                cycle(~w(lib/a.ex lib/b.ex lib/c.ex)),
                cycle(~w(lib/x.ex lib/y.ex))
              ]
+    end
+
+    test "a cycle through an Ecto association edge does not count" do
+      out = """
+      Cycle of length 2:
+
+          lib/idea.ex
+          lib/vote.ex
+
+      Cycle of length 2:
+
+          lib/board.ex
+          lib/worker.ex
+      """
+
+      assoc = MapSet.new([{"lib/vote.ex", "lib/idea.ex"}])
+      assert Check.parse_cycles(out, assoc) == [cycle(~w(lib/board.ex lib/worker.ex))]
+    end
+
+    test "association edges: only schemas whose other refs are association targets" do
+      dir = Path.join(System.tmp_dir!(), "assoc-#{System.unique_integer([:positive])}")
+      File.mkdir_p!(dir)
+
+      files = %{
+        "idea.ex" => """
+        defmodule T.Idea do
+          use Ecto.Schema
+          alias T.{Vote, Board}
+          schema "ideas" do
+            has_many :votes, Vote
+          end
+          def board, do: Board.name()
+        end
+        """,
+        "vote.ex" => """
+        defmodule T.Vote do
+          use Ecto.Schema
+          schema "votes" do
+            belongs_to :idea, T.Idea
+          end
+        end
+        """,
+        "tally.ex" => """
+        defmodule T.Tally do
+          use Ecto.Schema
+          schema "tallies" do
+            belongs_to :idea, T.Idea
+          end
+          def new, do: %T.Idea{}
+        end
+        """,
+        "board.ex" => "defmodule T.Board do\n  def name, do: :b\nend\n"
+      }
+
+      for {name, src} <- files, do: File.write!(Path.join(dir, name), src)
+      on_exit(fn -> File.rm_rf!(dir) end)
+
+      assert Mix.Tasks.Health.Check.Schemas.edges(dir) ==
+               MapSet.new([
+                 {Path.join(dir, "idea.ex"), Path.join(dir, "vote.ex")},
+                 {Path.join(dir, "vote.ex"), Path.join(dir, "idea.ex")}
+               ])
     end
 
     test "xref plain graph keeps only domain -> web references" do
