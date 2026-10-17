@@ -110,7 +110,7 @@ defmodule TalesForge.Game.NpcReactions do
     present =
       world["present_npcs"]
       |> List.wrap()
-      |> Enum.reject(&TalesForge.Game.Context.dead?(state, &1))
+      |> Enum.reject(&TalesForge.Game.NpcState.dead?(state, &1))
 
     npcs =
       if enabled?() and present != [] do

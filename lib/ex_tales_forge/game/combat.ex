@@ -27,7 +27,6 @@ defmodule TalesForge.Game.Combat do
   alias TalesForge.Game.Mechanics
 
   @combat_skills ~w(melee_combat ranged_combat unarmed_combat)
-  @combat_keys ~w(wounds wound_max vitality minor)
 
   # Words that name a person. An attack on one of these words, with no
   # person in the world data, makes a minor foe for the scene.
@@ -503,27 +502,9 @@ defmodule TalesForge.Game.Combat do
     })
   end
 
-  @doc """
-  Keeps the combat keys (`wounds`, `wound_max`, `vitality`, `minor`) and the
-  minor foes of `before` in the `after_state` npc_state map. The board
-  rebuilds npc_state from the NPC instances each turn, so this step carries
-  the session combat state over.
-  """
+  @doc "See `TalesForge.Game.NpcState.carry/2`."
   @spec carry(map(), map()) :: map()
-  def carry(before, after_state) do
-    before = before || %{}
-
-    Enum.reduce(before, after_state || %{}, fn {id, npc}, acc ->
-      kept = Map.take(npc || %{}, @combat_keys)
-
-      cond do
-        npc["minor"] == true -> Map.put(acc, id, npc)
-        kept == %{} -> acc
-        Map.has_key?(acc, id) -> Map.update!(acc, id, &Map.merge(&1, kept))
-        true -> acc
-      end
-    end)
-  end
+  defdelegate carry(before, after_state), to: TalesForge.Game.NpcState
 
   @doc """
   Writes the defender's wounds of `exchange` to `world["npc_state"]`. A
