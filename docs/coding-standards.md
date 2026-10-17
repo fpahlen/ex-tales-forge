@@ -25,6 +25,8 @@ Applies to [ex-tales-forge](https://github.com/whyse-ab/ex-tales-forge). Tooling
 7. **Tests for every change.** A bug fix gets a test that fails without the fix. Coverage is tracked with `mix test --cover`, and CI fails below the threshold in `mix.exs`. Raise the threshold as coverage grows; never lower it to make a PR pass.
 8. **CI enforces 1–7** (the Test and Dialyzer jobs). Both must be required checks on `main`, so a failing PR can't merge, and production deploys only after both pass.
 
+The patterns behind these rules, each with the PR that showed it, are in [Refactoring lessons](refactoring.md).
+
 ## Existing code: backfill gradually
 
 - The rules apply in full to new modules and to every function a PR touches.
