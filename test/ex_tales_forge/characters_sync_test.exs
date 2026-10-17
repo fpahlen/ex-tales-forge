@@ -61,7 +61,13 @@ defmodule TalesForge.CharactersSyncTest do
           |> Map.put("learning_failures", %{"climbing" => 3})
         end)
 
-      NPC.record_memory(session.id, "innkeep", "The stranger paid in silver", 30)
+      NPC.record_memory(%NPC.Note{
+        session_id: session.id,
+        npc_id: "innkeep",
+        summary: "The stranger paid in silver",
+        tick: 30
+      })
+
       NPC.bump_relationship(session.id, "innkeep", 0.4)
 
       session = wait_turn(session, %{"climbing" => {51, 5}})
