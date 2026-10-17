@@ -59,6 +59,18 @@ a player or founder can see in the PR body.
 
 ## Structs instead of long parameter lists
 
+- **Why structs.** Adding a field to a struct changes no function's arity
+  or contract: the callers that don't care keep compiling and working,
+  and only the functions that need the field match on it. A new
+  positional parameter changes every caller.
+- **Give a new field a default in `defstruct`** (`defstruct [:pr, opts:
+  []]`), so the existing struct literals stay valid and the old behaviour
+  is the default.
+- **Always match on `%Struct{field: x}`,** in the function head or a
+  `case`, never on a bare map, `Map.get/2` or `struct.field`. The
+  compiler checks the keys of a `%Struct{}` pattern, so removing or
+  renaming a field turns every stale use into a compile error; a bare
+  map match fails at run time, and `Map.get/2` quietly gives nil.
 - **One struct is a pipeline accumulator,** like `Plug.Conn` or
   `Ecto.Changeset`. The caller fills in the inputs, small pure steps add
   the fields they compute (struct → struct, or `{:ok, struct}`), and the
