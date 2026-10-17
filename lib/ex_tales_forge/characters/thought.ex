@@ -45,6 +45,23 @@ defmodule TalesForge.Characters.Thought do
   in the memories. Reply as JSON: {"thought": "..."}.
   """
 
+  defmodule Moment do
+    @moduledoc """
+    The turn a thought may come from: the session, the turn number, the
+    turn's events, the world after the turn and the CHARACTER_MEMORY mode.
+    """
+    defstruct [:session_id, :turn_number, events: [], world: %{}, mode: :off]
+
+    @typedoc "The turn a thought may come from."
+    @type t :: %__MODULE__{
+            session_id: Ecto.UUID.t(),
+            turn_number: integer(),
+            events: [map()],
+            world: map(),
+            mode: :off | :shadow | :on
+          }
+  end
+
   @typedoc "A trigger: who or what the thought is about, with the memories."
   @type trigger ::
           {:person, Character.t(), [CharacterMemory.t()]}
@@ -53,17 +70,17 @@ defmodule TalesForge.Characters.Thought do
   @doc """
   The thought of a turn as stored on `turns.thought`, or nil. Never raises.
   """
-  @spec for_turn(Ecto.UUID.t(), [map()], map(), integer(), :off | :shadow | :on) :: map() | nil
-  def for_turn(_session_id, _events, _world, _turn_number, :off), do: nil
+  @spec for_turn(Moment.t()) :: map() | nil
+  def for_turn(%Moment{mode: :off}), do: nil
 
-  def for_turn(session_id, events, world, turn_number, mode) do
+  def for_turn(%Moment{session_id: session_id} = moment) do
     with %Character{} = pc <- pc(session_id),
-         scene = scene_key(session_id, world),
-         trigger when not is_nil(trigger) <- trigger(session_id, pc, events, world, scene),
-         {:ok, text} <- text(pc, trigger, session_id, turn_number) do
+         scene = scene_key(session_id, moment.world),
+         trigger when not is_nil(trigger) <- trigger(moment, pc, scene),
+         {:ok, text} <- text(pc, trigger, moment) do
       thought = build(trigger, text, scene)
 
-      if mode == :shadow,
+      if moment.mode == :shadow,
         do: Logger.info("thought shadow session=#{session_id} #{inspect(thought)}")
 
       thought
@@ -94,28 +111,31 @@ defmodule TalesForge.Characters.Thought do
 
   # -- trigger -------------------------------------------------------------
 
-  @doc false
-  def trigger(session_id, pc, events, world, scene) do
-    person(session_id, pc, world, scene) || sleep(pc, events)
+  defp trigger(%Moment{} = moment, pc, scene) do
+    person(moment, pc, scene) || sleep(pc, moment.events)
   end
 
-  defp person(session_id, pc, world, scene) do
+  defp person(%Moment{session_id: session_id, world: world}, pc, scene) do
     present = List.wrap(world["present_npcs"])
 
     if present == [] or person_shown?(session_id, scene) do
       nil
     else
-      npcs = session_id |> Characters.list_for_session() |> Enum.filter(&(&1.slug in present))
-
-      npcs
-      |> Enum.map(&{&1, Memory.recall(pc, [&1.slug], @rows)})
-      |> Enum.reject(fn {_npc, mems} -> mems == [] end)
-      |> Enum.max_by(fn {_npc, [top | _]} -> top.weight end, fn -> nil end)
-      |> case do
+      case heaviest_memory(session_id, pc, present) do
         nil -> nil
         {npc, mems} -> {:person, npc, mems}
       end
     end
+  end
+
+  # The present NPC with the heaviest memory, and the memories.
+  defp heaviest_memory(session_id, pc, present) do
+    session_id
+    |> Characters.list_for_session()
+    |> Enum.filter(&(&1.slug in present))
+    |> Enum.map(&{&1, Memory.recall(pc, [&1.slug], @rows)})
+    |> Enum.reject(fn {_npc, mems} -> mems == [] end)
+    |> Enum.max_by(fn {_npc, [top | _]} -> top.weight end, fn -> nil end)
   end
 
   defp sleep(pc, events) do
@@ -161,7 +181,7 @@ defmodule TalesForge.Characters.Thought do
 
   # -- text ----------------------------------------------------------------
 
-  defp text(pc, trigger, session_id, turn_number) do
+  defp text(pc, trigger, %Moment{session_id: session_id, turn_number: turn_number}) do
     user = prompt(pc, trigger)
 
     case LLM.complete_thought(@system, user, session_id: session_id, turn_number: turn_number) do

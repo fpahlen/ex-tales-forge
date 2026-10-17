@@ -26,18 +26,29 @@ defmodule TalesForge.World.Extract do
 
   @narration_chars 3_000
 
-  @doc "Starts `run/6` after the turn (synchronously when `:world_extract_mode` is `:sync`, for tests)."
-  @spec run_async(
-          String.t(),
-          integer(),
-          String.t(),
-          String.t(),
-          [TalesForge.World.agent()],
-          map()
-        ) ::
-          :ok
-  def run_async(session_id, turn_number, raw_action, narrative, agents, tags) do
-    fun = fn -> run(session_id, turn_number, raw_action, narrative, agents, tags) end
+  defmodule Job do
+    @moduledoc """
+    One extraction: the session and turn, what the player character did
+    (`raw_action`), the GM `narrative`, the turn's world `agents` and the
+    step `tags` of `TalesForge.AICalls.Steps`.
+    """
+    defstruct [:session_id, :turn_number, :raw_action, :narrative, agents: [], tags: %{}]
+
+    @typedoc "One extraction job."
+    @type t :: %__MODULE__{
+            session_id: String.t(),
+            turn_number: integer(),
+            raw_action: String.t(),
+            narrative: String.t(),
+            agents: [TalesForge.World.agent()],
+            tags: map()
+          }
+  end
+
+  @doc "Starts `run/1` after the turn (synchronously when `:world_extract_mode` is `:sync`, for tests)."
+  @spec run_async(Job.t()) :: :ok
+  def run_async(%Job{} = job) do
+    fun = fn -> run(job) end
 
     case Application.get_env(:ex_tales_forge, :world_extract_mode, :async) do
       :sync -> fun.()
@@ -48,36 +59,14 @@ defmodule TalesForge.World.Extract do
   end
 
   @doc "Extracts, validates, stores and commits. Returns `{:ok, accepted}` or `{:error, reason}`."
-  @spec run(String.t(), integer(), String.t(), String.t(), [TalesForge.World.agent()], map()) ::
-          {:ok, [TalesForge.World.accepted()]} | {:error, term()}
-  def run(session_id, turn_number, raw_action, narrative, agents, tags \\ %{}) do
-    case LLM.complete_fact_extract(system(), user(agents, raw_action, narrative),
+  @spec run(Job.t()) :: {:ok, [TalesForge.World.accepted()]} | {:error, term()}
+  def run(%Job{session_id: session_id} = job) do
+    case LLM.complete_fact_extract(system(), user(job.agents, job.raw_action, job.narrative),
            session_id: session_id,
-           turn_number: turn_number
+           turn_number: job.turn_number
          ) do
       {:ok, %{"facts" => facts}} when is_list(facts) ->
-        started_at = DateTime.utc_now()
-        t0 = System.monotonic_time(:microsecond)
-        {accepted, rejected} = World.validate_facts(agents, clean(facts), turn_number)
-        World.store_facts(session_id, accepted, turn_number)
-        World.commit(session_id, accepted, [])
-
-        Steps.record_one(
-          Map.merge(tags, %{
-            purpose: "turn.world_writeback",
-            latency_ms: div(System.monotonic_time(:microsecond) - t0 + 500, 1_000),
-            started_at: started_at,
-            game_session_id: session_id,
-            turn_number: turn_number
-          })
-        )
-
-        Logger.info(
-          "world facts extracted session=#{session_id} turn=#{turn_number} " <>
-            "accepted=#{inspect(accepted)} rejected=#{inspect(rejected)}"
-        )
-
-        {:ok, accepted}
+        writeback(job, facts)
 
       {:ok, other} ->
         {:error, {:invalid_reply, other}}
@@ -96,6 +85,32 @@ defmodule TalesForge.World.Extract do
       )
 
       {:error, :crashed}
+  end
+
+  # Validates, stores and commits the facts, timed as turn.world_writeback.
+  defp writeback(%Job{session_id: session_id, turn_number: turn_number} = job, facts) do
+    started_at = DateTime.utc_now()
+    t0 = System.monotonic_time(:microsecond)
+    {accepted, rejected} = World.validate_facts(job.agents, clean(facts), turn_number)
+    World.store_facts(session_id, accepted, turn_number)
+    World.commit(session_id, accepted, [])
+
+    Steps.record_one(
+      Map.merge(job.tags, %{
+        purpose: "turn.world_writeback",
+        latency_ms: div(System.monotonic_time(:microsecond) - t0 + 500, 1_000),
+        started_at: started_at,
+        game_session_id: session_id,
+        turn_number: turn_number
+      })
+    )
+
+    Logger.info(
+      "world facts extracted session=#{session_id} turn=#{turn_number} " <>
+        "accepted=#{inspect(accepted)} rejected=#{inspect(rejected)}"
+    )
+
+    {:ok, accepted}
   end
 
   @doc "The extraction call's system prompt (`priv/prompts/fact_extract_system.txt`)."
