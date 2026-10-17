@@ -48,6 +48,15 @@ defmodule TalesForge.Game.Turn.Mechanics do
     }
   end
 
+  # The options of the board step (`TalesForge.Game.TurnProcessor.Board`).
+  defp board_opts(turn, combat) do
+    [
+      catalogue_v2: Turn.flag?(turn, :jev_catalogue_v2),
+      opposed: TurnCombat.on?(turn),
+      combat: combat
+    ]
+  end
+
   defp rules(%Turn{intent: player_action} = turn) do
     world = Turn.world_before(turn)
 
@@ -85,11 +94,14 @@ defmodule TalesForge.Game.Turn.Mechanics do
     {combat, foe} = TurnCombat.exchange(turn, world, target, rolled)
 
     applied =
-      TurnProcessor.apply_board(turn.session, character, ruled, board_action, rolled,
-        catalogue_v2: Turn.flag?(turn, :jev_catalogue_v2),
-        opposed: TurnCombat.on?(turn),
-        combat: combat
-      )
+      TurnProcessor.apply_board(%TurnProcessor.Board{
+        session: turn.session,
+        character: character,
+        handler: ruled,
+        player_action: board_action,
+        mechanical: rolled,
+        opts: board_opts(turn, combat)
+      })
 
     board =
       if TurnCombat.on?(turn), do: TurnCombat.book(applied, world, combat, foe), else: applied

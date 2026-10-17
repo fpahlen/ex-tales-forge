@@ -32,12 +32,14 @@ defmodule TalesForge.CharactersSyncTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        "I sleep",
-        action,
-        ActionHandler.resolve(action),
-        %MechanicalResolution{outcome: "none"},
-        improvement_rolls: rolls
+        %TurnProcessor.Board{
+          session: session,
+          player_action: action,
+          handler: ActionHandler.resolve(action),
+          mechanical: %MechanicalResolution{outcome: "none"},
+          opts: [improvement_rolls: rolls]
+        },
+        "I sleep"
       )
 
     reload(session.id)

@@ -284,12 +284,14 @@ defmodule TalesForge.Game.CompetenceTest do
 
     {:ok, payload} =
       TurnProcessor.simulate!(
-        session,
-        raw,
-        player_action,
-        ActionHandler.resolve(player_action),
-        %MechanicalResolution{outcome: "none"},
-        improvement_rolls: rolls
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: ActionHandler.resolve(player_action),
+          mechanical: %MechanicalResolution{outcome: "none"},
+          opts: [improvement_rolls: rolls]
+        },
+        raw
       )
 
     {reload(session.id), latest_turn(session.id), payload}
@@ -317,12 +319,14 @@ defmodule TalesForge.Game.CompetenceTest do
 
     {:ok, payload} =
       TurnProcessor.simulate!(
-        session,
-        raw,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"},
-        improvement_rolls: rolls
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"},
+          opts: [improvement_rolls: rolls]
+        },
+        raw
       )
 
     {reload(session.id), latest_turn(session.id), payload}

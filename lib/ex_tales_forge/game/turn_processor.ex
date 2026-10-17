@@ -70,6 +70,28 @@ defmodule TalesForge.Game.TurnProcessor do
   alias TalesForge.Schemas.Turn, as: TurnRow
   alias TalesForge.Workers.PushWorkLogTurn
 
+  defmodule Board do
+    @moduledoc """
+    The input of the board step (`apply_board/1` in `TalesForge.Game.TurnProcessor`):
+    the session, the character, the handler, the PlayerAction, the
+    mechanical resolution and the options (`:catalogue_v2`, `:opposed`,
+    `:combat`, `:haggle_rolls`, `:improvement_rolls`, `:death_roll`, ...).
+    The trade step may change the action (a haggled price).
+    """
+
+    @enforce_keys [:session, :handler, :player_action, :mechanical]
+    defstruct [:session, :character, :handler, :player_action, :mechanical, opts: []]
+
+    @type t :: %__MODULE__{
+            session: TalesForge.Schemas.GameSession.t(),
+            character: map() | nil,
+            handler: struct(),
+            player_action: struct(),
+            mechanical: struct(),
+            opts: keyword()
+          }
+  end
+
   @doc """
   Runs one turn. The main steps (rules, prompt build, GM call, persistence)
   are timed and recorded in `ai_calls` as `call_type` `function` rows
@@ -164,9 +186,11 @@ defmodule TalesForge.Game.TurnProcessor do
   defp crash_reason(kind, _reason), do: "crashed: #{kind}"
 
   @doc false
-  @spec simulate!(GameSession.t(), String.t(), struct(), struct(), struct(), keyword()) ::
-          {:ok, map()} | {:error, term()}
-  def simulate!(session, raw_action, player_action, handler, mechanical, opts \\ []) do
+  @spec simulate!(Board.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  def simulate!(
+        %Board{session: session, handler: handler, mechanical: mechanical} = board,
+        raw_action
+      ) do
     gm_result = %GMStructuredResponse{narrative: "ok", context_summary: nil}
 
     character = Map.get(session.world_state || %{}, "character", %{})
@@ -179,7 +203,7 @@ defmodule TalesForge.Game.TurnProcessor do
       improvements: improvements,
       training: training
     } =
-      apply_board(session, character, handler, player_action, mechanical, opts)
+      apply_board(%{board | character: character})
 
     persist_and_signal(session, world_board, turn_number, raw_action, %{
       handler: handler,
@@ -191,68 +215,106 @@ defmodule TalesForge.Game.TurnProcessor do
   end
 
   @doc false
-  @spec apply_board(GameSession.t(), map(), struct(), struct(), struct(), keyword()) :: map()
-  def apply_board(session, character, handler, player_action, mechanical, opts \\ []) do
+  @spec apply_board(Board.t()) :: map()
+  def apply_board(%Board{session: session} = board) do
     world_before = session.world_state || %{}
+    {world_traded, inventory_result, board} = trade_step(world_before, board)
+    {world_paused, improvements, training} = pause_step(world_traded, board)
 
+    %{world: world, handler: handler} =
+      result =
+      %{
+        world: world_paused,
+        improvements: improvements,
+        training: training,
+        handler: board.handler
+      }
+      |> tick(board, world_before)
+      |> perceive(board)
+
+    outcome =
+      OutcomeRecord.build(
+        world_before,
+        world,
+        board.player_action.action,
+        handler,
+        inventory_result
+      )
+
+    Map.put(result, :outcome, outcome)
+  end
+
+  # Trade, catalogue and the premise of the inventory. Gives the world, the
+  # inventory result and `board` with the handler marked rejected or as an
+  # unpaid sleep.
+  defp trade_step(world_before, %Board{handler: handler} = board) do
     {world_traded, traded} =
       world_before
-      |> put_in(["character"], character)
-      |> trade(session, player_action, handler, opts)
-      |> apply_catalogue(session, handler, player_action)
+      |> put_in(["character"], board.character)
+      |> trade(board)
+      |> apply_catalogue(board)
 
     inventory_result = premise_result(handler, traded)
     handler = handler |> mark_rejected(inventory_result) |> unpaid_sleep(inventory_result)
+    {world_traded, inventory_result, %{board | handler: handler}}
+  end
 
-    world_present =
-      world_traded
-      |> maybe_move(handler)
-      |> apply_location_presence(session)
+  # The move, who is present, then the pause or the training.
+  defp pause_step(world_traded, %Board{opts: opts} = board) do
+    moved_from = get_in(world_traded, ["character", "location_id"])
 
-    {world_paused, improvements, training} =
-      apply_pause_or_train(
-        world_present,
-        session,
-        handler,
-        player_action,
-        Keyword.put(opts, :moved_from, get_in(world_traded, ["character", "location_id"]))
-      )
+    world_traded
+    |> maybe_move(board.handler)
+    |> apply_location_presence(board.session)
+    |> apply_pause_or_train(%{board | opts: Keyword.put(opts, :moved_from, moved_from)})
+  end
 
+  # The turn's events and one world-sim tick.
+  defp tick(%{world: world_paused} = result, %Board{} = board, world_before) do
     {events, sim} =
       simulate_world(
         %Events.Turn{
-          player_action: player_action,
-          handler: handler,
-          mechanical: mechanical,
+          player_action: board.player_action,
+          handler: board.handler,
+          mechanical: board.mechanical,
           world_before: world_before,
           world_after: world_paused
         },
-        session.id
+        board.session.id
       )
 
-    hidden = Enum.reject(events, & &1["player_aware"])
+    Map.merge(result, %{events: events, sim: sim})
+  end
+
+  # What the character perceives after the tick, vitality, reflection and
+  # the banked LP spent on a long rest.
+  defp perceive(%{world: world_paused, events: events, sim: sim} = result, %Board{} = board) do
+    %Board{handler: handler, player_action: player_action, opts: opts} = board
 
     {world, spent, needs_reflection} =
       world_paused
-      |> present_after_tick(sim.people)
-      |> Perception.scrub_situation_lines(hidden)
-      |> Perception.snapshot_public_facts(sim.fronts ++ sim.people)
-      |> Mechanics.apply_vitality(mechanical, opts)
-      |> note_reflection(player_action, improvements)
+      |> perceived(events, sim)
+      |> Mechanics.apply_vitality(board.mechanical, opts)
+      |> note_reflection(player_action, result.improvements)
       |> maybe_spend_lp(handler, opts)
 
-    %{
+    Map.merge(result, %{
       world: world,
-      events: events,
-      sim: sim,
-      improvements: improvements ++ spent,
-      training: training,
+      improvements: result.improvements ++ spent,
       needs_reflection: needs_reflection,
-      turn_growth: if(long_rest?(handler), do: [], else: spent),
-      handler: handler,
-      outcome:
-        OutcomeRecord.build(world_before, world, player_action.action, handler, inventory_result)
-    }
+      turn_growth: if(long_rest?(handler), do: [], else: spent)
+    })
+  end
+
+  # The world as the character perceives it after the tick: who the fronts
+  # moved in, no situation line about a hidden event, the public facts.
+  defp perceived(world, events, sim) do
+    hidden = Enum.reject(events, & &1["player_aware"])
+
+    world
+    |> present_after_tick(sim.people)
+    |> Perception.scrub_situation_lines(hidden)
+    |> Perception.snapshot_public_facts(sim.fronts ++ sim.people)
   end
 
   # The turn's events with the session's fronts and people, then one
@@ -281,11 +343,10 @@ defmodule TalesForge.Game.TurnProcessor do
     Map.put(world, "present_npcs", present)
   end
 
-  defp apply_pause_or_train(world, session, %{handler: "train"}, player_action, opts) do
-    apply_training(world, session, player_action, opts)
-  end
+  defp apply_pause_or_train(world, %Board{handler: %{handler: "train"}} = board),
+    do: apply_training(world, board)
 
-  defp apply_pause_or_train(world, _session, handler, _player_action, opts),
+  defp apply_pause_or_train(world, %Board{handler: handler, opts: opts}),
     do: {WorldClock.advance(world, ticks(world, handler, opts[:moved_from])), [], nil}
 
   # Hierarchical locations (board card 7aba0394, PR 2): a move costs the walk
@@ -357,7 +418,7 @@ defmodule TalesForge.Game.TurnProcessor do
 
   defp long_rest?(_handler), do: false
 
-  defp apply_training(world, session, player_action, opts) do
+  defp apply_training(world, %Board{session: session, player_action: player_action, opts: opts}) do
     action = player_action.action
     npc_id = action.target
     present_ids = Map.get(world, "present_npcs", [])
@@ -510,8 +571,13 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  defp maybe_apply_inventory(world_state, session_id, action, handler) do
-    case Inventory.apply_server_inventory(world_state, session_id, action, handler) do
+  defp maybe_apply_inventory(world_state, %Board{session: %{id: session_id}} = board) do
+    case Inventory.apply_server_inventory(
+           world_state,
+           session_id,
+           board.player_action.action,
+           board.handler
+         ) do
       {:ok, updated, %{applied: applied} = details} when is_list(applied) ->
         Logger.info("inventory applied session=#{session_id} changes=#{inspect(applied)}")
         {updated, {:ok, details}}
@@ -530,12 +596,11 @@ defmodule TalesForge.Game.TurnProcessor do
 
   # Catalogue v2 (JEV_CATALOGUE_V2): an NPC can refuse a trade, and the words
   # can ask for a haggle (TalesForge.Game.Bargain) before the inventory step.
-  defp trade(world, session, player_action, handler, opts) do
+  defp trade(world, %Board{session: session, player_action: player_action} = board) do
     action = player_action.action
 
-    if opts[:catalogue_v2] && handler.handler == "inventory" &&
+    if board.opts[:catalogue_v2] && board.handler.handler == "inventory" &&
          action.action_type in [:buy, :sell] do
-      text = player_action.overall_intent || ""
       trader = trader_id(world, session.id, action)
       profile = trader && session.id |> NPC.notice_profiles([trader]) |> List.first()
 
@@ -544,11 +609,11 @@ defmodule TalesForge.Game.TurnProcessor do
         Logger.info("trade refused session=#{session.id} npc=#{trader}")
         {world, {:error, reason}}
       else
-        {world, action} = maybe_haggle(world, session.id, action, trader, text, opts)
-        maybe_apply_inventory(world, session.id, action, handler)
+        {world, board} = maybe_haggle(world, board, trader)
+        maybe_apply_inventory(world, board)
       end
     else
-      maybe_apply_inventory(world, session.id, action, handler)
+      maybe_apply_inventory(world, board)
     end
   end
 
@@ -574,27 +639,41 @@ defmodule TalesForge.Game.TurnProcessor do
     if Enum.any?(Inventory.normalize_stock(stock), &(&1["id"] == item_id)), do: npc_id
   end
 
-  defp maybe_haggle(world, session_id, action, trader, text, opts) do
-    price = trade_price(world, session_id, action, trader)
+  # `board` with the haggled price on its action, when the words ask for a
+  # haggle and the trade has a price.
+  defp maybe_haggle(
+         world,
+         %Board{player_action: %{action: action} = player_action} = board,
+         trader
+       ) do
+    text = player_action.overall_intent || ""
+    price = trade_price(world, board, trader)
 
     if Bargain.haggle?(text) and is_integer(price) and price > 0 do
       {character, result} =
         Bargain.haggle(world["character"], action.action_type, price,
           appraise: Bargain.appraise?(text),
-          rolls: opts[:haggle_rolls] || %{}
+          rolls: board.opts[:haggle_rolls] || %{}
         )
 
-      Logger.info("haggle session=#{session_id} result=#{inspect(result)}")
+      Logger.info("haggle session=#{board.session.id} result=#{inspect(result)}")
       params = Map.put(action.parameters || %{}, "price_copper", result["price_copper"])
+      action = %{action | parameters: params}
 
-      {Map.put(world, "character", character), %{action | parameters: params}}
+      {Map.put(world, "character", character),
+       %{board | player_action: %{player_action | action: action}}}
     else
-      {world, action}
+      {world, board}
     end
   end
 
-  defp trade_price(_world, session_id, %{action_type: :buy} = action, trader)
+  defp trade_price(
+         _world,
+         %Board{player_action: %{action: %{action_type: :buy} = action}} = board,
+         trader
+       )
        when is_binary(trader) do
+    session_id = board.session.id
     item_id = (action.parameters || %{})["item_id"]
 
     session_id
@@ -604,7 +683,11 @@ defmodule TalesForge.Game.TurnProcessor do
     |> Enum.find_value(&if(&1["id"] == item_id, do: &1["price_copper"]))
   end
 
-  defp trade_price(world, _session_id, %{action_type: :sell} = action, _trader) do
+  defp trade_price(
+         world,
+         %Board{player_action: %{action: %{action_type: :sell} = action}},
+         _trader
+       ) do
     params = action.parameters || %{}
 
     case params["price_copper"] do
@@ -619,11 +702,14 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  defp trade_price(_world, _session_id, _action, _trader), do: nil
+  defp trade_price(_world, %Board{}, _trader), do: nil
 
   # Catalogue v2 (JEV_CATALOGUE_V2): work, equip and give
   # (TalesForge.Game.Catalogue). Other handlers pass through.
-  defp apply_catalogue({world, traded}, session, %{handler: h} = handler, player_action)
+  defp apply_catalogue(
+         {world, traded},
+         %Board{session: session, handler: %{handler: h} = handler, player_action: player_action}
+       )
        when h in ["work", "equip", "give"] do
     npc = if h == "give", do: gift_npc(session, handler.target)
 
@@ -637,7 +723,7 @@ defmodule TalesForge.Game.TurnProcessor do
     end
   end
 
-  defp apply_catalogue(acc, _session, _handler, _player_action), do: acc
+  defp apply_catalogue(acc, %Board{}), do: acc
 
   defp gift_npc(_session, nil), do: nil
 

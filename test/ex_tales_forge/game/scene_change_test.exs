@@ -263,13 +263,13 @@ defmodule TalesForge.Game.SceneChangeTest do
       }
 
       world =
-        TurnProcessor.apply_board(
-          session,
-          session.world_state["character"],
-          ActionHandler.resolve(action),
-          action,
-          %TalesForge.Game.Schemas.MechanicalResolution{}
-        ).world
+        TurnProcessor.apply_board(%TurnProcessor.Board{
+          session: session,
+          character: session.world_state["character"],
+          handler: ActionHandler.resolve(action),
+          player_action: action,
+          mechanical: %TalesForge.Game.Schemas.MechanicalResolution{}
+        }).world
 
       assert world["location_id"] == "valley_inn"
       assert world["present_npcs"] == ["innkeep"]
