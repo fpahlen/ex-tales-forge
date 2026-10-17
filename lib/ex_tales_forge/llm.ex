@@ -8,6 +8,7 @@ defmodule TalesForge.LLM do
   alias TalesForge.AICalls
   alias TalesForge.AppRole
   alias TalesForge.Config
+  alias TalesForge.LLM.{Endpoint, Request}
   alias TalesForge.LLM.Stream, as: SSE
 
   alias TalesForge.Game.Schemas.{
@@ -626,14 +627,19 @@ defmodule TalesForge.LLM do
   # re-sends the identical messages with a short correction APPENDED, so the
   # cached prefix (system + rules + state) still matches.
   defp complete_json(model, messages, schema, temperature, opts) do
-    {messages, opts} = prepare_schema(model, messages, schema, opts)
-    validate = Keyword.get(opts, :validate, fn _map -> true end)
+    req =
+      prepare_schema(
+        %Request{model: model, messages: messages, temperature: temperature, opts: opts},
+        schema
+      )
 
-    case dispatch_json(model, messages, temperature, opts, validate) do
+    validate = Keyword.get(req.opts, :validate, fn _map -> true end)
+
+    case dispatch_json(req, validate) do
       {:error, reason} when reason in [:invalid_json, :invalid_reply] ->
         # The streamed text of the failed reply goes away; the retry streams anew.
         if is_function(opts[:on_text], 1), do: opts[:on_text].(:reset)
-        dispatch_json(model, retry_messages(messages), temperature, opts, validate)
+        dispatch_json(%{req | messages: retry_messages(req.messages)}, validate)
 
       result ->
         result
@@ -647,22 +653,22 @@ defmodule TalesForge.LLM do
   @spec retry_messages([map()]) :: [map()]
   def retry_messages(messages), do: messages ++ [%{role: "user", content: @retry_correction}]
 
-  defp prepare_schema(model, messages, schema, opts) do
-    case Keyword.get(opts, :structured_output) do
+  defp prepare_schema(%Request{} = req, schema) do
+    case Keyword.get(req.opts, :structured_output) do
       name when is_binary(name) ->
-        if xai_target?(model) do
+        if xai_target?(req.model) do
           format = %{
             type: "json_schema",
             json_schema: %{name: name, schema: schema, strict: true}
           }
 
-          {messages, Keyword.put(opts, :response_format, format)}
+          %{req | opts: Keyword.put(req.opts, :response_format, format)}
         else
-          {paste_schema(messages, schema), opts}
+          %{req | messages: paste_schema(req.messages, schema)}
         end
 
       _ ->
-        {paste_schema(messages, schema), opts}
+        %{req | messages: paste_schema(req.messages, schema)}
     end
   end
 
@@ -677,8 +683,8 @@ defmodule TalesForge.LLM do
     rest ++ [%{last | content: pasted}]
   end
 
-  defp dispatch_json(model, messages, temperature, opts, validate) do
-    with {:ok, raw} <- dispatch(model, messages, temperature, opts),
+  defp dispatch_json(%Request{} = req, validate) do
+    with {:ok, raw} <- dispatch(req),
          {:ok, map} <- parse_json(raw) do
       if validate.(map), do: {:ok, map}, else: {:error, :invalid_reply}
     end
@@ -686,29 +692,29 @@ defmodule TalesForge.LLM do
 
   defp xai_target?(model), do: String.starts_with?(model, "xai/") or provider() == "xai"
 
-  defp dispatch("mock", _messages, _temp, _opts), do: {:error, :mock_model}
+  defp dispatch(%Request{model: "mock"}), do: {:error, :mock_model}
 
-  defp dispatch(model, messages, temperature, opts) do
+  defp dispatch(%Request{opts: opts} = req) do
     case AICalls.check_spend_caps(opts[:session_id], purpose(Keyword.get(opts, :tier))) do
-      :ok -> request(model, messages, temperature, opts)
-      {:error, {kind, limit, spent}} -> spend_capped(model, opts, kind, limit, spent)
+      :ok -> request(req)
+      {:error, cap} -> spend_capped(req, cap)
     end
   end
 
-  defp spend_capped(model, opts, kind, limit, spent) do
+  defp spend_capped(%Request{model: model, opts: opts} = req, {kind, limit, spent}) do
     tier = Keyword.get(opts, :tier, :unknown)
 
     Logger.warning(
       "llm spend cap hit cap=#{kind} limit_usd=#{usd(limit)} spent_usd=#{usd(spent)} session=#{opts[:session_id]} tier=#{tier} model=#{model}"
     )
 
-    record_call(model, tier, opts, :capped, 0, %{started_at: DateTime.utc_now()})
+    record_call(req, :capped, %{latency_ms: 0, started_at: DateTime.utc_now()})
     {:error, {:spend_cap, kind}}
   end
 
   defp usd(micro_usd), do: :erlang.float_to_binary(micro_usd / 1_000_000, decimals: 4)
 
-  defp request(model, messages, temperature, opts) do
+  defp request(%Request{model: model, temperature: temperature, opts: opts} = req) do
     started_at = DateTime.utc_now()
     started = System.monotonic_time(:millisecond)
     provider = provider()
@@ -719,37 +725,11 @@ defmodule TalesForge.LLM do
       "llm call start tier=#{tier} provider=#{provider} model=#{model} temp=#{temperature} max_tokens=#{max_tokens}"
     )
 
-    result =
-      cond do
-        xai_target?(model) ->
-          call_openai_compatible(model, messages, temperature, xai_base(), Config.xai_api_key(),
-            max_tokens: max_tokens,
-            headers: [{"x-grok-conv-id", conv_id(opts)}],
-            response_format: Keyword.get(opts, :response_format),
-            stream: Keyword.get(opts, :stream, false),
-            on_text: opts[:on_text]
-          )
-
-        String.starts_with?(model, "gpt-") or provider == "openai" ->
-          call_openai_compatible(
-            model,
-            messages,
-            temperature,
-            openai_base(),
-            Config.openai_api_key(),
-            max_tokens: max_tokens
-          )
-
-        String.starts_with?(model, "ollama/") ->
-          call_ollama(model, messages, temperature)
-
-        true ->
-          {:error, {:unsupported_model, model}}
-      end
+    result = send_request(req, provider)
 
     elapsed = System.monotonic_time(:millisecond) - started
     conv = if xai_target?(model), do: conv_id(opts)
-    record_call(model, tier, opts, result, elapsed, %{started_at: started_at, conv_id: conv})
+    record_call(req, result, %{latency_ms: elapsed, started_at: started_at, conv_id: conv})
 
     case result do
       {:ok, content, usage} ->
@@ -764,7 +744,39 @@ defmodule TalesForge.LLM do
     end
   end
 
-  defp record_call(model, tier, opts, result, latency_ms, extra) do
+  # The provider call for the model: xAI, OpenAI or Ollama.
+  defp send_request(%Request{model: model, opts: opts} = req, provider) do
+    cond do
+      xai_target?(model) ->
+        call_openai_compatible(req, xai_endpoint(), xai_call_opts(opts))
+
+      String.starts_with?(model, "gpt-") or provider == "openai" ->
+        call_openai_compatible(req, openai_endpoint(), max_tokens: Keyword.get(opts, :max_tokens))
+
+      String.starts_with?(model, "ollama/") ->
+        call_ollama(model, req.messages, req.temperature)
+
+      true ->
+        {:error, {:unsupported_model, model}}
+    end
+  end
+
+  defp xai_endpoint, do: %Endpoint{base_url: xai_base(), api_key: Config.xai_api_key()}
+  defp openai_endpoint, do: %Endpoint{base_url: openai_base(), api_key: Config.openai_api_key()}
+
+  defp xai_call_opts(opts) do
+    [
+      max_tokens: Keyword.get(opts, :max_tokens),
+      headers: [{"x-grok-conv-id", conv_id(opts)}],
+      response_format: Keyword.get(opts, :response_format),
+      stream: Keyword.get(opts, :stream, false),
+      on_text: opts[:on_text]
+    ]
+  end
+
+  defp record_call(%Request{model: model, opts: opts}, result, extra) do
+    tier = Keyword.get(opts, :tier, :unknown)
+
     {status, usage} =
       case result do
         {:ok, _content, usage} -> {"ok", usage}
@@ -778,7 +790,7 @@ defmodule TalesForge.LLM do
       purpose: purpose(tier),
       model: model,
       status: status,
-      latency_ms: latency_ms,
+      latency_ms: extra.latency_ms,
       usage: usage,
       call_type: "llm",
       started_at: extra[:started_at],
@@ -823,37 +835,40 @@ defmodule TalesForge.LLM do
     end
   end
 
-  defp call_openai_compatible(model, messages, temperature, base_url, api_key, call_opts) do
-    if String.trim(api_key) == "" do
+  defp call_openai_compatible(%Request{} = req, %Endpoint{} = endpoint, call_opts) do
+    if String.trim(endpoint.api_key) == "" do
       {:error, :missing_api_key}
     else
       clean_model =
-        model |> String.replace_prefix("xai/", "") |> String.replace_prefix("openai/", "")
+        req.model |> String.replace_prefix("xai/", "") |> String.replace_prefix("openai/", "")
 
       body =
         %{
           model: clean_model,
-          temperature: temperature,
+          temperature: req.temperature,
           response_format: call_opts[:response_format] || %{type: "json_object"},
-          messages: messages
+          messages: req.messages
         }
         |> maybe_put_max_tokens(call_opts[:max_tokens])
 
       if call_opts[:stream] do
-        stream_openai_compatible(base_url, api_key, body, call_opts)
+        stream_openai_compatible(endpoint, body, call_opts)
       else
-        post_openai_compatible(base_url, api_key, body, call_opts)
+        post_openai_compatible(endpoint, body, call_opts)
       end
     end
   end
 
-  defp post_openai_compatible(base_url, api_key, body, call_opts) do
+  defp headers(%Endpoint{api_key: api_key}, call_opts) do
+    [{"authorization", "Bearer " <> api_key}, {"content-type", "application/json"}] ++
+      Keyword.get(call_opts, :headers, [])
+  end
+
+  defp post_openai_compatible(%Endpoint{} = endpoint, body, call_opts) do
     Req.post(
-      base_url <> "/chat/completions",
+      endpoint.base_url <> "/chat/completions",
       [
-        headers:
-          [{"authorization", "Bearer " <> api_key}, {"content-type", "application/json"}] ++
-            Keyword.get(call_opts, :headers, []),
+        headers: headers(endpoint, call_opts),
         json: body,
         receive_timeout: 120_000,
         retry: false
@@ -878,7 +893,7 @@ defmodule TalesForge.LLM do
   # stream: true. Req hands each chunk to collect_chunk/3; the state lives in
   # the response's private map. A reply that is not an event stream (an error,
   # or a test stub) is read as one JSON body.
-  defp stream_openai_compatible(base_url, api_key, body, call_opts) do
+  defp stream_openai_compatible(%Endpoint{} = endpoint, body, call_opts) do
     started = System.monotonic_time(:millisecond)
     on_text = call_opts[:on_text]
 
@@ -898,11 +913,9 @@ defmodule TalesForge.LLM do
     }
 
     Req.post(
-      base_url <> "/chat/completions",
+      endpoint.base_url <> "/chat/completions",
       [
-        headers:
-          [{"authorization", "Bearer " <> api_key}, {"content-type", "application/json"}] ++
-            Keyword.get(call_opts, :headers, []),
+        headers: headers(endpoint, call_opts),
         json: body,
         receive_timeout: 120_000,
         retry: false,
