@@ -32,7 +32,11 @@ redraws `trend.svg`: one stacked bar per merge (xref cycles + complex
 functions + domain -> web refs, total on top). After each merge to main,
 `.github/workflows/health-snapshot.yml` runs it and pushes the row to the
 branch `health-history`, with one open PR for it; merging that PR adds the
-rows to main. The first rows are the merges that changed `baseline.json`
+rows to main. GitHub holds every pull_request run on a PR that
+github-actions[bot] opened until a human approves it, so CI skips that PR's
+pull_request runs (it changes only the two history files) and the snapshot
+workflow dispatches CI on the branch instead: the required Test and Dialyzer
+checks run with no approval. The first rows are the merges that changed `baseline.json`
 (#324, #325, #326), measured again at each merge commit.
 
 `lib/ex_tales_forge -> ExTalesForgeWeb` is measured with xref (real compile, export and

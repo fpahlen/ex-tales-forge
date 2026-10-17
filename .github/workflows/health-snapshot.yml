@@ -2,7 +2,8 @@
 # the merge's row in docs/health/history.csv and redraws trend.svg. The row
 # goes to the branch `health-history` and one rolling PR; nothing is pushed
 # to main. Merging that PR changes only those two files, which this
-# workflow ignores, so it adds no row of its own.
+# workflow ignores, so it adds no row of its own. The PR's CI is a
+# dispatched run (see the last step), so nobody has to approve it.
 name: Health snapshot
 
 on:
@@ -14,6 +15,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -80,6 +82,11 @@ jobs:
           git add docs/health/history.csv docs/health/trend.svg
           git commit -m "Code health row for $subject" || exit 0
           git push origin "$BRANCH"
+          # CI skips pull_request runs on this PR (only the history files
+          # change, see ci.yml), because GitHub would hold them for a
+          # human's approval. A dispatched run needs none and gives the
+          # branch head the required Test and Dialyzer checks.
+          gh workflow run ci.yml --ref "$BRANCH"
           if [ -z "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
             gh pr create --base main --head "$BRANCH" \
               --title "Code health history" \
