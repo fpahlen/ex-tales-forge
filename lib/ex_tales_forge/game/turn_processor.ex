@@ -79,7 +79,7 @@ defmodule TalesForge.Game.TurnProcessor do
             |> Turn.result()
           end)
 
-        Steps.record(steps, session_id, turn_number, Tags.for_world(session.world_state))
+        Steps.record(steps, {session_id, turn_number}, Tags.for_world(session.world_state))
         finish(result, %{session_id: session_id, turn_number: turn_number, started: started})
     end
   end
