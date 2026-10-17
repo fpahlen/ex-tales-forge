@@ -18,6 +18,7 @@ defmodule TalesForge.Game.Turn.Store do
   import Ecto.Query, only: [where: 3, select: 3]
 
   alias TalesForge.Characters
+  alias TalesForge.Characters.Thought
   alias TalesForge.Fronts
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.RollLine
@@ -195,9 +196,16 @@ defmodule TalesForge.Game.Turn.Store do
   # turn (also in shadow), shown only with CHARACTER_MEMORY=on.
   defp store_thought(%__MODULE__{session: session, world: world, ctx: ctx}, turn) do
     mode = TalesForge.Config.character_memory()
-    events = Map.get(ctx, :events, [])
 
-    case TalesForge.Characters.Thought.for_turn(session.id, events, world, turn.turn_number, mode) do
+    moment = %Thought.Moment{
+      session_id: session.id,
+      turn_number: turn.turn_number,
+      events: Map.get(ctx, :events, []),
+      world: world,
+      mode: mode
+    }
+
+    case Thought.for_turn(moment) do
       nil ->
         nil
 
