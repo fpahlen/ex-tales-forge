@@ -1,4 +1,4 @@
-defmodule TalesForgeWeb.Presence do
+defmodule TalesForge.Presence do
   @moduledoc """
   Phoenix Presence on the app's PubSub (`TalesForge.PubSub`): which signed-in
   founders have a page open on this app right now. `TalesForge.Online` tracks
