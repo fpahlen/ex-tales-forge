@@ -294,13 +294,11 @@ defmodule TalesForge.Game.Turn.Mechanics do
   defp prices(turn, agents, board) do
     Steps.time(:prices, fn ->
       {world, lines} =
-        Prices.resolve(
-          agents,
-          turn.session.world_state,
-          board.world,
-          turn.raw_action,
-          turn.intent
-        )
+        Prices.resolve(agents, board.world, %Prices.Turn{
+          world_before: turn.session.world_state,
+          raw_action: turn.raw_action,
+          player_action: turn.intent
+        })
 
       if lines != [],
         do: Logger.info("world prices session=#{turn.session.id} lines=#{inspect(lines)}")
