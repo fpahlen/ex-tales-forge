@@ -1,6 +1,7 @@
 # CI for Tales Forge: format, Credo, tests with coverage, docs and Dialyzer on
 # every PR, on every push to main and when dispatched (the health-history
-# branch; ex-tales-forge docs/coding-standards.md).
+# branch; ex-tales-forge docs/coding-standards.md). A change to docs/ only
+# skips the code checks (the changes job below).
 # Test and Dialyzer are the required checks on main.
 #
 # Credo strict runs on all of lib/, admin files included (2026-10-11). The
@@ -51,8 +52,44 @@ env:
   OTP_VERSION: "27.3.4.16"
 
 jobs:
+  # Whether the change touches anything outside docs/. A PR, or a dispatched
+  # run on the health-history branch, that changes only docs/** skips the
+  # tests, the health ratchet, Credo and Dialyzer: no code changed. Test still
+  # compiles, builds the docs and checks their links (the extras in mix.exs
+  # live in docs/), and Test and Dialyzer still report (a job skipped by its
+  # `if` counts as passed), so such a PR stays mergeable. Pushes to main
+  # always run in full: this job is skipped there. If it is skipped or fails,
+  # `code` is empty and everything runs.
+  changes:
+    name: Changed files
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      - name: Files outside docs/
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.pull_request.base.sha || 'main' }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # Three dots: the changes since the merge base. The compare API
+          # lists at most 300 files; a change that big counts as code.
+          compare=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE...$HEAD")
+          count=$(jq '.files | length' <<< "$compare")
+          outside=$(jq -r '.files[] | .filename, (.previous_filename // empty)' <<< "$compare" | grep -v '^docs/' || true)
+          if [ -n "$outside" ] || [ "$count" -ge 300 ]; then code=true; else code=false; fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Changed files: $count. Outside docs/: ${outside:-none}. Code checks run: $code." >> "$GITHUB_STEP_SUMMARY"
+
   test:
     name: Test
+    needs: changes
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -94,22 +131,26 @@ jobs:
         run: mix deps.get
 
       - name: Check for unused deps in mix.lock
+        if: needs.changes.outputs.code != 'false'
         run: mix deps.unlock --check-unused
 
       - name: Compile (warnings as errors)
         run: mix compile --warnings-as-errors
 
       - name: Check formatting
+        if: needs.changes.outputs.code != 'false'
         run: mix format --check-formatted
 
       # Game and shared code must never depend on admin code: admin-only merges
       # reach production without Gentry or the playtest batch. Reads the lists in
       # .github/deploy-lanes.txt and the `mix xref graph` dependencies.
       - name: Admin boundary (game code never depends on admin code)
+        if: needs.changes.outputs.code != 'false'
         run: mix deploy.check_boundaries
 
 
       - name: Credo
+        if: needs.changes.outputs.code != 'false'
         run: mix credo --strict
 
       # Code health ratchet (docs/health/README.md): no worse than the base
@@ -122,6 +163,7 @@ jobs:
       # run (the health-history branch) is not a merge: its base is the
       # merge base with main, so commits on main since are not counted.
       - name: Code health ratchet
+        if: needs.changes.outputs.code != 'false'
         run: |
           if [ "${{ github.event_name }}" = workflow_dispatch ]; then
             git fetch --quiet --unshallow origin main && base=$(git merge-base HEAD FETCH_HEAD)
@@ -133,10 +175,11 @@ jobs:
       # Coverage: `mix test --cover` fails below the threshold in mix.exs
       # (test_coverage). The HTML report is uploaded as an artifact.
       - name: Test (with coverage)
+        if: needs.changes.outputs.code != 'false'
         run: mix test --cover --warnings-as-errors
 
       - name: Upload coverage report
-        if: always()
+        if: always() && needs.changes.outputs.code != 'false'
         uses: actions/upload-artifact@v7
         with:
           name: coverage
@@ -165,6 +208,8 @@ jobs:
   # .dialyzer_ignore.exs.
   dialyzer:
     name: Dialyzer
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -225,6 +270,8 @@ jobs:
   # does not fail on warnings.
   dep_warnings:
     name: Dependency warnings
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     continue-on-error: true
@@ -270,7 +317,7 @@ jobs:
   report_dispatch:
     name: Report dispatched checks
     if: always() && github.event_name == 'workflow_dispatch'
-    needs: [test, dialyzer]
+    needs: [changes, test, dialyzer]
     runs-on: ubuntu-24.04
     permissions:
       statuses: write
@@ -278,6 +325,7 @@ jobs:
       - name: Set the Test and Dialyzer statuses on the branch head
         env:
           GH_TOKEN: ${{ github.token }}
+          CHANGES: ${{ needs.changes.result }}
           TEST: ${{ needs.test.result }}
           DIALYZER: ${{ needs.dialyzer.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -285,7 +333,13 @@ jobs:
           for pair in "Test:$TEST" "Dialyzer:$DIALYZER"; do
             name=${pair%%:*}
             result=${pair#*:}
-            if [ "$result" = success ]; then state=success; else state=failure; fi
+            # Dialyzer is skipped on purpose when only docs/ changed (the
+            # changes job succeeded and said so).
+            if [ "$result" = success ] || { [ "$result" = skipped ] && [ "$CHANGES" = success ]; }; then
+              state=success
+            else
+              state=failure
+            fi
             gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
               -f context="$name" -f state="$state" -f target_url="$RUN_URL" \
               -f description="Dispatched CI run: $name $result"
