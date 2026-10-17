@@ -1,5 +1,10 @@
 # Code health ratchet
 
+The ratchet measures only code we write, which is `lib/`. It never
+measures `deps/` or generated framework code, and framework-dictated shapes
+are exempt: `@impl` callbacks are not counted for parameters, and the `~p`
+edges into the router are not counted as cycles (#338).
+
 `baseline.json` holds the code health debt as of the day it was written:
 
 - `cycles`: every `mix xref graph --format cycles` cycle (`all`) and every
