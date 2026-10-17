@@ -59,14 +59,14 @@ defmodule TalesForge.Game.WaitTest do
     fronts = [guild_front()]
 
     events =
-      Events.from_turn(
-        player_action("wait three days"),
-        handler,
-        %MechanicalResolution{outcome: "none"},
-        world,
-        after_world,
-        fronts
-      )
+      Events.from_turn(%Events.Turn{
+        player_action: player_action("wait three days"),
+        handler: handler,
+        mechanical: %MechanicalResolution{outcome: "none"},
+        world_before: world,
+        world_after: after_world,
+        fronts: fronts
+      })
 
     time = Enum.find(events, &(&1["kind"] == "time.passed"))
     dawdle = Enum.find(events, &(&1["kind"] == "player.dawdled"))
@@ -106,14 +106,14 @@ defmodule TalesForge.Game.WaitTest do
     }
 
     events =
-      Events.from_turn(
-        player_action("I wait three days"),
-        handler,
-        %MechanicalResolution{outcome: "none"},
-        world,
-        WorldClock.advance(world, 288),
-        [guild_front()]
-      )
+      Events.from_turn(%Events.Turn{
+        player_action: player_action("I wait three days"),
+        handler: handler,
+        mechanical: %MechanicalResolution{outcome: "none"},
+        world_before: world,
+        world_after: WorldClock.advance(world, 288),
+        fronts: [guild_front()]
+      })
 
     refute Enum.any?(events, &(&1["kind"] == "player.dawdled"))
   end

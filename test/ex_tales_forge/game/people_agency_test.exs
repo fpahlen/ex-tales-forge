@@ -244,15 +244,15 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     world = %{"character" => %{"location_id" => "square"}, "world_tick" => 1}
 
     events =
-      Events.from_turn(
-        player_action,
-        ActionHandler.resolve(player_action),
-        %MechanicalResolution{outcome: "none"},
-        world,
-        world,
-        [],
-        people
-      )
+      Events.from_turn(%Events.Turn{
+        player_action: player_action,
+        handler: ActionHandler.resolve(player_action),
+        mechanical: %MechanicalResolution{outcome: "none"},
+        world_before: world,
+        world_after: world,
+        fronts: [],
+        people: people
+      })
 
     slight = Enum.find(events, &(&1["kind"] == "npc.slighted"))
 
