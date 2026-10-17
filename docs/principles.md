@@ -29,7 +29,7 @@ Good design is design that is easier to change than the alternative. Every decis
 ## Practices in Tales Forge
 - A turn is a pipeline of data transformations (Jev, premise check, mechanics, NPCs, prompt, GM, save), with side effects at the edges.
 - The server decides, the GM narrates. Game facts (money, debts, deals, prices, position, who fled) are exact data; the GM never invents them.
-- NPCs and players are the same kind of character with one memory model. Memories fade and are biased by each character's interests; game facts never are. NPC code gets turn data passed in and never calls back into the turn processor.
+- There is only GameCharacter. Every character has the same data, rules, memory and abilities. A Player Character is a GameCharacter whose intentions come from a human; an NPC is a GameCharacter whose intentions come from the system or the GM. Nothing else may differ: code never branches on player versus NPC except where intentions come in. Memories fade and are biased by each character's interests; game facts never are. Character code gets turn data passed in and never calls back into the turn processor.
 - The domain never calls the web layer. The UI is built from components first; layouts and styles come after.
 - Risky game behaviour ships behind a flag that stays off on prod until it passes on playtest.
 - Times are stored in UTC and shown in the viewer's local time. A dependency is added only if it is actively maintained or held in high standing in the community.
