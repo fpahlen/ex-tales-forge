@@ -3,16 +3,15 @@ defmodule TalesForge.Game.Inventory do
 
   defmodule Transaction do
     # One inventory action on its way through the inventory steps: the
-    # world, the session, the location, the resolved action, the character,
+    # world, the location, the resolved action, the character,
     # and the inventory, ground items, coins and NPC stock that the steps
     # change. `applied` is the log of what happened and `npc_updates` the
-    # NPC stock to save.
+    # NPC stock the caller saves.
     @moduledoc false
 
-    @enforce_keys [:world_state, :session_id, :location_id, :action, :character]
+    @enforce_keys [:world_state, :location_id, :action, :character]
     defstruct [
       :world_state,
-      :session_id,
       :location_id,
       :action,
       :character,
@@ -26,7 +25,6 @@ defmodule TalesForge.Game.Inventory do
 
     @type t :: %__MODULE__{
             world_state: map(),
-            session_id: String.t(),
             location_id: String.t(),
             action: TalesForge.Game.Schemas.SingleAction.t(),
             character: map(),
@@ -41,7 +39,6 @@ defmodule TalesForge.Game.Inventory do
 
   alias TalesForge.Game.Schemas.SingleAction
   alias TalesForge.Game.World
-  alias TalesForge.NPC
 
   @inventory_actions ~w(pickup drop buy sell trade spend)a
 
@@ -50,30 +47,32 @@ defmodule TalesForge.Game.Inventory do
 
   def inventory_actions, do: @inventory_actions
 
-  def apply_server_inventory(world_state, session_id, action, handler) do
-    if handler.handler == "inventory" and action.action_type in @inventory_actions do
-      apply_transaction(world_state, session_id, action)
-    else
-      {:ok, world_state, nil}
-    end
-  end
+  @doc false
+  # True when the inventory step runs for this handler and action.
+  @spec applies?(map(), SingleAction.t()) :: boolean()
+  def applies?(handler, %SingleAction{action_type: type}),
+    do: handler.handler == "inventory" and type in @inventory_actions
 
-  def apply_transaction(world_state, session_id, %SingleAction{} = action) do
+  @doc false
+  # Pure: `npc_stock` is the stock of the NPCs `npc_stock_keys/2` names
+  # (`TalesForge.NPC.stock_map/2`); the caller saves the returned
+  # `npc_updates` (`TalesForge.NPC.persist_stock_updates/2`).
+  @spec apply_transaction(map(), map(), SingleAction.t()) ::
+          {:ok, map(), %{applied: [String.t()]}, map()} | {:error, String.t()}
+  def apply_transaction(world_state, npc_stock, %SingleAction{} = action) do
     location_id = get_in(world_state, ["character", "location_id"]) || "weary_pilgrim"
     character = Map.get(world_state, "character", %{})
-    present_npcs = Map.get(world_state, "present_npcs", [])
 
     transaction =
       resolve_action(%Transaction{
         world_state: world_state,
-        session_id: session_id,
         location_id: location_id,
         action: action,
         character: character,
         inventory: normalize_items(Map.get(character, "inventory", [])),
         ground_items: ground_items_for(world_state, location_id),
         coins: Map.get(character, "coins", %{}),
-        npc_stock: NPC.stock_map(session_id, npc_stock_keys(action, present_npcs))
+        npc_stock: npc_stock
       })
 
     with :ok <- validate_transaction(transaction), do: do_apply(transaction)
@@ -339,7 +338,6 @@ defmodule TalesForge.Game.Inventory do
 
   defp do_apply(%Transaction{} = t) do
     t = step(t, t.action.action_type, t.action.parameters || %{})
-    :ok = NPC.persist_stock_updates(t.session_id, t.npc_updates)
 
     character =
       t.character
@@ -351,7 +349,7 @@ defmodule TalesForge.Game.Inventory do
       |> put_in(["character"], character)
       |> put_ground_items(t.location_id, t.ground_items)
 
-    {:ok, world_state, %{applied: t.applied}}
+    {:ok, world_state, %{applied: t.applied}, t.npc_updates}
   rescue
     error in ArgumentError ->
       {:error, Exception.message(error)}
@@ -685,21 +683,24 @@ defmodule TalesForge.Game.Inventory do
     end)
   end
 
-  defp npc_stock_keys(%SingleAction{action_type: :buy} = action, present_npcs) do
+  @doc false
+  # The NPCs whose stock `apply_transaction/3` needs for `action`.
+  @spec npc_stock_keys(SingleAction.t(), [String.t()]) :: [String.t()]
+  def npc_stock_keys(%SingleAction{action_type: :buy} = action, present_npcs) do
     case npc_ref(action, "") do
       "" -> present_npcs
       npc_id -> Enum.uniq([npc_id | List.wrap(present_npcs)])
     end
   end
 
-  defp npc_stock_keys(%SingleAction{action_type: :trade} = action, _present_npcs) do
+  def npc_stock_keys(%SingleAction{action_type: :trade} = action, _present_npcs) do
     params = action.parameters || %{}
     counterparty = params |> Map.get("counterparty", "ground") |> to_string() |> String.trim()
 
     if counterparty in ["", "ground"], do: [], else: [counterparty]
   end
 
-  defp npc_stock_keys(_action, _present_npcs), do: []
+  def npc_stock_keys(_action, _present_npcs), do: []
 
   defp find_item_index(items, item_id) do
     Enum.find_index(items, &(&1["id"] == item_id))
