@@ -4,6 +4,7 @@ defmodule Mix.Tasks.Health.CheckTest do
   alias Mix.Tasks.Health.Check
 
   doctest Mix.Tasks.Health.Check.Params
+  doctest Mix.Tasks.Health.Check.LiveViews
 
   @limits %{"cyclomatic_complexity" => 9, "abc_size" => 30}
 
@@ -124,6 +125,25 @@ defmodule Mix.Tasks.Health.CheckTest do
 
     test "a baseline from before the rule has nothing to compare with" do
       assert Check.check(numbers(), wide([{"A.f/4", 4}])) == []
+    end
+  end
+
+  describe "LiveView -> LiveView references" do
+    defp live(refs), do: Map.put(numbers(), "live_view_references", refs)
+
+    test "a new reference fails, a listed or removed one passes" do
+      base = live([%{"from" => "lib/a_live.ex", "to" => ["lib/b_live.ex"]}])
+      assert Check.check(base, base) == []
+      assert Check.check(base, live([])) == []
+
+      assert [msg] =
+               Check.check(base, live([%{"from" => "lib/a_live.ex", "to" => ["lib/c_live.ex"]}]))
+
+      assert msg =~ "new LiveView -> LiveView reference: lib/a_live.ex -> lib/c_live.ex"
+    end
+
+    test "a baseline from before the rule has nothing to compare with" do
+      assert Check.check(numbers(), live([%{"from" => "a", "to" => ["b"]}])) == []
     end
   end
 

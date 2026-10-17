@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Health.Snapshot do
   @svg "docs/health/trend.svg"
 
   @columns ~w(date pr cycles largest_cycle compile_connected_cycles compile_connected_largest
-              web_refs complex_functions params_4plus)
+              web_refs complex_functions params_4plus counting)
 
   @impl Mix.Task
   def run(args) do
@@ -81,7 +81,8 @@ defmodule Mix.Tasks.Health.Snapshot do
       "compile_connected_largest" => s["largest_cycle"]["compile-connected"],
       "web_refs" => s["web_reference_edges"],
       "complex_functions" => s["complex_function_count"],
-      "params_4plus" => s["wide_function_count"]
+      "params_4plus" => s["wide_function_count"],
+      "counting" => numbers["counting"]
     }
   end
 
@@ -161,6 +162,9 @@ defmodule Mix.Tasks.Health.Snapshot do
   parameters (bottom to top). Each
   segment shows its value, each bar its total on top, and a thin dashed
   line joins a segment's top to the same segment's top on the next bar.
+  A bar whose `counting` differs from the bar before it (a row without one
+  counts as 1) gets a grey dashed line and "counting changed": that drop or
+  rise comes from how `mix health.check` counts, not from the code.
   """
   @spec svg([map()]) :: String.t()
   def svg(rows) do
@@ -174,6 +178,7 @@ defmodule Mix.Tasks.Health.Snapshot do
     #{grid(g)}
     #{rows |> Enum.zip(tops) |> Enum.with_index() |> Enum.map_join("\n", &bar(&1, g))}
     #{links(tops, g)}
+    #{marks(rows, g)}
     #{legend()}
     </svg>
     """
@@ -234,6 +239,20 @@ defmodule Mix.Tasks.Health.Snapshot do
         ~s|<line x1="#{f(x(g, i) + bar)}" y1="#{f(y(g, ta))}" x2="#{f(x(g, i + 1))}" y2="#{f(y(g, tb))}" stroke="#{color}" stroke-width="1" stroke-dasharray="3 3"/>|
       end
     )
+  end
+
+  # A grey dashed line left of each bar where the counting changed.
+  defp marks(rows, g) do
+    counts = Enum.map(rows, &(&1["counting"] || 1))
+
+    for {{a, b}, i} <- counts |> Enum.zip(Enum.drop(counts, 1)) |> Enum.with_index(1),
+        a != b,
+        into: "" do
+      line_x = f(@pad.l + i * g.slot)
+
+      ~s|<line x1="#{line_x}" y1="#{@pad.t - 8}" x2="#{line_x}" y2="#{@h - @pad.b}" stroke="#6b7280" stroke-width="1" stroke-dasharray="2 4"/>| <>
+        ~s|<text x="#{line_x}" y="#{@pad.t - 12}" text-anchor="middle" font-size="10" fill="#6b7280">counting changed</text>|
+    end
   end
 
   defp legend do
