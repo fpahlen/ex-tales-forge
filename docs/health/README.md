@@ -17,7 +17,7 @@ than the baseline: more cycles, a cycle that is new or bigger than every
 baseline cycle, a new domain -> web reference, a new function over a limit,
 a score above its ceiling, a new function with 4+ parameters, or a baseline
 one that gained parameters. In CI it also runs with `--base` (the PR's base
-branch): the baseline may only shrink. Removing entries and lowering
+branch; on a push to main, the merge's first parent): the baseline may only shrink. Removing entries and lowering
 ceilings pass; adding an entry or raising a ceiling fails.
 
 After paying debt down, run `mix health.check --write` and commit the
