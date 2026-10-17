@@ -13,7 +13,7 @@ defmodule TalesForge.Online.Peer do
   use GenServer
 
   alias TalesForge.AppRole
-  alias TalesForge.Online
+  alias TalesForge.Online.Founders
 
   @path "/internal/online"
   @interval_ms 10_000
@@ -34,7 +34,7 @@ defmodule TalesForge.Online.Peer do
   def url, do: String.trim_trailing(AppRole.base_url(:playtest), "/") <> @path
 
   @doc "Playtest's founders while the last answer is fresh, otherwise `[]`."
-  @spec founders(DateTime.t()) :: [Online.founder()]
+  @spec founders(DateTime.t()) :: [Founders.t()]
   def founders(now \\ DateTime.utc_now()) do
     case lookup(:peer) do
       {list, %DateTime{} = at} ->
@@ -50,7 +50,7 @@ defmodule TalesForge.Online.Peer do
   def put(list, %DateTime{} = at) do
     old = founders(at)
     insert({:peer, {list, at}})
-    if strip(old) != strip(list), do: Online.broadcast_changed()
+    if strip(old) != strip(list), do: Founders.broadcast_changed()
     :ok
   end
 
@@ -60,7 +60,7 @@ defmodule TalesForge.Online.Peer do
   Fetches playtest's list once. `{:ok, founders}`, or `{:error, reason}` when
   the token is unset or playtest does not answer well. Never raises.
   """
-  @spec fetch() :: {:ok, [Online.founder()]} | {:error, term()}
+  @spec fetch() :: {:ok, [Founders.t()]} | {:error, term()}
   def fetch do
     case AppRole.peer_token() do
       nil -> {:error, :not_configured}
@@ -80,7 +80,7 @@ defmodule TalesForge.Online.Peer do
            ] ++ Application.get_env(:ex_tales_forge, :online_peer_req_options, [])
          ) do
       {:ok, %Req.Response{status: 200, body: %{"founders" => list}}} when is_list(list) ->
-        {:ok, list |> Online.normalize() |> Enum.map(&%{&1 | app: "playtest"})}
+        {:ok, list |> Founders.normalize() |> Enum.map(&%{&1 | app: "playtest"})}
 
       {:ok, %Req.Response{status: status}} ->
         {:error, {:http_status, status}}
