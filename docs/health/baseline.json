@@ -339,11 +339,6 @@
       "function": "TalesForge.Game.Inventory.validate_transaction"
     },
     {
-      "abc_size": 44,
-      "file": "lib/ex_tales_forge/game/jev_intent.ex",
-      "function": "TalesForge.Game.JevIntent.decode"
-    },
-    {
       "abc_size": 47,
       "cyclomatic_complexity": 10,
       "file": "lib/ex_tales_forge/game/jev_intent.ex",
@@ -1377,7 +1372,7 @@
     "cyclomatic_complexity": 9
   },
   "summary": {
-    "complex_function_count": 153,
+    "complex_function_count": 152,
     "cycle_count": {
       "all": 65,
       "compile-connected": 1
@@ -1388,7 +1383,7 @@
     },
     "web_reference_edges": 4,
     "web_reference_files": 2,
-    "wide_function_count": 206
+    "wide_function_count": 203
   },
   "web_references": [
     {
@@ -1764,23 +1759,8 @@
     },
     {
       "file": "lib/ex_tales_forge/game/jev_intent.ex",
-      "function": "TalesForge.Game.JevIntent.build_extraction/8",
-      "params": 8
-    },
-    {
-      "file": "lib/ex_tales_forge/game/jev_intent.ex",
-      "function": "TalesForge.Game.JevIntent.parameters/6",
-      "params": 6
-    },
-    {
-      "file": "lib/ex_tales_forge/game/jev_intent.ex",
       "function": "TalesForge.Game.JevIntent.pick_target/6",
       "params": 6
-    },
-    {
-      "file": "lib/ex_tales_forge/game/jev_intent.ex",
-      "function": "TalesForge.Game.JevIntent.put_numbers/5",
-      "params": 5
     },
     {
       "file": "lib/ex_tales_forge/game/mechanics.ex",
