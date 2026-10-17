@@ -127,7 +127,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
     assert stances == ~w(hostile cool neutral warm friendly)
   end
 
-  test "react/5 returns typed reactions, carries the mood and records jev rows", %{
+  test "react/1 returns typed reactions, carries the mood and records jev rows", %{
     session: session
   } do
     jev_on()
@@ -142,7 +142,14 @@ defmodule TalesForge.Game.NpcReactionsTest do
     world = session.world_state
     assert "innkeep" in world["present_npcs"]
 
-    {[r], world} = NpcReactions.react(session.id, world, 1, "Any rooms?", %MechanicalResolution{})
+    {[r], world} =
+      NpcReactions.react(%NpcReactions.Moment{
+        session_id: session.id,
+        world: world,
+        turn_number: 1,
+        raw_action: "Any rooms?",
+        mechanical: %MechanicalResolution{}
+      })
 
     assert r["npc_id"] == "innkeep"
     assert r["name"] == "Brenna Holt"
@@ -155,7 +162,15 @@ defmodule TalesForge.Game.NpcReactionsTest do
     assert inspect(request) =~ "Mood before this moment: neutral."
 
     # The next turn's call starts from the carried-over mood.
-    {[_], _world} = NpcReactions.react(session.id, world, 2, "Please?", %MechanicalResolution{})
+    {[_], _world} =
+      NpcReactions.react(%NpcReactions.Moment{
+        session_id: session.id,
+        world: world,
+        turn_number: 2,
+        raw_action: "Please?",
+        mechanical: %MechanicalResolution{}
+      })
+
     assert_receive {:jev, request2}
     assert inspect(request2) =~ "Mood before this moment: wary (0.7), stance cool."
 
@@ -173,7 +188,14 @@ defmodule TalesForge.Game.NpcReactionsTest do
     Req.Test.stub(Jev.HTTP, &Jev.Test.error(&1, 500, "boom"))
 
     capture_log(fn ->
-      assert {[], ^world} = NpcReactions.react(session.id, world, 1, "Hi", nil)
+      assert {[], ^world} =
+               NpcReactions.react(%NpcReactions.Moment{
+                 session_id: session.id,
+                 world: world,
+                 turn_number: 1,
+                 raw_action: "Hi",
+                 mechanical: nil
+               })
     end)
 
     Req.Test.stub(Jev.HTTP, fn conn ->
@@ -182,7 +204,14 @@ defmodule TalesForge.Game.NpcReactionsTest do
     end)
 
     capture_log(fn ->
-      assert {[], ^world} = NpcReactions.react(session.id, world, 2, "Hi", nil)
+      assert {[], ^world} =
+               NpcReactions.react(%NpcReactions.Moment{
+                 session_id: session.id,
+                 world: world,
+                 turn_number: 2,
+                 raw_action: "Hi",
+                 mechanical: nil
+               })
     end)
 
     assert Repo.all(from c in AICall, where: c.purpose == "npc_reaction", select: c.status) ==

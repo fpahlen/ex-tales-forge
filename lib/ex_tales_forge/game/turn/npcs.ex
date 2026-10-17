@@ -39,14 +39,14 @@ defmodule TalesForge.Game.Turn.Npcs do
     if enabled?(turn) do
       Steps.time(:npc_reactions, fn ->
         {reactions, world} =
-          turn.adapters.npc.(
-            turn.session.id,
-            board.world,
-            turn.number,
-            turn.raw_action,
-            turn.outcome.mechanical,
-            findings
-          )
+          turn.adapters.npc.(%NpcReactions.Moment{
+            session_id: turn.session.id,
+            world: board.world,
+            turn_number: turn.number,
+            raw_action: turn.raw_action,
+            mechanical: turn.outcome.mechanical,
+            findings: findings
+          })
 
         {reactions, %{board | world: world}}
       end)
