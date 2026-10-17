@@ -227,7 +227,7 @@ defmodule TalesForge.IntentEval do
 
         readings =
           Map.new(readers, fn reader ->
-            {reader, Readers.read(reader, item, context, opts)}
+            {reader, Readers.read(reader, %Readers.Input{item: item, context: context}, opts)}
           end)
 
         %{item: item, readings: readings}
