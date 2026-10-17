@@ -18,9 +18,9 @@ defmodule TalesForge.Playtest.JevScorer do
   require Logger
 
   alias TalesForge.AICalls
-  alias TalesForge.GameSessions
   alias TalesForge.Playtest.{AffectLevels, Personas, Reports, Runner}
   alias TalesForge.Repo
+  alias TalesForge.Scenes
   alias TalesForge.Schemas.PlaytestScore
 
   @model "jev-1.13.0"
@@ -80,7 +80,7 @@ defmodule TalesForge.Playtest.JevScorer do
 
   @doc false
   def build_state(run) do
-    opening = GameSessions.opening_scene(run.game_session_id)
+    opening = Scenes.opening(run.game_session_id)
     turns = Reports.turn_records(run.game_session_id)
 
     opening_block =

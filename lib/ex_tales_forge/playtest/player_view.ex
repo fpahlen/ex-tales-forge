@@ -20,7 +20,7 @@ defmodule TalesForge.Playtest.PlayerView do
     session = session_id |> GameSessions.get_session!() |> Repo.preload([:turns, :scenes])
     world = session.world_state || %{}
     character = Map.get(world, "character", %{})
-    opening = GameSessions.opening_scene(session.id)
+    opening = TalesForge.Scenes.opening(session.id)
 
     [
       opening(opening),

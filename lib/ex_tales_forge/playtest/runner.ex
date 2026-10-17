@@ -291,7 +291,7 @@ defmodule TalesForge.Playtest.Runner do
   # already waited for the opening scene job, so this is a guard: never let
   # the persona make the first move into a session without an opening.
   defp gm_opened(state) do
-    if GameSessions.opening_scene(state.run.game_session_id),
+    if TalesForge.Scenes.opening(state.run.game_session_id),
       do: :ok,
       else: {:error, :no_opening_scene}
   end

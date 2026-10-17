@@ -49,6 +49,11 @@ a player or founder can see in the PR body.
   cycles` lists only some cycles. A cut makes it list older paths between
   the same files, and those look new. The gate compares each cycle with
   the old tangles, because removing edges can't create a cycle (#327).
+- **A context module that the turn code reads from closes every turn
+  cycle.** `Game.Context` called `GameSessions.opening_scene/1`, a plain
+  query, and GameSessions reaches the workers and both processors. The
+  query moved to the leaf `TalesForge.Scenes.opening/1` (#360): cycles 30 → 26,
+  largest 8 → 4.
 
 ## Moving code
 
@@ -88,6 +93,12 @@ a player or founder can see in the PR body.
   - `World.initial_state/8` → `/3` (#337)
   - `JevIntent.build_extraction/8` → `/1`, along with `parameters/6` and `put_numbers/5` (#341)
   - `Inventory.apply_trade/7` and `do_apply/7`, now one step per action (#342)
+- **Split a function that branches on a type into one clause per type.**
+  Build the struct first, then match the type in the head:
+  `Inventory.resolve_action/4` and `validate_transaction/4` (cyclomatic 27
+  and ABC 84) became `/1` with `%Inventory.Transaction{}`, with one small
+  clause per action, and `validate_buy/4` and `validate_trade_receive/4`
+  went with them.
 - **Watch the caller's complexity.** Building a struct literal adds to the
   caller's ABC score. When the caller goes over its ceiling, move the
   struct and the call it feeds into a small private step.

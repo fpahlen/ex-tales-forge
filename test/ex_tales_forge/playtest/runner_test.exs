@@ -309,7 +309,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     # The scene job keeps failing, so the run ends (timeout or error) with no move.
     assert {:ok, %{status: status, turns_played: 0} = run} = result
     assert status in ["stopped", "failed"]
-    assert GameSessions.opening_scene(run.game_session_id) == nil
+    assert TalesForge.Scenes.opening(run.game_session_id) == nil
     refute_received :persona_called
   end
 

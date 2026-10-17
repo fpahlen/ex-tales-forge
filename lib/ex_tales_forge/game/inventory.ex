@@ -61,105 +61,49 @@ defmodule TalesForge.Game.Inventory do
   def apply_transaction(world_state, session_id, %SingleAction{} = action) do
     location_id = get_in(world_state, ["character", "location_id"]) || "weary_pilgrim"
     character = Map.get(world_state, "character", %{})
-    ground_items = ground_items_for(world_state, location_id)
     present_npcs = Map.get(world_state, "present_npcs", [])
-    npc_stock = NPC.stock_map(session_id, npc_stock_keys(action, present_npcs))
 
-    resolved = resolve_action(action, character, ground_items, npc_stock)
+    transaction =
+      resolve_action(%Transaction{
+        world_state: world_state,
+        session_id: session_id,
+        location_id: location_id,
+        action: action,
+        character: character,
+        inventory: normalize_items(Map.get(character, "inventory", [])),
+        ground_items: ground_items_for(world_state, location_id),
+        coins: Map.get(character, "coins", %{}),
+        npc_stock: NPC.stock_map(session_id, npc_stock_keys(action, present_npcs))
+      })
 
-    case validate_transaction(resolved, character, ground_items, npc_stock) do
-      :ok ->
-        do_apply(%Transaction{
-          world_state: world_state,
-          session_id: session_id,
-          location_id: location_id,
-          action: resolved,
-          character: character,
-          inventory: normalize_items(Map.get(character, "inventory", [])),
-          ground_items: ground_items,
-          coins: Map.get(character, "coins", %{}),
-          npc_stock: npc_stock
-        })
+    with :ok <- validate_transaction(transaction), do: do_apply(transaction)
+  end
 
-      {:error, reason} ->
-        {:error, reason}
+  def validate_transaction(%Transaction{action: %SingleAction{action_type: type} = action} = t),
+    do: validate(type, action, t)
+
+  defp validate(:drop, action, %Transaction{inventory: inventory}) do
+    with item_id when item_id != "" <- item_ref(action),
+         true <- item_quantity(inventory, item_id) >= action_quantity(params(action)) do
+      :ok
+    else
+      "" -> {:error, "Drop requires an item_id target."}
+      false -> {:error, "Cannot drop '#{item_ref(action)}' — not in inventory."}
     end
   end
 
-  def validate_transaction(%SingleAction{} = action, character, ground_items, npc_stock) do
-    params = action.parameters || %{}
-    inventory = normalize_items(Map.get(character, "inventory", []))
-
-    case action.action_type do
-      :drop ->
-        with item_id when item_id != "" <- item_ref(action),
-             true <- item_quantity(inventory, item_id) >= action_quantity(params) do
-          :ok
-        else
-          "" -> {:error, "Drop requires an item_id target."}
-          false -> {:error, "Cannot drop '#{item_ref(action)}' — not in inventory."}
-        end
-
-      :pickup ->
-        with item_id when item_id != "" <- item_ref(action),
-             true <- item_quantity(ground_items, item_id) >= action_quantity(params) do
-          :ok
-        else
-          "" -> {:error, "Pickup requires an item_id target."}
-          false -> {:error, "Cannot pick up '#{item_ref(action)}' — not on the ground here."}
-        end
-
-      :buy ->
-        validate_buy(action, params, character, npc_stock)
-
-      :sell ->
-        item_id = Map.get(params, "item_id", "") |> to_string() |> String.trim()
-        qty = action_quantity(params)
-        npc_id = npc_ref(action, "")
-
-        cond do
-          item_id == "" ->
-            {:error, "Sell requires parameters.item_id."}
-
-          npc_id == "" ->
-            {:error, "Sell requires an NPC target."}
-
-          item_quantity(inventory, item_id) < qty ->
-            {:error, "Cannot sell '#{item_id}' — not in inventory."}
-
-          true ->
-            :ok
-        end
-
-      :spend ->
-        amount = spend_amount(action)
-
-        cond do
-          amount <= 0 ->
-            {:error, "Spend requires parameters.amount_copper."}
-
-          coin_total_copper(Map.get(character, "coins", %{})) < amount ->
-            {:error, "Insufficient funds (need #{amount}c)."}
-
-          true ->
-            :ok
-        end
-
-      :trade ->
-        with {:ok, give_items, receive_items, counterparty} <- trade_legs(params),
-             :ok <- validate_trade_give(inventory, give_items),
-             :ok <- validate_trade_receive(receive_items, counterparty, ground_items, npc_stock) do
-          :ok
-        else
-          {:error, reason} -> {:error, reason}
-        end
-
-      _ ->
-        {:error, "Not an inventory action."}
+  defp validate(:pickup, action, %Transaction{ground_items: ground_items}) do
+    with item_id when item_id != "" <- item_ref(action),
+         true <- item_quantity(ground_items, item_id) >= action_quantity(params(action)) do
+      :ok
+    else
+      "" -> {:error, "Pickup requires an item_id target."}
+      false -> {:error, "Cannot pick up '#{item_ref(action)}' — not on the ground here."}
     end
   end
 
-  defp validate_buy(action, params, character, npc_stock) do
+  defp validate(:buy, action, %Transaction{character: character, npc_stock: npc_stock}) do
+    params = params(action)
     item_id = Map.get(params, "item_id", "") |> to_string() |> String.trim()
     qty = action_quantity(params)
     npc_id = resolve_buy_npc_id(action, params, npc_stock)
@@ -185,6 +129,51 @@ defmodule TalesForge.Game.Inventory do
         :ok
     end
   end
+
+  defp validate(:sell, action, %Transaction{inventory: inventory}) do
+    params = params(action)
+    item_id = Map.get(params, "item_id", "") |> to_string() |> String.trim()
+
+    cond do
+      item_id == "" ->
+        {:error, "Sell requires parameters.item_id."}
+
+      npc_ref(action, "") == "" ->
+        {:error, "Sell requires an NPC target."}
+
+      item_quantity(inventory, item_id) < action_quantity(params) ->
+        {:error, "Cannot sell '#{item_id}' — not in inventory."}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate(:spend, action, %Transaction{character: character}) do
+    amount = spend_amount(action)
+
+    cond do
+      amount <= 0 ->
+        {:error, "Spend requires parameters.amount_copper."}
+
+      coin_total_copper(Map.get(character, "coins", %{})) < amount ->
+        {:error, "Insufficient funds (need #{amount}c)."}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate(:trade, action, %Transaction{inventory: inventory} = t) do
+    with {:ok, give_items, receive_items, counterparty} <- trade_legs(params(action)),
+         :ok <- validate_trade_give(inventory, give_items) do
+      validate_trade_receive(receive_items, counterparty, t)
+    end
+  end
+
+  defp validate(_type, _action, _t), do: {:error, "Not an inventory action."}
+
+  defp params(%SingleAction{parameters: params}), do: params || %{}
 
   def normalize_stock(raw) when is_list(raw) do
     Enum.flat_map(raw, fn
@@ -517,77 +506,55 @@ defmodule TalesForge.Game.Inventory do
     %{t | npc_updates: %{counterparty => stock}}
   end
 
-  defp resolve_action(action, character, ground_items, npc_stock) do
-    params = action.parameters || %{}
-    inventory = normalize_items(Map.get(character, "inventory", []))
-
-    resolved_params =
-      case action.action_type do
-        :drop ->
-          item_id =
-            Map.get(params, "item_id") ||
-              resolve_item_id(to_string(action.target || ""), inventory)
-
-          Map.put(params, "item_id", item_id || "")
-
-        :pickup ->
-          item_id =
-            Map.get(params, "item_id") ||
-              resolve_item_id(to_string(action.target || ""), ground_items)
-
-          Map.put(params, "item_id", item_id || "")
-
-        :buy ->
-          named_npc = npc_ref(action, "")
-
-          stock_items =
-            if named_npc == "" do
-              npc_stock |> Map.values() |> List.flatten() |> normalize_stock()
-            else
-              normalize_stock(Map.get(npc_stock, named_npc, []))
-            end
-
-          item_id =
-            Map.get(params, "item_id") ||
-              resolve_item_id(to_string(action.target || ""), stock_items)
-
-          npc_id =
-            if named_npc == "" do
-              seller_for_item(npc_stock, item_id || "") || ""
-            else
-              named_npc
-            end
-
-          params
-          |> Map.put("item_id", item_id || "")
-          |> Map.put("npc_id", npc_id)
-
-        :sell ->
-          item_id =
-            Map.get(params, "item_id") ||
-              resolve_item_id(to_string(action.target || ""), inventory)
-
-          Map.put(params, "item_id", item_id || "")
-
-        :spend ->
-          amount = spend_amount(%{action | parameters: params})
-          Map.put(params, "amount_copper", amount)
-
-        _ ->
-          params
-      end
-
-    target =
-      case action.action_type do
-        type when type in [:drop, :pickup] ->
-          Map.get(params, "item_id") || action.target
-
-        _ ->
-          action.target
-      end
-
-    %{action | parameters: resolved_params, target: target}
+  # The action with its item, NPC and amount filled in from the inventory,
+  # the ground and the NPC stock.
+  defp resolve_action(%Transaction{action: %SingleAction{action_type: type} = action} = t) do
+    params = params(action)
+    resolved = resolve_params(type, params, t)
+    %{t | action: %{action | parameters: resolved, target: resolved_target(action, params)}}
   end
+
+  defp resolve_params(type, params, %Transaction{action: action, inventory: inventory})
+       when type in [:drop, :sell],
+       do: put_item_id(params, action, inventory)
+
+  defp resolve_params(:pickup, params, %Transaction{action: action, ground_items: ground_items}),
+    do: put_item_id(params, action, ground_items)
+
+  defp resolve_params(:buy, params, %Transaction{action: action, npc_stock: npc_stock}) do
+    named_npc = npc_ref(action, "")
+    item_id = item_id_in(params, action, buy_stock(npc_stock, named_npc))
+
+    params
+    |> Map.put("item_id", item_id || "")
+    |> Map.put("npc_id", buy_npc(npc_stock, named_npc, item_id))
+  end
+
+  defp resolve_params(:spend, params, %Transaction{action: action}),
+    do: Map.put(params, "amount_copper", spend_amount(%{action | parameters: params}))
+
+  defp resolve_params(_type, params, _t), do: params
+
+  defp put_item_id(params, action, items),
+    do: Map.put(params, "item_id", item_id_in(params, action, items) || "")
+
+  defp item_id_in(params, action, items),
+    do: Map.get(params, "item_id") || resolve_item_id(to_string(action.target || ""), items)
+
+  # The stock to buy from: the named NPC's, or every present NPC's.
+  defp buy_stock(npc_stock, ""),
+    do: npc_stock |> Map.values() |> List.flatten() |> normalize_stock()
+
+  defp buy_stock(npc_stock, named_npc), do: normalize_stock(Map.get(npc_stock, named_npc, []))
+
+  defp buy_npc(npc_stock, "", item_id), do: seller_for_item(npc_stock, item_id || "") || ""
+  defp buy_npc(_npc_stock, named_npc, _item_id), do: named_npc
+
+  defp resolved_target(%SingleAction{action_type: type} = action, params)
+       when type in [:drop, :pickup],
+       do: Map.get(params, "item_id") || action.target
+
+  defp resolved_target(%SingleAction{target: target}, _params), do: target
 
   defp ground_items_for(world_state, location_id) do
     world_state
@@ -696,7 +663,7 @@ defmodule TalesForge.Game.Inventory do
     end)
   end
 
-  defp validate_trade_receive(receive_items, "ground", ground_items, _npc_stock) do
+  defp validate_trade_receive(receive_items, "ground", %Transaction{ground_items: ground_items}) do
     Enum.reduce_while(receive_items, :ok, fn leg, _acc ->
       if item_quantity(ground_items, leg["id"]) < leg["quantity"] do
         {:halt, {:error, "Cannot receive '#{leg["id"]}' — not on the ground here."}}
@@ -706,7 +673,7 @@ defmodule TalesForge.Game.Inventory do
     end)
   end
 
-  defp validate_trade_receive(receive_items, counterparty, _ground_items, npc_stock) do
+  defp validate_trade_receive(receive_items, counterparty, %Transaction{npc_stock: npc_stock}) do
     stock = normalize_stock(Map.get(npc_stock, counterparty, []))
 
     Enum.reduce_while(receive_items, :ok, fn leg, _acc ->
