@@ -24,6 +24,7 @@ defmodule TalesForge.Game.PromptGoldenTest do
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.NPC
+  alias TalesForge.Prompt.Assemble
 
   @dir Path.expand("../../fixtures/prompts", __DIR__)
 
@@ -171,7 +172,7 @@ defmodule TalesForge.Game.PromptGoldenTest do
       {"intent context",
        session |> Context.build_intent_context() |> Context.format_intent_context()},
       {"npc gm sections", NPC.format_gm_sections(session.id, present)},
-      {"scene messages", messages(Prompts.scene_messages(context))},
+      {"scene messages", messages(Assemble.scene_messages(context))},
       {"gm turn 1", messages(gm_messages(context, 1, "look around"))},
       {"gm turn 4", messages(gm_messages(context, 4, "ask about the road"))}
     ]
@@ -187,7 +188,7 @@ defmodule TalesForge.Game.PromptGoldenTest do
       action: %SingleAction{action_type: :observe, target: nil}
     }
 
-    Prompts.gm_messages(
+    Assemble.gm_messages(
       context,
       %Prompts.GmTurn{
         mechanical: %MechanicalResolution{skill: "insight", roll: 14, outcome: "success"},

@@ -7,7 +7,6 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   alias TalesForge.Game.Events
   alias TalesForge.Game.Fronts.Moves
   alias TalesForge.Game.Intent
-  alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.Game.Turn.Board
@@ -15,6 +14,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.NPC
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.{NpcInstance, SessionEvent}
 
@@ -161,7 +161,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
   test "Crossroads GM prompt still Marta/ledger/ale with no blades" do
     {:ok, session} = GameSessions.create_session(%{name: "Crossroads"})
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
 
     assert prompt =~ "Marta"
     assert prompt =~ "missing ledger"
@@ -341,8 +341,8 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
   defp prompts(session) do
     {
-      Context.format_gm_prompt(Context.build_gm_context(session)),
-      Prompts.build_scene_user(session)
+      Assemble.format_gm_prompt(Context.build_gm_context(session)),
+      Assemble.build_scene_user(session)
     }
   end
 

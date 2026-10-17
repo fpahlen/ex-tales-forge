@@ -15,6 +15,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.NPC
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Schemas.AICall
 
   @xai_body %{
@@ -238,10 +239,10 @@ defmodule TalesForge.Game.NpcReactionsTest do
       turn_number: 2
     }
 
-    plain = Prompts.gm_messages(context, turn)
+    plain = Assemble.gm_messages(context, turn)
 
     with_reaction =
-      Prompts.gm_messages(Map.put(context, :npc_reactions, [reaction]), turn,
+      Assemble.gm_messages(Map.put(context, :npc_reactions, [reaction]), turn,
         flags: %{npc_reactions: true}
       )
 

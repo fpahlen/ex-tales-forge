@@ -1,7 +1,7 @@
 defmodule TalesForge.Game.Turn.Prompt do
   @moduledoc """
   Stage 5 of a turn: the GM context and the GM messages
-  (`TalesForge.Game.Prompts.gm_messages/3`, built by `TalesForge.Prompt`).
+  (`TalesForge.Prompt.Assemble.gm_messages/3`, built by `TalesForge.Prompt`).
   Writes `prompt`: `context` and `messages`.
   """
 
@@ -12,6 +12,7 @@ defmodule TalesForge.Game.Turn.Prompt do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.Turn
+  alias TalesForge.Prompt.Assemble
 
   @doc "Writes `prompt`."
   @spec build(Turn.t()) :: Turn.t()
@@ -32,7 +33,7 @@ defmodule TalesForge.Game.Turn.Prompt do
         |> put_player_request(turn.opts[:gm_note])
 
       messages =
-        Prompts.gm_messages(context, gm_turn(turn), flags: turn.flags, role: turn.role)
+        Assemble.gm_messages(context, gm_turn(turn), flags: turn.flags, role: turn.role)
 
       %{turn | prompt: %{context: context, messages: messages}}
     end)

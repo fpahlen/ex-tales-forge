@@ -43,7 +43,6 @@ defmodule TalesForge.Game.InventoryTest do
       assert {:error, _} =
                Inventory.validate_transaction(%Inventory.Transaction{
                  world_state: %{"character" => character},
-                 session_id: "session",
                  location_id: "here",
                  action: %SingleAction{
                    action_type: :drop,
@@ -69,8 +68,8 @@ defmodule TalesForge.Game.InventoryTest do
         parameters: %{"item_id" => "wooden_shield", "quantity" => 1}
       }
 
-      assert {:ok, updated, %{applied: applied}} =
-               Inventory.apply_transaction(world, "test", action)
+      assert {:ok, updated, %{applied: applied}, %{}} =
+               Inventory.apply_transaction(world, %{}, action)
 
       assert "dropped 1x wooden_shield" in applied
 
@@ -92,7 +91,7 @@ defmodule TalesForge.Game.InventoryTest do
         parameters: %{"item_id" => "wooden_shield", "quantity" => 1}
       }
 
-      {:ok, dropped, _} = Inventory.apply_transaction(world, "test", drop)
+      {:ok, dropped, _, %{}} = Inventory.apply_transaction(world, %{}, drop)
 
       pickup = %SingleAction{
         action_type: :pickup,
@@ -100,8 +99,8 @@ defmodule TalesForge.Game.InventoryTest do
         parameters: %{"item_id" => "wooden_shield", "quantity" => 1}
       }
 
-      assert {:ok, updated, %{applied: applied}} =
-               Inventory.apply_transaction(dropped, "test", pickup)
+      assert {:ok, updated, %{applied: applied}, %{}} =
+               Inventory.apply_transaction(dropped, %{}, pickup)
 
       assert "picked up 1x wooden_shield" in applied
 
@@ -118,8 +117,8 @@ defmodule TalesForge.Game.InventoryTest do
 
       before = Inventory.coin_total_copper(get_in(world, ["character", "coins"]))
 
-      assert {:ok, updated, %{applied: applied}} =
-               Inventory.apply_transaction(world, "test", action)
+      assert {:ok, updated, %{applied: applied}, %{}} =
+               Inventory.apply_transaction(world, %{}, action)
 
       assert applied == ["spent 2c"]
 
@@ -135,7 +134,7 @@ defmodule TalesForge.Game.InventoryTest do
         parameters: %{"item_id" => "missing_sword", "quantity" => 1}
       }
 
-      assert {:error, _} = Inventory.apply_transaction(world, "test", action)
+      assert {:error, _} = Inventory.apply_transaction(world, %{}, action)
     end
 
     test "ground trade exchanges items", %{world: world} do
@@ -162,8 +161,8 @@ defmodule TalesForge.Game.InventoryTest do
         }
       }
 
-      assert {:ok, updated, %{applied: applied}} =
-               Inventory.apply_transaction(world, "test", action)
+      assert {:ok, updated, %{applied: applied}, %{}} =
+               Inventory.apply_transaction(world, %{}, action)
 
       assert Enum.any?(applied, &String.contains?(&1, "gave"))
       assert Enum.any?(applied, &String.contains?(&1, "received"))
@@ -199,8 +198,11 @@ defmodule TalesForge.Game.InventoryTest do
 
       before = Inventory.coin_total_copper(get_in(world, ["character", "coins"]))
 
-      assert {:ok, updated, %{applied: applied}} =
-               Inventory.apply_transaction(world, session.id, action)
+      stock =
+        NPC.stock_map(session.id, Inventory.npc_stock_keys(action, world["present_npcs"] || []))
+
+      assert {:ok, updated, %{applied: applied}, npc_updates} =
+               Inventory.apply_transaction(world, stock, action)
 
       assert Enum.any?(applied, &String.contains?(&1, "bought"))
 
@@ -210,8 +212,7 @@ defmodule TalesForge.Game.InventoryTest do
       inventory = get_in(updated, ["character", "inventory"]) |> Inventory.normalize_items()
       assert Inventory.item_quantity(inventory, "ale_mug") == 1
 
-      stock = NPC.stock_map(session.id, ["marta_kellen"])["marta_kellen"]
-      assert Inventory.item_quantity(stock, "ale_mug") == 98
+      assert Inventory.item_quantity(npc_updates["marta_kellen"], "ale_mug") == 98
     end
 
     test "buy ale_mug from innkeep deducts 2c" do
@@ -233,8 +234,11 @@ defmodule TalesForge.Game.InventoryTest do
 
       before = Inventory.coin_total_copper(get_in(world, ["character", "coins"]))
 
-      assert {:ok, updated, %{applied: applied}} =
-               Inventory.apply_transaction(world, session.id, action)
+      stock =
+        NPC.stock_map(session.id, Inventory.npc_stock_keys(action, world["present_npcs"] || []))
+
+      assert {:ok, updated, %{applied: applied}, npc_updates} =
+               Inventory.apply_transaction(world, stock, action)
 
       assert Enum.any?(applied, &String.contains?(&1, "bought"))
 
@@ -244,8 +248,7 @@ defmodule TalesForge.Game.InventoryTest do
       inventory = get_in(updated, ["character", "inventory"]) |> Inventory.normalize_items()
       assert Inventory.item_quantity(inventory, "ale_mug") == 1
 
-      stock = NPC.stock_map(session.id, ["innkeep"])["innkeep"]
-      assert Inventory.item_quantity(stock, "ale_mug") == 98
+      assert Inventory.item_quantity(npc_updates["innkeep"], "ale_mug") == 98
     end
   end
 

@@ -40,20 +40,6 @@ defmodule TalesForge.Prompt.Profile do
   def turn_sections(%Ctx{call: :scene} = ctx), do: state_sections(ctx)
   def turn_sections(%Ctx{call: :gm} = ctx), do: state_sections(ctx) ++ [Sections.GmTurnAction]
 
-  @doc """
-  The fragments of the GM task prompt (`priv/prompts/gm_system/`) for the app
-  role. Production has a lean reply with no `gm_notes` and no
-  `location_name`, so its prompt leaves out the fragments that ask for them.
-
-      iex> TalesForge.Prompt.Profile.gm_task_fragments(%TalesForge.Prompt.Ctx{role: :production})
-      ~w(head output)
-      iex> TalesForge.Prompt.Profile.gm_task_fragments(%TalesForge.Prompt.Ctx{role: :playtest})
-      ~w(head location_name output gm_notes)
-  """
-  @spec gm_task_fragments(Ctx.t()) :: [String.t()]
-  def gm_task_fragments(%Ctx{role: :production}), do: ~w(head output)
-  def gm_task_fragments(%Ctx{}), do: ~w(head location_name output gm_notes)
-
   @doc "All sections for `ctx`, in cache order."
   @spec sections(Ctx.t()) :: [module()]
   def sections(ctx), do: static_sections(ctx) ++ session_sections(ctx) ++ turn_sections(ctx)
