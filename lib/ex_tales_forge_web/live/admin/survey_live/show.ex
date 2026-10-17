@@ -44,7 +44,7 @@ defmodule TalesForgeWeb.AdminLive.SurveyLive.Show do
     answers = Map.get(params, "answers", %{})
     user = %{login: socket.assigns.login, email: socket.assigns.admin_email}
 
-    case Surveys.save_section(socket.assigns.loaded, user, section_id, answers) do
+    case Surveys.save_section(socket.assigns.loaded, user, {section_id, answers}) do
       {:ok, response} ->
         {:noreply,
          socket

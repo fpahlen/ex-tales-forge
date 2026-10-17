@@ -112,7 +112,10 @@ defmodule TalesForge.GMReasoningTest do
             {:ok, changes} =
               Ecto.Multi.new()
               |> Ecto.Multi.put(:turn, turn)
-              |> GMReasoning.multi_insert(Ecto.UUID.generate(), 1, gm)
+              |> GMReasoning.multi_insert(
+                %GMReasoning.At{session_id: Ecto.UUID.generate(), tick: 1},
+                gm
+              )
               |> Ecto.Multi.insert(:after, %SessionEvent{
                 game_session_id: session.id,
                 kind: "after",

@@ -166,26 +166,31 @@ defmodule TalesForge.Survey.Definition do
 
   # -- building ---------------------------------------------------------------
   #
-  # A checker `%{map, path, lists, out, errs}` is piped through `take/4` and
+  # A `%Checker{map, path, lists, out, errs}` is piped through `take/3` and
   # friends: each step reads one key of `map`, stores the value in `out` and
   # prepends any problem to `errs`.
+
+  defmodule Checker do
+    @moduledoc false
+    defstruct map: %{}, path: "", lists: %{}, out: %{}, errs: []
+  end
 
   defp build(map) do
     c =
       map
-      |> checker("", %{}, [])
+      |> checker(%{path: "", lists: %{}, errs: []})
       |> check_format()
-      |> take("id", :slug, required: true)
-      |> take("version", :pos_integer, required: true)
+      |> take("id", {:slug, required: true})
+      |> take("version", {:pos_integer, required: true})
       |> take_status()
-      |> take("active", :boolean, default: false)
-      |> take("title", :string, required: true)
+      |> take("active", {:boolean, default: false})
+      |> take("title", {:string, required: true})
       |> take("tab", :string)
       |> take("intro", :string)
       |> take("estimated_minutes", :pos_integer)
       |> take("playtest_base_url", :https_url)
-      |> take("notes", {:list, :string}, default: [])
-      |> take("how_we_use", {:list, :string}, default: [])
+      |> take("notes", {{:list, :string}, default: []})
+      |> take("how_we_use", {{:list, :string}, default: []})
       |> take_findings()
       |> take_lists()
       |> take_sections()
@@ -195,8 +200,9 @@ defmodule TalesForge.Survey.Definition do
     {struct(__MODULE__, c.out), c.errs}
   end
 
-  defp checker(map, path, lists, errs),
-    do: %{map: map, path: path, lists: lists, out: %{}, errs: errs}
+  # `scope` has the path, the named lists and the errors so far.
+  defp checker(map, %{path: path, lists: lists, errs: errs}),
+    do: %Checker{map: map, path: path, lists: lists, errs: errs}
 
   defp error(c, message), do: %{c | errs: [message | c.errs]}
   defp put(c, key, value), do: %{c | out: Map.put(c.out, key, value)}
@@ -229,10 +235,10 @@ defmodule TalesForge.Survey.Definition do
       %{} = f ->
         sub =
           f
-          |> checker("latest_findings", %{}, c.errs)
-          |> take("markdown", :string, required: true, default: "")
-          |> take("title", :string, default: "Latest findings")
-          |> take("placeholder", :boolean, default: false)
+          |> checker(%{path: "latest_findings", lists: %{}, errs: c.errs})
+          |> take("markdown", {:string, required: true, default: ""})
+          |> take("title", {:string, default: "Latest findings"})
+          |> take("placeholder", {:boolean, default: false})
 
         %{c | errs: sub.errs} |> put(:latest_findings, sub.out)
 
@@ -248,8 +254,8 @@ defmodule TalesForge.Survey.Definition do
           lists
           |> Map.keys()
           |> Enum.reduce(
-            checker(lists, "lists", %{}, c.errs),
-            &take(&2, &1, {:list, :string}, required: true)
+            checker(lists, %{path: "lists", lists: %{}, errs: c.errs}),
+            &take(&2, &1, {{:list, :string}, required: true})
           )
 
         lists = for {key, value} <- sub.out, value != nil, into: %{}, do: {to_string(key), value}
@@ -264,7 +270,7 @@ defmodule TalesForge.Survey.Definition do
     case Map.get(c.map, "sections") do
       [_ | _] = sections ->
         {built, errs} =
-          build_all(sections, "sections", c.errs, &build_section(&1, &2, c.lists, &3))
+          build_all(sections, {"sections", c.errs}, &build_section(&1, scope(&2, &3, c.lists)))
 
         %{c | errs: check_unique(Enum.map(built, & &1.id), "section id", errs)}
         |> put(:sections, built)
@@ -275,7 +281,7 @@ defmodule TalesForge.Survey.Definition do
   end
 
   # Builds every item of `list` with `fun.(item, path, errs) -> {built, errs}`.
-  defp build_all(list, path, errs, fun) do
+  defp build_all(list, {path, errs}, fun) do
     {built, errs} =
       list
       |> Enum.with_index()
@@ -287,23 +293,16 @@ defmodule TalesForge.Survey.Definition do
     {Enum.reverse(built), errs}
   end
 
-  defp build_section(%{} = s, path, lists, errs) do
+  defp build_section(%{} = s, scope) do
     c =
       s
-      |> checker(path, lists, errs)
-      |> take("id", :slug, required: true)
-      |> take("title", :string, required: true)
+      |> checker(scope)
+      |> take("id", {:slug, required: true})
+      |> take("title", {:string, required: true})
       |> take("persona", :string)
       |> take("markdown", :string)
 
-    {questions, errs_out} =
-      case Map.get(s, "questions", []) do
-        list when is_list(list) ->
-          build_all(list, "#{path}.questions", c.errs, &build_question(&1, &2, lists, &3))
-
-        _other ->
-          {[], ["#{path}.questions must be a list" | c.errs]}
-      end
+    {questions, errs_out} = build_questions(Map.get(s, "questions", []), c)
 
     persona = c.out.persona
 
@@ -313,19 +312,29 @@ defmodule TalesForge.Survey.Definition do
     {section, errs_out}
   end
 
-  defp build_section(_other, path, _lists, errs),
+  defp build_section(_other, %{path: path, errs: errs}),
     do: {%Section{}, ["#{path} must be an object" | errs]}
 
-  defp build_question(%{} = q, path, lists, errs) do
+  defp build_questions(list, c) when is_list(list),
+    do:
+      build_all(
+        list,
+        {"#{c.path}.questions", c.errs},
+        &build_question(&1, scope(&2, &3, c.lists))
+      )
+
+  defp build_questions(_other, c), do: {[], ["#{c.path}.questions must be a list" | c.errs]}
+
+  defp build_question(%{} = q, %{path: path} = scope) do
     c =
       q
-      |> checker(path, lists, errs)
-      |> take("id", :slug, required: true)
+      |> checker(scope)
+      |> take("id", {:slug, required: true})
       |> take_type()
-      |> take("number", :string, default: "")
-      |> take("title", :string, required: true)
+      |> take("number", {:string, default: ""})
+      |> take("title", {:string, required: true})
       |> take("text", :string)
-      |> take("required", :boolean, default: false)
+      |> take("required", {:boolean, default: false})
       |> take("role", :string)
       |> take_follow_ups()
       |> build_typed()
@@ -336,7 +345,7 @@ defmodule TalesForge.Survey.Definition do
      check_unique(Enum.map(question.follow_ups, & &1.id), "#{path} follow-up id", c.errs)}
   end
 
-  defp build_question(_other, path, _lists, errs),
+  defp build_question(_other, %{path: path, errs: errs}),
     do: {%Question{}, ["#{path} must be an object" | errs]}
 
   defp take_type(c) do
@@ -360,7 +369,7 @@ defmodule TalesForge.Survey.Definition do
     c =
       c
       |> take_list_ref("options")
-      |> take("other", :boolean, default: false)
+      |> take("other", {:boolean, default: false})
       |> take_option_labels()
 
     if c.out.other, do: reserved_follow_up(c, "other"), else: c
@@ -368,8 +377,8 @@ defmodule TalesForge.Survey.Definition do
 
   defp build_typed(%{out: %{type: :scale}} = c) do
     c
-    |> take("min", :integer, default: 1)
-    |> take("max", :integer, default: 5)
+    |> take("min", {:integer, default: 1})
+    |> take("max", {:integer, default: 5})
     |> take("min_label", :string)
     |> take("max_label", :string)
     |> check_scale()
@@ -379,22 +388,22 @@ defmodule TalesForge.Survey.Definition do
     c
     |> take_list_ref("rows")
     |> take_list_ref("columns")
-    |> take("multi", :boolean, default: false)
-    |> take("numeric", :boolean, default: false)
+    |> take("multi", {:boolean, default: false})
+    |> take("numeric", {:boolean, default: false})
   end
 
-  defp build_typed(%{out: %{type: :text}} = c), do: take(c, "long", :boolean, default: false)
+  defp build_typed(%{out: %{type: :text}} = c), do: take(c, "long", {:boolean, default: false})
 
   defp build_typed(%{out: %{type: :excerpt}} = c) do
     c
-    |> take("run_id", :uuid, required: true)
-    |> take("turn", :pos_integer, required: true)
-    |> take("jev_score", :score, required: true)
-    |> take("jev_scale", :string, default: "baseline")
+    |> take("run_id", {:uuid, required: true})
+    |> take("turn", {:pos_integer, required: true})
+    |> take("jev_score", {:score, required: true})
+    |> take("jev_scale", {:string, default: "baseline"})
     |> take("character", :string)
     |> take("context", :string)
-    |> take("player", :string, required: true)
-    |> take("game", :string, required: true)
+    |> take("player", {:string, required: true})
+    |> take("game", {:string, required: true})
     |> take("why_hint", :string)
     |> rating_options()
     |> reserved_follow_up("why")
@@ -412,7 +421,7 @@ defmodule TalesForge.Survey.Definition do
       %{} = labels ->
         errs =
           Enum.reduce(labels, [], fn {option, value}, acc ->
-            option_label_errors(option, value, c.out.options, path) ++ acc
+            option_label_errors({option, value}, c.out.options, path) ++ acc
           end)
 
         %{c | errs: Enum.sort(errs, :desc) ++ c.errs} |> put(:option_labels, labels)
@@ -422,7 +431,7 @@ defmodule TalesForge.Survey.Definition do
     end
   end
 
-  defp option_label_errors(option, value, options, path) do
+  defp option_label_errors({option, value}, options, path) do
     cond do
       option not in options ->
         ["#{path} has #{inspect(option)}, which is not one of the options"]
@@ -460,7 +469,7 @@ defmodule TalesForge.Survey.Definition do
   defp take_follow_ups(c) do
     case Map.get(c.map, "follow_ups", []) do
       list when is_list(list) ->
-        {built, errs} = build_all(list, "#{c.path}.follow_ups", c.errs, &build_follow_up/3)
+        {built, errs} = build_all(list, {"#{c.path}.follow_ups", c.errs}, &build_follow_up/3)
         %{c | errs: errs} |> put(:follow_ups, Enum.reject(built, &is_nil/1))
 
       _other ->
@@ -471,9 +480,9 @@ defmodule TalesForge.Survey.Definition do
   defp build_follow_up(%{} = fu, path, errs) do
     c =
       fu
-      |> checker(path, %{}, errs)
-      |> take("id", :slug, required: true)
-      |> take("label", :string, required: true)
+      |> checker(%{path: path, lists: %{}, errs: errs})
+      |> take("id", {:slug, required: true})
+      |> take("label", {:string, required: true})
       |> take("role", :string)
 
     {c.out, c.errs}
@@ -495,7 +504,7 @@ defmodule TalesForge.Survey.Definition do
         end
 
       _other ->
-        c = take(c, key, {:list, :string}, required: true, default: [])
+        c = take(c, key, {{:list, :string}, required: true, default: []})
         %{c | errs: check_unique(c.out[atom], at(c.path, key), c.errs)}
     end
   end
@@ -524,17 +533,22 @@ defmodule TalesForge.Survey.Definition do
 
   # -- typed field access -----------------------------------------------------
 
-  defp take(c, key, kind, opts \\ []) do
-    default = Keyword.get(opts, :default)
-    required = Keyword.get(opts, :required, false)
-    out_key = out_key(key)
+  # `kind` is a kind, or `{kind, opts}` with `required:` and `default:`.
+  defp take(c, key, {kind, opts}) when is_list(opts) do
+    field = %{key: key, out: out_key(key), kind: kind, default: Keyword.get(opts, :default)}
 
     case Map.get(c.map, key) do
-      nil when required -> c |> put(out_key, default) |> error("#{at(c.path, key)} is missing")
-      nil -> put(c, out_key, default)
-      value -> typed(c, out_key, key, kind, value, default)
+      nil -> missing(c, field, Keyword.get(opts, :required, false))
+      value -> typed(c, field, value)
     end
   end
+
+  defp take(c, key, kind), do: take(c, key, {kind, []})
+
+  defp missing(c, field, true),
+    do: c |> put(field.out, field.default) |> error("#{at(c.path, field.key)} is missing")
+
+  defp missing(c, field, false), do: put(c, field.out, field.default)
 
   # List names under "lists" stay strings; everything else is a struct field.
   defp out_key(key) do
@@ -543,10 +557,13 @@ defmodule TalesForge.Survey.Definition do
     ArgumentError -> key
   end
 
-  defp typed(c, out_key, key, kind, value, default) do
+  defp typed(c, %{kind: kind} = field, value) do
     if valid?(kind, value),
-      do: put(c, out_key, normalize(kind, value)),
-      else: c |> put(out_key, default) |> error("#{at(c.path, key)} must be #{describe(kind)}")
+      do: put(c, field.out, normalize(kind, value)),
+      else:
+        c
+        |> put(field.out, field.default)
+        |> error("#{at(c.path, field.key)} must be #{describe(kind)}")
   end
 
   defp valid?(:string, v), do: is_binary(v) and String.trim(v) != ""
@@ -576,4 +593,6 @@ defmodule TalesForge.Survey.Definition do
 
   defp at("", key), do: key
   defp at(path, key), do: "#{path}.#{key}"
+
+  defp scope(path, errs, lists), do: %{path: path, errs: errs, lists: lists}
 end
