@@ -120,24 +120,28 @@ defmodule TalesForge.Game.Movement do
   """
   @spec reachable(map(), String.t() | nil) :: [{String.t(), pos_integer()}]
   def reachable(world, from) when is_binary(from) do
-    bfs(world, [{from, 0}], MapSet.new([from]), [])
+    bfs(world, {[{from, 0}], MapSet.new([from])}, [])
   end
 
   def reachable(_world, _from), do: []
 
-  defp bfs(_world, [], _seen, acc), do: Enum.reverse(acc)
+  # The search frontier is `{queue, seen}`.
+  defp bfs(_world, {[], _seen}, acc), do: Enum.reverse(acc)
 
-  defp bfs(world, [{id, hops} | queue], seen, acc) when hops >= @max_hops do
-    bfs(world, queue, seen, if(hops > 0, do: [{id, hops} | acc], else: acc))
+  defp bfs(world, {[{id, hops} | queue], seen}, acc) when hops >= @max_hops do
+    bfs(world, {queue, seen}, if(hops > 0, do: [{id, hops} | acc], else: acc))
   end
 
-  defp bfs(world, [{id, hops} | queue], seen, acc) do
+  defp bfs(world, {[{id, hops} | queue], seen}, acc) do
     next = world |> exits(id) |> Enum.reject(&MapSet.member?(seen, &1))
 
-    seen = Enum.reduce(next, seen, &MapSet.put(&2, &1))
     acc = if hops > 0, do: [{id, hops} | acc], else: acc
-    bfs(world, queue ++ Enum.map(next, &{&1, hops + 1}), seen, acc)
+    bfs(world, enqueue({queue, seen}, next, &{&1, hops + 1}), acc)
   end
+
+  # Queues `next` (as `entry.(id)`) and marks it seen.
+  defp enqueue({queue, seen}, next, entry),
+    do: {queue ++ Enum.map(next, entry), Enum.reduce(next, seen, &MapSet.put(&2, &1))}
 
   @doc """
   Where travel from `from` toward `to` ends this turn: `to` itself, or the
@@ -177,21 +181,20 @@ defmodule TalesForge.Game.Movement do
   # Shortest path (excluding `from`) within @max_hops, or nil. `world`
   # (not only the locations) so that `exits/2` sees the features.
   defp path(world, from, to) do
-    do_path(world, [{from, []}], MapSet.new([from]), to)
+    do_path(world, {[{from, []}], MapSet.new([from])}, to)
   end
 
-  defp do_path(_world, [], _seen, _to), do: nil
+  defp do_path(_world, {[], _seen}, _to), do: nil
 
-  defp do_path(world, [{id, trail} | queue], seen, to) do
+  defp do_path(world, {[{id, trail} | queue], seen}, to) do
     if length(trail) >= @max_hops do
-      do_path(world, queue, seen, to)
+      do_path(world, {queue, seen}, to)
     else
       exits = world |> exits(id) |> Enum.reject(&MapSet.member?(seen, &1))
 
       case Enum.find(exits, &(&1 == to)) do
         nil ->
-          seen = Enum.reduce(exits, seen, &MapSet.put(&2, &1))
-          do_path(world, queue ++ Enum.map(exits, &{&1, trail ++ [&1]}), seen, to)
+          do_path(world, enqueue({queue, seen}, exits, &{&1, trail ++ [&1]}), to)
 
         found ->
           trail ++ [found]
