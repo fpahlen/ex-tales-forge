@@ -37,6 +37,7 @@
 <line x1="629.7" y1="222.7" x2="669.8" y2="222.7" stroke="#15803d" stroke-width="1" stroke-dasharray="3 3"/>
 <line x1="629.7" y1="219.8" x2="669.8" y2="219.8" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3 3"/>
 <line x1="629.7" y1="71.1" x2="669.8" y2="71.1" stroke="#b45309" stroke-width="1" stroke-dasharray="3 3"/>
+
 <rect x="766" y="48" width="12" height="12" fill="#b45309"/><text x="784" y="59">functions with 4+ params</text>
 <rect x="766" y="70" width="12" height="12" fill="#7c3aed"/><text x="784" y="81">domain → web refs</text>
 <rect x="766" y="92" width="12" height="12" fill="#15803d"/><text x="784" y="103">complex functions</text>

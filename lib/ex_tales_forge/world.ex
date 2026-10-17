@@ -28,6 +28,26 @@ defmodule TalesForge.World do
 
   require Logger
 
+  defmodule Lookup do
+    @moduledoc """
+    What `TalesForge.World.collect/2` reads once per turn to build each
+    agent's initial state: the session, the pack definitions, the stored GM
+    facts, the moods, the person names and the world map.
+    """
+
+    @enforce_keys [:session_id, :defs, :stored, :moods, :names, :world]
+    defstruct [:session_id, :defs, :stored, :moods, :names, :world]
+
+    @type t :: %__MODULE__{
+            session_id: String.t(),
+            defs: map(),
+            stored: map(),
+            moods: map(),
+            names: map(),
+            world: map()
+          }
+  end
+
   alias TalesForge.Config
   alias TalesForge.Game.World, as: GameWorld
   alias TalesForge.NPC
@@ -130,14 +150,10 @@ defmodule TalesForge.World do
   """
   @spec collect(String.t(), map()) :: [agent()]
   def collect(session_id, world) do
-    defs = definitions(world["adventure_id"])
-    stored = stored_facts(session_id)
-    moods = world["npc_moods"] || %{}
+    %Lookup{defs: defs} = lookup = lookup(session_id, world)
     here = get_in(world, ["character", "location_id"])
     [_ | parents] = chain = location_chain(defs, here)
-
     persons = List.wrap(world["present_npcs"])
-    names = if persons == [], do: %{}, else: person_names(session_id)
 
     held =
       world
@@ -156,13 +172,24 @@ defmodule TalesForge.World do
     |> Enum.reject(fn {id, _, _} -> is_nil(id) end)
     |> Enum.uniq_by(fn {id, _, _} -> id end)
     |> Enum.flat_map(fn {id, role, kind} ->
-      initial = initial_state(session_id, id, kind, defs, stored, moods, names, world)
+      initial = initial_state(lookup, id, kind)
 
       case ensure(initial) do
         {:ok, pid} -> [pid |> Agent.state() |> Map.from_struct() |> Map.put(:role, role)]
         :error -> []
       end
     end)
+  end
+
+  defp lookup(session_id, world) do
+    %Lookup{
+      session_id: session_id,
+      defs: definitions(world["adventure_id"]),
+      stored: stored_facts(session_id),
+      moods: world["npc_moods"] || %{},
+      names: if(List.wrap(world["present_npcs"]) == [], do: %{}, else: person_names(session_id)),
+      world: world
+    }
   end
 
   defp location_chain(_defs, nil), do: [nil]
@@ -185,35 +212,30 @@ defmodule TalesForge.World do
   defp item_id(id) when is_binary(id), do: id
   defp item_id(_), do: nil
 
-  defp initial_state(session_id, id, kind, defs, stored, moods, names, world) do
-    definition =
-      case kind do
-        :location -> Map.get(defs.locations, id, %{})
-        :person -> Map.get(defs.persons, id, %{})
-        :item -> Map.get(defs.items, id, %{})
-      end
-
-    name =
-      definition["name"] ||
-        case kind do
-          :location -> GameWorld.runtime_location(world, id)["name"]
-          :person -> names[id]
-          :item -> nil
-        end
-
+  defp initial_state(%Lookup{} = lookup, id, kind) do
+    definition = definition(lookup.defs, id, kind)
     pack_facts = Enum.map(definition["facts"] || [], &Map.put(&1, "source", "pack"))
-    gm_facts = Map.get(stored, id, [])
 
     %Agent{
-      session_id: session_id,
+      session_id: lookup.session_id,
       id: id,
       kind: kind,
-      name: name || id,
+      name: definition["name"] || runtime_name(lookup, id, kind) || id,
       parent: definition["parent"],
-      facts: pack_facts ++ gm_facts,
-      mood: if(kind == :person, do: moods[id])
+      facts: pack_facts ++ Map.get(lookup.stored, id, []),
+      mood: if(kind == :person, do: lookup.moods[id])
     }
   end
+
+  defp definition(defs, id, :location), do: Map.get(defs.locations, id, %{})
+  defp definition(defs, id, :person), do: Map.get(defs.persons, id, %{})
+  defp definition(defs, id, :item), do: Map.get(defs.items, id, %{})
+
+  defp runtime_name(lookup, id, :location),
+    do: GameWorld.runtime_location(lookup.world, id)["name"]
+
+  defp runtime_name(lookup, id, :person), do: lookup.names[id]
+  defp runtime_name(_lookup, _id, :item), do: nil
 
   defp ensure(%Agent{} = initial) do
     case Agent.whereis(initial.session_id, initial.id) do

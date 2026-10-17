@@ -6,6 +6,7 @@ defmodule Mix.Tasks.Health.SnapshotTest do
   doctest Mix.Tasks.Health.Snapshot
 
   @numbers %{
+    "counting" => 2,
     "summary" => %{
       "cycle_count" => %{"all" => 64, "compile-connected" => 1},
       "largest_cycle" => %{"all" => 10, "compile-connected" => 5},
@@ -28,7 +29,8 @@ defmodule Mix.Tasks.Health.SnapshotTest do
              "compile_connected_largest" => 5,
              "web_refs" => 2,
              "complex_functions" => 80,
-             "params_4plus" => 124
+             "params_4plus" => 124,
+             "counting" => 2
            }
   end
 
@@ -64,5 +66,13 @@ defmodule Mix.Tasks.Health.SnapshotTest do
     assert length(Regex.scan(~r/stroke-dasharray/, svg)) == 4
     assert svg =~ ~s(font-weight="bold">270</text>)
     assert svg =~ "#85"
+  end
+
+  test "a bar where the counting changed is marked" do
+    old = Map.delete(Snapshot.row(@numbers, "2026-10-17", 84), "counting")
+    rows = [old, Snapshot.row(@numbers, "2026-10-18", 85)]
+
+    assert Snapshot.svg(rows) =~ "counting changed"
+    refute Snapshot.svg([old, old]) =~ "counting changed"
   end
 end
