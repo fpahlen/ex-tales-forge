@@ -133,14 +133,14 @@ defmodule TalesForge.Game.Turn.Outcome do
        when agents != [] do
     WorldAgents.commit(turn.session.id, [], turn.npcs.reactions)
 
-    Extract.run_async(
-      turn.session.id,
-      turn.number,
-      turn.history_action,
-      gm_result.narrative,
-      agents,
-      Tags.for_world(board.world)
-    )
+    Extract.run_async(%Extract.Job{
+      session_id: turn.session.id,
+      turn_number: turn.number,
+      raw_action: turn.history_action,
+      narrative: gm_result.narrative,
+      agents: agents,
+      tags: Tags.for_world(board.world)
+    })
   end
 
   defp commit_agents(_result, _turn, _board, _gm_result), do: :ok
