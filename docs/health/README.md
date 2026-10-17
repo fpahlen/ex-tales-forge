@@ -3,7 +3,9 @@
 The ratchet measures only code we write, which is `lib/`. It never
 measures `deps/` or generated framework code, and framework-dictated shapes
 are exempt: `@impl` callbacks are not counted for parameters, and the `~p`
-edges into the router are not counted as cycles (#338).
+edges into the router are not counted as cycles (#338), nor
+application.ex starting the web endpoint, telemetry and presence as
+domain -> web references (#345).
 
 `mix health.check` (CI, and `mix precommit`) measures the code and
 compares it with the same numbers at the base commit (`--base REF`,
