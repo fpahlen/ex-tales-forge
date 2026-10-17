@@ -22,6 +22,7 @@ defmodule TalesForge.Costs do
   """
 
   alias TalesForge.AICalls
+  alias TalesForge.AppRole
 
   alias TalesForge.Costs.PlaytestRuns
 
@@ -49,7 +50,7 @@ defmodule TalesForge.Costs do
     sessions = AICalls.game_session_count(month_from, now)
 
     %{
-      "app" => app_name(),
+      "app" => AppRole.app_name(),
       "generated_at" => DateTime.to_iso8601(DateTime.truncate(now, :second)),
       "date" => Date.to_iso8601(date),
       "day_of_month" => date.day,
@@ -93,19 +94,11 @@ defmodule TalesForge.Costs do
   # The app name lives in TalesForge.AppRole (shared), so AppRole never
   # depends on this admin module (`mix deploy.check_boundaries`).
 
-  @doc "This app's name (Fly's FLY_APP_NAME), or \"local\" off Fly (`TalesForge.AppRole.app_name/0`)."
-  @spec app_name() :: String.t()
-  defdelegate app_name, to: TalesForge.AppRole
-
-  @doc "True for the playtest app (`TalesForge.AppRole.playtest?/1`)."
-  @spec playtest?(term()) :: boolean()
-  defdelegate playtest?(app), to: TalesForge.AppRole
-
   @doc "Display name of an environment from its app name."
   @spec env_label(String.t()) :: String.t()
   def env_label(app) do
     cond do
-      playtest?(app) -> "Playtest (#{app})"
+      AppRole.playtest?(app) -> "Playtest (#{app})"
       app == "local" -> "This app (local)"
       true -> "Production (#{app})"
     end
