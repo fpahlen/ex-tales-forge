@@ -80,8 +80,11 @@ main's side (`-X theirs`) and passes the branch's old file to
 `mix health.snapshot --keep`, so no row is lost. The workflow has no
 concurrency group (GitHub cancelled all but one pending run in a group,
 which dropped rows when merges came close together): each run measures
-its own merge with `--out`, adds the row to the branch with `--row` and
-retries the push when another run pushed first. A row goes in merge
+its own merge with `--out`, rebuilds the branch from the latest main
+(only the two history files differ from main), adds the row with `--row`
+and retries the push when main moved or another run pushed first.
+GITHUB_TOKEN may not push workflow files that differ from main's, so a
+run never pushes an older main (#345's row was lost so, and added back). A row goes in merge
 order, also when the runs finish in the other order.
 
 `lib/ex_tales_forge -> ExTalesForgeWeb` is measured with xref (real compile, export and
