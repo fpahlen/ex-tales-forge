@@ -19,9 +19,9 @@ permissions:
   contents: write
   pull-requests: write
 
-concurrency:
-  group: health-history
-  cancel-in-progress: false
+# No concurrency group: GitHub keeps only one pending run per group and
+# cancels the others, which dropped rows when merges came close together.
+# Each run measures its own merge and retries the push instead.
 
 env:
   # Keep in sync with ci.yml.
@@ -60,6 +60,16 @@ jobs:
       - name: Install deps and compile
         run: mix deps.get && mix compile
 
+      # The checkout is this merge, so this measures main's code at it.
+      - name: Measure this merge
+        run: |
+          subject=$(git log -1 --format=%s "$GITHUB_SHA")
+          pr=$(echo "$subject" | grep -o '#[0-9]*' | head -1 | tr -d '#')
+          date=$(git log -1 --format=%cI "$GITHUB_SHA")
+          mix health.snapshot ${pr:+--pr "$pr"} --date "$date" --out "$RUNNER_TEMP/row.csv"
+
+      # Another run may push the branch between our fetch and push; then
+      # start again from the new branch head (up to 5 times).
       - name: Put this merge's row on the rolling PR
         env:
           GH_TOKEN: ${{ github.token }}
@@ -67,25 +77,26 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           subject=$(git log -1 --format=%s "$GITHUB_SHA")
-          pr=$(echo "$subject" | grep -o '#[0-9]*' | head -1 | tr -d '#')
-          date=$(git log -1 --format=%cI "$GITHUB_SHA")
-          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
-            git fetch origin "$BRANCH"
-            git switch "$BRANCH"
-            # If main changed the history files too (a new column, say),
-            # take main's side and keep the branch's rows with --keep.
-            keep="$RUNNER_TEMP/branch.csv"
-            cp docs/health/history.csv "$keep"
-            git merge --no-edit -X theirs "$GITHUB_SHA"
-          else
-            git switch -c "$BRANCH"
-          fi
-          # The branch differs from main only in the two history files, so
-          # this measures main's code at this merge.
-          mix health.snapshot ${pr:+--pr "$pr"} --date "$date" ${keep:+--keep "$keep"}
-          git add docs/health/history.csv docs/health/trend.svg
-          git commit -m "Code health row for $subject" || exit 0
-          git push origin "$BRANCH"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+              git fetch origin "$BRANCH"
+              git switch -f -C "$BRANCH" "origin/$BRANCH"
+              # If main changed the history files too (a new column, say),
+              # take main's side and keep the branch's rows with --keep.
+              keep="$RUNNER_TEMP/branch.csv"
+              cp docs/health/history.csv "$keep"
+              git merge --no-edit -X theirs origin/main
+            else
+              git switch -f -C "$BRANCH" origin/main
+            fi
+            mix health.snapshot --row "$RUNNER_TEMP/row.csv" ${keep:+--keep "$keep"}
+            git add docs/health/history.csv docs/health/trend.svg
+            git commit -m "Code health row for $subject" || exit 0
+            git push origin "$BRANCH" && break
+            [ "$attempt" = 5 ] && exit 1
+            sleep $((attempt * 5))
+          done
           # CI skips pull_request runs on this PR (only the history files
           # change, see ci.yml), because GitHub would hold them for a
           # human's approval. A dispatched run needs none and gives the
