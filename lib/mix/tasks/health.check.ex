@@ -19,7 +19,10 @@ defmodule Mix.Tasks.Health.Check do
       `lib/ex_tales_forge_web/router.ex`: every LiveView links to the router
       with `~p` and the router names every LiveView, so each page would be
       in a cycle with every other. The compile-connected cycles keep the
-      router;
+      router. Neither counts a cycle through an Ecto association edge
+      between schemas (`belongs_to`, `has_many`, …; see
+      `Mix.Tasks.Health.Check.Schemas`): a parent's `has_many` and its
+      child's `belongs_to` are the framework idiom, not a tangle;
     * a LiveView gets a new xref reference to another LiveView
       (`live_view_references`, `Mix.Tasks.Health.Check.LiveViews`);
     * a file in `lib/ex_tales_forge/` gets a new xref reference to a file in
@@ -44,7 +47,7 @@ defmodule Mix.Tasks.Health.Check do
   """
   use Mix.Task
 
-  alias Mix.Tasks.Health.Check.{LiveViews, Params}
+  alias Mix.Tasks.Health.Check.{LiveViews, Params, Schemas}
 
   # The committed baseline that bases from before the base run still carry.
   @old_baseline "docs/health/baseline.json"
@@ -60,7 +63,9 @@ defmodule Mix.Tasks.Health.Check do
   # the chart marks a drop that comes from counting, not refactoring.
   # 2: the `all` cycles leave out the router.
   # 3: domain -> web references leave out application.ex's web children.
-  @counting 3
+  # 4: the cycles leave out Ecto association edges between schemas
+  #    (`Mix.Tasks.Health.Check.Schemas`).
+  @counting 4
   @application "lib/ex_tales_forge/application.ex"
   @supervised ~w(lib/ex_tales_forge_web/endpoint.ex lib/ex_tales_forge_web/telemetry.ex
                  lib/ex_tales_forge_web/presence.ex)
@@ -132,7 +137,8 @@ defmodule Mix.Tasks.Health.Check do
   @doc "Today's numbers, what `--out` writes."
   @spec collect() :: map()
   def collect do
-    cycles = Map.new(@labels, fn {name, args} -> {name, cycles(args)} end)
+    assoc = Schemas.edges()
+    cycles = Map.new(@labels, fn {name, args} -> {name, cycles(args, assoc)} end)
     plain = mix(["xref", "graph", "--format", "plain"])
 
     numbers = %{
@@ -174,26 +180,31 @@ defmodule Mix.Tasks.Health.Check do
     out
   end
 
-  @doc "Parses `mix xref graph --format cycles` output."
+  @doc """
+  Parses `mix xref graph --format cycles` output. A cycle with an edge in
+  `assoc` (`Mix.Tasks.Health.Check.Schemas.edges/1`) does not count.
+  """
   @spec parse_cycles(String.t()) :: [map()]
-  def parse_cycles(out) do
+  def parse_cycles(out, assoc \\ MapSet.new()) do
     out
     |> String.split(~r/^Cycle of length \d+:$/m)
     |> Enum.drop(1)
     |> Enum.map(fn chunk ->
-      members =
-        for line <- String.split(chunk, "\n"),
-            line = String.trim(line),
-            String.starts_with?(line, "lib/"),
-            do: line |> String.split(" ") |> hd()
-
+      for line <- String.split(chunk, "\n"),
+          line = String.trim(line),
+          String.starts_with?(line, "lib/"),
+          do: line |> String.split(" ") |> hd()
+    end)
+    |> Enum.reject(&Schemas.exempt?(&1, assoc))
+    |> Enum.map(fn members ->
       members = Enum.sort(members)
       %{"size" => length(members), "members" => members}
     end)
     |> Enum.sort_by(&{-&1["size"], &1["members"]})
   end
 
-  defp cycles(args), do: parse_cycles(mix(["xref", "graph", "--format", "cycles"] ++ args))
+  defp cycles(args, assoc),
+    do: parse_cycles(mix(["xref", "graph", "--format", "cycles"] ++ args), assoc)
 
   @doc "Parses `mix xref graph --format plain` into domain -> web file references."
   @spec parse_web_references(String.t()) :: [map()]
