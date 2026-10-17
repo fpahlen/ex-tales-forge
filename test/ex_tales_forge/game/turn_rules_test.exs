@@ -71,7 +71,7 @@ defmodule TalesForge.Game.TurnRulesTest do
       "confidence" => 0.9
     }
 
-    {:ok, _} = TurnProcessor.run(session.id, "I pay for a room and go to sleep.", action)
+    {:ok, _} = TurnProcessor.run(session.id, {"I pay for a room and go to sleep.", action})
 
     SessionEvent
     |> where([e], e.game_session_id == ^session.id and e.kind == "turn.outcome")

@@ -98,16 +98,17 @@ defmodule TalesForge.AICalls.Steps do
       fun.()
     catch
       kind, reason ->
-        note(name, started_at, t0, "error")
+        note(name, {started_at, t0}, "error")
         :erlang.raise(kind, reason, __STACKTRACE__)
     else
       result ->
-        note(name, started_at, t0, status(result))
+        note(name, {started_at, t0}, status(result))
         result
     end
   end
 
-  defp note(name, started_at, t0, status) do
+  # `{started_at, t0}`: the wall clock and the monotonic microseconds at the start.
+  defp note(name, {started_at, t0}, status) do
     elapsed_us = System.monotonic_time(:microsecond) - t0
 
     case Process.get(@key) do
@@ -126,8 +127,11 @@ defmodule TalesForge.AICalls.Steps do
     end
   end
 
-  @doc "Writes the steps as function rows. Never raises (see `AICalls.record/1`)."
-  def record(steps, session_id, turn_number, tags) do
+  @doc """
+  Writes the steps of turn `{session_id, turn_number}` as function rows, with
+  `tags`. Never raises (see `AICalls.record/1`).
+  """
+  def record(steps, {session_id, turn_number}, tags) do
     Enum.each(steps, fn step ->
       step
       |> Map.merge(tags)
