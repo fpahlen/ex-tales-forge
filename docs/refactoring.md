@@ -105,6 +105,14 @@ a player or founder can see in the PR body.
   allow a GitHub App to create or update workflow"). Each attempt now
   rebuilds from the latest main and checks that only `history.csv` and
   `trend.svg` differ from it (#348).
+- **A docs-only change skips the code checks, not the required checks.**
+  The `changes` job asks the compare API (merge base → head) whether any
+  file is outside `docs/`. If none is, Test only compiles, builds the docs
+  and checks their links, and Dialyzer is skipped by its job `if`. A job
+  skipped by its own `if` counts as passed for a required check; a
+  workflow that `paths-ignore` skips never reports, so the PR stays
+  blocked. If the `changes` job fails, `code` is empty and everything runs
+  (#357, workflow #119).
 
 ## Process
 
