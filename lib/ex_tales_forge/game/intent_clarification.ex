@@ -374,7 +374,7 @@ defmodule TalesForge.Game.IntentClarification do
   2026-10-14 21:15): "Whom do you attack?", one option for each person here
   (`people` is `[{id, name}]`). Each option attacks that person; the option
   action carries `"target_chosen"` so the combat step takes the target as
-  chosen (`TalesForge.Game.Turn.Combat.target/4`).
+  chosen (`TalesForge.Game.Turn.Combat.target/3`).
   """
   @spec combat_target(map(), [{String.t(), String.t()}], String.t()) :: map()
   def combat_target(reading, people, raw_action) do

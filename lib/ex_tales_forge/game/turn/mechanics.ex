@@ -66,7 +66,6 @@ defmodule TalesForge.Game.Turn.Mechanics do
       |> Rest.apply(world, player_action.overall_intent)
 
     apply? = Turn.flag?(turn, :turn_apply_outcomes)
-    lodging? = apply? or Turn.flag?(turn, :turn_state_from_mechanics)
 
     {played, premised} =
       resolved
@@ -77,13 +76,12 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
     ruled_before_target =
       premised
-      |> lodging_block(world, played, lodging?)
-      |> sleep_after_lodging(world, played, apply?)
+      |> lodging_rules(turn, played)
       |> injection_block(turn.injected)
 
     # COMBAT_OPPOSED=on: the attack needs a person in the scene. An unclear
     # target blocks the roll, and the turn asks the player.
-    {targeted, ruled, target} = TurnCombat.target(turn, world, played, ruled_before_target)
+    {targeted, ruled, target} = TurnCombat.target(turn, played, ruled_before_target)
 
     # TURN_APPLY_OUTCOMES=on: the board books the played action (with the
     # payment amount). Off: the board gets the action of the intent step.
@@ -91,7 +89,8 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
     {character, rolled} = roll(turn, targeted, ruled)
 
-    {combat, foe} = TurnCombat.exchange(turn, world, target, rolled)
+    fight = TurnCombat.exchange(turn, target, rolled)
+    combat = fight.exchange
 
     applied =
       Board.resolve(%Board{
@@ -104,7 +103,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
       })
 
     board =
-      if TurnCombat.on?(turn), do: TurnCombat.book(applied, world, combat, foe), else: applied
+      if TurnCombat.on?(turn), do: TurnCombat.book(applied, world, fight), else: applied
 
     # TURN_APPLY_OUTCOMES=on: the GM gets the handler after the board, for
     # example the short sleep after a failed room payment.
@@ -205,12 +204,10 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
   # TURN_STATE_FROM_MECHANICS=on (provisional rule): "pay for a room" with
   # nobody here who rents rooms is rejected (TalesForge.Game.TurnRules).
-  defp lodging_block(%{state_hints: %{"rejected" => true}} = handler, _world, _action, _on),
+  defp lodging_block(%{state_hints: %{"rejected" => true}} = handler, _world, _action),
     do: handler
 
-  defp lodging_block(handler, _world, _action, false), do: handler
-
-  defp lodging_block(handler, world, player_action, true) do
+  defp lodging_block(handler, world, player_action) do
     if player_action.action.action_type == :spend and
          Rest.lodging_then_sleep?(player_action.overall_intent || "") and
          not TurnRules.lodging_seller?(world, world["location_id"]) do
@@ -252,13 +249,27 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
   # TURN_APPLY_OUTCOMES=on: "pay for a room and go to sleep" also plays the
   # sleep. A rejected payment gets the short sleep.
-  defp sleep_after_lodging(handler, _world, _action, false), do: handler
-
-  defp sleep_after_lodging(%{state_hints: %{"premise_rejected" => true}} = handler, _w, _a, true),
+  defp sleep_after_lodging(%{state_hints: %{"premise_rejected" => true}} = handler, _w, _a),
     do: handler
 
-  defp sleep_after_lodging(handler, world, player_action, true),
+  defp sleep_after_lodging(handler, world, player_action),
     do: TurnApply.sleep_after_lodging(handler, world, player_action.overall_intent)
+
+  # The room payment rules (lodging_block/3 and sleep_after_lodging/3), each
+  # behind its flag.
+  defp lodging_rules(handler, turn, played) do
+    world = Turn.world_before(turn)
+    apply? = Turn.flag?(turn, :turn_apply_outcomes)
+    lodging? = apply? or Turn.flag?(turn, :turn_state_from_mechanics)
+
+    handler
+    |> when_on(lodging?, &lodging_block(&1, world, played))
+    |> when_on(apply?, &sleep_after_lodging(&1, world, played))
+  end
+
+  # A rule step that only runs when its flag is on.
+  defp when_on(handler, true, step), do: step.(handler)
+  defp when_on(handler, false, _step), do: handler
 
   # HISTORY_STRIP_INJECTION=on: an injection turn plays no action.
   defp injection_block(handler, false), do: handler
