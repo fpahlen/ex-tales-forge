@@ -208,15 +208,15 @@ defmodule TalesForge.Game.TinjacksTest do
 
       mech = %MechanicalResolution{outcome: outcome, skill: skill}
 
-      Events.from_turn(
-        player_action,
-        %{handler: "skill_check"},
-        mech,
-        world,
-        world,
-        [front()],
-        people()
-      )
+      Events.from_turn(%Events.Turn{
+        player_action: player_action,
+        handler: %{handler: "skill_check"},
+        mechanical: mech,
+        world_before: world,
+        world_after: world,
+        fronts: [front()],
+        people: people()
+      })
     end
 
     defp kinds(events), do: Enum.map(events, & &1["kind"])
@@ -274,15 +274,15 @@ defmodule TalesForge.Game.TinjacksTest do
       mech = %MechanicalResolution{outcome: "none"}
 
       evs =
-        Events.from_turn(
-          action(:move, "old_adit"),
-          %{handler: "move"},
-          mech,
-          before,
-          after_move,
-          [front()],
-          []
-        )
+        Events.from_turn(%Events.Turn{
+          player_action: action(:move, "old_adit"),
+          handler: %{handler: "move"},
+          mechanical: mech,
+          world_before: before,
+          world_after: after_move,
+          fronts: [front()],
+          people: []
+        })
 
       assert "tinjacks.spotted" in kinds(evs)
     end

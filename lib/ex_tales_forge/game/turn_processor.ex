@@ -218,21 +218,18 @@ defmodule TalesForge.Game.TurnProcessor do
         Keyword.put(opts, :moved_from, get_in(world_traded, ["character", "location_id"]))
       )
 
-    fronts = Fronts.sim_fronts(session.id)
-    people = NPC.sim_people(session.id)
-
-    events =
-      Events.from_turn(
-        player_action,
-        handler,
-        mechanical,
-        world_before,
-        world_paused,
-        fronts,
-        people
+    {events, sim} =
+      simulate_world(
+        %Events.Turn{
+          player_action: player_action,
+          handler: handler,
+          mechanical: mechanical,
+          world_before: world_before,
+          world_after: world_paused
+        },
+        session.id
       )
 
-    {:ok, sim} = WorldSim.tick(%{fronts: fronts, people: people, events: events})
     hidden = Enum.reject(events, & &1["player_aware"])
 
     {world, spent, needs_reflection} =
@@ -256,6 +253,16 @@ defmodule TalesForge.Game.TurnProcessor do
       outcome:
         OutcomeRecord.build(world_before, world, player_action.action, handler, inventory_result)
     }
+  end
+
+  # The turn's events with the session's fronts and people, then one
+  # world-sim tick of them.
+  defp simulate_world(%Events.Turn{} = turn, session_id) do
+    fronts = Fronts.sim_fronts(session_id)
+    people = NPC.sim_people(session_id)
+    events = Events.from_turn(%{turn | fronts: fronts, people: people})
+    {:ok, sim} = WorldSim.tick(%{fronts: fronts, people: people, events: events})
+    {events, sim}
   end
 
   # People a front moved this tick (e.g. the Tinjacks walking into the inn) are

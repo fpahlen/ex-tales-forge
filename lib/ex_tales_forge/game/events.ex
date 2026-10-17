@@ -14,69 +14,103 @@ defmodule TalesForge.Game.Events do
 
   alias TalesForge.Game.Mechanics
 
-  def from_turn(
-        player_action,
-        handler,
-        mechanical,
-        world_before,
-        world_after,
-        fronts \\ [],
-        people \\ []
-      ) do
-    tick = Map.get(world_after, "world_tick")
-    loc_before = character_loc(world_before)
-    loc_after = character_loc(world_after)
-    triggers = Enum.flat_map(fronts ++ people, &actor_triggers/1)
+  defmodule Turn do
+    @moduledoc """
+    What `TalesForge.Game.Events.from_turn/1` reads: the player's action,
+    its handler and mechanical resolution, the world before and after, and
+    the fronts and people whose triggers can fire. `from_turn/1` adds the
+    tick, the player's location before and after, the ticks that passed
+    and the triggers.
+    """
 
-    delta =
-      Map.get(world_after, "world_tick", 0) - Map.get(world_before, "world_tick", 0)
+    @enforce_keys [:player_action, :handler, :mechanical, :world_before, :world_after]
+    defstruct @enforce_keys ++
+                [
+                  fronts: [],
+                  people: [],
+                  tick: nil,
+                  loc_before: nil,
+                  loc_after: nil,
+                  delta: 0,
+                  triggers: []
+                ]
 
-    [
-      event("time.passed", true, tick, loc_after, %{"delta_ticks" => delta}, "world")
-    ]
-    |> Kernel.++(travel_events(loc_before, loc_after, tick))
-    |> Kernel.++(notice_events(triggers, handler, mechanical, loc_before, loc_after, tick))
-    |> Kernel.++(dawdle_events(triggers, loc_after, tick, delta))
-    |> Kernel.++(interact_events(triggers, player_action, loc_after, tick))
-    |> Kernel.++(combat_events(triggers, player_action, mechanical, world_after, tick))
-    |> Kernel.++(check_events(triggers, player_action, mechanical, world_after, tick))
+    @type t :: %__MODULE__{
+            player_action: map() | nil,
+            handler: map() | nil,
+            mechanical: map() | nil,
+            world_before: map(),
+            world_after: map(),
+            fronts: [map()],
+            people: [map()],
+            tick: integer() | nil,
+            loc_before: String.t() | nil,
+            loc_after: String.t() | nil,
+            delta: integer(),
+            triggers: [map()]
+          }
   end
 
-  defp combat_events(triggers, player_action, mechanical, world_after, tick) do
-    if action_type(player_action) == :combat do
-      outcome = mechanical_outcome(mechanical)
+  @doc "The events of `turn`, `time.passed` first."
+  @spec from_turn(Turn.t()) :: [map()]
+  def from_turn(%Turn{} = turn) do
+    turn = derive(turn)
 
-      triggers
-      |> Enum.filter(&(&1["on"] == "combat" and aimed_at?(&1, player_action, world_after)))
-      |> Enum.flat_map(&combat_event(&1, outcome, character_loc(world_after), tick))
+    [%{event(turn, "time.passed", %{"delta_ticks" => turn.delta}) | "actor" => "world"}]
+    |> Kernel.++(travel_events(turn))
+    |> Kernel.++(notice_events(turn))
+    |> Kernel.++(dawdle_events(turn))
+    |> Kernel.++(interact_events(turn))
+    |> Kernel.++(combat_events(turn))
+    |> Kernel.++(check_events(turn))
+  end
+
+  # The tick, where the player was and is, the ticks that passed and the
+  # triggers of the fronts and people.
+  defp derive(%Turn{world_before: before, world_after: later} = turn) do
+    %{
+      turn
+      | tick: Map.get(later, "world_tick"),
+        loc_before: character_loc(before),
+        loc_after: character_loc(later),
+        delta: Map.get(later, "world_tick", 0) - Map.get(before, "world_tick", 0),
+        triggers: Enum.flat_map(turn.fronts ++ turn.people, &actor_triggers/1)
+    }
+  end
+
+  defp combat_events(%Turn{player_action: action} = turn) do
+    if action_type(action) == :combat do
+      outcome = mechanical_outcome(turn.mechanical)
+
+      turn.triggers
+      |> Enum.filter(&(&1["on"] == "combat" and aimed_at?(&1, turn)))
+      |> Enum.flat_map(&combat_event(turn, &1, outcome))
     else
       []
     end
   end
 
-  defp combat_event(trigger, outcome, location_id, tick) do
+  defp combat_event(turn, trigger, outcome) do
     kind =
       if outcome in ~w(success critical_success),
         do: trigger["event_on_success"],
         else: trigger["event_on_failure"]
 
     if is_binary(kind),
-      do: [event(kind, true, tick, location_id, %{"outcome" => outcome}, "player")],
+      do: [event(turn, kind, %{"outcome" => outcome})],
       else: []
   end
 
-  defp check_events(triggers, player_action, mechanical, world_after, tick) do
+  defp check_events(%Turn{mechanical: mechanical} = turn) do
     skill = mechanical_skill(mechanical)
 
     if mechanical_outcome(mechanical) == "success" and is_binary(skill) do
-      triggers
+      turn.triggers
       |> Enum.filter(fn trigger ->
         trigger["on"] == "check" and skill in List.wrap(trigger["skill_in"]) and
-          aimed_at?(trigger, player_action, world_after)
+          aimed_at?(trigger, turn)
       end)
-      |> Enum.map(
-        &event(&1["event"], true, tick, character_loc(world_after), %{"skill" => skill}, "player")
-      )
+      |> Enum.map(&event(turn, &1["event"], %{"skill" => skill}))
     else
       []
     end
@@ -84,33 +118,34 @@ defmodule TalesForge.Game.Events do
 
   # The action's target is one of the trigger's people, or the action names
   # nobody and one of them is present.
-  defp aimed_at?(trigger, player_action, world_after) do
+  defp aimed_at?(trigger, %Turn{player_action: action, world_after: world_after}) do
     targets = List.wrap(trigger["target_in"])
     present = List.wrap(world_after["present_npcs"])
 
-    case action_target(player_action) do
+    case action_target(action) do
       target when is_binary(target) -> target in targets and target in present
       _ -> Enum.any?(targets, &(&1 in present))
     end
   end
 
-  defp travel_events(from, to, tick) when is_binary(from) and is_binary(to) and from != to do
-    [event("player.travel", true, tick, to, %{"from" => from, "to" => to}, "player")]
+  defp travel_events(%Turn{loc_before: from, loc_after: to} = turn)
+       when is_binary(from) and is_binary(to) and from != to do
+    [event(turn, "player.travel", %{"from" => from, "to" => to})]
   end
 
-  defp travel_events(_, _, _), do: []
+  defp travel_events(_turn), do: []
 
-  defp notice_events(triggers, handler, mechanical, loc_before, loc_after, tick) do
-    triggers
-    |> Enum.filter(&enter_trigger?(&1, loc_before, loc_after))
-    |> Enum.map(&notice_event(&1, handler, mechanical, loc_after, tick))
+  defp notice_events(turn) do
+    turn.triggers
+    |> Enum.filter(&enter_trigger?(&1, turn))
+    |> Enum.map(&notice_event(turn, &1))
   end
 
-  defp enter_trigger?(trigger, loc_before, loc_after) do
+  defp enter_trigger?(trigger, %Turn{loc_before: loc_before, loc_after: loc_after}) do
     trigger["on"] == "enter" and trigger["location_id"] == loc_after and loc_before != loc_after
   end
 
-  def notice_event(trigger, handler, mechanical, new_location, tick) do
+  defp notice_event(%Turn{handler: handler, mechanical: mechanical} = turn, trigger) do
     skill =
       Mechanics.normalize_skill_name(handler_skill(handler)) ||
         mechanical_skill(mechanical)
@@ -119,38 +154,29 @@ defmodule TalesForge.Game.Events do
     success? = mechanical_outcome(mechanical) == "success" and skill in unless_skills
 
     if success? do
-      event(
-        trigger["event_on_notice"] || "player.noticed",
-        true,
-        tick,
-        new_location,
-        %{},
-        "player"
-      )
+      event(turn, trigger["event_on_notice"] || "player.noticed", %{})
     else
-      event(trigger["event"] || "player.failed_notice", false, tick, new_location, %{}, "player")
+      %{event(turn, trigger["event"] || "player.failed_notice", %{}) | "player_aware" => false}
     end
   end
 
-  defp dawdle_events(triggers, loc_after, tick, delta) do
-    triggers
+  defp dawdle_events(%Turn{loc_after: loc_after} = turn) do
+    turn.triggers
     |> Enum.filter(&dawdle_trigger?(&1, loc_after))
-    |> Enum.map(fn _ ->
-      event("player.dawdled", true, tick, loc_after, %{"delta_ticks" => delta}, "player")
-    end)
+    |> Enum.map(fn _ -> event(turn, "player.dawdled", %{"delta_ticks" => turn.delta}) end)
   end
 
   defp dawdle_trigger?(trigger, loc_after) do
     trigger["on"] == "time.passed" and loc_after in List.wrap(trigger["player_in"])
   end
 
-  defp interact_events(triggers, player_action, loc_after, tick) do
-    target = action_target(player_action)
+  defp interact_events(%Turn{player_action: action, loc_after: loc_after} = turn) do
+    target = action_target(action)
 
-    if action_type(player_action) in [:interact, :other] do
-      triggers
+    if action_type(action) in [:interact, :other] do
+      turn.triggers
       |> Enum.filter(&interact_trigger?(&1, loc_after, target))
-      |> Enum.map(&interact_event(&1, loc_after, tick))
+      |> Enum.map(&interact_event(turn, &1))
     else
       []
     end
@@ -163,15 +189,12 @@ defmodule TalesForge.Game.Events do
       target in List.wrap(trigger["target_in"])
   end
 
-  defp interact_event(trigger, loc_after, tick) do
-    event(
-      trigger["event"] || "npc.slighted",
-      Map.get(trigger, "player_aware", true),
-      tick,
-      loc_after,
-      %{},
-      trigger["actor_id"] || "npc"
-    )
+  defp interact_event(turn, trigger) do
+    %{
+      event(turn, trigger["event"] || "npc.slighted", %{})
+      | "actor" => trigger["actor_id"] || "npc",
+        "player_aware" => Map.get(trigger, "player_aware", true)
+    }
   end
 
   defp actor_triggers(%{definition: defn} = actor) do
@@ -196,11 +219,12 @@ defmodule TalesForge.Game.Events do
   defp action_target(%{action: %{target: target}}), do: target
   defp action_target(_), do: nil
 
-  defp event(kind, player_aware, tick, location_id, payload, actor) do
+  # Every event happens at the turn's tick, where the player is after it.
+  defp event(%Turn{tick: tick, loc_after: location_id}, kind, payload) do
     %{
       "kind" => kind,
-      "actor" => actor,
-      "player_aware" => player_aware,
+      "actor" => "player",
+      "player_aware" => true,
       "tick" => tick,
       "location_id" => location_id,
       "payload" => payload

@@ -432,7 +432,7 @@ The persisted `session_events` row uses the table `binary_id` primary key as the
 
 | Layer | Module | Reads pack keys | Writes |
 |-------|--------|-----------------|--------|
-| **Triggers** | `TalesForge.Game.Events.from_turn/5` | Location/front `triggers[]`: `on`, `location_id`, `player_in`, `unless_skill`, `min_outcome`, `event`, `player_aware_on_notice` | `[event]` maps |
+| **Triggers** | `TalesForge.Game.Events.from_turn/1` | Location/front `triggers[]`: `on`, `location_id`, `player_in`, `unless_skill`, `min_outcome`, `event`, `player_aware_on_notice` | `[event]` maps |
 | **Rules** | `TalesForge.Game.Fronts.Rules.match/2` | Front `rules[]`: `on_event`, `move` or `public_fact` / clock deltas | palette moves or fact writes |
 
 `Events.from_turn(player_action, handler, mechanical, world_before, world_after)` (pure, no Repo) derives:
