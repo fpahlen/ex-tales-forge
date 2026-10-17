@@ -10,7 +10,8 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Show do
   import TalesForgeWeb.AdminComponents
   import TalesForgeWeb.CharacterChangesComponents
 
-  alias TalesForge.Playtest.{CharacterChanges, JevHeadline, Reports, RunMeta, Runner, Scorer}
+  alias TalesForge.Config
+  alias TalesForge.Playtest.{CharacterChanges, JevHeadline, Reports, RunMeta, Scorer}
   alias TalesForgeWeb.TimeAgo
 
   @refresh_ms 3_000
@@ -26,7 +27,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Show do
         {:ok,
          socket
          |> assign(:page_title, "Playtest run")
-         |> assign(:enabled, Runner.enabled?())
+         |> assign(:enabled, Config.playtest_runner?())
          |> assign(:scoring, false)
          |> load(run)}
 

@@ -10,6 +10,7 @@ defmodule TalesForge.IntentJevTest do
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
   alias TalesForge.GameSessions
   alias TalesForge.IntentJev
+  alias TalesForge.IntentJev.Read
   alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.AICall
@@ -270,7 +271,13 @@ defmodule TalesForge.IntentJevTest do
       assert IntentClarification.band(reading, act_min: 0.7, ask_below: 0.45) == :ask
 
       assert {:ask, clarification, meta} =
-               IntentJev.decide(reading, candidates, context, "Brenna, the square", 12)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: "Brenna, the square",
+                 latency_ms: 12
+               })
 
       assert clarification["source"] == "jev"
       assert [%{"label" => "speak"}, %{"label" => "move"}] = clarification["options"]
@@ -304,7 +311,13 @@ defmodule TalesForge.IntentJevTest do
       reading = JevIntent.decode(reply, candidates, text: text, context: context)
 
       assert {:act, %PlayerAction{action: %SingleAction{action_type: :spend}}, _gm, meta} =
-               IntentJev.decide(reading, candidates, context, text, 12)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: text,
+                 latency_ms: 12
+               })
 
       refute meta["asked"]
     end
@@ -314,7 +327,14 @@ defmodule TalesForge.IntentJevTest do
       {reading, candidates} = unsure_reading(context)
 
       assert {:act, %PlayerAction{}, _gm, meta} =
-               IntentJev.decide(reading, candidates, context, "x", 12, never_ask: true)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: "x",
+                 latency_ms: 12,
+                 opts: [never_ask: true]
+               })
 
       assert meta["band"] == "best_guess"
     end
@@ -343,7 +363,13 @@ defmodule TalesForge.IntentJevTest do
       {reading, candidates, npc} = combat_reading(context, "I attack")
 
       assert {:ask, clarification, meta} =
-               IntentJev.decide(reading, candidates, context, "I attack", 12)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: "I attack",
+                 latency_ms: 12
+               })
 
       assert clarification["source"] == "combat_target"
       assert clarification["question"] =~ "Whom do you attack?"
@@ -369,7 +395,13 @@ defmodule TalesForge.IntentJevTest do
       {reading, candidates, _npc} = combat_reading(context, text)
 
       assert {:act, %PlayerAction{action: %SingleAction{action_type: :combat}}, _gm, meta} =
-               IntentJev.decide(reading, candidates, context, text, 12)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: text,
+                 latency_ms: 12
+               })
 
       refute meta["asked"]
     end
@@ -379,7 +411,14 @@ defmodule TalesForge.IntentJevTest do
       {reading, candidates, _npc} = combat_reading(context, "I attack")
 
       assert {:act, %PlayerAction{}, _gm, _meta} =
-               IntentJev.decide(reading, candidates, context, "I attack", 12, never_ask: true)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: "I attack",
+                 latency_ms: 12,
+                 opts: [never_ask: true]
+               })
     end
 
     test "Jev with no skill: the player's words name the check (QA 2026-10-14 21:15)" do

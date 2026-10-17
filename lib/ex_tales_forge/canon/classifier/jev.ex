@@ -6,7 +6,7 @@ defmodule TalesForge.Canon.Classifier.Jev do
   `ai_calls` row (purpose `canon_review`, call_type `jev`).
   """
 
-  @behaviour TalesForge.Canon.Classifier
+  @behaviour TalesForge.Canon.Classifier.Adapter
 
   require Logger
 
@@ -48,7 +48,7 @@ defmodule TalesForge.Canon.Classifier.Jev do
   end
 
   @doc false
-  @spec state([TalesForge.Canon.Classifier.item()]) :: String.t()
+  @spec state([TalesForge.Canon.Classifier.Adapter.item()]) :: String.t()
   def state(items) do
     lines =
       items
@@ -60,7 +60,7 @@ defmodule TalesForge.Canon.Classifier.Jev do
   end
 
   @doc false
-  @spec questions([TalesForge.Canon.Classifier.item()]) :: keyword()
+  @spec questions([TalesForge.Canon.Classifier.Adapter.item()]) :: keyword()
   def questions(items) do
     items
     |> Enum.with_index(1)

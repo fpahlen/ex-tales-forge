@@ -10,6 +10,7 @@ defmodule TalesForgeWeb.AdminLive.HomeAppTest do
   import TalesForge.SurveyFixtures
 
   alias TalesForge.AdminPaths
+  alias TalesForge.Config
   alias TalesForge.Playtest.{Runner, Series}
   alias TalesForge.Survey.Source
   alias TalesForge.Surveys
@@ -120,7 +121,7 @@ defmodule TalesForgeWeb.AdminLive.HomeAppTest do
 
     test "persona runs may start" do
       Application.put_env(:ex_tales_forge, :playtest_runner_enabled, true)
-      assert Runner.enabled?()
+      assert Config.playtest_runner?()
     end
   end
 
@@ -177,7 +178,7 @@ defmodule TalesForgeWeb.AdminLive.HomeAppTest do
     test "persona runs and series refuse to start, even with the runner flag on" do
       Application.put_env(:ex_tales_forge, :playtest_runner_enabled, true)
 
-      refute Runner.enabled?()
+      refute Config.playtest_runner?()
       assert Runner.start("paul", "tin_valley", turn_limit: 1) == {:error, :disabled}
 
       assert Series.start("s", personas: ["paul"], variants: ["default"], runs: 1) ==

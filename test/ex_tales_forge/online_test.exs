@@ -5,6 +5,7 @@ defmodule TalesForge.OnlineTest do
   alias TalesForge.Online.Peer
 
   doctest TalesForge.Online
+  doctest TalesForge.Online.Founders
 
   setup do
     on_exit(fn ->

@@ -15,9 +15,10 @@ defmodule TalesForge.Playtest.Scorer do
 
   require Logger
 
+  alias TalesForge.Config
   alias TalesForge.GameSessions
   alias TalesForge.LLM
-  alias TalesForge.Playtest.{JevScorer, Personas, Reports, Runner}
+  alias TalesForge.Playtest.{JevScorer, Personas, Reports}
   alias TalesForge.Repo
   alias TalesForge.Schemas.PlaytestScore
 
@@ -50,7 +51,7 @@ defmodule TalesForge.Playtest.Scorer do
   end
 
   defp do_score(run_id) do
-    with :ok <- if(Runner.enabled?(), do: :ok, else: {:error, :disabled}),
+    with :ok <- if(Config.playtest_runner?(), do: :ok, else: {:error, :disabled}),
          {:ok, run} <- Reports.get_run(run_id),
          :ok <-
            if(run.status in @scoreable, do: :ok, else: {:error, {:not_scoreable, run.status}}),

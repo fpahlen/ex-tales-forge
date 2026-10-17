@@ -4,19 +4,13 @@ defmodule TalesForge.Canon.Classifier do
   `:free_text` differences with one label from
   `TalesForge.Canon.Difference.labels/0`.
 
-  The adapter comes from `config :ex_tales_forge, TalesForge.Canon, classifier: ...`
-  (default `TalesForge.Canon.Classifier.Jev`). The adapter returns labels
-  only. It writes no canon text.
+  The adapter (`TalesForge.Canon.Classifier.Adapter`) comes from
+  `config :ex_tales_forge, :canon_classifier, ...` (default
+  `TalesForge.Canon.Classifier.Jev`). The adapter returns labels only. It
+  writes no canon text.
   """
 
   alias TalesForge.Canon.Difference
-
-  @typedoc "One leftover item: the difference key, the entity id and the session text."
-  @type item :: %{key: String.t(), entity_id: String.t(), text: String.t()}
-
-  @doc "Labels the items in one call. Returns a label for each key that the adapter labelled."
-  @callback classify([item()], session_id :: String.t()) ::
-              {:ok, %{String.t() => String.t()}} | {:error, term()}
 
   @doc """
   Labels the `:free_text` differences in the list with one adapter call.
@@ -49,9 +43,6 @@ defmodule TalesForge.Canon.Classifier do
   defp fixed(label) when is_atom(label), do: fixed(Atom.to_string(label))
   defp fixed(label), do: if(label in Difference.labels(), do: label, else: "other")
 
-  defp adapter do
-    :ex_tales_forge
-    |> Application.get_env(TalesForge.Canon, [])
-    |> Keyword.get(:classifier, TalesForge.Canon.Classifier.Jev)
-  end
+  defp adapter,
+    do: Application.get_env(:ex_tales_forge, :canon_classifier, TalesForge.Canon.Classifier.Jev)
 end

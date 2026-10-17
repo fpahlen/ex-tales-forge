@@ -18,6 +18,21 @@ defmodule TalesForge.Game.Mechanics do
   Vitality (wounds, down, death rolls) is here too.
   """
 
+  defmodule Roll do
+    @moduledoc false
+    # One d100 check: the normalized skill, the effective level and an
+    # injected roll (tests, replays) or nil.
+    @enforce_keys [:skill, :effective]
+    defstruct [:skill, :effective, :injected]
+  end
+
+  defmodule Harm do
+    @moduledoc false
+    # The harm step of a turn: the mechanical resolution (its LP go on a
+    # fatal death roll) and an injected death roll (1..100) or nil.
+    defstruct [:mechanical, :death_roll]
+  end
+
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction}
 
   @skill_stat %{
@@ -230,7 +245,7 @@ defmodule TalesForge.Game.Mechanics do
       {character, no_check_resolution()}
     else
       modifier = (handler.state_hints || %{})["roll_modifier"] || 0
-      perform_and_apply(character, skill, nil, modifier)
+      perform_and_apply(character, skill, modifier: modifier)
     end
   end
 
@@ -263,28 +278,33 @@ defmodule TalesForge.Game.Mechanics do
   end
 
   @doc """
-  Rolls 1d100 for `skill` (inject `injected_roll` in tests), adds the LP it
-  earns and counts a failure. LP are only earned here; spending them is
-  `TalesForge.Game.Progression`.
+  Rolls 1d100 for `skill`, adds the LP it earns and counts a failure. LP are
+  only earned here; spending them is `TalesForge.Game.Progression`.
+
+  `opts`: `:roll` injects the roll (1..100, or a list for a re-roll at 100)
+  in tests and replays; `:modifier` is the manner adverb's roll modifier
+  (Catalogue v2, default 0).
   """
-  @spec perform_and_apply(map(), String.t() | nil, 1..100 | [1..100] | nil, integer()) ::
+  @spec perform_and_apply(map(), String.t() | nil, keyword()) ::
           {map(), MechanicalResolution.t()}
-  def perform_and_apply(character, skill, injected_roll \\ nil, modifier \\ 0) do
+  def perform_and_apply(character, skill, opts \\ []) do
     normalized = normalize_skill_name(skill) || "insight"
     # Catalogue v2: the manner adverb's roll modifier (PROVISIONAL table).
-    effective = max(0, effective_skill_level(character, normalized) + modifier)
-    roll_at(character, normalized, effective, injected_roll)
+    effective =
+      max(0, effective_skill_level(character, normalized) + Keyword.get(opts, :modifier, 0))
+
+    roll_at(character, %Roll{skill: normalized, effective: effective, injected: opts[:roll]})
   end
 
   @doc """
-  Rolls one part of a skill split at the part `level`. The rules are the
-  rules of `perform_and_apply/4`. Inject `injected_roll` in tests.
+  Rolls one part of a skill split, `{skill, level}`, at the part level. The
+  rules are the rules of `perform_and_apply/3`. Inject `roll` in tests.
   """
-  @spec perform_part(map(), String.t(), non_neg_integer(), 1..100 | [1..100] | nil) ::
+  @spec perform_part(map(), {String.t(), non_neg_integer()}, 1..100 | [1..100] | nil) ::
           {map(), MechanicalResolution.t()}
-  def perform_part(character, skill, level, injected_roll \\ nil) when is_integer(level) do
+  def perform_part(character, {skill, level}, roll \\ nil) when is_integer(level) do
     normalized = normalize_skill_name(skill) || "insight"
-    roll_at(character, normalized, max(0, level), injected_roll)
+    roll_at(character, %Roll{skill: normalized, effective: max(0, level), injected: roll})
   end
 
   @doc """
@@ -383,20 +403,10 @@ defmodule TalesForge.Game.Mechanics do
     for i <- 1..count, do: if(i <= extra, do: base + 1, else: base)
   end
 
-  defp roll_at(character, normalized, effective, injected_roll) do
+  defp roll_at(character, %Roll{skill: normalized, effective: effective, injected: injected}) do
     raw_level = character |> get_in(["skills", normalized]) |> to_int(0)
-    {roll, outcome} = roll_outcome(effective, injected_roll)
-    lp = growth_lp(outcome)
-
-    learning_points =
-      character
-      |> Map.get("learning_points", %{})
-      |> add_lp(normalized, lp)
-
-    updated =
-      character
-      |> Map.put("learning_points", learning_points)
-      |> maybe_count_failure(normalized, outcome)
+    {roll, outcome} = roll_outcome(effective, injected)
+    {updated, lp} = award(character, normalized, outcome)
 
     resolution = %MechanicalResolution{
       skill: normalized,
@@ -410,6 +420,23 @@ defmodule TalesForge.Game.Mechanics do
     }
 
     {updated, resolution}
+  end
+
+  # The LP the outcome earns, and the failure count.
+  defp award(character, skill, outcome) do
+    lp = growth_lp(outcome)
+
+    learning_points =
+      character
+      |> Map.get("learning_points", %{})
+      |> add_lp(skill, lp)
+
+    updated =
+      character
+      |> Map.put("learning_points", learning_points)
+      |> maybe_count_failure(skill, outcome)
+
+    {updated, lp}
   end
 
   # At skill 100 or above, a roll of 100 rolls again. A failure on the second
@@ -502,11 +529,12 @@ defmodule TalesForge.Game.Mechanics do
   def apply_vitality(world, mechanical, opts \\ []) when is_map(world) do
     character = Map.get(world, "character", %{})
     facts = Map.get(world, "public_facts", [])
-    put_in(world, ["character"], apply_character_vitality(character, mechanical, facts, opts))
+    hits = harm_count(mechanical, facts, opts)
+    harm = %Harm{mechanical: mechanical, death_roll: opts[:death_roll]}
+    put_in(world, ["character"], apply_character_vitality(character, harm, hits))
   end
 
-  defp apply_character_vitality(character, mechanical, facts, opts) do
-    hits = harm_count(mechanical, facts, opts)
+  defp apply_character_vitality(character, %Harm{} = harm, hits) do
     character = stamp_wound_max(character)
 
     cond do
@@ -514,7 +542,7 @@ defmodule TalesForge.Game.Mechanics do
         Map.put(character, "vitality", "dead")
 
       hits > 0 ->
-        Enum.reduce(1..hits, character, &harm_once(&1, &2, mechanical, opts))
+        Enum.reduce(1..hits, character, fn _hit, acc -> harm_once(acc, harm) end)
 
       true ->
         stamp_vitality(character)
@@ -534,15 +562,15 @@ defmodule TalesForge.Game.Mechanics do
     if hits == 0 and wound_fact?(facts), do: 1, else: hits
   end
 
-  defp harm_once(_hit, %{"vitality" => "dead"} = character, _mechanical, _opts), do: character
-  defp harm_once(_hit, character, mechanical, opts), do: apply_harm(character, mechanical, opts)
+  defp harm_once(%{"vitality" => "dead"} = character, _harm), do: character
+  defp harm_once(character, harm), do: apply_harm(character, harm)
 
-  defp apply_harm(character, mechanical, opts) do
+  defp apply_harm(character, %Harm{} = harm) do
     cap = wound_max(character)
     wounds = character |> Map.get("wounds", 0) |> to_int(0) |> max(0)
 
     if wounds >= cap do
-      resolve_death_roll(character, mechanical, cap, opts)
+      resolve_death_roll(character, harm, cap)
     else
       new_wounds = wounds + 1
 
@@ -553,13 +581,13 @@ defmodule TalesForge.Game.Mechanics do
     end
   end
 
-  defp resolve_death_roll(character, mechanical, cap, opts) do
+  defp resolve_death_roll(character, %Harm{mechanical: mechanical} = harm, cap) do
     character =
       character
       |> Map.put("wounds", cap)
       |> Map.put("wound_max", cap)
 
-    if fatal_death_roll?(character, opts) do
+    if fatal_death_roll?(character, harm.death_roll) do
       character
       |> Map.put("vitality", "dead")
       |> strip_turn_lp(mechanical)
@@ -568,9 +596,9 @@ defmodule TalesForge.Game.Mechanics do
     end
   end
 
-  defp fatal_death_roll?(character, opts) do
+  defp fatal_death_roll?(character, death_roll) do
     con = character |> get_in(["stats", "CON"]) |> to_int(10)
-    roll = opts[:death_roll] || :rand.uniform(100)
+    roll = death_roll || :rand.uniform(100)
     roll > con * 2.5
   end
 

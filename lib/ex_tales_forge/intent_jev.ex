@@ -40,6 +40,7 @@ defmodule TalesForge.IntentJev do
   alias TalesForge.Game.Combat
   alias TalesForge.Game.{Intent, IntentClarification, JevIntent, NpcReactions, PlayerQuote, Rest}
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
+  alias TalesForge.IntentJev.Read
 
   @model "jev-1.13.0"
   @modes ~w(off shadow on)
@@ -172,12 +173,25 @@ defmodule TalesForge.IntentJev do
     case result do
       {:ok, reply} ->
         reading = JevIntent.decode(reply, candidates, text: text, context: context)
-        record_call(purpose, "ok", elapsed, started_at, context, reply)
+
+        record_call(context, reply, %{
+          purpose: purpose,
+          status: "ok",
+          latency_ms: elapsed,
+          started_at: started_at
+        })
+
         {:ok, reading, candidates, elapsed}
 
       {:error, error} ->
         reason = error_reason(error)
-        record_call(purpose, "error", elapsed, started_at, context, %{})
+
+        record_call(context, %{}, %{
+          purpose: purpose,
+          status: "error",
+          latency_ms: elapsed,
+          started_at: started_at
+        })
 
         Logger.warning(
           "jev intent failed session=#{session_id} purpose=#{purpose} reason=#{reason} duration_ms=#{elapsed}"
@@ -224,7 +238,8 @@ defmodule TalesForge.IntentJev do
   defp error_reason(%{status: status}) when is_integer(status), do: :http_error
   defp error_reason(_error), do: :error
 
-  defp record_call(purpose, status, latency_ms, started_at, context, reply) do
+  # `call`: the row's purpose, status, latency_ms and started_at.
+  defp record_call(context, reply, call) do
     usage = Map.get(reply, :usage) || %{}
     input = usage[:input_tokens] || 0
 
@@ -236,12 +251,12 @@ defmodule TalesForge.IntentJev do
       end
 
     AICalls.record(%{
-      purpose: purpose,
+      purpose: call.purpose,
       call_type: "jev",
       model: Map.get(reply, :model) || @model,
-      status: status,
-      latency_ms: latency_ms,
-      started_at: started_at,
+      status: call.status,
+      latency_ms: call.latency_ms,
+      started_at: call.started_at,
       game_session_id: context["session_id"],
       turn_number: context["turn_number"],
       usage: %{input_tokens: input, output_tokens: 0, cost_ticks: cost_micro * 10_000}
@@ -268,7 +283,14 @@ defmodule TalesForge.IntentJev do
   def resolve(context, raw_action, opts \\ []) do
     case read(context, raw_action) do
       {:ok, reading, candidates, latency} ->
-        decide(reading, candidates, context, raw_action, latency, opts)
+        decide(%Read{
+          context: context,
+          raw_action: raw_action,
+          opts: opts,
+          reading: reading,
+          candidates: candidates,
+          latency_ms: latency
+        })
 
       {:error, reason} ->
         fallback(context, raw_action, reason)
@@ -286,71 +308,78 @@ defmodule TalesForge.IntentJev do
   defp clear_lodging(band, _reading, _raw_action), do: band
 
   @doc """
-  The decision for a Jev `reading` (see `resolve/3`): pure apart from the
+  The decision for a Jev read (see `resolve/3`): pure apart from the
   clarification id. Exposed for tests and the eval.
   """
-  @spec decide(
-          JevIntent.reading(),
-          [JevIntent.candidate()],
-          map(),
-          String.t(),
-          non_neg_integer(),
-          keyword()
-        ) :: outcome()
-  def decide(reading, candidates, context, raw_action, latency_ms, opts \\ []) do
-    band_opts = [
-      act_min: Keyword.get(opts, :act_min, Config.intent_act_min_confidence()),
-      ask_below: Keyword.get(opts, :ask_below, Config.intent_ask_below_confidence()),
-      ask_below_raw: Keyword.get(opts, :ask_below_raw, Config.intent_ask_below_raw_confidence())
-    ]
-
-    band =
-      case IntentClarification.band(reading, band_opts) do
-        :ask -> if(Keyword.get(opts, :never_ask, false), do: :best_guess, else: :ask)
-        other -> other
-      end
-      |> clear_lodging(reading, raw_action)
-
+  @spec decide(Read.t()) :: outcome()
+  def decide(%Read{reading: reading} = read) do
+    band = decide_band(read)
     safety = safety(reading)
-    base_meta = reading_meta(reading, band, latency_ms)
+    base_meta = reading_meta(reading, band, read.latency_ms)
 
     cond do
       PlayerQuote.decline?(safety) ->
-        decline(context, raw_action, safety, base_meta, opts)
+        decline(read, safety, base_meta)
 
       band == :ask ->
-        clarification =
-          reading
-          |> IntentClarification.build(candidates,
-            v2: Keyword.get(opts, :clarification_v2, Config.intent_clarification_v2?())
-          )
-          |> Map.put("raw_action", raw_action)
-          |> Map.put("safety", safety_map(safety))
+        {:ask, jev_question(read, safety),
+         Map.merge(base_meta, %{"source" => "jev", "asked" => true})}
 
-        {:ask, clarification, Map.merge(base_meta, %{"source" => "jev", "asked" => true})}
-
-      clarification = combat_target_question(reading, context, raw_action, opts) ->
+      clarification = combat_target_question(read) ->
         clarification = Map.put(clarification, "safety", safety_map(safety))
 
         {:ask, clarification,
          Map.merge(base_meta, %{"source" => "combat_target", "asked" => true})}
 
       true ->
-        action = Intent.validate_player_action(reading.extraction, context)
-        quote = PlayerQuote.decide(action, raw_action, safety, quote_threshold(opts))
-        meta = Map.merge(base_meta, %{"source" => "jev", "quote" => PlayerQuote.meta(quote)})
-        log_decision(context, band, quote, reading)
-        {:act, action, %{gm_quote: quote.quote, gm_note: nil}, meta}
+        act(read, band, safety)
     end
+  end
+
+  # The confidence band, with `opts` overriding the config; a free-text answer
+  # (`never_ask`) plays its best guess instead of asking.
+  defp decide_band(%Read{reading: reading, raw_action: raw_action, opts: opts}) do
+    band_opts = [
+      act_min: Keyword.get(opts, :act_min, Config.intent_act_min_confidence()),
+      ask_below: Keyword.get(opts, :ask_below, Config.intent_ask_below_confidence()),
+      ask_below_raw: Keyword.get(opts, :ask_below_raw, Config.intent_ask_below_raw_confidence())
+    ]
+
+    case IntentClarification.band(reading, band_opts) do
+      :ask -> if(Keyword.get(opts, :never_ask, false), do: :best_guess, else: :ask)
+      other -> other
+    end
+    |> clear_lodging(reading, raw_action)
+  end
+
+  defp jev_question(%Read{reading: reading, opts: opts} = read, safety) do
+    reading
+    |> IntentClarification.build(read.candidates,
+      v2: Keyword.get(opts, :clarification_v2, Config.intent_clarification_v2?())
+    )
+    |> Map.put("raw_action", read.raw_action)
+    |> Map.put("safety", safety_map(safety))
+  end
+
+  defp act(%Read{reading: reading, raw_action: raw_action} = read, band, safety) do
+    base_meta = reading_meta(reading, band, read.latency_ms)
+    action = Intent.validate_player_action(reading.extraction, read.context)
+    quote = PlayerQuote.decide(action, raw_action, safety, quote_threshold(read.opts))
+    meta = Map.merge(base_meta, %{"source" => "jev", "quote" => PlayerQuote.meta(quote)})
+    log_decision(read, band, quote)
+    {:act, action, %{gm_quote: quote.quote, gm_note: nil}, meta}
   end
 
   # #281 item 6 (QA 2026-10-14 21:15): a bare "I attack" with people here asks
   # whom, before the turn. The GM was told to ask, but it narrated the attack
   # instead. A free-text answer (`never_ask`) is not asked again.
-  defp combat_target_question(%{action: :combat} = reading, context, raw_action, opts) do
+  defp combat_target_question(
+         %Read{reading: %{action: :combat} = reading, context: context, raw_action: raw_action} =
+           read
+       ) do
     people = context_people(context)
 
-    with false <- Keyword.get(opts, :never_ask, false),
+    with false <- Keyword.get(read.opts, :never_ask, false),
          [_ | _] <- people,
          {:unclear, _names} <-
            Combat.target(reading.target, raw_action, context_world(context, people)) do
@@ -360,7 +389,7 @@ defmodule TalesForge.IntentJev do
     end
   end
 
-  defp combat_target_question(_reading, _context, _raw_action, _opts), do: nil
+  defp combat_target_question(%Read{}), do: nil
 
   defp context_people(context) do
     details = context["npc_details"] || %{}
@@ -453,7 +482,7 @@ defmodule TalesForge.IntentJev do
   # A request for real-world harm: no mechanics (the action becomes `other`
   # with no target, skill or plan), the GM gets the typed summary and a note to
   # decline in character, and the turn still resolves.
-  defp decline(context, raw_action, safety, base_meta, opts) do
+  defp decline(%Read{context: context, raw_action: raw_action, opts: opts}, safety, base_meta) do
     extraction = %TalesForge.Game.Schemas.IntentExtraction{
       overall_intent: raw_action,
       actions: [%SingleAction{action_type: :other}],
@@ -484,7 +513,7 @@ defmodule TalesForge.IntentJev do
 
   # A flagged message (jailbreak, prompt injection) is a warning: play goes on
   # in-story with the typed summary, but someone should be able to find it.
-  defp log_decision(context, band, quote, reading) do
+  defp log_decision(%Read{context: context, reading: reading}, band, quote) do
     level = if reading.safety == :benign, do: :info, else: :warning
 
     Logger.log(
@@ -502,14 +531,14 @@ defmodule TalesForge.IntentJev do
   text with Jev and logs the reading and the diff in the `meta` of a
   `turn.intent_shadow` row (the call itself has its own `intent_shadow` row). Runs in a background task (`:sync` in tests, config
   `:intent_jev_shadow`), so it adds nothing to the player's clock, and it never
-  raises into the turn. It waits up to 10 s (`opts[:timeout_ms]`) rather than
+  raises into the turn. It waits up to 10 s rather than
   the live `INTENT_JEV_TIMEOUT_MS`, and records `within_live_timeout`, so one
   shadow day gives both the agreement and the fallback rate `on` would see.
   Always `:ok`.
   """
-  @spec shadow(map(), String.t(), current(), keyword()) :: :ok
-  def shadow(context, raw_action, current, opts \\ []) do
-    fun = fn -> run_shadow(context, raw_action, current, opts) end
+  @spec shadow(map(), String.t(), current()) :: :ok
+  def shadow(context, raw_action, current) do
+    fun = fn -> run_shadow(context, raw_action, current) end
 
     case Application.get_env(:ex_tales_forge, :intent_jev_shadow, :async) do
       :sync -> fun.()
@@ -522,16 +551,13 @@ defmodule TalesForge.IntentJev do
   end
 
   @doc false
-  @spec run_shadow(map(), String.t(), current(), keyword()) :: :ok
-  def run_shadow(context, raw_action, current, opts \\ []) do
+  @spec run_shadow(map(), String.t(), current()) :: :ok
+  def run_shadow(context, raw_action, current) do
     meta =
-      case read(context, raw_action,
-             purpose: "intent_shadow",
-             timeout_ms: opts[:timeout_ms] || @shadow_timeout_ms
-           ) do
+      case read(context, raw_action, purpose: "intent_shadow", timeout_ms: @shadow_timeout_ms) do
         {:ok, reading, _candidates, latency} ->
-          reading
-          |> shadow_meta(latency, context, raw_action, current)
+          %Read{context: context, raw_action: raw_action, reading: reading, latency_ms: latency}
+          |> shadow_meta(current)
           |> Map.put("within_live_timeout", latency <= Config.intent_jev_timeout_ms())
 
         {:error, reason} ->
@@ -554,7 +580,10 @@ defmodule TalesForge.IntentJev do
       :ok
   end
 
-  defp shadow_meta(reading, latency, context, raw_action, current) do
+  defp shadow_meta(
+         %Read{reading: reading, context: context, raw_action: raw_action} = read,
+         current
+       ) do
     band = IntentClarification.band(reading, band_opts())
     safety = safety(reading)
     jev_action = safe_validate(reading.extraction, context)
@@ -568,7 +597,7 @@ defmodule TalesForge.IntentJev do
           Config.player_quote_min_benign_confidence()
         )
 
-    reading_meta(reading, band, latency)
+    reading_meta(reading, band, read.latency_ms)
     |> Map.merge(%{
       "mode" => "shadow",
       "status" => "ok",
