@@ -1,5 +1,10 @@
 # Code health ratchet
 
+The ratchet measures only code we write, which is `lib/`. It never
+measures `deps/` or generated framework code, and framework-dictated shapes
+are exempt: `@impl` callbacks are not counted for parameters, and the `~p`
+edges into the router are not counted as cycles (#338).
+
 `mix health.check` (CI, and `mix precommit`) measures the code and
 compares it with the same numbers at the base commit (`--base REF`,
 default `origin/main`; CI passes the merge's first parent). It checks the

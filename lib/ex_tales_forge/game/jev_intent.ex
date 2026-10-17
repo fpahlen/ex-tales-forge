@@ -28,6 +28,46 @@ defmodule TalesForge.Game.JevIntent do
   intent.eval` measures the same request against the labelled fixture.
   """
 
+  defmodule Choice do
+    @moduledoc """
+    What `TalesForge.Game.JevIntent.decode/3` read from a Jev reply, built
+    once and passed to each step that makes the extraction: the action and
+    its target, the skill, the later action, the manner and split, the
+    player's words, the turn context and the confidence.
+    """
+
+    @enforce_keys [:action, :safety, :text, :context]
+    defstruct [
+      :action,
+      :safety,
+      :target,
+      :skill,
+      :later,
+      :later_target,
+      :manner,
+      :split,
+      :text,
+      :context,
+      :confidence,
+      :raw_confidence
+    ]
+
+    @type t :: %__MODULE__{
+            action: atom(),
+            safety: atom(),
+            target: String.t() | nil,
+            skill: String.t() | nil,
+            later: atom() | nil,
+            later_target: String.t() | nil,
+            manner: atom() | nil,
+            split: 2 | 3 | nil,
+            text: String.t(),
+            context: map(),
+            confidence: float() | nil,
+            raw_confidence: float() | nil
+          }
+  end
+
   alias TalesForge.Game.IntentCalibration
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Rest
@@ -536,49 +576,59 @@ defmodule TalesForge.Game.JevIntent do
     context = Keyword.get(opts, :context, %{})
     by_label = Map.new(candidates, fn c -> {c.label, c} end)
 
-    action = reply[:action] || :other
-    safety = reply[:safety] || :benign
-    target = pick_target(reply, :target, action, by_label, context, text)
-    skill = decode_skill(action, skill_name(reply[:skill]), text)
-    later = later_type(reply[:later], action, safety)
-    later_target = if later, do: pick_target(reply, :later_target, later, by_label, context, text)
+    base = %Choice{
+      action: reply[:action] || :other,
+      safety: reply[:safety] || :benign,
+      text: text,
+      context: context
+    }
 
-    raw_confidence = intent_confidence(reply, action)
-    confidence = IntentCalibration.apply(raw_confidence)
+    c = choose(base, reply, by_label)
     probs = get_in(reply, [:probabilities, :action]) || %{}
 
     %{
-      extraction:
-        build_extraction(
-          action,
-          target,
-          skill,
-          {later, later_target},
-          text,
-          context,
-          confidence,
-          {manner(reply[:manner]), split(reply[:split])}
-        ),
-      action: action,
-      target: target,
-      skill: skill,
-      later: later,
-      later_target: later_target,
-      then: this_turn(reply, action, safety),
-      manner: manner(reply[:manner]),
-      safety: safety,
-      confidence: confidence,
-      raw_confidence: raw_confidence,
+      extraction: build_extraction(c),
+      action: c.action,
+      target: c.target,
+      skill: c.skill,
+      later: c.later,
+      later_target: c.later_target,
+      then: this_turn(reply, c.action, c.safety),
+      manner: c.manner,
+      safety: c.safety,
+      confidence: c.confidence,
+      raw_confidence: c.raw_confidence,
       calibration: IntentCalibration.version(),
       probabilities: Map.get(reply, :probabilities, %{}),
       safety_confidence: get_in(reply, [:confidence, :safety]),
       benign_probability: get_in(reply, [:probabilities, :safety, :benign]),
       action_probabilities: probs,
-      top2: top2(probs, action),
+      top2: top2(probs, c.action),
       target_ranking: target_ranking(reply, by_label),
       usage: Map.get(reply, :usage, %{}),
       cost: reply |> Map.get(:usage, %{}) |> Map.get(:cost, 0.0),
       model: Map.get(reply, :model)
+    }
+  end
+
+  # The rest of the reply read against the candidates into the %Choice{}
+  # (action, safety, words and context already set), for the steps that
+  # make the extraction.
+  defp choose(%Choice{action: action, text: text, context: context} = c, reply, by_label) do
+    later = later_type(reply[:later], action, c.safety)
+    raw_confidence = intent_confidence(reply, action)
+
+    %{
+      c
+      | target: pick_target(reply, :target, action, by_label, context, text),
+        skill: decode_skill(action, skill_name(reply[:skill]), text),
+        later: later,
+        later_target:
+          if(later, do: pick_target(reply, :later_target, later, by_label, context, text)),
+        manner: manner(reply[:manner]),
+        split: split(reply[:split]),
+        confidence: IntentCalibration.apply(raw_confidence),
+        raw_confidence: raw_confidence
     }
   end
 
@@ -848,43 +898,33 @@ defmodule TalesForge.Game.JevIntent do
     |> Enum.map(fn {label, _p} -> label end)
   end
 
-  defp build_extraction(
-         action,
-         target,
-         skill,
-         {later, later_target},
-         text,
-         context,
-         confidence,
-         {manner, split}
-       ) do
+  defp build_extraction(%Choice{} = c) do
     primary = %SingleAction{
-      action_type: action,
-      target: target,
-      parameters:
-        action |> parameters(skill, text, context, target, manner) |> put_split(split, skill)
+      action_type: c.action,
+      target: c.target,
+      parameters: c |> parameters() |> put_split(c.split, c.skill)
     }
 
     deferred =
-      case later do
+      case c.later do
         nil -> []
-        type -> [%SingleAction{action_type: type, target: later_target, parameters: %{}}]
+        type -> [%SingleAction{action_type: type, target: c.later_target, parameters: %{}}]
       end
 
     %IntentExtraction{
-      overall_intent: summary(text),
+      overall_intent: summary(c.text),
       actions: [primary | deferred],
       primary_index: 0,
-      confidence: confidence || 1.0,
+      confidence: c.confidence || 1.0,
       needs_clarification: false
     }
   end
 
-  defp parameters(action, skill, text, context, target, manner) do
+  defp parameters(%Choice{} = c) do
     %{}
-    |> put_manner(manner)
-    |> put_skill(skill, action)
-    |> put_numbers(action, text, context, target)
+    |> put_manner(c.manner)
+    |> put_skill(c.skill, c.action)
+    |> put_numbers(c)
   end
 
   defp split(:two), do: 2
@@ -908,29 +948,21 @@ defmodule TalesForge.Game.JevIntent do
 
   defp put_skill(params, skill, _action), do: Map.put(params, "skill", skill)
 
-  defp put_numbers(params, :work, text, _context, _target),
-    do: Map.put(params, "ticks", WorldClock.parse_duration(text))
+  defp put_numbers(params, %Choice{action: action, text: text})
+       when action in [:work, :rest, :wait, :train],
+       do: Map.put(params, "ticks", WorldClock.parse_duration(text))
 
-  defp put_numbers(params, :rest, text, _context, _target),
-    do: Map.put(params, "ticks", WorldClock.parse_duration(text))
-
-  defp put_numbers(params, :wait, text, _context, _target),
-    do: Map.put(params, "ticks", WorldClock.parse_duration(text))
-
-  defp put_numbers(params, :train, text, _context, _target),
-    do: Map.put(params, "ticks", WorldClock.parse_duration(text))
-
-  defp put_numbers(params, :spend, text, _context, _target),
+  defp put_numbers(params, %Choice{action: :spend, text: text}),
     do: Map.put(params, "amount_copper", Inventory.parse_copper_hint(text))
 
-  defp put_numbers(params, :buy, _text, context, target) do
+  defp put_numbers(params, %Choice{action: :buy, context: context, target: target}) do
     case price_for(context, target) do
       nil -> params
       price -> Map.put(params, "price_copper", price)
     end
   end
 
-  defp put_numbers(params, _action, _text, _context, _target), do: params
+  defp put_numbers(params, %Choice{}), do: params
 
   defp price_for(_context, nil), do: nil
 
