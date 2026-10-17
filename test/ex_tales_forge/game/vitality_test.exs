@@ -219,12 +219,14 @@ defmodule TalesForge.Game.VitalityTest do
 
     {:ok, payload} =
       TurnProcessor.simulate!(
-        session,
-        "I strike",
-        player_action,
-        handler,
-        fail("melee_combat", 1.0),
-        death_roll: 100
+        %TurnProcessor.Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: fail("melee_combat", 1.0),
+          opts: [death_roll: 100]
+        },
+        "I strike"
       )
 
     session = GameSessions.get_session!(session.id)

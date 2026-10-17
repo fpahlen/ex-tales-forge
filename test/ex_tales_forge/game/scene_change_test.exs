@@ -240,7 +240,15 @@ defmodule TalesForge.Game.SceneChangeTest do
       session = Repo.get!(GameSession, session.id)
       context = Context.build_gm_context(session)
       t7 = heuristic(@paul_t7, context.intent_context)
-      messages = Prompts.gm_messages(context, nil, t7, ActionHandler.resolve(t7), 7)
+
+      messages =
+        Prompts.gm_messages(context, %Prompts.GmTurn{
+          mechanical: nil,
+          player_action: t7,
+          handler: ActionHandler.resolve(t7),
+          turn_number: 7
+        })
+
       per_turn = List.last(messages).content
 
       assert per_turn =~ "Current location: Market Square (market_square)"
@@ -263,13 +271,13 @@ defmodule TalesForge.Game.SceneChangeTest do
       }
 
       world =
-        TurnProcessor.apply_board(
-          session,
-          session.world_state["character"],
-          ActionHandler.resolve(action),
-          action,
-          %TalesForge.Game.Schemas.MechanicalResolution{}
-        ).world
+        TurnProcessor.apply_board(%TurnProcessor.Board{
+          session: session,
+          character: session.world_state["character"],
+          handler: ActionHandler.resolve(action),
+          player_action: action,
+          mechanical: %TalesForge.Game.Schemas.MechanicalResolution{}
+        }).world
 
       assert world["location_id"] == "valley_inn"
       assert world["present_npcs"] == ["innkeep"]

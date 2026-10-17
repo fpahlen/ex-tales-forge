@@ -186,7 +186,7 @@ defmodule TalesForge.Game.Context do
   @doc """
   The whole GM/scene context as one flat string: rules, then session-stable
   content, then per-turn state. The LLM receives the same sections as separate
-  messages (see `TalesForge.Game.Prompts.gm_messages/5`); this flat view is for
+  messages (see `TalesForge.Game.Prompts.gm_messages/3`); this flat view is for
   tests and debugging.
   """
   @spec format_gm_prompt(map()) :: String.t()

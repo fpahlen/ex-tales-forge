@@ -39,14 +39,14 @@ defmodule TalesForge.Game.BargainTest do
       }
     }
 
-    TurnProcessor.apply_board(
-      session,
-      session.world_state["character"],
-      ActionHandler.resolve(action),
-      action,
-      %MechanicalResolution{},
-      opts
-    )
+    TurnProcessor.apply_board(%TurnProcessor.Board{
+      session: session,
+      character: session.world_state["character"],
+      handler: ActionHandler.resolve(action),
+      player_action: action,
+      mechanical: %MechanicalResolution{},
+      opts: opts
+    })
   end
 
   defp copper(board), do: Inventory.coin_total_copper(board.world["character"]["coins"])
