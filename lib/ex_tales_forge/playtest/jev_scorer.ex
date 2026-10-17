@@ -18,7 +18,8 @@ defmodule TalesForge.Playtest.JevScorer do
   require Logger
 
   alias TalesForge.AICalls
-  alias TalesForge.Playtest.{AffectLevels, Personas, Reports, Runner}
+  alias TalesForge.Config
+  alias TalesForge.Playtest.{AffectLevels, Personas, Reports}
   alias TalesForge.Repo
   alias TalesForge.Scenes
   alias TalesForge.Schemas.PlaytestScore
@@ -57,7 +58,7 @@ defmodule TalesForge.Playtest.JevScorer do
   end
 
   defp do_score(run_id) do
-    with :ok <- if(Runner.enabled?(), do: :ok, else: {:error, :disabled}),
+    with :ok <- if(Config.playtest_runner?(), do: :ok, else: {:error, :disabled}),
          :ok <- if(configured?(), do: :ok, else: {:error, :jev_not_configured}),
          {:ok, run} <- Reports.get_run(run_id),
          :ok <-

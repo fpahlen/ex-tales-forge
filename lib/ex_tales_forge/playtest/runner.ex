@@ -19,7 +19,7 @@ defmodule TalesForge.Playtest.Runner do
   import Ecto.Query
 
   alias TalesForge.AICalls
-  alias TalesForge.AppRole
+  alias TalesForge.Config
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.GameSessions
   alias TalesForge.LLM
@@ -133,22 +133,11 @@ defmodule TalesForge.Playtest.Runner do
     end
   end
 
-  @doc """
-  True when persona runs may start here: `PLAYTEST_RUNNER_ENABLED` is "true"
-  and this is not the production app (playtest runs live only on playtest;
-  `TalesForge.AppRole`). Series and scoring use the same gate.
-  """
-  @spec enabled?() :: boolean()
-  def enabled? do
-    Application.get_env(:ex_tales_forge, :playtest_runner_enabled, false) == true and
-      AppRole.here?(:playtest_runs)
-  end
-
   def modules do
     Application.app_dir(:ex_tales_forge, "priv/adventures") |> File.ls!() |> Enum.sort()
   end
 
-  defp check_enabled, do: if(enabled?(), do: :ok, else: {:error, :disabled})
+  defp check_enabled, do: if(Config.playtest_runner?(), do: :ok, else: {:error, :disabled})
 
   defp check_module(module),
     do: if(module in modules(), do: :ok, else: {:error, :unknown_module})
