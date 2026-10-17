@@ -152,7 +152,7 @@ defmodule Mix.Tasks.E2e.Smoke do
     Mix.shell().info("  step #{step_num}: #{action}")
 
     try do
-      submit_step(session_id, step_num, action, Map.get(step, :npc_expect), started, warnings)
+      {submit_step(session_id, step, started), warnings}
     rescue
       e ->
         latency = System.monotonic_time(:millisecond) - started
@@ -170,45 +170,40 @@ defmodule Mix.Tasks.E2e.Smoke do
     end
   end
 
-  defp submit_step(session_id, step_num, action, npc_expect, started, warnings) do
-    case submit_with_clarification(session_id, action) do
+  # One step's result map. Does not touch the warnings.
+  defp submit_step(session_id, %{step: step_num} = step, started) do
+    case submit_with_clarification(session_id, step.action) do
       {:ok, :processing} ->
         case wait_for_turn(session_id, step_num) do
           {:ok, turn, latency_ms} ->
-            result = evaluate_turn(step_num, action, turn, latency_ms)
-            {npc_issues, npc_check} = evaluate_npc_expect(session_id, npc_expect)
-            result = merge_npc_result(result, npc_issues, npc_check)
-            {result, warnings}
+            step
+            |> evaluate_turn(turn, latency_ms)
+            |> with_npc_check(session_id, Map.get(step, :npc_expect))
 
           {:error, reason} ->
-            latency = System.monotonic_time(:millisecond) - started
-
-            step = %{
-              step: step_num,
-              action: action,
-              status: "FAIL",
-              latency_ms: latency,
-              error: inspect(reason)
-            }
-
             Mix.shell().error("    FAIL — #{inspect(reason)}")
-            {step, warnings}
+            failed_step(step, started, reason)
         end
 
       {:error, reason} ->
-        latency = System.monotonic_time(:millisecond) - started
-
-        step = %{
-          step: step_num,
-          action: action,
-          status: "FAIL",
-          latency_ms: latency,
-          error: inspect(reason)
-        }
-
         Mix.shell().error("    FAIL — submit: #{inspect(reason)}")
-        {step, warnings}
+        failed_step(step, started, reason)
     end
+  end
+
+  defp with_npc_check(result, session_id, npc_expect) do
+    {npc_issues, npc_check} = evaluate_npc_expect(session_id, npc_expect)
+    merge_npc_result(result, npc_issues, npc_check)
+  end
+
+  defp failed_step(step, started, reason) do
+    %{
+      step: step.step,
+      action: step.action,
+      status: "FAIL",
+      latency_ms: System.monotonic_time(:millisecond) - started,
+      error: inspect(reason)
+    }
   end
 
   defp submit_with_clarification(session_id, action, opts \\ []) do
@@ -271,10 +266,11 @@ defmodule Mix.Tasks.E2e.Smoke do
 
   defp wait_for_turn(session_id, turn_number) do
     deadline = System.monotonic_time(:millisecond) + @turn_timeout_ms
-    wait_for_turn(session_id, turn_number, deadline, System.monotonic_time(:millisecond))
+    clock = %{deadline: deadline, started: System.monotonic_time(:millisecond)}
+    poll_turn(session_id, turn_number, clock)
   end
 
-  defp wait_for_turn(session_id, turn_number, deadline, started) do
+  defp poll_turn(session_id, turn_number, %{deadline: deadline, started: started} = clock) do
     case fetch_turn(session_id, turn_number) do
       {:ok, turn} ->
         latency = System.monotonic_time(:millisecond) - started
@@ -285,7 +281,7 @@ defmodule Mix.Tasks.E2e.Smoke do
           {:error, :timeout}
         else
           Process.sleep(@poll_interval_ms)
-          wait_for_turn(session_id, turn_number, deadline, started)
+          poll_turn(session_id, turn_number, clock)
         end
     end
   end
@@ -366,7 +362,7 @@ defmodule Mix.Tasks.E2e.Smoke do
 
   defp evaluate_npc_expect(_session_id, _other), do: {[], %{}}
 
-  defp evaluate_turn(step_num, action, turn, latency_ms) do
+  defp evaluate_turn(%{step: step_num, action: action}, turn, latency_ms) do
     narrative = turn.narrative || ""
     mock? = String.contains?(narrative, @mock_marker)
     empty? = String.trim(narrative) == ""
