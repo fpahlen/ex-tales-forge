@@ -54,7 +54,7 @@ defmodule TalesForgeWeb.AdminLive.CodeHeatLive do
     module = params |> Map.get("module", "") |> String.slice(0, 100)
     min = parse_min(params["min"])
     rows = if socket.assigns.snapshot, do: socket.assigns.snapshot.rows, else: []
-    tiles = CodeHeat.tiles(rows, level, metric, module: module, min: min)
+    tiles = CodeHeat.tiles(rows, level: level, metric: metric, module: module, min: min)
 
     {:noreply,
      socket
