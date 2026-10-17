@@ -277,7 +277,9 @@ defmodule TalesForge.DeployLanesTest do
           {"prod", "m"} => ["priv/team/data.json"]
         })
 
-      assert %{lane: :admin, summary: [heading | _]} = CLI.decide(@cli_lanes, "m", "prod", git)
+      assert %{lane: :admin, summary: [heading | _]} =
+               CLI.decide(%CLI.Run{lanes: @cli_lanes, git: git}, "m", "prod")
+
       assert heading =~ "admin (fast lane)"
     end
 
@@ -288,7 +290,7 @@ defmodule TalesForge.DeployLanesTest do
           {"prod", "m"} => ["priv/team/data.json", "lib/ex_tales_forge/game/progression.ex"]
         })
 
-      result = CLI.decide(@cli_lanes, "m", "prod", git)
+      result = CLI.decide(%CLI.Run{lanes: @cli_lanes, git: git}, "m", "prod")
       assert result.lane == :normal
       assert Enum.join(result.summary, "\n") =~ "lib/ex_tales_forge/game/progression.ex"
       assert Enum.join(result.summary, "\n") =~ "gh workflow run deploy-production.yml -f sha=m"
@@ -296,15 +298,18 @@ defmodule TalesForge.DeployLanesTest do
 
     test "normal when production's commit is unknown or not an ancestor" do
       git = fake_git(%{{"m^1", "m"} => ["priv/team/data.json"]})
-      assert %{lane: :normal, summary: summary} = CLI.decide(@cli_lanes, "m", nil, git)
+
+      assert %{lane: :normal, summary: summary} =
+               CLI.decide(%CLI.Run{lanes: @cli_lanes, git: git}, "m", nil)
+
       assert Enum.join(summary, "\n") =~ "no `deployed/production` tag"
-      assert CLI.decide(@cli_lanes, "m", "elsewhere", git).lane == :normal
-      assert CLI.decide(@cli_lanes, "m", "m", git).lane == :normal
+      assert CLI.decide(%CLI.Run{lanes: @cli_lanes, git: git}, "m", "elsewhere").lane == :normal
+      assert CLI.decide(%CLI.Run{lanes: @cli_lanes, git: git}, "m", "m").lane == :normal
     end
 
     test "normal for a game merge" do
       git = fake_git(%{{"m^1", "m"} => ["lib/game.ex"], {"prod", "m"} => ["lib/game.ex"]})
-      assert CLI.decide(@cli_lanes, "m", "prod", git).lane == :normal
+      assert CLI.decide(%CLI.Run{lanes: @cli_lanes, git: git}, "m", "prod").lane == :normal
     end
 
     test "decide_files/2 classifies a plain list" do

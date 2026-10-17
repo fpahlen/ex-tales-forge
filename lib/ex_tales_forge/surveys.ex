@@ -147,19 +147,19 @@ defmodule TalesForge.Surveys do
   end
 
   @doc """
-  Saves one section's posted `params` for `user`. Returns the updated
+  Saves one section's posted `params` (`{section_id, params}`) for `user`. Returns the updated
   response, `{:error, :wrong_app}` on the playtest app (surveys live on
   production), `{:error, :closed}` for a closed survey or `{:error, :unknown_section}`.
   """
-  @spec save_section(Source.loaded(), user(), String.t(), map()) ::
+  @spec save_section(Source.loaded(), user(), {String.t(), map()}) ::
           {:ok, Response.t()}
           | {:error, :wrong_app | :closed | :unknown_section | Ecto.Changeset.t()}
-  def save_section(%{definition: definition} = loaded, user, section_id, params) do
+  def save_section(%{definition: definition} = loaded, user, {section_id, params}) do
     with :ok <- check_stored_here(),
          :ok <- check_answerable(definition),
          %Section{} = section <- Definition.section(definition, section_id) || :unknown do
       section_answers = Answers.from_params(section, params)
-      do_save(loaded, user, section_id, section_answers)
+      do_save(loaded, user, {section_id, section_answers})
     else
       :unknown -> {:error, :unknown_section}
       error -> error
@@ -210,7 +210,7 @@ defmodule TalesForge.Surveys do
     if Definition.answerable?(definition), do: :ok, else: {:error, :closed}
   end
 
-  defp do_save(%{definition: definition} = loaded, user, section_id, section_answers) do
+  defp do_save(%{definition: definition} = loaded, user, {section_id, section_answers}) do
     login = normalize_login(user.login)
     record_snapshot(loaded)
 

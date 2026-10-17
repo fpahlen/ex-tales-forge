@@ -61,7 +61,7 @@ defmodule Mix.Tasks.Docs.CheckLinks do
     (page_links ++ data_links(dir))
     |> Enum.uniq()
     |> Enum.flat_map(fn {page, base, link} ->
-      case resolve(dir, ids, base, link) do
+      case resolve(%{dir: dir, ids: ids}, base, link) do
         :ok -> []
         {:error, reason} -> [%{page: page, link: link, reason: reason}]
       end
@@ -138,8 +138,9 @@ defmodule Mix.Tasks.Docs.CheckLinks do
   defp node_links(_node), do: []
 
   # Resolve the link against the URL of the page it is on (under the prefix),
-  # then look for the file (and the fragment's id) in the site.
-  defp resolve(dir, ids, page, link) do
+  # then look for the file (and the fragment's id) in the site: `site` has the
+  # site's `dir` and the `ids` of each page.
+  defp resolve(site, page, link) do
     base = URI.parse("http://docs.local" <> @prefix <> page)
     uri = URI.parse(link)
 
@@ -150,14 +151,14 @@ defmodule Mix.Tasks.Docs.CheckLinks do
       path = URI.decode(target.path || "")
 
       if String.starts_with?(path, @prefix) do
-        path |> String.replace_prefix(@prefix, "") |> check_target(dir, ids, target.fragment)
+        path |> String.replace_prefix(@prefix, "") |> check_target(site, target.fragment)
       else
         {:error, "resolves to #{path}, outside #{@prefix}"}
       end
     end
   end
 
-  defp check_target(rel, dir, ids, fragment) do
+  defp check_target(rel, %{dir: dir, ids: ids}, fragment) do
     rel = if rel == "" or String.ends_with?(rel, "/"), do: rel <> "index.html", else: rel
 
     cond do
