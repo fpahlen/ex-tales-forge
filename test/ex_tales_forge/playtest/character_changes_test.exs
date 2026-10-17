@@ -415,7 +415,14 @@ defmodule TalesForge.Playtest.CharacterChangesTest do
       }
     })
 
-    :ok = NPC.record_memory(session.id, "innkeep", "Corvin bought ale.", tick)
+    :ok =
+      NPC.record_memory(%NPC.Note{
+        session_id: session.id,
+        npc_id: "innkeep",
+        summary: "Corvin bought ale.",
+        tick: tick
+      })
+
     {:ok, _} = NPC.bump_relationship(session.id, "innkeep", 0.1)
 
     world =

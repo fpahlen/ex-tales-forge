@@ -33,7 +33,7 @@ If #47 doesn't land, step 2 needs an Ash resource and an AshPhoenix form instead
 | **Process** | `PlayerSessionAgent` (Jido): only turn count and entries, no character state | `NPCAgent` (Jido), one per **present** NPC, kept in sync by `NPCRegistry.sync/1` and restored at boot by `NPCRecovery`. Signals from `NPCSignals`: `world.time.passed`, `player.talked_to`, `conversation.message` (actions in `Actions.NPC.*`) |
 | **World agents** (`WORLD_AGENTS`, off on both apps) | The PC's location chain and held items become agents; the PC itself is not a Person agent | `World.Agent` with kind `:person`, a separate GenServer from `NPCAgent`, holding facts from `world_agents.json` and `world_fact` events, with mood read from `npc_moods` |
 | **Jev reactions** (`NPC_REACTIONS`: on on playtest, off on prod) | Input only: what the PC said or did, and how the attempt came across | One Jev call per present NPC (at most 4), reading OCEAN + mood and writing `npc_moods` |
-| **Per-turn writes** | `TurnProcessor` rewrites `world_state["character"]` in the turn Multi | `NPC.persist_tick_multi/3`, `record_memory/4`, `persist_stock_updates/2`, `adjust_concern/3` |
+| **Per-turn writes** | `TurnProcessor` rewrites `world_state["character"]` in the turn Multi | `NPC.persist_tick_multi/3`, `record_memory/1`, `persist_stock_updates/2`, `adjust_concern/3` |
 
 **Rows today** (read-only count on 2026-10-07, after #46 was deployed):
 
