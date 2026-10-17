@@ -29,35 +29,52 @@ defmodule TalesForge.World.Prices do
   @coin_word ~r/\b(copper|coppers|silver|silvers|gold|coin|coins)\b/i
   @amount ~r/\b(\d+|a|one|two|three|four|five|six|seven|eight|nine|ten)\s+(copper|coppers|silver|silvers|gold)\b/i
 
+  defmodule Turn do
+    @moduledoc """
+    The turn a price is read from: the session state before the rules step
+    (`world_before`), the player's text and the played action.
+    """
+    defstruct [:world_before, :raw_action, :player_action]
+
+    @typedoc "The turn a price is read from."
+    @type t :: %__MODULE__{
+            world_before: map(),
+            raw_action: String.t(),
+            player_action: struct() | nil
+          }
+  end
+
   @doc """
-  Resolves this turn's prices. `world_before` is the session state before the
-  rules step, `world` after it. Returns `{world, lines}`.
+  Resolves this turn's prices. `world` is the session state after the rules
+  step; `turn` has the state before it. Returns `{world, lines}`.
   """
-  @spec resolve([TalesForge.World.agent()], map(), map(), String.t(), struct() | nil) ::
-          {map(), [String.t()]}
-  def resolve(agents, world_before, world, raw_action, player_action) do
-    spent = coins(world_before) - coins(world)
+  @spec resolve([TalesForge.World.agent()], map(), Turn.t()) :: {map(), [String.t()]}
+  def resolve(agents, world, %Turn{player_action: player_action} = turn) do
+    spent = coins(turn.world_before) - coins(world)
 
     if spent > 0 and bought?(player_action) do
       item = Map.get(primary(player_action).parameters || %{}, "item_id") || "item"
       {world, ["Purchase: #{item}, #{money(spent)}, paid (server, from the seller's stock)"]}
     else
-      facts = price_facts(agents)
-      pay? = payment?(raw_action, player_action)
-
-      # When paying, the things paid for are the ones named outside questions
-      # ("I'll pay for the room. Is the stew good?" buys the room only).
-      named_in = if pay?, do: Enum.join(statements(raw_action), " "), else: raw_action
-
-      facts
-      |> mentioned(named_in)
-      |> by_amount(facts, raw_action, pay?)
-      |> Enum.take(@max_items)
-      |> Enum.reduce({world, []}, fn fact, {w, lines} ->
-        {w, line} = resolve_one(w, fact, pay?)
-        {w, lines ++ [line]}
-      end)
+      quoted(price_facts(agents), world, turn)
     end
+  end
+
+  # The prices named this turn: paid when the player pays, else quoted.
+  defp quoted(facts, world, %Turn{raw_action: raw_action} = turn) do
+    pay? = payment?(raw_action, turn.player_action)
+
+    # When paying, the things paid for are the ones named outside questions
+    # ("I'll pay for the room. Is the stew good?" buys the room only).
+    named_in = if pay?, do: Enum.join(statements(raw_action), " "), else: raw_action
+    named = mentioned(facts, named_in)
+
+    if(pay?, do: by_amount(named, facts, amount(raw_action)), else: named)
+    |> Enum.take(@max_items)
+    |> Enum.reduce({world, []}, fn fact, {w, lines} ->
+      {w, line} = resolve_one(w, fact, pay?)
+      {w, lines ++ [line]}
+    end)
   end
 
   defp resolve_one(world, fact, true) do
@@ -115,9 +132,7 @@ defmodule TalesForge.World.Prices do
   # cost less than the amount, the smallest set of priced things here that
   # contains them and costs exactly that amount is used; when they cost more,
   # the named items that add up to it.
-  defp by_amount(mentioned, facts, raw_action, true) do
-    amount = amount(raw_action)
-
+  defp by_amount(mentioned, facts, amount) do
     cond do
       is_nil(amount) or total(mentioned) == amount ->
         mentioned
@@ -136,8 +151,6 @@ defmodule TalesForge.World.Prices do
         |> Enum.max_by(&length/1, fn -> mentioned end)
     end
   end
-
-  defp by_amount(mentioned, _facts, _raw_action, _pay?), do: mentioned
 
   defp total(facts), do: facts |> Enum.map(& &1["copper"]) |> Enum.sum()
 

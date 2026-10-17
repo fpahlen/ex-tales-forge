@@ -166,47 +166,65 @@ defmodule TalesForge.DeployLanes.SecurityTest do
       "labels" => [%{"name" => "security"}]
     }
 
-    test "decide_pr/5: a lock-only minor bump qualifies, the summary lists the rules" do
-      result = SecurityCLI.decide_pr("main", "head", @pr, true, git(["mix.lock"], @trees))
+    test "decide_pr/3: a lock-only minor bump qualifies, the summary lists the rules" do
+      result =
+        SecurityCLI.decide_pr(
+          %SecurityCLI.Run{pr: @pr, ci_green: true, git: git(["mix.lock"], @trees)},
+          "main",
+          "head"
+        )
+
       assert result.lane == :security
       assert result.advisories == ["EEF-CVE-2026-97853"]
       assert Enum.count(result.summary, &String.starts_with?(&1, "- PASS")) == 4
     end
 
-    test "decide_pr/5: extra files fall back to normal with the reason" do
+    test "decide_pr/3: extra files fall back to normal with the reason" do
       result =
-        SecurityCLI.decide_pr("main", "head", @pr, true, git(["mix.lock", "README.md"], @trees))
+        SecurityCLI.decide_pr(
+          %SecurityCLI.Run{pr: @pr, ci_green: true, git: git(["mix.lock", "README.md"], @trees)},
+          "main",
+          "head"
+        )
 
       assert result.lane == :normal
       assert Enum.any?(result.summary, &(&1 =~ "FAIL" and &1 =~ "README.md"))
     end
 
-    test "since_production/4: an unreleased game change keeps production in the normal lane" do
+    test "since_production/3: an unreleased game change keeps production in the normal lane" do
       lanes = DeployLanes.load()
       trees = %{"prod" => @trees["base"], "head" => @trees["head"]}
 
       ok =
         SecurityCLI.since_production(
-          lanes,
+          %SecurityCLI.Run{
+            lanes: lanes,
+            git: git(["mix.lock", "lib/ex_tales_forge_web/live/admin/costs_live.ex"], trees)
+          },
           "head",
-          "prod",
-          git(["mix.lock", "lib/ex_tales_forge_web/live/admin/costs_live.ex"], trees)
+          "prod"
         )
 
       assert ok.ok
 
       bad =
         SecurityCLI.since_production(
-          lanes,
+          %SecurityCLI.Run{
+            lanes: lanes,
+            git: git(["mix.lock", "lib/ex_tales_forge/game/turn.ex"], trees)
+          },
           "head",
-          "prod",
-          git(["mix.lock", "lib/ex_tales_forge/game/turn.ex"], trees)
+          "prod"
         )
 
       refute bad.ok
       assert bad.detail =~ "lib/ex_tales_forge/game/turn.ex"
 
-      refute SecurityCLI.since_production(lanes, "head", nil, git([], trees)).ok
+      refute SecurityCLI.since_production(
+               %SecurityCLI.Run{lanes: lanes, git: git([], trees)},
+               "head",
+               nil
+             ).ok
     end
 
     test "extract_json/1 takes the deps.audit report out of mixed output (run 38154907517)" do
