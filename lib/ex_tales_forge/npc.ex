@@ -29,7 +29,7 @@ defmodule TalesForge.NPC do
         "npc_state",
         # QA 2026-10-14 08:57 (e): keep the NPC wounds and the minor foes of
         # the fights (#270) when the scene changes.
-        TalesForge.Game.Combat.carry(
+        TalesForge.Game.NpcState.carry(
           Map.get(session.world_state, "npc_state"),
           refresh_world_npc_state(session.id)
         )
