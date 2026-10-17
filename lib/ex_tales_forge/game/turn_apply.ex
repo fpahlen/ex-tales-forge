@@ -155,7 +155,7 @@ defmodule TalesForge.Game.TurnApply do
         spend_here(player_action, handler, price)
 
       params["item_id"] in [nil, ""] and not person_or_nil?(world, target) ->
-        listed(player_action, handler, params, target)
+        listed({player_action, handler}, params, target)
 
       true ->
         {player_action, handler}
@@ -185,7 +185,7 @@ defmodule TalesForge.Game.TurnApply do
     {%{player_action | action: spend}, %{handler | state_hints: hints}}
   end
 
-  defp listed(%PlayerAction{action: action} = player_action, handler, params, target) do
+  defp listed({%PlayerAction{action: action} = player_action, handler}, params, target) do
     params = Map.put(params, "item_id", target)
     hints = Map.put(handler.state_hints || %{}, "parameters", params)
 
@@ -401,7 +401,7 @@ defmodule TalesForge.Game.TurnApply do
     if is_binary(here) and
          (target == here or
             (is_binary(text) and generic_here?(text, world) and
-               not names_target?(text, world, target, here))),
+               not names_target?(text, world, {here, target}))),
        do: stay(world, here),
        else: handler
   end
@@ -410,9 +410,9 @@ defmodule TalesForge.Game.TurnApply do
 
   # "Down to the cellar of the inn": the text names a word of the target
   # place that the current place does not have, so the move stays a move.
-  defp names_target?(_text, _world, target, _here) when not is_binary(target), do: false
+  defp names_target?(_text, _world, {_here, target}) when not is_binary(target), do: false
 
-  defp names_target?(text, world, target, here) do
+  defp names_target?(text, world, {here, target}) do
     own = place_words(here, World.runtime_location(world, here))
     other = place_words(target, World.runtime_location(world, target)) -- own
     overlap(words(text), other) > 0
