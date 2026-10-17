@@ -41,16 +41,17 @@ defmodule TalesForge.Game.InventoryTest do
       character = %{"inventory" => [], "coins" => %{"copper" => 10}}
 
       assert {:error, _} =
-               Inventory.validate_transaction(
-                 %SingleAction{
+               Inventory.validate_transaction(%Inventory.Transaction{
+                 world_state: %{"character" => character},
+                 session_id: "session",
+                 location_id: "here",
+                 action: %SingleAction{
                    action_type: :drop,
                    target: "wooden_shield",
                    parameters: %{"item_id" => "wooden_shield"}
                  },
-                 character,
-                 [],
-                 %{}
-               )
+                 character: character
+               })
     end
   end
 
