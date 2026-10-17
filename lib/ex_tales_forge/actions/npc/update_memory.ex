@@ -13,7 +13,14 @@ defmodule TalesForge.Actions.NPC.UpdateMemory do
 
   @impl true
   def run(%{summary: summary, world_tick: world_tick}, %{state: state}) do
-    :ok = NPC.record_memory(state.session_id, state.npc_id, summary, world_tick)
+    :ok =
+      NPC.record_memory(%NPC.Note{
+        session_id: state.session_id,
+        npc_id: state.npc_id,
+        summary: summary,
+        tick: world_tick
+      })
+
     {:ok, %{last_memory_summary: summary}}
   end
 end
