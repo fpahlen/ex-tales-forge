@@ -1,6 +1,12 @@
 # Code health ratchet
 
-`baseline.json` holds the code health debt as of the day it was written:
+`mix health.check` (CI, and `mix precommit`) measures the code and
+compares it with the same numbers at the base commit (`--base REF`,
+default `origin/main`; CI passes the merge's first parent). It checks the
+base out in a temporary git worktree and runs that commit's own
+`mix health.check --out FILE` there. No baseline is committed: the base's
+debt is the allow-list, so parallel PRs never conflict on it, and a PR
+that pays debt down needs no extra file. The numbers:
 
 - `cycles`: every `mix xref graph --format cycles` cycle (`all`, without
   `lib/ex_tales_forge_web/router.ex`) and every `--label compile-connected`
@@ -21,17 +27,15 @@
 - `wide_functions`: each `def`/`defp` head with 4 or more parameters
   (counted from the AST, `@impl` callbacks skipped), with its file and count.
 
-`mix health.check` (CI, and `mix precommit`) fails when the code is worse
-than the baseline: more cycles, a cycle that is new or bigger than every
-baseline cycle, a new domain -> web reference, a new LiveView -> LiveView reference, a new
-function over a limit,
-a score above its ceiling, a new function with 4+ parameters, or a baseline
-one that gained parameters. In CI it also runs with `--base` (the PR's base
-branch; on a push to main, the merge's first parent): the baseline may only shrink. Removing entries and lowering
-ceilings pass; adding an entry or raising a ceiling fails.
-
-After paying debt down, run `mix health.check --write` and commit the
-smaller baseline. Refactoring the existing debt is separate work.
+It fails when the code is worse than the base: more cycles, a cycle that
+is new or bigger than every base cycle, a new domain -> web reference, a
+new LiveView -> LiveView reference, a new function over a limit, a score
+above its ceiling, a new function with 4+ parameters, a listed one that
+gained parameters, or a raised Credo limit. A rule that is new in the PR
+has nothing at the base to compare with, so it starts from the PR's own
+numbers. Until 2026-10-17 the numbers were committed in `baseline.json`
+and every PR rewrote it; a base that still has that file is compared with
+it. `mix health.check --out FILE` writes the numbers as JSON.
 
 ## History
 
@@ -55,8 +59,8 @@ pull_request runs (it changes only the two history files) and the snapshot
 workflow dispatches CI on the branch instead. GitHub does not count a
 dispatched run's own checks on a PR, so that run sets commit statuses
 named Test and Dialyzer on the branch head with its results (job "Report
-dispatched checks"): the required checks pass with no approval. The first rows are the merges that changed `baseline.json`
-(#324, #325, #326), measured again at each merge commit. The 4+ parameter
+dispatched checks"): the required checks pass with no approval. The first rows are the merges that changed the then committed
+`baseline.json` (#324, #325, #326), measured again at each merge commit. The 4+ parameter
 counts up to #334 were measured on each merge commit's `lib/` too. When
 main changes the history files, the snapshot workflow merges main with
 main's side (`-X theirs`) and passes the branch's old file to

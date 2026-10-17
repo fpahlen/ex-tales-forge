@@ -112,18 +112,21 @@ jobs:
       - name: Credo
         run: mix credo --strict
 
-      # Code health ratchet (docs/health/baseline.json): no new or bigger xref
-      # cycles, no new lib/ex_tales_forge -> lib/ex_tales_forge_web references,
-      # no new function over the Credo complexity/ABC limits, no score above
-      # its ceiling. --base checks that the baseline itself only shrinks.
-      # The base is the PR's base branch, or on a push to main the merge's
-      # first parent: main may have moved on by the time this runs.
+      # Code health ratchet (docs/health/README.md): no worse than the base
+      # commit, measured in a worktree with its own `mix health.check`. No
+      # new or bigger xref cycles, no new lib/ex_tales_forge ->
+      # lib/ex_tales_forge_web or LiveView -> LiveView references, no new
+      # function over the Credo limits or with 4+ parameters, no score above
+      # its ceiling. The base is the merge's first parent: a PR's merge ref
+      # and a push to main are merges with main on that side. A dispatched
+      # run (the health-history branch) is not a merge: its base is the
+      # merge base with main, so commits on main since are not counted.
       - name: Code health ratchet
         run: |
-          if [ "${{ github.event_name }}" = push ]; then
-            git fetch --depth=2 origin "$GITHUB_SHA" && base="$GITHUB_SHA^1"
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            git fetch --quiet --unshallow origin main && base=$(git merge-base HEAD FETCH_HEAD)
           else
-            git fetch --depth=1 origin "${{ github.base_ref || 'main' }}" && base=FETCH_HEAD
+            git fetch --depth=2 origin "$GITHUB_SHA" && base="$GITHUB_SHA^1"
           fi
           mix health.check --base "$base"
 
