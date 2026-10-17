@@ -67,7 +67,11 @@ defmodule TalesForge.Game.Turn.Store do
          # memory to short-term; never fails the turn.
          :ok <- TalesForge.Characters.Memory.on_turn(session.id, events, memory),
          # PR 2 (board card 845b6b15): Jev compression in a task, after commit.
-         :ok <- TalesForge.Characters.Compression.after_turn(session.id, events, tick, memory) do
+         :ok <-
+           TalesForge.Characters.Compression.after_turn(session.id, events,
+             now: tick,
+             mode: memory
+           ) do
       NPCRegistry.sync(session)
     end
   end
