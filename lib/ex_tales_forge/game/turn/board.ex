@@ -422,6 +422,9 @@ defmodule TalesForge.Game.Turn.Board do
 
   # `board` with the haggled price on its action, when the words ask for a
   # haggle and the trade has a price.
+  defp haggle_opts(board, text),
+    do: [appraise: Bargain.appraise?(text), rolls: board.opts[:haggle_rolls] || %{}]
+
   defp maybe_haggle(
          world,
          %__MODULE__{player_action: %{action: action} = player_action} = board,
@@ -432,9 +435,10 @@ defmodule TalesForge.Game.Turn.Board do
 
     if Bargain.haggle?(text) and is_integer(price) and price > 0 do
       {character, result} =
-        Bargain.haggle(world["character"], action.action_type, price,
-          appraise: Bargain.appraise?(text),
-          rolls: board.opts[:haggle_rolls] || %{}
+        Bargain.haggle(
+          world["character"],
+          %Bargain.Deal{kind: action.action_type, price: price},
+          haggle_opts(board, text)
         )
 
       Logger.info("haggle session=#{board.session.id} result=#{inspect(result)}")

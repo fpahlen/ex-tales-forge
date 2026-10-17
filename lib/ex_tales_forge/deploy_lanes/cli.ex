@@ -26,6 +26,21 @@ defmodule TalesForge.DeployLanes.CLI do
 
   @max_listed 40
 
+  defmodule Run do
+    @moduledoc """
+    What a lane decision reads: the lane lists and `git`, a function that runs a
+    git command (argument list) and returns `{output, exit_status}`.
+    """
+    @enforce_keys [:lanes, :git]
+    defstruct [:lanes, :git]
+
+    @typedoc "The lane lists and the git runner."
+    @type t :: %__MODULE__{
+            lanes: TalesForge.DeployLanes.t(),
+            git: ([String.t()] -> {String.t(), non_neg_integer()})
+          }
+  end
+
   @typedoc "The lane decision with its reasons, as Markdown lines for the run summary."
   @type result :: %{lane: DeployLanes.lane(), summary: [String.t()]}
 
@@ -41,7 +56,7 @@ defmodule TalesForge.DeployLanes.CLI do
 
     result =
       if opts[:sha] do
-        decide(lanes, opts[:sha], blank_to_nil(opts[:production]), &git/1)
+        decide(%Run{lanes: lanes, git: &git/1}, opts[:sha], blank_to_nil(opts[:production]))
       else
         decide_files(lanes, files)
       end
@@ -50,23 +65,21 @@ defmodule TalesForge.DeployLanes.CLI do
   end
 
   @doc """
-  The lane of merge `sha` given the commit production runs (`nil` when unknown).
-  `git` runs a git command (argument list) and returns `{output, exit_status}`.
+  The lane of merge `sha` given the commit production runs (`nil` when unknown),
+  with the lane lists and git runner in `run` (`t:Run.t/0`).
   """
-  @spec decide(DeployLanes.t(), String.t(), String.t() | nil, ([String.t()] ->
-                                                                 {String.t(), non_neg_integer()})) ::
-          result()
-  def decide(lanes, sha, production, git) do
+  @spec decide(Run.t(), String.t(), String.t() | nil) :: result()
+  def decide(%Run{lanes: lanes, git: git} = run, sha, production) do
     merge = DeployLanes.classify(lanes, changed_files(git, ["#{sha}^1", sha]))
     merge_lines = ["**This merge** (`#{short(sha)}` against its parent): " <> describe(merge)]
 
-    {since_lane, since_lines} = since_production(lanes, sha, production, git)
+    {since_lane, since_lines} = since_production(run, sha, production)
     lane = if merge.lane == :admin and since_lane == :admin, do: :admin, else: :normal
 
     %{lane: lane, summary: [heading(lane), "" | merge_lines ++ since_lines] ++ outcome(lane, sha)}
   end
 
-  defp since_production(_lanes, _sha, nil, _git) do
+  defp since_production(_run, _sha, nil) do
     {:normal,
      [
        "**Production:** its commit is unknown (no `deployed/production` tag yet; the next " <>
@@ -74,7 +87,7 @@ defmodule TalesForge.DeployLanes.CLI do
      ]}
   end
 
-  defp since_production(lanes, sha, production, git) do
+  defp since_production(%Run{lanes: lanes, git: git}, sha, production) do
     cond do
       production == sha ->
         {:normal, ["**Production** already runs `#{short(sha)}`."]}

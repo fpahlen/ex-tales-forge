@@ -112,7 +112,7 @@ defmodule TalesForgeWeb.AdminLive.HomeAppTest do
       {:ok, loaded} = Source.load("test-survey")
       user = %{login: "ada", email: "ada@example.com"}
 
-      assert Surveys.save_section(loaded, user, "general", %{"one" => "Yes"}) ==
+      assert Surveys.save_section(loaded, user, {"general", %{"one" => "Yes"}}) ==
                {:error, :wrong_app}
 
       assert Surveys.get_response("test-survey", "ada") == nil
@@ -172,7 +172,7 @@ defmodule TalesForgeWeb.AdminLive.HomeAppTest do
       {:ok, loaded} = Source.load("test-survey")
       user = %{login: "ada", email: "ada@example.com"}
 
-      assert {:ok, _} = Surveys.save_section(loaded, user, "general", %{"one" => "Yes"})
+      assert {:ok, _} = Surveys.save_section(loaded, user, {"general", %{"one" => "Yes"}})
     end
 
     test "persona runs and series refuse to start, even with the runner flag on" do
