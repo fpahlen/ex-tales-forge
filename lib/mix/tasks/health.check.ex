@@ -16,7 +16,10 @@ defmodule Mix.Tasks.Health.Check do
       `lib/ex_tales_forge_web/` that is not in the baseline;
     * a function goes over the Credo cyclomatic complexity (#{9}) or ABC size
       (#{30}) limit and is not in the baseline, or a baseline function scores
-      higher than its baseline value (its ceiling).
+      higher than its baseline value (its ceiling);
+    * a function head has #{4} or more parameters and is not in the baseline
+      (`wide_functions`, `Mix.Tasks.Health.Check.Params`), or a listed
+      function gains parameters.
 
   With `--base REF` it also checks that the baseline itself only shrinks
   compared with the one at `REF` (CI passes the PR's base branch): no new
@@ -29,6 +32,8 @@ defmodule Mix.Tasks.Health.Check do
   `--write` is for paying debt down. A baseline that grows fails `--base`.
   """
   use Mix.Task
+
+  alias Mix.Tasks.Health.Check.Params
 
   @baseline "docs/health/baseline.json"
   @limits %{"cyclomatic_complexity" => 9, "abc_size" => 30}
@@ -79,7 +84,8 @@ defmodule Mix.Tasks.Health.Check do
       "limits" => @limits,
       "cycles" => cycles,
       "web_references" => web_references(),
-      "complex_functions" => complex_functions()
+      "complex_functions" => complex_functions(),
+      "wide_functions" => Params.collect()
     }
 
     Map.put(numbers, "summary", summary(numbers))
@@ -94,7 +100,8 @@ defmodule Mix.Tasks.Health.Check do
       "largest_cycle" => Map.new(cycles, fn {k, v} -> {k, max_size(v)} end),
       "web_reference_files" => length(refs),
       "web_reference_edges" => refs |> Enum.flat_map(& &1["to"]) |> length(),
-      "complex_function_count" => length(numbers["complex_functions"])
+      "complex_function_count" => length(numbers["complex_functions"]),
+      "wide_function_count" => length(numbers["wide_functions"])
     }
   end
 
@@ -189,7 +196,8 @@ defmodule Mix.Tasks.Health.Check do
   @spec check(map(), map()) :: [String.t()]
   def check(baseline, current) do
     cycle_errors(baseline, current) ++
-      reference_errors(baseline, current) ++ function_errors(baseline, current)
+      reference_errors(baseline, current) ++
+      function_errors(baseline, current) ++ wide_errors(baseline, current)
   end
 
   @doc "Problems in `baseline` compared with the older `base` baseline: it may only shrink."
@@ -266,4 +274,26 @@ defmodule Mix.Tasks.Health.Check do
       "#{fun["function"]}: #{key} #{score}, ceiling #{old[key] || limit}"
     end
   end
+
+  # A baseline from before the parameter rule has no list: nothing to
+  # compare with (the PR that adds the list). A listed function may lose
+  # parameters (Mod.f/6 becomes Mod.f/5), not gain them.
+  defp wide_errors(%{"wide_functions" => allowed}, current) do
+    most =
+      Enum.reduce(
+        allowed,
+        %{},
+        &Map.update(&2, name_of(&1), &1["params"], fn n -> max(n, &1["params"]) end)
+      )
+
+    for fun <- current["wide_functions"], fun["params"] > Map.get(most, name_of(fun), 0) do
+      if Map.has_key?(most, name_of(fun)),
+        do: "#{fun["function"]}: gained parameters, now #{fun["params"]} (#{fun["file"]})",
+        else: "new function with #{Params.min()}+ parameters: #{fun["function"]} (#{fun["file"]})"
+    end
+  end
+
+  defp wide_errors(_baseline, _current), do: []
+
+  defp name_of(fun), do: fun["function"] |> String.split("/") |> hd()
 end
