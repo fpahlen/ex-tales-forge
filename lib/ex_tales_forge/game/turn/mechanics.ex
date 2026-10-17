@@ -145,10 +145,12 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
       SkillSplit.apply(
         Map.get(world, "character", %{}),
-        played,
-        ruled,
-        turn.raw_action,
-        rolls: Keyword.get(turn.opts, :rolls, [])
+        %SkillSplit.Check{
+          player_action: played,
+          handler: ruled,
+          text: turn.raw_action,
+          rolls: Keyword.get(turn.opts, :rolls, [])
+        }
       )
     else
       Board.apply_mechanics(turn.session.world_state, played, ruled)
