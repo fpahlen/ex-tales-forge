@@ -125,20 +125,24 @@ defmodule TalesForge.Game.WorldSim do
     value = get_in(runtime(actor), ["clocks", clock, "value"])
     stages = List.wrap(get_in(definition(actor), ["clocks", clock, "stages"]))
     player_at = if is_map(event), do: event["location_id"]
+    now = %{clock: clock, value: value, player_at: player_at}
 
-    Enum.reduce(stages, {actor, []}, fn stage, {acc, moves} ->
-      key = "#{clock}:#{stage["at"]}"
-      fired = List.wrap(runtime(acc)["stages_fired"])
+    Enum.reduce(stages, {actor, []}, &fire_stage(&1, &2, now))
+  end
 
-      if stage_due?(stage, value, key, fired, player_at) do
-        move = stage_move(stage, player_at)
-        {:ok, state} = Moves.apply(runtime(acc), move, definition(acc), player_at: player_at)
-        state = Map.put(state, "stages_fired", fired ++ [key])
-        {put_runtime(acc, state), moves ++ [%{id: actor_id(acc), move: move}]}
-      else
-        {acc, moves}
-      end
-    end)
+  # `now` has the clock's name and value and where the player is.
+  defp fire_stage(stage, {acc, moves}, %{player_at: player_at} = now) do
+    key = "#{now.clock}:#{stage["at"]}"
+    fired = List.wrap(runtime(acc)["stages_fired"])
+
+    if stage_due?(stage, now, key not in fired) do
+      move = stage_move(stage, player_at)
+      {:ok, state} = Moves.apply(runtime(acc), move, definition(acc), player_at: player_at)
+      state = Map.put(state, "stages_fired", fired ++ [key])
+      {put_runtime(acc, state), moves ++ [%{id: actor_id(acc), move: move}]}
+    else
+      {acc, moves}
+    end
   end
 
   # The stage's move, or its away_move when the player is not where it happens.
@@ -148,9 +152,10 @@ defmodule TalesForge.Game.WorldSim do
 
   defp stage_move(stage, _player_at), do: stage["move"]
 
-  defp stage_due?(stage, value, key, fired, player_at) do
+  # `unfired?` is whether the stage has not fired yet.
+  defp stage_due?(stage, %{value: value, player_at: player_at}, unfired?) do
     is_integer(value) and is_integer(stage["at"]) and value >= stage["at"] and
-      key not in fired and is_binary(stage["move"]) and
+      unfired? and is_binary(stage["move"]) and
       player_at not in List.wrap(stage["unless_player_at"])
   end
 
@@ -214,12 +219,12 @@ defmodule TalesForge.Game.WorldSim do
     runtime = runtime(front)
     defn = definition(front)
 
-    Enum.reduce(runtime["clocks"] || %{}, front, fn {name, clock}, acc ->
-      apply_threshold(acc, name, clock, defn)
+    Enum.reduce(runtime["clocks"] || %{}, front, fn {_name, clock}, acc ->
+      apply_threshold(acc, clock, defn)
     end)
   end
 
-  defp apply_threshold(front, _name, clock, defn) when is_map(clock) do
+  defp apply_threshold(front, clock, defn) when is_map(clock) do
     threshold = clock["threshold"]
     value = clock["value"]
     key = clock["on_threshold"]
@@ -247,7 +252,7 @@ defmodule TalesForge.Game.WorldSim do
     end
   end
 
-  defp apply_threshold(front, _, _, _), do: front
+  defp apply_threshold(front, _, _), do: front
 
   defp append_unique(nil, fact), do: [fact]
 
