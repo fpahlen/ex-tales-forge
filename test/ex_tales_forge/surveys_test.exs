@@ -21,13 +21,13 @@ defmodule TalesForge.SurveysTest do
     d = loaded.definition
     assert Surveys.founder_status(d, nil) == :not_started
 
-    {:ok, r} = Surveys.save_section(loaded, user, "general", %{"pace" => "3"})
+    {:ok, r} = Surveys.save_section(loaded, user, {"general", %{"pace" => "3"}})
     assert Surveys.founder_status(d, r) == :in_progress
 
-    {:ok, r} = Surveys.save_section(loaded, user, "general", %{"one" => "Yes", "pace" => "3"})
+    {:ok, r} = Surveys.save_section(loaded, user, {"general", %{"one" => "Yes", "pace" => "3"}})
     assert Surveys.founder_status(d, r) == :in_progress
 
-    {:ok, r} = Surveys.save_section(loaded, user, "paul", %{"paul-excerpt" => "Too low"})
+    {:ok, r} = Surveys.save_section(loaded, user, {"paul", %{"paul-excerpt" => "Too low"}})
     assert Surveys.founder_status(d, r) == :done
 
     assert Surveys.founder_status(d, %{r | answers: %{}}) == :not_started
@@ -41,10 +41,12 @@ defmodule TalesForge.SurveysTest do
 
     {:ok, open} = Source.load("open-survey")
     {:ok, closed} = Source.load("closed-survey")
-    {:ok, _} = Surveys.save_section(open, %{login: "bo", email: nil}, "general", %{"pace" => "2"})
+
+    {:ok, _} =
+      Surveys.save_section(open, %{login: "bo", email: nil}, {"general", %{"pace" => "2"}})
 
     assert {:error, :closed} =
-             Surveys.save_section(closed, %{login: "bo", email: nil}, "general", %{})
+             Surveys.save_section(closed, %{login: "bo", email: nil}, {"general", %{}})
 
     overview = Surveys.overview()
     assert overview.logins == ["bo"]
@@ -69,7 +71,7 @@ defmodule TalesForge.SurveysTest do
   test "saving a section creates one response per user, keyed by lowercased login",
        %{loaded: loaded, user: user} do
     assert {:ok, r1} =
-             Surveys.save_section(loaded, user, "general", %{"one" => "Yes", "pace" => "3"})
+             Surveys.save_section(loaded, user, {"general", %{"one" => "Yes", "pace" => "3"}})
 
     assert r1.github_login == "ada"
     assert r1.answers == %{"one" => "Yes", "pace" => 3}
@@ -80,9 +82,14 @@ defmodule TalesForge.SurveysTest do
     refute r1.saved_in_draft
 
     assert {:ok, r2} =
-             Surveys.save_section(loaded, %{user | login: "ADA"}, "paul", %{
-               "paul-excerpt" => "Too low"
-             })
+             Surveys.save_section(
+               loaded,
+               %{user | login: "ADA"},
+               {"paul",
+                %{
+                  "paul-excerpt" => "Too low"
+                }}
+             )
 
     assert r2.id == r1.id
     assert r2.answers == %{"one" => "Yes", "pace" => 3, "paul-excerpt" => "Too low"}
@@ -91,13 +98,14 @@ defmodule TalesForge.SurveysTest do
   end
 
   test "clearing a field removes it; versions follow the survey version", %{user: user} = ctx do
-    {:ok, _} = Surveys.save_section(ctx.loaded, user, "general", %{"one" => "Yes", "pace" => "3"})
+    {:ok, _} =
+      Surveys.save_section(ctx.loaded, user, {"general", %{"one" => "Yes", "pace" => "3"}})
 
     file = use_docs_dir(survey_json(%{"version" => 2}))
     assert File.exists?(file)
     {:ok, v2} = Source.load("test-survey")
 
-    {:ok, r} = Surveys.save_section(v2, user, "general", %{"one" => "Yes", "pace" => ""})
+    {:ok, r} = Surveys.save_section(v2, user, {"general", %{"one" => "Yes", "pace" => ""}})
     assert r.answers == %{"one" => "Yes"}
     assert r.answer_versions == %{"one" => 1, "pace" => 2}
     assert r.survey_version == 2
@@ -111,23 +119,23 @@ defmodule TalesForge.SurveysTest do
   test "draft saves are marked", %{user: user} do
     use_docs_dir(survey_json(%{"status" => "draft"}))
     {:ok, draft} = Source.load("test-survey")
-    {:ok, r} = Surveys.save_section(draft, user, "general", %{"one" => "No"})
+    {:ok, r} = Surveys.save_section(draft, user, {"general", %{"one" => "No"}})
     assert r.saved_in_draft
   end
 
   test "closed surveys refuse saves and clears", %{user: user} = ctx do
-    {:ok, _} = Surveys.save_section(ctx.loaded, user, "general", %{"one" => "No"})
+    {:ok, _} = Surveys.save_section(ctx.loaded, user, {"general", %{"one" => "No"}})
     use_docs_dir(survey_json(%{"status" => "closed"}))
     {:ok, closed} = Source.load("test-survey")
 
-    assert {:error, :closed} = Surveys.save_section(closed, user, "general", %{"one" => "Yes"})
+    assert {:error, :closed} = Surveys.save_section(closed, user, {"general", %{"one" => "Yes"}})
     assert {:error, :closed} = Surveys.clear_response(closed, "ada")
     assert Surveys.get_response("test-survey", "ada").answers == %{"one" => "No"}
   end
 
   test "unknown sections and clearing", %{loaded: loaded, user: user} do
-    assert {:error, :unknown_section} = Surveys.save_section(loaded, user, "nope", %{})
-    {:ok, _} = Surveys.save_section(loaded, user, "general", %{"one" => "No"})
+    assert {:error, :unknown_section} = Surveys.save_section(loaded, user, {"nope", %{}})
+    {:ok, _} = Surveys.save_section(loaded, user, {"general", %{"one" => "No"}})
     assert :ok = Surveys.clear_response(loaded, "Ada")
     assert Surveys.get_response("test-survey", "ada") == nil
   end
