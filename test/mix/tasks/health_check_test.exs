@@ -147,29 +147,13 @@ defmodule Mix.Tasks.Health.CheckTest do
     end
   end
 
-  describe "the baseline only shrinks" do
-    test "removing entries and lowering ceilings passes" do
-      assert Check.shrink_errors(
-               numbers(),
-               numbers(refs: [], funs: [%{"function" => "A.f", "abc_size" => 35}])
-             ) == []
-    end
+  describe "Credo limits" do
+    test "the same or lower limits pass, a raised one fails" do
+      assert Check.limit_errors(numbers(), @limits) == []
+      assert Check.limit_errors(numbers(), %{@limits | "abc_size" => 20}) == []
 
-    test "adding an entry, raising a ceiling or a limit fails" do
-      grown =
-        numbers(funs: [%{"function" => "A.f", "cyclomatic_complexity" => 13, "abc_size" => 40}])
-
-      assert [msg] = Check.shrink_errors(numbers(), grown)
-      assert msg =~ "baseline: A.f"
-
-      assert [msg] =
-               Check.shrink_errors(numbers(), numbers(limits: %{@limits | "abc_size" => 50}))
-
-      assert msg =~ "limit abc_size raised"
-    end
-
-    test "no baseline at the base passes" do
-      assert Check.shrink_errors(nil, numbers()) == []
+      assert ["limit abc_size raised to 50"] =
+               Check.limit_errors(numbers(), %{@limits | "abc_size" => 50})
     end
   end
 

@@ -1,8 +1,12 @@
 defmodule Mix.Tasks.Health.Check do
-  @shortdoc "Fails when code health gets worse than docs/health/baseline.json"
+  @shortdoc "Fails when code health gets worse than at the base commit"
   @moduledoc """
   The code health ratchet. Measures today's numbers and compares them with
-  `docs/health/baseline.json`. The build fails when:
+  the same numbers measured at the base commit (`--base REF`, default
+  `origin/main`): it checks the base out in a temporary git worktree and
+  runs `mix health.check --out FILE` there. No baseline is committed, so
+  PRs never conflict on one: the base's own debt is the allow-list. The
+  build fails when:
 
     * an xref cycle count goes up, or a cycle appears that does not fit in
       the baseline tangle it overlaps (a new or a bigger cycle). The tangle
@@ -27,21 +31,20 @@ defmodule Mix.Tasks.Health.Check do
       (`wide_functions`, `Mix.Tasks.Health.Check.Params`), or a listed
       function gains parameters.
 
-  With `--base REF` it also checks that the baseline itself only shrinks
-  compared with the one at `REF` (CI passes the PR's base branch): no new
-  entries, no higher ceilings, no higher counts.
+  "The baseline" below is the base's numbers. A raised Credo limit also
+  fails. CI passes the merge's first parent as the base (the PR's base
+  branch, or on a push to main the commit before the merge).
 
-      mix health.check
-      mix health.check --base origin/main
-      mix health.check --write   # rewrite the baseline with today's numbers
-
-  `--write` is for paying debt down. A baseline that grows fails `--base`.
+      mix health.check                  # against origin/main
+      mix health.check --base HEAD^1
+      mix health.check --out FILE       # only write today's numbers as JSON
   """
   use Mix.Task
 
   alias Mix.Tasks.Health.Check.{LiveViews, Params}
 
-  @baseline "docs/health/baseline.json"
+  # The committed baseline that bases from before the base run still carry.
+  @old_baseline "docs/health/baseline.json"
   @limits %{"cyclomatic_complexity" => 9, "abc_size" => 30}
   @domain "lib/ex_tales_forge/"
   @web "lib/ex_tales_forge_web/"
@@ -57,38 +60,64 @@ defmodule Mix.Tasks.Health.Check do
 
   @impl Mix.Task
   def run(args) do
-    {opts, _} = OptionParser.parse!(args, strict: [base: :string, write: :boolean])
-    current = collect()
+    {opts, _} = OptionParser.parse!(args, strict: [base: :string, out: :string])
 
-    if opts[:write] do
-      File.write!(@baseline, Jason.encode!(current, pretty: true) <> "\n")
-      Mix.shell().info("Wrote #{@baseline}")
+    if out = opts[:out] do
+      File.write!(out, Jason.encode!(collect()))
     else
-      baseline = @baseline |> File.read!() |> Jason.decode!()
-
-      base_errors =
-        if ref = opts[:base], do: shrink_errors(base_baseline(ref), baseline), else: []
-
-      report(check(baseline, current) ++ base_errors)
+      ref = opts[:base] || "origin/main"
+      base = base_numbers(ref)
+      report(check(base, collect()) ++ limit_errors(base, @limits), ref)
     end
   end
 
-  defp report([]), do: Mix.shell().info("Code health: no worse than #{@baseline}.")
+  defp report([], ref), do: Mix.shell().info("Code health: no worse than #{ref}.")
 
-  defp report(errors) do
+  defp report(errors, ref) do
     Enum.each(errors, &Mix.shell().error/1)
-    Mix.raise("Code health got worse (#{length(errors)} problems). See #{@baseline}.")
+    Mix.raise("Code health got worse than #{ref} (#{length(errors)} problems).")
   end
 
-  defp base_baseline(ref) do
-    case System.cmd("git", ["show", "#{ref}:#{@baseline}"], stderr_to_stdout: true) do
+  defp base_numbers(ref) do
+    case git(["show", "#{ref}:#{@old_baseline}"]) do
       {json, 0} -> Jason.decode!(json)
-      # No baseline at the base yet (the PR that adds it): nothing to shrink from.
-      {_, _} -> nil
+      {_, _} -> measure(ref)
     end
   end
 
-  @doc "Today's numbers, in the shape of the baseline file."
+  # Measures `ref` in a temporary worktree with its own `mix health.check`.
+  # It reuses this checkout's build, and its deps when `mix.lock` is the same.
+  defp measure(ref) do
+    dir = Path.join(System.tmp_dir!(), "health-base-#{System.unique_integer([:positive])}")
+    out = dir <> ".json"
+    {_, 0} = git(["worktree", "add", "--detach", "--quiet", dir, ref])
+
+    try do
+      File.mkdir_p!(Path.join(dir, "_build"))
+      {_, 0} = System.cmd("cp", ["-a", Mix.Project.build_path(), Path.join(dir, "_build")])
+      tasks = if share_deps(dir), do: [], else: ["deps.get", "+"]
+      env = [{"MIX_ENV", to_string(Mix.env())}]
+      args = ["do"] ++ tasks ++ ["compile", "+", "health.check", "--out", out]
+
+      case System.cmd("mix", args, cd: dir, env: env, stderr_to_stdout: true) do
+        {_, 0} -> out |> File.read!() |> Jason.decode!()
+        {log, _} -> Mix.raise("Could not measure #{ref}:\n" <> log)
+      end
+    after
+      git(["worktree", "remove", "--force", dir])
+      File.rm(out)
+    end
+  end
+
+  defp share_deps(dir) do
+    same = File.read(Path.join(dir, "mix.lock")) == File.read("mix.lock")
+    if same, do: File.ln_s!(Path.expand(Mix.Project.deps_path()), Path.join(dir, "deps"))
+    same
+  end
+
+  defp git(args), do: System.cmd("git", args, stderr_to_stdout: true)
+
+  @doc "Today's numbers, what `--out` writes."
   @spec collect() :: map()
   def collect do
     cycles = Map.new(@labels, fn {name, args} -> {name, cycles(args)} end)
@@ -232,17 +261,10 @@ defmodule Mix.Tasks.Health.Check do
       function_errors(baseline, current) ++ wide_errors(baseline, current)
   end
 
-  @doc "Problems in `baseline` compared with the older `base` baseline: it may only shrink."
-  @spec shrink_errors(map() | nil, map()) :: [String.t()]
-  def shrink_errors(nil, _baseline), do: []
-
-  def shrink_errors(base, baseline) do
-    limit_errors =
-      for {k, v} <- baseline["limits"],
-          v > base["limits"][k],
-          do: "baseline: limit #{k} raised to #{v}"
-
-    Enum.map(check(base, baseline), &("baseline: " <> &1)) ++ limit_errors
+  @doc "A Credo limit in `limits` that is higher than at the base."
+  @spec limit_errors(map(), map()) :: [String.t()]
+  def limit_errors(base, limits) do
+    for {k, v} <- limits, v > base["limits"][k], do: "limit #{k} raised to #{v}"
   end
 
   defp cycle_errors(baseline, current) do
@@ -287,8 +309,8 @@ defmodule Mix.Tasks.Health.Check do
       live_view_errors(baseline, current)
   end
 
-  # A baseline from before the LiveView rule has no list: nothing to
-  # compare with (the PR that adds the list).
+  # A base from before the LiveView rule has no list: nothing to compare
+  # with (the PR that adds the rule).
   defp live_view_errors(%{"live_view_references" => allowed}, current),
     do: new_references(allowed, current["live_view_references"], "LiveView -> LiveView")
 
@@ -319,8 +341,8 @@ defmodule Mix.Tasks.Health.Check do
     end
   end
 
-  # A baseline from before the parameter rule has no list: nothing to
-  # compare with (the PR that adds the list). A listed function may lose
+  # A base from before the parameter rule has no list: nothing to compare
+  # with (the PR that adds the rule). A listed function may lose
   # parameters (Mod.f/6 becomes Mod.f/5), not gain them.
   defp wide_errors(%{"wide_functions" => allowed}, current) do
     most =
