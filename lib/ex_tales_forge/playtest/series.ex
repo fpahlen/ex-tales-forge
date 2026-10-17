@@ -29,6 +29,7 @@ defmodule TalesForge.Playtest.Series do
 
   import Ecto.Query
 
+  alias TalesForge.Config
   alias TalesForge.Playtest.Runner
   alias TalesForge.Repo
   alias TalesForge.Schemas.PlaytestRun
@@ -148,7 +149,7 @@ defmodule TalesForge.Playtest.Series do
   @spec playing?() :: boolean()
   def playing?, do: Task.Supervisor.children(@supervisor) != []
 
-  defp check_enabled, do: if(Runner.enabled?(), do: :ok, else: {:error, :disabled})
+  defp check_enabled, do: if(Config.playtest_runner?(), do: :ok, else: {:error, :disabled})
 
   defp validate(name, opts) do
     personas = Keyword.get(opts, :personas)
