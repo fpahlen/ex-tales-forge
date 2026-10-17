@@ -5,7 +5,7 @@ defmodule TalesForge.Game.SkillSplit do
 
   A player splits one skill action into two or three parts in one turn. The
   server rolls each part at its part level (`TalesForge.Game.Mechanics.split_levels/2`
-  and `TalesForge.Game.Mechanics.perform_part/4`). The GM narrates each part
+  and `TalesForge.Game.Mechanics.perform_part/3`). The GM narrates each part
   and invents no parts.
 
   All functions here are pure. The injected rolls come from the turn options
@@ -186,7 +186,10 @@ defmodule TalesForge.Game.SkillSplit do
 
   defp single(character, skill, handler, rolls, split) do
     {updated, resolution} =
-      Mechanics.perform_and_apply(character, skill, List.first(rolls), modifier(handler))
+      Mechanics.perform_and_apply(character, skill,
+        roll: List.first(rolls),
+        modifier: modifier(handler)
+      )
 
     {updated, %{resolution | split: split}}
   end
@@ -199,7 +202,7 @@ defmodule TalesForge.Game.SkillSplit do
       parts
       |> Enum.with_index()
       |> Enum.map(fn {level, i} ->
-        Mechanics.perform_part(character, skill, level, Enum.at(rolls, i))
+        Mechanics.perform_part(character, {skill, level}, Enum.at(rolls, i))
       end)
 
     learned = Enum.find(results, fn {_char, res} -> (res.lp_awarded || 0) > 0 end)

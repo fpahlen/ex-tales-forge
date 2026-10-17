@@ -144,7 +144,7 @@ defmodule TalesForge.Game.VitalityTest do
   end
 
   test "perform_and_apply does not apply vitality" do
-    {updated, _resolution} = Mechanics.perform_and_apply(@character, "melee_combat", 20)
+    {updated, _resolution} = Mechanics.perform_and_apply(@character, "melee_combat", roll: 20)
 
     assert updated["wounds"] == 0
     assert updated["vitality"] == "ok"
