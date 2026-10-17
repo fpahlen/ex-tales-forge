@@ -52,8 +52,8 @@ a player or founder can see in the PR body.
 - **A context module that the turn code reads from closes every turn
   cycle.** `Game.Context` called `GameSessions.opening_scene/1`, a plain
   query, and GameSessions reaches the workers and both processors. The
-  query moved to the leaf `TalesForge.Scenes.opening/1`: cycles 30 → 26,
-  largest 11 → 4, compile-connected largest 10 → 3.
+  query moved to the leaf `TalesForge.Scenes.opening/1` (#360): cycles 30 → 26,
+  largest 8 → 4.
 
 ## Moving code
 
