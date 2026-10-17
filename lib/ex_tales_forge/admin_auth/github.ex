@@ -15,7 +15,6 @@ defmodule TalesForge.AdminAuth.GitHub do
   require Logger
 
   alias Assent.Strategy.Github, as: Strategy
-  alias TalesForge.AdminAuth
   alias TalesForge.AdminAuth.MembershipCache
 
   @callback_path "/admin/auth/github/callback"
@@ -78,7 +77,8 @@ defmodule TalesForge.AdminAuth.GitHub do
   defp authorize(login, emails) do
     if team_member?(login, fresh: true) do
       email = List.first(emails) || "#{login}@users.noreply.github.com"
-      {:ok, %{login: login, email: AdminAuth.normalize(email)}}
+      # `TalesForge.AdminAuth.put_github_session/2` normalizes it.
+      {:ok, %{login: login, email: email}}
     else
       {:error, {:not_allowed, login}}
     end

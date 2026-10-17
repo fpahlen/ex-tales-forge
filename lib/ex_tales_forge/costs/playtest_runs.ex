@@ -26,7 +26,7 @@ defmodule TalesForge.Costs.PlaytestRuns do
   import Ecto.Query
 
   alias TalesForge.AICalls
-  alias TalesForge.Costs
+  alias TalesForge.AppRole
   alias TalesForge.Repo
   alias TalesForge.Schemas.AICall
   alias TalesForge.Schemas.PlaytestRun
@@ -148,7 +148,7 @@ defmodule TalesForge.Costs.PlaytestRuns do
     {month_lines, month_outside} = spend(month_from, now)
 
     %{
-      "app" => Costs.app_name(),
+      "app" => AppRole.app_name(),
       "generated_at" => DateTime.to_iso8601(DateTime.truncate(now, :second)),
       "date" => Date.to_iso8601(date),
       "day_of_month" => date.day,

@@ -18,7 +18,7 @@ defmodule TalesForge.Prompt do
     * the `:turn` sections are one user message, always last.
 
   A section that does not apply (`applies?/1`) or renders nil or `""` is left
-  out. Sections in one user message are joined with `separator/0`, unless the
+  out. Sections in one user message are joined with `TalesForge.Prompt.Section.separator/0`, unless the
   section sets its own glue (`TalesForge.Prompt.Section.glue/1`).
   """
 
@@ -30,12 +30,7 @@ defmodule TalesForge.Prompt do
   @type t :: %__MODULE__{ctx: Ctx.t(), sections: [module()]}
   @type message :: %{role: String.t(), content: String.t()}
 
-  @separator "\n\n---\n\n"
   @slots [:static, :session, :turn]
-
-  @doc "The separator between two sections of one user message."
-  @spec separator() :: String.t()
-  def separator, do: @separator
 
   @doc "An empty prompt for `ctx`."
   @spec new(Ctx.t()) :: t()
