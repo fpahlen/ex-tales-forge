@@ -317,16 +317,6 @@
       "function": "TalesForge.Game.IntentClarification.readings"
     },
     {
-      "abc_size": 64,
-      "file": "lib/ex_tales_forge/game/inventory.ex",
-      "function": "TalesForge.Game.Inventory.apply_trade"
-    },
-    {
-      "abc_size": 76,
-      "file": "lib/ex_tales_forge/game/inventory.ex",
-      "function": "TalesForge.Game.Inventory.do_apply"
-    },
-    {
       "abc_size": 62,
       "cyclomatic_complexity": 27,
       "file": "lib/ex_tales_forge/game/inventory.ex",
@@ -1377,7 +1367,7 @@
     "cyclomatic_complexity": 9
   },
   "summary": {
-    "complex_function_count": 153,
+    "complex_function_count": 151,
     "cycle_count": {
       "all": 65,
       "compile-connected": 1
@@ -1388,7 +1378,7 @@
     },
     "web_reference_edges": 4,
     "web_reference_files": 2,
-    "wide_function_count": 206
+    "wide_function_count": 204
   },
   "web_references": [
     {
@@ -1731,16 +1721,6 @@
       "file": "lib/ex_tales_forge/game/inventory.ex",
       "function": "TalesForge.Game.Inventory.apply_server_inventory/4",
       "params": 4
-    },
-    {
-      "file": "lib/ex_tales_forge/game/inventory.ex",
-      "function": "TalesForge.Game.Inventory.apply_trade/7",
-      "params": 7
-    },
-    {
-      "file": "lib/ex_tales_forge/game/inventory.ex",
-      "function": "TalesForge.Game.Inventory.do_apply/7",
-      "params": 7
     },
     {
       "file": "lib/ex_tales_forge/game/inventory.ex",
