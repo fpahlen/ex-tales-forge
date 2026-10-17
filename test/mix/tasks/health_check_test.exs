@@ -3,6 +3,8 @@ defmodule Mix.Tasks.Health.CheckTest do
 
   alias Mix.Tasks.Health.Check
 
+  doctest Mix.Tasks.Health.Check.Params
+
   @limits %{"cyclomatic_complexity" => 9, "abc_size" => 30}
 
   defp numbers(opts \\ []) do
@@ -91,6 +93,37 @@ defmodule Mix.Tasks.Health.CheckTest do
 
       assert [msg] = Check.check(numbers(), numbers(funs: funs))
       assert msg =~ "B.g"
+    end
+  end
+
+  describe "functions with 4+ parameters" do
+    defp wide(list) do
+      funs = for {f, n} <- list, do: %{"function" => f, "file" => "lib/a.ex", "params" => n}
+      Map.put(numbers(), "wide_functions", funs)
+    end
+
+    test "the same list or a shorter one passes" do
+      base = wide([{"A.f/4", 4}, {"A.g/5", 5}])
+      assert Check.check(base, base) == []
+      assert Check.check(base, wide([{"A.f/4", 4}])) == []
+    end
+
+    test "a listed function that loses a parameter passes" do
+      assert Check.check(wide([{"A.g/5", 5}]), wide([{"A.g/4", 4}])) == []
+    end
+
+    test "a new function with 4+ parameters fails" do
+      assert [msg] = Check.check(wide([{"A.f/4", 4}]), wide([{"A.f/4", 4}, {"B.h/4", 4}]))
+      assert msg =~ "new function with 4+ parameters: B.h/4"
+    end
+
+    test "a listed function that gains a parameter fails" do
+      assert [msg] = Check.check(wide([{"A.f/4", 4}]), wide([{"A.f/5", 5}]))
+      assert msg =~ "A.f/5: gained parameters, now 5"
+    end
+
+    test "a baseline from before the rule has nothing to compare with" do
+      assert Check.check(numbers(), wide([{"A.f/4", 4}])) == []
     end
   end
 

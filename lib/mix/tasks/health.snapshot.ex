@@ -12,6 +12,12 @@ defmodule Mix.Tasks.Health.Snapshot do
 
       mix health.snapshot
       mix health.snapshot --pr 326 --date 2026-10-17T06:01:43+02:00
+      mix health.snapshot --keep /tmp/branch.csv
+
+  `--keep FILE` also keeps the rows of another history file whose PR the
+  CSV does not have (in date order). The workflow passes the rolling
+  branch's file from before it merged main, so a conflict in the CSV that
+  it resolved with main's side loses no row.
   """
   use Mix.Task
 
@@ -21,14 +27,15 @@ defmodule Mix.Tasks.Health.Snapshot do
   @svg "docs/health/trend.svg"
 
   @columns ~w(date pr cycles largest_cycle compile_connected_cycles compile_connected_largest
-              web_refs complex_functions)
+              web_refs complex_functions params_4plus)
 
   @impl Mix.Task
   def run(args) do
-    {opts, _} = OptionParser.parse!(args, strict: [pr: :integer, date: :string])
+    {opts, _} = OptionParser.parse!(args, strict: [pr: :integer, date: :string, keep: :string])
     {pr, date} = head_commit()
     row = row(Check.collect(), opts[:date] || date, opts[:pr] || pr)
-    rows = @csv |> read() |> put_row(row)
+    kept = if opts[:keep], do: read(opts[:keep]), else: []
+    rows = @csv |> read() |> keep_rows(kept) |> put_row(row)
     File.write!(@csv, csv(rows))
     File.write!(@svg, svg(rows))
     Mix.shell().info("Wrote #{@csv} (PR ##{row["pr"]}) and #{@svg}")
@@ -73,8 +80,20 @@ defmodule Mix.Tasks.Health.Snapshot do
       "compile_connected_cycles" => s["cycle_count"]["compile-connected"],
       "compile_connected_largest" => s["largest_cycle"]["compile-connected"],
       "web_refs" => s["web_reference_edges"],
-      "complex_functions" => s["complex_function_count"]
+      "complex_functions" => s["complex_function_count"],
+      "params_4plus" => s["wide_function_count"]
     }
+  end
+
+  @doc "Adds the rows of `kept` whose PR is not in `rows`, in date order."
+  @spec keep_rows([map()], [map()]) :: [map()]
+  def keep_rows(rows, kept) do
+    prs = MapSet.new(rows, & &1["pr"])
+
+    case Enum.reject(kept, &(&1["pr"] in prs)) do
+      [] -> rows
+      extra -> Enum.sort_by(rows ++ extra, & &1["date"])
+    end
   end
 
   @doc "Puts `row` in place of the row of the same PR, else at the end (merge order)."
@@ -128,7 +147,8 @@ defmodule Mix.Tasks.Health.Snapshot do
   @segments [
     {"cycles", "xref cycles", "#b91c1c"},
     {"complex_functions", "complex functions", "#15803d"},
-    {"web_refs", "domain → web refs", "#7c3aed"}
+    {"web_refs", "domain → web refs", "#7c3aed"},
+    {"params_4plus", "functions with 4+ params", "#b45309"}
   ]
 
   @w 920
@@ -137,7 +157,8 @@ defmodule Mix.Tasks.Health.Snapshot do
 
   @doc """
   The rows as a stacked bar chart: one bar per merge, its segments xref
-  cycles, complex functions and domain -> web refs (bottom to top). Each
+  cycles, complex functions, domain -> web refs and functions with 4+
+  parameters (bottom to top). Each
   segment shows its value, each bar its total on top, and a thin dashed
   line joins a segment's top to the same segment's top on the next bar.
   """
