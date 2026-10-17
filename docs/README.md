@@ -21,6 +21,7 @@ Also in this folder:
 - [Infrastructure assets](infrastructure.md)
 - [Environments and how changes reach production](environments.md)
 - [Coding standards](coding-standards.md): moduledocs, docs, specs + Dialyzer, Credo strict, ExDoc, tests with coverage, all enforced in CI
+- [Refactoring lessons](refactoring.md): the patterns from the 2026-10-17 refactoring (cycles, forwarders, structs instead of long parameter lists, the health gate, CI), each with its PR
 - [Module audit of ex-tales-forge (2026-10-07)](module-audit-2026-10-07.md): every module grouped as in use, framework, dead or unsure, with a ranked removal proposal
 - [Plan: remove Ash (plain Ecto)](plan-remove-ash.md): what goes, the admin forms on Ecto, the safe table drop, deps, rollout and rollback (done: #47 merged and deployed 2026-10-07)
 - [Plan: one Character entity for PCs and NPCs](plan-unify-character.md): today's two shapes side by side, the target `characters` table and agent, the controller (player or GM, AFK, companions), data migration, levers, what breaks, phased rollout (plan; waiting for OK)
