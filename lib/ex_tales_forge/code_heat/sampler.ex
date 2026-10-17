@@ -5,7 +5,7 @@ defmodule TalesForge.CodeHeat.Sampler do
   When the heat map is on (`TalesForge.CodeHeat.enabled?/1`), the sampler
   starts call-time tracing of the app's modules (`TalesForge.CodeHeat.Tracer`).
   At each `:read_every_ms` (1 hour) it reads the counters, writes one sample
-  with the counts of that hour (`TalesForge.CodeHeat.save/4`) and starts a
+  with the counts of that hour (`TalesForge.CodeHeat.save/2`) and starts a
   new trace session from zero. When the heat map is off, the sampler does
   not start.
 
@@ -38,7 +38,7 @@ defmodule TalesForge.CodeHeat.Sampler do
 
   @doc """
   Writes one sample now with the counts since the last sample and starts
-  again from zero. Returns the result of `TalesForge.CodeHeat.save/4`.
+  again from zero. Returns the result of `TalesForge.CodeHeat.save/2`.
   """
   @spec sample_now(GenServer.server()) :: {:ok, struct()} | {:error, Ecto.Changeset.t()}
   def sample_now(server \\ __MODULE__), do: GenServer.call(server, :sample, 30_000)
@@ -97,7 +97,8 @@ defmodule TalesForge.CodeHeat.Sampler do
       end)
 
     now = DateTime.utc_now()
-    result = CodeHeat.save(counts, state.started_at, now, length(state.modules))
+
+    result = CodeHeat.save(counts, sample_window(state, now))
 
     Logger.info(
       "code_heat sample functions=#{map_size(counts)} " <>
@@ -108,4 +109,11 @@ defmodule TalesForge.CodeHeat.Sampler do
   end
 
   defp schedule(message, ms), do: Process.send_after(self(), message, ms)
+
+  defp sample_window(state, now),
+    do: %CodeHeat.Sample{
+      started_at: state.started_at,
+      ended_at: now,
+      modules: length(state.modules)
+    }
 end
