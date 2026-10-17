@@ -22,6 +22,7 @@ defmodule TalesForge.GameSessions do
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.Turn.Store
   alias TalesForge.Game.World
+  alias TalesForge.GameSessions.TurnRequest
   alias TalesForge.IntentJev
   alias TalesForge.NPC
   alias TalesForge.NPCRegistry
@@ -71,7 +72,7 @@ defmodule TalesForge.GameSessions do
            |> Map.put("game_system", TalesForge.Game.DiceSystem.default())
            |> put_character(character)
            |> IntentJev.put_mode(IntentJev.mode_for_new_session(intent_jev)) do
-      insert_session(attrs, adventure_id, world, character_opts)
+      insert_session(attrs, world, character_opts)
     end
   end
 
@@ -81,19 +82,10 @@ defmodule TalesForge.GameSessions do
     {intent_jev, Map.drop(attrs, [:intent_jev, "intent_jev"])}
   end
 
-  defp insert_session(attrs, adventure_id, world, character_opts) do
-    session_attrs =
-      %{
-        name: default_session_name(adventure_id),
-        status: "active",
-        world_state: world
-      }
-      |> Map.merge(Map.drop(attrs, [:adventure_id, "adventure_id"] ++ Map.keys(character_opts)))
-      |> Map.put(:world_state, world)
-
+  defp insert_session(attrs, world, character_opts) do
     with {:ok, session} <-
            %GameSession{}
-           |> GameSession.changeset(session_attrs)
+           |> GameSession.changeset(session_attrs(attrs, world, character_opts))
            |> Repo.insert(),
          :ok <- NPC.seed_session(session),
          :ok <- Fronts.seed_session(session),
@@ -104,6 +96,16 @@ defmodule TalesForge.GameSessions do
          {:ok, _} <- ensure_scene(session) do
       {:ok, Repo.preload(session, [:npc_instances, :front_instances])}
     end
+  end
+
+  defp session_attrs(attrs, world, character_opts) do
+    %{
+      name: default_session_name(adventure_id_from(attrs)),
+      status: "active",
+      world_state: world
+    }
+    |> Map.merge(Map.drop(attrs, [:adventure_id, "adventure_id"] ++ Map.keys(character_opts)))
+    |> Map.put(:world_state, world)
   end
 
   defp validate_character(opts) do
@@ -308,45 +310,50 @@ defmodule TalesForge.GameSessions do
   def agent_id(session_id), do: "session-#{session_id}"
 
   defp resolve_and_enqueue(%GameSession{} = session, raw_action, opts) do
+    req = %TurnRequest{session: session, raw_action: raw_action, opts: opts}
+
     case IntentJev.mode(session.world_state) do
-      :on -> resolve_and_enqueue_jev(session, raw_action, opts)
-      mode -> resolve_and_enqueue_current(session, raw_action, opts, mode)
+      :on -> resolve_and_enqueue_jev(req)
+      mode -> resolve_and_enqueue_current(req, mode)
     end
   end
 
   # Today's intent path (INTENT_JEV off or shadow). In shadow the Jev read runs
   # in the background after the path has decided and is only logged; nothing
   # here changes.
-  defp resolve_and_enqueue_current(%GameSession{} = session, raw_action, opts, mode) do
-    context = Context.build_intent_context(session)
+  defp resolve_and_enqueue_current(
+         %TurnRequest{session: session, raw_action: raw_action} = req,
+         mode
+       ) do
+    req = %{req | context: Context.build_intent_context(session)}
     started_at = DateTime.utc_now()
     started = System.monotonic_time(:millisecond)
 
     try do
-      {player_action, intent_source} =
-        build_player_action(session, raw_action, context, opts)
+      {player_action, intent_source} = build_player_action(req)
 
       elapsed = System.monotonic_time(:millisecond) - started
-      record_intent_step(session, started_at, elapsed)
+      record_intent_step(session, %{started_at: started_at, elapsed_ms: elapsed})
 
       Logger.info(
         "intent resolved session=#{session.id} duration_ms=#{elapsed} source=#{intent_source}"
       )
 
-      maybe_shadow(mode, session, context, raw_action, opts, %{
+      maybe_shadow(mode, req, %{
         source: intent_source,
         action: player_action,
         clarification: false
       })
 
-      enqueue_turn(session, raw_action, player_action, nil, opts)
+      enqueue_turn(req, player_action, nil)
     rescue
       e in [Intent.ClarificationNeeded] ->
-        record_intent_step(session, started_at, System.monotonic_time(:millisecond) - started)
+        elapsed = System.monotonic_time(:millisecond) - started
+        record_intent_step(session, %{started_at: started_at, elapsed_ms: elapsed})
         clarification = Intent.build_clarification(e.extraction, raw_action)
         save_clarification(session, clarification, raw_action)
 
-        maybe_shadow(mode, session, context, raw_action, opts, %{
+        maybe_shadow(mode, req, %{
           source: :llm,
           action: nil,
           clarification: true
@@ -358,9 +365,9 @@ defmodule TalesForge.GameSessions do
   end
 
   # Shadow reads only the player's own messages, not a clicked option.
-  defp maybe_shadow(:shadow, session, context, raw_action, opts, current) do
-    if is_nil(Keyword.get(opts, :option_id)) do
-      text = shadow_text(session, raw_action, opts)
+  defp maybe_shadow(:shadow, %TurnRequest{session: session, context: context} = req, current) do
+    if is_nil(Keyword.get(req.opts, :option_id)) do
+      text = shadow_text(session, req.raw_action, req.opts)
       turn_number = Store.next_turn_number(session.id)
       IntentJev.shadow(Map.put(context, "turn_number", turn_number), text, current)
     end
@@ -368,7 +375,7 @@ defmodule TalesForge.GameSessions do
     :ok
   end
 
-  defp maybe_shadow(_mode, _session, _context, _raw_action, _opts, _current), do: :ok
+  defp maybe_shadow(_mode, _req, _current), do: :ok
 
   defp shadow_text(session, raw_action, opts) do
     case Keyword.get(opts, :clarification_id) do
@@ -383,66 +390,86 @@ defmodule TalesForge.GameSessions do
 
   # INTENT_JEV=on: the Jev read drives the turn (TalesForge.IntentJev). The
   # heuristic reads only when Jev fails or times out.
-  defp resolve_and_enqueue_jev(%GameSession{} = session, raw_action, opts) do
-    turn_number = Store.next_turn_number(session.id)
-    context = session |> Context.build_intent_context() |> Map.put("turn_number", turn_number)
+  defp resolve_and_enqueue_jev(%TurnRequest{session: session, raw_action: raw_action} = req) do
+    req = %{req | context: jev_context(session)}
     started_at = DateTime.utc_now()
     started = System.monotonic_time(:millisecond)
 
-    outcome = jev_outcome(session, context, raw_action, opts)
+    outcome = jev_outcome(req)
     elapsed = System.monotonic_time(:millisecond) - started
+    timing = %{started_at: started_at, elapsed_ms: elapsed}
 
     case outcome do
       {:act, player_action, gm, meta} ->
-        record_intent_step(session, started_at, elapsed, meta)
+        record_intent_step(session, Map.put(timing, :meta, meta))
 
         Logger.info(
           "intent resolved session=#{session.id} duration_ms=#{elapsed} source=#{meta["source"]}"
         )
 
-        enqueue_turn(session, raw_action, player_action, gm, opts)
+        enqueue_turn(req, player_action, gm)
 
       {:ask, clarification, meta} ->
-        record_intent_step(session, started_at, elapsed, meta)
+        record_intent_step(session, Map.put(timing, :meta, meta))
         save_clarification(session, clarification, raw_action)
         SessionPubSub.broadcast(session.id, {:clarification_needed, clarification})
         {:ok, %{status: :clarification, clarification: clarification}}
     end
   end
 
-  defp jev_outcome(session, context, raw_action, opts) do
+  defp jev_context(session) do
+    turn_number = Store.next_turn_number(session.id)
+    session |> Context.build_intent_context() |> Map.put("turn_number", turn_number)
+  end
+
+  # What the player sent: a picked option of the pending question, a typed
+  # answer to it, or a new message.
+  defp reply_kind(%TurnRequest{opts: opts, raw_action: raw_action}) do
     option_id = Keyword.get(opts, :option_id)
     clarification_id = Keyword.get(opts, :clarification_id)
 
     cond do
-      option_id && clarification_id ->
-        pending = get_pending(session, clarification_id)
-        option = Enum.find(pending["options"] || [], &(&1["id"] == option_id))
-        if is_nil(option), do: raise(ArgumentError, "invalid clarification option")
-        IntentJev.resolve_option(pending, option, context)
-
-      clarification_id && raw_action != "" ->
-        pending = get_pending(session, clarification_id)
-        enriched = (pending["raw_action"] || "") <> "\nClarification: " <> raw_action
-        IntentJev.resolve(context, enriched, never_ask: true)
-
-      true ->
-        IntentJev.resolve(context, raw_action)
+      option_id && clarification_id -> {:option, clarification_id, option_id}
+      clarification_id && raw_action != "" -> {:answer, clarification_id}
+      true -> :message
     end
+  end
+
+  defp jev_outcome(%TurnRequest{} = req) do
+    case reply_kind(req) do
+      {:option, clarification_id, option_id} ->
+        jev_option(req, clarification_id, option_id)
+
+      {:answer, clarification_id} ->
+        pending = get_pending(req.session, clarification_id)
+        enriched = (pending["raw_action"] || "") <> "\nClarification: " <> req.raw_action
+        IntentJev.resolve(req.context, enriched, never_ask: true)
+
+      :message ->
+        IntentJev.resolve(req.context, req.raw_action)
+    end
+  end
+
+  defp jev_option(%TurnRequest{} = req, clarification_id, option_id) do
+    pending = get_pending(req.session, clarification_id)
+    option = Enum.find(pending["options"] || [], &(&1["id"] == option_id))
+    if is_nil(option), do: raise(ArgumentError, "invalid clarification option")
+    IntentJev.resolve_option(pending, option, req.context)
   end
 
   # Intent extraction + validation (the heuristic or the Jev
   # call, which have their own rows): the Elixir step before the turn job, on
-  # the player's clock. `meta` is the Jev decision in INTENT_JEV=on.
-  defp record_intent_step(session, started_at, elapsed_ms, meta \\ nil) do
+  # the player's clock. `timing` has `:started_at`, `:elapsed_ms` and, in
+  # INTENT_JEV=on, `:meta` (the Jev decision).
+  defp record_intent_step(session, timing) do
     %{
       purpose: "turn.intent",
-      latency_ms: elapsed_ms,
-      started_at: started_at,
+      latency_ms: timing.elapsed_ms,
+      started_at: timing.started_at,
       game_session_id: session.id,
       turn_number: Store.next_turn_number(session.id)
     }
-    |> put_meta(meta)
+    |> put_meta(timing[:meta])
     |> Map.merge(Tags.for_world(session.world_state))
     |> Steps.record_one()
   end
@@ -450,33 +477,33 @@ defmodule TalesForge.GameSessions do
   defp put_meta(step, nil), do: step
   defp put_meta(step, meta), do: Map.put(step, :meta, meta)
 
-  defp build_player_action(%GameSession{} = session, raw_action, context, opts) do
-    option_id = Keyword.get(opts, :option_id)
-    clarification_id = Keyword.get(opts, :clarification_id)
+  defp build_player_action(%TurnRequest{} = req) do
+    case reply_kind(req) do
+      {:option, clarification_id, option_id} ->
+        {resolve_clarification_option(req, clarification_id, option_id), :clarification}
 
-    cond do
-      option_id && clarification_id ->
-        {resolve_clarification_option(session, context, clarification_id, option_id),
-         :clarification}
+      {:answer, clarification_id} ->
+        pending = get_pending(req.session, clarification_id)
+        enriched = pending["raw_action"] <> "\nClarification: " <> req.raw_action
+        {Intent.extract_intent(enriched, req.context), :llm}
 
-      clarification_id && raw_action != "" ->
-        pending = get_pending(session, clarification_id)
-        enriched = pending["raw_action"] <> "\nClarification: " <> raw_action
-        {Intent.extract_intent(enriched, context), :llm}
-
-      true ->
-        {bundle, source} = Intent.resolve_bundle(raw_action, context)
-
-        if Intent.needs_clarification?(bundle) do
-          raise Intent.ClarificationNeeded, extraction: bundle
-        end
-
-        {Intent.validate_player_action(bundle, context), source}
+      :message ->
+        resolve_message(req)
     end
   end
 
-  defp resolve_clarification_option(session, context, clarification_id, option_id) do
-    pending = get_pending(session, clarification_id)
+  defp resolve_message(%TurnRequest{raw_action: raw_action, context: context}) do
+    {bundle, source} = Intent.resolve_bundle(raw_action, context)
+
+    if Intent.needs_clarification?(bundle) do
+      raise Intent.ClarificationNeeded, extraction: bundle
+    end
+
+    {Intent.validate_player_action(bundle, context), source}
+  end
+
+  defp resolve_clarification_option(%TurnRequest{} = req, clarification_id, option_id) do
+    pending = get_pending(req.session, clarification_id)
 
     option =
       pending["options"]
@@ -500,7 +527,7 @@ defmodule TalesForge.GameSessions do
       needs_clarification: false
     }
 
-    Intent.validate_player_action(extraction, context)
+    Intent.validate_player_action(extraction, req.context)
   end
 
   defp heuristic_from_pending(pending, option) do
@@ -565,11 +592,9 @@ defmodule TalesForge.GameSessions do
   # `gm` (INTENT_JEV=on only) adds the GM's quote and an optional note to the
   # job args; without it the args are exactly today's.
   defp enqueue_turn(
-         %GameSession{} = session,
-         raw_action,
+         %TurnRequest{session: session, raw_action: raw_action, opts: opts},
          %PlayerAction{} = player_action,
-         gm,
-         opts
+         gm
        ) do
     session
     |> clear_clarification()
