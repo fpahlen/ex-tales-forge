@@ -67,26 +67,26 @@ defmodule TalesForge.Game.D100CheckTest do
     defp char(level), do: %{"skills" => %{"stealth" => level}, "stats" => %{"DEX" => 10}}
 
     test "at skill 100 a roll of 100 rolls again; a failed second roll is a critical failure" do
-      {_c, r} = Mechanics.perform_and_apply(char(100), "stealth", [100, 100])
+      {_c, r} = Mechanics.perform_and_apply(char(100), "stealth", roll: [100, 100])
       assert r.outcome == "critical_failure"
 
-      {_c, r} = Mechanics.perform_and_apply(char(100), "stealth", [100, 40])
+      {_c, r} = Mechanics.perform_and_apply(char(100), "stealth", roll: [100, 40])
       assert r.outcome == "success"
     end
 
     test "the critical bands use the effective skill (level + stat bonus)" do
       c = %{"skills" => %{"stealth" => 40}, "stats" => %{"DEX" => 14}}
-      {_c, r} = Mechanics.perform_and_apply(c, "stealth", 5)
+      {_c, r} = Mechanics.perform_and_apply(c, "stealth", roll: 5)
       assert r.effective_skill == 50
       assert r.outcome == "critical_success"
     end
 
     test "a near miss banks one improvement chance; a critical failure banks none" do
-      {near, r} = Mechanics.perform_and_apply(char(25), "stealth", 30)
+      {near, r} = Mechanics.perform_and_apply(char(25), "stealth", roll: 30)
       assert r.outcome == "partial_success"
       assert near["learning_points"]["stealth"] == 1.0
 
-      {crit, r} = Mechanics.perform_and_apply(char(25), "stealth", 99)
+      {crit, r} = Mechanics.perform_and_apply(char(25), "stealth", roll: 99)
       assert r.outcome == "critical_failure"
       assert Map.get(crit["learning_points"] || %{}, "stealth", 0) == 0
     end
