@@ -17,6 +17,23 @@ defmodule TalesForge.NPC do
   alias TalesForge.Schemas.{GameSession, NpcInstance}
 
   @memory_limit 20
+
+  defmodule Note do
+    @moduledoc """
+    A memory for `TalesForge.NPC.record_memory/1`: the session, the NPC, the
+    summary and the world tick.
+    """
+    defstruct [:session_id, :npc_id, :summary, :tick]
+
+    @typedoc "A memory to record for one NPC."
+    @type t :: %__MODULE__{
+            session_id: String.t(),
+            npc_id: String.t(),
+            summary: String.t(),
+            tick: integer() | nil
+          }
+  end
+
   @memory_context_limit 5
 
   def refresh_session_world_state(%GameSession{} = session) do
@@ -78,7 +95,7 @@ defmodule TalesForge.NPC do
       if npc_id do
         npc_id = to_string(npc_id)
         definition = Defaults.apply(definition, rules, Defaults.seed(session_id, npc_id))
-        insert_instance!(session_id, npc_id, definition, world_tick)
+        insert_instance!(%{session_id: session_id, world_tick: world_tick}, npc_id, definition)
       end
     end)
 
@@ -161,7 +178,12 @@ defmodule TalesForge.NPC do
     end)
   end
 
-  def record_memory(session_id, npc_id, summary, world_tick)
+  def record_memory(%Note{
+        session_id: session_id,
+        npc_id: npc_id,
+        summary: summary,
+        tick: world_tick
+      })
       when is_binary(session_id) and is_binary(npc_id) and is_binary(summary) do
     trimmed = String.trim(summary)
 
@@ -455,7 +477,8 @@ defmodule TalesForge.NPC do
   defp runtime(%{runtime_state: state}), do: state
   defp runtime(%{"runtime_state" => state}), do: state
 
-  defp insert_instance!(session_id, npc_id, definition, world_tick) do
+  # `seed` has the session id and the world tick the session starts at.
+  defp insert_instance!(%{session_id: session_id, world_tick: world_tick}, npc_id, definition) do
     location_id = Map.get(definition, "default_location_id", "weary_pilgrim")
 
     runtime =
@@ -498,7 +521,13 @@ defmodule TalesForge.NPC do
   defp append_memory(session_id, update, world_tick) when is_map(update) do
     npc_id = Map.get(update, "npc_id") || Map.get(update, :npc_id)
     summary = Map.get(update, "summary") || Map.get(update, :summary)
-    record_memory(session_id, npc_id, summary || "", world_tick)
+
+    record_memory(%Note{
+      session_id: session_id,
+      npc_id: npc_id,
+      summary: summary || "",
+      tick: world_tick
+    })
   end
 
   defp append_memory(_session_id, _update, _world_tick), do: :ok

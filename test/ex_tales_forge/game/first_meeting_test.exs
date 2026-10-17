@@ -93,7 +93,13 @@ defmodule TalesForge.Game.FirstMeetingTest do
     end
 
     test "after Mags has a memory of Ezzor, she has met him", %{session: session} do
-      :ok = NPC.record_memory(session.id, "drover", "Ezzor asked about the stolen salt.", 19)
+      :ok =
+        NPC.record_memory(%NPC.Note{
+          session_id: session.id,
+          npc_id: "drover",
+          summary: "Ezzor asked about the stolen salt.",
+          tick: 19
+        })
 
       gm = NPC.format_gm_sections(session.id, ["drover"], character: "Ezzor", first_meeting: true)
       assert gm =~ ~s("meeting": "has_met")
