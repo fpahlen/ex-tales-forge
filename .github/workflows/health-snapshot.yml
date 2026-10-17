@@ -68,8 +68,14 @@ jobs:
           date=$(git log -1 --format=%cI "$GITHUB_SHA")
           mix health.snapshot ${pr:+--pr "$pr"} --date "$date" --out "$RUNNER_TEMP/row.csv"
 
-      # Another run may push the branch between our fetch and push; then
-      # start again from the new branch head (up to 5 times).
+      # Each attempt rebuilds the branch from the latest main: the branch
+      # tip merged with origin/main, so every file but the two history files
+      # is main's. GITHUB_TOKEN may not push a branch whose workflow files
+      # differ from main's (no `workflows` permission): #345's run, which
+      # merged its own older commit, failed so seconds after #346 changed
+      # this file. If main moves before the push, or another run pushed
+      # first, the push fails and the next attempt starts again from the new
+      # heads (up to 5 times).
       - name: Put this merge's row on the rolling PR
         env:
           GH_TOKEN: ${{ github.token }}
@@ -90,6 +96,11 @@ jobs:
             else
               git switch -f -C "$BRANCH" origin/main
             fi
+            # Only the history files may differ from main.
+            git diff --quiet origin/main HEAD -- . ':(exclude)docs/health/history.csv' ':(exclude)docs/health/trend.svg' || {
+              [ "$attempt" = 5 ] && exit 1
+              continue
+            }
             mix health.snapshot --row "$RUNNER_TEMP/row.csv" ${keep:+--keep "$keep"}
             git add docs/health/history.csv docs/health/trend.svg
             git commit -m "Code health row for $subject" || exit 0
