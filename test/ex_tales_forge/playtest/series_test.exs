@@ -48,7 +48,7 @@ defmodule TalesForge.Playtest.SeriesTest do
   end
 
   test "plans round by round, flipping the variant order, and skips done runs" do
-    plan = Series.plan(~w(paul lotta), ~w(baseline default), 2)
+    plan = Series.plan({~w(paul lotta), ~w(baseline default), 2})
 
     assert Enum.map(plan, &{&1.round, &1.persona, &1.variant}) == [
              {1, "paul", "baseline"},
@@ -62,8 +62,8 @@ defmodule TalesForge.Playtest.SeriesTest do
            ]
 
     done = %{{"paul", "baseline"} => 2, {"lotta", "default"} => 1}
-    assert length(Series.plan(~w(paul lotta), ~w(baseline default), 2, done)) == 5
-    assert Series.plan(~w(paul), ~w(default), 1, %{{"paul", "default"} => 3}) == []
+    assert length(Series.plan({~w(paul lotta), ~w(baseline default), 2}, done)) == 5
+    assert Series.plan({~w(paul), ~w(default), 1}, %{{"paul", "default"} => 3}) == []
   end
 
   test "counts finished and dead runs as done, by persona and variant" do
