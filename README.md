@@ -154,6 +154,7 @@ See [AGENTS.md](AGENTS.md) for git workflow, Elixir idioms, LLM conventions, and
 - Run `mix format` while coding; run `mix precommit` before opening a PR
 - `mix quality` runs format check + Credo on `lib/`
 - After gameplay changes, smoke-test with `/play_test` (see `.grok/skills/play-test/SKILL.md`)
+- Code health per merge to main: [docs/health/trend.svg](https://github.com/whyse-ab/ex-tales-forge/blob/main/docs/health/trend.svg) (data in [docs/health/history.csv](https://github.com/whyse-ab/ex-tales-forge/blob/main/docs/health/history.csv), ratchet in [docs/health/README.md](https://github.com/whyse-ab/ex-tales-forge/blob/main/docs/health/README.md))
 
 ## Tests
 

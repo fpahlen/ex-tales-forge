@@ -1,0 +1,4 @@
+date,pr,cycles,largest_cycle,compile_connected_cycles,compile_connected_largest,web_refs,complex_functions
+2026-10-16T22:48:24+02:00,324,78,12,5,12,6,154
+2026-10-17T05:56:04+02:00,325,67,11,1,10,6,154
+2026-10-17T06:01:43+02:00,326,65,11,1,10,4,153

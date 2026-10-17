@@ -1,16 +1,25 @@
-# Weekly code health snapshot: `mix health.snapshot` writes
-# docs/health/YYYY-MM-DD.md (the numbers `mix health.check` gates on, next to
-# docs/health/baseline.json) and this job opens a PR with it.
+# Code health history: after each merge to main, `mix health.snapshot` puts
+# the merge's row in docs/health/history.csv and redraws trend.svg. The row
+# goes to the branch `health-history` and one rolling PR; nothing is pushed
+# to main. Merging that PR changes only those two files, which this
+# workflow ignores, so it adds no row of its own.
 name: Health snapshot
 
 on:
-  schedule:
-    - cron: "0 6 * * 1"
+  push:
+    branches: [main]
+    paths-ignore:
+      - docs/health/history.csv
+      - docs/health/trend.svg
   workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
+
+concurrency:
+  group: health-history
+  cancel-in-progress: false
 
 env:
   # Keep in sync with ci.yml.
@@ -24,8 +33,11 @@ jobs:
     timeout-minutes: 20
     env:
       MIX_ENV: test
+      BRANCH: health-history
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: erlef/setup-beam@v1
         id: beam
@@ -46,21 +58,30 @@ jobs:
       - name: Install deps and compile
         run: mix deps.get && mix compile
 
-      - name: Write the snapshot
-        run: mix health.snapshot
-
-      - name: Open a PR
+      - name: Put this merge's row on the rolling PR
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          day=$(date -u +%F)
-          branch="health-snapshot-$day"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git add docs/health/
-          git commit -m "Code health snapshot $day"
-          git push origin "$branch"
-          gh pr create --base main --head "$branch" \
-            --title "Code health snapshot $day" \
-            --body "Weekly snapshot from \`mix health.snapshot\`. See docs/health/$day.md."
+          subject=$(git log -1 --format=%s "$GITHUB_SHA")
+          pr=$(echo "$subject" | grep -o '#[0-9]*' | head -1 | tr -d '#')
+          date=$(git log -1 --format=%cI "$GITHUB_SHA")
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            git fetch origin "$BRANCH"
+            git switch "$BRANCH"
+            git merge --no-edit "$GITHUB_SHA"
+          else
+            git switch -c "$BRANCH"
+          fi
+          # The branch differs from main only in the two history files, so
+          # this measures main's code at this merge.
+          mix health.snapshot ${pr:+--pr "$pr"} --date "$date"
+          git add docs/health/history.csv docs/health/trend.svg
+          git commit -m "Code health row for $subject" || exit 0
+          git push origin "$BRANCH"
+          if [ -z "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
+            gh pr create --base main --head "$BRANCH" \
+              --title "Code health history" \
+              --body "Rows from \`mix health.snapshot\` after each merge to main. See docs/health/trend.svg."
+          fi
