@@ -72,13 +72,17 @@ jobs:
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
             git fetch origin "$BRANCH"
             git switch "$BRANCH"
-            git merge --no-edit "$GITHUB_SHA"
+            # If main changed the history files too (a new column, say),
+            # take main's side and keep the branch's rows with --keep.
+            keep="$RUNNER_TEMP/branch.csv"
+            cp docs/health/history.csv "$keep"
+            git merge --no-edit -X theirs "$GITHUB_SHA"
           else
             git switch -c "$BRANCH"
           fi
           # The branch differs from main only in the two history files, so
           # this measures main's code at this merge.
-          mix health.snapshot ${pr:+--pr "$pr"} --date "$date"
+          mix health.snapshot ${pr:+--pr "$pr"} --date "$date" ${keep:+--keep "$keep"}
           git add docs/health/history.csv docs/health/trend.svg
           git commit -m "Code health row for $subject" || exit 0
           git push origin "$BRANCH"
