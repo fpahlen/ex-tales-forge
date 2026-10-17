@@ -55,6 +55,18 @@ a player or founder can see in the PR body.
   query moved to the leaf `TalesForge.Scenes.opening/1` (#360): cycles 30 → 26,
   largest 8 → 4.
 
+- **An orchestrator that also holds the helpers its steps call is a
+  cycle with every step.** `TurnProcessor` ran the steps and also kept the
+  board, the Multi and the next turn number, which the steps called back
+  (and `Turn.Adapters` captured `&TurnProcessor.persist_and_signal/5` as a
+  default, which is a compile edge). Move the helpers to leaves that call no
+  step (`Turn.Board`, `Turn.Store`), so the orchestrator only runs the pipe.
+  A function capture in a `defstruct` default is a compile-time reference.
+  Moving a function makes it a new entry for the ratchet, so split anything
+  over the limits on the way (`Store.persist/1` takes a `%Store{}`).
+  Example: the 11-file turn group, 8 cycles and the compile-connected cycle
+  → 0.
+
 ## Moving code
 
 - **Delete forwarders; don't keep them.** When a function moves, move its

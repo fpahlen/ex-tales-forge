@@ -7,7 +7,7 @@ defmodule TalesForge.Game.TurnApplyTest do
 
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction, SingleAction}
   alias TalesForge.Game.Turn
-  alias TalesForge.Game.Turn.Adapters
+  alias TalesForge.Game.Turn.{Adapters, Store}
   alias TalesForge.GameSessions
 
   alias TalesForge.Game.WorldClock
@@ -28,7 +28,7 @@ defmodule TalesForge.Game.TurnApplyTest do
         {:ok, %GMStructuredResponse{narrative: "The night passes."}}
       end,
       stream: fn _id, _chunk -> :ok end,
-      store: fn _s, world, _n, _raw, ctx ->
+      store: fn %Store{world: world, ctx: ctx} ->
         send(me, {:stored, world, ctx.handler})
         {:ok, %{}}
       end

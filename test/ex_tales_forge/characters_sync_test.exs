@@ -5,6 +5,7 @@ defmodule TalesForge.CharactersSyncTest do
   import ExUnit.CaptureLog
 
   alias TalesForge.Characters
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.{ActionHandler, Intent, TurnProcessor}
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.GameSessions
@@ -32,7 +33,7 @@ defmodule TalesForge.CharactersSyncTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        %TurnProcessor.Board{
+        %Board{
           session: session,
           player_action: action,
           handler: ActionHandler.resolve(action),

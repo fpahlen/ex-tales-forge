@@ -20,9 +20,9 @@ defmodule TalesForge.Game.Turn.Mechanics do
   alias TalesForge.Game.SkillSplit
   alias TalesForge.Game.TargetCheck
   alias TalesForge.Game.Turn
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.Turn.Combat, as: TurnCombat
   alias TalesForge.Game.TurnApply
-  alias TalesForge.Game.TurnProcessor
   alias TalesForge.Game.TurnRules
   alias TalesForge.World, as: WorldAgents
   alias TalesForge.World.Prices
@@ -48,7 +48,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
     }
   end
 
-  # The options of the board step (`TalesForge.Game.TurnProcessor.Board`).
+  # The options of the board step (`TalesForge.Game.Turn.Board`).
   defp board_opts(turn, combat) do
     [
       catalogue_v2: Turn.flag?(turn, :jev_catalogue_v2),
@@ -94,7 +94,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
     {combat, foe} = TurnCombat.exchange(turn, world, target, rolled)
 
     applied =
-      TurnProcessor.apply_board(%TurnProcessor.Board{
+      Board.resolve(%Board{
         session: turn.session,
         character: character,
         handler: ruled,
@@ -151,7 +151,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
         rolls: Keyword.get(turn.opts, :rolls, [])
       )
     else
-      TurnProcessor.apply_mechanics(turn.session.world_state, played, ruled)
+      Board.apply_mechanics(turn.session.world_state, played, ruled)
     end
   end
 
