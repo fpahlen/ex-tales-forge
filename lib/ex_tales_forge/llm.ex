@@ -113,17 +113,17 @@ defmodule TalesForge.LLM do
   def gm_variant(:production), do: :lean
   def gm_variant(_role), do: :full
 
-  # The fields come from TalesForge.Prompt.Profile.narration_fields/1, for the
-  # GM call of the role that the variant stands for.
+  # The reply fields of the variant, in schema order: the lean reply
+  # (production) has no location_name and no gm_notes.
   defp narration_properties(variant) do
-    ctx = %TalesForge.Prompt.Ctx{call: :gm, role: variant_role(variant)}
-    fields = TalesForge.Prompt.Profile.narration_fields(ctx)
-
+    fields = narration_fields(variant)
     Enum.filter(all_narration_properties(), fn {key, _} -> key in fields end)
   end
 
-  defp variant_role(:lean), do: :production
-  defp variant_role(:full), do: :playtest
+  defp narration_fields(:lean), do: ~w(narrative npc_memory_updates context_summary)
+
+  defp narration_fields(:full),
+    do: ~w(narrative location_name npc_memory_updates context_summary gm_notes)
 
   defp all_narration_properties do
     [
