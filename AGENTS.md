@@ -1,5 +1,7 @@
 # ex-tales-forge — Agent Rules
 
+Read docs/principles.md first; the north star is ETC, Easy To Change.
+
 Rules for anyone, human or bot, who changes this repo. They summarise decisions
 recorded in `docs/` (`docs/decisions.md`, newest first) and the docs
 named in each section. Last checked against `main` and `docs/` on
