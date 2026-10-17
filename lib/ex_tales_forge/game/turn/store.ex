@@ -4,8 +4,9 @@ defmodule TalesForge.Game.Turn.Store do
   Multi with the session, the turn row, its events, the GM reasoning, the
   fronts and NPC ticks and the work-log push; then the NPC updates, the
   characters mirror, character memory, the registry sync, the thought and
-  the turn signals. `TalesForge.Game.Turn.Adapters` uses `persist/1` as the
-  default `store`.
+  the turn signals.
+
+  `TalesForge.Game.Turn.Adapters` uses `persist/1` as the default `store`.
 
   A `%Store{}` is one write: the session before the turn, the world after
   it, the turn number, the raw action and `ctx` (`:handler`,

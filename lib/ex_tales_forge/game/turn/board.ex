@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.Turn.Board do
   @moduledoc """
-  The board step of a turn (`resolve/1`) and its input: the session, the
+  The board step of a turn and its input: the session, the
   character, the handler, the PlayerAction, the mechanical resolution and
   the options (`:catalogue_v2`, `:opposed`, `:combat`, `:haggle_rolls`,
   `:improvement_rolls`, `:death_roll`, ...). The trade step may change the
@@ -8,7 +8,7 @@ defmodule TalesForge.Game.Turn.Board do
   (`apply_mechanics/3`) and the allow-listed GM patches after the GM
   (`turn_patches/3`).
 
-  PlayerAction → handler → server mechanics → inventory → clock+move →
+  `resolve/1` runs the step: PlayerAction → handler → server mechanics → inventory → clock+move →
   events → WorldSim → Perception → vitality → banked LP spent on improvement
   attempts on a long rest (`TalesForge.Game.Progression`) → premise check.
   The steps of `TalesForge.Game.TurnProcessor` call this module; it calls
