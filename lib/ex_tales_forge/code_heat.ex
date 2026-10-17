@@ -52,6 +52,21 @@ defmodule TalesForge.CodeHeat do
   # The number of tiles that can be a hot spot.
   @hot_count 5
 
+  defmodule Sample do
+    @moduledoc """
+    The window of one sample: when it started and ended, and how many
+    modules were traced.
+    """
+    defstruct [:started_at, :ended_at, modules: 0]
+
+    @typedoc "The window of one sample."
+    @type t :: %__MODULE__{
+            started_at: DateTime.t(),
+            ended_at: DateTime.t(),
+            modules: non_neg_integer()
+          }
+  end
+
   @typedoc "The level of a tile: one app, one module or one function."
   @type level :: :app | :module | :function
 
@@ -123,13 +138,12 @@ defmodule TalesForge.CodeHeat do
   end
 
   @doc """
-  Writes one sample. `totals` maps `{module, function, arity}` to
-  `{calls, time_us}`. The sample keeps the `:max_rows` functions with the
+  Writes one sample for the window in `sample`. `totals` maps
+  `{module, function, arity}` to `{calls, time_us}`. The sample keeps the `:max_rows` functions with the
   most time. Then the oldest samples above `:keep` are deleted.
   """
-  @spec save(map(), DateTime.t(), DateTime.t(), non_neg_integer()) ::
-          {:ok, CodeHeatSnapshot.t()} | {:error, Ecto.Changeset.t()}
-  def save(totals, started_at, ended_at, modules) do
+  @spec save(map(), Sample.t()) :: {:ok, CodeHeatSnapshot.t()} | {:error, Ecto.Changeset.t()}
+  def save(totals, %Sample{} = sample) do
     rows =
       totals
       |> Enum.map(fn {{m, f, a}, {calls, time_us}} ->
@@ -148,9 +162,9 @@ defmodule TalesForge.CodeHeat do
       %CodeHeatSnapshot{}
       |> CodeHeatSnapshot.changeset(%{
         app_name: AppRole.app_name(),
-        started_at: started_at,
-        ended_at: ended_at,
-        modules: modules,
+        started_at: sample.started_at,
+        ended_at: sample.ended_at,
+        modules: sample.modules,
         rows: rows
       })
       |> Repo.insert()
@@ -219,7 +233,7 @@ defmodule TalesForge.CodeHeat do
   Merges the samples that end after `from` and at or before `to` into one
   row list. Rows with the same app, module and function add their calls and
   time. The rows are sorted by time, the most first. This function is pure:
-  pass its rows to `tiles/4`.
+  pass its rows to `tiles/2`.
 
       iex> at = fn h -> DateTime.add(~U[2026-10-12 00:00:00Z], h, :hour) end
       iex> row = fn calls -> %{"app" => "a", "module" => "M", "function" => "f/1", "calls" => calls, "time_us" => calls} end
@@ -266,9 +280,10 @@ defmodule TalesForge.CodeHeat do
   end
 
   @doc """
-  Returns the tiles of `rows` (the rows of a sample) at `level`, colored by
-  `metric`. Options: `:module` (a part of the module name, any case) and
-  `:min` (the minimum value of `metric`). The tiles are sorted by value,
+  Returns the tiles of `rows` (the rows of a sample). Options: `:level`
+  (`t:level/0`, default `:module`), `:metric` (`t:metric/0`, the value that
+  sets the color, default `:total`), `:module` (a part of the module name,
+  any case) and `:min` (the minimum value of the metric). The tiles are sorted by value,
   the highest first. The #{@hot_count} highest tiles with a heat of 0.5 or
   more are hot spots.
 
@@ -276,26 +291,31 @@ defmodule TalesForge.CodeHeat do
       ...>   %{"app" => "a", "module" => "M", "function" => "f/1", "calls" => 10, "time_us" => 50},
       ...>   %{"app" => "a", "module" => "N", "function" => "g/0", "calls" => 1, "time_us" => 5}
       ...> ]
-      iex> TalesForge.CodeHeat.tiles(rows, :module, :calls) |> Enum.map(&{&1.label, &1.value})
+      iex> TalesForge.CodeHeat.tiles(rows, level: :module, metric: :calls) |> Enum.map(&{&1.label, &1.value})
       [{"M", 10}, {"N", 1}]
-      iex> TalesForge.CodeHeat.tiles(rows, :app, :total) |> Enum.map(&{&1.label, &1.value})
+      iex> TalesForge.CodeHeat.tiles(rows, level: :app, metric: :total) |> Enum.map(&{&1.label, &1.value})
       [{"a", 55}]
-      iex> TalesForge.CodeHeat.tiles(rows, :function, :calls, module: "n") |> Enum.map(& &1.label)
+      iex> TalesForge.CodeHeat.tiles(rows, level: :function, metric: :calls, module: "n") |> Enum.map(& &1.label)
       ["N.g/0"]
   """
-  @spec tiles([map()], level(), metric(), keyword()) :: [tile()]
-  def tiles(rows, level, metric, opts \\ []) do
+  @spec tiles([map()], keyword()) :: [tile()]
+  def tiles(rows, opts \\ []) do
+    level = Keyword.get(opts, :level, :module)
+    metric = Keyword.get(opts, :metric, :total)
     filter = opts |> Keyword.get(:module, "") |> to_string() |> String.trim() |> String.downcase()
     min = Keyword.get(opts, :min, 0) || 0
 
-    tiles =
-      rows
-      |> Enum.filter(&(filter == "" or String.contains?(String.downcase(&1["module"]), filter)))
-      |> Enum.group_by(&group_key(&1, level))
-      |> Enum.map(fn {key, group} -> tile(key, group, level, metric) end)
-      |> Enum.filter(&(&1.value >= min))
-      |> Enum.sort_by(& &1.value, :desc)
+    rows
+    |> Enum.filter(&(filter == "" or String.contains?(String.downcase(&1["module"]), filter)))
+    |> Enum.group_by(&group_key(&1, level))
+    |> Enum.map(&tile(&1, level, metric))
+    |> Enum.filter(&(&1.value >= min))
+    |> Enum.sort_by(& &1.value, :desc)
+    |> rank_heat()
+  end
 
+  # Tiles sorted by value, highest first: the heat, and the hot spots.
+  defp rank_heat(tiles) do
     max = tiles |> Enum.map(& &1.value) |> Enum.max(fn -> 0 end)
 
     tiles
@@ -310,13 +330,13 @@ defmodule TalesForge.CodeHeat do
   defp group_key(row, :module), do: row["module"]
   defp group_key(row, :function), do: row["module"] <> "." <> row["function"]
 
-  defp tile(key, [first | _] = group, level, metric) do
+  defp tile({key, [first | _] = group}, level, metric) do
     calls = group |> Enum.map(& &1["calls"]) |> Enum.sum()
     time_us = group |> Enum.map(& &1["time_us"]) |> Enum.sum()
     avg_us = if calls > 0, do: time_us / calls, else: 0.0
     module = if level == :app, do: nil, else: first["module"]
 
-    %{
+    tile = %{
       key: key,
       label: key,
       app: first["app"],
@@ -324,16 +344,17 @@ defmodule TalesForge.CodeHeat do
       calls: calls,
       time_us: time_us,
       avg_us: avg_us,
-      value: value(metric, calls, time_us, avg_us),
       heat: 0.0,
       hot: false,
       ai: module in @ai_modules
     }
+
+    Map.put(tile, :value, value(metric, tile))
   end
 
-  defp value(:calls, calls, _time, _avg), do: calls
-  defp value(:total, _calls, time_us, _avg), do: time_us
-  defp value(:avg, _calls, _time, avg_us), do: Float.round(avg_us, 1)
+  defp value(:calls, tile), do: tile.calls
+  defp value(:total, tile), do: tile.time_us
+  defp value(:avg, tile), do: Float.round(tile.avg_us, 1)
 
   @doc """
   Returns the heat of `value` from 0 to 1 on a log scale, where `max` is 1.
