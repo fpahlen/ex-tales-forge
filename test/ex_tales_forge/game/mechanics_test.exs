@@ -42,19 +42,19 @@ defmodule TalesForge.Game.MechanicsTest do
 
     test "an untrained skill (level 0) rolls against stat div 3" do
       # stealth is DEX 10: untrained it is 5 × (10 div 3) = 15, not 0
-      {_c, r} = Mechanics.perform_and_apply(@character, "stealth", 3)
+      {_c, r} = Mechanics.perform_and_apply(@character, "stealth", roll: 3)
       assert {r.effective_skill, r.outcome} == {15, "success"}
       assert r.notes =~ "vs stealth 15 (untrained: stat ÷ 3)"
     end
 
     test "a trained skill uses level + stat bonus, even below the untrained level" do
       # melee_combat 5 with STR 10 is 5 + 0 = 5: every level counts, no floor
-      {_c, low} = Mechanics.perform_and_apply(@character, "melee_combat", 10)
+      {_c, low} = Mechanics.perform_and_apply(@character, "melee_combat", roll: 10)
       assert low.effective_skill == 5
       assert low.notes =~ "vs melee_combat 5 (base 5)"
 
       # persuasion 15 with CHA 14 is 15 + 10 = 25
-      {_c, high} = Mechanics.perform_and_apply(@character, "persuasion", 10)
+      {_c, high} = Mechanics.perform_and_apply(@character, "persuasion", roll: 10)
       assert high.effective_skill == 25
     end
   end
@@ -73,7 +73,7 @@ defmodule TalesForge.Game.MechanicsTest do
 
   describe "learn only from failure, only in that skill" do
     test "a failure banks one chance, counted as a failure" do
-      {updated, resolution} = Mechanics.perform_and_apply(@character, "insight", 80)
+      {updated, resolution} = Mechanics.perform_and_apply(@character, "insight", roll: 80)
 
       assert resolution.outcome == "failure"
       assert resolution.lp_awarded == 1.0
@@ -83,7 +83,7 @@ defmodule TalesForge.Game.MechanicsTest do
     end
 
     test "a partial success banks one chance" do
-      {updated, resolution} = Mechanics.perform_and_apply(@character, "insight", 20)
+      {updated, resolution} = Mechanics.perform_and_apply(@character, "insight", roll: 20)
 
       assert resolution.outcome == "partial_success"
       assert resolution.lp_awarded == 1.0
@@ -92,7 +92,7 @@ defmodule TalesForge.Game.MechanicsTest do
 
     test "a success earns nothing, critical success included, and leaves the sheet alone" do
       for {roll, outcome} <- [{1, "critical_success"}, {2, "critical_success"}, {10, "success"}] do
-        {updated, resolution} = Mechanics.perform_and_apply(@character, "insight", roll)
+        {updated, resolution} = Mechanics.perform_and_apply(@character, "insight", roll: roll)
 
         assert resolution.outcome == outcome
         assert resolution.lp_awarded == 0.0
@@ -103,7 +103,7 @@ defmodule TalesForge.Game.MechanicsTest do
 
     test "the linked stat adds no LP" do
       # persuasion is CHA 14, which gave +1 LP per roll before 2026-10-09
-      {updated, resolution} = Mechanics.perform_and_apply(@character, "persuasion", 80)
+      {updated, resolution} = Mechanics.perform_and_apply(@character, "persuasion", roll: 80)
 
       assert resolution.lp_awarded == 1.0
       assert updated["learning_points"]["persuasion"] == 1.0
@@ -166,7 +166,7 @@ defmodule TalesForge.Game.MechanicsTest do
       |> put_in(["learning_points", "melee_combat"], 1.5)
       |> put_in(["learning_failures", "melee_combat"], 2)
 
-    {updated, resolution} = Mechanics.perform_and_apply(character, "climbing", 80)
+    {updated, resolution} = Mechanics.perform_and_apply(character, "climbing", roll: 80)
 
     assert resolution.skill == "climbing"
     assert resolution.outcome == "failure"

@@ -118,7 +118,7 @@ defmodule TalesForge.Game.Bargain do
   end
 
   defp roll(character, skill, rolls, modifier),
-    do: Mechanics.perform_and_apply(character, skill, rolls[skill], modifier)
+    do: Mechanics.perform_and_apply(character, skill, roll: rolls[skill], modifier: modifier)
 
   # 10 % plus 1 % for each 5 points under the skill, at most 20 %; a critical
   # success moves the full 20 % (better than expected); a partial success

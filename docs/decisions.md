@@ -348,7 +348,7 @@ If we delete the baseline variant with this change:
 5. The split replaces the Multi-Actions rule (-2 for each extra action) in `combat.md`.
 
 **How the dice work today.**
-- The server rolls 1d20 for each check in `TalesForge.Game.Mechanics.perform_and_apply/4`. A roll equal to or less than the effective level succeeds.
+- The server rolls 1d20 for each check in `TalesForge.Game.Mechanics.perform_and_apply/3`. A roll equal to or less than the effective level succeeds.
 - The effective level is the skill level plus the stat bonus.
 - A natural 1 always succeeds. A natural 20 always fails, or gives a partial success from level 15.
 - Today, a level above 20 gives no better odds. The split gives those levels a use.
