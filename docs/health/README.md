@@ -20,8 +20,20 @@ ceilings pass; adding an entry or raising a ceiling fails.
 After paying debt down, run `mix health.check --write` and commit the
 smaller baseline. Refactoring the existing debt is separate work.
 
-`YYYY-MM-DD.md` files are the weekly snapshots (`mix health.snapshot`, opened
-as a PR by `.github/workflows/health-snapshot.yml` every Monday 06:00 UTC).
+## History
+
+![Code health per merge to main](trend.svg)
+
+`history.csv` has one row per merge to main since #324 (the ratchet): date,
+PR, xref cycles, largest cycle, compile-connected cycles (count and largest),
+domain -> web references and functions over the complexity limits. Lower is
+better. `mix health.snapshot` measures HEAD, puts its row in the CSV and
+redraws `trend.svg`: one stacked bar per merge (xref cycles + complex
+functions + domain -> web refs, total on top). After each merge to main,
+`.github/workflows/health-snapshot.yml` runs it and pushes the row to the
+branch `health-history`, with one open PR for it; merging that PR adds the
+rows to main. The first rows are the merges that changed `baseline.json`
+(#324, #325, #326), measured again at each merge commit.
 
 `lib/ex_tales_forge -> ExTalesForgeWeb` is measured with xref (real compile, export and
 runtime references), not grep: module names in docs and strings do not count.
