@@ -190,6 +190,8 @@ fly deploy --remote-only --depot=false -a tales-forge --ha=false
 
 `release_command` runs `/app/bin/migrate` (Ecto migrations) before the new machines take traffic.
 
+The CI deploys (`playtest.yml`, `deploy-production.yml`) run `flyctl deploy` through `.github/scripts/fly_deploy.sh`. It sets `--wait-timeout 2m`, and when the release machine never starts (it stays in `created` on Fly's side, as happened twice on 2026-10-17), it deploys the same pushed image once more. A migration that runs long is bounded by `--release-command-timeout` (5m) and is not retried.
+
 Notes from the first deploy:
 
 - If the Depot builder hangs at "Waiting for depot builder...", use Fly's own builder:
