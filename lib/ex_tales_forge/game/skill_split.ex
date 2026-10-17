@@ -16,7 +16,26 @@ defmodule TalesForge.Game.SkillSplit do
   """
 
   alias TalesForge.Game.Mechanics
-  alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction}
+  alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
+
+  defmodule Check do
+    @moduledoc """
+    The skill check of a turn: the played action, the handler of the rules
+    step, the player's text and the injected d100 `rolls` (one for each part,
+    for tests).
+    """
+    alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
+
+    defstruct [:player_action, :handler, :text, rolls: []]
+
+    @typedoc "The skill check of a turn."
+    @type t :: %__MODULE__{
+            player_action: PlayerAction.t(),
+            handler: HandlerResult.t(),
+            text: String.t() | nil,
+            rolls: [integer()]
+          }
+  end
 
   @split_on ~r/<!-- skill_split:on -->\n(.*?)<!-- \/skill_split:on -->\n/s
   @split_off ~r/<!-- skill_split:off -->\n(.*?)<!-- \/skill_split:off -->\n/s
@@ -136,36 +155,45 @@ defmodule TalesForge.Game.SkillSplit do
   plays as `Mechanics.apply_server_mechanics/3`. A refused split plays one
   normal attempt, and the resolution carries the refusal for the story.
 
-  `opts`: `:rolls`, a list of injected d100 rolls (one for each part).
+  The check's `rolls` are injected d100 rolls (one for each part).
   """
-  @spec apply(map(), PlayerAction.t(), HandlerResult.t(), String.t() | nil, keyword()) ::
-          {map(), MechanicalResolution.t()}
-  def apply(character, player_action, handler, text, opts \\ []) do
+  @spec apply(map(), Check.t()) :: {map(), MechanicalResolution.t()}
+  def apply(character, %Check{player_action: player_action, handler: handler} = check) do
     skill = check_skill(player_action, handler)
-    rolls = Keyword.get(opts, :rolls, [])
 
-    case {skill, request(player_action, text)} do
+    case {skill, request(player_action, check.text)} do
       {nil, _request} ->
         Mechanics.apply_server_mechanics(character, player_action, handler)
 
       {_skill, 1} ->
-        single(character, skill, handler, rolls, nil)
+        character |> once(skill, check) |> with_split(nil)
 
-      {skill, request} ->
-        level = {Mechanics.raw_level(character, skill), effective(character, skill, handler)}
-
-        case Mechanics.split_levels(level, request) do
-          {:ok, parts} ->
-            split(character, skill, parts, rolls)
-
-          {:error, reason} ->
-            single(character, skill, handler, rolls, %{
-              "requested" => requested(request),
-              "refused" => Atom.to_string(reason)
-            })
-        end
+      skill_request ->
+        split_or_refuse(character, skill_request, check)
     end
   end
+
+  defp split_or_refuse(character, {skill, request}, %Check{handler: handler} = check) do
+    level = {Mechanics.raw_level(character, skill), effective(character, skill, handler)}
+
+    case Mechanics.split_levels(level, request) do
+      {:ok, parts} ->
+        split(character, {skill, parts}, check.rolls)
+
+      {:error, reason} ->
+        character
+        |> once(skill, check)
+        |> with_split(%{"requested" => requested(request), "refused" => Atom.to_string(reason)})
+    end
+  end
+
+  # One normal attempt with the first injected roll.
+  defp once(character, skill, %Check{} = check),
+    do:
+      Mechanics.perform_and_apply(character, skill,
+        roll: List.first(check.rolls),
+        modifier: modifier(check.handler)
+      )
 
   defp check_skill(player_action, handler) do
     action_skill =
@@ -184,20 +212,13 @@ defmodule TalesForge.Game.SkillSplit do
   defp requested(parts) when is_list(parts), do: parts
   defp requested(count), do: count
 
-  defp single(character, skill, handler, rolls, split) do
-    {updated, resolution} =
-      Mechanics.perform_and_apply(character, skill,
-        roll: List.first(rolls),
-        modifier: modifier(handler)
-      )
-
-    {updated, %{resolution | split: split}}
-  end
+  # One normal attempt; `split` is nil or the refused request.
+  defp with_split({updated, resolution}, split), do: {updated, %{resolution | split: split}}
 
   # Each part rolls against the character before the turn. The first part
   # that earns a learning chance gives the character after the turn; the
   # other parts bank nothing (one learning chance for each split action).
-  defp split(character, skill, parts, rolls) do
+  defp split(character, {skill, parts}, rolls) do
     results =
       parts
       |> Enum.with_index()
@@ -212,27 +233,26 @@ defmodule TalesForge.Game.SkillSplit do
 
     {_char, best} = Enum.max_by(results, fn {_char, res} -> rank(res.outcome) end, fn -> nil end)
 
-    part_rows =
-      Enum.map(results, fn {_char, res} ->
-        %{"level" => res.effective_skill, "roll" => res.roll, "outcome" => res.outcome}
-      end)
+    part_rows = Enum.map(results, &part_row/1)
 
     resolution = %{
       best
       | lp_awarded: lp,
         parts: part_rows,
         split: %{"requested" => length(parts), "parts" => parts},
-        notes:
-          "Split into #{length(parts)} parts: " <>
-            Enum.map_join(
-              part_rows,
-              ", ",
-              &"#{&1["level"]} rolled #{&1["roll"]} (#{&1["outcome"]})"
-            ) <>
-            ". One learning chance at most."
+        notes: split_notes(part_rows)
     }
 
     {updated, resolution}
+  end
+
+  defp part_row({_char, res}),
+    do: %{"level" => res.effective_skill, "roll" => res.roll, "outcome" => res.outcome}
+
+  defp split_notes(part_rows) do
+    "Split into #{length(part_rows)} parts: " <>
+      Enum.map_join(part_rows, ", ", &"#{&1["level"]} rolled #{&1["roll"]} (#{&1["outcome"]})") <>
+      ". One learning chance at most."
   end
 
   defp rank("critical_success"), do: 3
