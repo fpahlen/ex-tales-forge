@@ -37,6 +37,22 @@ defmodule TalesForge.DeployLanes.SecurityCLI do
   alias TalesForge.DeployLanes
   alias TalesForge.DeployLanes.Security
 
+  defmodule Run do
+    @moduledoc """
+    One lane decision: the pull request (`pr.json` decoded), whether CI is
+    green, the git runner and, in `main` mode, the deploy lanes.
+    """
+    defstruct [:pr, :git, :lanes, ci_green: false]
+
+    @typedoc "One lane decision's inputs."
+    @type t :: %__MODULE__{
+            pr: map(),
+            git: ([String.t()] -> {String.t(), non_neg_integer()}),
+            lanes: TalesForge.DeployLanes.t() | nil,
+            ci_green: boolean()
+          }
+  end
+
   @typedoc "Runs a git command (argument list) and returns `{output, exit_status}`."
   @type git :: ([String.t()] -> {String.t(), non_neg_integer()})
 
@@ -59,20 +75,13 @@ defmodule TalesForge.DeployLanes.SecurityCLI do
         ]
       )
 
-    pr = opts[:pr] |> File.read!() |> decode_pr()
-    ci_green = opts[:ci] == "success"
+    run = %Run{
+      pr: opts[:pr] |> File.read!() |> decode_pr(),
+      ci_green: opts[:ci] == "success",
+      git: &git/1
+    }
 
-    result =
-      case mode do
-        "pr" ->
-          decide_pr(opts[:base], opts[:head], pr, ci_green, &git/1)
-
-        "main" ->
-          lanes = DeployLanes.load(opts[:lanes] || DeployLanes.default_path())
-          decide_main(lanes, opts[:sha], blank_to_nil(opts[:production]), pr, ci_green, &git/1)
-      end
-
-    emit(result)
+    emit(decide(mode, run, opts))
   end
 
   def main(["bump", old, new]) do
@@ -102,34 +111,41 @@ defmodule TalesForge.DeployLanes.SecurityCLI do
     System.halt(2)
   end
 
+  defp decide("pr", run, opts), do: decide_pr(run, opts[:base], opts[:head])
+
+  defp decide("main", run, opts) do
+    lanes = DeployLanes.load(opts[:lanes] || DeployLanes.default_path())
+    decide_main(%{run | lanes: lanes}, opts[:sha], blank_to_nil(opts[:production]))
+  end
+
   @doc "The lane of a pull request: its changes from the merge base of `base` and `head` to `head`."
-  @spec decide_pr(String.t(), String.t(), map(), boolean(), git()) :: result()
-  def decide_pr(base, head, pr, ci_green, git) do
+  @spec decide_pr(Run.t(), String.t(), String.t()) :: result()
+  def decide_pr(%Run{git: git} = run, base, head) do
     {merge_base, _} = git.(["merge-base", base, head])
     from = String.trim(merge_base)
-    result = Security.check(input(from, head, pr, ci_green, git))
-    render(result, "pull request (`#{short(from)}`..`#{short(head)}`)", pr)
+    result = Security.check(input(run, from, head))
+    render(result, "pull request (`#{short(from)}`..`#{short(head)}`)", run.pr)
   end
 
   @doc """
   The lane of merge `sha` on main: the merge against its first parent, plus
-  everything since the commit production runs (`nil` when unknown).
+  everything since the commit production runs (`nil` when unknown). The run
+  needs its `lanes`.
   """
-  @spec decide_main(DeployLanes.t(), String.t(), String.t() | nil, map(), boolean(), git()) ::
-          result()
-  def decide_main(lanes, sha, production, pr, ci_green, git) do
-    merge = Security.check(input("#{sha}^1", sha, pr, ci_green, git))
-    since = since_production(lanes, sha, production, git)
+  @spec decide_main(Run.t(), String.t(), String.t() | nil) :: result()
+  def decide_main(%Run{} = run, sha, production) do
+    merge = Security.check(input(run, "#{sha}^1", sha))
+    since = since_production(run, sha, production)
     lane = if since.ok, do: merge.lane, else: :normal
-    render(%{merge | rules: merge.rules ++ [since], lane: lane}, "merge `#{short(sha)}`", pr)
+    render(%{merge | rules: merge.rules ++ [since], lane: lane}, "merge `#{short(sha)}`", run.pr)
   end
 
   @doc false
-  @spec since_production(DeployLanes.t(), String.t(), String.t() | nil, git()) :: Security.rule()
-  def since_production(_lanes, _sha, nil, _git),
+  @spec since_production(Run.t(), String.t(), String.t() | nil) :: Security.rule()
+  def since_production(_run, _sha, nil),
     do: since_rule(false, "The commit production runs is unknown (no `deployed/production` tag).")
 
-  def since_production(lanes, sha, production, git) do
+  def since_production(%Run{git: git} = run, sha, production) do
     cond do
       production == sha ->
         since_rule(false, "Production already runs `#{short(sha)}`.")
@@ -141,57 +157,69 @@ defmodule TalesForge.DeployLanes.SecurityCLI do
         )
 
       true ->
-        files = changed_files(git, production, sha)
-
-        others =
-          Enum.reject(files, &(&1 in ["mix.lock", "mix.exs"] or DeployLanes.admin?(lanes, &1)))
-
-        old_exs = show(git, production, "mix.exs")
-        new_exs = show(git, sha, "mix.exs")
-
-        changes =
-          try do
-            Security.lock_changes(
-              show(git, production, "mix.lock") || "",
-              show(git, sha, "mix.lock") || ""
-            )
-          rescue
-            ArgumentError -> [%{package: "mix.lock", from: nil, to: nil, same_major: false}]
-          end
-
-        cond do
-          others != [] ->
-            since_rule(
-              false,
-              "Production would also get changes that wait for a founder OK: " <>
-                Enum.map_join(Enum.take(others, 20), ", ", &"`#{&1}`") <> "."
-            )
-
-          "mix.exs" in files and not Security.only_version_pins?(old_exs || "", new_exs || "") ->
-            since_rule(
-              false,
-              "Since production, `mix.exs` changes more than version requirements."
-            )
-
-          Enum.any?(changes, &(not &1.same_major)) ->
-            since_rule(
-              false,
-              "Since production, a package leaves its major version: " <>
-                Security.describe_changes(Enum.reject(changes, & &1.same_major))
-            )
-
-          true ->
-            since_rule(
-              true,
-              "Since `#{short(production)}`: only lock bumps within the major version and admin files."
-            )
-        end
+        since_changes(run, production, sha)
     end
+  end
+
+  # Production is behind and an ancestor: what it would get on top.
+  defp since_changes(%Run{git: git, lanes: lanes}, production, sha) do
+    files = changed_files(git, production, sha)
+    others = Enum.reject(files, &(&1 in ["mix.lock", "mix.exs"] or DeployLanes.admin?(lanes, &1)))
+
+    cond do
+      others != [] ->
+        others_rule(others)
+
+      "mix.exs" in files and not pins_only?(git, production, sha) ->
+        since_rule(false, "Since production, `mix.exs` changes more than version requirements.")
+
+      true ->
+        git
+        |> lock_changes(production, sha)
+        |> Enum.reject(& &1.same_major)
+        |> lock_rule(production)
+    end
+  end
+
+  defp others_rule(others),
+    do:
+      since_rule(
+        false,
+        "Production would also get changes that wait for a founder OK: " <>
+          Enum.map_join(Enum.take(others, 20), ", ", &"`#{&1}`") <> "."
+      )
+
+  defp lock_rule([], production),
+    do:
+      since_rule(
+        true,
+        "Since `#{short(production)}`: only lock bumps within the major version and admin files."
+      )
+
+  defp lock_rule(moved, _production),
+    do:
+      since_rule(
+        false,
+        "Since production, a package leaves its major version: " <>
+          Security.describe_changes(moved)
+      )
+
+  defp pins_only?(git, from, to),
+    do:
+      Security.only_version_pins?(
+        show(git, from, "mix.exs") || "",
+        show(git, to, "mix.exs") || ""
+      )
+
+  defp lock_changes(git, from, to) do
+    Security.lock_changes(show(git, from, "mix.lock") || "", show(git, to, "mix.lock") || "")
+  rescue
+    ArgumentError -> [%{package: "mix.lock", from: nil, to: nil, same_major: false}]
   end
 
   defp since_rule(ok, detail), do: %{name: "Production gets nothing else", ok: ok, detail: detail}
 
-  defp input(from, to, pr, ci_green, git) do
+  defp input(%Run{pr: pr, git: git} = run, from, to) do
     %{
       files: changed_files(git, from, to),
       old_lock: show(git, from, "mix.lock"),
@@ -201,7 +229,7 @@ defmodule TalesForge.DeployLanes.SecurityCLI do
       title: pr["title"] || "",
       body: pr["body"] || "",
       labels: Enum.map(pr["labels"] || [], &(&1["name"] || "")),
-      ci_green: ci_green
+      ci_green: run.ci_green
     }
   end
 
