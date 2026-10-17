@@ -22,7 +22,7 @@ out =
 
     turns = Repo.all(from t in Turn, where: t.game_session_id == ^gs, order_by: t.turn_number)
     calls = Repo.all(from c in AICall, where: c.game_session_id == ^gs, order_by: c.inserted_at)
-    opening = TalesForge.GameSessions.opening_scene(gs)
+    opening = TalesForge.Scenes.opening(gs)
     # Scenes, world events and fronts (ex-tales-forge #68, #72, #73): where the character went and
     # what the Tinjacks did. gm_reasoning payloads are left out (large, not needed).
     scenes = Repo.all(from s in Scene, where: s.game_session_id == ^gs, order_by: s.inserted_at,

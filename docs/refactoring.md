@@ -49,6 +49,11 @@ a player or founder can see in the PR body.
   cycles` lists only some cycles. A cut makes it list older paths between
   the same files, and those look new. The gate compares each cycle with
   the old tangles, because removing edges can't create a cycle (#327).
+- **A context module that the turn code reads from closes every turn
+  cycle.** `Game.Context` called `GameSessions.opening_scene/1`, a plain
+  query, and GameSessions reaches the workers and both processors. The
+  query moved to the leaf `TalesForge.Scenes.opening/1` (#360): cycles 30 → 26,
+  largest 8 → 4.
 
 ## Moving code
 
