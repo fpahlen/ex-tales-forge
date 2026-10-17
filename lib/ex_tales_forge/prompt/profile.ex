@@ -17,8 +17,9 @@ defmodule TalesForge.Prompt.Profile do
     * `NPC_REACTIONS` or `WORLD_AGENTS` adds the NPC reactions;
     * `WORLD_AGENTS` adds the world facts and the prices;
     * `SKILL_DETAIL_LEVEL` adds the noticed details;
-    * the production role gets the lean GM task (`gm_task_fragments/1`) and
-      the lean reply (`narration_fields/1`).
+    * the production role gets the lean GM task (`gm_task_fragments/1`);
+      its lean reply (no `location_name`, no `gm_notes`) is the `:lean`
+      variant of `TalesForge.LLM.gm_variant/1`.
   """
 
   alias TalesForge.Prompt.Ctx
@@ -52,20 +53,6 @@ defmodule TalesForge.Prompt.Profile do
   @spec gm_task_fragments(Ctx.t()) :: [String.t()]
   def gm_task_fragments(%Ctx{role: :production}), do: ~w(head output)
   def gm_task_fragments(%Ctx{}), do: ~w(head location_name output gm_notes)
-
-  @doc """
-  The reply fields of a narration call for `ctx`, in schema order. The
-  production GM call has no `location_name` and no `gm_notes`.
-
-      iex> TalesForge.Prompt.Profile.narration_fields(%TalesForge.Prompt.Ctx{call: :gm, role: :production})
-      ~w(narrative npc_memory_updates context_summary)
-  """
-  @spec narration_fields(Ctx.t()) :: [String.t()]
-  def narration_fields(%Ctx{call: :gm, role: :production}),
-    do: ~w(narrative npc_memory_updates context_summary)
-
-  def narration_fields(%Ctx{}),
-    do: ~w(narrative location_name npc_memory_updates context_summary gm_notes)
 
   @doc "All sections for `ctx`, in cache order."
   @spec sections(Ctx.t()) :: [module()]

@@ -37,6 +37,11 @@ a player or founder can see in the PR body.
   in the big turn cycle. Both only read the npc_state they were given, so
   they moved to `Game.NpcState` (#325): cycles 78 → 67, compile-connected
   5 → 1.
+- **Look for one call that closes the big cycle.** `TalesForge.LLM` called
+  `Prompt.Profile.narration_fields/1` only to pick its own reply schema,
+  and Profile reaches every prompt section and, through them, the turn.
+  The field list moved next to its only user (`LLM`, private), which cut
+  the largest cycle 11 → 8 and the compile-connected one 10 → 3.
 - **The domain never calls the web layer.** Move what the domain needs into
   the domain (`Game.PlayPanel` from `PlayComponents`), or have the
   controller pass in the web value (the OAuth redirect URI) (#326).
