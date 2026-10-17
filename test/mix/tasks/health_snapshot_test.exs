@@ -45,6 +45,15 @@ defmodule Mix.Tasks.Health.SnapshotTest do
     assert rows |> Snapshot.csv() |> Snapshot.parse() == rows
   end
 
+  test "a row that arrives late goes in merge order" do
+    a = Snapshot.row(@numbers, "2026-10-17T08:00:00+02:00", 84)
+    b = Snapshot.row(@numbers, "2026-10-17T09:00:00+02:00", 85)
+    c = Snapshot.row(@numbers, "2026-10-17T08:30:00Z", 86)
+
+    assert [a, c] |> Snapshot.put_row(b) |> Enum.map(& &1["pr"]) == [84, 85, 86]
+    assert [a, b] |> Snapshot.put_row(c) |> Enum.map(& &1["pr"]) == [84, 85, 86]
+  end
+
   test "rows only in the kept file are added in date order" do
     a = Snapshot.row(@numbers, "2026-10-17T08:00:00+02:00", 84)
     b = Snapshot.row(@numbers, "2026-10-17T09:00:00+02:00", 85)

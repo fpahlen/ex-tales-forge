@@ -18,6 +18,15 @@ defmodule Mix.Tasks.Health.Snapshot do
   CSV does not have (in date order). The workflow passes the rolling
   branch's file from before it merged main, so a conflict in the CSV that
   it resolved with main's side loses no row.
+
+  `--out FILE` writes only the measured row to FILE (a one-row CSV) and
+  leaves the history alone; `--row FILE` puts FILE's rows in the history
+  instead of measuring. The workflow measures each merge on its own
+  commit with `--out`, then adds the row to the rolling branch with
+  `--row`, so runs for merges close together can each add their row.
+
+      mix health.snapshot --out /tmp/row.csv
+      mix health.snapshot --row /tmp/row.csv --keep /tmp/branch.csv
   """
   use Mix.Task
 
@@ -31,14 +40,33 @@ defmodule Mix.Tasks.Health.Snapshot do
 
   @impl Mix.Task
   def run(args) do
-    {opts, _} = OptionParser.parse!(args, strict: [pr: :integer, date: :string, keep: :string])
-    {pr, date} = head_commit()
-    row = row(Check.collect(), opts[:date] || date, opts[:pr] || pr)
-    kept = if opts[:keep], do: read(opts[:keep]), else: []
-    rows = @csv |> read() |> keep_rows(kept) |> put_row(row)
+    {parsed, _} =
+      OptionParser.parse!(args,
+        strict: [pr: :integer, date: :string, keep: :string, out: :string, row: :string]
+      )
+
+    opts = Map.new(parsed)
+    new = if opts[:row], do: read(opts.row), else: [measure(opts)]
+    write(new, opts)
+  end
+
+  # --out: only the new rows, as their own CSV.
+  defp write(new, %{out: out}), do: File.write!(out, csv(new))
+
+  defp write(new, opts) do
+    kept = if opts[:keep], do: read(opts.keep), else: []
+    rows = Enum.reduce(new, @csv |> read() |> keep_rows(kept), &put_row(&2, &1))
     File.write!(@csv, csv(rows))
     File.write!(@svg, svg(rows))
-    Mix.shell().info("Wrote #{@csv} (PR ##{row["pr"]}) and #{@svg}")
+
+    Mix.shell().info(
+      "Wrote #{@csv} (PR #{Enum.map_join(new, ", ", &"##{&1["pr"]}")}) and #{@svg}"
+    )
+  end
+
+  defp measure(opts) do
+    {pr, date} = head_commit()
+    row(Check.collect(), opts[:date] || date, opts[:pr] || pr)
   end
 
   # The PR number and date of HEAD: "Merge pull request #85 from ..." or a
@@ -97,12 +125,27 @@ defmodule Mix.Tasks.Health.Snapshot do
     end
   end
 
-  @doc "Puts `row` in place of the row of the same PR, else at the end (merge order)."
+  @doc """
+  Puts `row` in place of the row of the same PR, else after the rows with
+  an earlier or the same date (merge order, also when the runs for two
+  merges finish in the other order).
+  """
   @spec put_row([map()], map()) :: [map()]
   def put_row(rows, row) do
     case Enum.find_index(rows, &(row["pr"] != nil and &1["pr"] == row["pr"])) do
-      nil -> rows ++ [row]
-      i -> List.replace_at(rows, i, row)
+      nil ->
+        {before, later} = Enum.split_while(rows, &(instant(&1) <= instant(row)))
+        before ++ [row] ++ later
+
+      i ->
+        List.replace_at(rows, i, row)
+    end
+  end
+
+  defp instant(%{"date" => date}) do
+    case DateTime.from_iso8601(date) do
+      {:ok, at, _offset} -> DateTime.to_unix(at)
+      {:error, _} -> date
     end
   end
 
