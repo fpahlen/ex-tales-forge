@@ -746,14 +746,9 @@
       "function": "TalesForge.World.Prices.by_amount"
     },
     {
-      "abc_size": 65,
+      "abc_size": 62,
       "file": "lib/ex_tales_forge/world.ex",
       "function": "TalesForge.World.collect"
-    },
-    {
-      "cyclomatic_complexity": 11,
-      "file": "lib/ex_tales_forge/world.ex",
-      "function": "TalesForge.World.initial_state"
     },
     {
       "abc_size": 41,
@@ -1124,7 +1119,7 @@
   },
   "live_view_references": [],
   "summary": {
-    "complex_function_count": 153,
+    "complex_function_count": 152,
     "cycle_count": {
       "all": 30,
       "compile-connected": 1
@@ -1136,7 +1131,7 @@
     "live_view_reference_edges": 0,
     "web_reference_edges": 4,
     "web_reference_files": 2,
-    "wide_function_count": 206
+    "wide_function_count": 205
   },
   "web_references": [
     {
@@ -2159,11 +2154,6 @@
       "file": "lib/ex_tales_forge/world/prices.ex",
       "function": "TalesForge.World.Prices.resolve/5",
       "params": 5
-    },
-    {
-      "file": "lib/ex_tales_forge/world.ex",
-      "function": "TalesForge.World.initial_state/8",
-      "params": 8
     },
     {
       "file": "lib/ex_tales_forge/world.ex",
