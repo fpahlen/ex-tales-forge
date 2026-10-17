@@ -21,7 +21,7 @@ defmodule TalesForge.Game.TurnApplyTest do
     me = self()
 
     adapters = %Adapters{
-      npc: fn _id, world, _n, _raw, _mech, _findings -> {[], world} end,
+      npc: fn %{world: world} -> {[], world} end,
       gm: fn messages, _a, _h, _n, _o ->
         send(me, {:gm_prompt, messages |> Enum.map_join("\n", &to_string(&1.content))})
 
