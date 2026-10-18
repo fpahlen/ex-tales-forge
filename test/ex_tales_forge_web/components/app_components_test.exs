@@ -6,6 +6,7 @@ defmodule TalesForgeWeb.AppComponentsTest do
 
   import Phoenix.LiveViewTest
 
+  alias TalesForge.GameSessions
   alias TalesForgeWeb.AppComponents
 
   doctest TalesForgeWeb.AppComponents
@@ -75,6 +76,104 @@ defmodule TalesForgeWeb.AppComponentsTest do
 
       assert render_component(&AppComponents.other_app_link/1, path: "/admin", role: :local) =~
                ~r/^\s*$/
+    end
+  end
+
+  describe "the badge switches to the other app" do
+    setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
+
+    test "on production the badge links to the same page on playtest", %{conn: conn} do
+      Application.put_env(:ex_tales_forge, :app_name, "tales-forge")
+
+      for path <- ["/admin/play/sessions", "/admin/operate/costs"] do
+        {:ok, view, _html} = live(conn, path)
+
+        assert has_element?(
+                 view,
+                 ~s(a#env-badge[href="https://tales-forge-playtest.fly.dev#{path}"][title="You are on production. Switch to playtest."]),
+                 "PRODUCTION"
+               )
+
+        assert has_element?(
+                 view,
+                 "#env-badge .sr-only",
+                 "You are on production. Switch to playtest."
+               )
+
+        assert has_element?(view, "#env-badge", "⇄")
+        assert has_element?(view, "#env-badge.min-h-11")
+      end
+    end
+
+    test "on playtest the badge links to the same page on production", %{conn: conn} do
+      Application.put_env(:ex_tales_forge, :app_name, "tales-forge-playtest")
+      {:ok, view, _html} = live(conn, ~p"/admin/play/sessions")
+
+      assert has_element?(
+               view,
+               ~s(a#env-badge[href="https://tales-forge.fly.dev/admin/play/sessions"]),
+               "PLAYTEST"
+             )
+
+      assert has_element?(
+               view,
+               "#env-badge .sr-only",
+               "You are on playtest. Switch to production."
+             )
+    end
+
+    test "other admin pages open the other app's admin start page", %{conn: conn} do
+      Application.put_env(:ex_tales_forge, :app_name, "tales-forge")
+
+      for path <- ["/admin", "/admin/operate/code-heat"] do
+        {:ok, view, _html} = live(conn, path)
+
+        assert has_element?(
+                 view,
+                 ~s(a#env-badge[href="https://tales-forge-playtest.fly.dev/admin"])
+               )
+      end
+
+      Application.put_env(:ex_tales_forge, :app_name, "tales-forge-playtest")
+      {:ok, view, _html} = live(conn, ~p"/admin")
+      assert has_element?(view, ~s(a#env-badge[href="https://tales-forge.fly.dev/admin"]))
+    end
+
+    test "locally the badge is a label without a link", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/play/sessions")
+      assert has_element?(view, "span#env-badge", "LOCAL")
+      refute has_element?(view, "a#env-badge")
+      refute has_element?(view, "#env-badge", "⇄")
+
+      {:ok, view, _html} = live(conn, ~p"/")
+      assert has_element?(view, "span#env-badge", "LOCAL")
+      refute has_element?(view, "a#env-badge")
+    end
+
+    test "the play pages' top bar links to the other app's game list", %{conn: conn} do
+      {:ok, session} =
+        GameSessions.create_session(%{name: "Switch test", adventure_id: "tin_valley"})
+
+      Application.put_env(:ex_tales_forge, :app_name, "tales-forge")
+      {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+
+      assert has_element?(
+               view,
+               ~s(a#play-env-badge[href="https://tales-forge-playtest.fly.dev/"]),
+               "PRODUCTION"
+             )
+
+      {:ok, view, _html} = live(conn, ~p"/")
+      assert has_element?(view, ~s(a#env-badge[href="https://tales-forge-playtest.fly.dev/"]))
+
+      Application.put_env(:ex_tales_forge, :app_name, "tales-forge-playtest")
+      {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+
+      assert has_element?(
+               view,
+               ~s(a#play-env-badge[href="https://tales-forge.fly.dev/"]),
+               "PLAYTEST"
+             )
     end
   end
 
