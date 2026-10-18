@@ -124,14 +124,16 @@ defmodule TalesForge.LLMStreamTest do
   test "streams the narrative as it arrives, then parses the whole reply", %{session: session} do
     narrative = "The lamp \"gutters\".\nA café door creaks."
     # Key order as the strict schema gives it: narrative first.
-    reply = Jason.OrderedObject.new([{"narrative", narrative}, {"gm_notes", "n"}])
+    reply = Jason.OrderedObject.new([{"narrative", narrative}, {"context_summary", "n"}])
     script([sse(Jason.encode!(reply))])
 
-    assert {:ok, %GMStructuredResponse{narrative: ^narrative, gm_notes: "n"}} =
+    assert {:ok, %GMStructuredResponse{narrative: ^narrative, context_summary: "n"}} =
              gm_turn(session, variant: :full)
 
     assert_received {:request, request}
     assert request["stream"] == true
+    # No output budget on top of TIER2_MAX_TOKENS: the gm_notes budget is gone.
+    assert request["max_tokens"] == TalesForge.Config.tier2_max_tokens()
 
     texts = for {:text, t} <- stream_events(), do: t
     assert length(texts) > 2
@@ -171,13 +173,12 @@ defmodule TalesForge.LLMStreamTest do
     assert length(rows) == 2
   end
 
-  test "the lean variant drops gm_notes and location_name from schema and prompt", %{
+  test "the lean variant drops location_name from schema and prompt", %{
     session: session
   } do
     script([sse(Jason.encode!(%{"narrative" => "Rain."}))])
 
-    assert {:ok, %GMStructuredResponse{narrative: "Rain.", gm_notes: nil}} =
-             gm_turn(session, variant: :lean)
+    assert {:ok, %GMStructuredResponse{narrative: "Rain."}} = gm_turn(session, variant: :lean)
 
     assert_received {:request, request}
     props = request["response_format"]["json_schema"]["schema"]["properties"]
@@ -199,17 +200,17 @@ defmodule TalesForge.LLMStreamTest do
 
     files =
       Enum.map_join(
-        ~w(head location_name output gm_notes),
+        ~w(head location_name output),
         &File.read!(Path.join([root, "gm_system", "#{&1}.txt"]))
       )
 
     assert Prompts.gm_system(:playtest) == files
   end
 
-  test "the production GM prompt leaves out gm_notes and location_name" do
+  test "the production GM prompt leaves out location_name; no role asks for gm_notes" do
     full = Prompts.gm_system(:playtest)
     lean = Prompts.gm_system(:production)
-    assert full =~ ~r/^- gm_notes:/m
+    refute full =~ "gm_notes"
     assert full =~ " Leave location_name out."
     refute lean =~ "gm_notes"
     refute lean =~ "location_name"
@@ -235,7 +236,7 @@ defmodule TalesForge.LLMStreamTest do
     end
 
     test "stops at the closing quote" do
-      assert SSE.partial_narrative(~s({"narrative":"done","gm_notes":"x"})) == "done"
+      assert SSE.partial_narrative(~s({"narrative":"done","context_summary":"x"})) == "done"
     end
   end
 

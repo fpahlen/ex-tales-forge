@@ -88,7 +88,7 @@ The GM gets the outcome record and returns `GMStructuredResponse`. The contract:
 3. The GM uses the location and the clock from the record. It does not move the character.
 4. The GM speaks for an NPC only in line with the stage 4 reaction. It does not repeat a line from the NPC dialogue memory.
 5. For `none_fits`, the GM narrates the attempt with no mechanical effect. No other LLM call runs.
-6. The only state the GM writes is `context_summary` (max 300 characters). `gm_notes` is for logs only. The GM writes no NPC memory, coins, items, location or clock.
+6. The only state the GM writes is `context_summary` (max 300 characters). The GM writes no NPC memory, coins, items, location or clock.
 7. The GM states no skill growth that stage 3 did not record.
 
 A post-check compares the prose with the record: coin numbers, item names, location names and clock words. Each mismatch is logged and counted as a bug. A mismatch fails the replay fixtures (§9). There is no GM re-run.
@@ -130,7 +130,7 @@ Today `NPC_REACTIONS_TIMEOUT_MS` defaults to 2500 ms, and `Task.async_stream` ki
 The GM budget (4.9 s) is below today's GM p95 of 9.2 s. Bobby applies these levers in this order, and Case measures the GM p95 after each one:
 
 1. #191 streaming.
-2. The lean production reply, with no `gm_notes` and no `location_name`.
+2. The lean production reply, with no `gm_notes` and no `location_name` (since 2026-10-18 no variant has `gm_notes`).
 3. A lower max-token cap on the GM reply.
 
 A model change is not a lever in this plan. It waits for its own decision. No new LLM call goes on the critical path. Grok is not a fallback for intent.

@@ -1644,3 +1644,10 @@ None right now. (Prose-only GM vs structured reply format: decided on 2026-10-08
 - At most one per turn. A person trigger (an old memory of a present NPC) beats a sleep trigger (a long rest). A second person trigger in the same scene is dropped.
 - Text: Jev answers typed labels and scores, not prose, so the card's fallback applies: one small typed LLM call (`TalesForge.LLM.complete_thought/3`) per sleep trigger and per person trigger, for the thought only. The output is prose that a person reads, which docs/call-types.md gives to the LLM. ai_calls logs it with its own purpose `thought` (call type `llm`, the type for prose). The text is at most 220 characters, and a reply with a digit is dropped.
 - CHARACTER_MEMORY: `on` shows thoughts; `shadow` (playtest) stores and logs them without showing them; `off` (production) makes no call.
+
+## 2026-10-18: Drop gm_notes from every GM reply
+
+- **Decision (Fredrik, via Case):** the GM reply has no `gm_notes` field in any role, also not in playtest's `:full` variant. The prompt fragment, the schema field, the decode cap and the +100 output-token budget are gone.
+- Playtest QA reads what happened in each turn from the code layer instead: the session events the turn wrote (state changes, travel, notices, combat, the outcome record, the prose and premise checks) and the server's roll. The playtest run page and the rubric judge show them per turn (`TalesForge.Playtest.Reports.turn_records/1`).
+- The `gm_reasoning` event stays, with the raw reply, the turn number and the tick: `TalesForge.Playtest.CharacterChanges` reads it.
+- **Why:** the notes were the GM's own account of the turn, not what the code did, and they took output tokens and time on every playtest turn. Production is unchanged (`:lean` never had them; [#468](https://github.com/whyse-ab/ex-tales-forge/pull/468)).

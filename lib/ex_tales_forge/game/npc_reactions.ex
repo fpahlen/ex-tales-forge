@@ -15,7 +15,7 @@ defmodule TalesForge.Game.NpcReactions do
     checks the NPC cannot see (insight, history, arcana, tracking, survival,
     tactics) are left out, so a failed read never makes her warier.
 
-  Never gm_notes, secrets, hidden events or memories marked secret.
+  Never the GM's raw reply, secrets, hidden events or memories marked secret.
 
   Output per NPC, a typed reaction: `emotion` (fixed labels), `intensity`
   0.0–1.0, `stance` (hostile, cool, neutral, warm, friendly) and `confidence`

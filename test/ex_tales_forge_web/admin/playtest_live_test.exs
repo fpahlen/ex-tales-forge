@@ -352,7 +352,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
   test "run detail shows turns side by side, costs by purpose, the persona line and the score", %{
     conn: conn
   } do
-    run = seed_run(score: true, reasoning: true)
+    run = seed_run(score: true, events: true)
 
     opening =
       TalesForge.Scenes.opening(run.game_session_id) ||
@@ -372,7 +372,16 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     assert html =~ "I ask the innkeeper about the orcs."
     assert html =~ "Brenna wipes the bar and lowers her voice."
     assert html =~ "insight · d100 7 vs 9 · success"
-    assert html =~ "Foreshadow the nest; Brenna is scared."
+
+    assert has_element?(
+             view,
+             "#turn-1-events li",
+             "player.travel: from valley_inn, to market_square"
+           )
+
+    assert has_element?(view, "#turn-1-events li", "(hidden) player.failed_notice")
+    refute html =~ "The well is dry."
+    refute html =~ "GM notes"
     assert html =~ "Game total"
     assert html =~ "$0.0150"
     assert html =~ "Persona (bot)"
@@ -408,7 +417,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     assert has_element?(view, "#run-game-per-turn", "$0.0150")
   end
 
-  test "run detail without score or reasoning, and scoring on demand", %{conn: conn} do
+  test "run detail without score or events, and scoring on demand", %{conn: conn} do
     run = seed_run()
 
     {:ok, _view, html} = live(conn, ~p"/admin/play/runs/#{run.id}")
@@ -656,15 +665,22 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
       cost_source: "free"
     })
 
-    if opts[:reasoning] do
-      Repo.insert!(%SessionEvent{
-        game_session_id: session.id,
-        kind: "gm_reasoning",
-        actor: "gm",
-        player_aware: false,
-        tick: 1,
-        payload: %{"turn_number" => 1, "gm_notes" => "Foreshadow the nest; Brenna is scared."}
-      })
+    if opts[:events] do
+      for {kind, aware, payload} <- [
+            {"gm_reasoning", false, %{"turn_number" => 1, "gm_reply" => %{}}},
+            {"player.travel", true, %{"from" => "valley_inn", "to" => "market_square"}},
+            {"player.failed_notice", false, %{}},
+            {"world_fact", false, %{"text" => "The well is dry."}}
+          ] do
+        Repo.insert!(%SessionEvent{
+          game_session_id: session.id,
+          kind: kind,
+          actor: "player",
+          player_aware: aware,
+          tick: 1,
+          payload: payload
+        })
+      end
     end
 
     if opts[:score] do

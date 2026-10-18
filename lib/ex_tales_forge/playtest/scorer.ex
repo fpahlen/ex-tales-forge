@@ -6,7 +6,8 @@ defmodule TalesForge.Playtest.Scorer do
   `TalesForge.Playtest.JevScorer.configured?/0`), the primary path is
   `TalesForge.Playtest.JevScorer` (persona-affect, player-visible text only).
   When the key is unset, falls back to the LLM rubric judge: one call reads the
-  transcript plus server rolls and GM hidden notes, scores against the persona's
+  transcript plus server rolls and each turn's code-layer session events
+  (`TalesForge.Playtest.Reports.turn_records/1`), scores against the persona's
   scorecard from personas.md, and stores a `playtest_scores` row with evidence.
 
   Off unless `PLAYTEST_RUNNER_ENABLED=true`. Calls are recorded in ai_calls as
@@ -99,7 +100,7 @@ defmodule TalesForge.Playtest.Scorer do
 
     Run: module #{run.module}, #{run.turns_played} of #{run.turn_limit} turns played, stopped by #{run.stop_reason}.
 
-    Session record. [Scene], [Player] and [GM] lines are what the player saw; (roll) and (GM notes) lines were hidden from the player.
+    Session record. [Scene], [Player] and [GM] lines are what the player saw; (roll) and (events) lines were hidden from the player: the server's roll and the session events the code layer wrote for the turn.
 
     #{record(run.game_session_id)}
     """
@@ -122,9 +123,12 @@ defmodule TalesForge.Playtest.Scorer do
 
     case role do
       "player" -> "#{prefix} [Player] #{text}" <> hidden(prefix, "roll", turn.roll)
-      "gm" -> "#{prefix} [GM] #{text}" <> hidden(prefix, "GM notes", turn.gm_notes)
+      "gm" -> "#{prefix} [GM] #{text}" <> hidden(prefix, "events", events_text(turn.events))
     end
   end
+
+  defp events_text([]), do: nil
+  defp events_text(lines), do: Enum.join(lines, " | ")
 
   defp hidden(_prefix, _label, nil), do: ""
   defp hidden(prefix, label, text), do: "\n#{prefix} (#{label}) #{text}"

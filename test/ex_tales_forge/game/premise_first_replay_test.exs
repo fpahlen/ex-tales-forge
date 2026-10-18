@@ -43,7 +43,7 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
     stub_llm(fn
       :gm, user, _system ->
         send(test_pid, {:gm_prompt, user})
-        %{"narrative" => "The table waits.", "gm_notes" => "n"}
+        %{"narrative" => "The table waits."}
 
       _kind, _user, _system ->
         :default
