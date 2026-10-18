@@ -347,6 +347,7 @@ defmodule TalesForge.NPC do
     %GameCharacter{
       slug: npc_id,
       name: definition["name"] || npc_id,
+      coins: coins(inst),
       inventory:
         inst.runtime_state
         |> Map.get("stock", definition_stock(inst))
@@ -354,19 +355,19 @@ defmodule TalesForge.NPC do
     }
   end
 
+  defp coins(%Person{row: %Character{coins: coins}}) when is_map(coins), do: coins
+  defp coins(%Person{}), do: %{}
+
   @doc """
-  Saves the inventory of each trader (`traders/2`) as its NPC's stock (the
-  `inventory` of its row).
+  Saves the inventory and the coins of each trader (`traders/2`) as its
+  NPC's stock and coins (the `inventory` and `coins` of its row).
   """
   @spec put_inventories(Ecto.UUID.t(), [GameCharacter.t()]) :: :ok
   def put_inventories(session_id, traders) when is_list(traders) do
-    Enum.each(traders, fn %GameCharacter{slug: npc_id, inventory: inventory} ->
+    Enum.each(traders, fn %GameCharacter{slug: npc_id} = trader ->
       case get_person(session_id, npc_id) do
-        %Person{} = inst ->
-          update_runtime!(inst, Map.put(inst.runtime_state, "stock", inventory))
-
-        nil ->
-          :ok
+        %Person{} = inst -> Rows.put_goods!(inst, trader)
+        nil -> :ok
       end
     end)
   end

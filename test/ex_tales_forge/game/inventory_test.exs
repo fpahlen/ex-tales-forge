@@ -319,17 +319,24 @@ defmodule TalesForge.Game.InventoryTest do
       assert Inventory.item_quantity(updated["character"]["inventory"], "wooden_shield") == 0
     end
 
-    test "a sell changes no trader", %{world: world, traders: traders} do
+    test "a sell puts the item in the buyer's inventory and the buyer pays", %{
+      world: world,
+      traders: traders
+    } do
+      traders = put_in(traders, ["smith"], %{traders["smith"] | coins: %{"silver" => 5}})
+
       action = %SingleAction{
         action_type: :sell,
         target: "smith",
         parameters: %{"item_id" => "wooden_shield", "price_copper" => 40}
       }
 
-      assert {:ok, updated, %{applied: ["sold 1x wooden_shield for 40c"]}, []} =
+      assert {:ok, updated, %{applied: ["sold 1x wooden_shield for 40c"]}, [smith]} =
                Inventory.apply_transaction(world, traders, action)
 
       assert Inventory.coin_total_copper(updated["character"]["coins"]) == 90
+      assert Inventory.coin_total_copper(smith.coins) == 10
+      assert Inventory.item_quantity(smith.inventory, "wooden_shield") == 1
     end
 
     test "the rest of the character's sheet is kept", %{world: world, traders: traders} do

@@ -15,8 +15,9 @@ defmodule TalesForge.Game.Turn.Store do
   A `%Store{}` is one write: the session before the turn, the world after
   it, the turn number, the raw action and `ctx` (`:handler`,
   `:mechanical`, `:gm_result`, `:events`, `:sim`, `:founder`,
-  `:intention`, the acting character's `TalesForge.Intention`, and
-  `:cast`, the session's GM characters after the turn,
+  `:intention`, the acting character's `TalesForge.Intention`, `:traders`,
+  the NPCs a buy or a sale changed, and `:cast`, the session's GM
+  characters after the turn,
   `TalesForge.Game.Cast`; without it the store loads the cast). The cast
   goes to the `characters` rows, and the rows that live for a scene go
   when the turn ends that scene (`TalesForge.Characters.end_scene_multi/2`).
@@ -180,6 +181,7 @@ defmodule TalesForge.Game.Turn.Store do
     |> NPC.persist_tick_multi(session.id, ctx.sim)
     |> npc_gm_updates(store)
     |> Characters.write_multi(Map.get_lazy(ctx, :cast, fn -> Characters.cast(session.id) end))
+    |> traders(session.id, Map.get(ctx, :traders, []))
     |> Characters.end_scene_multi(Characters.Memory.scene_end(ctx.events))
     |> npc_intentions(store)
   end
@@ -194,6 +196,17 @@ defmodule TalesForge.Game.Turn.Store do
   defp lock_session(multi, session_id) do
     Ecto.Multi.run(multi, :session_lock, fn repo, _changes ->
       repo.query("SELECT pg_advisory_xact_lock($1, hashtext($2))", [@lock_class, session_id])
+    end)
+  end
+
+  # The NPCs a buy or a sale changed (`TalesForge.Game.Turn.Board`): their
+  # stock and coins, in the transaction that saves the character's, so the
+  # item and the coins change hands together or not at all.
+  defp traders(multi, _session_id, []), do: multi
+
+  defp traders(multi, session_id, traders) do
+    Ecto.Multi.run(multi, :traders, fn _repo, _changes ->
+      {:ok, NPC.put_inventories(session_id, traders)}
     end)
   end
 

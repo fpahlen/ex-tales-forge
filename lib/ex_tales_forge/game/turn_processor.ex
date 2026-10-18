@@ -145,7 +145,8 @@ defmodule TalesForge.Game.TurnProcessor do
       events: events,
       sim: sim,
       improvements: improvements,
-      training: training
+      training: training,
+      traders: traders
     } =
       Board.resolve(%{board | character: character})
 
@@ -160,6 +161,7 @@ defmodule TalesForge.Game.TurnProcessor do
         gm_result: gm_result,
         events: events,
         sim: sim,
+        traders: traders,
         intention: Intention.human(character["id"], nil)
       }
     })

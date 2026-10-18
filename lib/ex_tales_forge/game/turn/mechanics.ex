@@ -71,8 +71,9 @@ defmodule TalesForge.Game.Turn.Mechanics do
     board = board(turn, {character, ruled, board_action, rolled}, fight)
 
     # TURN_APPLY_OUTCOMES=on: the GM gets the handler after the board, for
-    # example the short sleep after a failed room payment.
-    handler = if apply?, do: board.handler, else: ruled
+    # example the short sleep after a failed room payment. Off: the handler
+    # before it. Both with the reason for a refused buy or sale.
+    handler = Board.refusal(if(apply?, do: board.handler, else: ruled), board.handler)
 
     mechanical =
       %{rolled | improvements: board.improvements, training: board.training}
