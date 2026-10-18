@@ -40,6 +40,7 @@ defmodule TalesForge.DataCase do
 
     on_exit(fn ->
       stop_jido_agents()
+      stop_world_instances()
       Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
     end)
   end
@@ -82,6 +83,14 @@ defmodule TalesForge.DataCase do
     )
 
     :ok
+  end
+
+  # The test's TalesForge.World.Instance processes, before the sandbox owner
+  # goes (they read the database when they start and after each turn).
+  defp stop_world_instances do
+    TalesForge.World.Registry
+    |> Registry.select([{{{:instance, :_}, :"$1", :_}, [], [:"$1"]}])
+    |> Enum.each(&DynamicSupervisor.terminate_child(TalesForge.World.Supervisor, &1))
   end
 
   defp stop_jido_agents do

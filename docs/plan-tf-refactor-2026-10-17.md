@@ -386,6 +386,13 @@ golden prompts, plus the replay diff):
     sync).
   - Design for Case's review, before any code:
     [design-gc-10f-one-process.md](design-gc-10f-one-process.md).
+  - PR 1, Serialize (2026-10-18): `World.Instance`, one GenServer per active
+    session (registered in `World.Registry`, started on demand under
+    `World.Supervisor`, stopped after 15 idle minutes), runs the session's
+    turns one at a time, each in a Task under `World.TaskSupervisor`.
+    `ProcessTurn` goes through it, and the turn transaction takes a
+    `pg_advisory_xact_lock` on the session as a backstop. No NPC or
+    `npc_state` change; the replay on main and the branch is identical.
   - Then drop `npc_instances` with the row-check pattern from #47 (plan
     phases 3 and 4).
 
