@@ -213,16 +213,25 @@ defmodule TalesForge.Characters.Compression do
 
   @doc """
   Compresses one character's rows with one Jev call. Without a TypeSafe key
-  nothing changes. Returns `:ok` or `{:error, reason}`.
+  nothing changes. Rows about no one else (no associations) make no call:
+  there is nothing to ask, so they fade with no long-term row, which is what
+  a call would give. Returns `:ok` or `{:error, reason}`.
   """
   @spec compress(Character.t(), [CharacterMemory.t()], integer()) :: :ok | {:error, term()}
   def compress(%Character{} = c, rows, now) do
-    groups = associations(rows, c.slug)
-
     with true <- configured?() || {:error, :jev_not_configured},
-         {:ok, reply, timing} <- call_jev(state(c, groups), questions(groups)) do
+         {:ok, long} <- long_term(c, associations(rows, c.slug), now) do
+      write(c, %Outcome{rows: rows, long: long, now: now})
+    end
+  end
+
+  # Jev requires at least one question, and with no associations there is none.
+  defp long_term(_c, [], _now), do: {:ok, []}
+
+  defp long_term(c, groups, now) do
+    with {:ok, reply, timing} <- call_jev(state(c, groups), questions(groups)) do
       record_usage(c, reply, timing)
-      write(c, %Outcome{rows: rows, long: long_rows(groups, reply, now), now: now})
+      {:ok, long_rows(groups, reply, now)}
     end
   end
 
@@ -236,10 +245,14 @@ defmodule TalesForge.Characters.Compression do
     rows
     |> Enum.flat_map(fn r -> for a <- r.about || [], a != own, do: {a, r} end)
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-    |> Enum.sort_by(fn {a, rs} -> {-Enum.sum_by(rs, &(&1.weight || 1.0)), a} end)
+    |> Enum.sort_by(&heaviest_first/1)
     |> Enum.take(@max_assoc)
     |> Enum.map(fn {a, rs} -> {a, Enum.take(Enum.reverse(rs), @max_rows)} end)
   end
+
+  # The sort key of an association: its total row weight, heaviest first,
+  # then its id.
+  defp heaviest_first({about, rows}), do: {-Enum.sum_by(rows, &(&1.weight || 1.0)), about}
 
   @doc false
   def state(%Character{} = c, groups) do
