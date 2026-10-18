@@ -346,7 +346,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
   defp reload(id) do
     id
     |> GameSessions.get_session!()
-    |> Repo.preload([:front_instances, :npc_instances])
+    |> Repo.preload([:front_instances])
   end
 
   defp refute_leaked(text) do

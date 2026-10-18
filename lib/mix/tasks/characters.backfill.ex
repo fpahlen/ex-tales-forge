@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Characters.Backfill do
   Writes or refreshes `characters` rows for every existing session: the
   player character from its row, or from a sheet still stored in
   `world_state["character"]` (a session not saved since step 10b-2), and the
-  NPCs from `npc_instances`.
+  NPC rows' relationship to it.
   Idempotent and safe to re-run; see `TalesForge.Characters.backfill/0`.
 
       mix characters.backfill

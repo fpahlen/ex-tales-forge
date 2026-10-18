@@ -6,21 +6,28 @@ defmodule TalesForge.NPCTest do
   alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Repo
-  alias TalesForge.Schemas.NpcInstance
+  alias TalesForge.Schemas.{Character, NpcInstance}
 
-  test "create_session seeds NpcInstance rows from priv/npcs" do
+  doctest TalesForge.NPC.Person
+  doctest TalesForge.Characters.Attrs
+
+  test "create_session seeds the NPCs' character rows from priv/npcs, not npc_instances" do
     assert {:ok, session} = GameSessions.create_session(%{name: "NPC Seed"})
 
-    inst =
-      NpcInstance
-      |> Repo.get_by(game_session_id: session.id, npc_id: "marta_kellen")
+    row = Repo.get_by(Character, game_session_id: session.id, slug: "marta_kellen")
+    assert row.controller == "gm"
+    assert row.origin == %{"source" => "pack", "definition_id" => "marta_kellen"}
+    assert row.location_id == "weary_pilgrim"
+    assert row.relationships == %{"elara_voss" => 0.0}
+    assert row.runtime["memories"] == []
+    refute Repo.get_by(NpcInstance, game_session_id: session.id)
 
-    assert inst
+    inst = NPC.get_person(session.id, "marta_kellen")
     assert inst.personality["name"] == "Marta Kellen"
     assert inst.runtime_state["location_id"] == "weary_pilgrim"
     assert "marta_kellen" in session.world_state["present_npcs"]
 
-    henrik = NPC.get_instance(session.id, "worried_merchant")
+    henrik = NPC.get_person(session.id, "worried_merchant")
     assert henrik.personality["name"] == "Henrik Bale"
     assert henrik.runtime_state["location_id"] == "crossroads_square"
   end
@@ -37,7 +44,7 @@ defmodule TalesForge.NPCTest do
 
     :ok = NPC.apply_gm_updates(session.id, gm_result, WorldClock.default_start_tick())
 
-    inst = NPC.get_instance(session.id, "marta_kellen")
+    inst = NPC.get_person(session.id, "marta_kellen")
     [memory | _] = Map.get(inst.runtime_state, "memories", [])
 
     assert memory["summary"] =~ "chalk marks"
@@ -50,13 +57,9 @@ defmodule TalesForge.NPCTest do
     assert ["marta_kellen"] = NPC.sync_present_npcs(session.id, "weary_pilgrim")
     assert ["worried_merchant"] = NPC.sync_present_npcs(session.id, "crossroads_square")
 
-    inst = NPC.get_instance(session.id, "marta_kellen")
+    inst = NPC.get_person(session.id, "marta_kellen")
 
-    inst
-    |> NpcInstance.changeset(%{
-      runtime_state: Map.put(inst.runtime_state, "location_id", "crossroads_square")
-    })
-    |> Repo.update!()
+    NPC.put_state!(inst, Map.put(inst.runtime_state, "location_id", "crossroads_square"))
 
     assert ["marta_kellen", "worried_merchant"] =
              NPC.sync_present_npcs(session.id, "crossroads_square")

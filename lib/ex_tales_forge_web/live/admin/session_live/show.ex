@@ -61,7 +61,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
         {:noreply,
          socket
          |> assign_session(session)
-         |> put_flash(:info, "NPC instances reseeded from priv/npcs.")}
+         |> put_flash(:info, "NPCs reseeded from priv/npcs.")}
 
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, inspect(reason))}
@@ -105,7 +105,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
           navigate={~p"/admin/play/sessions/#{@session.id}/npcs"}
           class="rounded border border-[var(--paper-rule)] px-3 py-1.5 text-sm"
         >
-          NPC instances
+          NPCs
         </.link>
         <.link
           navigate={~p"/admin/play/sessions/#{@session.id}/turns"}
@@ -207,7 +207,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
           <button
             type="button"
             phx-click="reseed_npcs"
-            data-confirm="Delete all NPC instances for this session and reseed from priv/npcs?"
+            data-confirm="Delete all NPCs of this session (their rows and memories) and reseed from priv/npcs?"
             class="rounded border border-[var(--paper-rule)] px-3 py-1.5 text-sm"
           >
             Reseed NPCs

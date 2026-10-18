@@ -4,8 +4,7 @@ defmodule TalesForge.Game.Cast do
   the NPCs and the minor foes (refactor step 10f PR 4). It replaces
   `world_state["npc_state"]` and `"npc_moods"`, which are no longer read or
   written. `TalesForge.Characters.cast/1` loads it from the `characters`
-  rows (an NPC's name, place, mood and concern from its NPC instance until
-  step 10f PR 5); the turn changes it (a wound, a new minor foe, a gut
+  rows (a pack NPC's state is its row since step 10f PR 5); the turn changes it (a wound, a new minor foe, a gut
   reaction) and `TalesForge.Characters.write_multi/2` saves it on the rows.
 
   A leaf module of pure helpers: a minor foe is a character like any other

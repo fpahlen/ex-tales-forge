@@ -420,8 +420,15 @@ golden prompts, plus the replay diff):
     (2026-10-18): minor foes are GM rows with `lifetime: :scene`, removed at
     the scene's end; the turn reads the GM characters as its cast. The
     replays are identical except for the removed keys and the foe's row.
+  - PR 5, NPCs on their `characters` rows (2026-10-18, code only): every
+    reader and writer of `npc_instances` uses the NPC's row
+    (`TalesForge.NPC.Rows`), written in the turn's transaction; a memory
+    gets its memory row when it is recorded; skills come from
+    `characters.skills`. The table stays. The replays give the same
+    prompts, results and NPC state; the rows no longer trail the NPC by a
+    turn.
   - Then drop `npc_instances` with the row-check pattern from #47 (plan
-    phases 3 and 4).
+    phases 3 and 4), with Fredrik's OK.
 
 10a–10d need no product decision and stay in their slot. **10e and 10f
 change what the GM and NPCs do, so they're user-visible and go LAST**, after

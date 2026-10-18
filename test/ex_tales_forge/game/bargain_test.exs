@@ -6,8 +6,6 @@ defmodule TalesForge.Game.BargainTest do
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
   alias TalesForge.NPC
-  alias TalesForge.Repo
-  alias TalesForge.Schemas.NpcInstance
 
   doctest TalesForge.Game.Bargain
 
@@ -23,11 +21,9 @@ defmodule TalesForge.Game.BargainTest do
   end
 
   defp set_runtime(session_id, changes) do
-    inst = NPC.get_instance(session_id, "innkeep")
+    inst = NPC.get_person(session_id, "innkeep")
 
-    inst
-    |> Ecto.Changeset.change(runtime_state: Map.merge(inst.runtime_state, changes))
-    |> Repo.update!()
+    NPC.put_state!(inst, Map.merge(inst.runtime_state, changes))
   end
 
   defp buy(session, text, opts) do
@@ -88,6 +84,6 @@ defmodule TalesForge.Game.BargainTest do
     board = buy(session, "I buy the rope", catalogue_v2: true)
     assert [%{"status" => "rejected", "code" => "npc_refused"}] = board.outcome["actions"]
     assert copper(board) == Inventory.coin_total_copper(session.world_state["character"]["coins"])
-    assert %NpcInstance{} = NPC.get_instance(session.id, "innkeep")
+    assert %NPC.Person{} = NPC.get_person(session.id, "innkeep")
   end
 end

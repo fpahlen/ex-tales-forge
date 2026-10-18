@@ -197,7 +197,7 @@ defmodule TalesForge.Game.Turn.Store do
     end)
   end
 
-  # The GM's NPC memory updates, before the characters step mirrors them.
+  # The GM's NPC memory updates, onto the NPC rows (and their memory rows).
   defp npc_gm_updates(multi, %__MODULE__{session: session, world: world, ctx: ctx}) do
     Ecto.Multi.run(multi, :npc_gm_updates, fn _repo, _ ->
       {:ok, NPC.apply_gm_updates(session.id, ctx.gm_result, Map.get(world, "world_tick"))}

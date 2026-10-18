@@ -40,7 +40,7 @@ defmodule TalesForge.TurnPipeline.Replay do
   alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{GameSession, NpcInstance, SessionEvent, Turn}
+  alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
 
   import Ecto.Query
 
@@ -148,11 +148,9 @@ defmodule TalesForge.TurnPipeline.Replay do
 
   defp put_stock(session_id, stock) do
     Enum.each(stock, fn {npc_id, items} ->
-      case NPC.get_instance(session_id, npc_id) do
-        %NpcInstance{} = inst ->
-          inst
-          |> Ecto.Changeset.change(runtime_state: Map.put(inst.runtime_state, "stock", items))
-          |> Repo.update!()
+      case NPC.get_person(session_id, npc_id) do
+        %NPC.Person{} = inst ->
+          NPC.put_state!(inst, Map.put(inst.runtime_state, "stock", items))
 
         nil ->
           :ok

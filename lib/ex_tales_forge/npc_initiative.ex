@@ -9,8 +9,8 @@ defmodule TalesForge.NPCInitiative do
   """
 
   alias TalesForge.NPC
+  alias TalesForge.NPC.Person
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
-  alias TalesForge.Schemas.NpcInstance
 
   @typedoc "What the play page shows when an NPC speaks up."
   @type payload :: %{
@@ -24,12 +24,12 @@ defmodule TalesForge.NPCInitiative do
 
   @doc """
   Marks the NPC's initiative as spoken at `world_tick` and returns its
-  payload; `:none` when the NPC has spoken already or has no instance.
+  payload; `:none` when the NPC has spoken already or is not in the session.
   """
   @spec speak_up(Ecto.UUID.t(), String.t(), integer() | nil) :: {:ok, payload()} | :none
   def speak_up(session_id, npc_id, world_tick) when is_binary(session_id) and is_binary(npc_id) do
-    case NPC.get_instance(session_id, npc_id) do
-      %NpcInstance{} = inst ->
+    case NPC.get_person(session_id, npc_id) do
+      %Person{} = inst ->
         if Map.get(inst.runtime_state, "initiative_emitted", false) do
           :none
         else
@@ -50,11 +50,11 @@ defmodule TalesForge.NPCInitiative do
     :ok
   end
 
-  defp build_payload(%NpcInstance{} = inst, world_tick) do
-    definition = inst.personality || %{}
+  defp build_payload(%Person{} = inst, world_tick) do
+    definition = inst.personality
 
     %{
-      session_id: inst.game_session_id,
+      session_id: inst.row.game_session_id,
       npc_id: inst.npc_id,
       npc_name: Map.get(definition, "name", inst.npc_id),
       text: NPC.initiative_text(inst),

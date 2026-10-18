@@ -295,7 +295,7 @@ defmodule TalesForge.Game.Turn.Board do
   end
 
   defp trainer_personality(session_id, npc_id) when is_binary(npc_id) and npc_id != "" do
-    case NPC.get_instance(session_id, npc_id) do
+    case NPC.get_person(session_id, npc_id) do
       %{personality: personality} when is_map(personality) -> personality
       _ -> %{}
     end

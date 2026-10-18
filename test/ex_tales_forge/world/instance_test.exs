@@ -10,7 +10,6 @@ defmodule TalesForge.World.InstanceTest do
   alias TalesForge.NPC
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
-  alias TalesForge.Schemas.NpcInstance
   alias TalesForge.Schemas.Turn
   alias TalesForge.Workers.ProcessTurn
   alias TalesForge.World.{Instance, TurnRequest}
@@ -176,15 +175,13 @@ defmodule TalesForge.World.InstanceTest do
     {:ok, session} = GameSessions.create_session(%{name: "Initiative After Commit"})
 
     # Marta's concern has waited long enough, so she speaks up this turn.
-    marta = NPC.get_instance(session.id, "marta_kellen")
+    marta = NPC.get_person(session.id, "marta_kellen")
     concern = Map.put(marta.runtime_state["current_concern"], "priority", 8)
 
-    marta
-    |> NpcInstance.changeset(%{
-      runtime_state:
-        Map.merge(marta.runtime_state, %{"current_concern" => concern, "concern_wait_ticks" => 4})
-    })
-    |> Repo.update!()
+    NPC.put_state!(
+      marta,
+      Map.merge(marta.runtime_state, %{"current_concern" => concern, "concern_wait_ticks" => 4})
+    )
 
     SessionPubSub.subscribe(session.id)
     assert :ok = ProcessTurn.perform(job(session.id, "I wait a moment"))
@@ -194,7 +191,7 @@ defmodule TalesForge.World.InstanceTest do
     assert initiative.text =~ "ledger"
 
     # Committed: the speak-up is stored before anyone hears it.
-    assert NPC.get_instance(session.id, "marta_kellen").runtime_state["initiative_emitted"]
+    assert NPC.get_person(session.id, "marta_kellen").runtime_state["initiative_emitted"]
   end
 
   # The turn's broadcasts, in the order they came.

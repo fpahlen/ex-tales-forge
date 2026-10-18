@@ -73,7 +73,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Index do
                   type="button"
                   phx-click="delete"
                   phx-value-id={row.session.id}
-                  data-confirm="Delete this session and all turns/NPC instances?"
+                  data-confirm="Delete this session and all its turns and characters?"
                   class="text-[var(--paper-danger-ink)]"
                 >
                   Delete

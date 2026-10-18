@@ -154,7 +154,7 @@ defmodule TalesForge.Game.NpcReactions do
     end
   end
 
-  # The NPC instances that react: present and alive, at most #{@max_npcs};
+  # The NPCs that react: present and alive, at most #{@max_npcs};
   # none when off.
   defp reacting(%Moment{session_id: session_id, world: world, cast: cast}) do
     # A dead person does not react (QA 2026-10-15, session 99817343).
@@ -165,7 +165,7 @@ defmodule TalesForge.Game.NpcReactions do
 
     if enabled?() and present != [] do
       session_id
-      |> NPC.list_instances()
+      |> NPC.list_people()
       |> Enum.filter(&(&1.npc_id in present))
       |> Enum.take(@max_npcs)
     else
@@ -266,7 +266,7 @@ defmodule TalesForge.Game.NpcReactions do
   @doc false
   @spec state(struct(), map() | nil, map()) :: String.t()
   def state(inst, mood, scene) do
-    definition = inst.personality || %{}
+    definition = inst.personality
     traits = get_in(definition, ["motivations", "personality_traits"]) || %{}
 
     ocean =
@@ -416,7 +416,7 @@ defmodule TalesForge.Game.NpcReactions do
     })
   end
 
-  defp name(inst), do: get_in(inst.personality || %{}, ["name"]) || inst.npc_id
+  defp name(inst), do: get_in(inst.personality, ["name"]) || inst.npc_id
 
   defp label(nil), do: nil
   defp label(atom) when is_atom(atom), do: Atom.to_string(atom)

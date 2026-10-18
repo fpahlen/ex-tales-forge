@@ -102,7 +102,7 @@ defmodule TalesForge.GameSessions do
          {:ok, session} <- NPC.refresh_session_world_state(session),
          :ok <- Characters.seed_session(session, character_opts),
          {:ok, _} <- ensure_scene(session) do
-      {:ok, Repo.preload(session, [:npc_instances, :front_instances])}
+      {:ok, Repo.preload(session, [:front_instances])}
     end
   end
 

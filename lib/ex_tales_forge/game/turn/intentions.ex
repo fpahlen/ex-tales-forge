@@ -9,7 +9,7 @@ defmodule TalesForge.Game.Turn.Intentions do
       (`runtime["reaction"]`), and so to their `characters` rows.
     * `apply_all/2`, in the turn transaction (`TalesForge.Game.Turn.Store`):
       what the NPCs heard and how long their concerns waited
-      (`TalesForge.NPCSignals.intentions/1`), on their NPC instances. It
+      (`TalesForge.NPCSignals.intentions/1`), on their character rows. It
       returns the initiative payloads, which the store broadcasts after the
       commit.
   """

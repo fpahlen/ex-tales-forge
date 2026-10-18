@@ -6,7 +6,7 @@ defmodule TalesForge.AdminTest do
   alias TalesForge.Admin
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{AICall, FrontInstance, GameSession, NpcInstance, SessionEvent}
+  alias TalesForge.Schemas.{AICall, Character, FrontInstance, GameSession, SessionEvent}
 
   test "stats returns counts" do
     before = Admin.stats()
@@ -17,7 +17,7 @@ defmodule TalesForge.AdminTest do
 
     assert stats.sessions == before.sessions + 2
     assert stats.active_sessions == before.active_sessions + 1
-    assert stats.npc_instances > before.npc_instances
+    assert stats.npcs > before.npcs
     assert is_integer(stats.turns)
     assert is_integer(stats.scenes)
   end
@@ -51,13 +51,13 @@ defmodule TalesForge.AdminTest do
     assert updated.world_state["location_id"] == "test"
   end
 
-  test "delete_session cascades turns and npc instances" do
+  test "delete_session cascades turns and NPCs" do
     {:ok, session} = GameSessions.create_session(%{name: "Delete Test"})
-    assert length(Admin.list_npc_instances(session.id)) > 0
+    assert length(Admin.list_npcs(session.id)) > 0
     assert :ok = Admin.delete_session(session)
     refute Repo.get(TalesForge.Schemas.GameSession, session.id)
     assert Admin.list_turns(session.id) == []
-    assert Repo.all(from n in NpcInstance, where: n.game_session_id == ^session.id) == []
+    assert Admin.list_npcs(session.id) == []
   end
 
   test "delete_session removes child rows and keeps ai_calls with a NULL session" do
@@ -85,7 +85,7 @@ defmodule TalesForge.AdminTest do
 
     assert :ok = Admin.delete_session(session)
 
-    for schema <- [NpcInstance, SessionEvent, FrontInstance] do
+    for schema <- [Character, SessionEvent, FrontInstance] do
       assert Repo.all(from r in schema, where: r.game_session_id == ^session.id) == []
     end
 
@@ -98,44 +98,38 @@ defmodule TalesForge.AdminTest do
     assert :ok = Admin.delete_session(session)
   end
 
-  test "the admin NPC changeset only changes personality, runtime state and disposition" do
+  test "the admin runtime save writes the NPC's columns and runtime, nothing else" do
     {:ok, session} = GameSessions.create_session(%{name: "NPC Form Test"})
-    [npc | _] = Admin.list_npc_instances(session.id)
+    [npc | _] = Admin.list_npcs(session.id)
+    json = Jason.encode!(Map.merge(npc.runtime_state, %{"mood" => "wary", "note" => "admin"}))
 
-    assert {:ok, saved} =
-             Admin.save_npc_instance(npc, %{
-               "disposition" => "0.5",
-               "npc_id" => "renamed",
-               "game_session_id" => Ecto.UUID.generate()
-             })
+    assert {:ok, saved} = Admin.update_npc_runtime_state(npc, json)
+    assert saved.runtime_state["mood"] == "wary"
 
-    assert saved.disposition == 0.5
-    assert saved.npc_id == npc.npc_id
-    assert saved.game_session_id == session.id
+    row = Repo.get!(Character, npc.row.id)
+    assert {row.slug, row.mood, row.location_id} == {npc.npc_id, "wary", npc.row.location_id}
+    assert row.runtime["note"] == "admin"
+    assert row.definition == npc.row.definition
 
-    assert {:error, changeset} = Admin.save_npc_instance(npc, %{"disposition" => "lots"})
-    assert %{disposition: [_ | _]} = errors_on(changeset)
+    assert {:error, _} = Admin.update_npc_runtime_state(npc, "not json")
   end
 
-  test "get_npc_instance returns nil for an unknown slug" do
+  test "get_npc returns nil for an unknown slug" do
     {:ok, session} = GameSessions.create_session(%{name: "NPC Lookup Test"})
-    [npc | _] = Admin.list_npc_instances(session.id)
-    assert Admin.get_npc_instance(session.id, npc.npc_id).id == npc.id
-    assert Admin.get_npc_instance(session.id, "no_such_npc") == nil
+    [npc | _] = Admin.list_npcs(session.id)
+    assert Admin.get_npc(session.id, npc.npc_id).row.id == npc.row.id
+    assert Admin.get_npc(session.id, "no_such_npc") == nil
   end
 
-  test "reset_session_npcs reseeds instances" do
+  test "reset_session_npcs reseeds the NPC rows" do
     {:ok, session} = GameSessions.create_session(%{name: "Reseed Test"})
-    [npc | _] = Admin.list_npc_instances(session.id)
-
-    {:ok, _} =
-      Admin.update_npc_instance(npc, %{
-        runtime_state: Map.put(npc.runtime_state, "mood", "broken")
-      })
+    [npc | _] = Admin.list_npcs(session.id)
+    TalesForge.NPC.put_state!(npc, Map.put(npc.runtime_state, "mood", "broken"))
 
     assert {:ok, _} = Admin.reset_session_npcs(session)
-    refreshed = Admin.get_npc_instance!(session.id, npc.npc_id)
+    refreshed = Admin.get_npc(session.id, npc.npc_id)
     assert Map.get(refreshed.runtime_state, "mood") != "broken"
+    assert TalesForge.Characters.get_by_slug(session.id, "elara_voss")
   end
 
   test "npc definitions are read from the pack files" do
