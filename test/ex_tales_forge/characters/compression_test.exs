@@ -114,6 +114,24 @@ defmodule TalesForge.Characters.CompressionTest do
     assert Repo.get_by!(AICall, purpose: "memory.compress").call_type == "jev"
   end
 
+  # Playtest drift run 2026-10-18: a rest with only self-about rows raised
+  # "at least one question is required" in the compression task.
+  test "rows about no one else fade without a Jev call", %{session: session, pc: pc} do
+    short!(pc, "I slept badly", [], 5)
+    short!(pc, "I counted my coins", [pc.slug], 6)
+
+    Req.Test.stub(Jev.HTTP, fn _conn -> flunk("no Jev call without associations") end)
+
+    rest = [
+      %{"kind" => "time.passed", "location_id" => "inn", "payload" => %{"delta_ticks" => 40}}
+    ]
+
+    assert :ok = Compression.after_turn(session.id, rest, now: 50, mode: :shadow)
+    assert Enum.all?(tiers(pc), &(elem(&1, 0) == "faded"))
+    assert Repo.reload!(pc).memory_compressed_tick == 50
+    refute Repo.get_by(AICall, purpose: "memory.compress")
+  end
+
   test "no compression without a scene end or a rest", %{session: session, pc: pc} do
     short!(pc, "Mags laughed", ["mags"], 5)
     assert :ok = Compression.after_turn(session.id, [], now: 500, mode: :shadow)
