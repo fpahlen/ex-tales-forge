@@ -59,17 +59,51 @@ defmodule TalesForge.Game.Offer do
   @max_age 2
   @max_options 3
 
-  # The words of an unclear buy and the item names that answer them.
+  # The kinds of goods: the words of an unclear buy, and the item names (pack
+  # data) that are of the kind.
   @kinds [
-    {~r/\b(meal|food|supper|dinner|lunch|breakfast|something to eat|a bite)\b/iu,
+    {"a meal", ~r/\b(meal|food|supper|dinner|lunch|breakfast|something to eat|a bite)\b/iu,
      ~w(stew soup bread cheese pie porridge meal roast sausage)},
-    {~r/\b(drink|something to drink|a pint|refreshment)\b/iu, ~w(ale beer wine mead cider)}
+    {"a drink", ~r/\b(drink|something to drink|a pint|refreshment)\b/iu,
+     ~w(ale beer wine mead cider)}
   ]
 
   @doc "The trade of the offer `receiver` accepts."
   @spec to_trade(t(), GameCharacter.t()) :: Trade.t()
   def to_trade(%__MODULE__{} = offer, %GameCharacter{} = receiver),
     do: %Trade{giver: offer.giver, receiver: receiver, item: offer.item, price: offer.price}
+
+  @doc """
+  `action` as the game plays it: Jev's `ask_price` (a price question) is a
+  buy that only asks (`"ask"`), so the board makes the seller's offer and
+  nothing moves. Any other action is unchanged.
+
+      iex> alias TalesForge.Game.Schemas.SingleAction
+      iex> TalesForge.Game.Offer.asked(%SingleAction{action_type: :ask_price, target: "ale_mug"})
+      %SingleAction{action_type: :buy, target: nil, parameters: %{"ask" => true, "item_id" => "ale_mug"}}
+
+  The target is the item, so it becomes the `"item_id"`, and the seller is
+  the one who has it in stock.
+  """
+  @spec asked(SingleAction.t()) :: SingleAction.t()
+  def asked(%SingleAction{action_type: :ask_price, target: target} = action) do
+    params =
+      (action.parameters || %{})
+      |> Map.put("ask", true)
+      |> put_item(target)
+
+    %{action | action_type: :buy, target: nil, parameters: params}
+  end
+
+  def asked(%SingleAction{} = action), do: action
+
+  defp put_item(params, target) when is_binary(target), do: Map.put_new(params, "item_id", target)
+  defp put_item(params, _target), do: params
+
+  @doc "True when the buy `action` only asks the price (`asked/1`): it makes an offer, never a trade."
+  @spec asks?(SingleAction.t()) :: boolean()
+  def asks?(%SingleAction{action_type: :buy, parameters: %{"ask" => true}}), do: true
+  def asks?(%SingleAction{}), do: false
 
   @doc "The offer as the GM quotes it."
   @spec text(t()) :: String.t()
@@ -92,51 +126,6 @@ defmodule TalesForge.Game.Offer do
 
   def asked?(_text), do: false
 
-  @price_words ~r/\b(how much|price|prices|cost|costs|charge|charges)\b/iu
-
-  @doc """
-  True when the words only ask (`asked?/1`) and ask a price ("How much for an
-  ale?", "What does the stew cost?"). Such a question to a seller is a buy
-  that only asks: it makes her offer, and nothing moves.
-
-      iex> TalesForge.Game.Offer.price_question?("How much for an ale?")
-      true
-      iex> TalesForge.Game.Offer.price_question?("Is the ale any good?")
-      false
-      iex> TalesForge.Game.Offer.price_question?("How much for an ale? I'll take two.")
-      false
-  """
-  @spec price_question?(String.t() | nil) :: boolean()
-  def price_question?(text), do: asked?(text) and Regex.match?(@price_words, text)
-
-  @yes_words ~w(yes yeah yep yup aye sure ok okay alright deal)
-  @yes_fillers ~w(please thanks thank you one go on then right fine i'll take it)
-
-  @doc """
-  True when the words are a plain yes and nothing else ("Yes.", "Aye,
-  please.", "Sure, one."). While an offer is open, a plain yes accepts it:
-  the price the player asked for wins over any other offer the GM made in
-  the same reply (Gentry's retest of #476, session 6d938a30, T1-T2).
-
-      iex> TalesForge.Game.Offer.plain_yes?("Yes.")
-      true
-      iex> TalesForge.Game.Offer.plain_yes?("Aye, please!")
-      true
-      iex> TalesForge.Game.Offer.plain_yes?("Yes, I'll split the kindling.")
-      false
-      iex> TalesForge.Game.Offer.plain_yes?("No thanks.")
-      false
-  """
-  @spec plain_yes?(String.t() | nil) :: boolean()
-  def plain_yes?(text) when is_binary(text) do
-    words = ~r/[a-z']+/ |> Regex.scan(String.downcase(text)) |> List.flatten()
-
-    Enum.any?(words, &(&1 in @yes_words)) and
-      Enum.all?(words, &(&1 in @yes_words or &1 in @yes_fillers))
-  end
-
-  def plain_yes?(_text), do: false
-
   @doc """
   The options of an unclear buy: the items of `stock` (priced) that the
   words `text` ask for by kind ("a meal": stew, bread and cheese), at most
@@ -152,19 +141,39 @@ defmodule TalesForge.Game.Offer do
   """
   @spec options(String.t() | nil, [map()]) :: [map()]
   def options(text, stock) when is_binary(text) do
-    case Enum.find(@kinds, fn {words, _names} -> Regex.match?(words, text) end) do
-      {_words, names} ->
-        stock
-        |> Enum.filter(&(kind?(&1, names) and (&1["price_copper"] || 0) > 0))
-        |> Enum.sort_by(& &1["price_copper"])
-        |> Enum.take(@max_options)
-
-      nil ->
-        []
+    case Enum.find(@kinds, fn {_kind, words, _names} -> Regex.match?(words, text) end) do
+      {_kind, _words, names} -> of_kind(stock, names)
+      nil -> []
     end
   end
 
   def options(_text, _stock), do: []
+
+  @doc """
+  The kinds of goods in `stock` with more than one item, each with its items
+  (at most 3, cheapest first): what a player can ask for without naming an
+  item ("a meal"). Jev gets them as targets; the words are its to read.
+
+      iex> stock = [%{"id" => "stew", "name" => "Bowl of Stew", "price_copper" => 5},
+      ...>   %{"id" => "ale_mug", "name" => "Ale", "price_copper" => 2},
+      ...>   %{"id" => "bread", "name" => "Bread and Cheese", "price_copper" => 2}]
+      iex> TalesForge.Game.Offer.kinds(stock) |> Enum.map(fn {kind, items} -> {kind, Enum.map(items, & &1["id"])} end)
+      [{"a meal", ["bread", "stew"]}]
+  """
+  @spec kinds([map()]) :: [{String.t(), [map()]}]
+  def kinds(stock) do
+    for {kind, _words, names} <- @kinds,
+        items = of_kind(stock, names),
+        length(items) > 1,
+        do: {kind, items}
+  end
+
+  defp of_kind(stock, names) do
+    stock
+    |> Enum.filter(&(kind?(&1, names) and (&1["price_copper"] || 0) > 0))
+    |> Enum.sort_by(& &1["price_copper"])
+    |> Enum.take(@max_options)
+  end
 
   defp kind?(item, names) do
     ~r/[a-z]+/

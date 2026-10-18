@@ -198,10 +198,13 @@ defmodule TalesForge.Game.TradeOffersTest do
   # Gentry's retest of #476 (session 6d938a30), T1-T2. Jev read the price
   # question as talk, so no offer opened; the GM quoted 2c and offered
   # kindling work in the same reply, and the "Yes." took the work: 0c moved.
-  test "a price question read as talk still quotes; a plain yes buys the quote, not the GM's side offer",
+  # Jev now reads a price question as `ask_price` (any language: the game
+  # never reads the words), and the yes against the open offer in its state.
+  test "ask_price quotes the item; Jev's accept of the open offer buys it, not the GM's side offer",
        %{session: session} do
     {before, quoted} =
-      play(session.id, "How much for an ale?", :speak,
+      play(session.id, "Vad kostar en öl?", :ask_price,
+        target: "ale_mug",
         narrative:
           "\"Two copper for the ale, love.\" Brenna glances at the hearth. " <>
             "\"And if you've a mind for work, the kindling wants splitting.\""
@@ -211,8 +214,11 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert %{"item" => %{"id" => "ale_mug"}, "price" => 2} = open_offer(session.id)
     assert last_gm() =~ "The server quotes: Brenna Holt sells Ale for 2c"
 
-    # Jev, seeing the work offer in the narration, reads the yes as neither.
-    {_, accepted} = play(session.id, "Yes.", :speak, offer_answer: :other)
+    {_, accepted} = play(session.id, "Ja.", :speak, offer_answer: :accept)
+
+    assert_received {:jev_request,
+                     %{"state" => %{"open_offer" => "Brenna Holt sells Ale for 2c"}}}
+
     assert copper(accepted, "player") == copper(quoted, "player") - 2
     assert copper(accepted, "innkeep") == copper(quoted, "innkeep") + 2
     assert qty(accepted, "innkeep", "ale_mug") == qty(quoted, "innkeep", "ale_mug") - 1
@@ -220,20 +226,38 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert_conserved(before, accepted)
   end
 
+  test "ask_price on a kind of goods lists the options from stock, and nothing moves",
+       %{session: session} do
+    {before, asked} =
+      play(session.id, "What's on for supper?", :ask_price, target: "goods:a meal")
+
+    assert diff(before, asked) == []
+
+    assert %{
+             "item" => nil,
+             "options" => [
+               %{"item" => %{"id" => "bread_cheese"}, "price" => 2},
+               %{"item" => %{"id" => "stew_bowl"}, "price" => 5}
+             ]
+           } = open_offer(session.id)
+
+    assert last_gm() =~ "The server listed these options from stock"
+  end
+
   # Same session, T5-T6: a plain "Yes." to Brenna's meal options got the
   # generic question "Do you want to buy Brenna Holt, or talk to Brenna
   # Holt?" instead of her "which one?".
-  test "a plain yes to the options is not a generic clarification: the seller asks which one",
+  test "a yes to the options is not a generic clarification: the seller asks which one",
        %{session: session} do
     {before, _} = play(session.id, "I'd like a meal.", :buy)
     offered = open_offer(session.id)
     assert %{"item" => nil, "options" => [_, _]} = offered
 
-    # An unsure read split between buying and talking: without the open
-    # offer this asks the player which one they meant.
+    # Jev accepts the open offer but is unsure between buying and talking:
+    # without the open offer this asks the player which one they meant.
     {_, yes} =
       play(session.id, "Yes.", :buy,
-        offer_answer: :other,
+        offer_answer: :accept,
         confidence: %{action: 0.3, target: 0.95, safety: 0.99},
         probabilities: %{action: %{buy: 0.5, speak: 0.45, observe: 0.05}}
       )
@@ -241,6 +265,35 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert diff(before, yes) == []
     assert open_offer(session.id) == offered
     assert last_gm() =~ "The player said yes but picked none of the options"
+  end
+
+  # The Jev request (state and questions) while an offer with options is
+  # open, against `test/fixtures/jev/open_offer_request.json` (rewrite it
+  # with UPDATE_JEV_GOLDEN=1): the action question has `ask_price`, the
+  # state the open offer with its options, and the offer questions are asked.
+  @jev_golden Path.expand("../../fixtures/jev/open_offer_request.json", __DIR__)
+  test "Jev prompt fixture: ask_price and the open offer with its options", %{session: session} do
+    play(session.id, "I'd like a meal.", :buy)
+    play(session.id, "Hmm.", :speak, offer_answer: :other)
+    assert_received {:jev_request, request}
+
+    golden = Jason.encode!(Map.take(request, ["state", "questions"]), pretty: true) <> "\n"
+
+    if System.get_env("UPDATE_JEV_GOLDEN") == "1" do
+      File.mkdir_p!(Path.dirname(@jev_golden))
+      File.write!(@jev_golden, golden)
+    end
+
+    assert golden == File.read!(@jev_golden)
+    assert golden =~ ~s("ask_price")
+    assert golden =~ "costs, without buying it yet"
+    assert golden =~ "a meal: Bread and Cheese or Bowl of Stew (for sale)"
+
+    assert request["state"]["open_offer"] ==
+             "Brenna Holt has Bread and Cheese for 2c, or Bowl of Stew for 5c"
+
+    assert golden =~ "Open offer: Brenna Holt has Bread and Cheese for 2c, or Bowl of Stew for 5c"
+    assert golden =~ "Which of the offered options does the player pick?"
   end
 
   # One turn: Jev reads `action` at `opts[:target]` (default the innkeep)
@@ -261,6 +314,7 @@ defmodule TalesForge.Game.TradeOffersTest do
     Req.Test.stub(Jev.HTTP, fn conn ->
       {request, conn} = Jev.Test.request(conn)
       send(test, {:jev_questions, request["questions"]})
+      send(test, {:jev_request, request})
 
       Jev.Test.respond(
         conn,
@@ -296,6 +350,7 @@ defmodule TalesForge.Game.TradeOffersTest do
   defp flush do
     receive do
       {:jev_questions, _} -> flush()
+      {:jev_request, _} -> flush()
     after
       0 -> :ok
     end

@@ -32,7 +32,8 @@ defmodule TalesForge.Game.JevIntent do
     @moduledoc """
     What `TalesForge.Game.JevIntent.decode/3` read from a Jev reply, built
     once and passed to each step that makes the extraction: the action and
-    its target (and a sale's item), the skill, the later action, the manner and split, the
+    its target (and a sale's item; for a buy that only asks, `ask`, and for
+    a kind of goods its item ids as `options`), the skill, the later action, the manner and split, the
     player's words, the turn context, the confidence and the candidates
     by label.
     """
@@ -52,6 +53,8 @@ defmodule TalesForge.Game.JevIntent do
       :context,
       :confidence,
       :raw_confidence,
+      ask: false,
+      options: [],
       candidates: %{}
     ]
 
@@ -69,6 +72,8 @@ defmodule TalesForge.Game.JevIntent do
             context: map(),
             confidence: float() | nil,
             raw_confidence: float() | nil,
+            ask: boolean(),
+            options: [String.t()],
             candidates: %{atom() => map()}
           }
   end
@@ -107,6 +112,11 @@ defmodule TalesForge.Game.JevIntent do
     freeform: "A narrative action that fits no other type.",
     other: "Out-of-character talk, a meta request, or nothing actionable."
   }
+
+  # The main action only (not a later or a further action): asking a price is
+  # this turn's words. It plays as a buy that only asks (`asked/1`): the
+  # seller's offer, and nothing moves (docs/design-trade-offers.md).
+  @ask_price_label "Ask what an item or a kind of goods for sale here costs, without buying it yet."
 
   # Skills the game can roll, plus "no check". Literal atoms: the keys of
   # Mechanics.skill_stat_map/0 (a test pins the two lists equal).
@@ -224,9 +234,6 @@ defmodule TalesForge.Game.JevIntent do
   }
 
   # Action types whose reading is only meaningful with a target.
-  # The readings of a question that a price question about stock can get.
-  @asking_actions [nil, :speak, :observe, :freeform, :none_fits, :other]
-
   @target_actions ~w(speak move combat buy sell trade spend pickup drop interact use_item equip give)a
 
   # Which kinds of candidate each action type can be aimed at (post-processing
@@ -237,7 +244,7 @@ defmodule TalesForge.Game.JevIntent do
     combat: [:npc],
     spend: [:npc],
     train: [:npc],
-    buy: [:item, :npc],
+    buy: [:item, :goods, :npc],
     sell: [:item, :npc],
     trade: [:item, :npc],
     pickup: [:item],
@@ -259,8 +266,9 @@ defmodule TalesForge.Game.JevIntent do
   """
   @type candidate :: %{
           optional(:name) => String.t(),
+          optional(:items) => [String.t()],
           label: atom(),
-          kind: :place | :npc | :npc_elsewhere | :fixture | :item,
+          kind: :place | :npc | :npc_elsewhere | :fixture | :item | :goods,
           id: String.t(),
           text: String.t()
         }
@@ -299,6 +307,7 @@ defmodule TalesForge.Game.JevIntent do
        place_candidates(context) ++
        absent_npc_candidates(context) ++
        item_candidates(context) ++
+       goods_candidates(context) ++
        fixture_candidates(context))
     |> Enum.uniq_by(&{&1.kind, &1.id})
     |> Enum.take(@max_candidates)
@@ -400,6 +409,24 @@ defmodule TalesForge.Game.JevIntent do
     inv ++ stock ++ ground
   end
 
+  # The kinds of goods for sale here with more than one item ("a meal: Bread
+  # and Cheese or Bowl of Stew"), for an ask or a buy that names no item.
+  defp goods_candidates(context) do
+    context
+    |> for_sale()
+    |> Offer.kinds()
+    |> Enum.map(fn {kind, items} ->
+      names = Enum.map_join(items, " or ", &(&1["name"] || &1["id"]))
+
+      %{
+        kind: :goods,
+        id: "goods:" <> kind,
+        items: Enum.map(items, & &1["id"]),
+        text: "#{kind}: #{names} (for sale)"
+      }
+    end)
+  end
+
   defp fixture_candidates(context) do
     context
     |> Map.get("fixtures", [])
@@ -417,7 +444,9 @@ defmodule TalesForge.Game.JevIntent do
 
   def questions(candidates, :v2) do
     base = [
-      action: {"What is the player character's main action this turn?", @v2_action_labels},
+      action:
+        {"What is the player character's main action this turn?",
+         Map.put(@v2_action_labels, :ask_price, @ask_price_label)},
       then:
         {"Does the character do a second, distinct action this turn, right after the main one?",
          @v2_then_labels},
@@ -441,7 +470,9 @@ defmodule TalesForge.Game.JevIntent do
 
   def questions(candidates, :v1) do
     base = [
-      action: {"What is the player character's main action this turn?", @action_labels},
+      action:
+        {"What is the player character's main action this turn?",
+         Map.put(@action_labels, :ask_price, @ask_price_label)},
       skill:
         {"Which skill, if any, does the main action roll? Most actions roll none. " <>
            "A social skill only when the character tries to change someone's mind or behaviour " <>
@@ -576,16 +607,8 @@ defmodule TalesForge.Game.JevIntent do
     |> Map.put(:none, "None of these options.")
   end
 
-  # A plain yes while an offer is open accepts it (`Offer.plain_yes?/1`),
-  # whatever else the GM offered in the same reply: Jev, seeing a side offer
-  # in the narration, can read the yes as "neither".
-  defp offer_answer(answer, text, %{"open_offer" => %{}}) when answer in [nil, :other],
-    do: if(Offer.plain_yes?(text), do: :accept, else: answer)
-
-  defp offer_answer(answer, _text, _context) when answer in [:accept, :decline, :other],
-    do: answer
-
-  defp offer_answer(_answer, _text, _context), do: nil
+  defp offer_answer(answer) when answer in [:accept, :decline, :other], do: answer
+  defp offer_answer(_answer), do: nil
 
   @doc """
   The deterministic `state` sent to Jev: the scene the player can see, plus
@@ -604,7 +627,16 @@ defmodule TalesForge.Game.JevIntent do
       "last_narration" => last_narration(context),
       "player_text" => text |> to_string() |> String.trim() |> String.slice(0, @action_chars)
     }
+    |> put_open_offer(context["open_offer"])
   end
+
+  # The open offer, with its options, while one is open (only then: the
+  # state of every other read is unchanged), so Jev reads the reply against
+  # it: accept, decline or neither, and which option.
+  defp put_open_offer(state, %{} = stored),
+    do: Map.put(state, "open_offer", stored |> Offer.from_world() |> Offer.text())
+
+  defp put_open_offer(state, _stored), do: state
 
   defp present_lines(context) do
     context
@@ -653,13 +685,14 @@ defmodule TalesForge.Game.JevIntent do
     text = opts |> Keyword.get(:text, "") |> to_string()
     context = Keyword.get(opts, :context, %{})
 
-    reply = facts(reply, text, context)
+    reply = facts(reply, text)
 
     by_label = Map.new(candidates, fn c -> {c.label, c} end)
 
     base = %Choice{
       action: reply[:action] || :other,
       safety: reply[:safety] || :benign,
+      ask: reply[:ask_price] == true,
       text: text,
       context: context,
       candidates: by_label
@@ -689,7 +722,7 @@ defmodule TalesForge.Game.JevIntent do
       target_ranking: target_ranking(reply, by_label)
     }
     |> Map.merge(spend(reply))
-    |> Map.merge(offer_reply(reply, text, context))
+    |> Map.merge(offer_reply(reply))
   end
 
   defp spend(reply) do
@@ -698,9 +731,9 @@ defmodule TalesForge.Game.JevIntent do
   end
 
   # The answer to the open offer's questions (`offer_questions/1`).
-  defp offer_reply(reply, text, context) do
+  defp offer_reply(reply) do
     %{
-      offer_answer: offer_answer(reply[:offer_answer], text, context),
+      offer_answer: offer_answer(reply[:offer_answer]),
       offer_pick: Enum.find_index(@option_labels, &(&1 == reply[:offer_pick]))
     }
   end
@@ -724,6 +757,7 @@ defmodule TalesForge.Game.JevIntent do
         raw_confidence: raw_confidence
     }
     |> sale(reply)
+    |> goods()
   end
 
   # The reply's answer to a target `question`: its probabilities by label and
@@ -731,30 +765,39 @@ defmodule TalesForge.Game.JevIntent do
   defp answer(reply, question),
     do: {get_in(reply, [:probabilities, question]) || %{}, reply[question]}
 
+  # The reply with the game's facts applied before it is read: a room and
+  # then sleep is a booking (catalogue v1), an `ask_price` a buy that asks.
+  defp facts(reply, text) do
+    reply = if Map.has_key?(reply, :then), do: reply, else: lodging_booking(reply, text)
+    asked(reply)
+  end
+
+  # Jev's `ask_price` (a price question: "How much for an ale?", "Vad kostar
+  # ölen?") plays as a buy that only asks: the board makes the seller's offer
+  # from the target (an item or a kind of goods for sale here) and nothing
+  # moves. Gentry's retest of #476 (session 6d938a30, T1): read as talk, no
+  # offer opened, and the next "Yes." had nothing to accept.
+  defp asked(%{action: :ask_price} = reply),
+    do: Map.merge(reply, %{action: :buy, ask_price: true})
+
+  defp asked(reply), do: reply
+
+  # A buy aimed at a kind of goods ("a meal") is unclear: its options are the
+  # kind's items, and it names no target (`TalesForge.Game.Offer`).
+  defp goods(%Choice{target: target, candidates: by_label} = c) do
+    case Enum.find_value(by_label, fn {_l, cand} ->
+           cand.kind == :goods and cand.id == target and cand
+         end) do
+      %{items: items} -> %{c | target: nil, options: items}
+      nil -> c
+    end
+  end
+
   # Post-processing (a fact about the game, fitted on nothing): "I pay for a
   # room and go to sleep" is the payment now and the sleep later
   # (Rest.lodging_then_sleep?/1). Jev read it as a wait only in Gentry's
   # session 0caf18f5 on 2026-10-12. A purchase stays a purchase; a message
   # that is not benign does not change.
-  # The reply with the game's facts applied before it is read: a room and
-  # then sleep is a booking, and a price question about stock a buy that asks.
-  defp facts(reply, text, context) do
-    reply = if Map.has_key?(reply, :then), do: reply, else: lodging_booking(reply, text)
-    price_question(reply, text, context)
-  end
-
-  # A price question about stock for sale here ("How much for an ale?") is
-  # a buy that only asks: the board makes the seller's offer and nothing
-  # moves (`TalesForge.Game.Offer`). Read as talk, no offer opened, and the
-  # next "Yes." had nothing to accept (Gentry's retest of #476, session
-  # 6d938a30, T1-T2: Jev read the question as `speak`).
-  defp price_question(reply, text, context) do
-    if (reply[:safety] || :benign) == :benign and reply[:action] in @asking_actions and
-         Offer.price_question?(text) and Inventory.names_stock?(text, for_sale(context)),
-       do: Map.put(reply, :action, :buy),
-       else: reply
-  end
-
   defp lodging_booking(reply, text) do
     action = reply[:action]
 
@@ -1046,7 +1089,24 @@ defmodule TalesForge.Game.JevIntent do
     |> put_manner(c.manner)
     |> put_skill(c.skill, c.action)
     |> put_numbers(c)
+    |> put_asked(c)
   end
+
+  # A buy that only asks, or one aimed at a kind of goods, names its item
+  # (the target) or its options and their seller, so the board needs none
+  # of the player's words to find them.
+  defp put_asked(params, %Choice{options: [first | _] = options, context: context}),
+    do:
+      Map.merge(params, %{"options" => options, "npc_id" => seller(context, first), "ask" => true})
+
+  defp put_asked(params, %Choice{ask: true, target: target, context: context}) do
+    case seller(context, target) do
+      nil -> Map.put(params, "ask", true)
+      npc_id -> Map.merge(params, %{"item_id" => target, "npc_id" => npc_id, "ask" => true})
+    end
+  end
+
+  defp put_asked(params, %Choice{}), do: params
 
   defp split(:two), do: 2
   defp split(:three), do: 3
@@ -1117,6 +1177,16 @@ defmodule TalesForge.Game.JevIntent do
       [{label, _p} | _] -> candidate_id(by_label, label)
       [] -> nil
     end
+  end
+
+  # The present seller whose stock has `item_id`.
+  defp seller(context, item_id) do
+    context
+    |> Map.get("npc_stock", %{})
+    |> Enum.sort()
+    |> Enum.find_value(fn {npc_id, list} ->
+      if Enum.any?(Inventory.normalize_stock(list), &(&1["id"] == item_id)), do: npc_id
+    end)
   end
 
   defp price_for(_context, nil), do: nil

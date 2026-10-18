@@ -105,17 +105,6 @@ defmodule TalesForge.Game.Inventory do
     end
   end
 
-  @doc false
-  # True when the words `text` name an item of `stock` or ask for one by
-  # kind ("a meal"): what `named_item/3` would find there.
-  @spec names_stock?(String.t(), [map()]) :: boolean()
-  def names_stock?(text, stock) do
-    stock = normalize_stock(stock)
-
-    is_binary(resolve_item_id(to_string(text), stock) || head_noun(text, stock)) or
-      Offer.options(text, stock) != []
-  end
-
   # An unclear buy ("I order a meal", design-trade-offers.md): the ids of
   # the matching stock its offer lists, when any.
   defp unclear(action, []), do: action
