@@ -134,6 +134,7 @@ defmodule TalesForge.GameCharacterTest do
       session.world_state["character"]
       |> Map.merge(%{
         "class" => "bard",
+        "creation" => nil,
         "reflecting" => ["climbing"],
         "improved_since_rest" => ["insight"],
         "skills" => %{"insight" => 10.0, "climbing" => 3},
@@ -153,6 +154,46 @@ defmodule TalesForge.GameCharacterTest do
 
     assert :ok = Characters.mirror(session)
     assert row_sheet(session.id) === Repo.get!(GameSession, session.id).world_state["character"]
+  end
+
+  test "from_sheet/1 is lossless for sheets, NPC profiles and npc_state entries" do
+    {:ok, session} = GameSessions.create_session(%{name: "Sheets", adventure_id: "tin_valley"})
+    pc = Repo.get!(GameSession, session.id).world_state["character"]
+
+    sheets = [
+      pc,
+      %{},
+      Map.merge(pc, %{"wounds" => "1", "vitality" => nil, "class" => nil, "name" => nil}),
+      Map.drop(pc, ["id", "vitality", "stats"]),
+      %{
+        "id" => "gate_guard",
+        "name" => "Gate Guard",
+        "stats" => %{"CON" => 10.0},
+        "skills" => %{"melee_combat" => 40},
+        "ocean" => nil,
+        "maslow" => "safety",
+        "concerns" => [%{"focus" => "duty"}],
+        "current_concern" => %{"focus" => "fame"},
+        "wounds" => 2
+      },
+      %{
+        "id" => "foe_x",
+        "name" => "x",
+        "minor" => true,
+        "role" => "minor foe",
+        "location_id" => "inn"
+      }
+    ]
+
+    for sheet <- sheets do
+      assert GameCharacter.to_sheet(GameCharacter.from_sheet(sheet)) === sheet
+    end
+
+    guard = GameCharacter.from_sheet(Enum.at(sheets, 4))
+    assert {guard.slug, guard.maslow_level, guard.wounds} == {"gate_guard", "safety", 2}
+    assert guard.runtime == %{"current_concern" => %{"focus" => "fame"}}
+    assert GameCharacter.from_sheet(List.last(sheets)).minor
+    assert GameCharacter.sheet_value(GameCharacter.from_sheet(%{}), "vitality") == nil
   end
 
   test "load_present gives the human-controlled character and the others at its place" do

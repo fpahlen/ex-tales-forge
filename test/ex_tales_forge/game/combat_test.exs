@@ -5,8 +5,14 @@ defmodule TalesForge.Game.CombatTest do
   alias TalesForge.Characters.Defaults
   alias TalesForge.Game.{Combat, Mechanics, ProseCheck}
   alias TalesForge.Game.Schemas.MechanicalResolution
+  alias TalesForge.GameCharacter
 
   doctest TalesForge.Game.Combat
+
+  # The fighters below are sheets, as the turn has them; Combat takes the
+  # GameCharacter of each one (refactor step 10c).
+  defp f(%GameCharacter{} = gc), do: gc
+  defp f(sheet), do: GameCharacter.from_sheet(sheet)
 
   # Melee 40 (STR 10), Dodge 20 (DEX 10): Parry 60.
   @player %{
@@ -40,12 +46,12 @@ defmodule TalesForge.Game.CombatTest do
 
   describe "parry/1 and attack_target/2" do
     test "Parry is Dodge/2 + 50 + 5 × (DEX - 10)/2" do
-      assert Combat.parry(@player) == 60
-      assert Combat.parry(%{"stats" => %{"DEX" => 15}, "skills" => %{"dodge" => 20}}) == 75
+      assert Combat.parry(f(@player)) == 60
+      assert Combat.parry(f(%{"stats" => %{"DEX" => 15}, "skills" => %{"dodge" => 20}})) == 75
     end
 
     test "an untrained fighter uses the untrained floor" do
-      {_skill, level} = Combat.combat_skill(@shopkeeper)
+      {_skill, level} = Combat.combat_skill(f(@shopkeeper))
       assert level == Mechanics.effective_level(@shopkeeper, "melee_combat")
       assert level == 15
     end
@@ -53,7 +59,11 @@ defmodule TalesForge.Game.CombatTest do
 
   describe "exchange/3" do
     test "a hit gives the defender one wound, and the attacker takes no wound" do
-      ex = Combat.exchange({@player, @guard}, "melee_combat", %{attack: 20, counter_chance: 0.99})
+      ex =
+        Combat.exchange({f(@player), f(@guard)}, "melee_combat", %{
+          attack: 20,
+          counter_chance: 0.99
+        })
 
       assert ex["attack"]["parry"] == 57
       assert ex["attack"]["target"] == 33
@@ -66,7 +76,10 @@ defmodule TalesForge.Game.CombatTest do
 
     test "a miss with no counterattack is only a miss" do
       ex =
-        Combat.exchange({@player, @shopkeeper}, "melee_combat", %{attack: 75, counter_chance: 0.9})
+        Combat.exchange({f(@player), f(@shopkeeper)}, "melee_combat", %{
+          attack: 75,
+          counter_chance: 0.9
+        })
 
       refute ex["attack"]["hit"]
       assert ex["defender_wounds"] == 0
@@ -76,7 +89,7 @@ defmodule TalesForge.Game.CombatTest do
 
     test "a miss where the counterattack hits wounds the attacker" do
       ex =
-        Combat.exchange({@player, @guard}, "melee_combat", %{
+        Combat.exchange({f(@player), f(@guard)}, "melee_combat", %{
           attack: 75,
           counter_chance: 0.1,
           counter: 25
@@ -89,7 +102,7 @@ defmodule TalesForge.Game.CombatTest do
 
     test "a counterattack that misses gives no wound" do
       ex =
-        Combat.exchange({@player, @guard}, "melee_combat", %{
+        Combat.exchange({f(@player), f(@guard)}, "melee_combat", %{
           attack: 75,
           counter_chance: 0.1,
           counter: 35
@@ -100,11 +113,11 @@ defmodule TalesForge.Game.CombatTest do
     end
 
     test "an NPC at the cap goes down and does not counterattack" do
-      cap = Combat.wound_max(@guard)
+      cap = Combat.wound_max(f(@guard))
       guard = Map.put(@guard, "wounds", cap - 1)
 
       ex =
-        Combat.exchange({@player, guard}, "melee_combat", %{
+        Combat.exchange({f(@player), f(guard)}, "melee_combat", %{
           attack: 10,
           counter_chance: 0.0,
           counter: 1
@@ -117,15 +130,15 @@ defmodule TalesForge.Game.CombatTest do
     end
 
     test "a hit on a down NPC makes the death roll from combat.md" do
-      cap = Combat.wound_max(@guard)
+      cap = Combat.wound_max(f(@guard))
       down = Map.merge(@guard, %{"wounds" => cap, "vitality" => "down"})
 
-      assert Combat.exchange({@player, down}, "melee_combat", %{attack: 10, death: 30})[
+      assert Combat.exchange({f(@player), f(down)}, "melee_combat", %{attack: 10, death: 30})[
                "defender_vitality"
              ] ==
                "dead"
 
-      assert Combat.exchange({@player, down}, "melee_combat", %{attack: 10, death: 25})[
+      assert Combat.exchange({f(@player), f(down)}, "melee_combat", %{attack: 10, death: 25})[
                "defender_vitality"
              ] ==
                "down"
@@ -134,9 +147,9 @@ defmodule TalesForge.Game.CombatTest do
     test "a minor foe has 1 wound and goes down on the first hit" do
       foe = Combat.minor_foe({"foe_miner", "a miner"}, Defaults.rules("tin_valley"), 7)
 
-      assert foe["skills"] == %{}
-      assert Combat.wound_max(foe) == 1
-      ex = Combat.exchange({@player, foe}, "melee_combat", %{attack: 15})
+      assert %GameCharacter{skills: %{}, minor: true, role: "minor foe"} = foe
+      assert Combat.wound_max(f(foe)) == 1
+      ex = Combat.exchange({f(@player), f(foe)}, "melee_combat", %{attack: 15})
       assert ex["defender_vitality"] == "down"
       assert ex["minor"]
     end
@@ -150,18 +163,19 @@ defmodule TalesForge.Game.CombatTest do
 
   describe "counter_chance/1" do
     test "a guard fights back most of the time, a scared shopkeeper often does not" do
-      assert Combat.counter_chance(@guard) >= 0.7
-      assert Combat.counter_chance(@shopkeeper) <= 0.3
+      assert Combat.counter_chance(f(@guard)) >= 0.7
+      assert Combat.counter_chance(f(@shopkeeper)) <= 0.3
     end
 
     test "wounds lower the chance, and the chance stays from 0.05 to 0.95" do
-      assert Combat.counter_chance(Map.put(@guard, "wounds", 2)) < Combat.counter_chance(@guard)
+      assert Combat.counter_chance(f(Map.put(@guard, "wounds", 2))) <
+               Combat.counter_chance(f(@guard))
 
       for npc <- [
             Map.put(@shopkeeper, "wounds", 9),
             put_in(@guard, ["skills", "melee_combat"], 40)
           ] do
-        chance = Combat.counter_chance(npc)
+        chance = Combat.counter_chance(f(npc))
         assert chance >= 0.05 and chance <= 0.95
       end
     end
@@ -169,8 +183,8 @@ defmodule TalesForge.Game.CombatTest do
     test "the current concern counts" do
       calm = Map.put(@shopkeeper, "concerns", [])
 
-      assert Combat.counter_chance(Map.put(calm, "current_concern", %{"focus" => "revenge"})) >
-               Combat.counter_chance(calm)
+      assert Combat.counter_chance(f(Map.put(calm, "current_concern", %{"focus" => "revenge"}))) >
+               Combat.counter_chance(f(calm))
     end
   end
 
@@ -223,8 +237,8 @@ defmodule TalesForge.Game.CombatTest do
         "npc_state" => %{"gate_guard" => %{"name" => "Gate Guard"}}
       }
 
-      guard = Map.put(@guard, "wounds", Combat.wound_max(@guard) - 1)
-      ex = Combat.exchange({@player, guard}, "melee_combat", %{attack: 10})
+      guard = Map.put(@guard, "wounds", Combat.wound_max(f(@guard)) - 1)
+      ex = Combat.exchange({f(@player), f(guard)}, "melee_combat", %{attack: 10})
 
       {world, [event]} = Combat.book(world, {ex, nil}, world["npc_state"])
       assert world["npc_state"]["gate_guard"]["vitality"] == "down"
@@ -235,7 +249,7 @@ defmodule TalesForge.Game.CombatTest do
     test "a death emits npc.dead and stays in the session state" do
       down = Map.merge(@guard, %{"wounds" => 3, "vitality" => "down"})
       before = %{"gate_guard" => %{"name" => "Gate Guard", "wounds" => 3, "vitality" => "down"}}
-      ex = Combat.exchange({@player, down}, "melee_combat", %{attack: 10, death: 100})
+      ex = Combat.exchange({f(@player), f(down)}, "melee_combat", %{attack: 10, death: 100})
 
       {world, [event]} = Combat.book(%{"npc_state" => before}, {ex, nil}, before)
       assert event["kind"] == "npc.dead"
@@ -267,7 +281,7 @@ defmodule TalesForge.Game.CombatTest do
   describe "the prompt section" do
     test "lists who attacked whom, both rolls, the results and the wounds" do
       ex =
-        Combat.exchange({@player, @guard}, "melee_combat", %{
+        Combat.exchange({f(@player), f(@guard)}, "melee_combat", %{
           attack: 75,
           counter_chance: 0.1,
           counter: 25
@@ -295,7 +309,10 @@ defmodule TalesForge.Game.CombatTest do
       world = %{"character" => %{"stats" => %{"CON" => 10}, "wounds" => 0}}
 
       ex =
-        Combat.exchange({@player, @shopkeeper}, "melee_combat", %{attack: 75, counter_chance: 0.9})
+        Combat.exchange({f(@player), f(@shopkeeper)}, "melee_combat", %{
+          attack: 75,
+          counter_chance: 0.9
+        })
 
       assert Mechanics.apply_vitality(world, @failure, opposed: true, combat: ex)["character"][
                "wounds"
@@ -308,7 +325,7 @@ defmodule TalesForge.Game.CombatTest do
       world = %{"character" => %{"stats" => %{"CON" => 10}, "wounds" => 0}}
 
       ex =
-        Combat.exchange({@player, @guard}, "melee_combat", %{
+        Combat.exchange({f(@player), f(@guard)}, "melee_combat", %{
           attack: 75,
           counter_chance: 0.1,
           counter: 2
@@ -322,7 +339,12 @@ defmodule TalesForge.Game.CombatTest do
 
   describe "ProseCheck :wound" do
     test "blood on a foe that the attack missed is a bug" do
-      ex = Combat.exchange({@player, @guard}, "melee_combat", %{attack: 75, counter_chance: 0.9})
+      ex =
+        Combat.exchange({f(@player), f(@guard)}, "melee_combat", %{
+          attack: 75,
+          counter_chance: 0.9
+        })
+
       record = %{"combat" => ex}
 
       assert [%{kind: :wound}] =
@@ -332,7 +354,11 @@ defmodule TalesForge.Game.CombatTest do
     end
 
     test "a strike on the character with no counterattack hit is a bug" do
-      ex = Combat.exchange({@player, @guard}, "melee_combat", %{attack: 75, counter_chance: 0.9})
+      ex =
+        Combat.exchange({f(@player), f(@guard)}, "melee_combat", %{
+          attack: 75,
+          counter_chance: 0.9
+        })
 
       assert [%{kind: :wound, detail: "character: " <> _}] =
                ProseCheck.check("He drives a fist into your ribs.", %{"combat" => ex})
