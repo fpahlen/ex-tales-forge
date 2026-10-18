@@ -12,6 +12,7 @@ defmodule TalesForge.NPC.Rows do
 
   import Ecto.Query
 
+  alias TalesForge.GameCharacter
   alias TalesForge.NPC.Person
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory}
@@ -63,10 +64,20 @@ defmodule TalesForge.NPC.Rows do
   A row without a relationship yet gets it to the session's player character.
   """
   @spec update!(Person.t(), map()) :: Person.t()
-  def update!(%Person{row: row} = person, runtime_state) do
+  def update!(%Person{} = person, runtime_state), do: save!(person, runtime_state, %{})
+
+  @doc """
+  Saves the inventory and the coins of `trader` (the NPC after a trade,
+  `TalesForge.NPC.traders/2`) as the NPC's stock and coins.
+  """
+  @spec put_goods!(Person.t(), GameCharacter.t()) :: Person.t()
+  def put_goods!(%Person{} = person, %GameCharacter{inventory: inventory, coins: coins}),
+    do: save!(person, Map.put(person.runtime_state, "stock", inventory), %{coins: coins})
+
+  defp save!(%Person{row: row} = person, runtime_state, columns) do
     row =
       row
-      |> Character.changeset(Person.attrs(row, runtime_state, pc_slug(row)))
+      |> Character.changeset(Map.merge(Person.attrs(row, runtime_state, pc_slug(row)), columns))
       |> Repo.update!()
 
     %Person{person | row: row, runtime_state: runtime_state}
