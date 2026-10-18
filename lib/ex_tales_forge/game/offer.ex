@@ -59,13 +59,12 @@ defmodule TalesForge.Game.Offer do
   @max_age 2
   @max_options 3
 
-  # The kinds of goods: the words of an unclear buy, and the item names (pack
-  # data) that are of the kind.
+  # The kinds of goods and the item names (pack data) that are of the kind.
+  # Jev gets each kind in stock as a target (`kinds/1`); the player's words
+  # are Jev's to read, never the game's.
   @kinds [
-    {"a meal", ~r/\b(meal|food|supper|dinner|lunch|breakfast|something to eat|a bite)\b/iu,
-     ~w(stew soup bread cheese pie porridge meal roast sausage)},
-    {"a drink", ~r/\b(drink|something to drink|a pint|refreshment)\b/iu,
-     ~w(ale beer wine mead cider)}
+    {"a meal", ~w(stew soup bread cheese pie porridge meal roast sausage)},
+    {"a drink", ~w(ale beer wine mead cider)}
   ]
 
   @doc "The trade of the offer `receiver` accepts."
@@ -127,29 +126,6 @@ defmodule TalesForge.Game.Offer do
   def asked?(_text), do: false
 
   @doc """
-  The options of an unclear buy: the items of `stock` (priced) that the
-  words `text` ask for by kind ("a meal": stew, bread and cheese), at most
-  3, cheapest first. Empty when the words name no kind or nothing matches.
-
-      iex> stock = [%{"id" => "stew", "name" => "Bowl of Stew", "price_copper" => 5},
-      ...>   %{"id" => "ale_mug", "name" => "Ale", "price_copper" => 2},
-      ...>   %{"id" => "bread", "name" => "Bread and Cheese", "price_copper" => 3}]
-      iex> TalesForge.Game.Offer.options("I order a meal", stock) |> Enum.map(& &1["id"])
-      ["bread", "stew"]
-      iex> TalesForge.Game.Offer.options("I order a meal", [%{"id" => "ale_mug", "name" => "Ale", "price_copper" => 2}])
-      []
-  """
-  @spec options(String.t() | nil, [map()]) :: [map()]
-  def options(text, stock) when is_binary(text) do
-    case Enum.find(@kinds, fn {_kind, words, _names} -> Regex.match?(words, text) end) do
-      {_kind, _words, names} -> of_kind(stock, names)
-      nil -> []
-    end
-  end
-
-  def options(_text, _stock), do: []
-
-  @doc """
   The kinds of goods in `stock` with more than one item, each with its items
   (at most 3, cheapest first): what a player can ask for without naming an
   item ("a meal"). Jev gets them as targets; the words are its to read.
@@ -162,7 +138,7 @@ defmodule TalesForge.Game.Offer do
   """
   @spec kinds([map()]) :: [{String.t(), [map()]}]
   def kinds(stock) do
-    for {kind, _words, names} <- @kinds,
+    for {kind, names} <- @kinds,
         items = of_kind(stock, names),
         length(items) > 1,
         do: {kind, items}

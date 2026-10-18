@@ -62,9 +62,12 @@ counter-proposals (haggling) leave an offer open.
 
 ## Unclear buy
 An unclear buy like "I order a meal" becomes an open offer whose item is
-unresolved (`item: nil`). Code lists the seller's matching stock with
-prices, taken from her real stock — two or three options — and stores
-them on the offer as `options`. The GM voices that list as a
+unresolved (`item: nil`). Jev aims the buy at a kind of goods for sale
+(`goods:a meal`, a target built from stock only for kinds with two or
+more priced items, `Offer.kinds/1`); code lists that kind's items with
+prices from the seller's real stock — two or three options — and stores
+them on the offer as `options`. The game never matches the player's
+words against a list of kind words. The GM voices that list as a
 counter-question ("The stew, or bread and cheese?"), and nothing moves.
 The player's next message picks one option; Jev resolves the pick against
 the listed options only. That pick counts as proposal plus acceptance in

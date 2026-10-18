@@ -109,9 +109,9 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert open_offer(session.id) == nil
   end
 
-  test "an unclear 'I order a meal': a counter-question with options from the pack, then the pick trades",
+  test "an unclear 'I order a meal' (Jev: a meal): a counter-question with the kind's options from stock, then the pick trades",
        %{session: session} do
-    {before, asked} = play(session.id, "I order a meal.", :buy)
+    {before, asked} = play(session.id, "I order a meal.", :buy, target: "goods:a meal")
     assert diff(before, asked) == []
 
     assert %{
@@ -142,7 +142,7 @@ defmodule TalesForge.Game.TradeOffersTest do
 
   test "a plain yes to an unclear buy picks nothing: the offer stays open, then a pick buys",
        %{session: session} do
-    {before, _} = play(session.id, "I order a meal.", :buy)
+    {before, _} = play(session.id, "I order a meal.", :buy, target: "goods:a meal")
     offered = open_offer(session.id)
 
     {_, yes} = play(session.id, "Yes, please.", :buy, offer_answer: :accept)
@@ -158,6 +158,15 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert qty(picked, "innkeep", "bread_cheese") == qty(yes, "innkeep", "bread_cheese") - 1
     assert open_offer(session.id) == nil
     assert_conserved(before, picked)
+  end
+
+  # Case's review of #478: the game holds no language. The words "a meal"
+  # alone no longer list options; only Jev's kind target (`goods:a meal`) does.
+  test "the game reads no kind words: an unclear buy without Jev's kind target opens no offer",
+       %{session: session} do
+    {before, after_order} = play(session.id, "I order a meal.", :buy)
+    assert diff(before, after_order) == []
+    assert open_offer(session.id) == nil
   end
 
   test "an unclear buy with no matching stock: no offer, nothing moves", %{session: session} do
@@ -249,7 +258,7 @@ defmodule TalesForge.Game.TradeOffersTest do
   # Holt?" instead of her "which one?".
   test "a yes to the options is not a generic clarification: the seller asks which one",
        %{session: session} do
-    {before, _} = play(session.id, "I'd like a meal.", :buy)
+    {before, _} = play(session.id, "I'd like a meal.", :buy, target: "goods:a meal")
     offered = open_offer(session.id)
     assert %{"item" => nil, "options" => [_, _]} = offered
 
@@ -273,7 +282,7 @@ defmodule TalesForge.Game.TradeOffersTest do
   # state the open offer with its options, and the offer questions are asked.
   @jev_golden Path.expand("../../fixtures/jev/open_offer_request.json", __DIR__)
   test "Jev prompt fixture: ask_price and the open offer with its options", %{session: session} do
-    play(session.id, "I'd like a meal.", :buy)
+    play(session.id, "I'd like a meal.", :buy, target: "goods:a meal")
     play(session.id, "Hmm.", :speak, offer_answer: :other)
     assert_received {:jev_request, request}
 
