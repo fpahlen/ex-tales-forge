@@ -85,7 +85,8 @@ defmodule TalesForge.Game.Inventory do
 
   @doc false
   # The buy `action` with the item its words `text` name from its seller's
-  # stock (every trader's when it names no seller), when it has none.
+  # stock (every trader's when it names no seller), when it has none; else
+  # with the stock its words ask for by kind as `"options"`.
   # Playtest session 8a9dbde9 (#470 retest): "I buy a mug of ale from
   # Brenna" had no item, and it became a 2c payment nobody received.
   @spec named_item(SingleAction.t(), %{String.t() => GameCharacter.t()}, String.t() | nil) ::
@@ -96,13 +97,31 @@ defmodule TalesForge.Game.Inventory do
     stock = seller_stock(traders, npc_ref(action, ""))
 
     with "" <- param_item_id(params),
-         id when is_binary(id) <-
-           resolve_item_id(to_string(text), stock) || head_noun(text, stock) do
-      %{action | parameters: Map.put(params, "item_id", id)}
+         nil <- resolve_item_id(to_string(text), stock) || head_noun(text, stock) do
+      unclear(action, Offer.options(text, stock))
     else
+      id when is_binary(id) and id != "" -> %{action | parameters: Map.put(params, "item_id", id)}
       _ -> action
     end
   end
+
+  # An unclear buy ("I order a meal", design-trade-offers.md): the ids of
+  # the matching stock its offer lists, when any.
+  defp unclear(action, []), do: action
+
+  defp unclear(%SingleAction{} = action, options),
+    do: %{
+      action
+      | parameters: Map.put(action.parameters || %{}, "options", Enum.map(options, & &1["id"]))
+    }
+
+  @doc false
+  # True when the buy `action` is unclear: it names no item and lists options (`named_item/3`).
+  @spec unclear?(SingleAction.t()) :: boolean()
+  def unclear?(%SingleAction{parameters: %{"options" => [_ | _]} = params}),
+    do: param_item_id(params) == ""
+
+  def unclear?(%SingleAction{}), do: false
 
   # The item whose name ends in a word of `text` ("an ale": Mug of Ale).
   defp head_noun(text, stock) do
@@ -152,7 +171,7 @@ defmodule TalesForge.Game.Inventory do
   end
 
   defp to_trade(:buy, t) do
-    with {:ok, npc_id, %Offer{} = offer} <- purchase_offer(t),
+    with {:ok, npc_id, %Offer{item: %{}} = offer} <- purchase_offer(t),
          do: {:ok, npc_id, Offer.to_trade(offer, t.character)}
   end
 
@@ -161,18 +180,39 @@ defmodule TalesForge.Game.Inventory do
   # A purchase: the trader offers the stock item for its price.
   defp purchase_offer(%Transaction{action: action} = t) do
     params = params(action)
-    item_id = param_item_id(params)
     npc_id = resolve_buy_npc_id(action, params, t)
 
-    case {Map.get(t.traders, npc_id), Enum.find(stock(t, npc_id), &(&1["id"] == item_id))} do
-      {%GameCharacter{} = trader, %{} = item} ->
-        {:ok, npc_id,
-         %Offer{giver: trader, item: goods(item, params), price: total(params, item)}}
-
-      _ ->
-        {:error, not_for_sale(t, item_id)}
+    case stock_offer(Map.get(t.traders, npc_id), stock(t, npc_id), params) do
+      {:ok, offer} -> {:ok, npc_id, offer}
+      :error -> {:error, not_for_sale(t, param_item_id(params))}
     end
   end
+
+  defp stock_offer(%GameCharacter{} = trader, stock, params) do
+    case param_item_id(params) do
+      "" -> options_offer(trader, listed(stock, params["options"]), params)
+      id -> item_offer(trader, Enum.find(stock, &(&1["id"] == id)), params)
+    end
+  end
+
+  defp stock_offer(nil, _stock, _params), do: :error
+
+  defp item_offer(trader, %{} = item, params),
+    do: {:ok, %Offer{giver: trader, item: goods(item, params), price: total(params, item)}}
+
+  defp item_offer(_trader, nil, _params), do: :error
+
+  # An unclear buy: the trader's options from stock, in the listed order,
+  # each with its price, and no item yet.
+  defp options_offer(_trader, [], _params), do: :error
+
+  defp options_offer(trader, items, params) do
+    options = Enum.map(items, &%{"item" => goods(&1, params), "price" => total(params, &1)})
+    {:ok, %Offer{giver: trader, item: nil, price: nil, options: options}}
+  end
+
+  defp listed(stock, ids),
+    do: ids |> List.wrap() |> Enum.flat_map(fn id -> Enum.filter(stock, &(&1["id"] == id)) end)
 
   # A sale: the character gives the carried item, and the price is the one
   # on the action (a haggle's), else the item's value, else what the buyer
@@ -316,12 +356,15 @@ defmodule TalesForge.Game.Inventory do
   defdelegate deduct_coins(coins, amount_copper), to: Goods
   defdelegate add_coins(coins, amount_copper), to: Goods
 
+  # A sold-out entry (quantity 0) is no stock: it was read as 1, so a
+  # trader sold an item it did not have (trade offers, PR B).
   def normalize_stock(raw) when is_list(raw) do
     Enum.flat_map(raw, fn
       %{} = entry ->
         item_id = entry |> Map.get("id", "") |> to_string() |> String.trim()
+        quantity = int_field(entry, ["quantity"], 1)
 
-        if item_id == "" do
+        if item_id == "" or quantity < 1 do
           []
         else
           [
@@ -329,7 +372,7 @@ defmodule TalesForge.Game.Inventory do
               "id" => item_id,
               "name" => default_name(entry, item_id),
               "price_copper" => int_field(entry, ["price_copper", "copper_value"], 0),
-              "quantity" => max(1, int_field(entry, ["quantity"], 1))
+              "quantity" => quantity
             }
           ]
         end

@@ -63,12 +63,21 @@ defmodule TalesForge.Game.Context do
       "player_inventory" => Map.get(character, "inventory", []),
       "situation_lines" => Map.get(world, "situation_lines", []),
       "recent_turns" => recent_turns(session.id),
-      "valid_skills" => Mechanics.skill_stat_map() |> Map.keys() |> Enum.sort(),
+      "valid_skills" => valid_skills(),
       # For movement (not printed in the prompt): every place.
       "places" => Map.get(world, "locations") || World.locations()
     })
     |> put_features(world)
+    |> put_offer(world)
   end
+
+  defp valid_skills, do: Mechanics.skill_stat_map() |> Map.keys() |> Enum.sort()
+
+  # The open trade offer the player may answer (TalesForge.Game.Offer).
+  defp put_offer(context, %{"open_offer" => %{} = offer}),
+    do: Map.put(context, "open_offer", offer)
+
+  defp put_offer(context, _world), do: context
 
   # The people: who is here, what they sell and their details, and (for
   # movement, not printed in the prompt) where the people who are not here

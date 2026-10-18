@@ -805,6 +805,18 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
         "name": "Ale",
         "price_copper": 2,
         "quantity": 72
+      },
+      {
+        "id": "stew_bowl",
+        "name": "Bowl of Stew",
+        "price_copper": 5,
+        "quantity": 20
+      },
+      {
+        "id": "bread_cheese",
+        "name": "Bread and Cheese",
+        "price_copper": 2,
+        "quantity": 12
       }
     ]
   }

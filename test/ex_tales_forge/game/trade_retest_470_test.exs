@@ -18,12 +18,15 @@ defmodule TalesForge.Game.TradeRetest470Test do
   alias TalesForge.Repo
   alias TalesForge.Schemas.Character
 
-  # {player text, Jev action, Jev target id, GM narrative (shortened)}
+  # {player text, Jev action, Jev target id, GM narrative (shortened)}, and
+  # T4, the accept of T3's quote (PR B, docs/design-trade-offers.md), which
+  # the playtest did not have: Jev also answers the open offer.
   @script [
     {"I look around the common room.", :observe, nil, "Brenna smiles."},
     {"Brenna Holt, what work is there around here?", :speak, "innkeep", "Plenty of work."},
     {"How much for a mug of ale, Brenna?", :buy, "innkeep",
      "You slide two copper across the counter."},
+    {"Yes, one please.", :speak, "innkeep", "She draws a mug.", offer_answer: :accept},
     {"I buy a loaf of bread and pay her.", :buy, "innkeep", "The loaves are all gone."},
     {"I sell my travel cloak to Brenna Holt.", :sell, "innkeep", "I don't trade in gear."},
     {"Brenna, how much did you give me for the cloak?", :speak, "innkeep", "Not a copper."},
@@ -66,7 +69,7 @@ defmodule TalesForge.Game.TradeRetest470Test do
     {:ok, session: session}
   end
 
-  test "Gentry's 11 turns: coins and items conserve, asking and refusals move nothing, the knife sells",
+  test "Gentry's 11 turns and an accept: coins and items conserve, asking and refusals move nothing, the knife sells",
        %{session: session} do
     start = snapshot(session.id)
     assert copper(start, "innkeep") == 1000
@@ -75,33 +78,38 @@ defmodule TalesForge.Game.TradeRetest470Test do
     log =
       @script
       |> Enum.with_index(1)
-      |> Map.new(fn {{text, action, target, narrative}, n} ->
+      |> Map.new(fn {turn, n} ->
         before = snapshot(session.id)
-        play(session.id, text, action, target, narrative)
+        play(session.id, turn)
         {n, {before, snapshot(session.id)}}
       end)
 
     moved = fn n -> diff(elem(log[n], 0), elem(log[n], 1)) end
-    {b7, a7} = log[7]
-    {b11, a11} = log[11]
+    {b4, a4} = log[4]
+    {b8, a8} = log[8]
+    {b12, a12} = log[12]
 
     failures =
       Enum.reject(
         [
           for(
-            n <- 1..11,
+            n <- 1..12,
             totals(elem(log[n], 0)) != totals(elem(log[n], 1)),
             do: "T#{n} coins/items not conserved: #{inspect(moved.(n))}"
           ),
           moved.(3) != [] && "T3 a price question moved: #{inspect(moved.(3))}",
-          moved.(9) != [] && "T9 the mug is refused, yet the turn moved: #{inspect(moved.(9))}",
-          {copper(a7, "innkeep"), qty(a7, "innkeep", "ale_mug")} !=
-            {copper(b7, "innkeep") + 2, qty(b7, "innkeep", "ale_mug") - 1} &&
-            "T7 Brenna not paid or cask not served: #{inspect(moved.(7))}",
-          {qty(a11, "player", "hunting_knife"), qty(a11, "smith", "hunting_knife"),
-           copper(a11, "player")} !=
-            {0, qty(b11, "smith", "hunting_knife") + 1, copper(b11, "player") + 15} &&
-            "T11 the knife sale to Hilde did not happen: #{inspect(moved.(11))}"
+          {copper(a4, "innkeep"), qty(a4, "innkeep", "ale_mug")} !=
+            {copper(b4, "innkeep") + 2, qty(b4, "innkeep", "ale_mug") - 1} &&
+            "T4 the accepted quote: Brenna not paid or cask not served: #{inspect(moved.(4))}",
+          moved.(10) != [] &&
+            "T10 the mug is refused, yet the turn moved: #{inspect(moved.(10))}",
+          {copper(a8, "innkeep"), qty(a8, "innkeep", "ale_mug")} !=
+            {copper(b8, "innkeep") + 2, qty(b8, "innkeep", "ale_mug") - 1} &&
+            "T8 Brenna not paid or cask not served: #{inspect(moved.(8))}",
+          {qty(a12, "player", "hunting_knife"), qty(a12, "smith", "hunting_knife"),
+           copper(a12, "player")} !=
+            {0, qty(b12, "smith", "hunting_knife") + 1, copper(b12, "player") + 15} &&
+            "T12 the knife sale to Hilde did not happen: #{inspect(moved.(12))}"
         ]
         |> List.flatten(),
         &(&1 == false)
@@ -110,7 +118,10 @@ defmodule TalesForge.Game.TradeRetest470Test do
     assert failures == []
   end
 
-  defp play(session_id, text, action, target_id, narrative) do
+  defp play(session_id, {text, action, target_id, narrative}),
+    do: play(session_id, {text, action, target_id, narrative, []})
+
+  defp play(session_id, {text, action, target_id, narrative, answers}) do
     context = TalesForge.Game.Context.build_intent_context(GameSessions.get_session!(session_id))
     candidates = JevIntent.candidates(context)
     target = Enum.find_value(candidates, :none, &(&1.id == target_id && &1.label))
@@ -118,14 +129,17 @@ defmodule TalesForge.Game.TradeRetest470Test do
     Req.Test.stub(Jev.HTTP, fn conn ->
       {_request, conn} = Jev.Test.request(conn)
 
-      Jev.Test.respond(conn, %{
-        action: action,
-        target: target,
-        skill: :none,
-        later: :none,
-        safety: :benign,
-        confidence: %{action: 0.95, target: 0.95, safety: 0.99}
-      })
+      Jev.Test.respond(
+        conn,
+        Map.merge(Map.new(answers), %{
+          action: action,
+          target: target,
+          skill: :none,
+          later: :none,
+          safety: :benign,
+          confidence: %{action: 0.95, target: 0.95, safety: 0.99}
+        })
+      )
     end)
 
     stub_llm(fn
@@ -162,7 +176,7 @@ defmodule TalesForge.Game.TradeRetest470Test do
 
   # Coins and items over everyone. A serving (Brenna's ale) is drunk where
   # it is bought, so it leaves her cask and nobody carries it: it is
-  # counted by the cask check of T7, not here.
+  # counted by the cask checks of T4 and T8, not here.
   defp totals(snap) do
     snap
     |> Map.values()
