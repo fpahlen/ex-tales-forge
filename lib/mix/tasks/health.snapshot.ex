@@ -198,6 +198,8 @@ defmodule Mix.Tasks.Health.Snapshot do
   @w 920
   @h 420
   @pad %{l: 48, r: 170, t: 48, b: 40}
+  # The least room between two x-axis names on one line.
+  @label_gap 36
 
   @doc """
   The rows as a stacked bar chart: one bar per merge, its segments xref
@@ -206,8 +208,12 @@ defmodule Mix.Tasks.Health.Snapshot do
   segment shows its value, each bar its total on top, and a thin dashed
   line joins a segment's top to the same segment's top on the next bar.
   A bar whose `counting` differs from the bar before it (a row without one
-  counts as 1) gets a grey dashed line and "counting changed": that drop or
-  rise comes from how `mix health.check` counts, not from the code.
+  counts as 1) gets a grey dashed line topped with its counting version
+  ("v2"), which the legend names "counting changed": that drop or rise
+  comes from how `mix health.check` counts, not from the code. The x-axis
+  names only the bars of `labelled/1` (the first, the last and each
+  counting change); a name too close to the one before it goes one line
+  lower.
   """
   @spec svg([map()]) :: String.t()
   def svg(rows) do
@@ -221,6 +227,7 @@ defmodule Mix.Tasks.Health.Snapshot do
     #{grid(g)}
     #{rows |> Enum.zip(tops) |> Enum.with_index() |> Enum.map_join("\n", &bar(&1, g))}
     #{links(tops, g)}
+    #{axis(rows, g)}
     #{marks(rows, g)}
     #{legend()}
     </svg>
@@ -256,9 +263,47 @@ defmodule Mix.Tasks.Health.Snapshot do
     |> Kernel.<>(
       ~s|<text x="#{f(cx)}" y="#{f(y(g, total(row)) - 5)}" text-anchor="middle" font-weight="bold">#{total(row)}</text>|
     )
-    |> Kernel.<>(
-      ~s|<text x="#{f(cx)}" y="#{@h - @pad.b + 16}" text-anchor="middle">##{row["pr"]}</text>|
-    )
+  end
+
+  @doc """
+  The indexes of the bars the x-axis names: the first, the last and each
+  bar whose `counting` differs from the bar before it (blank is 1).
+
+      iex> Mix.Tasks.Health.Snapshot.labelled([%{}, %{}, %{"counting" => 2}, %{"counting" => 2}, %{"counting" => 2}])
+      [0, 2, 4]
+  """
+  @spec labelled([map()]) :: [non_neg_integer()]
+  def labelled([]), do: []
+
+  def labelled(rows) do
+    Enum.uniq([0 | changes(rows)] ++ [length(rows) - 1])
+  end
+
+  # The index of each bar whose counting differs from the bar before it.
+  defp changes(rows) do
+    counts = Enum.map(rows, &(&1["counting"] || 1))
+
+    for {{a, b}, i} <- counts |> Enum.zip(Enum.drop(counts, 1)) |> Enum.with_index(1),
+        a != b,
+        do: i
+  end
+
+  # The PR names under the bars of `labelled/1`. A name closer than
+  # @label_gap to the last name on the first line goes on the second.
+  defp axis(rows, g) do
+    {texts, _} =
+      rows
+      |> labelled()
+      |> Enum.map_reduce(%{}, fn i, last ->
+        cx = x(g, i) + g.bar / 2
+        line = if cx - Map.get(last, 0, -@label_gap) < @label_gap, do: 1, else: 0
+        y = @h - @pad.b + 16 + line * 13
+
+        {~s|<text x="#{f(cx)}" y="#{y}" text-anchor="middle">##{Enum.at(rows, i)["pr"]}</text>|,
+         Map.put(last, line, cx)}
+      end)
+
+    Enum.join(texts, "\n")
   end
 
   # One segment with its value inside. A thin segment gets a smaller
@@ -284,21 +329,20 @@ defmodule Mix.Tasks.Health.Snapshot do
     )
   end
 
-  # A grey dashed line left of each bar where the counting changed.
+  # A grey dashed line left of each bar where the counting changed, with
+  # the new counting version on top.
   defp marks(rows, g) do
-    counts = Enum.map(rows, &(&1["counting"] || 1))
-
-    for {{a, b}, i} <- counts |> Enum.zip(Enum.drop(counts, 1)) |> Enum.with_index(1),
-        a != b,
-        into: "" do
+    for i <- changes(rows), into: "" do
       line_x = f(@pad.l + i * g.slot)
 
       ~s|<line x1="#{line_x}" y1="#{@pad.t - 8}" x2="#{line_x}" y2="#{@h - @pad.b}" stroke="#6b7280" stroke-width="1" stroke-dasharray="2 4"/>| <>
-        ~s|<text x="#{line_x}" y="#{@pad.t - 12}" text-anchor="middle" font-size="10" fill="#6b7280">counting changed</text>|
+        ~s|<text x="#{line_x}" y="#{@pad.t - 12}" text-anchor="middle" font-size="10" fill="#6b7280">v#{Enum.at(rows, i)["counting"] || 1}</text>|
     end
   end
 
   defp legend do
+    n = length(@segments)
+
     @segments
     |> Enum.reverse()
     |> Enum.with_index()
@@ -306,6 +350,10 @@ defmodule Mix.Tasks.Health.Snapshot do
       ~s|<rect x="#{@w - @pad.r + 16}" y="#{@pad.t + j * 22}" width="12" height="12" fill="#{color}"/>| <>
         ~s|<text x="#{@w - @pad.r + 34}" y="#{@pad.t + j * 22 + 11}">#{name}</text>|
     end)
+    |> Kernel.<>(
+      ~s|\n<line x1="#{@w - @pad.r + 22}" y1="#{@pad.t + n * 22}" x2="#{@w - @pad.r + 22}" y2="#{@pad.t + n * 22 + 12}" stroke="#6b7280" stroke-width="1" stroke-dasharray="2 2"/>| <>
+        ~s|<text x="#{@w - @pad.r + 34}" y="#{@pad.t + n * 22 + 11}">counting changed (vN)</text>|
+    )
   end
 
   defp total(row), do: Enum.sum(for {k, _, _} <- @segments, do: row[k] || 0)
