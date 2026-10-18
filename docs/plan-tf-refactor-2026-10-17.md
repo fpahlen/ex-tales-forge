@@ -439,25 +439,75 @@ run per comparison. General playtesting stays paused.
 
 ## Noted for after the round (not started)
 
-- **Conservation in trades** (Fredrik's rule, 2026-10-18). Items and coins
-  always change place and are never created or destroyed.
-  - **Buy:** the coins go from the player to the NPC, and the item goes from
-    the NPC to the player.
-  - **Sell and trade:** the reverse. A sold item joins the NPC's inventory,
-    and so does a trade's give leg.
-  - **Today (after 10d):** the NPC's coins never change, and a sold item or a
-    trade's give leg goes to no one.
-  - This is its own PR, after 10e/10f. It is user-visible: an NPC can sell
-    back what it bought, and its purse runs down.
-  - **Open question:** what happens when the NPC can't afford a sale. Case
-    suggests that it refuses, the same way `Catalogue.refuses_trade?/1`
-    refuses a trade today.
+Most important first.
 
-- **Kaizen practice** in both repos' `docs/principles.md`: every feature PR
-  must leave the files it touches at least one health point better (cycles,
-  complexity, 4+ params, web refs), on top of the never-worse ratchet. Docs-
-  and config-only PRs are exempt.
-- **A CI check, if feasible:** `mix health.check --base origin/main
-  --touched` compares the per-file numbers of the changed `lib/` files and
-  fails when none improved. Feature vs docs/config would be told apart by
-  the same changed-files filter CI already uses.
+1. **Conservation in trades** (Fredrik's rule, 2026-10-18). Items and coins
+   always change place and are never created or destroyed.
+   - **Buy:** the coins go from the player to the NPC, and the item goes from
+     the NPC to the player.
+   - **Sell and trade:** the reverse. A sold item joins the NPC's inventory,
+     and so does a trade's give leg.
+   - **Today (after 10d):** the NPC's coins never change, and a sold item or
+     a trade's give leg goes to no one.
+   - This is its own PR, after 10e/10f. It is user-visible: an NPC can sell
+     back what it bought, and its purse runs down.
+   - **Open question:** what happens when the NPC can't afford a sale. Case
+     suggests that it refuses, the same way `Catalogue.refuses_trade?/1`
+     refuses a trade today.
+2. **Buy-intent gap** (10e AFTER playtest #451, item f; under the
+   conservation rule: items vanish or aren't booked). "I buy a hunting knife
+   from the smith" isn't booked when the intent aims the purchase at the
+   seller with no `item_id`: it falls to `TurnApply.service_buy/3` and is
+   rejected, and the GM narrates a refusal or a sale that never happened.
+   With `item_id` the same purchase books correctly (golden replay). Fix it
+   like the sell fix #446: take the item from the seller's stock by the
+   player's words.
+3. **Absent trader's stock** (#451, item e). A trader not in PRESENT has no
+   stock in the prompt, so other NPCs invent the price (the drover's rope,
+   8 copper in stock, was quoted at 12 silver, then 4 silver).
+4. **The counterattacker ignores its weapon** (#451, item a).
+   `Combat.combat_skill/1` takes the defender's best combat skill, so Cobb
+   swinging a club counterattacks with `unarmed_combat`.
+5. **Cobb's Parry 57 to 52 is unexplained** (#451, item a). Parry comes
+   only from dodge and DEX, so the two sessions' Cobb sheets differ; find out
+   why.
+6. **Engine wording in the GM prompt** (#451, item d). The wait handler's
+   note "Wait 4 ticks." (and `delta_ticks` in NPC memory lines) reach the
+   prompt, and the GM wrote "at the fourth tick". Say "an hour".
+7. **NPC concern card** (Fredrik, 2026-10-18). It also covers telling the GM
+   about speak-ups.
+   - **Intensity and growth rate.** Each concern carries an intensity and a
+     growth rate. An intense concern crosses the threshold in a turn or two;
+     others smoulder and build over days of game time. A concern decays when
+     it is addressed.
+   - **Data and tick.** The data lives on the concern struct, and the tick
+     is a pure function (concern and elapsed game time in, concern out).
+   - **Every character has concerns.** There is only GameCharacter, so
+     player characters carry the same concern struct as NPCs. Only the
+     intention input differs:
+     - a gm-controlled character's threshold crossing becomes an
+       `%Intention{}` (for example a speak-up);
+     - a human-controlled character's crossing becomes a GM prompt hint (the
+       character feels it), never an action.
+   - Not built now.
+8. **Kaizen practice** in both repos' `docs/principles.md`: every feature PR
+   must leave the files it touches at least one health point better (cycles,
+   complexity, 4+ params, web refs), on top of the never-worse ratchet.
+   Docs- and config-only PRs are exempt.
+9. **A CI check, if feasible:** `mix health.check --base origin/main
+   --touched` compares the per-file numbers of the changed `lib/` files and
+   fails when none improved. Feature vs docs/config would be told apart by
+   the same changed-files filter CI already uses.
+
+**Replay upgrade** (approved; two small test-only PRs after 10f). The golden
+replay stubs the intent, the GM and Jev and seeds the dice, so it proves the
+same inputs give the same engine output, but it compares only the first GM
+call per turn and no player-facing lines.
+
+1. Capture every LLM call per turn (purpose, system, user) through a
+   test-only telemetry handler on `TalesForge.LLM`, plus the player-facing
+   lines (narration, roll and combat lines, outcome record) and the world,
+   and diff them between main and the branch as text.
+2. Replay recorded intent replies from a real playtest's `ai_calls` instead
+   of fixed actions, so the intent, clarify and price paths run as players
+   hit them.
