@@ -165,8 +165,8 @@ defmodule TalesForge.IntentJev do
 
     timeout = Keyword.get(opts, :timeout_ms) || Config.intent_jev_timeout_ms()
     state = JevIntent.state(context, text)
-    questions = JevIntent.questions(candidates, JevIntent.catalogue(), Config.skill_split?())
-    result = post_within(state, questions, timeout)
+
+    result = post_within(state, questions(candidates, context), timeout)
 
     elapsed = System.monotonic_time(:millisecond) - started
     meta = %{purpose: purpose, latency_ms: elapsed, started_at: started_at}
@@ -184,6 +184,12 @@ defmodule TalesForge.IntentJev do
     e ->
       Logger.error("jev intent crashed error=#{Exception.message(e)}")
       {:error, :crashed}
+  end
+
+  # The questions of the read, with the open offer's while one is open.
+  defp questions(candidates, context) do
+    JevIntent.questions(candidates, JevIntent.catalogue(), Config.skill_split?()) ++
+      JevIntent.offer_questions(context["open_offer"])
   end
 
   # A failed call: the ai_calls row and the log line.
@@ -359,7 +365,14 @@ defmodule TalesForge.IntentJev do
     quote = PlayerQuote.decide(action, raw_action, safety, quote_threshold(read.opts))
     meta = Map.merge(base_meta, %{"source" => "jev", "quote" => PlayerQuote.meta(quote)})
     log_decision(read, band, quote)
-    {:act, action, %{gm_quote: quote.quote, gm_note: nil}, meta}
+
+    answer = %{
+      action
+      | offer_answer: Map.get(reading, :offer_answer),
+        offer_pick: Map.get(reading, :offer_pick)
+    }
+
+    {:act, answer, %{gm_quote: quote.quote, gm_note: nil}, meta}
   end
 
   # #281 item 6 (QA 2026-10-14 21:15): a bare "I attack" with people here asks

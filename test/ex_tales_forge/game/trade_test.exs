@@ -253,7 +253,7 @@ defmodule TalesForge.Game.TradeTest do
         play(session, "How much for a mug of ale, Brenna?", buy(nil), "innkeep")
 
       assert saved == before
-      assert prompt =~ "the server quotes it: Brenna Holt sells Ale for 2c"
+      assert prompt =~ "The server quotes: Brenna Holt sells Ale for 2c"
     end
 
     test "the mug is not for sale: refused, and nothing moves that turn", %{session: session} do
