@@ -10,8 +10,10 @@ defmodule TalesForge.Game.Offer do
   `to_trade/2` makes the accepted offer that trade.
 
   An unclear buy ("I order a meal") is an offer with no `item` and the
-  seller's matching stock as `options` (2-3, cheapest first, the first the
-  default). The player picks one, and the pick is the purchase.
+  seller's matching stock as `options` (2-3, cheapest first). The player
+  picks one, and the pick is the purchase. A plain yes that picks none
+  (`awaits_pick?/2`) buys nothing: the offer stays open as it is, and the
+  GM asks which one, as an innkeeper would.
 
   A session has at most one open offer, kept in its world state
   (`"open_offer"`, `to_world/1`). The player answers it on the next turn
@@ -129,13 +131,61 @@ defmodule TalesForge.Game.Offer do
   @doc """
   `player_action` with an answer to the open offer of `world` made the
   purchase it accepts: a buy from the giver of the offer's item (or the
-  picked option, or the default option on a plain accept) at the offer's
-  price. A pick or an accept counts as proposal plus acceptance; the
-  trader still decides in code (`TalesForge.Game.Trade`). Any other
-  player action, or no offer open here, is unchanged.
+  picked option) at the offer's price. A pick or an accept counts as
+  proposal plus acceptance; the trader still decides in code
+  (`TalesForge.Game.Trade`). A plain yes to an unclear buy
+  (`awaits_pick?/2`) picks nothing: a buy it reads becomes words to the
+  seller, so nothing moves. Any other player action, or no offer open
+  here, is unchanged.
   """
   @spec answered(PlayerAction.t(), map() | nil) :: PlayerAction.t()
   def answered(%PlayerAction{} = player_action, %{"open_offer" => %{} = stored} = world) do
+    if awaits_pick?(player_action, world),
+      do: ask(player_action, stored["giver"]),
+      else: answered_offer(player_action, stored, world)
+  end
+
+  def answered(%PlayerAction{} = player_action, _world), do: player_action
+
+  @doc """
+  True when `player_action` accepts the open unclear-buy offer of `world`
+  (one with `options`, still open here) but picks none of its options: the
+  seller must ask which one. That turn does not age the offer; leaving,
+  the giver gone or a new offer still end it.
+
+      iex> world = %{"character" => %{"location_id" => "inn"}, "present_npcs" => ["innkeep"],
+      ...>   "open_offer" => %{"giver" => "innkeep", "location_id" => "inn", "item" => nil,
+      ...>     "options" => [%{"item" => %{"id" => "stew"}, "price" => 5}]}}
+      iex> yes = %TalesForge.Game.Schemas.PlayerAction{offer_answer: :accept}
+      iex> TalesForge.Game.Offer.awaits_pick?(yes, world)
+      true
+      iex> TalesForge.Game.Offer.awaits_pick?(%{yes | offer_pick: 0}, world)
+      false
+  """
+  @spec awaits_pick?(PlayerAction.t(), map() | nil) :: boolean()
+  def awaits_pick?(
+        %PlayerAction{offer_answer: :accept} = player_action,
+        %{"open_offer" => %{"item" => nil, "options" => [_ | _] = options} = stored} = world
+      ),
+      do: is_nil(picked(options, player_action)) and not expired?(stored, world)
+
+  def awaits_pick?(_player_action, _world), do: false
+
+  defp picked(options, %PlayerAction{offer_pick: pick}) when is_integer(pick),
+    do: Enum.at(options, pick)
+
+  defp picked(_options, _player_action), do: nil
+
+  # A buy read from a plain yes is the player's words to the seller.
+  defp ask(%PlayerAction{action: %SingleAction{action_type: :buy}} = player_action, giver),
+    do: %{
+      player_action
+      | action: %SingleAction{action_type: :speak, target: giver, parameters: %{}}
+    }
+
+  defp ask(%PlayerAction{} = player_action, _giver), do: player_action
+
+  defp answered_offer(player_action, stored, world) do
     case chosen(stored, player_action) do
       %{"item" => %{"id" => id} = item, "price" => price} when is_binary(id) ->
         if expired?(stored, world),
@@ -147,13 +197,9 @@ defmodule TalesForge.Game.Offer do
     end
   end
 
-  def answered(%PlayerAction{} = player_action, _world), do: player_action
+  defp chosen(%{"options" => [_ | _] = options}, %PlayerAction{} = player_action),
+    do: picked(options, player_action)
 
-  defp chosen(%{"options" => [_ | _] = options}, %PlayerAction{offer_pick: pick})
-       when is_integer(pick),
-       do: Enum.at(options, pick)
-
-  defp chosen(%{"options" => [default | _]}, %PlayerAction{offer_answer: :accept}), do: default
   defp chosen(%{"item" => %{}} = stored, %PlayerAction{offer_answer: :accept}), do: stored
   defp chosen(_stored, _player_action), do: nil
 

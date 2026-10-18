@@ -69,7 +69,7 @@ defmodule TalesForge.Game.OfferTest do
       assert Offer.answered(%{said | offer_answer: :accept}, left).action.action_type == :speak
     end
 
-    test "an unclear buy: a pick is that option, a plain accept the default, no pick nothing" do
+    test "an unclear buy: a pick is that option, a plain yes picks none and asks" do
       options = [
         %{"item" => %{"id" => "bread", "quantity" => 1}, "price" => 3},
         %{"item" => %{"id" => "stew", "quantity" => 1}, "price" => 5}
@@ -90,8 +90,16 @@ defmodule TalesForge.Game.OfferTest do
 
       assert Offer.answered(%{said | offer_pick: 1}, world).action.parameters["item_id"] == "stew"
 
-      assert Offer.answered(%{said | offer_answer: :accept}, world).action.parameters["item_id"] ==
-               "bread"
+      yes = %{said | offer_answer: :accept}
+      assert Offer.awaits_pick?(yes, world)
+      assert Offer.answered(yes, world).action.action_type == :speak
+
+      bought = %{yes | action: %SingleAction{action_type: :buy, target: "innkeep"}}
+
+      assert %SingleAction{action_type: :speak, target: "innkeep"} =
+               Offer.answered(bought, world).action
+
+      refute Offer.awaits_pick?(%{yes | offer_pick: 0}, world)
 
       assert Offer.answered(%{said | offer_answer: :other}, world).action.action_type == :speak
     end

@@ -117,13 +117,24 @@ defmodule TalesForge.Game.Turn.Board do
       |> unpaid_sleep(inventory_result)
       |> decided_trade(inventory_result, board.player_action.action)
       |> declined(world_before["open_offer"], board.player_action)
+      |> ask_pick(put_in(world_before, ["character"], board.character), board.player_action)
 
     {world_traded, inventory_result, %{board | handler: handler}}
   end
 
   # The open offer answered (design-trade-offers.md): an accept is already
   # the purchase (`Offer.answered/2`, at the turn's intention), so both an
-  # accept and a decline close it; any other message ages it.
+  # accept and a decline close it; any other message ages it. A plain yes
+  # to an unclear buy picks nothing and keeps the offer as it is, not aged:
+  # the seller asks which option (leaving, the giver gone or a new offer
+  # still end it).
+  defp answer_offer(world, %PlayerAction{} = player_action)
+       when is_map_key(world, "open_offer") and player_action.offer_answer == :accept do
+    if Offer.awaits_pick?(player_action, world),
+      do: world,
+      else: Map.delete(world, "open_offer")
+  end
+
   defp answer_offer(world, %PlayerAction{offer_answer: answer})
        when answer in [:accept, :decline],
        do: Map.delete(world, "open_offer")
@@ -655,6 +666,17 @@ defmodule TalesForge.Game.Turn.Board do
       })
 
   defp declined(handler, _stored, _player_action), do: handler
+
+  # A plain yes to an unclear buy: nothing moves, and the GM asks which option.
+  defp ask_pick(handler, world, %PlayerAction{} = player_action) do
+    if Offer.awaits_pick?(player_action, world),
+      do:
+        put_trade(handler, %{
+          "status" => "ask_pick",
+          "detail" => world["open_offer"] |> Offer.from_world() |> Offer.text()
+        }),
+      else: handler
+  end
 
   defp put_trade(handler, trade),
     do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "trade", trade)}
