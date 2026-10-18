@@ -147,7 +147,8 @@ jobs:
             exit 1
           fi
           # GIT_SHA: the commit checked out above goes into the image (Dockerfile).
-          # The script retries once when the release machine never starts.
+          # The script redeploys the same image once when the release machine
+          # never starts (or a bluegreen green machine; playtest is not bluegreen).
           SHA="$(git rev-parse HEAD)" .github/scripts/fly_deploy.sh
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PLAYTEST }}
