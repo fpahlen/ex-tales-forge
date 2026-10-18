@@ -35,7 +35,7 @@ defmodule TalesForge.Canon.SessionSnapshot do
 
     names =
       Map.new(instances, fn inst ->
-        {inst.npc_id, get_in(inst.personality || %{}, ["name"]) || inst.npc_id}
+        {inst.npc_id, get_in(inst.personality, ["name"]) || inst.npc_id}
       end)
 
     %__MODULE__{

@@ -205,7 +205,7 @@ defmodule TalesForge.World do
   defp person_names(session_id) do
     session_id
     |> NPC.list_people()
-    |> Map.new(&{&1.npc_id, get_in(&1.personality || %{}, ["name"]) || &1.npc_id})
+    |> Map.new(&{&1.npc_id, get_in(&1.personality, ["name"]) || &1.npc_id})
   end
 
   defp item_id(%{"id" => id}), do: id

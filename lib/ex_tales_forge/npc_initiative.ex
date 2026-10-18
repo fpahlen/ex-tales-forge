@@ -51,7 +51,7 @@ defmodule TalesForge.NPCInitiative do
   end
 
   defp build_payload(%Person{} = inst, world_tick) do
-    definition = inst.personality || %{}
+    definition = inst.personality
 
     %{
       session_id: inst.row.game_session_id,

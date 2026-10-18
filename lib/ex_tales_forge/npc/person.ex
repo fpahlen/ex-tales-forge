@@ -23,7 +23,7 @@ defmodule TalesForge.NPC.Person do
   @typedoc "One pack NPC of a session, read from its character row."
   @type t :: %__MODULE__{
           npc_id: String.t(),
-          row: Character.t(),
+          row: Character.t() | nil,
           personality: map(),
           runtime_state: map()
         }

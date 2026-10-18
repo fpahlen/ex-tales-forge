@@ -125,8 +125,8 @@ defmodule TalesForge.NPC do
   def combat_profile(session_id, npc_id) do
     case get_person(session_id, npc_id) do
       %Person{} = inst ->
-        definition = inst.personality || %{}
-        runtime = inst.runtime_state || %{}
+        definition = inst.personality
+        runtime = inst.runtime_state
 
         %{
           "id" => inst.npc_id,
@@ -285,7 +285,7 @@ defmodule TalesForge.NPC do
   end
 
   def initiative_text(%Person{} = inst) do
-    name = Map.get(inst.personality || %{}, "name", inst.npc_id)
+    name = Map.get(inst.personality, "name", inst.npc_id)
     "#{name} speaks up, as if a worry has been pressing on them for some time."
   end
 
@@ -346,7 +346,7 @@ defmodule TalesForge.NPC do
   defp trader(%Person{npc_id: npc_id, personality: definition} = inst) do
     %GameCharacter{
       slug: npc_id,
-      name: (definition || %{})["name"] || npc_id,
+      name: definition["name"] || npc_id,
       inventory:
         inst.runtime_state
         |> Map.get("stock", definition_stock(inst))
@@ -380,8 +380,8 @@ defmodule TalesForge.NPC do
   """
   @spec cast_member(Person.t(), GameCharacter.t() | nil) :: GameCharacter.t()
   def cast_member(%Person{} = inst, row) do
-    definition = inst.personality || %{}
-    runtime = inst.runtime_state || %{}
+    definition = inst.personality
+    runtime = inst.runtime_state
     member = row || %GameCharacter{}
 
     %GameCharacter{
@@ -468,8 +468,8 @@ defmodule TalesForge.NPC do
   defp to_sim(%Person{} = inst) do
     %{
       npc_id: inst.npc_id,
-      definition: inst.personality || %{},
-      runtime_state: inst.runtime_state || %{}
+      definition: inst.personality,
+      runtime_state: inst.runtime_state
     }
   end
 
@@ -553,8 +553,8 @@ defmodule TalesForge.NPC do
   defp update_runtime!(%Person{} = inst, runtime_state), do: Rows.update!(inst, runtime_state)
 
   defp prompt_npc_context(%Person{} = inst) do
-    definition = inst.personality || %{}
-    runtime = inst.runtime_state || %{}
+    definition = inst.personality
+    runtime = inst.runtime_state
     concern = runtime["current_concern"] || %{}
     motivations = definition["motivations"] || %{}
 
@@ -594,7 +594,7 @@ defmodule TalesForge.NPC do
   end
 
   defp recent_memories(%Person{} = inst) do
-    visible_memories(Map.get(inst.runtime_state || %{}, "memories", []))
+    visible_memories(Map.get(inst.runtime_state, "memories", []))
   end
 
   defp seed_stock(definition) do

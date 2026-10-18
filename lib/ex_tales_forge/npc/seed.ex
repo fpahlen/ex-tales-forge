@@ -30,8 +30,8 @@ defmodule TalesForge.NPC.Seed do
   """
   @spec attrs(Person.t(), integer()) :: map()
   def attrs(%Person{} = inst, tick) do
-    definition = inst.personality || %{}
-    runtime = inst.runtime_state || %{}
+    definition = inst.personality
+    runtime = inst.runtime_state
 
     inst
     |> npc_identity(definition)

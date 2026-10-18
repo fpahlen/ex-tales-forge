@@ -266,7 +266,7 @@ defmodule TalesForge.Game.NpcReactions do
   @doc false
   @spec state(struct(), map() | nil, map()) :: String.t()
   def state(inst, mood, scene) do
-    definition = inst.personality || %{}
+    definition = inst.personality
     traits = get_in(definition, ["motivations", "personality_traits"]) || %{}
 
     ocean =
@@ -416,7 +416,7 @@ defmodule TalesForge.Game.NpcReactions do
     })
   end
 
-  defp name(inst), do: get_in(inst.personality || %{}, ["name"]) || inst.npc_id
+  defp name(inst), do: get_in(inst.personality, ["name"]) || inst.npc_id
 
   defp label(nil), do: nil
   defp label(atom) when is_atom(atom), do: Atom.to_string(atom)

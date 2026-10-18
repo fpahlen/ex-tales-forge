@@ -31,8 +31,8 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
     |> assign(:page_title, npc.npc_id)
     |> assign(:session, session)
     |> assign(:npc, npc)
-    |> assign(:runtime_json, Admin.encode_json(npc.runtime_state || %{}))
-    |> assign(:personality_json, Admin.encode_json(npc.personality || %{}))
+    |> assign(:runtime_json, Admin.encode_json(npc.runtime_state))
+    |> assign(:personality_json, Admin.encode_json(npc.personality))
   end
 
   @impl true
