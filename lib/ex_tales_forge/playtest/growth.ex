@@ -63,8 +63,8 @@ defmodule TalesForge.Playtest.Growth do
   defp add_roll(acc, %{"skill" => skill, "lp_awarded" => lp})
        when is_binary(skill) and is_number(lp) do
     acc
-    |> bump(skill, "rolls", 1)
-    |> bump(skill, "lp_gained", lp)
+    |> bump({skill, "rolls"}, 1)
+    |> bump({skill, "lp_gained"}, lp)
   end
 
   defp add_roll(acc, _res), do: acc
@@ -76,15 +76,16 @@ defmodule TalesForge.Playtest.Growth do
     |> Enum.reduce(acc, fn
       %{"skill" => skill} = entry, acc when is_binary(skill) ->
         acc
-        |> bump(skill, "attempts", 1)
-        |> bump(skill, "improvements", if(entry["improved"] == true, do: 1, else: 0))
+        |> bump({skill, "attempts"}, 1)
+        |> bump({skill, "improvements"}, if(entry["improved"] == true, do: 1, else: 0))
 
       _entry, acc ->
         acc
     end)
   end
 
-  defp bump(acc, skill, key, by) do
+  # Adds `by` to `key` of `skill` in the totals.
+  defp bump(acc, {skill, key}, by) do
     Map.update(acc, skill, Map.put(empty(), key, by), fn s ->
       Map.update!(s, key, &round_lp(&1 + by, key))
     end)
