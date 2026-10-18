@@ -51,7 +51,7 @@ defmodule TalesForge.LLMConvIdTest do
       |> Intent.validate_player_action(context)
       |> PlayerAction.encode()
 
-    assert {:ok, _} = TurnProcessor.run(session.id, "look around the tavern", player_action)
+    assert {:ok, _} = TurnProcessor.run(session.id, {"look around the tavern", player_action})
 
     session_id = session.id
     assert_received {:conv_id, [^session_id]}

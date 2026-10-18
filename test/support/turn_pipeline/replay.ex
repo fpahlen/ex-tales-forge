@@ -168,7 +168,7 @@ defmodule TalesForge.TurnPipeline.Replay do
         before = Repo.get!(GameSession, session_id).world_state
         events_before = events(session_id)
         action = player_action(turn["text"], expect, context)
-        {:ok, _payload} = TurnProcessor.run(session_id, turn["text"], action)
+        {:ok, _payload} = TurnProcessor.run(session_id, {turn["text"], action})
         assert_received {:replay_gm_prompt, prompt}
         npc_inputs = npc_inputs([])
         after_turn = Repo.get!(GameSession, session_id).world_state

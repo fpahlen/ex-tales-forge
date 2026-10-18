@@ -323,7 +323,7 @@ defmodule TalesForge.WorldTest do
     text = "Is the back room free tonight?"
     {action, _} = action(Context.build_gm_context(session), text)
 
-    assert {:ok, _} = TurnProcessor.run(session.id, text, PlayerAction.encode(action))
+    assert {:ok, _} = TurnProcessor.run(session.id, {text, PlayerAction.encode(action)})
 
     session_id = session.id
     assert_receive {:llm, ^session_id, body}
