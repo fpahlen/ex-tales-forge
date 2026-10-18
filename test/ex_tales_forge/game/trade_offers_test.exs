@@ -109,9 +109,9 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert open_offer(session.id) == nil
   end
 
-  test "an unclear 'I order a meal': a counter-question with options from the pack, then the pick trades",
+  test "an unclear 'I order a meal' (Jev: a meal): a counter-question with the kind's options from stock, then the pick trades",
        %{session: session} do
-    {before, asked} = play(session.id, "I order a meal.", :buy)
+    {before, asked} = play(session.id, "I order a meal.", :buy, target: "goods:a meal")
     assert diff(before, asked) == []
 
     assert %{
@@ -142,7 +142,7 @@ defmodule TalesForge.Game.TradeOffersTest do
 
   test "a plain yes to an unclear buy picks nothing: the offer stays open, then a pick buys",
        %{session: session} do
-    {before, _} = play(session.id, "I order a meal.", :buy)
+    {before, _} = play(session.id, "I order a meal.", :buy, target: "goods:a meal")
     offered = open_offer(session.id)
 
     {_, yes} = play(session.id, "Yes, please.", :buy, offer_answer: :accept)
@@ -158,6 +158,15 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert qty(picked, "innkeep", "bread_cheese") == qty(yes, "innkeep", "bread_cheese") - 1
     assert open_offer(session.id) == nil
     assert_conserved(before, picked)
+  end
+
+  # Case's review of #478: the game holds no language. The words "a meal"
+  # alone no longer list options; only Jev's kind target (`goods:a meal`) does.
+  test "the game reads no kind words: an unclear buy without Jev's kind target opens no offer",
+       %{session: session} do
+    {before, after_order} = play(session.id, "I order a meal.", :buy)
+    assert diff(before, after_order) == []
+    assert open_offer(session.id) == nil
   end
 
   test "an unclear buy with no matching stock: no offer, nothing moves", %{session: session} do
@@ -188,9 +197,112 @@ defmodule TalesForge.Game.TradeOffersTest do
     |> Repo.update_all(set: [coins: %{"copper" => 1}])
 
     before = snapshot(session.id)
+    # The ale is in stock: only the purse refuses the trade.
+    assert qty(before, "innkeep", "ale_mug") > 1
     {_, refused} = play(session.id, "Yes, one please.", :speak, offer_answer: :accept)
     assert diff(before, refused) == []
     assert last_gm() =~ "cannot pay 2c"
+  end
+
+  # Gentry's retest of #476 (session 6d938a30), T1-T2. Jev read the price
+  # question as talk, so no offer opened; the GM quoted 2c and offered
+  # kindling work in the same reply, and the "Yes." took the work: 0c moved.
+  # Jev now reads a price question as `ask_price` (any language: the game
+  # never reads the words), and the yes against the open offer in its state.
+  test "ask_price quotes the item; Jev's accept of the open offer buys it, not the GM's side offer",
+       %{session: session} do
+    {before, quoted} =
+      play(session.id, "Vad kostar en öl?", :ask_price,
+        target: "ale_mug",
+        narrative:
+          "\"Two copper for the ale, love.\" Brenna glances at the hearth. " <>
+            "\"And if you've a mind for work, the kindling wants splitting.\""
+      )
+
+    assert diff(before, quoted) == []
+    assert %{"item" => %{"id" => "ale_mug"}, "price" => 2} = open_offer(session.id)
+    assert last_gm() =~ "The server quotes: Brenna Holt sells Ale for 2c"
+
+    {_, accepted} = play(session.id, "Ja.", :speak, offer_answer: :accept)
+
+    assert_received {:jev_request,
+                     %{"state" => %{"open_offer" => "Brenna Holt sells Ale for 2c"}}}
+
+    assert copper(accepted, "player") == copper(quoted, "player") - 2
+    assert copper(accepted, "innkeep") == copper(quoted, "innkeep") + 2
+    assert qty(accepted, "innkeep", "ale_mug") == qty(quoted, "innkeep", "ale_mug") - 1
+    assert open_offer(session.id) == nil
+    assert_conserved(before, accepted)
+  end
+
+  test "ask_price on a kind of goods lists the options from stock, and nothing moves",
+       %{session: session} do
+    {before, asked} =
+      play(session.id, "What's on for supper?", :ask_price, target: "goods:a meal")
+
+    assert diff(before, asked) == []
+
+    assert %{
+             "item" => nil,
+             "options" => [
+               %{"item" => %{"id" => "bread_cheese"}, "price" => 2},
+               %{"item" => %{"id" => "stew_bowl"}, "price" => 5}
+             ]
+           } = open_offer(session.id)
+
+    assert last_gm() =~ "The server listed these options from stock"
+  end
+
+  # Same session, T5-T6: a plain "Yes." to Brenna's meal options got the
+  # generic question "Do you want to buy Brenna Holt, or talk to Brenna
+  # Holt?" instead of her "which one?".
+  test "a yes to the options is not a generic clarification: the seller asks which one",
+       %{session: session} do
+    {before, _} = play(session.id, "I'd like a meal.", :buy, target: "goods:a meal")
+    offered = open_offer(session.id)
+    assert %{"item" => nil, "options" => [_, _]} = offered
+
+    # Jev accepts the open offer but is unsure between buying and talking:
+    # without the open offer this asks the player which one they meant.
+    {_, yes} =
+      play(session.id, "Yes.", :buy,
+        offer_answer: :accept,
+        confidence: %{action: 0.3, target: 0.95, safety: 0.99},
+        probabilities: %{action: %{buy: 0.5, speak: 0.45, observe: 0.05}}
+      )
+
+    assert diff(before, yes) == []
+    assert open_offer(session.id) == offered
+    assert last_gm() =~ "The player said yes but picked none of the options"
+  end
+
+  # The Jev request (state and questions) while an offer with options is
+  # open, against `test/fixtures/jev/open_offer_request.json` (rewrite it
+  # with UPDATE_JEV_GOLDEN=1): the action question has `ask_price`, the
+  # state the open offer with its options, and the offer questions are asked.
+  @jev_golden Path.expand("../../fixtures/jev/open_offer_request.json", __DIR__)
+  test "Jev prompt fixture: ask_price and the open offer with its options", %{session: session} do
+    play(session.id, "I'd like a meal.", :buy, target: "goods:a meal")
+    play(session.id, "Hmm.", :speak, offer_answer: :other)
+    assert_received {:jev_request, request}
+
+    golden = Jason.encode!(Map.take(request, ["state", "questions"]), pretty: true) <> "\n"
+
+    if System.get_env("UPDATE_JEV_GOLDEN") == "1" do
+      File.mkdir_p!(Path.dirname(@jev_golden))
+      File.write!(@jev_golden, golden)
+    end
+
+    assert golden == File.read!(@jev_golden)
+    assert golden =~ ~s("ask_price")
+    assert golden =~ "costs, without buying it yet"
+    assert golden =~ "a meal: Bread and Cheese or Bowl of Stew (for sale)"
+
+    assert request["state"]["open_offer"] ==
+             "Brenna Holt has Bread and Cheese for 2c, or Bowl of Stew for 5c"
+
+    assert golden =~ "Open offer: Brenna Holt has Bread and Cheese for 2c, or Bowl of Stew for 5c"
+    assert golden =~ "Which of the offered options does the player pick?"
   end
 
   # One turn: Jev reads `action` at `opts[:target]` (default the innkeep)
@@ -203,12 +315,15 @@ defmodule TalesForge.Game.TradeOffersTest do
     target =
       Enum.find_value(JevIntent.candidates(context), :none, &(&1.id == target_id && &1.label))
 
-    answers = Map.new(Keyword.take(opts, [:offer_answer, :offer_pick]))
+    answers = Map.new(Keyword.take(opts, [:offer_answer, :offer_pick, :probabilities]))
+    confidence = Keyword.get(opts, :confidence, %{action: 0.95, target: 0.95, safety: 0.99})
+    narrative = Keyword.get(opts, :narrative, "Brenna nods.")
     test = self()
 
     Req.Test.stub(Jev.HTTP, fn conn ->
       {request, conn} = Jev.Test.request(conn)
       send(test, {:jev_questions, request["questions"]})
+      send(test, {:jev_request, request})
 
       Jev.Test.respond(
         conn,
@@ -218,7 +333,7 @@ defmodule TalesForge.Game.TradeOffersTest do
           skill: :none,
           later: :none,
           safety: :benign,
-          confidence: %{action: 0.95, target: 0.95, safety: 0.99}
+          confidence: confidence
         })
       )
     end)
@@ -226,7 +341,7 @@ defmodule TalesForge.Game.TradeOffersTest do
     stub_llm(fn
       :gm, user, _system ->
         send(test, {:gm_prompt, user})
-        %{"narrative" => "Brenna nods.", "context_summary" => "", "npc_memory_updates" => []}
+        %{"narrative" => narrative, "context_summary" => "", "npc_memory_updates" => []}
 
       _kind, _user, _system ->
         :default
@@ -244,6 +359,7 @@ defmodule TalesForge.Game.TradeOffersTest do
   defp flush do
     receive do
       {:jev_questions, _} -> flush()
+      {:jev_request, _} -> flush()
     after
       0 -> :ok
     end

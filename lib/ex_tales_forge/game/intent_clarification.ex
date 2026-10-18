@@ -22,6 +22,7 @@ defmodule TalesForge.Game.IntentClarification do
   """
 
   alias TalesForge.Game.JevIntent
+  alias TalesForge.Game.Offer
   alias TalesForge.Game.Schemas.SingleAction
 
   @default_act_min 0.70
@@ -62,6 +63,7 @@ defmodule TalesForge.Game.IntentClarification do
     pickup: "pick up",
     drop: "drop",
     buy: "buy",
+    ask_price: "ask the price of",
     sell: "sell",
     trade: "trade",
     spend: "pay",
@@ -283,20 +285,33 @@ defmodule TalesForge.Game.IntentClarification do
   @spec allowed?(atom(), String.t() | nil, [JevIntent.candidate()]) :: boolean()
   def allowed?(type, target, candidates) do
     found = Enum.filter(candidates, &(&1.id == target))
-    item_status = fn status -> Enum.any?(found, &(&1.kind == :item and &1.text =~ status)) end
     person? = Enum.any?(found, &(&1.kind in [:npc, :npc_elsewhere]))
 
-    case type do
-      _ when type in @goods and person? and type != :give -> false
-      :buy -> item_status.("(for sale)") and not item_status.("(carried)")
-      t when t in [:sell, :drop, :equip, :use_item] -> item_status.("(carried)")
-      :pickup -> item_status.("(on the ground)")
-      :give -> Enum.any?(found, &(&1.kind == :npc))
-      :move -> target == nil or Enum.any?(found, &(&1.kind in [:place, :npc_elsewhere]))
-      t when t in [:speak, :combat] -> target == nil or person?
-      _ -> target == nil or found != []
-    end
+    if type in @goods and type != :give and person?,
+      do: false,
+      else: allowed_on?(type, target, found)
   end
+
+  # `allowed?/3` past the person check: `found` are the candidates `target` names.
+  defp allowed_on?(:buy, _target, found),
+    do: item_status?(found, "(for sale)") and not item_status?(found, "(carried)")
+
+  defp allowed_on?(type, _target, found) when type in [:sell, :drop, :equip, :use_item],
+    do: item_status?(found, "(carried)")
+
+  defp allowed_on?(:pickup, _target, found), do: item_status?(found, "(on the ground)")
+  defp allowed_on?(:give, _target, found), do: Enum.any?(found, &(&1.kind == :npc))
+
+  defp allowed_on?(:move, target, found),
+    do: target == nil or Enum.any?(found, &(&1.kind in [:place, :npc_elsewhere]))
+
+  defp allowed_on?(type, target, found) when type in [:speak, :combat],
+    do: target == nil or Enum.any?(found, &(&1.kind in [:npc, :npc_elsewhere]))
+
+  defp allowed_on?(_type, target, found), do: target == nil or found != []
+
+  defp item_status?(found, status),
+    do: Enum.any?(found, &(&1.kind == :item and &1.text =~ status))
 
   defp runner_up_target(first, reading) do
     case target_ranking(reading) do
@@ -331,7 +346,7 @@ defmodule TalesForge.Game.IntentClarification do
       case type do
         :move -> [:place, :npc_elsewhere]
         t when t in [:speak, :combat] -> [:npc, :npc_elsewhere]
-        t when t in [:buy, :sell, :pickup, :drop, :use_item, :trade] -> [:item]
+        t when t in [:buy, :ask_price, :sell, :pickup, :drop, :use_item, :trade] -> [:item]
         :interact -> [:fixture, :item]
         _ -> []
       end
@@ -417,5 +432,6 @@ defmodule TalesForge.Game.IntentClarification do
     }
   end
 
-  defp encode_action(action), do: SingleAction.encode(action)
+  # An `ask_price` option plays as the buy that only asks (`Offer.asked/1`).
+  defp encode_action(action), do: action |> Offer.asked() |> SingleAction.encode()
 end

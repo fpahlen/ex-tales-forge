@@ -112,6 +112,140 @@ defmodule TalesForge.Game.JevIntentTest do
     assert reading.cost == 2.1e-5
   end
 
+  # Gentry's retest of #476 (session 6d938a30), T1-T2: Jev read "How much
+  # for an ale?" as talk, so no offer opened. Jev now has `ask_price`; the
+  # words are Jev's to read, the game only plays the label.
+  describe "decode: ask_price and the open offer" do
+    defp meal_context do
+      Map.put(context(), "npc_stock", %{
+        "innkeep" => [
+          %{"id" => "ale_mug", "name" => "Mug of Ale", "price_copper" => 2},
+          %{"id" => "stew_bowl", "name" => "Bowl of Stew", "price_copper" => 5},
+          %{"id" => "bread_cheese", "name" => "Bread and Cheese", "price_copper" => 2}
+        ]
+      })
+    end
+
+    defp read_label(action, target_id, text, context) do
+      cands = JevIntent.candidates(context)
+      target = Enum.find_value(cands, :none, &(&1.id == target_id && &1.label))
+
+      reply = %{
+        action: action,
+        target: target,
+        skill: :none,
+        later: :none,
+        safety: :benign,
+        confidence: %{action: 0.9, target: 0.9, safety: 0.99}
+      }
+
+      JevIntent.decode(reply, cands, text: text, context: context)
+    end
+
+    test "the main action question offers ask_price; the later question does not" do
+      questions = JevIntent.questions(JevIntent.candidates(context()), :v1)
+      {_q, actions} = questions[:action]
+      {_q, laters} = questions[:later]
+      assert actions[:ask_price] =~ "costs, without buying it yet"
+      refute Map.has_key?(laters, :ask_price)
+
+      {_q, v2} = JevIntent.questions(JevIntent.candidates(context()), :v2)[:action]
+      assert Map.has_key?(v2, :ask_price)
+    end
+
+    test "ask_price on an item for sale plays as a buy that only asks, in any language" do
+      reading = read_label(:ask_price, "ale_mug", "Vad kostar ölen?", context())
+      assert reading.action == :buy
+
+      assert [
+               %{
+                 action_type: :buy,
+                 parameters: %{"ask" => true, "item_id" => "ale_mug", "npc_id" => "innkeep"}
+               }
+             ] =
+               reading.extraction.actions
+    end
+
+    test "a kind of goods for sale is a target; ask_price on it lists the kind's items" do
+      context = meal_context()
+      kinds = for %{kind: :goods} = c <- JevIntent.candidates(context), do: {c.id, c.text}
+      assert kinds == [{"goods:a meal", "a meal: Bread and Cheese or Bowl of Stew (for sale)"}]
+
+      reading = read_label(:ask_price, "goods:a meal", "Vad finns att äta?", context)
+
+      assert [
+               %{
+                 action_type: :buy,
+                 target: nil,
+                 parameters: %{
+                   "ask" => true,
+                   "options" => ["bread_cheese", "stew_bowl"],
+                   "npc_id" => "innkeep"
+                 }
+               }
+             ] = reading.extraction.actions
+    end
+
+    test "unsure between buying and asking, the question offers the ask as a buy that only asks" do
+      cands = JevIntent.candidates(context())
+      ale = Enum.find(cands, &(&1.id == "ale_mug"))
+
+      reply = %{
+        action: :buy,
+        target: ale.label,
+        skill: :none,
+        later: :none,
+        safety: :benign,
+        confidence: %{action: 0.4, target: 0.9, safety: 0.99},
+        probabilities: %{
+          action: %{buy: 0.5, ask_price: 0.45, speak: 0.05},
+          target: %{ale.label => 0.9, none: 0.1}
+        }
+      }
+
+      reading = JevIntent.decode(reply, cands, text: "Ett öl", context: context())
+      assert reading.top2 == [:buy, :ask_price]
+      clarification = TalesForge.Game.IntentClarification.build(reading, cands)
+
+      assert clarification["question"] ==
+               "Do you want to buy Mug of Ale, or ask the price of Mug of Ale?"
+
+      assert [[%{"action_type" => "buy"} = buy], [%{"action_type" => "buy"} = ask]] =
+               clarification["option_actions"]
+
+      refute Map.has_key?(buy["parameters"], "ask")
+      assert %{"ask" => true, "item_id" => "ale_mug"} = ask["parameters"]
+    end
+
+    test "a plain buy is unchanged: no ask" do
+      reading = read_label(:buy, "ale_mug", "I buy an ale.", context())
+      assert [%{action_type: :buy, parameters: params}] = reading.extraction.actions
+      refute Map.has_key?(params, "ask")
+    end
+
+    test "Jev's state carries the open offer with its options while one is open, else nothing" do
+      refute Map.has_key?(JevIntent.state(context(), "Ja."), "open_offer")
+
+      offer = %{
+        "giver" => "innkeep",
+        "giver_name" => "Brenna Holt",
+        "item" => nil,
+        "price" => nil,
+        "options" => [
+          %{"item" => %{"id" => "bread_cheese", "name" => "Bread and Cheese"}, "price" => 2},
+          %{"item" => %{"id" => "stew_bowl", "name" => "Bowl of Stew"}, "price" => 5}
+        ],
+        "location_id" => "valley_inn",
+        "age" => 0
+      }
+
+      state = JevIntent.state(Map.put(context(), "open_offer", offer), "Ja.")
+
+      assert state["open_offer"] ==
+               "Brenna Holt has Bread and Cheese for 2c, or Bowl of Stew for 5c"
+    end
+  end
+
   test "decode fills a buy price and a deferred action from the later fields" do
     cands = JevIntent.candidates(context())
     ale = Enum.find(cands, &(&1.id == "ale_mug"))

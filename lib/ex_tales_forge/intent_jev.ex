@@ -336,7 +336,7 @@ defmodule TalesForge.IntentJev do
 
   # The confidence band, with `opts` overriding the config; a free-text answer
   # (`never_ask`) plays its best guess instead of asking.
-  defp decide_band(%Read{reading: reading, raw_action: raw_action, opts: opts}) do
+  defp decide_band(%Read{reading: reading, raw_action: raw_action, opts: opts} = read) do
     band_opts = [
       act_min: Keyword.get(opts, :act_min, Config.intent_act_min_confidence()),
       ask_below: Keyword.get(opts, :ask_below, Config.intent_ask_below_confidence()),
@@ -348,7 +348,20 @@ defmodule TalesForge.IntentJev do
       other -> other
     end
     |> clear_lodging(reading, raw_action)
+    |> answers_offer(reading, read.context)
   end
+
+  # A yes or a pick to the open offer is not asked about: the offer was the
+  # question. The board buys it, or for a plain yes to an unclear buy the
+  # seller asks which one (`TalesForge.Game.Offer.awaits_pick?/2`). Gentry's
+  # retest of #476 (session 6d938a30, T6): a "Yes." to Brenna's meal
+  # options got "Do you want to buy Brenna Holt, or talk to Brenna Holt?".
+  defp answers_offer(:ask, %{offer_answer: :accept}, %{"open_offer" => %{}}), do: :act
+
+  defp answers_offer(:ask, %{offer_pick: pick}, %{"open_offer" => %{}}) when is_integer(pick),
+    do: :act
+
+  defp answers_offer(band, _reading, _context), do: band
 
   defp jev_question(%Read{reading: reading, opts: opts} = read, safety) do
     reading
@@ -362,7 +375,7 @@ defmodule TalesForge.IntentJev do
   defp act(%Read{reading: reading, raw_action: raw_action} = read, band, safety) do
     base_meta = reading_meta(reading, band, read.latency_ms)
     action = Intent.validate_player_action(reading.extraction, read.context)
-    quote = PlayerQuote.decide(action, raw_action, safety, quote_threshold(read.opts))
+    quote = PlayerQuote.decide(action, quote_read(raw_action, safety, read.opts))
     meta = Map.merge(base_meta, %{"source" => "jev", "quote" => PlayerQuote.meta(quote)})
     log_decision(read, band, quote)
 
@@ -442,12 +455,11 @@ defmodule TalesForge.IntentJev do
     safety = pending |> Map.get("safety") |> safety_from_map()
 
     quote =
-      PlayerQuote.decide(
-        action,
-        pending["raw_action"] || "",
-        safety,
-        Config.player_quote_min_benign_confidence()
-      )
+      PlayerQuote.decide(action, %PlayerQuote{
+        raw_action: pending["raw_action"] || "",
+        safety: safety,
+        threshold: Config.player_quote_min_benign_confidence()
+      })
 
     meta = %{
       "mode" => "on",
@@ -465,13 +477,11 @@ defmodule TalesForge.IntentJev do
     action = Intent.validate_player_action(extraction, context)
 
     quote =
-      PlayerQuote.decide(
-        action,
-        raw_action,
-        nil,
-        Config.player_quote_min_benign_confidence(),
-        "jev_#{reason}"
-      )
+      PlayerQuote.decide(action, %PlayerQuote{
+        raw_action: raw_action,
+        threshold: Config.player_quote_min_benign_confidence(),
+        no_read_reason: "jev_#{reason}"
+      })
 
     meta = %{
       "mode" => "on",
@@ -500,7 +510,7 @@ defmodule TalesForge.IntentJev do
     }
 
     action = Intent.validate_player_action(extraction, context)
-    quote = PlayerQuote.decide(action, raw_action, safety, quote_threshold(opts))
+    quote = PlayerQuote.decide(action, quote_read(raw_action, safety, opts))
 
     meta =
       Map.merge(base_meta, %{
@@ -516,8 +526,13 @@ defmodule TalesForge.IntentJev do
     {:act, action, %{gm_quote: quote.quote, gm_note: "decline_nefarious"}, meta}
   end
 
-  defp quote_threshold(opts),
-    do: Keyword.get(opts, :quote_threshold, Config.player_quote_min_benign_confidence())
+  # What the GM's quote is decided from, with `opts` overriding the threshold.
+  defp quote_read(raw_action, safety, opts),
+    do: %PlayerQuote{
+      raw_action: raw_action,
+      safety: safety,
+      threshold: Keyword.get(opts, :quote_threshold, Config.player_quote_min_benign_confidence())
+    }
 
   # A flagged message (jailbreak, prompt injection) is a warning: play goes on
   # in-story with the typed summary, but someone should be able to find it.
@@ -598,12 +613,11 @@ defmodule TalesForge.IntentJev do
 
     quote =
       jev_action &&
-        PlayerQuote.decide(
-          jev_action,
-          raw_action,
-          safety,
-          Config.player_quote_min_benign_confidence()
-        )
+        PlayerQuote.decide(jev_action, %PlayerQuote{
+          raw_action: raw_action,
+          safety: safety,
+          threshold: Config.player_quote_min_benign_confidence()
+        })
 
     reading_meta(reading, band, read.latency_ms)
     |> Map.merge(%{

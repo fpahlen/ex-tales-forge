@@ -443,12 +443,15 @@ defmodule TalesForge.Game.Turn.Board do
     Map.put(world_state, "open_offer", Offer.to_world(%{offer | location_id: place}))
   end
 
-  # Asking a price is never a purchase (#470 retest, session 8a9dbde9), and
+  # Asking a price is never a purchase (#470 retest, session 8a9dbde9; Jev's
+  # `ask_price`, `Offer.asks?/1`, #476 retest session 6d938a30), and
   # an unclear buy lists the options: the seller's offer stays open, and
   # nothing moves. An accepted offer is the purchase.
   defp decide_inventory(world_state, traders, %{action: %SingleAction{action_type: :buy}} = pa) do
     action = Inventory.named_item(pa.action, traders, pa.overall_intent)
-    asked? = Offer.asked?(pa.overall_intent) and pa.offer_answer != :accept
+
+    asked? =
+      (Offer.asks?(pa.action) or Offer.asked?(pa.overall_intent)) and pa.offer_answer != :accept
 
     if asked? or Inventory.unclear?(action),
       do: Inventory.offer(world_state, traders, action),
