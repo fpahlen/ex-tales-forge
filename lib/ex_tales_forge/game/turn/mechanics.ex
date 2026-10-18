@@ -244,8 +244,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
   defp apply_outcomes({handler, played}, {world, cast} = scene, true) do
     {listed, item} = TurnApply.item_buy(played, handler, cast)
-    {bought, served} = TurnApply.service_buy(listed, item, cast)
-    {paid, priced} = TurnApply.put_spend_amount(bought, served)
+    {paid, priced} = TurnApply.put_spend_amount(listed, item)
 
     moved =
       priced

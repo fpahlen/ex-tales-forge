@@ -227,20 +227,42 @@ defmodule TalesForge.Game.TradeTest do
                "The server refused this trade: Hilde Brask cannot pay 15c for hunting knife."
     end
 
-    test "a sale with no price is refused, and the GM gets the reason", %{session: session} do
+    test "T11 (session 8a9dbde9): a knife with no value sells at Hilde's own price",
+         %{session: session} do
       before = wealth(session, "smith")
 
       {prompt, saved} =
         play(
           session,
-          "I sell my hunting knife to Hilde.",
+          "I sell my hunting knife to Hilde Brask.",
           sell("hunting_knife", "smith"),
           "smith"
         )
 
-      assert saved.player["inventory"] == before.player["inventory"]
-      assert saved.trader == before.trader
-      assert prompt =~ ~s("reason": "No price for hunting knife: nothing changed hands.")
+      assert copper(saved.player) == copper(before.player) + 15
+      assert copper(saved.trader) == copper(before.trader) - 15
+      assert Inventory.item_quantity(saved.trader.inventory, "hunting_knife") == 4
+      assert prompt =~ "The server made this trade: sold 1x hunting_knife for 15c."
+    end
+
+    test "a price question is an offer: the GM gets the quote and nothing moves",
+         %{session: session} do
+      before = wealth(session, "innkeep")
+
+      {prompt, saved} =
+        play(session, "How much for a mug of ale, Brenna?", buy(nil), "innkeep")
+
+      assert saved == before
+      assert prompt =~ "the server quotes it: Brenna Holt sells Ale for 2c"
+    end
+
+    test "the mug is not for sale: refused, and nothing moves that turn", %{session: session} do
+      before = wealth(session, "innkeep")
+
+      {prompt, saved} = play(session, "I buy the mug itself from Brenna.", buy(nil), "innkeep")
+
+      assert saved == before
+      assert prompt =~ "The server refused this trade"
     end
   end
 
@@ -286,6 +308,8 @@ defmodule TalesForge.Game.TradeTest do
   # T7, the mug of ale bought from Brenna.
   defp bought(session),
     do: play(session, "I buy a mug of ale from Brenna and pay her.", buy("ale_mug"), "innkeep")
+
+  defp buy(nil), do: %{"action_type" => "buy", "target" => "innkeep", "parameters" => %{}}
 
   defp buy(item_id),
     do: %{"action_type" => "buy", "target" => "innkeep", "parameters" => %{"item_id" => item_id}}
