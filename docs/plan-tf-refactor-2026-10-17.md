@@ -390,6 +390,10 @@ golden prompts, plus the replay diff):
     any more (10f PR 2 deletes them). `Memory` and `Thought` take the actor
     from the turn's Intention, not from `controller`. The Gentry 10e script
     replays identically on main and the branch.
+  - Follow-up (2026-10-18): the NPCs' tick delta compares the session as
+    the turn loaded it with the world after the turn. Before, it compared
+    the saved session with itself, so the delta was always 0: no concern
+    built and no NPC spoke up on its own.
 - **10f. One process.**
   - The per-world process from the 2026-10-08 note replaces `NPCAgent` and
     `PlayerSessionAgent` (using PubSub and Oban, not a hand-rolled registry
