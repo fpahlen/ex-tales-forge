@@ -45,7 +45,8 @@ defmodule TalesForge.Characters do
   # Columns copied from the game state on every sync. Everything else is set
   # once, when the row is first written.
   @mirrored ~w(name race role location_id stats skills inventory coins wounds wound_max
-               vitality learning_points learning_failures mood relationships runtime)a
+               vitality learning_points learning_failures class creation reflecting
+               improved_since_rest mood relationships runtime)a
 
   @doc """
   Writes the session's characters at session create: the player character
@@ -205,21 +206,29 @@ defmodule TalesForge.Characters do
     if memories != [] do
       %Character{} = character = get_by_slug(session_id, inst.npc_id)
 
-      known =
-        CharacterMemory
-        |> where([m], m.character_id == ^character.id)
-        |> select([m], {m.tick, m.text})
-        |> Repo.all()
-        |> MapSet.new()
-
       memories
-      |> Enum.map(&memory_attrs/1)
-      |> Enum.reject(&(is_nil(&1) or MapSet.member?(known, {&1.tick, &1.text})))
-      |> Enum.uniq_by(&{&1.tick, &1.text})
+      |> new_memories(known_memories(character))
       |> Enum.each(&add_memory!(character, inst.npc_id, &1))
     end
 
     :ok
+  end
+
+  # The attrs of each memory not known yet, once per {tick, text}.
+  defp new_memories(memories, known) do
+    memories
+    |> Enum.map(&memory_attrs/1)
+    |> Enum.reject(&(is_nil(&1) or MapSet.member?(known, {&1.tick, &1.text})))
+    |> Enum.uniq_by(&{&1.tick, &1.text})
+  end
+
+  # The {tick, text} of each memory the character already has.
+  defp known_memories(%Character{id: id}) do
+    CharacterMemory
+    |> where([m], m.character_id == ^id)
+    |> select([m], {m.tick, m.text})
+    |> Repo.all()
+    |> MapSet.new()
   end
 
   defp add_memory!(character, npc_id, attrs) do
@@ -399,19 +408,26 @@ defmodule TalesForge.Characters do
       race: sheet["race"],
       location_id: sheet["location_id"] || world_state["location_id"],
       stats: Character.Stats.from_sheet(sheet["stats"]),
-      skills: int_map(sheet["skills"]),
+      skills: number_map(sheet["skills"]),
       inventory: inventory(sheet["inventory"]),
       coins: sheet["coins"] || %{},
       wounds: int(sheet["wounds"], 0),
       wound_max: int(sheet["wound_max"], 3),
       vitality: sheet["vitality"] || "ok",
       learning_points: sheet["learning_points"] || %{},
-      learning_failures: sheet["learning_failures"] || %{}
+      learning_failures: sheet["learning_failures"] || %{},
+      class: sheet["class"],
+      creation: sheet["creation"],
+      reflecting: sheet["reflecting"],
+      improved_since_rest: sheet["improved_since_rest"]
     }
   end
 
   # What the columns can't round-trip of the sheet goes to runtime["sheet"],
-  # so `GameCharacter.to_sheet/1` of the row is this sheet.
+  # so `GameCharacter.to_sheet/1` of the row is this sheet. Every sheet key
+  # has a column now (10b-1.5), so this is empty and not written; it stays
+  # only as a guard for a sheet the columns can't hold (an item without a
+  # name, a non-number skill).
   defp put_sheet_runtime(attrs, sheet) do
     gc =
       %Character{}
@@ -419,7 +435,10 @@ defmodule TalesForge.Characters do
       |> Ecto.Changeset.apply_changes()
       |> GameCharacter.from_schema()
 
-    %{attrs | runtime: %{"sheet" => GameCharacter.sheet_runtime(gc, sheet)}}
+    case GameCharacter.sheet_runtime(gc, sheet) do
+      %{"extra" => extra, "missing" => []} when extra == %{} -> attrs
+      bridge -> %{attrs | runtime: %{"sheet" => bridge}}
+    end
   end
 
   @doc """
@@ -530,6 +549,13 @@ defmodule TalesForge.Characters do
   end
 
   defp int_map(_), do: %{}
+
+  # A sheet's skills with their numbers as they are (a float stays a float).
+  defp number_map(map) when is_map(map) do
+    for {k, v} <- map, is_number(v), into: %{}, do: {to_string(k), v}
+  end
+
+  defp number_map(_), do: %{}
 
   defp int(v, _default) when is_integer(v), do: v
   defp int(v, _default) when is_float(v), do: trunc(v)

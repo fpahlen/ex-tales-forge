@@ -6,12 +6,13 @@ defmodule TalesForge.GameCharacter do
   Nothing else differs, so this struct has no controller.
 
   `from_schema/1` reads a `TalesForge.Schemas.Character` row and `to_sheet/1`
-  gives the sheet map the turn plays on (`world_state["character"]`). The
-  row keeps what its columns cannot hold in `runtime["sheet"]` (written by
-  `TalesForge.Characters`' mirror): `extra`, the sheet keys whose value the
-  columns don't round-trip (`class`, `reflecting`, `improved_since_rest`,
-  …), and `missing`, the column keys the sheet did not have. So `to_sheet/1`
-  of a mirrored row is the sheet that was mirrored.
+  gives the sheet map the turn plays on (`world_state["character"]`). Every
+  sheet key has a column, so `to_sheet/1` of a mirrored row is the sheet
+  that was mirrored. `class`, `creation`, `reflecting` and
+  `improved_since_rest` are keys a sheet may lack: nil means it has none.
+  Only a sheet the columns can't hold (an item without a name, a skill that
+  is not a number) leaves anything in the row's `runtime["sheet"]`
+  (`extra` and `missing`, written by `TalesForge.Characters`' mirror).
   """
 
   alias TalesForge.Schemas.Character
@@ -19,7 +20,11 @@ defmodule TalesForge.GameCharacter do
   @stat_keys ~w(STR DEX CON INT WIS CHA)
 
   # Row columns taken as they are, and map columns that may be nil.
-  @plain ~w(id slug name race role location_id maslow_level wounds wound_max vitality mood)a
+  @plain ~w(id slug name race role location_id maslow_level wounds wound_max vitality mood
+            class creation reflecting improved_since_rest)a
+
+  # Sheet keys a sheet may lack: `to_sheet/1` gives them only when not nil.
+  @optional ~w(class creation reflecting improved_since_rest)
   @maps ~w(skills coins learning_points learning_failures relationships)a
 
   defstruct id: nil,
@@ -40,6 +45,10 @@ defmodule TalesForge.GameCharacter do
             vitality: "ok",
             learning_points: %{},
             learning_failures: %{},
+            class: nil,
+            creation: nil,
+            reflecting: nil,
+            improved_since_rest: nil,
             mood: nil,
             relationships: %{},
             runtime: %{},
@@ -69,7 +78,11 @@ defmodule TalesForge.GameCharacter do
     {"vitality", :vitality},
     {"learning_points", :learning_points},
     {"learning_failures", :learning_failures},
-    {"minor", :minor}
+    {"minor", :minor},
+    {"class", :class},
+    {"creation", :creation},
+    {"reflecting", :reflecting},
+    {"improved_since_rest", :improved_since_rest}
   ]
 
   @doc """
@@ -78,10 +91,10 @@ defmodule TalesForge.GameCharacter do
 
       iex> row = %TalesForge.Schemas.Character{slug: "elara_voss", name: "Elara Voss",
       ...>   stats: %TalesForge.Schemas.Character.Stats{str: 12},
-      ...>   runtime: %{"sheet" => %{"extra" => %{"class" => "bard"}, "missing" => []}}}
+      ...>   class: "bard", runtime: %{"sheet" => %{"extra" => %{}, "missing" => []}}}
       iex> gc = TalesForge.GameCharacter.from_schema(row)
-      iex> {gc.slug, gc.stats["STR"], gc.extra, gc.runtime}
-      {"elara_voss", 12, %{"class" => "bard"}, %{}}
+      iex> {gc.slug, gc.stats["STR"], gc.class, gc.extra, gc.runtime}
+      {"elara_voss", 12, "bard", %{}, %{}}
   """
   @spec from_schema(Character.t()) :: t()
   def from_schema(%Character{} = row) do
@@ -167,7 +180,7 @@ defmodule TalesForge.GameCharacter do
   without the `missing` keys.
 
       iex> TalesForge.GameCharacter.to_sheet(%TalesForge.GameCharacter{slug: "pc_ada", name: "Ada",
-      ...>   extra: %{"class" => "thief"}, missing: ["learning_failures"]})["class"]
+      ...>   class: "thief", missing: ["learning_failures"]})["class"]
       "thief"
   """
   @spec to_sheet(t()) :: map()
@@ -187,11 +200,12 @@ defmodule TalesForge.GameCharacter do
       "learning_points" => gc.learning_points,
       "learning_failures" => gc.learning_failures
     }
+    |> Map.merge(optional(gc))
     |> Map.merge(gc.extra)
     |> Map.drop(gc.missing)
   end
 
-  @doc "The sheet keys `to_sheet/1` builds from columns."
+  @doc "The sheet keys `to_sheet/1` always gives (a nil optional key it leaves out)."
   @spec sheet_keys() :: [String.t()]
   def sheet_keys,
     do: ~w(id name race location_id stats skills inventory coins wounds wound_max vitality
@@ -212,6 +226,12 @@ defmodule TalesForge.GameCharacter do
         for({k, v} <- sheet, not Map.has_key?(built, k) or built[k] !== v, into: %{}, do: {k, v}),
       "missing" => Enum.reject(sheet_keys(), &Map.has_key?(sheet, &1))
     }
+  end
+
+  defp optional(%__MODULE__{} = gc) do
+    @optional
+    |> Map.new(&{&1, Map.fetch!(gc, String.to_existing_atom(&1))})
+    |> Map.reject(fn {_key, value} -> is_nil(value) end)
   end
 
   defp stats(nil), do: %{}

@@ -49,6 +49,11 @@ defmodule TalesForge.Schemas.Character do
     field :vitality, :string, default: "ok"
     field :learning_points, :map, default: %{}
     field :learning_failures, :map, default: %{}
+    # Sheet keys a character may lack (nil: the sheet has no such key).
+    field :class, :string
+    field :creation, :map
+    field :reflecting, {:array, :string}
+    field :improved_since_rest, {:array, :string}
 
     field :mood, :string
     field :relationships, :map, default: %{}
@@ -70,7 +75,8 @@ defmodule TalesForge.Schemas.Character do
 
   @fields ~w(game_session_id slug controller controller_ref owner_player_id origin definition
              name race role location_id skills maslow_level maslow_since_tick coins wounds
-             wound_max vitality learning_points learning_failures mood relationships runtime)a
+             wound_max vitality learning_points learning_failures class creation reflecting
+             improved_since_rest mood relationships runtime)a
 
   def changeset(character, attrs) do
     character
