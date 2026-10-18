@@ -1,6 +1,7 @@
 defmodule TalesForge.Playtest.CharacterChangesTest do
   use TalesForge.DataCase, async: true
 
+  alias TalesForge.Characters
   alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Playtest.CharacterChanges
@@ -17,15 +18,6 @@ defmodule TalesForge.Playtest.CharacterChangesTest do
       %{
         session_id: "s1",
         world: %{
-          "npc_moods" => %{
-            "innkeep" => %{
-              "emotion" => "calm",
-              "intensity" => 0.38,
-              "stance" => "friendly",
-              "confidence" => 0.42,
-              "turn_number" => 2
-            }
-          },
           "character" => %{
             "id" => "pc_corvin",
             "name" => "Corvin",
@@ -107,6 +99,13 @@ defmodule TalesForge.Playtest.CharacterChangesTest do
               extraversion: 8,
               agreeableness: 8,
               neuroticism: 3
+            },
+            reaction: %{
+              "emotion" => "calm",
+              "intensity" => 0.38,
+              "stance" => "friendly",
+              "confidence" => 0.42,
+              "turn_number" => 2
             },
             definition: nil
           }
@@ -425,12 +424,12 @@ defmodule TalesForge.Playtest.CharacterChangesTest do
 
     {:ok, _} = NPC.bump_relationship(session.id, "innkeep", 0.1)
 
-    world =
-      Map.put(session.world_state, "npc_moods", %{
-        "innkeep" => %{"emotion" => "curious", "stance" => "warm", "turn_number" => 1}
-      })
-
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session.id
+    |> Characters.get_by_slug("innkeep")
+    |> Ecto.Changeset.change(
+      runtime: %{"reaction" => %{"emotion" => "curious", "stance" => "warm", "turn_number" => 1}}
+    )
+    |> Repo.update!()
 
     Repo.insert!(%AICall{
       game_session_id: session.id,

@@ -2,23 +2,27 @@ defmodule TalesForge.Game.Context do
   @moduledoc """
   Builds what the intent step and the GM see of a game session.
 
-  - `build_intent_context/1`: the facts the intent step validates the
+  - `build_intent_context/2`: the facts the intent step validates the
     player's action against (location, exits, present NPCs, their stock,
     the character, valid skills).
-  - `build_gm_context/1`: the GM/scene context (rules, intent context, world
-    state, opening scene, and the gestures of recent
+  - `build_gm_context/2`: the GM/scene context (rules, intent context, world
+    state, the session's cast, opening scene, and the gestures of recent
     turns, `TalesForge.Game.Gestures`). The turn adds `:npc_reactions`, `:world_facts`
     and `:price_lines` before `TalesForge.Prompt.Assemble` turns it into
     messages.
+
+  The people come from the session's cast (`TalesForge.Game.Cast`): pass
+  the turn's cast, or the functions load it (`TalesForge.Characters.cast/1`).
   """
 
   # NON-NEGOTIABLE: Core runtime. Pure Ecto + game logic only.
   # Rules come from Prompts (which may be pack-aware), but state is Ecto.
 
+  alias TalesForge.Characters
+  alias TalesForge.Game.Cast
   alias TalesForge.Game.Gestures
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Movement
-  alias TalesForge.Game.NpcState
   alias TalesForge.Game.Perception
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.World
@@ -35,37 +39,47 @@ defmodule TalesForge.Game.Context do
 
   def adventure_id(_), do: "crossroads_ledger"
 
-  @doc "The intent context: a string-keyed map of what the player can act on right now."
-  @spec build_intent_context(GameSession.t()) :: map()
-  def build_intent_context(%GameSession{} = session) do
+  @doc """
+  The intent context: a string-keyed map of what the player can act on right
+  now. `cast` is the session's cast; nil loads it.
+  """
+  @spec build_intent_context(GameSession.t(), Cast.t() | nil) :: map()
+  def build_intent_context(%GameSession{} = session, cast \\ nil) do
+    cast = cast || Characters.cast(session.id)
     world = session.world_state || %{}
     location_id = Map.get(world, "location_id", "weary_pilgrim")
     location = World.runtime_location(world, location_id)
-    present_npcs = present_npcs_for(world)
-    npc_state = Map.get(world, "npc_state", World.npcs())
     character = Map.get(world, "character", %{})
     exits = exits(world, location_id, location)
 
     world
     |> location_fields(location_id, location)
+    |> Map.merge(people_fields(session.id, present_npcs_for(world, cast), cast))
     |> Map.merge(%{
       "session_id" => session.id,
-      "npc_stock" => npc_stock(session.id, present_npcs),
       "exits" => exits,
       "exit_names" => exit_names(world, exits),
-      "present_npcs" => present_npcs,
-      "npc_details" => npc_details(present_npcs, npc_state),
       "character" => character_summary(character),
       "player_inventory" => Map.get(character, "inventory", []),
       "situation_lines" => Map.get(world, "situation_lines", []),
       "recent_turns" => recent_turns(session.id),
       "valid_skills" => Mechanics.skill_stat_map() |> Map.keys() |> Enum.sort(),
-      # For movement (not printed in the prompt): every place, and where the
-      # people who are not here are (TalesForge.Game.Movement).
-      "places" => Map.get(world, "locations") || World.locations(),
-      "npc_locations" => npc_locations(npc_state, present_npcs)
+      # For movement (not printed in the prompt): every place.
+      "places" => Map.get(world, "locations") || World.locations()
     })
     |> put_features(world)
+  end
+
+  # The people: who is here, what they sell and their details, and (for
+  # movement, not printed in the prompt) where the people who are not here
+  # are (TalesForge.Game.Movement).
+  defp people_fields(session_id, present_npcs, cast) do
+    %{
+      "present_npcs" => present_npcs,
+      "npc_stock" => npc_stock(session_id, present_npcs),
+      "npc_details" => npc_details(present_npcs, cast),
+      "npc_locations" => npc_locations(cast, present_npcs)
+    }
   end
 
   # Where the player is: the place's id, name, blurb, fixtures and ground items.
@@ -101,40 +115,38 @@ defmodule TalesForge.Game.Context do
 
   defp put_features(context, _world), do: context
 
-  defp npc_locations(npc_state, present_npcs) when is_map(npc_state) do
-    npc_state
-    |> Enum.reject(fn {npc_id, detail} ->
-      npc_id in present_npcs or (is_map(detail) and detail["vitality"] == "dead")
-    end)
-    |> Enum.filter(fn {_npc_id, detail} -> is_binary(detail["location_id"]) end)
-    |> Map.new(fn {npc_id, detail} ->
-      {npc_id, %{"name" => detail["name"] || npc_id, "location_id" => detail["location_id"]}}
-    end)
+  # Where the living people who are not here are.
+  defp npc_locations(cast, present_npcs) do
+    cast
+    |> Cast.sorted()
+    |> Enum.reject(&(&1.slug in present_npcs or &1.vitality == "dead"))
+    |> Enum.filter(&is_binary(&1.location_id))
+    |> Map.new(&{&1.slug, %{"name" => &1.name || &1.slug, "location_id" => &1.location_id}})
   end
-
-  defp npc_locations(_npc_state, _present_npcs), do: %{}
 
   @doc "The intent context as prompt text (location, exits, NPCs and their stock, skills)."
   @spec format_intent_context(map()) :: String.t()
   def format_intent_context(context) do
-    exit_lines =
-      Enum.map(context["exits"], fn exit_id ->
-        "- #{exit_id} (#{Map.get(context["exit_names"], exit_id, exit_id)})"
-      end)
+    (place_lines(context) ++
+       [
+         "Player inventory:",
+         Jason.encode!(context["player_inventory"] || [], pretty: true),
+         "Situation:",
+         Enum.join(context["situation_lines"] || ["(none)"], "\n"),
+         "Character:",
+         Jason.encode!(context["character"] || %{}, pretty: true),
+         "Recent turns:",
+         listed(context["recent_turns"], &"- #{&1["action"]} → #{&1["outcome"]}"),
+         "Available exits:",
+         listed(context["exits"], &exit_line(context, &1)),
+         "Present NPCs:",
+         listed(context["present_npcs"], &npc_line(context, &1)),
+         "Valid skills: #{Enum.join(context["valid_skills"], ", ")}"
+       ])
+    |> Enum.join("\n")
+  end
 
-    npc_lines =
-      Enum.map(context["present_npcs"], fn npc_id ->
-        detail = Map.get(context["npc_details"], npc_id, %{})
-        mood = Map.get(detail, "disposition", Map.get(detail, "mood", "present"))
-
-        "- #{npc_id}: #{Map.get(detail, "name", npc_id)} (#{Map.get(detail, "role", "present")}, mood: #{mood})"
-      end)
-
-    turn_lines =
-      Enum.map(context["recent_turns"], fn turn ->
-        "- #{turn["action"]} → #{turn["outcome"]}"
-      end)
-
+  defp place_lines(context) do
     [
       "Current location: #{context["location_name"]} (#{context["location_id"]})",
       "Location features:",
@@ -142,28 +154,31 @@ defmodule TalesForge.Game.Context do
       "Fixtures:",
       Enum.join(context["fixtures"] || [], ", "),
       "Ground items:",
-      Jason.encode!(context["ground_items"] || [], pretty: true),
-      "Player inventory:",
-      Jason.encode!(context["player_inventory"] || [], pretty: true),
-      "Situation:",
-      Enum.join(context["situation_lines"] || ["(none)"], "\n"),
-      "Character:",
-      Jason.encode!(context["character"] || %{}, pretty: true),
-      "Recent turns:",
-      Enum.join(turn_lines ++ ["- none"], "\n"),
-      "Available exits:",
-      Enum.join(exit_lines ++ ["- none"], "\n"),
-      "Present NPCs:",
-      Enum.join(npc_lines ++ ["- none"], "\n"),
-      "Valid skills: #{Enum.join(context["valid_skills"], ", ")}"
+      Jason.encode!(context["ground_items"] || [], pretty: true)
     ]
-    |> Enum.join("\n")
   end
 
-  @doc "The GM/scene context for a session (atom-keyed map)."
-  @spec build_gm_context(GameSession.t()) :: map()
-  def build_gm_context(%GameSession{} = session) do
-    intent = build_intent_context(session)
+  # One line per item, then "- none".
+  defp listed(items, line), do: Enum.join(Enum.map(items, line) ++ ["- none"], "\n")
+
+  defp exit_line(context, exit_id),
+    do: "- #{exit_id} (#{Map.get(context["exit_names"], exit_id, exit_id)})"
+
+  defp npc_line(context, npc_id) do
+    detail = Map.get(context["npc_details"], npc_id, %{})
+    mood = Map.get(detail, "disposition", Map.get(detail, "mood", "present"))
+
+    "- #{npc_id}: #{Map.get(detail, "name", npc_id)} (#{Map.get(detail, "role", "present")}, mood: #{mood})"
+  end
+
+  @doc """
+  The GM/scene context for a session (atom-keyed map). `cast` is the
+  session's cast; nil loads it.
+  """
+  @spec build_gm_context(GameSession.t(), Cast.t() | nil) :: map()
+  def build_gm_context(%GameSession{} = session, cast \\ nil) do
+    cast = cast || Characters.cast(session.id)
+    intent = build_intent_context(session, cast)
     world = session.world_state || %{}
     adventure_id = Map.get(world, "adventure_id")
 
@@ -173,6 +188,7 @@ defmodule TalesForge.Game.Context do
       intent_context: intent,
       formatted_intent: format_intent_context(intent),
       world_state: world,
+      cast: cast,
       opening_scene: Scenes.opening(session.id),
       recent_gestures: recent_gestures(session)
     }
@@ -442,16 +458,14 @@ defmodule TalesForge.Game.Context do
   # QA 2026-10-15 (Gentry, session 99817343): an empty list means nobody is
   # here. Only a world with no list at all (an old session) falls back to
   # Marta. A dead person is never present: the GM must not play them.
-  defp present_npcs_for(world) do
-    state = Map.get(world, "npc_state") || %{}
-
+  defp present_npcs_for(world, cast) do
     present =
       case Map.get(world, "present_npcs") do
         list when is_list(list) -> list
         _ -> if adventure_id(world) == "tin_valley", do: [], else: ["marta_kellen"]
       end
 
-    Enum.reject(present, &NpcState.dead?(state, &1))
+    Enum.reject(present, &Cast.dead?(cast, &1))
   end
 
   # QA 2026-10-15: an exit with no location entry ("kings_road") showed its
@@ -479,10 +493,17 @@ defmodule TalesForge.Game.Context do
     end)
   end
 
-  defp npc_details(npc_ids, npc_state) do
-    Enum.into(npc_ids, %{}, fn npc_id ->
-      detail = Map.get(npc_state, npc_id, %{})
-      {npc_id, detail}
+  # A session with no cast (an old session with no NPC instances) falls back
+  # to the default NPCs of the world.
+  defp npc_details(npc_ids, cast) when cast == %{},
+    do: Map.new(npc_ids, &{&1, Map.get(World.npcs(), &1, %{})})
+
+  defp npc_details(npc_ids, cast) do
+    Map.new(npc_ids, fn npc_id ->
+      case cast[npc_id] do
+        nil -> {npc_id, %{}}
+        member -> {npc_id, Cast.details(member)}
+      end
     end)
   end
 

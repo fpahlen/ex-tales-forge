@@ -18,10 +18,12 @@ defmodule TalesForge.Game.Combat do
   the player character and NPCs alike, and a minor foe is a transient one.
   `GameCharacter.from_sheet/1` makes one from a sheet or an NPC profile.
 
-  NPC wounds live in `world_state["npc_state"][id]` (`book/3`). An NPC at the
-  wound cap is down. A hit on an NPC that is down makes the death roll of
-  `combat.md`: a d100 greater than CON × 2.5 kills it. The death stays in the
-  session. A minor foe (`minor_foe/3`) has 1 wound and the untrained floor.
+  The defender's wounds go on its character in the session's cast
+  (`book/3`, `TalesForge.Game.Cast`), and so to its `characters` row. An NPC
+  at the wound cap is down. A hit on an NPC that is down makes the death
+  roll of `combat.md`: a d100 greater than CON × 2.5 kills it. The death
+  stays in the session. A minor foe (`minor_foe/3`) has 1 wound and the
+  untrained floor; it joins the cast for its scene (`lifetime: :scene`).
   """
 
   defmodule Hit do
@@ -45,6 +47,7 @@ defmodule TalesForge.Game.Combat do
   end
 
   alias TalesForge.Characters.Defaults
+  alias TalesForge.Game.Cast
   alias TalesForge.Game.Mechanics
   alias TalesForge.GameCharacter
 
@@ -381,7 +384,10 @@ defmodule TalesForge.Game.Combat do
 
   @doc """
   The target of an attack. `action_target` is the Jev target (a world id or
-  a name). The target must be a person in the scene (`present_npcs`):
+  a name). The scene is `{world, cast}`: the world state and the session's
+  GM characters (`TalesForge.Game.Cast`). The target must be a person in
+  the scene (`present_npcs`, or another living character of the cast here,
+  such as a minor foe):
 
     * a present NPC by a name word in `text` gives `{:npc, id}`;
     * the Jev target (id or name) gives `{:npc, id}` only when `text` refers
@@ -392,28 +398,28 @@ defmodule TalesForge.Game.Combat do
     * anything else gives `{:unclear, names}` with the names of the present
       people, and the turn asks the player.
 
-      iex> world = %{"present_npcs" => ["guild_steward"],
-      ...>   "npc_state" => %{"guild_steward" => %{"name" => "Osric Vane"}}}
-      iex> TalesForge.Game.Combat.target(nil, "I attack Osric the liar", world) == {:npc, "guild_steward"}
+      iex> scene = {%{"present_npcs" => ["guild_steward"]},
+      ...>   %{"guild_steward" => %TalesForge.GameCharacter{slug: "guild_steward", name: "Osric Vane"}}}
+      iex> TalesForge.Game.Combat.target(nil, "I attack Osric the liar", scene) == {:npc, "guild_steward"}
       true
-      iex> TalesForge.Game.Combat.target(nil, "I do attack the miner", world) == {:foe, "foe_miner", "a miner"}
+      iex> TalesForge.Game.Combat.target(nil, "I do attack the miner", scene) == {:foe, "foe_miner", "a miner"}
       true
-      iex> TalesForge.Game.Combat.target(nil, "I lash out", world) == {:unclear, ["Osric Vane"]}
+      iex> TalesForge.Game.Combat.target(nil, "I lash out", scene) == {:unclear, ["Osric Vane"]}
       true
-      iex> TalesForge.Game.Combat.target("guild_steward", "I attack", world) == {:unclear, ["Osric Vane"]}
+      iex> TalesForge.Game.Combat.target("guild_steward", "I attack", scene) == {:unclear, ["Osric Vane"]}
       true
-      iex> TalesForge.Game.Combat.target("guild_steward", "I attack him", world) == {:npc, "guild_steward"}
+      iex> TalesForge.Game.Combat.target("guild_steward", "I attack him", scene) == {:npc, "guild_steward"}
       true
   """
-  @spec target(String.t() | nil, String.t() | nil, map()) :: target()
-  def target(action_target, text, world) do
-    present = present_people(world)
+  @spec target(String.t() | nil, String.t() | nil, {map(), Cast.t()}) :: target()
+  def target(action_target, text, {_world, _cast} = scene) do
+    present = present_people(scene)
     text = String.downcase(text || "")
 
     cond do
       id = by_text(present, text) -> {:npc, id}
       id = named_jev_target(present, action_target, text) -> {:npc, id}
-      noun = person_word(action_target, text) -> foe_target(noun, world)
+      noun = person_word(action_target, text) -> foe_target(noun)
       true -> {:unclear, Enum.map(present, &elem(&1, 1))}
     end
   end
@@ -444,28 +450,23 @@ defmodule TalesForge.Game.Combat do
     end)
   end
 
-  defp present_people(world) do
-    state = Map.get(world, "npc_state") || %{}
+  # The living people listed as present, then the other living characters of
+  # the cast at this place (a minor foe), each as {id, name}.
+  defp present_people({world, cast}) do
+    listed = world |> Map.get("present_npcs", []) |> List.wrap()
 
     present =
-      world
-      |> Map.get("present_npcs", [])
-      |> List.wrap()
-      |> Enum.reject(&dead?(state, &1))
-      |> Enum.map(fn id -> {id, get_in(state, [id, "name"]) || id} end)
+      listed
+      |> Enum.reject(&Cast.dead?(cast, &1))
+      |> Enum.map(&{&1, Cast.name(cast, &1)})
 
-    foes =
-      state
-      |> Enum.filter(fn {id, npc} ->
-        npc["minor"] == true and npc["location_id"] == world["location_id"] and
-          not dead?(state, id)
-      end)
-      |> Enum.map(fn {id, npc} -> {id, npc["name"] || id} end)
+    others =
+      cast
+      |> Cast.others_here(world["location_id"], listed)
+      |> Enum.map(&{&1, Cast.name(cast, &1)})
 
-    Enum.sort(present) ++ Enum.sort(foes)
+    Enum.sort(present) ++ others
   end
-
-  defp dead?(state, id), do: get_in(state, [id, "vitality"]) == "dead"
 
   defp by_id_or_name(_present, target) when target in [nil, ""], do: nil
 
@@ -480,20 +481,18 @@ defmodule TalesForge.Game.Combat do
   defp by_text(present, text) do
     words = MapSet.new(Regex.scan(~r/[a-z']+/, text) |> List.flatten())
 
-    matches =
-      Enum.filter(present, fn {id, name} ->
-        name_words =
-          (String.split(String.downcase(name), ~r/[^a-z']+/, trim: true) ++
-             [String.replace(id, "foe_", "")])
-          |> Enum.reject(&(String.length(&1) < 3 or &1 in ~w(the and)))
-
-        Enum.any?(name_words, &MapSet.member?(words, &1))
-      end)
-
-    case matches do
+    case Enum.filter(present, &named?(&1, words)) do
       [{id, _name}] -> id
       _ -> nil
     end
+  end
+
+  # True when a word of the person's name or id is one of `words`.
+  defp named?({id, name}, words) do
+    (String.split(String.downcase(name), ~r/[^a-z']+/, trim: true) ++
+       [String.replace(id, "foe_", "")])
+    |> Enum.reject(&(String.length(&1) < 3 or &1 in ~w(the and)))
+    |> Enum.any?(&MapSet.member?(words, &1))
   end
 
   defp person_word(action_target, text) do
@@ -524,12 +523,14 @@ defmodule TalesForge.Game.Combat do
       else: word
   end
 
-  defp foe_target(noun, _world), do: {:foe, "foe_" <> noun, "a " <> noun}
+  defp foe_target(noun), do: {:foe, "foe_" <> noun, "a " <> noun}
 
   @doc """
-  A minor foe for the scene, as a transient `%GameCharacter{}` (no row):
-  stats from `Defaults.derive/3` (the occupation
-  of the person word, or laborer), no skills (the untrained floor) and 1 wound.
+  A minor foe for the scene, as a `%GameCharacter{}` with `lifetime:
+  :scene`: stats from `Defaults.derive/3` (the occupation of the person
+  word, or laborer), no skills (the untrained floor) and 1 wound. `book/3`
+  puts it in the cast at the place of the fight, and its row is removed
+  when that scene ends (`TalesForge.Characters.end_scene_multi/2`).
   """
   @spec minor_foe({String.t(), String.t()}, Defaults.rules(), integer()) :: fighter()
   def minor_foe({id, name}, rules, seed) do
@@ -551,42 +552,35 @@ defmodule TalesForge.Game.Combat do
       "wound_max" => 1
     })
     |> GameCharacter.from_sheet()
+    |> struct!(lifetime: :scene)
   end
 
   @doc """
-  Writes the defender's wounds of `exchange` to `world["npc_state"]`. A
-  minor foe also gets its scene entry (`foe` is its fighter map). Returns
-  `{world, events}`; the events are `npc.down` or `npc.dead` when the
-  defender went down or died in this exchange.
+  Writes the defender's wounds of `exchange` to its character in `cast`
+  (`TalesForge.Game.Cast`). A new minor foe (`foe`, the fighter the server
+  made) joins the cast at the place of the fight. Returns `{cast, events}`;
+  the events are `npc.down` or `npc.dead` when the defender went down or
+  died in this exchange. `world` gives the place and the tick.
   """
-  @spec book(map(), {map() | nil, fighter() | nil}, map()) :: {map(), [map()]}
-  def book(world, {nil, _foe}, _before), do: {world, []}
+  @spec book(Cast.t(), map(), {map() | nil, fighter() | nil}) :: {Cast.t(), [map()]}
+  def book(cast, _world, {nil, _foe}), do: {cast, []}
 
-  def book(world, {exchange, foe}, before) do
+  def book(cast, world, {exchange, foe}) do
     id = exchange["defender_id"]
-    state = Map.get(world, "npc_state") || %{}
-    base = Map.get(state, id) || foe_entry(foe, world)
+    before = cast[id] || newcomer(foe || %GameCharacter{slug: id}, world)
 
-    entry =
-      Map.merge(base, %{
-        "wounds" => exchange["defender_wounds"],
-        "wound_max" => exchange["defender_wound_max"],
-        "vitality" => exchange["defender_vitality"]
-      })
+    booked =
+      GameCharacter.put(before,
+        wounds: exchange["defender_wounds"],
+        wound_max: exchange["defender_wound_max"],
+        vitality: exchange["defender_vitality"]
+      )
 
-    world = Map.put(world, "npc_state", Map.put(state, id, entry))
-    vitality_before = get_in(before || %{}, [id, "vitality"]) || "ok"
-    {world, events(exchange, vitality_before, world)}
+    {Map.put(cast, id, booked), events(exchange, before.vitality, world)}
   end
 
-  defp foe_entry(nil, _world), do: %{}
-
-  defp foe_entry(%GameCharacter{} = foe, world) do
-    foe
-    |> GameCharacter.to_sheet()
-    |> Map.take(~w(id name role minor stats ocean maslow concerns))
-    |> Map.put("location_id", world["location_id"])
-  end
+  defp newcomer(%GameCharacter{} = foe, world),
+    do: GameCharacter.put(foe, location_id: world["location_id"])
 
   defp events(%{"defender_vitality" => same}, same, _world), do: []
 
@@ -717,26 +711,27 @@ defmodule TalesForge.Game.Combat do
   def death_text(_ex), do: nil
 
   @doc """
-  The GM prompt section for the dead and the downed people of the world
-  (QA 2026-10-15, session 99817343: a dead Marta talked again in the
+  The GM prompt section for the dead and the downed people of the session's
+  cast (QA 2026-10-15, session 99817343: a dead Marta talked again in the
   cellar). Nil when nobody is dead or down.
 
-      iex> TalesForge.Game.Combat.fallen_section(%{"npc_state" => %{"marta_kellen" =>
-      ...>   %{"name" => "Marta Kellen", "vitality" => "dead", "location_id" => "weary_pilgrim"}}})
+      iex> cast = %{"marta_kellen" => %TalesForge.GameCharacter{slug: "marta_kellen",
+      ...>   name: "Marta Kellen", vitality: "dead", location_id: "weary_pilgrim"}}
+      iex> TalesForge.Game.Combat.fallen_section(%{}, cast)
       ...> |> String.split("\\n")
       ...> |> Enum.drop(1)
       ["These people cannot come back. Never narrate them alive, moving, talking or acting.",
        "- Marta Kellen is dead. The body lies at The Weary Pilgrim.", ""]
-      iex> TalesForge.Game.Combat.fallen_section(%{"npc_state" => %{}})
+      iex> TalesForge.Game.Combat.fallen_section(%{}, %{})
       nil
   """
-  @spec fallen_section(map() | nil) :: String.t() | nil
-  def fallen_section(%{"npc_state" => state} = world) when is_map(state) do
+  @spec fallen_section(map() | nil, Cast.t() | nil) :: String.t() | nil
+  def fallen_section(world, cast) when is_map(cast) do
     lines =
-      state
-      |> Enum.filter(fn {_id, npc} -> is_map(npc) and npc["vitality"] in ~w(dead down) end)
-      |> Enum.sort_by(fn {id, _npc} -> id end)
-      |> Enum.map(fn {id, npc} -> fallen_line(world, npc["name"] || id, npc) end)
+      cast
+      |> Cast.sorted()
+      |> Enum.filter(&(&1.vitality in ~w(dead down)))
+      |> Enum.map(&fallen_line(world || %{}, &1.name || &1.slug, &1))
 
     if lines == [] do
       nil
@@ -747,14 +742,14 @@ defmodule TalesForge.Game.Combat do
     end
   end
 
-  def fallen_section(_world), do: nil
+  def fallen_section(_world, _cast), do: nil
 
-  defp fallen_line(world, name, %{"vitality" => "dead"} = npc),
-    do: "- #{name} is dead. The body lies at #{body_place(world, npc["location_id"])}."
+  defp fallen_line(world, name, %GameCharacter{vitality: "dead"} = npc),
+    do: "- #{name} is dead. The body lies at #{body_place(world, npc.location_id)}."
 
   defp fallen_line(world, name, npc),
     do:
-      "- #{name} is down at #{body_place(world, npc["location_id"])}: alive, but cannot fight, stand, talk or leave."
+      "- #{name} is down at #{body_place(world, npc.location_id)}: alive, but cannot fight, stand, talk or leave."
 
   # The GM gets the place name, not the world id (QA 2026-10-15: a raw id
   # came out in the prose).

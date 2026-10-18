@@ -13,6 +13,11 @@ defmodule TalesForge.GameCharacter do
   Only a sheet the columns can't hold (an item without a name, a skill that
   is not a number) leaves anything in the row's `runtime["sheet"]`
   (`extra` and `missing`, written by `TalesForge.Characters`' mirror).
+
+  `lifetime` is how long the character's row lives (`:persistent`, or
+  `:scene` for a minor foe). Only the cleanup at the end of a scene reads
+  it (`TalesForge.Characters.end_scene_multi/2`); the rules, the prompts and
+  the play page treat every character alike.
   """
 
   alias TalesForge.Schemas.Character
@@ -21,7 +26,7 @@ defmodule TalesForge.GameCharacter do
 
   # Row columns taken as they are, and map columns that may be nil.
   @plain ~w(id slug name race role location_id maslow_level wounds wound_max vitality mood
-            class creation reflecting improved_since_rest)a
+            class creation reflecting improved_since_rest lifetime)a
 
   # Sheet keys a sheet may lack: `to_sheet/1` gives them only when not nil.
   @optional ~w(class creation reflecting improved_since_rest)
@@ -53,13 +58,14 @@ defmodule TalesForge.GameCharacter do
             relationships: %{},
             runtime: %{},
             minor: false,
+            lifetime: :persistent,
             extra: %{},
             missing: []
 
   @type t :: %__MODULE__{}
 
-  # Sheet keys (a world_state sheet, an NPC fighter profile, an npc_state
-  # entry) and the field each one sets in `from_sheet/1`.
+  # Sheet keys (a world_state sheet, an NPC fighter profile, a minor foe)
+  # and the field each one sets in `from_sheet/1`.
   @sheet_fields [
     {"id", :slug},
     {"name", :name},
@@ -87,7 +93,8 @@ defmodule TalesForge.GameCharacter do
 
   @doc """
   The GameCharacter of a `characters` row. `runtime["sheet"]` becomes
-  `extra` and `missing`; the rest of `runtime` stays in `runtime`.
+  `extra` and `missing`; the rest of `runtime` stays in `runtime`. A minor
+  foe's row keeps its sheet in `definition`, so `minor` comes from there.
 
       iex> row = %TalesForge.Schemas.Character{slug: "elara_voss", name: "Elara Voss",
       ...>   stats: %TalesForge.Schemas.Character.Stats{str: 12},
@@ -103,6 +110,7 @@ defmodule TalesForge.GameCharacter do
     |> struct(for k <- @maps, into: %{}, do: {k, Map.get(row, k) || %{}})
     |> struct(embeds(row))
     |> struct(sheet_runtime_fields(row.runtime || %{}))
+    |> struct(minor: (row.definition || %{})["minor"] == true)
   end
 
   defp embeds(%Character{} = row) do
@@ -126,8 +134,7 @@ defmodule TalesForge.GameCharacter do
 
   @doc """
   The GameCharacter of a sheet map: the player character's
-  `world_state["character"]`, an NPC's fighter profile or an `npc_state`
-  entry. Each known key sets its field as it is (no casting), a
+  `world_state["character"]`, an NPC's fighter profile or a minor foe. Each known key sets its field as it is (no casting), a
   `current_concern` goes to `runtime`, and `extra` and `missing` keep the
   rest, so `to_sheet(from_sheet(sheet)) === sheet` for every sheet. A key
   the sheet lacks keeps the field's default.

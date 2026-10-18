@@ -6,7 +6,9 @@ defmodule TalesForge.Schemas.Character do
   Characters live per session for now; `owner_player_id` is ready for a
   character that belongs to a player and carries over. `definition` is an
   immutable copy of the authored source; `origin` says where it came from.
-  Phase 1 of the Character plan only writes these rows; nothing reads them yet.
+  `lifetime` says how long the row lives: `:persistent` (the default) or
+  `:scene`, for a minor foe whose row is removed when its scene ends
+  (`TalesForge.Characters.end_scene_multi/2`, the only code that reads it).
   """
 
   use Ecto.Schema
@@ -19,6 +21,7 @@ defmodule TalesForge.Schemas.Character do
   @foreign_key_type :binary_id
   @controllers ~w(player gm bot)
   @vitalities ~w(ok hurt down dead)
+  @lifetimes [:persistent, :scene]
 
   @type t :: %__MODULE__{}
 
@@ -62,6 +65,8 @@ defmodule TalesForge.Schemas.Character do
     # Written only by `TalesForge.Characters.Compression`, never mirrored.
     field :memory_compressed_tick, :integer
 
+    field :lifetime, Ecto.Enum, values: @lifetimes, default: :persistent
+
     field :lock_version, :integer, default: 1
 
     belongs_to :game_session, TalesForge.Schemas.GameSession
@@ -76,7 +81,7 @@ defmodule TalesForge.Schemas.Character do
   @fields ~w(game_session_id slug controller controller_ref owner_player_id origin definition
              name race role location_id skills maslow_level maslow_since_tick coins wounds
              wound_max vitality learning_points learning_failures class creation reflecting
-             improved_since_rest mood relationships runtime)a
+             improved_since_rest mood relationships runtime lifetime)a
 
   def changeset(character, attrs) do
     character

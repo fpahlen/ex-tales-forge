@@ -95,7 +95,6 @@ defmodule TalesForge.Game.World do
         "Marta Kellen watches from behind the bar."
       ],
       "character" => @player_character,
-      "npc_state" => @npcs,
       "locations" => @locations
     }
   end

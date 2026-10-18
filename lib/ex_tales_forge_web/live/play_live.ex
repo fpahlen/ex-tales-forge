@@ -7,6 +7,7 @@ defmodule TalesForgeWeb.PlayLive do
 
   import TalesForgeWeb.PlayComponents
 
+  alias TalesForge.Characters
   alias TalesForge.GameSessions
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
@@ -31,6 +32,7 @@ defmodule TalesForgeWeb.PlayLive do
      socket
      |> assign(:page_title, session.name)
      |> assign(:session, session)
+     |> assign(:cast, Characters.cast(session.id))
      |> assign(:connected, connected?(socket))
      |> assign(:thinking, false)
      |> assign(:streaming_text, "")
@@ -74,6 +76,7 @@ defmodule TalesForgeWeb.PlayLive do
      socket
      |> assign(:scene_loading, false)
      |> assign(:session, session)
+     |> assign(:cast, Characters.cast(session.id))
      |> assign(:llm_source, payload.llm_source)
      |> assign(:scene_image_url, payload.image_url)
      |> append_entries(payload.entries)}
@@ -127,6 +130,7 @@ defmodule TalesForgeWeb.PlayLive do
       |> clear_streaming()
       |> assign(:clarification, nil)
       |> assign(:session, session)
+      |> assign(:cast, Characters.cast(session.id))
       |> assign(:llm_source, payload.llm_source)
       |> append_entries(payload.entries)
       |> maybe_start_scene_after_travel(payload, session)
@@ -171,7 +175,7 @@ defmodule TalesForgeWeb.PlayLive do
       |> assign(:location_name, Map.get(world, "location_name", "Unknown"))
       |> assign(:world_clock, Map.get(world, "world_clock", "—"))
       |> assign(:character, character)
-      |> assign(:present_npcs, present_npcs(world))
+      |> assign(:present_npcs, present_npcs(world, assigns.cast))
       |> assign(:last_exchange, last_exchange(world))
       |> assign(:quick_stats, quick_stats(character))
       |> assign(

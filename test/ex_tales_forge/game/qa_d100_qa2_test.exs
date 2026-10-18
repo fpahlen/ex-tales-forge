@@ -8,10 +8,11 @@ defmodule TalesForge.Game.QaD100Qa2Test do
   alias TalesForge.Game.Turn.Combat, as: TurnCombat
   alias TalesForge.Schemas.GameSession
 
-  @dead_marta %{
-    "name" => "Marta Kellen",
-    "vitality" => "dead",
-    "location_id" => "weary_pilgrim"
+  @dead_marta %TalesForge.GameCharacter{
+    slug: "marta_kellen",
+    name: "Marta Kellen",
+    vitality: "dead",
+    location_id: "weary_pilgrim"
   }
 
   defp session(world), do: %GameSession{id: Ecto.UUID.generate(), world_state: world}
@@ -20,17 +21,16 @@ defmodule TalesForge.Game.QaD100Qa2Test do
     test "an empty present list stays empty and a dead person is never present" do
       ctx =
         Context.build_intent_context(
-          session(%{"location_id" => "cellar", "present_npcs" => [], "npc_state" => %{}})
+          session(%{"location_id" => "cellar", "present_npcs" => []}),
+          %{}
         )
 
       assert ctx["present_npcs"] == []
 
       ctx =
         Context.build_intent_context(
-          session(%{
-            "present_npcs" => ["marta_kellen"],
-            "npc_state" => %{"marta_kellen" => @dead_marta}
-          })
+          session(%{"present_npcs" => ["marta_kellen"]}),
+          %{"marta_kellen" => @dead_marta}
         )
 
       assert ctx["present_npcs"] == []
@@ -38,7 +38,7 @@ defmodule TalesForge.Game.QaD100Qa2Test do
     end
 
     test "a social skill at a dead person is blocked" do
-      world = %{"present_npcs" => [], "npc_state" => %{"marta_kellen" => @dead_marta}}
+      scene = {%{"present_npcs" => []}, %{"marta_kellen" => @dead_marta}}
 
       action = %SingleAction{
         action_type: :observe,
@@ -46,14 +46,17 @@ defmodule TalesForge.Game.QaD100Qa2Test do
         parameters: %{"skill" => "persuasion"}
       }
 
-      assert TargetCheck.reason(world, action) =~ "is dead"
+      assert TargetCheck.reason(scene, action) =~ "is dead"
     end
 
     test "a persuasion at a person who is elsewhere is blocked with the place" do
-      world = %{
-        "present_npcs" => [],
-        "npc_state" => %{
-          "worried_merchant" => %{"name" => "Henrik", "location_id" => "market_square"}
+      world = %{"present_npcs" => []}
+
+      cast = %{
+        "worried_merchant" => %TalesForge.GameCharacter{
+          slug: "worried_merchant",
+          name: "Henrik",
+          location_id: "market_square"
         }
       }
 
@@ -63,12 +66,12 @@ defmodule TalesForge.Game.QaD100Qa2Test do
         parameters: %{"skill" => "persuasion"}
       }
 
-      reason = TargetCheck.reason(world, action)
+      reason = TargetCheck.reason({world, cast}, action)
       assert reason =~ "Henrik is not here"
       assert reason =~ "Go there first"
 
       present = Map.put(world, "present_npcs", ["worried_merchant"])
-      assert TargetCheck.reason(present, action) == nil
+      assert TargetCheck.reason({present, cast}, action) == nil
     end
   end
 
@@ -86,8 +89,8 @@ defmodule TalesForge.Game.QaD100Qa2Test do
 
     test "a downed person is in the fallen section" do
       text =
-        Combat.fallen_section(%{
-          "npc_state" => %{"brenna" => %{"name" => "Brenna", "vitality" => "down"}}
+        Combat.fallen_section(%{}, %{
+          "brenna" => %TalesForge.GameCharacter{slug: "brenna", name: "Brenna", vitality: "down"}
         })
 
       assert text =~ "Brenna"

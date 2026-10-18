@@ -31,7 +31,9 @@ defmodule TalesForge.Game.Turn.Premise do
         turn,
         run(
           turn,
-          PremiseCheck.state(world, world, Fronts.sim_fronts(turn.session.id), fights(turn))
+          world
+          |> PremiseCheck.state(world, Fronts.sim_fronts(turn.session.id), fights(turn))
+          |> Map.put(:people, PremiseCheck.people(turn.cast))
         )
       )
     else
@@ -46,7 +48,9 @@ defmodule TalesForge.Game.Turn.Premise do
 
     run(
       turn,
-      PremiseCheck.state(world, board.world, Map.get(board.sim, :fronts, []), fights(turn))
+      world
+      |> PremiseCheck.state(board.world, Map.get(board.sim, :fronts, []), fights(turn))
+      |> Map.put(:people, PremiseCheck.people(Map.get(board, :cast, turn.cast)))
     )
   end
 
