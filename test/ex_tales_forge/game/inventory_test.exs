@@ -208,7 +208,7 @@ defmodule TalesForge.Game.InventoryTest do
       assert Inventory.item_quantity(trader.inventory, "ale_mug") == 98
     end
 
-    test "buy ale_mug from innkeep deducts 2c" do
+    test "a serving of ale from the innkeep costs 2c and is drunk there" do
       {:ok, session} =
         GameSessions.create_session(%{name: "Tin Valley Mug", adventure_id: "tin_valley"})
 
@@ -239,10 +239,10 @@ defmodule TalesForge.Game.InventoryTest do
       assert after_total == before - 2
 
       inventory = get_in(updated, ["character", "inventory"]) |> Inventory.normalize_items()
-      assert Inventory.item_quantity(inventory, "ale_mug") == 1
+      assert Inventory.item_quantity(inventory, "ale_mug") == 0
 
       assert %GameCharacter{slug: "innkeep"} = trader
-      assert Inventory.item_quantity(trader.inventory, "ale_mug") == 98
+      assert Inventory.item_quantity(trader.inventory, "ale_mug") == 71
     end
   end
 
@@ -285,7 +285,7 @@ defmodule TalesForge.Game.InventoryTest do
     } do
       action = %SingleAction{action_type: :buy, parameters: %{"item_id" => "lantern"}}
 
-      assert {:error, "Insufficient funds for lantern (30c needed)."} =
+      assert {:error, "Elara Voss cannot pay 30c for Lantern."} =
                Inventory.apply_transaction(
                  put_in(world, ["character", "coins"], %{"copper" => 5}),
                  traders,

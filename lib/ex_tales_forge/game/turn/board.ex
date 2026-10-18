@@ -113,7 +113,7 @@ defmodule TalesForge.Game.Turn.Board do
       handler
       |> mark_rejected(inventory_result)
       |> unpaid_sleep(inventory_result)
-      |> refused_trade(inventory_result, board.player_action.action)
+      |> decided_trade(inventory_result, board.player_action.action)
 
     {world_traded, inventory_result, %{board | handler: handler}}
   end
@@ -365,32 +365,50 @@ defmodule TalesForge.Game.Turn.Board do
     end
   end
 
-  defp maybe_apply_inventory(world_state, %__MODULE__{player_action: %{action: action}} = board) do
+  defp maybe_apply_inventory(
+         world_state,
+         %__MODULE__{player_action: %{action: action}} = board,
+         refusals
+       ) do
     if Inventory.applies?(board.handler, action),
-      do: apply_inventory(world_state, board.session.id, action),
+      do: apply_inventory(world_state, board, refusals),
       else: {world_state, nil}
   end
 
-  # The inventory step is pure; the traders it reads are loaded here, and
+  # The inventory step is pure; the traders it reads are loaded here, with
+  # the `refusals` (trader id to reason) of the ones who will not trade, and
   # the traders whose inventory and coins it changes go with the result
   # (`:traders`), saved in the turn's transaction (`Turn.Store`) with the
   # character, so a trade is all or nothing.
-  defp apply_inventory(world_state, session_id, action) do
+  defp apply_inventory(world_state, %__MODULE__{session: session} = board, refusals) do
+    action = board.player_action.action
     ids = Inventory.trader_ids(action, Map.get(world_state, "present_npcs", []))
+    traders = session.id |> NPC.traders(ids) |> refuse(refusals)
 
-    case Inventory.apply_transaction(world_state, NPC.traders(session_id, ids), action) do
+    case Inventory.apply_transaction(world_state, traders, action) do
       {:ok, updated, details, changed} ->
-        Logger.info("inventory applied session=#{session_id} changes=#{inspect(details.applied)}")
+        Logger.info("inventory applied session=#{session.id} changes=#{inspect(details.applied)}")
         {updated, {:ok, Map.put(details, :traders, changed)}}
 
       {:error, reason} ->
-        Logger.warning("inventory skipped session=#{session_id} reason=#{reason}")
+        Logger.warning("inventory skipped session=#{session.id} reason=#{reason}")
         {world_state, {:error, reason}}
     end
   end
 
+  defp refuse(traders, refusals) do
+    Map.new(traders, fn {id, %GameCharacter{runtime: runtime} = trader} ->
+      case Map.fetch(refusals, id) do
+        {:ok, reason} -> {id, %{trader | runtime: Map.put(runtime, "refuses_trade", reason)}}
+        :error -> {id, trader}
+      end
+    end)
+  end
+
   # Catalogue v2 (JEV_CATALOGUE_V2): an NPC can refuse a trade, and the words
   # can ask for a haggle (TalesForge.Game.Bargain) before the inventory step.
+  # The refusal is the trader's, decided with the rest of the trade
+  # (`TalesForge.Game.Trade`).
   defp trade(world, %__MODULE__{session: session, player_action: player_action} = board) do
     action = player_action.action
 
@@ -400,15 +418,15 @@ defmodule TalesForge.Game.Turn.Board do
       profile = trader && session.id |> NPC.notice_profiles([trader]) |> List.first()
 
       if Catalogue.refuses_trade?(profile) do
-        reason = "#{profile["name"] || trader} refuses to trade with you."
         Logger.info("trade refused session=#{session.id} npc=#{trader}")
-        {world, {:error, reason}}
+        refusal = "#{profile["name"] || trader} refuses to trade with you."
+        maybe_apply_inventory(world, board, %{trader => refusal})
       else
         {world, board} = maybe_haggle(world, board, trader)
-        maybe_apply_inventory(world, board)
+        maybe_apply_inventory(world, board, %{})
       end
     else
-      maybe_apply_inventory(world, board)
+      maybe_apply_inventory(world, board, %{})
     end
   end
 
@@ -553,32 +571,49 @@ defmodule TalesForge.Game.Turn.Board do
 
   defp mark_rejected(handler, _result), do: handler
 
-  # A buy or a sale that did not happen: nothing moved, and the GM is told
-  # why (`refusal/2`), so the prose books no payment.
-  defp refused_trade(handler, {:error, reason}, %SingleAction{action_type: type})
-       when type in [:buy, :sell],
-       do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "trade_refused", reason)}
+  # A buy or a sale as the board step decided it, for the GM
+  # (`trade_outcome/2`): done, or refused with nothing moved.
+  defp decided_trade(handler, result, %SingleAction{action_type: type})
+       when type in [:buy, :sell] do
+    case result do
+      {:error, reason} -> put_trade(handler, %{"status" => "refused", "detail" => reason})
+      {:ok, %{applied: [done | _]}} -> put_trade(handler, %{"status" => "done", "detail" => done})
+      _ -> handler
+    end
+  end
 
-  defp refused_trade(handler, _result, _action), do: handler
+  defp decided_trade(handler, _result, _action), do: handler
+
+  defp put_trade(handler, trade),
+    do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "trade", trade)}
 
   @doc """
-  `handler` (what the GM gets) with the reason the board step refused the
-  buy or the sale of `board_handler`, as the handler's `"reason"`
-  (the GM turn section of the prompt). Gentry's playtest session
-  643b8031 on 2026-10-18: a sale that paid nothing was narrated as paid.
+  `handler` (what the GM gets) with the board step's decision on the buy or
+  the sale of `board_handler` (`"trade"`), and for a refusal its reason as
+  the handler's `"reason"` (the GM turn section of the prompt). The GM
+  narrates only that outcome. Gentry's playtest sessions 643b8031 (a sale
+  that paid nothing narrated as paid) and 3d9788e0 (a sale the server made
+  narrated as refused), 2026-10-18.
 
       iex> refused = %TalesForge.Game.Schemas.HandlerResult{handler: "inventory",
-      ...>   state_hints: %{"trade_refused" => "Sell requires a price for 'cloak'."}}
-      iex> TalesForge.Game.Turn.Board.refusal(%TalesForge.Game.Schemas.HandlerResult{handler: "inventory"}, refused).state_hints
-      %{"reason" => "Sell requires a price for 'cloak'."}
+      ...>   state_hints: %{"trade" => %{"status" => "refused", "detail" => "No price for travel cloak: nothing changed hands."}}}
+      iex> TalesForge.Game.Turn.Board.trade_outcome(%TalesForge.Game.Schemas.HandlerResult{handler: "inventory"}, refused).state_hints["reason"]
+      "No price for travel cloak: nothing changed hands."
   """
-  @spec refusal(HandlerResult.t(), HandlerResult.t()) :: HandlerResult.t()
-  def refusal(%HandlerResult{} = handler, %HandlerResult{
-        state_hints: %{"trade_refused" => reason}
+  @spec trade_outcome(HandlerResult.t(), HandlerResult.t()) :: HandlerResult.t()
+  def trade_outcome(%HandlerResult{} = handler, %HandlerResult{
+        state_hints: %{"trade" => %{"status" => "refused", "detail" => reason} = trade}
       }),
-      do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "reason", reason)}
+      do: %{
+        handler
+        | state_hints:
+            Map.merge(handler.state_hints || %{}, %{"trade" => trade, "reason" => reason})
+      }
 
-  def refusal(handler, _board_handler), do: handler
+  def trade_outcome(%HandlerResult{} = handler, %HandlerResult{state_hints: %{"trade" => trade}}),
+    do: put_trade(handler, trade)
+
+  def trade_outcome(handler, _board_handler), do: handler
 
   # A failed room payment gives the short sleep, with no paid bed.
   defp unpaid_sleep(handler, {:error, _reason}), do: TurnApply.unpaid_sleep(handler)

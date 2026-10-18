@@ -122,7 +122,7 @@
           {
             "type": "buy",
             "status": "rejected",
-            "reason": "'bread' is not sold here."
+            "reason": "'bread' is not sold here. For sale: Mug of Ale (2c), Bottle of Common Wine (15c)."
           }
         ],
         "delta_copper": 0,
