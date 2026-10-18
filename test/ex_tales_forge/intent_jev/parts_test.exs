@@ -16,9 +16,9 @@ defmodule TalesForge.IntentJev.PartsTest do
     action: %SingleAction{action_type: :speak, target: "innkeep"}
   }
 
-  describe "PlayerQuote.decide/5" do
+  describe "PlayerQuote.decide/2" do
     test "a confident benign read quotes the player's sanitised words" do
-      q = PlayerQuote.decide(@action, "  Hello   there ", safety(:benign, 0.95), 0.9)
+      q = PlayerQuote.decide(@action, read("  Hello   there ", safety(:benign, 0.95)))
       assert {q.quote, q.used, q.reason} == {"Hello there", "quote", "benign"}
     end
 
@@ -26,16 +26,20 @@ defmodule TalesForge.IntentJev.PartsTest do
       summary = "speak (target: innkeep)"
 
       assert %{quote: ^summary, reason: "low_confidence"} =
-               PlayerQuote.decide(@action, "Hello", safety(:benign, 0.8), 0.9)
+               PlayerQuote.decide(@action, read("Hello", safety(:benign, 0.8)))
 
       assert %{quote: ^summary, reason: "label_prompt_injection"} =
-               PlayerQuote.decide(@action, "Hello", safety(:prompt_injection, 0.99), 0.9)
+               PlayerQuote.decide(@action, read("Hello", safety(:prompt_injection, 0.99)))
 
       assert %{quote: ^summary, reason: "jev_timeout"} =
-               PlayerQuote.decide(@action, "Hello", nil, 0.9, "jev_timeout")
+               PlayerQuote.decide(@action, %PlayerQuote{
+                 raw_action: "Hello",
+                 threshold: 0.9,
+                 no_read_reason: "jev_timeout"
+               })
 
       assert %{quote: ^summary, reason: "empty_text"} =
-               PlayerQuote.decide(@action, "   ", safety(:benign, 0.99), 0.9)
+               PlayerQuote.decide(@action, read("   ", safety(:benign, 0.99)))
     end
 
     test "only nefarious is declined, and meta leaves out the text" do
@@ -45,7 +49,7 @@ defmodule TalesForge.IntentJev.PartsTest do
 
       meta =
         @action
-        |> PlayerQuote.decide("secret words", safety(:benign, 0.99), 0.9)
+        |> PlayerQuote.decide(read("secret words", safety(:benign, 0.99)))
         |> PlayerQuote.meta()
 
       refute inspect(meta) =~ "secret words"
@@ -53,6 +57,9 @@ defmodule TalesForge.IntentJev.PartsTest do
     end
 
     defp safety(label, c), do: %{label: label, confidence: c, benign_probability: 0.5}
+
+    defp read(raw_action, safety),
+      do: %PlayerQuote{raw_action: raw_action, safety: safety, threshold: 0.9}
   end
 
   describe "Calibration" do

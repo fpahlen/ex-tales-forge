@@ -85,8 +85,9 @@ defmodule TalesForge.Game.Inventory do
 
   @doc false
   # The buy `action` with the item its words `text` name from its seller's
-  # stock (every trader's when it names no seller), when it has none; else
-  # with the stock its words ask for by kind as `"options"`.
+  # stock (every trader's when it names no seller), when it has none. An
+  # unclear buy ("I order a meal") already has its `"options"` from Jev's
+  # kind target (`goods:<kind>`, `TalesForge.Game.JevIntent`).
   # Playtest session 8a9dbde9 (#470 retest): "I buy a mug of ale from
   # Brenna" had no item, and it became a 2c payment nobody received.
   @spec named_item(SingleAction.t(), %{String.t() => GameCharacter.t()}, String.t() | nil) ::
@@ -97,23 +98,13 @@ defmodule TalesForge.Game.Inventory do
     stock = seller_stock(traders, npc_ref(action, ""))
 
     with "" <- param_item_id(params),
-         nil <- resolve_item_id(to_string(text), stock) || head_noun(text, stock) do
-      unclear(action, Offer.options(text, stock))
+         id when is_binary(id) and id != "" <-
+           resolve_item_id(to_string(text), stock) || head_noun(text, stock) do
+      %{action | parameters: Map.put(params, "item_id", id)}
     else
-      id when is_binary(id) and id != "" -> %{action | parameters: Map.put(params, "item_id", id)}
       _ -> action
     end
   end
-
-  # An unclear buy ("I order a meal", design-trade-offers.md): the ids of
-  # the matching stock its offer lists, when any.
-  defp unclear(action, []), do: action
-
-  defp unclear(%SingleAction{} = action, options),
-    do: %{
-      action
-      | parameters: Map.put(action.parameters || %{}, "options", Enum.map(options, & &1["id"]))
-    }
 
   @doc false
   # True when the buy `action` is unclear: it names no item and lists options (`named_item/3`).
