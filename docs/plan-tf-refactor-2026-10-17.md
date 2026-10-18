@@ -453,6 +453,23 @@ run per comparison. General playtesting stays paused.
     suggests that it refuses, the same way `Catalogue.refuses_trade?/1`
     refuses a trade today.
 
+- **NPC concern card** (Fredrik, 2026-10-18). It also covers telling the GM
+  about speak-ups.
+  - **Intensity and growth rate.** Each concern carries an intensity and a
+    growth rate. An intense concern crosses the threshold in a turn or two;
+    others smoulder and build over days of game time. A concern decays when
+    it is addressed.
+  - **Data and tick.** The data lives on the concern struct, and the tick is
+    a pure function (concern and elapsed game time in, concern out).
+  - **Every character has concerns.** There is only GameCharacter, so player
+    characters carry the same concern struct as NPCs. Only the intention
+    input differs:
+    - a gm-controlled character's threshold crossing becomes an
+      `%Intention{}` (for example a speak-up);
+    - a human-controlled character's crossing becomes a GM prompt hint (the
+      character feels it), never an action.
+  - Not built now.
+
 - **Kaizen practice** in both repos' `docs/principles.md`: every feature PR
   must leave the files it touches at least one health point better (cycles,
   complexity, 4+ params, web refs), on top of the never-worse ratchet. Docs-
