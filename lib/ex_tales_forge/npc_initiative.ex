@@ -1,9 +1,10 @@
 defmodule TalesForge.NPCInitiative do
   @moduledoc """
-  An NPC speaking up about a concern that has waited long enough: the turn
-  applies a `:speak_up` Intention with `speak_up/3` in its transaction, and
-  broadcasts the payload to the play page with `broadcast/2` after the
-  commit.
+  An NPC speaking up about a concern that has waited long enough.
+
+  The turn applies a `:speak_up` Intention with `speak_up/3` in its
+  transaction, and broadcasts the payload to the play page with
+  `broadcast/2` after the commit.
   """
 
   alias TalesForge.NPC
