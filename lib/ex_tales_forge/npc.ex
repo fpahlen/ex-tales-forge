@@ -13,6 +13,7 @@ defmodule TalesForge.NPC do
   alias TalesForge.Game.FirstMeeting
   alias TalesForge.Game.Pack
   alias TalesForge.Game.WorldClock
+  alias TalesForge.GameCharacter
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, NpcInstance}
 
@@ -212,40 +213,37 @@ defmodule TalesForge.NPC do
 
   def adjust_concern(session_id, npc_id, delta_ticks) when is_integer(delta_ticks) do
     case get_instance(session_id, npc_id) do
-      %NpcInstance{} = inst ->
-        case Map.get(inst.runtime_state, "current_concern") do
-          %{} = concern ->
-            waiting = Map.get(inst.runtime_state, "concern_wait_ticks", 0) + delta_ticks
-            old_priority = Map.get(concern, "priority", 0)
+      %NpcInstance{runtime_state: %{"current_concern" => %{} = concern}} = inst ->
+        wait_on_concern(inst, concern, delta_ticks)
 
-            initiative_ready? =
-              waiting >= 4 and old_priority >= 8 and not initiative_emitted?(inst)
-
-            {waiting, concern} = maybe_escalate_concern(waiting, concern)
-            priority = Map.get(concern, "priority", 0)
-
-            runtime =
-              inst.runtime_state
-              |> Map.put("current_concern", concern)
-              |> Map.put("concern_wait_ticks", waiting)
-              |> maybe_reset_initiative_emitted(old_priority, priority)
-
-            update_runtime!(inst, runtime)
-
-            {:ok,
-             %{
-               concern_priority: priority,
-               concern_wait_ticks: waiting,
-               initiative_pending: initiative_ready? and not initiative_emitted?(inst)
-             }}
-
-          _ ->
-            :ok
-        end
-
-      nil ->
+      _ ->
         :ok
     end
+  end
+
+  # The concern waits `delta_ticks` longer, and escalates when it has waited
+  # long enough.
+  defp wait_on_concern(%NpcInstance{runtime_state: runtime} = inst, concern, delta_ticks) do
+    waited = Map.get(runtime, "concern_wait_ticks", 0) + delta_ticks
+    old_priority = Map.get(concern, "priority", 0)
+    initiative_ready? = waited >= 4 and old_priority >= 8 and not initiative_emitted?(inst)
+    {waiting, concern} = maybe_escalate_concern(waited, concern)
+    priority = Map.get(concern, "priority", 0)
+
+    runtime =
+      runtime
+      |> Map.put("current_concern", concern)
+      |> Map.put("concern_wait_ticks", waiting)
+      |> maybe_reset_initiative_emitted(old_priority, priority)
+
+    update_runtime!(inst, runtime)
+
+    {:ok,
+     %{
+       concern_priority: priority,
+       concern_wait_ticks: waiting,
+       initiative_pending: initiative_ready?
+     }}
   end
 
   def evaluate_initiative(session_id, npc_id) do
@@ -365,33 +363,47 @@ defmodule TalesForge.NPC do
     |> Enum.sort()
   end
 
-  def stock_map(session_id, npc_ids) when is_list(npc_ids) do
+  @doc """
+  The NPCs `npc_ids` of the session as traders (refactor plan step 10d):
+  GameCharacters whose inventory is their stock, every item with a
+  `price_copper`. An NPC without an instance is left out.
+  """
+  @spec traders(Ecto.UUID.t(), [String.t()]) :: %{String.t() => GameCharacter.t()}
+  def traders(session_id, npc_ids) when is_list(npc_ids) do
     Enum.reduce(npc_ids, %{}, fn npc_id, acc ->
       case get_instance(session_id, npc_id) do
-        %NpcInstance{} = inst ->
-          stock = Map.get(inst.runtime_state, "stock", definition_stock(inst))
-          Map.put(acc, npc_id, stock)
-
-        nil ->
-          acc
+        %NpcInstance{} = inst -> Map.put(acc, npc_id, trader(inst))
+        nil -> acc
       end
     end)
   end
 
-  def persist_stock_updates(_session_id, updates) when map_size(updates) == 0, do: :ok
+  defp trader(%NpcInstance{npc_id: npc_id, personality: definition} = inst) do
+    %GameCharacter{
+      slug: npc_id,
+      name: (definition || %{})["name"] || npc_id,
+      inventory:
+        inst.runtime_state
+        |> Map.get("stock", definition_stock(inst))
+        |> TalesForge.Game.Inventory.normalize_stock()
+    }
+  end
 
-  def persist_stock_updates(session_id, updates) when is_map(updates) do
-    Enum.each(updates, fn {npc_id, stock} ->
+  @doc """
+  Saves the inventory of each trader (`traders/2`) as its NPC's stock. The
+  NPC instance is the NPC's store until refactor step 10f.
+  """
+  @spec put_inventories(Ecto.UUID.t(), [GameCharacter.t()]) :: :ok
+  def put_inventories(session_id, traders) when is_list(traders) do
+    Enum.each(traders, fn %GameCharacter{slug: npc_id, inventory: inventory} ->
       case get_instance(session_id, npc_id) do
         %NpcInstance{} = inst ->
-          update_runtime!(inst, Map.put(inst.runtime_state, "stock", stock))
+          update_runtime!(inst, Map.put(inst.runtime_state, "stock", inventory))
 
         nil ->
           :ok
       end
     end)
-
-    :ok
   end
 
   def refresh_world_npc_state(session_id) do
