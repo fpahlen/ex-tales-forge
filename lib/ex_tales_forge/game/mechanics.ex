@@ -27,9 +27,11 @@ defmodule TalesForge.Game.Mechanics do
   end
 
   defmodule Harm do
-    @moduledoc false
-    # The harm step of a turn: the mechanical resolution (its LP go on a
-    # fatal death roll) and an injected death roll (1..100) or nil.
+    @moduledoc """
+    The harm step of a turn (`TalesForge.Game.Mechanics.apply_character_vitality/3`):
+    the mechanical resolution (its LP go on a fatal death roll) and an
+    injected death roll (1..100) or nil.
+    """
     defstruct [:mechanical, :death_roll]
     @type t :: %__MODULE__{}
   end
