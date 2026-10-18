@@ -265,7 +265,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     title = TalesForgeWeb.TimeAgo.stockholm(recent.started_at)
     assert has_element?(view, ~s(#run-#{recent.id}-started[title="#{title}"]))
     assert html =~ TalesForgeWeb.TimeAgo.stockholm(recent.started_at, "%m-%d %H:%M")
-    refute html =~ "UTC"
+    refute shown(html) =~ "UTC"
 
     # The minute tick re-renders without reloading or reordering the rows.
     send(view.pid, :tick)
@@ -285,7 +285,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     assert has_element?(view, "#run-started", "2 hours ago")
     assert html =~ "(#{TalesForgeWeb.TimeAgo.stockholm(run.started_at)})"
     assert has_element?(view, "#score-scored-at", "a few seconds ago")
-    refute html =~ "UTC"
+    refute shown(html) =~ "UTC"
 
     send(view.pid, :tick)
     assert has_element?(view, "#run-started", "2 hours ago")
@@ -696,5 +696,13 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     end
 
     run
+  end
+
+  # The page text and the hover titles, without the random LiveView session
+  # and CSRF tokens: a signed token can contain "UTC" by chance.
+  defp shown(html) do
+    doc = LazyHTML.from_document(html)
+    titles = doc |> LazyHTML.query("[title]") |> LazyHTML.attribute("title")
+    Enum.join([LazyHTML.text(doc) | titles], "\n")
   end
 end
