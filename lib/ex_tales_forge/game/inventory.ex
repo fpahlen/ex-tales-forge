@@ -5,7 +5,8 @@ defmodule TalesForge.Game.Inventory do
     # One inventory action between two GameCharacters (refactor plan step
     # 10d): the acting `character` and, for a buy, a sale or a trade with an
     # NPC, one of the `traders`, whose stock is their inventory with
-    # `price_copper` set and who pay or are paid from their coins. It also has the world, the location, the resolved
+    # `price_copper` set; a buy or a sale is one `TalesForge.Game.Trade`
+    # with them. It also has the world, the location, the resolved
     # action and the ground items the steps change. `applied` is the log of
     # what happened and `changed` the ids of the traders whose inventory
     # changed.
@@ -35,7 +36,11 @@ defmodule TalesForge.Game.Inventory do
           }
   end
 
+  import TalesForge.Game.Goods, only: [find_item_index: 2, int_field: 3]
+
+  alias TalesForge.Game.Goods
   alias TalesForge.Game.Schemas.SingleAction
+  alias TalesForge.Game.Trade
   alias TalesForge.Game.World
   alias TalesForge.GameCharacter
 
@@ -74,7 +79,112 @@ defmodule TalesForge.Game.Inventory do
         traders: Map.new(traders, fn {id, gc} -> {id, stocked(gc)} end)
       })
 
-    with :ok <- validate_transaction(transaction), do: do_apply(transaction)
+    with {:ok, %Transaction{} = done} <- decide(transaction), do: finish(done)
+  end
+
+  # The one decision of an action: it is done, or `{:error, reason}` and
+  # nothing moved. A buy or a sale is one `TalesForge.Game.Trade`.
+  defp decide(%Transaction{action: %SingleAction{action_type: type}} = t)
+       when type in [:buy, :sell] do
+    with {:ok, npc_id, %Trade{} = trade} <- to_trade(type, t),
+         {:ok, %Trade{} = done} <- Trade.execute(trade),
+         do: {:ok, traded(type, t, {npc_id, done})}
+  end
+
+  defp decide(%Transaction{action: %SingleAction{action_type: type} = action} = t) do
+    with :ok <- validate_transaction(t), do: {:ok, step(t, type, params(action))}
+  rescue
+    error in ArgumentError ->
+      {:error, Exception.message(error)}
+  end
+
+  defp to_trade(:buy, t), do: purchase_trade(t)
+  defp to_trade(:sell, t), do: sale_trade(t)
+
+  # A purchase: the trader gives the stock item for its price.
+  defp purchase_trade(%Transaction{character: character, action: action} = t) do
+    params = params(action)
+    item_id = param_item_id(params)
+    npc_id = resolve_buy_npc_id(action, params, t)
+
+    case {Map.get(t.traders, npc_id), Enum.find(stock(t, npc_id), &(&1["id"] == item_id))} do
+      {%GameCharacter{} = trader, %{} = item} ->
+        {:ok, npc_id,
+         %Trade{
+           giver: trader,
+           receiver: character,
+           item: goods(item, params),
+           price: total(params, item)
+         }}
+
+      _ ->
+        {:error, not_for_sale(t, item_id)}
+    end
+  end
+
+  # A sale: the character gives the carried item, and the price is the one
+  # on the action (a haggle's), else the item's value.
+  defp sale_trade(%Transaction{character: character, action: action} = t) do
+    params = params(action)
+    item_id = param_item_id(params)
+    npc_id = npc_ref(action, "")
+    carried = Enum.find(character.inventory, &(&1["id"] == item_id))
+
+    case {item_id, Map.get(t.traders, npc_id)} do
+      {"", _trader} ->
+        {:error, "Sell requires parameters.item_id."}
+
+      {_item_id, nil} ->
+        {:error, "Nobody here buys '#{item_id}'."}
+
+      {_item_id, %GameCharacter{} = trader} ->
+        {:ok, npc_id,
+         %Trade{
+           giver: character,
+           receiver: trader,
+           item: goods(carried || %{"id" => item_id}, params),
+           price: total(params, carried)
+         }}
+    end
+  end
+
+  defp total(params, item), do: price_copper(params, item) * action_quantity(params)
+
+  defp goods(item, params),
+    do: %{"id" => item["id"], "name" => item["name"], "quantity" => action_quantity(params)}
+
+  # Why a purchase found nothing to buy, with what is for sale here, so the
+  # GM offers no goods the traders do not have (Gentry's playtest session
+  # 3d9788e0 on 2026-10-18: "I buy a loaf of bread" at an inn that sells ale).
+  defp not_for_sale(%Transaction{} = t, item_id) do
+    asked = if item_id == "", do: "That is", else: "'#{item_id}' is"
+
+    case all_stock(t) do
+      [] -> "#{asked} not sold here. Nothing is for sale here."
+      stock -> "#{asked} not sold here. For sale: #{Enum.map_join(stock, ", ", &offer/1)}."
+    end
+  end
+
+  defp offer(%{"name" => name, "price_copper" => price}), do: "#{name} (#{price}c)"
+
+  # The transaction after the trade `done` with the trader `npc_id`.
+  defp traded(:buy, t, {npc_id, %Trade{giver: trader, receiver: character} = done}),
+    do: put_trade(t, {npc_id, trader, character}, applied("bought", done))
+
+  defp traded(:sell, t, {npc_id, %Trade{giver: character, receiver: trader} = done}),
+    do: put_trade(t, {npc_id, trader, character}, applied("sold", done))
+
+  defp applied(verb, %Trade{item: item, price: price}),
+    do: "#{verb} #{item["quantity"]}x #{item["id"]} for #{price}c"
+
+  defp put_trade(%Transaction{} = t, {npc_id, trader, character}, applied) do
+    %{
+      t
+      | character: character,
+        traders: Map.put(t.traders, npc_id, trader),
+        changed: Enum.uniq(t.changed ++ [npc_id]),
+        applied: [applied]
+    }
   end
 
   # A trader with its inventory as stock: every item priced.
@@ -114,58 +224,6 @@ defmodule TalesForge.Game.Inventory do
     end
   end
 
-  defp validate(:buy, action, %Transaction{character: character} = t) do
-    params = params(action)
-    item_id = param_item_id(params)
-    qty = action_quantity(params)
-    npc_id = resolve_buy_npc_id(action, params, t)
-    stock = stock(t, npc_id)
-    stock_item = Enum.find(stock, &(&1["id"] == item_id))
-
-    cond do
-      item_id == "" ->
-        {:error, "Buy requires parameters.item_id."}
-
-      npc_id == "" or is_nil(stock_item) ->
-        {:error, "'#{item_id}' is not sold here."}
-
-      item_quantity(stock, item_id) < qty ->
-        {:error, "Not enough '#{item_id}' in stock."}
-
-      coin_total_copper(character.coins) < price_copper(params, stock_item) * qty ->
-        {:error,
-         "Insufficient funds for #{item_id} (#{price_copper(params, stock_item) * qty}c needed)."}
-
-      true ->
-        :ok
-    end
-  end
-
-  # A sale needs a buyer here who trades, a price and the buyer's coins for
-  # it: else nothing moves (Gentry's playtest session 643b8031 on
-  # 2026-10-18: a travel cloak with no price left the sheet and paid
-  # nothing).
-  defp validate(:sell, action, %Transaction{character: character} = t) do
-    params = params(action)
-    item_id = param_item_id(params)
-    npc_id = npc_ref(action, "")
-
-    cond do
-      item_id == "" ->
-        {:error, "Sell requires parameters.item_id."}
-
-      npc_id == "" ->
-        {:error, "Sell requires an NPC target."}
-
-      item_quantity(character.inventory, item_id) < action_quantity(params) ->
-        {:error, "Cannot sell '#{item_id}' — not in inventory."}
-
-      true ->
-        total = sale_price(t, item_id) * action_quantity(params)
-        validate_buyer(Map.get(t.traders, npc_id), item_id, total)
-    end
-  end
-
   defp validate(:spend, action, %Transaction{character: character}) do
     amount = spend_amount(action)
 
@@ -190,27 +248,16 @@ defmodule TalesForge.Game.Inventory do
 
   defp validate(_type, _action, _t), do: {:error, "Not an inventory action."}
 
-  defp validate_buyer(nil, item_id, _total),
-    do: {:error, "Nobody here buys '#{item_id}'."}
-
-  defp validate_buyer(%GameCharacter{}, item_id, total) when total <= 0,
-    do: {:error, "Sell requires a price for '#{item_id}'."}
-
-  defp validate_buyer(%GameCharacter{name: name, coins: coins}, item_id, total) do
-    if coin_total_copper(coins) < total,
-      do: {:error, "Insufficient funds: #{name} cannot pay #{total}c for #{item_id}."},
-      else: :ok
-  end
-
-  # The agreed price of one item of the sale in copper: the price on the
-  # action (a haggle's), else the item's value; as a purchase's is the price
-  # on the action, else the stock's.
-  defp sale_price(%Transaction{character: character, action: action}, item_id),
-    do: price_copper(params(action), Enum.find(character.inventory, &(&1["id"] == item_id)))
-
   defp params(%SingleAction{parameters: params}), do: params || %{}
 
   defp param_item_id(params), do: params |> Map.get("item_id", "") |> to_string() |> String.trim()
+
+  defdelegate item_quantity(items, item_id), to: Goods
+  defdelegate add_item(items, item), to: Goods
+  defdelegate remove_item(items, item_id, quantity \\ 1), to: Goods
+  defdelegate coin_total_copper(coins), to: Goods
+  defdelegate deduct_coins(coins, amount_copper), to: Goods
+  defdelegate add_coins(coins, amount_copper), to: Goods
 
   def normalize_stock(raw) when is_list(raw) do
     Enum.flat_map(raw, fn
@@ -262,58 +309,6 @@ defmodule TalesForge.Game.Inventory do
 
   def normalize_items(_), do: []
 
-  def item_quantity(items, item_id) do
-    case find_item_index(items, item_id) do
-      nil -> 0
-      index -> int_field(Enum.at(items, index), ["quantity"], 0)
-    end
-  end
-
-  def add_item(items, item) when is_map(item) do
-    item_id = Map.fetch!(item, "id")
-    qty = max(1, int_field(item, ["quantity"], 1))
-
-    case find_item_index(items, item_id) do
-      nil ->
-        items ++ [Map.put(item, "quantity", qty)]
-
-      index ->
-        current = int_field(Enum.at(items, index), ["quantity"], 0)
-        List.replace_at(items, index, Map.put(Enum.at(items, index), "quantity", current + qty))
-    end
-  end
-
-  def remove_item(items, item_id, quantity \\ 1) do
-    index = find_item_index(items, item_id)
-
-    if is_nil(index) do
-      raise ArgumentError, "Item '#{item_id}' not found."
-    end
-
-    current = int_field(Enum.at(items, index), ["quantity"], 0)
-
-    if current < quantity do
-      raise ArgumentError, "Not enough '#{item_id}' (have #{current}, need #{quantity})."
-    end
-
-    remaining = current - quantity
-
-    if remaining <= 0 do
-      List.delete_at(items, index)
-    else
-      List.replace_at(items, index, Map.put(Enum.at(items, index), "quantity", remaining))
-    end
-  end
-
-  def coin_total_copper(coins) when is_map(coins) do
-    gold = int_field(coins, ["gold"], 0)
-    silver = int_field(coins, ["silver"], 0)
-    copper = int_field(coins, ["copper"], 0)
-    gold * @copper_per_gold + silver * @copper_per_silver + copper
-  end
-
-  def coin_total_copper(_), do: 0
-
   @doc """
   The same coins converted up: 10 copper is 1 silver and 500 copper is 1 gold.
   The total stays the same; gold, silver and copper are always present.
@@ -332,20 +327,6 @@ defmodule TalesForge.Game.Inventory do
       "silver" => div(rem(total, @copper_per_gold), @copper_per_silver),
       "copper" => rem(total, @copper_per_silver)
     }
-  end
-
-  def deduct_coins(coins, amount_copper) do
-    total = coin_total_copper(coins)
-
-    if total < amount_copper do
-      raise ArgumentError, "Insufficient funds (have #{total}c, need #{amount_copper}c)."
-    end
-
-    copper_to_coins(total - amount_copper)
-  end
-
-  def add_coins(coins, amount_copper) do
-    copper_to_coins(coin_total_copper(coins) + amount_copper)
   end
 
   def resolve_item_id(hint, items) when is_binary(hint) do
@@ -414,9 +395,7 @@ defmodule TalesForge.Game.Inventory do
       String.contains?(normalized, name) or String.contains?(name, normalized)
   end
 
-  defp do_apply(%Transaction{} = t) do
-    t = step(t, t.action.action_type, t.action.parameters || %{})
-    %GameCharacter{inventory: inventory, coins: coins} = t.character
+  defp finish(%Transaction{character: %GameCharacter{inventory: inventory, coins: coins}} = t) do
     character = GameCharacter.put(t.character, inventory: inventory, coins: coins)
 
     world_state =
@@ -425,9 +404,6 @@ defmodule TalesForge.Game.Inventory do
       |> put_ground_items(t.location_id, t.ground_items)
 
     {:ok, world_state, %{applied: t.applied}, Enum.map(t.changed, &Map.fetch!(t.traders, &1))}
-  rescue
-    error in ArgumentError ->
-      {:error, Exception.message(error)}
   end
 
   # One step per action type: each changes the character's inventory or
@@ -462,51 +438,6 @@ defmodule TalesForge.Game.Inventory do
     }
   end
 
-  defp step(%Transaction{character: character} = t, :buy, params) do
-    item_id = param_item_id(params)
-    qty = action_quantity(params)
-    npc_id = resolve_buy_npc_id(t.action, params, t)
-    stock = stock(t, npc_id)
-    stock_item = Enum.find(stock, &(&1["id"] == item_id))
-    price = price_copper(params, stock_item)
-    total = price * qty
-
-    bought = %{
-      "id" => item_id,
-      "name" => stock_item["name"],
-      "copper_value" => price,
-      "quantity" => qty
-    }
-
-    character = %{character | inventory: add_item(character.inventory, bought)}
-
-    %{
-      put_stock(t, npc_id, remove_item(stock, item_id, qty))
-      | character: character,
-        applied: ["bought #{qty}x #{item_id} for #{total}c"]
-    }
-    |> pay(npc_id, -total)
-  end
-
-  # A sale is the purchase the other way: the item goes into the buyer's
-  # inventory, priced, and the buyer pays for it.
-  defp step(%Transaction{character: character} = t, :sell, params) do
-    item_id = param_item_id(params)
-    qty = action_quantity(params)
-    npc_id = npc_ref(t.action, "")
-    price = sale_price(t, item_id)
-    total = price * qty
-    source = Enum.at(character.inventory, find_item_index(character.inventory, item_id))
-    sold = Map.put(carried(source, item_id, qty), "price_copper", price)
-
-    %{
-      put_stock(t, npc_id, add_item(stock(t, npc_id), sold))
-      | character: %{character | inventory: remove_item(character.inventory, item_id, qty)},
-        applied: ["sold #{qty}x #{item_id} for #{total}c"]
-    }
-    |> pay(npc_id, total)
-  end
-
   defp step(%Transaction{character: character} = t, :spend, _params) do
     amount = spend_amount(t.action)
 
@@ -524,21 +455,6 @@ defmodule TalesForge.Game.Inventory do
     |> give(give_items, counterparty)
     |> apply_trade(receive_items, counterparty)
   end
-
-  # `amount` copper from the trader `npc_id` to the character (a negative
-  # amount goes the other way). Coins change hands; none are made or lost.
-  defp pay(%Transaction{character: character, traders: traders} = t, npc_id, amount) do
-    trader = Map.fetch!(traders, npc_id)
-
-    %{
-      t
-      | character: %{character | coins: move_coins(character.coins, amount)},
-        traders: Map.put(traders, npc_id, %{trader | coins: move_coins(trader.coins, -amount)})
-    }
-  end
-
-  defp move_coins(coins, amount) when amount < 0, do: deduct_coins(coins, -amount)
-  defp move_coins(coins, amount), do: add_coins(coins, amount)
 
   # The trader `npc_id` with `stock` as its inventory, marked as changed.
   defp put_stock(%Transaction{traders: traders} = t, npc_id, stock) do
@@ -817,44 +733,10 @@ defmodule TalesForge.Game.Inventory do
 
   def trader_ids(_action, _present_npcs), do: []
 
-  defp find_item_index(items, item_id) do
-    Enum.find_index(items, &(&1["id"] == item_id))
-  end
-
-  defp copper_to_coins(total) do
-    total = max(0, total)
-    gold = div(total, @copper_per_gold)
-    after_gold = rem(total, @copper_per_gold)
-    silver = div(after_gold, @copper_per_silver)
-    copper = rem(after_gold, @copper_per_silver)
-
-    %{}
-    |> maybe_put("gold", gold)
-    |> maybe_put("silver", silver)
-    |> maybe_put("copper", copper)
-  end
-
-  defp maybe_put(map, _key, 0), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
-
   defp default_name(entry, item_id) do
     case Map.get(entry, "name") do
       name when is_binary(name) and name != "" -> name
       _ -> item_id |> String.replace("_", " ") |> String.capitalize()
     end
   end
-
-  defp int_field(map, keys, default) when is_map(map) do
-    Enum.find_value(keys, fn key ->
-      case Map.get(map, key) do
-        nil -> nil
-        value when is_integer(value) -> value
-        value when is_binary(value) -> String.to_integer(value)
-        value when is_float(value) -> trunc(value)
-        _ -> nil
-      end
-    end) || default
-  end
-
-  defp int_field(_, _, default), do: default
 end

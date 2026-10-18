@@ -1,190 +1,304 @@
 defmodule TalesForge.Game.TradeTest do
   @moduledoc """
-  A buy or a sale is one exchange between the character and an NPC: the
-  item goes one way and its price in coins the other, both or neither, and
-  no item or coin is made or lost. Gentry's playtest session 643b8031 on
-  2026-10-18 (after #446): "I sell my travel cloak to Brenna Holt" took
-  the cloak off the sheet, paid nothing, and the GM narrated four silver.
+  A trade is one operation (Fredrik's rule, 2026-10-18): the item and its
+  price change places between the two characters, both or neither, only
+  when both accept, and nothing is made or lost. The GM narrates only the
+  outcome the server decided.
+
+  Gentry's playtest sessions on 2026-10-18: 643b8031 (after #446, a cloak
+  sold for nothing) and 3d9788e0 (after #466: T7 "I buy a mug of ale from
+  Brenna and pay her", T8 "I sell the mug of ale back to Brenna Holt", which
+  the server made while the story refused it).
   """
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Game.{ActionHandler, Inventory, TurnProcessor, World}
-  alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction, SingleAction}
-  alias TalesForge.Game.Turn.Board
+  alias TalesForge.Game.{Inventory, Trade, TurnProcessor, World}
+  alias TalesForge.Game.Schemas.{GMStructuredResponse, HandlerResult, SingleAction}
+  alias TalesForge.Game.Turn.{Adapters, Board}
   alias TalesForge.GameCharacter
   alias TalesForge.GameSessions
   alias TalesForge.NPC
-  alias TalesForge.Schemas.GameSession
+  alias TalesForge.Repo
+  alias TalesForge.Schemas.{Character, GameSession}
 
-  doctest TalesForge.Game.Turn.Board, only: [refusal: 2]
+  doctest TalesForge.Game.Trade
+  doctest TalesForge.Game.Turn.Board, only: [trade_outcome: 2]
 
   @cloak %{"id" => "travel_cloak", "name" => "Travel Cloak", "quantity" => 1}
+  @ale %{"id" => "ale_mug", "name" => "Mug of Ale", "quantity" => 1}
 
-  describe "between the character and a trader" do
+  describe "Trade.execute/1" do
     setup do
       brenna = %GameCharacter{
         slug: "innkeep",
         name: "Brenna Holt",
         coins: %{"silver" => 10},
-        inventory: [
-          %{"id" => "ale_mug", "name" => "Mug of Ale", "price_copper" => 2, "quantity" => 5}
-        ]
+        inventory: [Map.merge(@ale, %{"price_copper" => 2, "quantity" => 5})]
       }
 
-      world =
-        World.default_world_state()
-        |> put_in(["character", "inventory"], [Map.put(@cloak, "copper_value", 40)])
-        |> put_in(["character", "coins"], %{"copper" => 9})
+      aric = %GameCharacter{
+        name: "Aric",
+        coins: %{"copper" => 9},
+        inventory: [Map.put(@cloak, "copper_value", 40)]
+      }
 
-      {:ok, world: world, traders: %{"innkeep" => brenna}}
+      {:ok, brenna: brenna, aric: aric}
     end
 
-    test "a sale pays the character and the item joins the buyer's inventory", %{
-      world: world,
-      traders: traders
-    } do
-      assert {:ok, after_world, %{applied: ["sold 1x travel_cloak for 40c"]}, [brenna]} =
-               Inventory.apply_transaction(world, traders, sell("travel_cloak"))
+    test "a sale and a purchase are the same trade", %{brenna: brenna, aric: aric} do
+      assert {:ok, %Trade{giver: aric, receiver: brenna} = sold} =
+               Trade.execute(%Trade{giver: aric, receiver: brenna, item: @cloak, price: 40})
 
-      assert copper(after_world["character"]) == 49
-      assert Inventory.item_quantity(after_world["character"]["inventory"], "travel_cloak") == 0
+      assert copper(aric) == 49
       assert copper(brenna) == 60
+      assert Inventory.item_quantity(brenna.inventory, "travel_cloak") == 1
+      assert_same_wealth([sold.giver, sold.receiver], [aric, brenna])
 
-      assert %{"price_copper" => 40, "quantity" => 1} =
-               Enum.find(brenna.inventory, &(&1["id"] == "travel_cloak"))
+      assert {:ok, %Trade{receiver: back}} =
+               Trade.execute(%Trade{giver: brenna, receiver: aric, item: @cloak, price: 40})
 
-      assert_conserved({world, traders}, {after_world, [brenna]})
+      assert copper(back) == 9
+      assert Inventory.item_quantity(back.inventory, "travel_cloak") == 1
     end
 
-    test "a haggled price on the action is the price paid", %{world: world, traders: traders} do
-      action = sell("travel_cloak", %{"price_copper" => 25})
+    test "a receiver who cannot pay, a giver without the item, no price or a refusal: nothing moves",
+         %{brenna: brenna, aric: aric} do
+      poor = %{brenna | coins: %{"copper" => 39}}
 
-      assert {:ok, after_world, _details, [brenna]} =
-               Inventory.apply_transaction(world, traders, action)
+      assert {:error, "Brenna Holt cannot pay 40c for Travel Cloak."} =
+               Trade.execute(%Trade{giver: aric, receiver: poor, item: @cloak, price: 40})
 
-      assert copper(after_world["character"]) == 34
-      assert copper(brenna) == 75
-      assert_conserved({world, traders}, {after_world, [brenna]})
+      assert {:error, "Aric has no Mug of Ale to give."} =
+               Trade.execute(%Trade{giver: aric, receiver: brenna, item: @ale, price: 2})
+
+      assert {:error, "No price for Travel Cloak: nothing changed hands."} =
+               Trade.execute(%Trade{giver: aric, receiver: brenna, item: @cloak, price: 0})
+
+      picky = %{brenna | runtime: %{"buys" => ["ale_mug"]}}
+
+      assert {:error, "Brenna Holt does not buy Travel Cloak."} =
+               Trade.execute(%Trade{giver: aric, receiver: picky, item: @cloak, price: 40})
+
+      sulking = %{
+        brenna
+        | runtime: %{"refuses_trade" => "Brenna Holt refuses to trade with you."}
+      }
+
+      assert {:error, "Brenna Holt refuses to trade with you."} =
+               Trade.execute(%Trade{giver: sulking, receiver: aric, item: @ale, price: 2})
     end
+  end
 
-    test "a buyer who cannot pay refuses, and nothing moves", %{world: world, traders: traders} do
-      poor = put_in(traders, ["innkeep"], %{traders["innkeep"] | coins: %{"copper" => 39}})
+  describe "the inventory step" do
+    test "a buy names what is for sale when the item is not" do
+      world = World.default_world_state()
 
-      assert {:error, "Insufficient funds: Brenna Holt cannot pay 40c for travel_cloak."} =
-               Inventory.apply_transaction(world, poor, sell("travel_cloak"))
-    end
+      brenna = %GameCharacter{
+        slug: "innkeep",
+        name: "Brenna Holt",
+        inventory: [Map.put(@ale, "price_copper", 2)]
+      }
 
-    test "an item with no price is not sold", %{world: world, traders: traders} do
-      world = put_in(world, ["character", "inventory"], [@cloak])
-
-      assert {:error, "Sell requires a price for 'travel_cloak'."} =
-               Inventory.apply_transaction(world, traders, sell("travel_cloak"))
-    end
-
-    test "a sale to nobody here who trades is not made", %{world: world} do
-      assert {:error, "Nobody here buys 'travel_cloak'."} =
-               Inventory.apply_transaction(world, %{}, sell("travel_cloak"))
-    end
-
-    test "a purchase pays the trader", %{world: world, traders: traders} do
-      action = %SingleAction{
+      bread = %SingleAction{
         action_type: :buy,
         target: "innkeep",
-        parameters: %{"item_id" => "ale_mug", "quantity" => 2}
+        parameters: %{"npc_id" => "innkeep"}
       }
 
-      assert {:ok, after_world, _details, [brenna]} =
-               Inventory.apply_transaction(world, traders, action)
-
-      assert copper(after_world["character"]) == 5
-      assert Inventory.item_quantity(after_world["character"]["inventory"], "ale_mug") == 2
-      assert copper(brenna) == 104
-      assert Inventory.item_quantity(brenna.inventory, "ale_mug") == 3
-      assert_conserved({world, traders}, {after_world, [brenna]})
+      assert {:error, "That is not sold here. For sale: Mug of Ale (2c)."} =
+               Inventory.apply_transaction(world, %{"innkeep" => brenna}, bread)
     end
   end
 
-  describe "a sale in a turn" do
+  # The whole turn (TurnProcessor.run/3: intent → rules → board → prompt →
+  # GM → store) with a stubbed GM, against Brenna Holt as the Tin Valley
+  # pack seeds her: Mug of Ale x99 at 2c and a purse of 1 gold.
+  describe "a trade in a whole turn" do
     setup do
       {:ok, session} = GameSessions.create_session(%{name: "Trade", adventure_id: "tin_valley"})
-      {:ok, session: GameSessions.get_session!(session.id)}
-    end
-
-    test "the cloak and the coins change hands in the saved turn", %{session: session} do
-      session = carry(session, Map.put(@cloak, "copper_value", 40))
-      before = {session.world_state, NPC.traders(session.id, ["innkeep"])}
-
-      assert {:ok, _payload} = TurnProcessor.simulate!(board(session), "I sell my cloak")
-
-      saved = GameSessions.get_session!(session.id)
+      session = GameSessions.get_session!(session.id)
       %{"innkeep" => brenna} = NPC.traders(session.id, ["innkeep"])
 
-      assert copper(saved.world_state["character"]) ==
-               copper(session.world_state["character"]) + 40
+      assert Inventory.item_quantity(brenna.inventory, "ale_mug") == 99
+      assert copper(brenna) == 500
 
-      assert Inventory.item_quantity(brenna.inventory, "travel_cloak") == 1
-      assert_conserved(before, {saved.world_state, [brenna]})
+      {:ok, session: session}
     end
 
-    test "a sale with no price moves nothing, and the GM is told why", %{session: session} do
-      session = carry(session, @cloak)
-      %{"innkeep" => brenna_before} = NPC.traders(session.id, ["innkeep"])
+    test "T7: a buy pays Brenna and takes the mug from her stock", %{session: session} do
+      before = wealth(session)
 
-      result = Board.resolve(%{board(session) | character: session.world_state["character"]})
+      {prompt, saved} =
+        play(session, "I buy a mug of ale from Brenna and pay her.", buy("ale_mug"))
 
-      assert result.world["character"]["inventory"] ==
-               session.world_state["character"]["inventory"]
-
-      assert result.world["character"]["coins"] == session.world_state["character"]["coins"]
-      assert result.traders == []
-
-      ruled = %HandlerResult{handler: "inventory"}
-
-      assert %HandlerResult{
-               state_hints: %{"reason" => "Sell requires a price for 'travel_cloak'."}
-             } =
-               Board.refusal(ruled, result.handler)
-
-      assert {:ok, _payload} = TurnProcessor.simulate!(board(session), "I sell my cloak")
-      saved = GameSessions.get_session!(session.id)
-
-      assert Inventory.item_quantity(saved.world_state["character"]["inventory"], "travel_cloak") ==
-               1
-
-      assert NPC.traders(session.id, ["innkeep"]) == %{"innkeep" => brenna_before}
+      assert copper(saved.player) == copper(before.player) - 2
+      assert Inventory.item_quantity(saved.player["inventory"], "ale_mug") == 1
+      assert copper(saved.brenna) == 502
+      assert Inventory.item_quantity(saved.brenna.inventory, "ale_mug") == 98
+      assert totals(saved) == totals(before)
+      assert prompt =~ "The server made this trade: bought 1x ale_mug for 2c."
     end
 
-    test "a sale the turn does not save moves nothing at the NPC", %{session: session} do
+    test "T8: a sell-back Brenna accepts is made, and the GM is told it is done",
+         %{session: session} do
+      {_prompt, _saved} =
+        play(session, "I buy a mug of ale from Brenna and pay her.", buy("ale_mug"))
+
+      before = session.id |> GameSessions.get_session!() |> wealth()
+
+      {prompt, saved} =
+        play(session, "I sell the mug of ale back to Brenna Holt.", sell("ale_mug"))
+
+      assert Inventory.item_quantity(saved.player["inventory"], "ale_mug") == 0
+      assert Inventory.item_quantity(saved.brenna.inventory, "ale_mug") == 99
+      assert copper(saved.brenna) == 500
+      assert totals(saved) == totals(before)
+      assert prompt =~ "The server made this trade: sold 1x ale_mug for 2c."
+      assert prompt =~ "the trader does not refuse it"
+    end
+
+    test "T8: a refused sell-back changes nothing, and the GM is told no coins moved",
+         %{session: session} do
+      {_prompt, _saved} =
+        play(session, "I buy a mug of ale from Brenna and pay her.", buy("ale_mug"))
+
+      put_innkeep(session, &%{definition: Map.put(&1.definition, "buys", [])})
+      before = session.id |> GameSessions.get_session!() |> wealth()
+      row_coins = innkeep_row(session).coins
+
+      {prompt, saved} =
+        play(session, "I sell the mug of ale back to Brenna Holt.", sell("ale_mug"))
+
+      assert saved.player["inventory"] == before.player["inventory"]
+      assert saved.player["coins"] == before.player["coins"]
+      assert saved.brenna.inventory == before.brenna.inventory
+      assert innkeep_row(session).coins == row_coins
+      assert prompt =~ "The server refused this trade: Brenna Holt does not buy Mug of Ale."
+      assert prompt =~ "narrate no payment and no handover"
+    end
+
+    test "a sale pays the character, and Brenna keeps the cloak", %{session: session} do
       session = carry(session, Map.put(@cloak, "copper_value", 40))
-      traders_before = NPC.traders(session.id, ["innkeep"])
+      before = wealth(session)
 
-      %{traders: [_brenna]} =
-        Board.resolve(%{board(session) | character: session.world_state["character"]})
+      {_prompt, saved} =
+        play(session, "I sell my travel cloak to Brenna Holt.", sell("travel_cloak"))
 
-      assert NPC.traders(session.id, ["innkeep"]) == traders_before
+      assert copper(saved.player) == copper(before.player) + 40
+      assert Inventory.item_quantity(saved.brenna.inventory, "travel_cloak") == 1
+      assert copper(saved.brenna) == 460
+      assert totals(saved) == totals(before)
+    end
+
+    test "an NPC who cannot afford it refuses, and nothing changes", %{session: session} do
+      session = carry(session, Map.put(@cloak, "copper_value", 40))
+      put_innkeep(session, fn _row -> %{coins: %{"copper" => 39}} end)
+      before = wealth(session)
+
+      {prompt, saved} =
+        play(session, "I sell my travel cloak to Brenna Holt.", sell("travel_cloak"))
+
+      assert saved.player["inventory"] == before.player["inventory"]
+      assert saved.player["coins"] == before.player["coins"]
+      assert saved.brenna.inventory == before.brenna.inventory
+      assert innkeep_row(session).coins == %{"copper" => 39}
+
+      assert prompt =~
+               "The server refused this trade: Brenna Holt cannot pay 40c for Travel Cloak."
+    end
+
+    test "a sale with no price is refused, and the GM gets the reason", %{session: session} do
+      session = carry(session, @cloak)
+      before = wealth(session)
+
+      {prompt, saved} =
+        play(session, "I sell my travel cloak to Brenna Holt.", sell("travel_cloak"))
+
+      assert saved.player["inventory"] == before.player["inventory"]
+      assert saved.brenna == before.brenna
+      assert prompt =~ ~s("reason": "No price for Travel Cloak: nothing changed hands.")
     end
   end
 
-  defp sell(item_id, params \\ %{}) do
-    %SingleAction{
-      action_type: :sell,
-      target: "innkeep",
-      parameters: Map.merge(%{"item_id" => item_id, "npc_id" => "innkeep"}, params)
+  test "trade_outcome/2 gives the GM a trade that was done" do
+    done = %HandlerResult{
+      handler: "inventory",
+      state_hints: %{"trade" => %{"status" => "done", "detail" => "sold 1x ale_mug for 2c"}}
     }
+
+    assert %HandlerResult{state_hints: %{"trade" => %{"status" => "done"}} = hints} =
+             Board.trade_outcome(%HandlerResult{handler: "inventory"}, done)
+
+    refute Map.has_key?(hints, "reason")
   end
 
-  defp board(%GameSession{} = session) do
-    action = %PlayerAction{
-      overall_intent: "I sell my cloak to Brenna",
-      action: sell("travel_cloak")
+  # One turn through TurnProcessor.run/3 with the GM stubbed: the per-turn
+  # GM prompt, and the player and Brenna as saved.
+  defp play(%GameSession{id: id}, text, action) do
+    me = self()
+
+    adapters = %Adapters{
+      npc: fn _moment -> [] end,
+      stream: fn _id, _chunk -> :ok end,
+      gm: fn messages, _action, _handler, _n, _opts ->
+        send(me, {:gm_prompt, List.last(messages).content})
+        {:ok, %GMStructuredResponse{narrative: "Brenna nods."}}
+      end
     }
 
-    %Board{
-      session: session,
-      player_action: action,
-      handler: ActionHandler.resolve(action),
-      mechanical: %MechanicalResolution{outcome: "none"}
+    player_action = %{"overall_intent" => text, "action" => action}
+
+    assert {:ok, _payload} =
+             TurnProcessor.run(id, {text, player_action},
+               adapters: adapters,
+               flags: %{},
+               role: :playtest
+             )
+
+    assert_received {:gm_prompt, prompt}
+    {prompt, id |> GameSessions.get_session!() |> wealth()}
+  end
+
+  defp buy(item_id),
+    do: %{"action_type" => "buy", "target" => "innkeep", "parameters" => %{"item_id" => item_id}}
+
+  defp sell(item_id),
+    do: %{
+      "action_type" => "sell",
+      "target" => "innkeep",
+      "parameters" => %{"item_id" => item_id, "npc_id" => "innkeep"}
     }
+
+  defp wealth(%GameSession{id: id, world_state: world}) do
+    %{"innkeep" => brenna} = NPC.traders(id, ["innkeep"])
+    %{player: world["character"], brenna: brenna}
+  end
+
+  # The coins and the count of each item, over the player and Brenna.
+  defp totals(%{player: player, brenna: brenna}) do
+    items =
+      (Inventory.normalize_items(player["inventory"]) ++ brenna.inventory)
+      |> Enum.group_by(& &1["id"], & &1["quantity"])
+      |> Map.new(fn {id, qtys} -> {id, Enum.sum(qtys)} end)
+
+    {copper(player) + copper(brenna), items}
+  end
+
+  defp assert_same_wealth(after_trade, before_trade),
+    do: assert(totals(pair(after_trade)) == totals(pair(before_trade)))
+
+  defp pair([%GameCharacter{} = a, %GameCharacter{} = b]),
+    do: %{
+      player: GameCharacter.to_sheet(a),
+      brenna: %{b | inventory: Inventory.normalize_items(b.inventory)}
+    }
+
+  defp innkeep_row(%GameSession{id: id}),
+    do: Repo.get_by!(Character, game_session_id: id, slug: "innkeep")
+
+  defp put_innkeep(session, changes) do
+    row = innkeep_row(session)
+    row |> Ecto.Changeset.change(changes.(row)) |> Repo.update!()
   end
 
   defp carry(%GameSession{} = session, item) do
@@ -195,23 +309,4 @@ defmodule TalesForge.Game.TradeTest do
 
   defp copper(%GameCharacter{coins: coins}), do: Inventory.coin_total_copper(coins)
   defp copper(%{} = sheet), do: Inventory.coin_total_copper(sheet["coins"])
-
-  # Coins and every item, counted over the character and the traders,
-  # are the same before and after.
-  defp assert_conserved({world, traders}, {after_world, changed}) do
-    after_traders = Map.merge(traders, Map.new(changed, &{&1.slug, &1}))
-    assert wealth(world, traders) == wealth(after_world, after_traders)
-  end
-
-  defp wealth(world, traders) do
-    people = [world["character"] | Enum.map(Map.values(traders), &GameCharacter.to_sheet/1)]
-
-    items =
-      people
-      |> Enum.flat_map(&Inventory.normalize_items(&1["inventory"]))
-      |> Enum.group_by(& &1["id"], & &1["quantity"])
-      |> Map.new(fn {id, qtys} -> {id, Enum.sum(qtys)} end)
-
-    {Enum.sum(Enum.map(people, &Inventory.coin_total_copper(&1["coins"]))), items}
-  end
 end

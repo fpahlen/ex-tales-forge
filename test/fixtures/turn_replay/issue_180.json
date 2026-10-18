@@ -169,7 +169,7 @@
           {
             "type": "sell",
             "status": "rejected",
-            "reason": "Cannot sell 'enchanted_armor' — not in inventory."
+            "reason": "Elara Voss has no 'enchanted_armor' to give."
           }
         ],
         "delta_copper": 0,

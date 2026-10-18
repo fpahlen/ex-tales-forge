@@ -285,7 +285,7 @@ defmodule TalesForge.Game.InventoryTest do
     } do
       action = %SingleAction{action_type: :buy, parameters: %{"item_id" => "lantern"}}
 
-      assert {:error, "Insufficient funds for lantern (30c needed)."} =
+      assert {:error, "Elara Voss cannot pay 30c for Lantern."} =
                Inventory.apply_transaction(
                  put_in(world, ["character", "coins"], %{"copper" => 5}),
                  traders,

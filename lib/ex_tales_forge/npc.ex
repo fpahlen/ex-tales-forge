@@ -331,7 +331,9 @@ defmodule TalesForge.NPC do
   @doc """
   The NPCs `npc_ids` of the session as traders (refactor plan step 10d):
   GameCharacters whose inventory is their stock, every item with a
-  `price_copper`. An id that is not an NPC of the session is left out.
+  `price_copper`, and whose coins are their purse. A definition's `"buys"`
+  (item ids) is all the trader takes (`TalesForge.Game.Trade`). An id that
+  is not an NPC of the session is left out.
   """
   @spec traders(Ecto.UUID.t(), [String.t()]) :: %{String.t() => GameCharacter.t()}
   def traders(session_id, npc_ids) when is_list(npc_ids) do
@@ -347,16 +349,14 @@ defmodule TalesForge.NPC do
     %GameCharacter{
       slug: npc_id,
       name: definition["name"] || npc_id,
-      coins: coins(inst),
+      coins: Map.get(inst.runtime_state, "coins") || %{},
       inventory:
         inst.runtime_state
         |> Map.get("stock", definition_stock(inst))
-        |> TalesForge.Game.Inventory.normalize_stock()
+        |> TalesForge.Game.Inventory.normalize_stock(),
+      runtime: Map.take(definition, ["buys"])
     }
   end
-
-  defp coins(%Person{row: %Character{coins: coins}}) when is_map(coins), do: coins
-  defp coins(%Person{}), do: %{}
 
   @doc """
   Saves the inventory and the coins of each trader (`traders/2`) as its
