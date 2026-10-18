@@ -88,6 +88,7 @@ submit_message
   → require scene ready
   → Tier 1 Intent (heuristic if confidence ≥ 0.85, else LLM; raw text never reaches Tier 2)
   → ProcessTurn (Oban :llm)
+     → World.Instance.run_turn (one turn at a time per session, in a Task; the commit holds an advisory lock on the session)
        LLM.complete_turn (table GM JSON)
        Mechanics.apply_server_mechanics (server 1d20 + LP)
        Inventory.apply_transaction (pure; a trade between the character and an NPC trader, both GameCharacters; Turn.Board loads the traders with NPC.traders/2 and saves them with NPC.put_inventories/2)
