@@ -44,23 +44,13 @@ defmodule TalesForge.Game.Context do
     present_npcs = present_npcs_for(world)
     npc_state = Map.get(world, "npc_state", World.npcs())
     character = Map.get(world, "character", %{})
-    npc_stock = NPC.stock_map(session.id, present_npcs)
+    exits = exits(world, location_id, location)
 
-    # With hierarchical locations the exits include the parent and the
-    # children (TalesForge.Game.Movement.exits/2).
-    exits =
-      if TalesForge.Game.Movement.tree?(world),
-        do: TalesForge.Game.Movement.exits(world, location_id),
-        else: Map.get(location, "exits", [])
-
-    %{
+    world
+    |> location_fields(location_id, location)
+    |> Map.merge(%{
       "session_id" => session.id,
-      "location_id" => location_id,
-      "location_name" => Map.get(world, "location_name", Map.get(location, "name", location_id)),
-      "location_blurb" => Map.get(location, "blurb", ""),
-      "fixtures" => Map.get(location, "fixtures", []),
-      "ground_items" => Map.get(location, "ground_items", []),
-      "npc_stock" => npc_stock,
+      "npc_stock" => npc_stock(session.id, present_npcs),
       "exits" => exits,
       "exit_names" => exit_names(world, exits),
       "present_npcs" => present_npcs,
@@ -74,8 +64,34 @@ defmodule TalesForge.Game.Context do
       # people who are not here are (TalesForge.Game.Movement).
       "places" => Map.get(world, "locations") || World.locations(),
       "npc_locations" => npc_locations(npc_state, present_npcs)
-    }
+    })
     |> put_features(world)
+  end
+
+  # Where the player is: the place's id, name, blurb, fixtures and ground items.
+  defp location_fields(world, location_id, location) do
+    %{
+      "location_id" => location_id,
+      "location_name" => Map.get(world, "location_name", Map.get(location, "name", location_id)),
+      "location_blurb" => Map.get(location, "blurb", ""),
+      "fixtures" => Map.get(location, "fixtures", []),
+      "ground_items" => Map.get(location, "ground_items", [])
+    }
+  end
+
+  # With hierarchical locations the exits include the parent and the
+  # children (TalesForge.Game.Movement.exits/2).
+  defp exits(world, location_id, location) do
+    if TalesForge.Game.Movement.tree?(world),
+      do: TalesForge.Game.Movement.exits(world, location_id),
+      else: Map.get(location, "exits", [])
+  end
+
+  # What each present NPC sells: its inventory as a trader (TalesForge.NPC.traders/2).
+  defp npc_stock(session_id, present_npcs) do
+    session_id
+    |> NPC.traders(present_npcs)
+    |> Map.new(fn {npc_id, trader} -> {npc_id, trader.inventory} end)
   end
 
   # Session features that change movement (hierarchical locations), only

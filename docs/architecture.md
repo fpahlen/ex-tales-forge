@@ -90,7 +90,7 @@ submit_message
   → ProcessTurn (Oban :llm)
        LLM.complete_turn (table GM JSON)
        Mechanics.apply_server_mechanics (server 1d20 + LP)
-       Inventory.apply_transaction (pure; Turn.Board loads and saves the NPC stock)
+       Inventory.apply_transaction (pure; a trade between the character and an NPC trader, both GameCharacters; Turn.Board loads the traders with NPC.traders/2 and saves them with NPC.put_inventories/2)
        WorldClock.advance(+1)
        NPC.apply_gm_updates (npc_memory_updates)
        persist GameSession + Turn

@@ -45,6 +45,7 @@ defmodule TalesForge.Game.Turn.Board do
   alias TalesForge.Game.World
   alias TalesForge.Game.WorldClock
   alias TalesForge.Game.WorldSim
+  alias TalesForge.GameCharacter
   alias TalesForge.NPC
   alias TalesForge.Schemas.GameSession
 
@@ -362,14 +363,14 @@ defmodule TalesForge.Game.Turn.Board do
       else: {world_state, nil}
   end
 
-  # The inventory step is pure; the NPC stock it reads and the stock it
-  # changes are loaded and saved here.
+  # The inventory step is pure; the traders it reads and the traders whose
+  # inventory it changes are loaded and saved here.
   defp apply_inventory(world_state, session_id, action) do
-    keys = Inventory.npc_stock_keys(action, Map.get(world_state, "present_npcs", []))
+    ids = Inventory.trader_ids(action, Map.get(world_state, "present_npcs", []))
 
-    case Inventory.apply_transaction(world_state, NPC.stock_map(session_id, keys), action) do
-      {:ok, updated, details, npc_updates} ->
-        :ok = NPC.persist_stock_updates(session_id, npc_updates)
+    case Inventory.apply_transaction(world_state, NPC.traders(session_id, ids), action) do
+      {:ok, updated, details, changed} ->
+        :ok = NPC.put_inventories(session_id, changed)
         Logger.info("inventory applied session=#{session_id} changes=#{inspect(details.applied)}")
         {updated, {:ok, details}}
 
@@ -412,7 +413,7 @@ defmodule TalesForge.Game.Turn.Board do
 
       action.action_type == :buy and is_binary(item_id) ->
         session_id
-        |> NPC.stock_map(present)
+        |> NPC.traders(present)
         |> Enum.find_value(&seller(&1, item_id))
 
       true ->
@@ -420,8 +421,8 @@ defmodule TalesForge.Game.Turn.Board do
     end
   end
 
-  defp seller({npc_id, stock}, item_id) do
-    if Enum.any?(Inventory.normalize_stock(stock), &(&1["id"] == item_id)), do: npc_id
+  defp seller({npc_id, %GameCharacter{inventory: stock}}, item_id) do
+    if Enum.any?(stock, &(&1["id"] == item_id)), do: npc_id
   end
 
   # `board` with the haggled price on its action, when the words ask for a
@@ -465,11 +466,13 @@ defmodule TalesForge.Game.Turn.Board do
     session_id = board.session.id
     item_id = (action.parameters || %{})["item_id"]
 
-    session_id
-    |> NPC.stock_map([trader])
-    |> Map.get(trader, [])
-    |> Inventory.normalize_stock()
-    |> Enum.find_value(&if(&1["id"] == item_id, do: &1["price_copper"]))
+    case NPC.traders(session_id, [trader]) do
+      %{^trader => %GameCharacter{inventory: stock}} ->
+        Enum.find_value(stock, &if(&1["id"] == item_id, do: &1["price_copper"]))
+
+      %{} ->
+        nil
+    end
   end
 
   defp trade_price(

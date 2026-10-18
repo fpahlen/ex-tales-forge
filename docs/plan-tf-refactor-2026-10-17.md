@@ -352,6 +352,19 @@ golden prompts, plus the replay diff):
 - **10d. One inventory.**
   - NPC stock becomes inventory items with `price_copper`.
   - `Inventory` trades between two GameCharacters, without `npc_stock`.
+  - Status (2026-10-18): `NPC.traders/2` gives the present NPCs as
+    GameCharacters whose inventory is their stock (each item with
+    `price_copper`), and `Inventory.apply_transaction/3` trades between the
+    acting character (`world_state["character"]` as a `%GameCharacter{}`)
+    and those traders. It returns the traders whose inventory changed, which
+    `NPC.put_inventories/2` saves. `NPC.stock_map/2` and
+    `persist_stock_updates/2` are gone. The stock stays stored where it is
+    (`npc_instances.runtime_state["stock"]`, mirrored to the NPC's
+    `characters.inventory` each turn), so no migration or backfill; the
+    stored copy moves to the row with 10f, when `npc_instances` goes. A sold
+    item or a trade's give leg still goes to no one, and NPC coins still
+    don't change; making the NPC side keep them is user-visible and not part
+    of 10d.
 - **10e. Intention input.**
   - `%Intention{by: …}`.
   - `NpcReactions`, `NpcInitiative` and `Actions.NPC.*` emit Intentions; the

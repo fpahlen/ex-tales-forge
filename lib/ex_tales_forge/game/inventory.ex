@@ -2,11 +2,13 @@ defmodule TalesForge.Game.Inventory do
   @moduledoc false
 
   defmodule Transaction do
-    # One inventory action on its way through the inventory steps: the
-    # world, the location, the resolved action, the character,
-    # and the inventory, ground items, coins and NPC stock that the steps
-    # change. `applied` is the log of what happened and `npc_updates` the
-    # NPC stock the caller saves.
+    # One inventory action between two GameCharacters (refactor plan step
+    # 10d): the acting `character` and, for a buy or a trade with an NPC,
+    # one of the `traders`, whose stock is their inventory with
+    # `price_copper` set. It also has the world, the location, the resolved
+    # action and the ground items the steps change. `applied` is the log of
+    # what happened and `changed` the ids of the traders whose inventory
+    # changed.
     @moduledoc false
 
     @enforce_keys [:world_state, :location_id, :action, :character]
@@ -15,30 +17,27 @@ defmodule TalesForge.Game.Inventory do
       :location_id,
       :action,
       :character,
-      inventory: [],
       ground_items: [],
-      coins: %{},
-      npc_stock: %{},
+      traders: %{},
       applied: [],
-      npc_updates: %{}
+      changed: []
     ]
 
     @type t :: %__MODULE__{
             world_state: map(),
             location_id: String.t(),
             action: TalesForge.Game.Schemas.SingleAction.t(),
-            character: map(),
-            inventory: [map()],
+            character: TalesForge.GameCharacter.t(),
             ground_items: [map()],
-            coins: map(),
-            npc_stock: map(),
+            traders: %{String.t() => TalesForge.GameCharacter.t()},
             applied: [String.t()],
-            npc_updates: map()
+            changed: [String.t()]
           }
   end
 
   alias TalesForge.Game.Schemas.SingleAction
   alias TalesForge.Game.World
+  alias TalesForge.GameCharacter
 
   @inventory_actions ~w(pickup drop buy sell trade spend)a
 
@@ -54,36 +53,50 @@ defmodule TalesForge.Game.Inventory do
     do: handler.handler == "inventory" and type in @inventory_actions
 
   @doc false
-  # Pure: `npc_stock` is the stock of the NPCs `npc_stock_keys/2` names
-  # (`TalesForge.NPC.stock_map/2`); the caller saves the returned
-  # `npc_updates` (`TalesForge.NPC.persist_stock_updates/2`).
-  @spec apply_transaction(map(), map(), SingleAction.t()) ::
-          {:ok, map(), %{applied: [String.t()]}, map()} | {:error, String.t()}
-  def apply_transaction(world_state, npc_stock, %SingleAction{} = action) do
-    location_id = get_in(world_state, ["character", "location_id"]) || "weary_pilgrim"
-    character = Map.get(world_state, "character", %{})
+  # Pure: the acting character is the world's `"character"`, and `traders`
+  # are the GameCharacters `trader_ids/2` names (`TalesForge.NPC.traders/2`).
+  # Returns the world with the character's new inventory and coins, and the
+  # traders whose inventory changed, which the caller saves
+  # (`TalesForge.NPC.put_inventories/2`).
+  @spec apply_transaction(map(), %{String.t() => GameCharacter.t()}, SingleAction.t()) ::
+          {:ok, map(), %{applied: [String.t()]}, [GameCharacter.t()]} | {:error, String.t()}
+  def apply_transaction(world_state, traders, %SingleAction{} = action) when is_map(traders) do
+    character = GameCharacter.from_sheet(Map.get(world_state, "character", %{}))
+    location_id = character.location_id || "weary_pilgrim"
 
     transaction =
       resolve_action(%Transaction{
         world_state: world_state,
         location_id: location_id,
         action: action,
-        character: character,
-        inventory: normalize_items(Map.get(character, "inventory", [])),
+        character: %{character | inventory: normalize_items(character.inventory)},
         ground_items: ground_items_for(world_state, location_id),
-        coins: Map.get(character, "coins", %{}),
-        npc_stock: npc_stock
+        traders: Map.new(traders, fn {id, gc} -> {id, stocked(gc)} end)
       })
 
     with :ok <- validate_transaction(transaction), do: do_apply(transaction)
   end
 
+  # A trader with its inventory as stock: every item priced.
+  defp stocked(%GameCharacter{} = trader),
+    do: %{trader | inventory: normalize_stock(trader.inventory)}
+
+  defp stock(%Transaction{traders: traders}, npc_id) do
+    case Map.get(traders, npc_id) do
+      %GameCharacter{inventory: inventory} -> inventory
+      nil -> []
+    end
+  end
+
+  defp all_stock(%Transaction{traders: traders}),
+    do: traders |> Map.values() |> Enum.flat_map(& &1.inventory)
+
   def validate_transaction(%Transaction{action: %SingleAction{action_type: type} = action} = t),
     do: validate(type, action, t)
 
-  defp validate(:drop, action, %Transaction{inventory: inventory}) do
+  defp validate(:drop, action, %Transaction{character: character}) do
     with item_id when item_id != "" <- item_ref(action),
-         true <- item_quantity(inventory, item_id) >= action_quantity(params(action)) do
+         true <- item_quantity(character.inventory, item_id) >= action_quantity(params(action)) do
       :ok
     else
       "" -> {:error, "Drop requires an item_id target."}
@@ -101,12 +114,12 @@ defmodule TalesForge.Game.Inventory do
     end
   end
 
-  defp validate(:buy, action, %Transaction{character: character, npc_stock: npc_stock}) do
+  defp validate(:buy, action, %Transaction{character: character} = t) do
     params = params(action)
     item_id = Map.get(params, "item_id", "") |> to_string() |> String.trim()
     qty = action_quantity(params)
-    npc_id = resolve_buy_npc_id(action, params, npc_stock)
-    stock = normalize_stock(Map.get(npc_stock, npc_id, []))
+    npc_id = resolve_buy_npc_id(action, params, t)
+    stock = stock(t, npc_id)
     stock_item = Enum.find(stock, &(&1["id"] == item_id))
 
     cond do
@@ -119,8 +132,7 @@ defmodule TalesForge.Game.Inventory do
       item_quantity(stock, item_id) < qty ->
         {:error, "Not enough '#{item_id}' in stock."}
 
-      coin_total_copper(Map.get(character, "coins", %{})) <
-          price_copper(params, stock_item) * qty ->
+      coin_total_copper(character.coins) < price_copper(params, stock_item) * qty ->
         {:error,
          "Insufficient funds for #{item_id} (#{price_copper(params, stock_item) * qty}c needed)."}
 
@@ -129,7 +141,7 @@ defmodule TalesForge.Game.Inventory do
     end
   end
 
-  defp validate(:sell, action, %Transaction{inventory: inventory}) do
+  defp validate(:sell, action, %Transaction{character: character}) do
     params = params(action)
     item_id = Map.get(params, "item_id", "") |> to_string() |> String.trim()
 
@@ -140,7 +152,7 @@ defmodule TalesForge.Game.Inventory do
       npc_ref(action, "") == "" ->
         {:error, "Sell requires an NPC target."}
 
-      item_quantity(inventory, item_id) < action_quantity(params) ->
+      item_quantity(character.inventory, item_id) < action_quantity(params) ->
         {:error, "Cannot sell '#{item_id}' — not in inventory."}
 
       true ->
@@ -155,7 +167,7 @@ defmodule TalesForge.Game.Inventory do
       amount <= 0 ->
         {:error, "Spend requires parameters.amount_copper."}
 
-      coin_total_copper(Map.get(character, "coins", %{})) < amount ->
+      coin_total_copper(character.coins) < amount ->
         {:error, "Insufficient funds (need #{amount}c)."}
 
       true ->
@@ -163,9 +175,9 @@ defmodule TalesForge.Game.Inventory do
     end
   end
 
-  defp validate(:trade, action, %Transaction{inventory: inventory} = t) do
+  defp validate(:trade, action, %Transaction{character: character} = t) do
     with {:ok, give_items, receive_items, counterparty} <- trade_legs(params(action)),
-         :ok <- validate_trade_give(inventory, give_items) do
+         :ok <- validate_trade_give(character.inventory, give_items) do
       validate_trade_receive(receive_items, counterparty, t)
     end
   end
@@ -338,91 +350,103 @@ defmodule TalesForge.Game.Inventory do
 
   defp do_apply(%Transaction{} = t) do
     t = step(t, t.action.action_type, t.action.parameters || %{})
-
-    character =
-      t.character
-      |> Map.put("inventory", t.inventory)
-      |> Map.put("coins", t.coins)
+    %GameCharacter{inventory: inventory, coins: coins} = t.character
+    character = GameCharacter.put(t.character, inventory: inventory, coins: coins)
 
     world_state =
       t.world_state
-      |> put_in(["character"], character)
+      |> put_in(["character"], GameCharacter.to_sheet(character))
       |> put_ground_items(t.location_id, t.ground_items)
 
-    {:ok, world_state, %{applied: t.applied}, t.npc_updates}
+    {:ok, world_state, %{applied: t.applied}, Enum.map(t.changed, &Map.fetch!(t.traders, &1))}
   rescue
     error in ArgumentError ->
       {:error, Exception.message(error)}
   end
 
-  # One step per action type: each changes the inventory, ground items,
-  # coins or NPC stock of the transaction and sets what it applied.
-  defp step(t, :drop, params) do
+  # One step per action type: each changes the character's inventory or
+  # coins, the ground items or a trader's inventory, and sets what it
+  # applied.
+  defp step(%Transaction{character: character} = t, :drop, params) do
     item_id = item_ref(t.action)
     qty = action_quantity(params)
-    source = Enum.at(t.inventory, find_item_index(t.inventory, item_id))
+    source = Enum.at(character.inventory, find_item_index(character.inventory, item_id))
 
     %{
       t
-      | inventory: remove_item(t.inventory, item_id, qty),
+      | character: %{character | inventory: remove_item(character.inventory, item_id, qty)},
         ground_items: add_item(t.ground_items, carried(source, item_id, qty)),
         applied: ["dropped #{qty}x #{item_id}"]
     }
   end
 
-  defp step(t, :pickup, params) do
+  defp step(%Transaction{character: character} = t, :pickup, params) do
     item_id = item_ref(t.action)
     qty = action_quantity(params)
     source = Enum.at(t.ground_items, find_item_index(t.ground_items, item_id))
 
     %{
       t
-      | inventory: add_item(t.inventory, carried(source, item_id, qty)),
+      | character: %{
+          character
+          | inventory: add_item(character.inventory, carried(source, item_id, qty))
+        },
         ground_items: remove_item(t.ground_items, item_id, qty),
         applied: ["picked up #{qty}x #{item_id}"]
     }
   end
 
-  defp step(t, :buy, params) do
+  defp step(%Transaction{character: character} = t, :buy, params) do
     item_id = Map.get(params, "item_id", "") |> to_string() |> String.trim()
     qty = action_quantity(params)
-    npc_id = resolve_buy_npc_id(t.action, params, t.npc_stock)
-    stock = normalize_stock(Map.get(t.npc_stock, npc_id, []))
+    npc_id = resolve_buy_npc_id(t.action, params, t)
+    stock = stock(t, npc_id)
     stock_item = Enum.find(stock, &(&1["id"] == item_id))
     price = price_copper(params, stock_item)
     total = price * qty
 
+    bought = %{
+      "id" => item_id,
+      "name" => stock_item["name"],
+      "copper_value" => price,
+      "quantity" => qty
+    }
+
+    character = %{
+      character
+      | inventory: add_item(character.inventory, bought),
+        coins: deduct_coins(character.coins, total)
+    }
+
     %{
-      t
-      | inventory:
-          add_item(t.inventory, %{
-            "id" => item_id,
-            "name" => stock_item["name"],
-            "copper_value" => price,
-            "quantity" => qty
-          }),
-        coins: deduct_coins(t.coins, total),
-        applied: ["bought #{qty}x #{item_id} for #{total}c"],
-        npc_updates: %{npc_id => remove_item(stock, item_id, qty)}
+      put_stock(t, npc_id, remove_item(stock, item_id, qty))
+      | character: character,
+        applied: ["bought #{qty}x #{item_id} for #{total}c"]
     }
   end
 
-  defp step(t, :sell, params) do
+  defp step(%Transaction{character: character} = t, :sell, params) do
     item_id = Map.get(params, "item_id", "") |> to_string() |> String.trim()
     qty = action_quantity(params)
     price = int_field(params, ["price_copper"], 0)
 
-    %{
-      t
-      | inventory: remove_item(t.inventory, item_id, qty),
-        coins: add_coins(t.coins, price * qty),
-        applied: ["sold #{qty}x #{item_id} for #{price * qty}c"]
+    character = %{
+      character
+      | inventory: remove_item(character.inventory, item_id, qty),
+        coins: add_coins(character.coins, price * qty)
     }
+
+    %{t | character: character, applied: ["sold #{qty}x #{item_id} for #{price * qty}c"]}
   end
 
-  defp step(t, :spend, _params) do
+  defp step(%Transaction{character: character} = t, :spend, _params) do
     amount = spend_amount(t.action)
-    %{t | coins: deduct_coins(t.coins, amount), applied: ["spent #{amount}c"]}
+
+    %{
+      t
+      | character: %{character | coins: deduct_coins(character.coins, amount)},
+        applied: ["spent #{amount}c"]
+    }
   end
 
   defp step(t, :trade, params) do
@@ -431,6 +455,17 @@ defmodule TalesForge.Game.Inventory do
     t
     |> give(give_items, counterparty)
     |> apply_trade(receive_items, counterparty)
+  end
+
+  # The trader `npc_id` with `stock` as its inventory, marked as changed.
+  defp put_stock(%Transaction{traders: traders} = t, npc_id, stock) do
+    trader = Map.fetch!(traders, npc_id)
+
+    %{
+      t
+      | traders: Map.put(traders, npc_id, %{trader | inventory: stock}),
+        changed: Enum.uniq(t.changed ++ [npc_id])
+    }
   end
 
   # An item as carried: its id, name, copper value and quantity.
@@ -446,8 +481,9 @@ defmodule TalesForge.Game.Inventory do
   # The give legs of a trade: out of the inventory, onto the ground when
   # the counterparty is the ground.
   defp give(t, give_items, counterparty) do
-    Enum.reduce(give_items, %{t | applied: []}, fn leg, t ->
-      source = Enum.at(t.inventory, find_item_index(t.inventory, leg["id"]))
+    Enum.reduce(give_items, %{t | applied: []}, fn leg, %Transaction{character: character} = t ->
+      inventory = character.inventory
+      source = Enum.at(inventory, find_item_index(inventory, leg["id"]))
 
       ground =
         if counterparty == "ground",
@@ -456,76 +492,73 @@ defmodule TalesForge.Game.Inventory do
 
       %{
         t
-        | inventory: remove_item(t.inventory, leg["id"], leg["quantity"]),
+        | character: %{character | inventory: remove_item(inventory, leg["id"], leg["quantity"])},
           ground_items: ground,
           applied: t.applied ++ ["gave #{leg["quantity"]}x #{leg["id"]}"]
       }
     end)
   end
 
-  # The receive legs of a trade: from the ground, or from the
-  # counterparty's stock (saved as its NPC update).
+  # The receive legs of a trade: from the ground, or out of the
+  # counterparty's inventory.
   defp apply_trade(t, receive_items, "ground") do
-    Enum.reduce(receive_items, t, fn leg, t ->
+    Enum.reduce(receive_items, t, fn leg, %Transaction{character: character} = t ->
       source = Enum.at(t.ground_items, find_item_index(t.ground_items, leg["id"]))
+      received = carried(source, leg["id"], leg["quantity"])
 
       %{
         t
-        | inventory: add_item(t.inventory, carried(source, leg["id"], leg["quantity"])),
+        | character: %{character | inventory: add_item(character.inventory, received)},
           ground_items: remove_item(t.ground_items, leg["id"], leg["quantity"]),
           applied: t.applied ++ ["received #{leg["quantity"]}x #{leg["id"]} from ground"]
       }
     end)
   end
 
-  defp apply_trade(t, receive_items, counterparty) do
-    from = normalize_stock(Map.get(t.npc_stock, counterparty, []))
+  defp apply_trade(t, receive_items, counterparty),
+    do: Enum.reduce(receive_items, t, &receive(&2, &1, counterparty))
 
-    {t, stock} =
-      Enum.reduce(receive_items, {t, from}, fn leg, {t, stk} ->
-        source = Enum.at(stk, find_item_index(stk, leg["id"]))
+  # One receive leg out of the counterparty's inventory.
+  defp receive(%Transaction{character: character} = t, leg, counterparty) do
+    stock = stock(t, counterparty)
+    source = Enum.at(stock, find_item_index(stock, leg["id"]))
 
-        inventory =
-          add_item(t.inventory, %{
-            "id" => leg["id"],
-            "name" => source["name"],
-            "copper_value" => price_copper(%{}, source),
-            "quantity" => leg["quantity"]
-          })
+    received = %{
+      "id" => leg["id"],
+      "name" => source["name"],
+      "copper_value" => price_copper(%{}, source),
+      "quantity" => leg["quantity"]
+    }
 
-        {%{
-           t
-           | inventory: inventory,
-             applied:
-               t.applied ++ ["received #{leg["quantity"]}x #{leg["id"]} from #{counterparty}"]
-         }, remove_item(stk, leg["id"], leg["quantity"])}
-      end)
-
-    %{t | npc_updates: %{counterparty => stock}}
+    %{
+      put_stock(t, counterparty, remove_item(stock, leg["id"], leg["quantity"]))
+      | character: %{character | inventory: add_item(character.inventory, received)},
+        applied: t.applied ++ ["received #{leg["quantity"]}x #{leg["id"]} from #{counterparty}"]
+    }
   end
 
   # The action with its item, NPC and amount filled in from the inventory,
-  # the ground and the NPC stock.
+  # the ground and the traders' stock.
   defp resolve_action(%Transaction{action: %SingleAction{action_type: type} = action} = t) do
     params = params(action)
     resolved = resolve_params(type, params, t)
     %{t | action: %{action | parameters: resolved, target: resolved_target(action, params)}}
   end
 
-  defp resolve_params(type, params, %Transaction{action: action, inventory: inventory})
+  defp resolve_params(type, params, %Transaction{action: action, character: character})
        when type in [:drop, :sell],
-       do: put_item_id(params, action, inventory)
+       do: put_item_id(params, action, character.inventory)
 
   defp resolve_params(:pickup, params, %Transaction{action: action, ground_items: ground_items}),
     do: put_item_id(params, action, ground_items)
 
-  defp resolve_params(:buy, params, %Transaction{action: action, npc_stock: npc_stock}) do
+  defp resolve_params(:buy, params, %Transaction{action: action} = t) do
     named_npc = npc_ref(action, "")
-    item_id = item_id_in(params, action, buy_stock(npc_stock, named_npc))
+    item_id = item_id_in(params, action, buy_stock(t, named_npc))
 
     params
     |> Map.put("item_id", item_id || "")
-    |> Map.put("npc_id", buy_npc(npc_stock, named_npc, item_id))
+    |> Map.put("npc_id", buy_npc(t, named_npc, item_id))
   end
 
   defp resolve_params(:spend, params, %Transaction{action: action}),
@@ -539,14 +572,12 @@ defmodule TalesForge.Game.Inventory do
   defp item_id_in(params, action, items),
     do: Map.get(params, "item_id") || resolve_item_id(to_string(action.target || ""), items)
 
-  # The stock to buy from: the named NPC's, or every present NPC's.
-  defp buy_stock(npc_stock, ""),
-    do: npc_stock |> Map.values() |> List.flatten() |> normalize_stock()
+  # The stock to buy from: the named trader's, or every present trader's.
+  defp buy_stock(t, ""), do: all_stock(t)
+  defp buy_stock(t, named_npc), do: stock(t, named_npc)
 
-  defp buy_stock(npc_stock, named_npc), do: normalize_stock(Map.get(npc_stock, named_npc, []))
-
-  defp buy_npc(npc_stock, "", item_id), do: seller_for_item(npc_stock, item_id || "") || ""
-  defp buy_npc(_npc_stock, named_npc, _item_id), do: named_npc
+  defp buy_npc(t, "", item_id), do: seller_for_item(t, item_id || "") || ""
+  defp buy_npc(_t, named_npc, _item_id), do: named_npc
 
   defp resolved_target(%SingleAction{action_type: type} = action, params)
        when type in [:drop, :pickup],
@@ -583,22 +614,22 @@ defmodule TalesForge.Game.Inventory do
     |> String.trim()
   end
 
-  defp resolve_buy_npc_id(action, params, npc_stock) do
+  defp resolve_buy_npc_id(action, params, t) do
     case npc_ref(%{action | parameters: params}, "") do
       "" ->
         item_id = params |> Map.get("item_id", "") |> to_string() |> String.trim()
-        seller_for_item(npc_stock, item_id) || ""
+        seller_for_item(t, item_id) || ""
 
       npc_id ->
         npc_id
     end
   end
 
-  defp seller_for_item(_npc_stock, ""), do: nil
+  defp seller_for_item(_t, ""), do: nil
 
-  defp seller_for_item(npc_stock, item_id) when is_map(npc_stock) and is_binary(item_id) do
-    Enum.find_value(npc_stock, fn {npc_id, stock} ->
-      if item_quantity(normalize_stock(stock), item_id) > 0, do: to_string(npc_id)
+  defp seller_for_item(%Transaction{traders: traders}, item_id) when is_binary(item_id) do
+    Enum.find_value(traders, fn {npc_id, trader} ->
+      if item_quantity(trader.inventory, item_id) > 0, do: to_string(npc_id)
     end)
   end
 
@@ -671,8 +702,8 @@ defmodule TalesForge.Game.Inventory do
     end)
   end
 
-  defp validate_trade_receive(receive_items, counterparty, %Transaction{npc_stock: npc_stock}) do
-    stock = normalize_stock(Map.get(npc_stock, counterparty, []))
+  defp validate_trade_receive(receive_items, counterparty, %Transaction{} = t) do
+    stock = stock(t, counterparty)
 
     Enum.reduce_while(receive_items, :ok, fn leg, _acc ->
       if item_quantity(stock, leg["id"]) < leg["quantity"] do
@@ -684,23 +715,23 @@ defmodule TalesForge.Game.Inventory do
   end
 
   @doc false
-  # The NPCs whose stock `apply_transaction/3` needs for `action`.
-  @spec npc_stock_keys(SingleAction.t(), [String.t()]) :: [String.t()]
-  def npc_stock_keys(%SingleAction{action_type: :buy} = action, present_npcs) do
+  # The traders `apply_transaction/3` needs for `action`.
+  @spec trader_ids(SingleAction.t(), [String.t()]) :: [String.t()]
+  def trader_ids(%SingleAction{action_type: :buy} = action, present_npcs) do
     case npc_ref(action, "") do
       "" -> present_npcs
       npc_id -> Enum.uniq([npc_id | List.wrap(present_npcs)])
     end
   end
 
-  def npc_stock_keys(%SingleAction{action_type: :trade} = action, _present_npcs) do
+  def trader_ids(%SingleAction{action_type: :trade} = action, _present_npcs) do
     params = action.parameters || %{}
     counterparty = params |> Map.get("counterparty", "ground") |> to_string() |> String.trim()
 
     if counterparty in ["", "ground"], do: [], else: [counterparty]
   end
 
-  def npc_stock_keys(_action, _present_npcs), do: []
+  def trader_ids(_action, _present_npcs), do: []
 
   defp find_item_index(items, item_id) do
     Enum.find_index(items, &(&1["id"] == item_id))
