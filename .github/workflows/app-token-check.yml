@@ -1,0 +1,46 @@
+# THROWAWAY (never merge): proves SECURITY_BOT_APP_ID + SECURITY_BOT_APP_PRIVATE_KEY
+# can mint an installation token, with the same step as TF's security-lane.yml.
+# Prints only names (app slug, repo names, permission names), never the token.
+name: App token check (throwaway)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/app-token-check.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mint:
+    name: Mint app token (throwaway)
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'chore/app-token-check'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Bot token (GitHub App)
+        id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.SECURITY_BOT_APP_ID }}
+          private-key: ${{ secrets.SECURITY_BOT_APP_PRIVATE_KEY }}
+
+      - name: Read-only calls with the token (names only)
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          SLUG: ${{ steps.app.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN" && echo "token minted: yes (app: $SLUG)"
+          echo "GET /repos/$GITHUB_REPOSITORY:"
+          gh api "repos/$GITHUB_REPOSITORY" \
+            --jq '"  repo: \(.full_name)  permissions true: \((.permissions // {}) | to_entries | map(select(.value) | .key) | join(","))"'
+          echo "GET /installation/repositories:"
+          gh api installation/repositories --paginate \
+            --jq '.repositories[] | "  repo: \(.full_name)  permissions true: \((.permissions // {}) | to_entries | map(select(.value) | .key) | join(","))"'
+          {
+            echo "token minted: yes (app \`$SLUG\`)"
+            echo
+            gh api installation/repositories --paginate --jq '.repositories[] | "- \(.full_name)"'
+          } >> "$GITHUB_STEP_SUMMARY"
