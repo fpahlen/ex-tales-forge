@@ -12,9 +12,10 @@ both have accepted, `Trade.execute/1` runs in the turn's transaction.
 ## Flow
 1. **Offer.** A price question ("How much for an ale?") or a proposal
    ("I'll give you 10c for the knife") builds `%Offer{giver, receiver,
-   item, price}` from the seller's stock, or from the buyer's buy price
-   for a sale. It is stored as the session's open offer. Nothing moves.
-   The GM gets the quote.
+   item, price, options}` from the seller's stock, or from the buyer's
+   buy price for a sale. `item` may be `nil` when the buy is unclear
+   (see Unclear buy); `options` defaults to `[]`. It is stored as the
+   session's open offer. Nothing moves. The GM gets the quote.
 2. **Player answer.** On the next turn, Jev classifies the player's
    message against the open offer as `accept`, `decline` or `other`. This
    is a new question in the Jev request, asked only while an offer is open.
@@ -29,7 +30,8 @@ both have accepted, `Trade.execute/1` runs in the turn's transaction.
 
 ## Where the open offer lives
 Use the simplest option: one key on the session's `world_state`,
-`"open_offer"` (the offer's ids, item and price, plus `made_at_tick`),
+`"open_offer"` (the offer's ids, item and price, plus `made_at_tick`;
+`item` may be `nil` and `options` is a list that defaults to `[]`),
 saved with the session row in the turn's Multi. No new table: there is at
 most one open offer per session, it is short-lived, and it is already in
 the row each turn loads. The giver and receiver are reloaded as
@@ -49,9 +51,25 @@ step: build the offer and run the NPC check, then `Trade.execute`, all in
 the same turn. This is today's behaviour after #473. Only questions and
 counter-proposals (haggling) leave an offer open.
 
+## Unclear buy
+An unclear buy like "I order a meal" becomes an open offer whose item is
+unresolved (`item: nil`). Code lists the seller's matching stock with
+prices, taken from her real stock — two or three options — and stores
+them on the offer as `options`. The GM voices that list as a
+counter-question ("The stew, or bread and cheese?"), and nothing moves.
+The player's next message picks one option; Jev resolves the pick against
+the listed options only. That pick counts as proposal plus acceptance in
+one step. Then the NPC decides in code as usual (stock, purse). If
+nothing matches the stock, there is no offer and nothing moves. If the
+reply matches none of the options, treat it like any other message under
+the existing expiry rules.
+
 ## GM narration rules
 - **Open offer:** "The server quotes: <Offer.text>. Nothing changed hands;
   narrate the quote and wait for the player's answer."
+- **Unclear buy (open options):** "The server listed these options from
+  stock: … Nothing changed hands; voice them as a counter-question and
+  wait for the player's pick."
 - **Accepted and done:** the existing "The server made this trade: ..."
   line.
 - **Declined, expired or refused:** "No item and no coins changed hands"
@@ -71,6 +89,11 @@ counter-proposals (haggling) leave an offer open.
   - An accept after the NPC's purse or stock changed → refused, nothing
     moves, and the GM gets the reason.
   - "I buy an ale" still trades in one turn.
+  - "I order a meal" → open offer with `item: nil` and 2–3 stock options;
+    nothing moves. A pick that matches an option → proposal plus accept
+    in one step, then NPC check and trade. A reply that matches none →
+    treated as `other` under expiry. No matching stock → no offer,
+    nothing moves.
 - **Acceptance:** extend `trade_retest_470_test.exs` with an accept turn
   after T3.
 
