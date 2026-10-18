@@ -410,6 +410,11 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
       "The server refused this trade: #{detail} No item and no coins changed hands; " <>
         "narrate no payment and no handover, and name no price or goods the reason does not."
 
+  defp trade_line(%{"status" => "offered", "detail" => detail}),
+    do:
+      "The player asked a price; the server quotes it: #{detail}. Nothing changed hands; " <>
+        "narrate the quote only, with no payment and no handover."
+
   defp trade_line(_trade), do: nil
 end
 

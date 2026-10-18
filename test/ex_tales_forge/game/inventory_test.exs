@@ -173,6 +173,7 @@ defmodule TalesForge.Game.InventoryTest do
   end
 
   describe "buy with NPC stock" do
+    # Marta serves her ale over the counter (#470 retest); her wine is carried away.
     test "buy deducts coins and adds item" do
       {:ok, session} = GameSessions.create_session(%{name: "Inventory Buy"})
       world = session.world_state
@@ -181,9 +182,9 @@ defmodule TalesForge.Game.InventoryTest do
         action_type: :buy,
         target: "marta_kellen",
         parameters: %{
-          "item_id" => "ale_mug",
+          "item_id" => "common_wine",
           "quantity" => 1,
-          "price_copper" => 2,
+          "price_copper" => 15,
           "npc_id" => "marta_kellen"
         }
       }
@@ -199,13 +200,13 @@ defmodule TalesForge.Game.InventoryTest do
       assert Enum.any?(applied, &String.contains?(&1, "bought"))
 
       after_total = Inventory.coin_total_copper(get_in(updated, ["character", "coins"]))
-      assert after_total == before - 2
+      assert after_total == before - 15
 
       inventory = get_in(updated, ["character", "inventory"]) |> Inventory.normalize_items()
-      assert Inventory.item_quantity(inventory, "ale_mug") == 1
+      assert Inventory.item_quantity(inventory, "common_wine") == 1
 
       assert %GameCharacter{slug: "marta_kellen"} = trader
-      assert Inventory.item_quantity(trader.inventory, "ale_mug") == 98
+      assert Inventory.item_quantity(trader.inventory, "common_wine") == 9
     end
 
     test "a serving of ale from the innkeep costs 2c and is drunk there" do

@@ -13,8 +13,6 @@ defmodule TalesForge.Game.TurnApply do
     * `unpaid_sleep/1` — the payment failed, so the sleep is one hour.
     * `item_buy/3` — a purchase whose target is an item ("ale_mug") gets
       that item, and the seller is the person here who has it in stock.
-    * `service_buy/3` — a purchase of a service ("I buy an ale", "I order
-      a meal") with no item becomes a payment at the service price.
     * `named_move/3` — a move goes to the place that the text names. A move
       to the place where the character is plays no walk. A move
       to a named place that the world does not have is rejected.
@@ -51,15 +49,16 @@ defmodule TalesForge.Game.TurnApply do
     "ten" => 10
   }
   @coin_amount ~r/\b(\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten)[\s-]*(c|copper|s|silver|g|gold)\b/iu
-  @services [
-    {~r/\b(room|bed|lodging|lodgings|night's stay)\b/iu, 30},
-    {~r/\b(meal|supper|dinner|stew|breakfast)\b/iu, 5},
-    {~r/\b(ale|beer|mug)\b/iu, 2}
+
+  @service_names [
+    {~r/\b(room|rooms|bed|beds|lodging|lodgings|night's stay)\b/iu, "a room for the night", 30},
+    {~r/\b(meal|supper|dinner|stew|breakfast)\b/iu, "a meal", 5},
+    {~r/\b(ale|beer|mug)\b/iu, "a mug of ale", 2}
   ]
 
   @doc """
   The copper of a payment, read from `text`. A coin amount wins; else the
-  price of a known service; else 0.
+  price of a room; else 0.
 
   ## Examples
 
@@ -70,7 +69,7 @@ defmodule TalesForge.Game.TurnApply do
       iex> TalesForge.Game.TurnApply.spend_copper("I pay for a room and go to sleep")
       30
       iex> TalesForge.Game.TurnApply.spend_copper("I pay for an ale")
-      2
+      0
       iex> TalesForge.Game.TurnApply.spend_copper("I pay my respects")
       0
   """
@@ -91,10 +90,11 @@ defmodule TalesForge.Game.TurnApply do
     end
   end
 
+  # Only a room has a price with no seller's stock (`@service_names`); an
+  # ale or a meal is bought from the seller's stock (`TalesForge.Game.Trade`).
   defp service_price(text) do
-    Enum.find_value(@services, 0, fn {words, price} ->
-      if Regex.match?(words, text), do: price
-    end)
+    {words, _name, price} = hd(@service_names)
+    if Regex.match?(words, text), do: price, else: 0
   end
 
   @doc """
@@ -156,43 +156,14 @@ defmodule TalesForge.Game.TurnApply do
       )
       when is_binary(target) and target != "" do
     params = action.parameters || %{}
-    item? = params["item_id"] in [nil, ""] and not person_or_nil?(cast, target)
-    price = spend_copper(player_action.overall_intent)
+    item? = params["item_id"] in [nil, ""] and not person?(cast, target)
 
-    cond do
-      item? and drink_here?(player_action.overall_intent) and price > 0 ->
-        spend_here(player_action, handler, price)
-
-      item? ->
-        listed({player_action, handler}, params, target)
-
-      true ->
-        {player_action, handler}
-    end
+    if item?,
+      do: listed({player_action, handler}, params, target),
+      else: {player_action, handler}
   end
 
   def item_buy(player_action, handler, _cast), do: {player_action, handler}
-
-  # "I order an ale", "I drink an ale": the character drinks or eats it at
-  # the counter, so it is a payment at the service price and no item.
-  # Gentry's playtest session ead76238 on 2026-10-14: the Mug of Ale stayed
-  # in the inventory after the character drank it.
-  @drink_here ~r/\b(?:order|orders|ordering|drink|drinks|drinking|have a|grab a|down a)\b/iu
-
-  defp drink_here?(text) when is_binary(text), do: Regex.match?(@drink_here, text)
-  defp drink_here?(_text), do: false
-
-  defp spend_here(%PlayerAction{action: action} = player_action, handler, price) do
-    params = Map.put(action.parameters || %{}, "amount_copper", price)
-    spend = %{action | action_type: :spend, target: nil, parameters: params}
-
-    hints =
-      (handler.state_hints || %{})
-      |> Map.put("parameters", params)
-      |> Map.put("action_type", "spend")
-
-    {%{player_action | action: spend}, %{handler | state_hints: hints}}
-  end
 
   defp listed({%PlayerAction{action: action} = player_action, handler}, params, target) do
     params = Map.put(params, "item_id", target)
@@ -202,54 +173,7 @@ defmodule TalesForge.Game.TurnApply do
      %{handler | state_hints: hints}}
   end
 
-  @doc """
-  Makes a purchase of a service with no item a payment at the service price.
-  The purchase has no item when it has no `"item_id"` and its target is
-  empty or a person. Other actions do not change.
-
-  Gentry's playtest session f3a7bac0 on 2026-10-13: Jev read "I order a
-  meal" as a purchase from Marta Kellen, and the purchase cost 0c.
-
-  ## Examples
-
-      iex> alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction, SingleAction}
-      iex> cast = %{"marta_kellen" => %TalesForge.GameCharacter{slug: "marta_kellen", name: "Marta Kellen"}}
-      iex> pa = %PlayerAction{overall_intent: "I order a meal.",
-      ...>   action: %SingleAction{action_type: :buy, target: "marta_kellen", parameters: %{}}}
-      iex> h = %HandlerResult{handler: "inventory", state_hints: %{}}
-      iex> {paid, _h} = TalesForge.Game.TurnApply.service_buy(pa, h, cast)
-      iex> {paid.action.action_type, paid.action.parameters["amount_copper"]}
-      {:spend, 5}
-  """
-  @spec service_buy(PlayerAction.t(), HandlerResult.t(), Cast.t()) ::
-          {PlayerAction.t(), HandlerResult.t()}
-  def service_buy(
-        %PlayerAction{action: %{action_type: :buy} = action} = player_action,
-        %HandlerResult{handler: "inventory"} = handler,
-        cast
-      ) do
-    params = action.parameters || %{}
-    price = spend_copper(player_action.overall_intent)
-
-    if params["item_id"] in [nil, ""] and person_or_nil?(cast, action.target) and price > 0 do
-      spend = %{action | action_type: :spend, parameters: Map.put(params, "amount_copper", price)}
-
-      hints =
-        (handler.state_hints || %{})
-        |> Map.put("parameters", spend.parameters)
-        |> Map.put("action_type", "spend")
-
-      {%{player_action | action: spend}, %{handler | state_hints: hints}}
-    else
-      {player_action, handler}
-    end
-  end
-
-  def service_buy(player_action, handler, _cast), do: {player_action, handler}
-
-  defp person_or_nil?(_cast, nil), do: true
-  defp person_or_nil?(_cast, ""), do: true
-  defp person_or_nil?(cast, target), do: Map.has_key?(cast, target)
+  defp person?(cast, target), do: Map.has_key?(cast, target)
 
   @doc """
   Adds the sleep of "I pay for a room and go to sleep" to the handler as
@@ -667,12 +591,6 @@ defmodule TalesForge.Game.TurnApply do
   end
 
   def wait_until(handler, _world, _text), do: handler
-
-  @service_names [
-    {~r/\b(room|rooms|bed|beds|lodging|lodgings|night's stay)\b/iu, "a room for the night", 30},
-    {~r/\b(meal|supper|dinner|stew|breakfast)\b/iu, "a meal", 5},
-    {~r/\b(ale|beer|mug)\b/iu, "a mug of ale", 2}
-  ]
 
   @doc """
   QA 2026-10-14 08:57: the GM quoted a room at "eight silver", the server

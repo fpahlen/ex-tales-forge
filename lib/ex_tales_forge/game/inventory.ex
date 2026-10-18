@@ -39,6 +39,7 @@ defmodule TalesForge.Game.Inventory do
   import TalesForge.Game.Goods, only: [find_item_index: 2, int_field: 3]
 
   alias TalesForge.Game.Goods
+  alias TalesForge.Game.Offer
   alias TalesForge.Game.Schemas.SingleAction
   alias TalesForge.Game.Trade
   alias TalesForge.Game.World
@@ -66,20 +67,72 @@ defmodule TalesForge.Game.Inventory do
   @spec apply_transaction(map(), %{String.t() => GameCharacter.t()}, SingleAction.t()) ::
           {:ok, map(), %{applied: [String.t()]}, [GameCharacter.t()]} | {:error, String.t()}
   def apply_transaction(world_state, traders, %SingleAction{} = action) when is_map(traders) do
+    with {:ok, %Transaction{} = done} <- world_state |> transaction(traders, action) |> decide(),
+         do: finish(done)
+  end
+
+  @doc false
+  # Pure: what the trader the buy `action` names asks for the item, as an
+  # `TalesForge.Game.Offer`, or `{:error, reason}` when nothing here is for
+  # sale by those words. Nothing moves.
+  @spec offer(map(), %{String.t() => GameCharacter.t()}, SingleAction.t()) ::
+          {:ok, Offer.t()} | {:error, String.t()}
+  def offer(world_state, traders, %SingleAction{action_type: :buy} = action) do
+    with {:ok, _npc_id, %Offer{} = offer} <-
+           world_state |> transaction(traders, action) |> purchase_offer(),
+         do: {:ok, offer}
+  end
+
+  @doc false
+  # The buy `action` with the item its words `text` name from its seller's
+  # stock (every trader's when it names no seller), when it has none.
+  # Playtest session 8a9dbde9 (#470 retest): "I buy a mug of ale from
+  # Brenna" had no item, and it became a 2c payment nobody received.
+  @spec named_item(SingleAction.t(), %{String.t() => GameCharacter.t()}, String.t() | nil) ::
+          SingleAction.t()
+  def named_item(%SingleAction{action_type: :buy} = action, traders, text) do
+    params = action.parameters || %{}
+
+    stock = seller_stock(traders, npc_ref(action, ""))
+
+    with "" <- param_item_id(params),
+         id when is_binary(id) <-
+           resolve_item_id(to_string(text), stock) || head_noun(text, stock) do
+      %{action | parameters: Map.put(params, "item_id", id)}
+    else
+      _ -> action
+    end
+  end
+
+  # The item whose name ends in a word of `text` ("an ale": Mug of Ale).
+  defp head_noun(text, stock) do
+    words = ~r/[a-z]+/ |> Regex.scan(String.downcase(to_string(text))) |> List.flatten()
+
+    Enum.find_value(stock, fn item ->
+      noun = item["name"] |> String.downcase() |> String.split() |> List.last()
+      if noun in words, do: item["id"]
+    end)
+  end
+
+  defp seller_stock(traders, npc_id) do
+    case Map.fetch(traders, npc_id) do
+      {:ok, trader} -> normalize_stock(trader.inventory)
+      :error -> traders |> Map.values() |> Enum.flat_map(&normalize_stock(&1.inventory))
+    end
+  end
+
+  defp transaction(world_state, traders, action) when is_map(traders) do
     character = GameCharacter.from_sheet(Map.get(world_state, "character", %{}))
     location_id = character.location_id || "weary_pilgrim"
 
-    transaction =
-      resolve_action(%Transaction{
-        world_state: world_state,
-        location_id: location_id,
-        action: action,
-        character: %{character | inventory: normalize_items(character.inventory)},
-        ground_items: ground_items_for(world_state, location_id),
-        traders: Map.new(traders, fn {id, gc} -> {id, stocked(gc)} end)
-      })
-
-    with {:ok, %Transaction{} = done} <- decide(transaction), do: finish(done)
+    resolve_action(%Transaction{
+      world_state: world_state,
+      location_id: location_id,
+      action: action,
+      character: %{character | inventory: normalize_items(character.inventory)},
+      ground_items: ground_items_for(world_state, location_id),
+      traders: Map.new(traders, fn {id, gc} -> {id, stocked(gc)} end)
+    })
   end
 
   # The one decision of an action: it is done, or `{:error, reason}` and
@@ -98,11 +151,15 @@ defmodule TalesForge.Game.Inventory do
       {:error, Exception.message(error)}
   end
 
-  defp to_trade(:buy, t), do: purchase_trade(t)
+  defp to_trade(:buy, t) do
+    with {:ok, npc_id, %Offer{} = offer} <- purchase_offer(t),
+         do: {:ok, npc_id, Offer.to_trade(offer, t.character)}
+  end
+
   defp to_trade(:sell, t), do: sale_trade(t)
 
-  # A purchase: the trader gives the stock item for its price.
-  defp purchase_trade(%Transaction{character: character, action: action} = t) do
+  # A purchase: the trader offers the stock item for its price.
+  defp purchase_offer(%Transaction{action: action} = t) do
     params = params(action)
     item_id = param_item_id(params)
     npc_id = resolve_buy_npc_id(action, params, t)
@@ -110,12 +167,7 @@ defmodule TalesForge.Game.Inventory do
     case {Map.get(t.traders, npc_id), Enum.find(stock(t, npc_id), &(&1["id"] == item_id))} do
       {%GameCharacter{} = trader, %{} = item} ->
         {:ok, npc_id,
-         %Trade{
-           giver: trader,
-           receiver: character,
-           item: goods(item, params),
-           price: total(params, item)
-         }}
+         %Offer{giver: trader, item: goods(item, params), price: total(params, item)}}
 
       _ ->
         {:error, not_for_sale(t, item_id)}
@@ -123,7 +175,8 @@ defmodule TalesForge.Game.Inventory do
   end
 
   # A sale: the character gives the carried item, and the price is the one
-  # on the action (a haggle's), else the item's value.
+  # on the action (a haggle's), else the item's value, else what the buyer
+  # sells it for (Hilde's hunting knife, 15c: playtest session 8a9dbde9).
   defp sale_trade(%Transaction{character: character, action: action} = t) do
     params = params(action)
     item_id = param_item_id(params)
@@ -143,10 +196,14 @@ defmodule TalesForge.Game.Inventory do
            giver: character,
            receiver: trader,
            item: goods(carried || %{"id" => item_id}, params),
-           price: total(params, carried)
+           price:
+             total(params, valued(carried, Enum.find(trader.inventory, &(&1["id"] == item_id))))
          }}
     end
   end
+
+  defp valued(%{"copper_value" => value} = carried, _stocked) when value > 0, do: carried
+  defp valued(carried, stocked), do: stocked || carried
 
   defp total(params, item), do: price_copper(params, item) * action_quantity(params)
 
