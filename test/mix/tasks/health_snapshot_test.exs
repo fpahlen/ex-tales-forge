@@ -71,8 +71,9 @@ defmodule Mix.Tasks.Health.SnapshotTest do
     assert svg =~ "total, lower is better"
     # 2 bars of 4 segments, plus the background and 4 legend boxes.
     assert length(Regex.scan(~r/<rect /, svg)) == 2 * 4 + 1 + 4
-    # One dashed line per segment between the two bars.
-    assert length(Regex.scan(~r/stroke-dasharray/, svg)) == 4
+    # One dashed line per segment between the two bars, and the legend's
+    # counting line.
+    assert length(Regex.scan(~r/stroke-dasharray/, svg)) == 4 + 1
     assert svg =~ ~s(font-weight="bold">270</text>)
     assert svg =~ "#85"
   end
@@ -81,7 +82,19 @@ defmodule Mix.Tasks.Health.SnapshotTest do
     old = Map.delete(Snapshot.row(@numbers, "2026-10-17", 84), "counting")
     rows = [old, Snapshot.row(@numbers, "2026-10-18", 85)]
 
-    assert Snapshot.svg(rows) =~ "counting changed"
-    refute Snapshot.svg([old, old]) =~ "counting changed"
+    assert Snapshot.svg(rows) =~ ~s(fill="#6b7280">v2</text>)
+    refute Snapshot.svg([old, old]) =~ ~s(fill="#6b7280">v)
+  end
+
+  test "the x-axis names only the first bar, the last bar and each counting change" do
+    old = Map.delete(Snapshot.row(@numbers, "2026-10-17", 84), "counting")
+    new = &Snapshot.row(@numbers, "2026-10-18", &1)
+    rows = [old, %{old | "pr" => 85}, new.(86), new.(87), new.(88), new.(89)]
+    svg = Snapshot.svg(rows)
+
+    names = Regex.scan(~r/text-anchor="middle">#(\d+)<\/text>/, svg, capture: :all_but_first)
+    assert names == [["84"], ["86"], ["89"]]
+    # Every bar is still drawn: 6 bars of 4 segments, the background and 4 legend boxes.
+    assert length(Regex.scan(~r/<rect /, svg)) == 6 * 4 + 1 + 4
   end
 end
