@@ -186,7 +186,7 @@ defmodule TalesForge.World do
       session_id: session_id,
       defs: definitions(world["adventure_id"]),
       stored: stored_facts(session_id),
-      moods: world["npc_moods"] || %{},
+      moods: session_id |> TalesForge.Characters.cast() |> TalesForge.Game.Cast.reactions(),
       names: if(List.wrap(world["present_npcs"]) == [], do: %{}, else: person_names(session_id)),
       world: world
     }
@@ -322,17 +322,20 @@ defmodule TalesForge.World do
 
   def validate_facts(agents, new_facts, turn_number) do
     {accepted_rev, rejected_rev, _seen} =
-      Enum.reduce(new_facts, {[], [], MapSet.new()}, fn nf, {acc, rej, seen} ->
-        case validate(nf, agents, seen, turn_number) do
-          {:ok, id, fact} ->
-            {[{id, fact} | acc], rej, MapSet.put(seen, {id, normalize(fact["text"])})}
-
-          {:error, reason} ->
-            {acc, [{nf, reason} | rej], seen}
-        end
-      end)
+      Enum.reduce(new_facts, {[], [], MapSet.new()}, &sort_fact(&1, &2, {agents, turn_number}))
 
     {Enum.reverse(accepted_rev), Enum.reverse(rejected_rev)}
+  end
+
+  # Adds one proposed fact to the accepted or the rejected list.
+  defp sort_fact(nf, {acc, rej, seen}, {agents, turn_number}) do
+    case validate(nf, agents, seen, turn_number) do
+      {:ok, id, fact} ->
+        {[{id, fact} | acc], rej, MapSet.put(seen, {id, normalize(fact["text"])})}
+
+      {:error, reason} ->
+        {acc, [{nf, reason} | rej], seen}
+    end
   end
 
   @doc "Persists accepted facts as `world_fact` session events (never shown to the player)."

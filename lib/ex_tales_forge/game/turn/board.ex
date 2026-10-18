@@ -332,7 +332,6 @@ defmodule TalesForge.Game.Turn.Board do
       Map.get(location, "name", Map.get(world_state, "location_name"))
     )
     |> Map.put("present_npcs", NPC.sync_present_npcs(session.id, location_id))
-    |> Map.put("npc_state", NPC.refresh_world_npc_state(session.id))
   end
 
   defp maybe_move(world_state, %{handler: "move", state_hints: %{"location_id" => location_id}})

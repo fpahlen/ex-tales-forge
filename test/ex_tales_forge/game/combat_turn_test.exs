@@ -60,7 +60,12 @@ defmodule TalesForge.Game.CombatTurnTest do
              t.outcome.combat
 
     world = t.outcome.board.world
-    assert world["npc_state"]["foe_miner"]["vitality"] == "down"
+    refute Map.has_key?(world, "npc_state")
+
+    assert %TalesForge.GameCharacter{minor: true, lifetime: :scene, vitality: "down"} =
+             t.outcome.board.cast["foe_miner"]
+
+    assert t.outcome.board.cast["foe_miner"].location_id == world["location_id"]
     assert Enum.any?(t.outcome.board.events, &(&1["kind"] == "npc.down"))
     assert t.outcome.board.outcome["combat"]["defender_id"] == "foe_miner"
     assert world["character"]["wounds"] in [0, nil]

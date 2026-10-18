@@ -4,9 +4,11 @@ defmodule TalesForge.Game.Turn.Notice do
   (`SKILL_DETAIL_LEVEL=on`): the skill sets how much the character notices
   (`TalesForge.Game.Notice`). Writes `notice` (`level` and `details`) and adds
   it to the outcome record, so the turn log shows it. With the flag off the
-  stage passes the turn through.
+  stage passes the turn through. Each NPC profile gets the NPC's gut
+  reaction from the turn's cast (`TalesForge.Game.Cast.reactions/1`).
   """
 
+  alias TalesForge.Game.Cast
   alias TalesForge.Game.Notice
   alias TalesForge.Game.Turn
 
@@ -23,7 +25,7 @@ defmodule TalesForge.Game.Turn.Notice do
 
     view =
       world
-      |> Map.put("npc_profiles", profiles(turn, present, level))
+      |> Map.put("npc_profiles", turn |> profiles(present, level) |> with_reactions(board.cast))
       |> Map.put("front_facts", front_facts(board))
 
     notice = %{level: level, details: Notice.details(view, mechanical.skill, level)}
@@ -41,6 +43,11 @@ defmodule TalesForge.Game.Turn.Notice do
 
   defp profiles(turn, present, level) do
     if Notice.count(level) > 0, do: turn.adapters.profiles.(turn.session.id, present), else: []
+  end
+
+  defp with_reactions(profiles, cast) do
+    reactions = Cast.reactions(cast)
+    Enum.map(profiles, &Map.put(&1, "reaction", reactions[&1["id"]]))
   end
 
   defp front_facts(board) do

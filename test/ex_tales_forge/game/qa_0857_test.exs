@@ -6,6 +6,7 @@ defmodule TalesForge.Game.Qa0857Test do
   """
   use TalesForge.DataCase, async: false
 
+  alias TalesForge.Characters.Defaults
   alias TalesForge.Game.{Combat, PremiseCheck, TurnApply, WorldClock}
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.Game.Turn
@@ -64,9 +65,10 @@ defmodule TalesForge.Game.Qa0857Test do
 
     test "(f) the Jev target counts when the text refers to the person", %{session: session} do
       world = Map.put(session.world_state, "present_npcs", ["innkeep"])
+      scene = {world, TalesForge.Characters.cast(session.id)}
 
-      assert {:npc, "innkeep"} = Combat.target("innkeep", "I attack her", world)
-      assert {:npc, "innkeep"} = Combat.target("innkeep", "I attack the innkeeper", world)
+      assert {:npc, "innkeep"} = Combat.target("innkeep", "I attack her", scene)
+      assert {:npc, "innkeep"} = Combat.target("innkeep", "I attack the innkeeper", scene)
     end
 
     test "(e) the miner is a minor foe, and the exchange is in the mechanical resolution",
@@ -79,7 +81,7 @@ defmodule TalesForge.Game.Qa0857Test do
         )
 
       assert t.outcome.combat["defender_id"] == "foe_miner"
-      assert t.outcome.board.world["npc_state"]["foe_miner"]["minor"]
+      assert t.outcome.board.cast["foe_miner"].minor
 
       mech = t.outcome.mechanical
       assert mech.outcome == "failure"
@@ -94,28 +96,29 @@ defmodule TalesForge.Game.Qa0857Test do
       assert t.outcome.board.world["combat_last"]["text"] == mech.notes
     end
 
-    test "(e) a scene change keeps the minor foes and the NPC wounds", %{session: session} do
-      foe = %{"id" => "foe_miner", "name" => "a miner", "minor" => true, "wounds" => 0}
+    test "(e) a world refresh keeps the minor foes and the NPC wounds", %{session: session} do
       {:ok, plain} = TalesForge.NPC.refresh_session_world_state(session)
-      [npc_id | _] = plain.world_state["npc_state"] |> Map.keys() |> Enum.sort()
-      session = plain
+      cast = TalesForge.Characters.cast(session.id)
+      [npc_id | _] = cast |> Map.keys() |> Enum.sort()
+      foe = Combat.minor_foe({"foe_miner", "a miner"}, Defaults.rules("tin_valley"), 7)
 
-      npc_state =
-        (session.world_state["npc_state"] || %{})
-        |> Map.put("foe_miner", foe)
-        |> Map.update!(npc_id, &Map.put(&1, "wounds", 1))
+      cast =
+        cast
+        |> Map.put("foe_miner", %{foe | location_id: plain.world_state["location_id"]})
+        |> Map.update!(npc_id, &%{&1 | wounds: 1})
 
-      {:ok, session} =
-        session
-        |> TalesForge.Schemas.GameSession.changeset(%{
-          world_state: Map.put(session.world_state, "npc_state", npc_state)
-        })
-        |> TalesForge.Repo.update()
+      {:ok, _} =
+        Ecto.Multi.new()
+        |> Ecto.Multi.put(:session, plain)
+        |> TalesForge.Characters.write_multi(cast)
+        |> TalesForge.Repo.transaction()
 
-      {:ok, refreshed} = TalesForge.NPC.refresh_session_world_state(session)
+      {:ok, refreshed} = TalesForge.NPC.refresh_session_world_state(plain)
+      reloaded = TalesForge.Characters.cast(session.id)
 
-      assert refreshed.world_state["npc_state"]["foe_miner"]["minor"]
-      assert refreshed.world_state["npc_state"][npc_id]["wounds"] == 1
+      refute Map.has_key?(refreshed.world_state, "npc_state")
+      assert reloaded["foe_miner"].minor
+      assert reloaded[npc_id].wounds == 1
     end
   end
 
@@ -123,25 +126,29 @@ defmodule TalesForge.Game.Qa0857Test do
     world = %{
       "location_id" => "valley_inn",
       "present_npcs" => ["innkeep"],
-      "npc_state" => %{
-        "innkeep" => %{"name" => "Brenna Holt", "wounds" => 1, "wound_max" => 3},
-        "foe_miner" => %{
-          "name" => "a miner",
-          "minor" => true,
-          "location_id" => "valley_inn",
-          "wounds" => 1,
-          "wound_max" => 1,
-          "vitality" => "down"
-        },
-        "foe_guard" => %{"name" => "a guard", "minor" => true, "location_id" => "inn_yard"}
-      },
       "combat_last" => %{"text" => "Attack: d100 3 vs 1: miss."}
+    }
+
+    gc = &struct(%TalesForge.GameCharacter{slug: &1}, &2)
+
+    cast = %{
+      "innkeep" => gc.("innkeep", name: "Brenna Holt", wounds: 1, wound_max: 3),
+      "foe_miner" =>
+        gc.("foe_miner",
+          name: "a miner",
+          minor: true,
+          location_id: "valley_inn",
+          wounds: 1,
+          wound_max: 1,
+          vitality: "down"
+        ),
+      "foe_guard" => gc.("foe_guard", name: "a guard", minor: true, location_id: "inn_yard")
     }
 
     assert [
              %{id: "innkeep", wounds_label: "1/3 wounds"},
              %{id: "foe_miner", wounds_label: "down · 1/1 wounds"}
-           ] = PlayComponents.present_npcs(world)
+           ] = PlayComponents.present_npcs(world, cast)
 
     assert PlayComponents.last_exchange(world) == "Attack: d100 3 vs 1: miss."
   end

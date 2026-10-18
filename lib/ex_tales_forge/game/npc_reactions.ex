@@ -23,9 +23,9 @@ defmodule TalesForge.Game.NpcReactions do
   means no reaction for that NPC; the turn goes on.
 
   The reactions go to the GM as one short line per NPC in the per-turn section
-  (`prompt_section/1`); the mood carries over in the session's
-  `world_state["npc_moods"]`, applied by the turn as `{:feel, mood}`
-  Intentions (`intentions/1`). Each call is an `ai_calls` row with
+  (`prompt_section/1`); the mood carries over on the NPC's character
+  (`runtime["reaction"]`, `TalesForge.Game.Cast.reactions/1`), applied by
+  the turn as `{:feel, mood}` Intentions (`intentions/1`). Each call is an `ai_calls` row with
   call_type `jev`, purpose `npc_reaction`.
   """
 
@@ -35,6 +35,7 @@ defmodule TalesForge.Game.NpcReactions do
 
   alias TalesForge.AICalls
   alias TalesForge.Config
+  alias TalesForge.Game.Cast
   alias TalesForge.Intention
   alias TalesForge.NPC
   alias TalesForge.Repo
@@ -43,17 +44,19 @@ defmodule TalesForge.Game.NpcReactions do
   defmodule Moment do
     @moduledoc """
     The moment the NPCs react to (`TalesForge.Game.NpcReactions.react/1`):
-    the session, the world, the turn number, the player's words, the
-    mechanical outcome and the premise findings. `react/1` adds the moods
+    the session, the world, the session's cast (`TalesForge.Game.Cast`),
+    the turn number, the player's words, the mechanical outcome and the
+    premise findings. `react/1` adds the moods
     before it, the scene the NPCs saw and heard, and the call timeout.
     """
 
     @enforce_keys [:session_id, :world, :turn_number, :raw_action, :mechanical]
-    defstruct @enforce_keys ++ [findings: [], moods: %{}, scene: nil, timeout: nil]
+    defstruct @enforce_keys ++ [cast: %{}, findings: [], moods: %{}, scene: nil, timeout: nil]
 
     @type t :: %__MODULE__{
             session_id: String.t(),
             world: map(),
+            cast: TalesForge.Game.Cast.t(),
             turn_number: integer(),
             raw_action: String.t(),
             mechanical: struct() | nil,
@@ -137,7 +140,7 @@ defmodule TalesForge.Game.NpcReactions do
 
   @doc """
   Each reaction as a `{:feel, mood}` Intention of its NPC: the mood that
-  carries over in `world_state["npc_moods"]`.
+  carries over on the NPC's character (`runtime["reaction"]`).
 
       iex> [i] = TalesForge.Game.NpcReactions.intentions([%{"npc_id" => "innkeep", "emotion" => "wary", "intensity" => 0.5, "stance" => "cool", "confidence" => 0.7, "turn_number" => 3, "name" => "Brenna"}])
       iex> {i.character_id, i.by, i.action}
@@ -153,14 +156,12 @@ defmodule TalesForge.Game.NpcReactions do
 
   # The NPC instances that react: present and alive, at most #{@max_npcs};
   # none when off.
-  defp reacting(%Moment{session_id: session_id, world: world}) do
+  defp reacting(%Moment{session_id: session_id, world: world, cast: cast}) do
     # A dead person does not react (QA 2026-10-15, session 99817343).
-    state = world["npc_state"] || %{}
-
     present =
       world["present_npcs"]
       |> List.wrap()
-      |> Enum.reject(&TalesForge.Game.NpcState.dead?(state, &1))
+      |> Enum.reject(&Cast.dead?(cast, &1))
 
     if enabled?() and present != [] do
       session_id
@@ -177,7 +178,7 @@ defmodule TalesForge.Game.NpcReactions do
   defp seen(%Moment{session_id: session_id, world: world} = moment) do
     %{
       moment
-      | moods: world["npc_moods"] || %{},
+      | moods: Cast.reactions(moment.cast),
         scene:
           session_id
           |> situation(moment.raw_action, visible_outcome(moment.mechanical, world))

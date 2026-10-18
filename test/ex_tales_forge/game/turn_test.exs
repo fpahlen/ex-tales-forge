@@ -133,11 +133,14 @@ defmodule TalesForge.Game.TurnTest do
         end
       }
 
-      world = Map.put(session.world_state, "npc_moods", %{"innkeep" => %{"emotion" => "wary"}})
+      cast =
+        session.id
+        |> TalesForge.Characters.cast()
+        |> update_in(["innkeep"], &%{&1 | runtime: %{"reaction" => %{"emotion" => "wary"}}})
 
       t =
-        %{session | world_state: world}
-        |> turn("I study Brenna's face", flags: flags, adapters: adapters)
+        session
+        |> turn("I study Brenna's face", flags: flags, adapters: adapters, cast: cast)
         |> Turn.Mechanics.apply()
 
       t

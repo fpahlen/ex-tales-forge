@@ -205,7 +205,7 @@ defmodule TalesForge.NPCInitiativeTest do
     assert text =~ "ledger"
   end
 
-  test "concern priority surfaces in world npc_state" do
+  test "concern priority surfaces in the session's cast" do
     assert {:ok, session} = GameSessions.create_session(%{name: "NPC Concern UI"})
 
     inst = NPC.get_instance(session.id, "marta_kellen")
@@ -219,9 +219,8 @@ defmodule TalesForge.NPCInitiativeTest do
     })
     |> Repo.update!()
 
-    {:ok, session} = NPC.refresh_session_world_state(session)
-    marta = get_in(session.world_state, ["npc_state", "marta_kellen"])
+    marta = TalesForge.Characters.cast(session.id)["marta_kellen"]
 
-    assert marta["concern_priority"] == 9
+    assert TalesForge.Game.Cast.details(marta)["concern_priority"] == 9
   end
 end

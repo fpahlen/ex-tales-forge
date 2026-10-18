@@ -221,92 +221,84 @@ defmodule TalesForge.Game.CombatTest do
   end
 
   describe "target/3" do
-    @world %{
-      "location_id" => "market_square",
-      "present_npcs" => ["guild_steward", "innkeep"],
-      "npc_state" => %{
-        "guild_steward" => %{"name" => "Osric Vane"},
-        "innkeep" => %{"name" => "Brenna Holt"}
+    @world %{"location_id" => "market_square", "present_npcs" => ["guild_steward", "innkeep"]}
+
+    defp member(slug, fields), do: struct(%GameCharacter{slug: slug}, fields)
+
+    defp cast do
+      %{
+        "guild_steward" => member("guild_steward", name: "Osric Vane"),
+        "innkeep" => member("innkeep", name: "Brenna Holt")
       }
-    }
+    end
 
     test "the Jev target id or a name in the text gives the NPC" do
-      assert Combat.target("innkeep", "I punch her", @world) == {:npc, "innkeep"}
-      assert Combat.target(nil, "I stab Brenna", @world) == {:npc, "innkeep"}
+      assert Combat.target("innkeep", "I punch her", {@world, cast()}) == {:npc, "innkeep"}
+      assert Combat.target(nil, "I stab Brenna", {@world, cast()}) == {:npc, "innkeep"}
     end
 
     test "an unclear target asks the player with the names of the people here" do
-      assert Combat.target(nil, "I swing my knife wildly", @world) ==
+      assert Combat.target(nil, "I swing my knife wildly", {@world, cast()}) ==
                {:unclear, ["Osric Vane", "Brenna Holt"]}
     end
 
     test "a person who is not in the world data becomes a minor foe" do
-      assert Combat.target(nil, "I attack the miners", @world) == {:foe, "foe_miner", "a miner"}
+      assert Combat.target(nil, "I attack the miners", {@world, cast()}) ==
+               {:foe, "foe_miner", "a miner"}
     end
 
     test "a minor foe in the scene is found again by its word" do
-      world =
-        put_in(@world, ["npc_state", "foe_miner"], %{
-          "name" => "a miner",
-          "minor" => true,
-          "location_id" => "market_square"
-        })
+      foe = member("foe_miner", name: "a miner", minor: true, location_id: "market_square")
+      cast = Map.put(cast(), "foe_miner", foe)
 
-      assert Combat.target(nil, "I hit the miner again", world) == {:npc, "foe_miner"}
+      assert Combat.target(nil, "I hit the miner again", {@world, cast}) == {:npc, "foe_miner"}
     end
 
     test "a dead NPC is not a target" do
-      world = put_in(@world, ["npc_state", "guild_steward", "vitality"], "dead")
-      assert Combat.target(nil, "I stab Osric", world) == {:unclear, ["Brenna Holt"]}
+      cast = put_in(cast()["guild_steward"].vitality, "dead")
+      assert Combat.target(nil, "I stab Osric", {@world, cast}) == {:unclear, ["Brenna Holt"]}
     end
   end
 
-  describe "book/3 and carry/2" do
-    test "wounds go to npc_state, and going down emits npc.down" do
-      world = %{
-        "location_id" => "market_square",
-        "world_tick" => 40,
-        "npc_state" => %{"gate_guard" => %{"name" => "Gate Guard"}}
-      }
+  describe "book/3" do
+    @at %{"location_id" => "market_square", "world_tick" => 40}
 
+    test "wounds go to the defender's character, and going down emits npc.down" do
+      cast = %{"gate_guard" => %GameCharacter{slug: "gate_guard", name: "Gate Guard"}}
       guard = Map.put(@guard, "wounds", Mechanics.wound_max(f(@guard)) - 1)
       ex = Combat.exchange({f(@player), f(guard)}, "melee_combat", %{attack: 10})
 
-      {world, [event]} = Combat.book(world, {ex, nil}, world["npc_state"])
-      assert world["npc_state"]["gate_guard"]["vitality"] == "down"
+      {cast, [event]} = Combat.book(cast, @at, {ex, nil})
+      assert cast["gate_guard"].vitality == "down"
+      assert cast["gate_guard"].wounds == ex["defender_wounds"]
       assert event["kind"] == "npc.down"
       assert event["payload"]["session_only"]
     end
 
-    test "a death emits npc.dead and stays in the session state" do
+    test "a death emits npc.dead and stays on the character" do
       down = Map.merge(@guard, %{"wounds" => 3, "vitality" => "down"})
-      before = %{"gate_guard" => %{"name" => "Gate Guard", "wounds" => 3, "vitality" => "down"}}
-      ex = Combat.exchange({f(@player), f(down)}, "melee_combat", %{attack: 10, death: 100})
 
-      {world, [event]} = Combat.book(%{"npc_state" => before}, {ex, nil}, before)
-      assert event["kind"] == "npc.dead"
-      assert world["npc_state"]["gate_guard"]["vitality"] == "dead"
-    end
-
-    test "carry keeps wounds and minor foes over the npc_state refresh" do
-      before = %{
-        "gate_guard" => %{"name" => "Gate Guard", "wounds" => 1, "vitality" => "hurt"},
-        "foe_miner" => %{"name" => "a miner", "minor" => true, "vitality" => "down"}
+      cast = %{
+        "gate_guard" => %GameCharacter{slug: "gate_guard", wounds: 3, vitality: "down"}
       }
 
-      carried =
-        TalesForge.Game.NpcState.carry(before, %{
-          "gate_guard" => %{"name" => "Gate Guard", "mood" => "angry"}
-        })
+      ex = Combat.exchange({f(@player), f(down)}, "melee_combat", %{attack: 10, death: 100})
 
-      assert carried["gate_guard"] == %{
-               "name" => "Gate Guard",
-               "mood" => "angry",
-               "wounds" => 1,
-               "vitality" => "hurt"
-             }
+      {cast, [event]} = Combat.book(cast, @at, {ex, nil})
+      assert event["kind"] == "npc.dead"
+      assert cast["gate_guard"].vitality == "dead"
+    end
 
-      assert carried["foe_miner"]["minor"]
+    test "a new minor foe joins the cast at the place of the fight, for the scene" do
+      foe = Combat.minor_foe({"foe_miner", "a miner"}, Defaults.rules("tin_valley"), 7)
+      ex = Combat.exchange({f(@player), foe}, "melee_combat", %{attack: 10, death: 100})
+
+      {cast, _events} = Combat.book(%{}, @at, {ex, foe})
+
+      assert %GameCharacter{minor: true, lifetime: :scene, location_id: "market_square"} =
+               cast["foe_miner"]
+
+      assert cast["foe_miner"].vitality == ex["defender_vitality"]
     end
   end
 

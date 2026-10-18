@@ -87,7 +87,7 @@ defmodule TalesForge.CharactersSyncTest do
     end
   end
 
-  describe "write_multi/1" do
+  describe "write_multi/2" do
     defp coins_session(session, coins) do
       %{session | world_state: put_in(session.world_state, ["character", "coins"], coins)}
     end
@@ -98,7 +98,7 @@ defmodule TalesForge.CharactersSyncTest do
       assert {:error, :boom, :failed, _} =
                Ecto.Multi.new()
                |> Ecto.Multi.put(:session, saved)
-               |> Characters.write_multi()
+               |> Characters.write_multi(Characters.cast(session.id))
                |> Ecto.Multi.run(:boom, fn _repo, _ -> {:error, :failed} end)
                |> Repo.transaction()
 
@@ -108,7 +108,7 @@ defmodule TalesForge.CharactersSyncTest do
       assert {:ok, %{characters: :ok}} =
                Ecto.Multi.new()
                |> Ecto.Multi.put(:session, saved)
-               |> Characters.write_multi()
+               |> Characters.write_multi(Characters.cast(session.id))
                |> Repo.transaction()
 
       assert Characters.get_by_slug(session.id, "elara_voss").coins == %{"silver" => 7}
@@ -127,7 +127,7 @@ defmodule TalesForge.CharactersSyncTest do
           assert {:ok, %{characters: :skipped}} =
                    Ecto.Multi.new()
                    |> Ecto.Multi.put(:session, broken)
-                   |> Characters.write_multi()
+                   |> Characters.write_multi(Characters.cast(session.id))
                    |> Repo.transaction()
         end)
 

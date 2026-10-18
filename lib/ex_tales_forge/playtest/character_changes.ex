@@ -14,7 +14,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
       the seed defaults of `TalesForge.NPC` (relationship 0.0, no memories).
     * **NPC end**: `npc_instances.runtime_state` (mood, location,
       `relationship_score`, current concern, the newest 20 memories) and the
-      latest Jev reaction per NPC in `game_sessions.world_state["npc_moods"]`.
+      latest Jev reaction per NPC on its row, `characters.runtime["reaction"]`.
     * **Memories**: `npc_instances.runtime_state["memories"]` joined with
       `character_memories` (every memory mirrored by `TalesForge.Characters`),
       placed on a turn by world tick (the `gm_reasoning` session event of each
@@ -174,7 +174,6 @@ defmodule TalesForge.Playtest.CharacterChanges do
       select:
         {g.id,
          %{
-           "npc_moods" => fragment("?->'npc_moods'", g.world_state),
            "character" => fragment("?->'character'", g.world_state),
            "location_id" => fragment("?->>'location_id'", g.world_state)
          }}
@@ -211,6 +210,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
         maslow_level: c.maslow_level,
         concerns: c.concerns,
         ocean: c.ocean,
+        reaction: fragment("?->'reaction'", c.runtime),
         definition: fragment("CASE WHEN ? <> 'gm' THEN ? END", c.controller, c.definition)
       }
     )
@@ -302,6 +302,11 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   # --- building ---------------------------------------------------------------
 
+  # The latest Jev reaction of each character row that has one.
+  defp moods(rows) do
+    for %{slug: slug} = row <- rows, is_map(row[:reaction]), into: %{}, do: {slug, row.reaction}
+  end
+
   @doc """
   Builds a run's character changes from its loaded state (`sources()`). Pure:
   `for_sessions/1` loads the state and calls this; tests can call it with
@@ -309,7 +314,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
   """
   @spec build(sources()) :: t()
   def build(%{session_id: session_id} = src) do
-    moods = src.world["npc_moods"] || %{}
+    moods = moods(src.characters)
 
     ctx = %Build{
       src: src,
@@ -527,7 +532,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
       key: :stance,
       label: "Stance toward the player character",
       status: :not_tracked,
-      source: "world_state npc_moods (Jev reactions)",
+      source: "characters runtime reaction (Jev reactions)",
       note: "No Jev NPC reactions in this run (NPC_REACTIONS off)."
     }
 
@@ -540,7 +545,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
       start_value: "neutral (no reaction yet)",
       end_value: if(stance, do: "#{stance} (turn #{reaction["turn_number"]})", else: "neutral"),
       status: if(stance && stance != "neutral", do: :changed, else: :unchanged),
-      source: "world_state npc_moods (latest Jev reaction)",
+      source: "characters runtime reaction (latest Jev reaction)",
       note: if(is_nil(stance), do: "No reaction read: never on stage on a turn.")
     }
   end
@@ -555,7 +560,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
       start_value: "none",
       end_value: reaction_text(reaction),
       status: :changed,
-      source: "world_state npc_moods (latest Jev reaction)",
+      source: "characters runtime reaction (latest Jev reaction)",
       note: "Only the latest reaction is kept; earlier ones are not stored."
     }
 
@@ -894,7 +899,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
     [
       tracked? &&
-        "Jev NPC reactions: only each NPC's latest reaction is kept (world_state npc_moods); " <>
+        "Jev NPC reactions: only each NPC's latest reaction is kept (characters runtime reaction); " <>
           "earlier ones are not stored, and ai_calls rows show that a reaction was read, not what it was.",
       "NPC mood, relationship score, location and current concern: npc_instances keeps only " <>
         "the current value, so the start comes from the authored definition and the steps in between " <>
@@ -927,7 +932,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
     relationship? = Enum.any?(npcs, &field_changed?(&1, :relationship))
 
     %RunMetrics{
-      memories_added: changes.characters |> Enum.map(&length(&1.memories_added)) |> Enum.sum(),
+      memories_added: memories_added(changes.characters),
       npcs_changed: Enum.count(npcs, & &1.changed?),
       npcs_attitude_changed: length(attitude),
       stance_changed?: stance?,
@@ -936,6 +941,9 @@ defmodule TalesForge.Playtest.CharacterChanges do
       reactions_tracked?: changes.reactions_tracked?
     }
   end
+
+  defp memories_added(characters),
+    do: characters |> Enum.map(&length(&1.memories_added)) |> Enum.sum()
 
   defp attitude_changed?(npc),
     do: field_changed?(npc, :stance) or field_changed?(npc, :relationship)

@@ -21,10 +21,15 @@ defmodule TalesForge.Game.TurnApply do
     * `unknown_move/2` — a move to a place that the world does not have is
       rejected, and the reason names the exits.
 
+  The rules that tell a person's words from a place's take the scene as
+  `{world, cast}`: the world state and the session's GM characters
+  (`TalesForge.Game.Cast`).
+
   The service prices come from `priv/rules/economy.md` ("Ale 2c", "Common
   meal 5c", "Private room 3s/night"). They are provisional values.
   """
 
+  alias TalesForge.Game.Cast
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.World
@@ -134,27 +139,31 @@ defmodule TalesForge.Game.TurnApply do
       iex> pa = %PlayerAction{overall_intent: "I buy an ale",
       ...>   action: %SingleAction{action_type: :buy, target: "ale_mug", parameters: %{}}}
       iex> h = %HandlerResult{handler: "inventory", target: "ale_mug", state_hints: %{}}
-      iex> {listed, _h} = TalesForge.Game.TurnApply.item_buy(pa, h, %{"present_npcs" => ["marta_kellen"]})
+      iex> cast = %{"marta_kellen" => %TalesForge.GameCharacter{slug: "marta_kellen"}}
+      iex> {listed, _h} = TalesForge.Game.TurnApply.item_buy(pa, h, cast)
       iex> {listed.action.target, listed.action.parameters["item_id"]}
       {nil, "ale_mug"}
+      iex> from_marta = %{pa | action: %{pa.action | target: "marta_kellen"}}
+      iex> TalesForge.Game.TurnApply.item_buy(from_marta, h, cast) == {from_marta, h}
+      true
   """
-  @spec item_buy(PlayerAction.t(), HandlerResult.t(), map()) ::
+  @spec item_buy(PlayerAction.t(), HandlerResult.t(), Cast.t()) ::
           {PlayerAction.t(), HandlerResult.t()}
   def item_buy(
         %PlayerAction{action: %{action_type: :buy, target: target} = action} = player_action,
         %HandlerResult{handler: "inventory"} = handler,
-        world
+        cast
       )
       when is_binary(target) and target != "" do
     params = action.parameters || %{}
+    item? = params["item_id"] in [nil, ""] and not person_or_nil?(cast, target)
     price = spend_copper(player_action.overall_intent)
 
     cond do
-      params["item_id"] in [nil, ""] and not person_or_nil?(world, target) and
-        drink_here?(player_action.overall_intent) and price > 0 ->
+      item? and drink_here?(player_action.overall_intent) and price > 0 ->
         spend_here(player_action, handler, price)
 
-      params["item_id"] in [nil, ""] and not person_or_nil?(world, target) ->
+      item? ->
         listed({player_action, handler}, params, target)
 
       true ->
@@ -162,7 +171,7 @@ defmodule TalesForge.Game.TurnApply do
     end
   end
 
-  def item_buy(player_action, handler, _world), do: {player_action, handler}
+  def item_buy(player_action, handler, _cast), do: {player_action, handler}
 
   # "I order an ale", "I drink an ale": the character drinks or eats it at
   # the counter, so it is a payment at the service price and no item.
@@ -204,25 +213,25 @@ defmodule TalesForge.Game.TurnApply do
   ## Examples
 
       iex> alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction, SingleAction}
-      iex> world = %{"npc_state" => %{"marta_kellen" => %{"name" => "Marta Kellen"}}}
+      iex> cast = %{"marta_kellen" => %TalesForge.GameCharacter{slug: "marta_kellen", name: "Marta Kellen"}}
       iex> pa = %PlayerAction{overall_intent: "I order a meal.",
       ...>   action: %SingleAction{action_type: :buy, target: "marta_kellen", parameters: %{}}}
       iex> h = %HandlerResult{handler: "inventory", state_hints: %{}}
-      iex> {paid, _h} = TalesForge.Game.TurnApply.service_buy(pa, h, world)
+      iex> {paid, _h} = TalesForge.Game.TurnApply.service_buy(pa, h, cast)
       iex> {paid.action.action_type, paid.action.parameters["amount_copper"]}
       {:spend, 5}
   """
-  @spec service_buy(PlayerAction.t(), HandlerResult.t(), map()) ::
+  @spec service_buy(PlayerAction.t(), HandlerResult.t(), Cast.t()) ::
           {PlayerAction.t(), HandlerResult.t()}
   def service_buy(
         %PlayerAction{action: %{action_type: :buy} = action} = player_action,
         %HandlerResult{handler: "inventory"} = handler,
-        world
+        cast
       ) do
     params = action.parameters || %{}
     price = spend_copper(player_action.overall_intent)
 
-    if params["item_id"] in [nil, ""] and person_or_nil?(world, action.target) and price > 0 do
+    if params["item_id"] in [nil, ""] and person_or_nil?(cast, action.target) and price > 0 do
       spend = %{action | action_type: :spend, parameters: Map.put(params, "amount_copper", price)}
 
       hints =
@@ -236,14 +245,11 @@ defmodule TalesForge.Game.TurnApply do
     end
   end
 
-  def service_buy(player_action, handler, _world), do: {player_action, handler}
+  def service_buy(player_action, handler, _cast), do: {player_action, handler}
 
-  defp person_or_nil?(_world, nil), do: true
-  defp person_or_nil?(_world, ""), do: true
-
-  defp person_or_nil?(world, target) do
-    Map.has_key?(world["npc_state"] || %{}, target) or target in List.wrap(world["present_npcs"])
-  end
+  defp person_or_nil?(_cast, nil), do: true
+  defp person_or_nil?(_cast, ""), do: true
+  defp person_or_nil?(cast, target), do: Map.has_key?(cast, target)
 
   @doc """
   Adds the sleep of "I pay for a room and go to sleep" to the handler as
@@ -333,14 +339,15 @@ defmodule TalesForge.Game.TurnApply do
       ...>   "inn" => %{"name" => "The Weary Pilgrim", "exits" => ["square", "cellar"]},
       ...>   "cellar" => %{"name" => "Pilgrim Cellar"}}}
       iex> h = %HandlerResult{handler: "move", target: "cellar", state_hints: %{"location_id" => "cellar"}}
-      iex> TalesForge.Game.TurnApply.named_move(h, world, "I go into the Weary Pilgrim inn.").state_hints["location_id"]
+      iex> TalesForge.Game.TurnApply.named_move(h, {world, %{}}, "I go into the Weary Pilgrim inn.").state_hints["location_id"]
       "inn"
       iex> h = %HandlerResult{handler: "move", target: "inn", state_hints: %{"location_id" => "inn"}}
-      iex> TalesForge.Game.TurnApply.named_move(h, world, "I walk to the old mill by the creek.").state_hints["reason"]
+      iex> TalesForge.Game.TurnApply.named_move(h, {world, %{}}, "I walk to the old mill by the creek.").state_hints["reason"]
       "There is no place called old mill near here. The exits from Crossroads Square are: The Weary Pilgrim."
   """
-  @spec named_move(HandlerResult.t(), map(), String.t() | nil) :: HandlerResult.t()
-  def named_move(%HandlerResult{handler: "move"} = handler, world, text) when is_binary(text) do
+  @spec named_move(HandlerResult.t(), {map(), Cast.t()}, String.t() | nil) :: HandlerResult.t()
+  def named_move(%HandlerResult{handler: "move"} = handler, {world, cast}, text)
+      when is_binary(text) do
     target = handler.state_hints["location_id"] || handler.target
     words = words(text)
 
@@ -369,7 +376,7 @@ defmodule TalesForge.Game.TurnApply do
             state_hints: Map.put(handler.state_hints || %{}, "location_id", best)
         }
 
-      target_score == 0 and unknown_phrase?(phrase, world) ->
+      target_score == 0 and unknown_phrase?(phrase, cast) ->
         reject_move(phrase, world)
 
       true ->
@@ -377,7 +384,7 @@ defmodule TalesForge.Game.TurnApply do
     end
   end
 
-  def named_move(handler, _world, _text), do: handler
+  def named_move(handler, _scene, _text), do: handler
 
   @doc """
   A move to the place where the character is plays no walk, with or without
@@ -457,11 +464,11 @@ defmodule TalesForge.Game.TurnApply do
 
   # A phrase names an unknown place when it has words and none of them is a
   # word of a person ("to the barkeep"). A general word ("the inn") is no name.
-  defp unknown_phrase?(nil, _world), do: false
+  defp unknown_phrase?(nil, _cast), do: false
 
-  defp unknown_phrase?(phrase, world) do
+  defp unknown_phrase?(phrase, cast) do
     named = words(phrase)
-    named != [] and overlap(named, people_words(world)) == 0
+    named != [] and overlap(named, people_words(cast)) == 0
   end
 
   defp place_phrase(text) do
@@ -486,10 +493,10 @@ defmodule TalesForge.Game.TurnApply do
     |> Enum.flat_map(&words/1)
   end
 
-  defp people_words(world) do
-    world
-    |> Map.get("npc_state", %{})
-    |> Enum.flat_map(fn {id, npc} -> words("#{id} #{npc["name"]} #{npc["role"]}") end)
+  defp people_words(cast) do
+    cast
+    |> Cast.sorted()
+    |> Enum.flat_map(fn gc -> words("#{gc.slug} #{gc.name} #{gc.role}") end)
   end
 
   defp overlap(words, other), do: Enum.count(words, &(&1 in other))
@@ -531,19 +538,20 @@ defmodule TalesForge.Game.TurnApply do
       ...>   "inn" => %{"name" => "The Inn", "exits" => ["square"]},
       ...>   "square" => %{"name" => "Crossroads Square"}}}
       iex> h = %HandlerResult{handler: "narrate", target: "marta_kellen", notes: "Talk.", state_hints: %{}}
-      iex> TalesForge.Game.TurnApply.deferred_move(h, world, "I ask Marta about the old mill and say I'm heading out there now.").state_hints["reason"]
+      iex> TalesForge.Game.TurnApply.deferred_move(h, {world, %{}}, "I ask Marta about the old mill and say I'm heading out there now.").state_hints["reason"]
       "There is no place called old mill near here. The exits from The Inn are: Crossroads Square."
-      iex> TalesForge.Game.TurnApply.deferred_move(h, world, "I ask Marta about the weather.") == h
+      iex> TalesForge.Game.TurnApply.deferred_move(h, {world, %{}}, "I ask Marta about the weather.") == h
       true
   """
-  @spec deferred_move(HandlerResult.t(), map(), String.t() | nil) :: HandlerResult.t()
-  def deferred_move(%HandlerResult{handler: handler_name} = handler, world, text)
+  @spec deferred_move(HandlerResult.t(), {map(), Cast.t()}, String.t() | nil) ::
+          HandlerResult.t()
+  def deferred_move(%HandlerResult{handler: handler_name} = handler, {world, _cast} = scene, text)
       when is_binary(text) and handler_name != "move" do
     hints = handler.state_hints || %{}
     phrase = any_place_phrase(text)
 
     if Regex.match?(@set_out, text) and hints["rejected"] != true and is_binary(phrase) and
-         unknown_place?(phrase, world) do
+         unknown_place?(phrase, scene) do
       %{
         handler
         | notes:
@@ -561,7 +569,7 @@ defmodule TalesForge.Game.TurnApply do
     end
   end
 
-  def deferred_move(handler, _world, _text), do: handler
+  def deferred_move(handler, _scene, _text), do: handler
 
   defp any_place_phrase(text) do
     case Regex.run(@any_place_phrase, text) do
@@ -571,7 +579,7 @@ defmodule TalesForge.Game.TurnApply do
   end
 
   # The phrase names no place of the world and no person.
-  defp unknown_place?(phrase, world) do
+  defp unknown_place?(phrase, {world, cast}) do
     named = words(phrase)
 
     places =
@@ -579,7 +587,7 @@ defmodule TalesForge.Game.TurnApply do
       |> Map.get("locations", %{})
       |> Enum.flat_map(fn {id, loc} -> place_words(id, loc) end)
 
-    unknown_phrase?(phrase, world) and overlap(named, places) == 0
+    unknown_phrase?(phrase, cast) and overlap(named, places) == 0
   end
 
   @doc """

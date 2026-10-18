@@ -7,14 +7,22 @@ defmodule TalesForge.Characters do
   `game_sessions.world_state` is saved without `"character"`
   (`TalesForge.Schemas.WorldState`). In memory the turn still plays on
   `world_state["character"]`, which `put_sheet/1` fills from the row when a
-  session is loaded. NPCs still run on `npc_instances`; their rows are kept
+  session is loaded.
+
+  The GM's characters are the session's cast (`cast/1`,
+  `TalesForge.Game.Cast`; refactor step 10f PR 4): their wounds, vitality
+  and gut reaction live on their rows only, and a minor foe is a row of its
+  own. NPCs still run on `npc_instances` for the rest; their rows are kept
   in step with them:
 
     * `seed_session/2` writes the rows when a session is created.
-    * `write_multi/1` is the characters step of the turn Multi (and of the
-      admin world-state edit): it writes the player character and the NPC
+    * `write_multi/2` is the characters step of the turn Multi (and of the
+      admin world-state edit): it writes the player character, the NPC
       state (location, sheet, stock, mood, relationship, runtime, memories)
-      onto the rows, in the same transaction as the session.
+      and the cast (wounds, reactions, minor foes) onto the rows, in the
+      same transaction as the session.
+    * `end_scene_multi/2` removes the rows that live for a scene
+      (`lifetime: :scene`, a minor foe) when the turn ends their scene.
     * `backfill/0` does the same for every existing session. Idempotent and
       re-runnable.
 
@@ -29,7 +37,7 @@ defmodule TalesForge.Characters do
   require Logger
 
   alias TalesForge.Characters.Levers
-  alias TalesForge.Game.Pack
+  alias TalesForge.Game.{Cast, Pack}
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameCharacter
   alias TalesForge.NPC
@@ -73,7 +81,7 @@ defmodule TalesForge.Characters do
   """
   @spec sync_session(GameSession.t(), map()) :: :ok | {:error, term()}
   def sync_session(%GameSession{} = session, opts \\ %{}) do
-    {rows, instances} = rows(session, opts)
+    {rows, instances} = rows(session, cast(session.id), opts)
 
     case Repo.transaction(fn -> write_rows!(rows, instances, session.id) end) do
       {:ok, :ok} -> :ok
@@ -84,17 +92,65 @@ defmodule TalesForge.Characters do
   @doc """
   The characters write, as a step of a Multi after its `:session` step: the
   rows from the session that step saved, whose in-memory world still holds
-  the player character (`TalesForge.Schemas.WorldState`). The turn Multi
-  runs it after the NPC updates, so a GM memory gets its row in the same
-  transaction; the admin world-state edit runs it after the session.
+  the player character (`TalesForge.Schemas.WorldState`), and from `cast`,
+  the GM characters as the turn left them (`TalesForge.Game.Cast`). The
+  turn Multi runs it after the NPC updates, so a GM memory gets its row in
+  the same transaction; the admin world-state edit runs it after the
+  session, with the cast as stored.
 
   A row that doesn't validate (a broken sheet) skips the write with a
   warning, so it never fails the turn.
   """
-  @spec write_multi(Ecto.Multi.t()) :: Ecto.Multi.t()
-  def write_multi(%Ecto.Multi{} = multi) do
+  @spec write_multi(Ecto.Multi.t(), Cast.t()) :: Ecto.Multi.t()
+  def write_multi(%Ecto.Multi{} = multi, cast) when is_map(cast) do
     Ecto.Multi.run(multi, :characters, fn _repo, %{session: session} ->
-      {:ok, write_turn(session)}
+      {:ok, write_turn(session, cast)}
+    end)
+  end
+
+  @doc """
+  Removes the rows that live for a scene (`lifetime: :scene`, a minor foe)
+  at `location_id`, the place of the scene that the turn ends (a
+  `player.travel` away from it or a long rest there,
+  `TalesForge.Characters.Memory.scene_end/1`), as a step of a Multi after
+  its `:session` step. The only reader of `lifetime`. Nothing to do when no
+  scene ends (nil).
+  """
+  @spec end_scene_multi(Ecto.Multi.t(), String.t() | nil) :: Ecto.Multi.t()
+  def end_scene_multi(%Ecto.Multi{} = multi, nil), do: multi
+
+  def end_scene_multi(%Ecto.Multi{} = multi, location_id) do
+    Ecto.Multi.delete_all(multi, :scene_characters, fn %{session: session} ->
+      where(
+        Character,
+        [c],
+        c.game_session_id == ^session.id and c.lifetime == :scene and
+          c.location_id == ^location_id
+      )
+    end)
+  end
+
+  @doc """
+  The session's cast (`TalesForge.Game.Cast`): every GM character from its
+  row (controller `gm`), each NPC with its name, role, place, mood and
+  concern from its NPC instance (`TalesForge.NPC.cast_member/2`). The
+  wounds, vitality, gut reaction and lifetime come from the row. A minor
+  foe has a row and no instance.
+  """
+  @spec cast(Ecto.UUID.t() | nil) :: Cast.t()
+  def cast(nil), do: %{}
+
+  def cast(session_id) do
+    rows =
+      Character
+      |> where([c], c.game_session_id == ^session_id and c.controller == "gm")
+      |> Repo.all()
+      |> Map.new(&{&1.slug, GameCharacter.from_schema(&1)})
+
+    session_id
+    |> NPC.list_instances()
+    |> Enum.reduce(rows, fn inst, acc ->
+      Map.put(acc, inst.npc_id, NPC.cast_member(inst, acc[inst.npc_id]))
     end)
   end
 
@@ -107,7 +163,7 @@ defmodule TalesForge.Characters do
   def save_session(%Ecto.Changeset{data: %GameSession{}} = changeset) do
     Ecto.Multi.new()
     |> Ecto.Multi.update(:session, changeset)
-    |> write_multi()
+    |> write_multi(cast(changeset.data.id))
     |> Repo.transaction()
     |> case do
       {:ok, %{session: session}} -> {:ok, session}
@@ -115,8 +171,8 @@ defmodule TalesForge.Characters do
     end
   end
 
-  defp write_turn(%GameSession{id: id} = session) do
-    {rows, instances} = rows(session, %{})
+  defp write_turn(%GameSession{id: id} = session, cast) do
+    {rows, instances} = rows(session, cast, %{})
 
     case Enum.reject(
            rows,
@@ -134,20 +190,72 @@ defmodule TalesForge.Characters do
     end
   end
 
-  # The player character and every NPC of the session, and its NPC instances.
-  defp rows(%GameSession{} = session, opts) do
+  # The player character, every NPC of the session with its cast state, the
+  # other GM characters of the cast (the minor foes), and the NPC instances.
+  defp rows(%GameSession{} = session, cast, opts) do
     tick = Map.get(session.world_state, "world_tick", WorldClock.default_start_tick())
     pc = player_character_attrs(session, opts, tick)
-    moods = Map.get(session.world_state, "npc_moods") || %{}
     instances = NPC.list_instances(session.id)
+    npc_ids = MapSet.new(instances, & &1.npc_id)
 
     npcs =
-      Enum.map(
-        instances,
-        &from_npc_instance(&1, tick, %{pc_slug: pc.slug, reaction: Map.get(moods, &1.npc_id)})
-      )
+      Enum.map(instances, fn inst ->
+        member = cast[inst.npc_id]
 
-    {[pc | npcs], instances}
+        inst
+        |> from_npc_instance(tick, %{pc_slug: pc.slug, reaction: Cast.reaction(cast, inst.npc_id)})
+        |> Map.merge(cast_state(member))
+      end)
+
+    others =
+      for %GameCharacter{slug: slug} = member <- Cast.sorted(cast),
+          not MapSet.member?(npc_ids, slug),
+          do: from_cast_member(member, tick)
+
+    {[pc | npcs] ++ others, instances}
+  end
+
+  # What only the cast holds of an NPC: its wounds and vitality.
+  defp cast_state(nil), do: %{}
+
+  defp cast_state(%GameCharacter{} = member),
+    do: %{wounds: member.wounds, wound_max: member.wound_max, vitality: member.vitality}
+
+  @doc """
+  Character attrs for a GM character of the cast that has no NPC instance,
+  such as a minor foe (`TalesForge.Game.Combat.minor_foe/3`): its sheet
+  becomes the row's `definition`, written once, and its wounds, place and
+  lifetime are mirrored.
+  """
+  @spec from_cast_member(GameCharacter.t(), integer()) :: map()
+  def from_cast_member(%GameCharacter{} = member, tick) do
+    %{
+      slug: member.slug,
+      controller: "gm",
+      controller_ref: nil,
+      owner_player_id: nil,
+      origin: %{"source" => "cast"},
+      definition: GameCharacter.to_sheet(member),
+      name: member.name || member.slug,
+      race: member.race,
+      role: member.role,
+      location_id: member.location_id,
+      stats: Character.Stats.from_sheet(member.stats),
+      skills: int_map(member.skills),
+      ocean: member.ocean || %{},
+      maslow_level: member.maslow_level || "safety",
+      maslow_since_tick: tick,
+      concerns: concerns(member.concerns, tick),
+      inventory: inventory(member.inventory),
+      coins: member.coins || %{},
+      wounds: member.wounds,
+      wound_max: member.wound_max,
+      vitality: member.vitality,
+      mood: member.mood,
+      relationships: %{},
+      runtime: Map.take(member.runtime, ["reaction"]),
+      lifetime: member.lifetime
+    }
   end
 
   defp write_rows!(rows, instances, session_id) do

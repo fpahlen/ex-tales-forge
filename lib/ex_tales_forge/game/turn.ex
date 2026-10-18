@@ -23,9 +23,16 @@ defmodule TalesForge.Game.Turn do
   A rejected action is data (`outcome.handler` has `"rejected" => true`). A
   failed GM call is data too: `narration` is `{:error, reason}`, and the
   stages after it pass the turn through.
+
+  `cast` is the session's GM characters as the turn loaded them
+  (`TalesForge.Game.Cast`, from their rows); the board carries them on
+  through the turn (`board.cast`: a wound, a new minor foe, a gut reaction)
+  to the store.
   """
 
+  alias TalesForge.Characters
   alias TalesForge.Config
+  alias TalesForge.Game.Cast
   alias TalesForge.Game.HistoryStrip
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.Turn.Adapters
@@ -45,6 +52,7 @@ defmodule TalesForge.Game.Turn do
     :prompt,
     :narration,
     :result,
+    cast: %{},
     opts: [],
     flags: %{},
     injected: false,
@@ -66,6 +74,7 @@ defmodule TalesForge.Game.Turn do
           prompt: map() | nil,
           narration: {:ok, struct()} | {:error, term()} | nil,
           result: {:ok, map()} | {:error, term()} | nil,
+          cast: Cast.t(),
           opts: keyword(),
           flags: %{atom() => boolean()},
           injected: boolean(),
@@ -76,8 +85,9 @@ defmodule TalesForge.Game.Turn do
 
   @doc """
   A new turn. Reads the feature flags and the role one time. `opts` are the
-  intent options of `TalesForge.Game.TurnProcessor.run/3` plus `:adapters`
-  and `:flags` (both for tests). The session's `world_state["character"]`
+  intent options of `TalesForge.Game.TurnProcessor.run/3` plus `:adapters`,
+  `:flags` and `:cast` (for tests; else `TalesForge.Characters.cast/1`).
+  The session's `world_state["character"]`
   is the acting character, from its `characters` row
   (`TalesForge.Characters.put_sheet/1`, when the session is loaded); the
   turn plays its Intention (`intention`, `by: :human`).
@@ -86,7 +96,6 @@ defmodule TalesForge.Game.Turn do
   def new({%GameSession{} = session, number}, {raw_action, %PlayerAction{} = intent}, opts \\ []) do
     flags = Keyword.get_lazy(opts, :flags, &read_flags/0)
     injected = flag?(flags, :history_strip_injection) and HistoryStrip.injected?(raw_action)
-    adapters = Keyword.get(opts, :adapters, %Adapters{})
 
     %__MODULE__{
       session: session,
@@ -95,12 +104,21 @@ defmodule TalesForge.Game.Turn do
       history_action: if(injected, do: HistoryStrip.placeholder(), else: raw_action),
       intent: intent,
       intention: Intention.human(actor_id(session.world_state), intent),
-      role: Keyword.get_lazy(opts, :role, &TalesForge.AppRole.role/0),
       opts: opts,
       flags: flags,
-      injected: injected,
-      adapters: adapters
+      injected: injected
     }
+    |> struct!(from_opts(opts, session.id))
+  end
+
+  # What the options give, else the defaults: the session's cast, the role
+  # and the adapters.
+  defp from_opts(opts, session_id) do
+    [
+      cast: Keyword.get_lazy(opts, :cast, fn -> Characters.cast(session_id) end),
+      role: Keyword.get_lazy(opts, :role, &TalesForge.AppRole.role/0),
+      adapters: Keyword.get(opts, :adapters, %Adapters{})
+    ]
   end
 
   @doc "The feature flags of a turn, read from `TalesForge.Config`."
