@@ -31,6 +31,8 @@
   "personality": "Practical, protective of her regulars, slow to trust strangers.",
   "race": "human",
   "role": "barkeep",
+  "serves": ["ale_mug"],
+  "lends": ["mug"],
   "stock": [
     {
       "id": "ale_mug",

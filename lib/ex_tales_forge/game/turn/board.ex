@@ -33,6 +33,7 @@ defmodule TalesForge.Game.Turn.Board do
   alias TalesForge.Game.Events
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
+  alias TalesForge.Game.Offer
   alias TalesForge.Game.OutcomeRecord
   alias TalesForge.Game.Perception
   alias TalesForge.Game.Progression
@@ -385,7 +386,10 @@ defmodule TalesForge.Game.Turn.Board do
     ids = Inventory.trader_ids(action, Map.get(world_state, "present_npcs", []))
     traders = session.id |> NPC.traders(ids) |> refuse(refusals)
 
-    case Inventory.apply_transaction(world_state, traders, action) do
+    case decide_inventory(world_state, traders, board.player_action) do
+      {:ok, %Offer{} = offer} ->
+        {world_state, {:ok, %{applied: [], traders: [], offer: offer}}}
+
       {:ok, updated, details, changed} ->
         Logger.info("inventory applied session=#{session.id} changes=#{inspect(details.applied)}")
         {updated, {:ok, Map.put(details, :traders, changed)}}
@@ -395,6 +399,19 @@ defmodule TalesForge.Game.Turn.Board do
         {world_state, {:error, reason}}
     end
   end
+
+  # Asking a price is never a purchase (#470 retest, session 8a9dbde9):
+  # the seller's offer, and nothing moves.
+  defp decide_inventory(world_state, traders, %{action: %SingleAction{action_type: :buy}} = pa) do
+    action = Inventory.named_item(pa.action, traders, pa.overall_intent)
+
+    if Offer.asked?(pa.overall_intent),
+      do: Inventory.offer(world_state, traders, action),
+      else: Inventory.apply_transaction(world_state, traders, action)
+  end
+
+  defp decide_inventory(world_state, traders, %{action: action}),
+    do: Inventory.apply_transaction(world_state, traders, action)
 
   defp refuse(traders, refusals) do
     Map.new(traders, fn {id, %GameCharacter{runtime: runtime} = trader} ->
@@ -576,9 +593,17 @@ defmodule TalesForge.Game.Turn.Board do
   defp decided_trade(handler, result, %SingleAction{action_type: type})
        when type in [:buy, :sell] do
     case result do
-      {:error, reason} -> put_trade(handler, %{"status" => "refused", "detail" => reason})
-      {:ok, %{applied: [done | _]}} -> put_trade(handler, %{"status" => "done", "detail" => done})
-      _ -> handler
+      {:error, reason} ->
+        put_trade(handler, %{"status" => "refused", "detail" => reason})
+
+      {:ok, %{offer: %Offer{} = offer}} ->
+        put_trade(handler, %{"status" => "offered", "detail" => Offer.text(offer)})
+
+      {:ok, %{applied: [done | _]}} ->
+        put_trade(handler, %{"status" => "done", "detail" => done})
+
+      _ ->
+        handler
     end
   end
 

@@ -160,11 +160,14 @@ defmodule TalesForge.Game.TradeRetest470Test do
     end)
   end
 
+  # Coins and items over everyone. A serving (Brenna's ale) is drunk where
+  # it is bought, so it leaves her cask and nobody carries it: it is
+  # counted by the cask check of T7, not here.
   defp totals(snap) do
     snap
     |> Map.values()
     |> Enum.reduce({0, %{}}, fn {c, items}, {sum, all} ->
-      {sum + c, Map.merge(all, items, fn _k, a, b -> a + b end)}
+      {sum + c, Map.merge(all, Map.delete(items, "ale_mug"), fn _k, a, b -> a + b end)}
     end)
   end
 
