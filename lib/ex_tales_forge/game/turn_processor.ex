@@ -39,7 +39,8 @@ defmodule TalesForge.Game.TurnProcessor do
 
   A crash in a step (a raise, throw or exit) is logged with its stacktrace,
   broadcast as `:turn_failed` and recorded on the step's row, then re-raised
-  so the Oban job records it and retries. Before this a crashed turn was
+  so the Oban job records it. The job does not retry
+  (`TalesForge.Workers.ProcessTurn`). Before this a crashed turn was
   silent: the job failed three times, nothing was logged or broadcast, and
   the player (or the playtest runner) waited until its timeout.
 

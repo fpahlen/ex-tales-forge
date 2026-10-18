@@ -7,16 +7,16 @@ defmodule TalesForge.NPC.Person do
       with the skills from the `skills` column, the only up-to-date copy
       (the definition keeps the scale it was first written with);
     * `runtime_state` is one map of the NPC's state: the row's `runtime`
-      plus `"location_id"`, `"mood"`, `"stock"` (the `inventory`) and
-      `"relationship_score"` (its relationship to the player character),
-      which have columns of their own.
+      plus `"location_id"`, `"mood"`, `"stock"` (the `inventory`),
+      `"coins"` (its purse) and `"relationship_score"` (its relationship to
+      the player character), which have columns of their own.
 
   `attrs/2` turns a changed `runtime_state` back into the row's columns.
   """
 
   alias TalesForge.Schemas.Character
 
-  @columns ~w(location_id mood stock relationship_score)
+  @columns ~w(location_id mood stock coins relationship_score)
 
   defstruct [:npc_id, :row, personality: %{}, runtime_state: %{}]
 
@@ -35,12 +35,13 @@ defmodule TalesForge.NPC.Person do
       iex> row = %TalesForge.Schemas.Character{slug: "smith", definition: %{"name" => "Hilde", "skills" => %{"smithing" => 8}},
       ...>   skills: %{"smithing" => 40}, location_id: "smithy", mood: "busy", relationships: %{"pc" => 0.5},
       ...>   inventory: [%TalesForge.Schemas.Character.InventoryItem{id: "nail", name: "Nail", quantity: 3, price_copper: 1}],
-      ...>   runtime: %{"since_tick" => 7, "memories" => [], "reaction" => %{"emotion" => "calm"}}}
+      ...>   coins: %{"silver" => 4}, runtime: %{"since_tick" => 7, "memories" => [], "reaction" => %{"emotion" => "calm"}}}
       iex> person = TalesForge.NPC.Person.from_row(row)
       iex> {person.npc_id, person.personality["skills"], person.runtime_state}
       {"smith", %{"smithing" => 40},
        %{"location_id" => "smithy", "mood" => "busy", "relationship_score" => 0.5, "since_tick" => 7, "memories" => [],
-         "stock" => [%{"id" => "nail", "name" => "Nail", "quantity" => 3, "price_copper" => 1}]}}
+         "stock" => [%{"id" => "nail", "name" => "Nail", "quantity" => 3, "price_copper" => 1}],
+         "coins" => %{"silver" => 4}}}
   """
   @spec from_row(Character.t(), [map()]) :: t()
   def from_row(%Character{} = row, memories \\ []) do
@@ -57,6 +58,7 @@ defmodule TalesForge.NPC.Person do
           "location_id" => row.location_id,
           "mood" => row.mood,
           "stock" => Enum.map(row.inventory || [], &item/1),
+          "coins" => row.coins || %{},
           "relationship_score" => relationship_score(row.relationships)
         })
     }
@@ -64,13 +66,15 @@ defmodule TalesForge.NPC.Person do
 
   @doc """
   The row columns for the NPC's `runtime_state`: place, mood, stock,
-  relationship (to `pc_slug`, or the one the row already has) and the rest
-  as `runtime`, which keeps the row's gut reaction.
+  purse (the row's when the state has none), relationship (to `pc_slug`,
+  or the one the row already has) and the rest as `runtime`, which keeps
+  the row's gut reaction.
 
-      iex> row = %TalesForge.Schemas.Character{relationships: %{"pc" => 0.0}, runtime: %{"reaction" => %{"emotion" => "calm"}}}
+      iex> row = %TalesForge.Schemas.Character{relationships: %{"pc" => 0.0}, coins: %{"gold" => 1},
+      ...>   runtime: %{"reaction" => %{"emotion" => "calm"}}}
       iex> TalesForge.NPC.Person.attrs(row, %{"location_id" => "inn", "mood" => "glad", "stock" => [],
       ...>   "relationship_score" => 0.1, "memories" => []})
-      %{location_id: "inn", mood: "glad", inventory: [], relationships: %{"pc" => 0.1},
+      %{location_id: "inn", mood: "glad", inventory: [], coins: %{"gold" => 1}, relationships: %{"pc" => 0.1},
         runtime: %{"memories" => [], "reaction" => %{"emotion" => "calm"}}}
   """
   @spec attrs(Character.t(), map(), String.t() | nil) :: map()
@@ -79,6 +83,7 @@ defmodule TalesForge.NPC.Person do
       location_id: runtime_state["location_id"],
       mood: runtime_state["mood"],
       inventory: TalesForge.Characters.Attrs.inventory(runtime_state["stock"]),
+      coins: Map.get(runtime_state, "coins", row.coins),
       relationships:
         relationships(row.relationships, pc_slug, runtime_state["relationship_score"]),
       runtime:
