@@ -106,9 +106,10 @@ defmodule TalesForge.Game.Turn.Combat do
     {defender, foe} = defender(turn, target)
     character = Map.get(Turn.world_before(turn), "character", %{})
 
+    # The attacker is the character as it is, with its own id (10c-c).
     player =
       character
-      |> Map.merge(%{"id" => "player", "name" => character["name"] || "the character"})
+      |> Map.put("name", character["name"] || "the character")
       |> GameCharacter.from_sheet()
 
     %Fight{

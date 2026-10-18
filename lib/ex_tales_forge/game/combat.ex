@@ -260,7 +260,7 @@ defmodule TalesForge.Game.Combat do
 
     %{
       "attacker" => name(attacker),
-      "attacker_id" => attacker_id(attacker),
+      "attacker_id" => attacker.slug,
       "defender" => name(defender),
       "defender_id" => defender.slug,
       "minor" => defender.minor,
@@ -275,11 +275,6 @@ defmodule TalesForge.Game.Combat do
       "attacker_wounds" => attacker_wounds,
       "attacker_wounded" => attacker_wounds > 0
     }
-  end
-
-  # The attacker's id; "player" when the sheet has none.
-  defp attacker_id(%GameCharacter{} = attacker) do
-    if "id" in attacker.missing, do: "player", else: attacker.slug
   end
 
   # A critical miss and a counterattack that hit each wound the attacker once.
