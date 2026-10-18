@@ -98,8 +98,7 @@ defmodule TalesForge.Game.Inventory do
     stock = seller_stock(traders, npc_ref(action, ""))
 
     with "" <- param_item_id(params),
-         id when is_binary(id) and id != "" <-
-           resolve_item_id(to_string(text), stock) || head_noun(text, stock) do
+         id when is_binary(id) and id != "" <- item_named(text, stock) do
       %{action | parameters: Map.put(params, "item_id", id)}
     else
       _ -> action
@@ -113,6 +112,14 @@ defmodule TalesForge.Game.Inventory do
     do: param_item_id(params) == ""
 
   def unclear?(%SingleAction{}), do: false
+
+  @doc """
+  The id of the item of `stock` that the words `text` name (its id, its
+  name, or the last word of its name: "an ale" names Mug of Ale), or nil.
+  """
+  @spec item_named(String.t() | nil, [map()]) :: String.t() | nil
+  def item_named(text, stock),
+    do: resolve_item_id(to_string(text), stock) || head_noun(text, stock)
 
   # The item whose name ends in a word of `text` ("an ale": Mug of Ale).
   defp head_noun(text, stock) do

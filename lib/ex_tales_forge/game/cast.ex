@@ -81,13 +81,15 @@ defmodule TalesForge.Game.Cast do
 
   @doc """
   The character as the intent context and the play page show it: id, name,
-  role, disposition (its mood), concern priority, portrait and place.
+  role, disposition (its mood), OCEAN scores and Maslow level (for how hard
+  it works to understand an unclear player, `TalesForge.Game.Clarify.patience/1`),
+  concern priority, portrait and place.
 
       iex> TalesForge.Game.Cast.details(%TalesForge.GameCharacter{slug: "innkeep", name: "Brenna Holt",
       ...>   role: "innkeeper", mood: "warm", location_id: "valley_inn",
       ...>   runtime: %{"current_concern" => %{"priority" => 6}}})
       %{"id" => "innkeep", "name" => "Brenna Holt", "role" => "innkeeper", "disposition" => "warm",
-        "concern_priority" => 6, "portrait_url" => nil, "location_id" => "valley_inn"}
+        "ocean" => %{}, "maslow" => nil, "concern_priority" => 6, "portrait_url" => nil, "location_id" => "valley_inn"}
   """
   @spec details(GameCharacter.t()) :: map()
   def details(%GameCharacter{} = gc) do
@@ -96,6 +98,8 @@ defmodule TalesForge.Game.Cast do
       "name" => gc.name || gc.slug,
       "role" => gc.role || "present",
       "disposition" => gc.mood || "neutral",
+      "ocean" => gc.ocean,
+      "maslow" => gc.maslow_level,
       "concern_priority" => concern_priority(gc.runtime["current_concern"]),
       "portrait_url" => gc.extra["portrait_url"],
       "location_id" => gc.location_id

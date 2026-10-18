@@ -282,7 +282,7 @@ defmodule TalesForge.Game.JevIntent do
           later: atom() | nil,
           later_target: String.t() | nil,
           then: [atom()],
-          offer_answer: :accept | :decline | :other | nil,
+          offer_answer: :accept | :decline | :other_offer | :other | nil,
           offer_pick: non_neg_integer() | nil,
           manner: atom() | nil,
           safety: atom(),
@@ -553,6 +553,8 @@ defmodule TalesForge.Game.JevIntent do
   @offer_answers %{
     accept: "The player accepts the offer: yes, a deal, takes it or pays for it.",
     decline: "The player turns the offer down: no, not now, too dear.",
+    other_offer:
+      "The player answers something else offered in the last narration (work, a favour, another deal), not this open offer.",
     other: "Neither: the player says or does something else."
   }
 
@@ -607,7 +609,7 @@ defmodule TalesForge.Game.JevIntent do
     |> Map.put(:none, "None of these options.")
   end
 
-  defp offer_answer(answer) when answer in [:accept, :decline, :other], do: answer
+  defp offer_answer(answer) when answer in [:accept, :decline, :other_offer, :other], do: answer
   defp offer_answer(_answer), do: nil
 
   @doc """

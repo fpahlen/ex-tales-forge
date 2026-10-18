@@ -185,6 +185,8 @@ defmodule TalesForge.Game.Schemas do
     The validated player action for a turn: overall intent, the primary `SingleAction`, confidence and any deferred actions.
     While a trade offer is open (`TalesForge.Game.Offer`), also the player's answer to it, as Jev read it:
     `offer_answer` (`:accept`, `:decline` or `:other`) and `offer_pick` (the index of the option picked).
+    When the intent is unclear (`TalesForge.Game.Clarify`), `clarify` holds the question the GM voices
+    in character (`"words"`, `"candidates"`, `"npc_id"`, `"npc"`), and nothing moves.
     """
     @type t :: %__MODULE__{}
 
@@ -196,7 +198,8 @@ defmodule TalesForge.Game.Schemas do
       confidence: 1.0,
       deferred_actions: [],
       offer_answer: nil,
-      offer_pick: nil
+      offer_pick: nil,
+      clarify: nil
     ]
 
     # JSON null counts as missing (see `SingleAction.decode/1`).
@@ -207,7 +210,8 @@ defmodule TalesForge.Game.Schemas do
         confidence: Map.get(map, "confidence") || 1.0,
         deferred_actions: map |> Map.get("deferred_actions") |> decode_actions(),
         offer_answer: Map.get(@offer_answers, Map.get(map, "offer_answer")),
-        offer_pick: decode_pick(map["offer_pick"])
+        offer_pick: decode_pick(map["offer_pick"]),
+        clarify: decode_clarify(map["clarify"])
       }
     end
 
@@ -219,6 +223,9 @@ defmodule TalesForge.Game.Schemas do
     defp decode_pick(pick) when is_integer(pick), do: pick
     defp decode_pick(_pick), do: nil
 
+    defp decode_clarify(%{} = clarify), do: clarify
+    defp decode_clarify(_clarify), do: nil
+
     def encode(%__MODULE__{} = player_action) do
       %{
         "overall_intent" => player_action.overall_intent,
@@ -227,7 +234,12 @@ defmodule TalesForge.Game.Schemas do
         "deferred_actions" => Enum.map(player_action.deferred_actions, &SingleAction.encode/1)
       }
       |> put_answer(player_action)
+      |> put_clarify(player_action.clarify)
     end
+
+    # The question of an unclear turn, only when there is one.
+    defp put_clarify(map, nil), do: map
+    defp put_clarify(map, %{} = clarify), do: Map.put(map, "clarify", clarify)
 
     # The answer to an open offer, only when there is one (the GM prompt
     # and the job args are unchanged without).
