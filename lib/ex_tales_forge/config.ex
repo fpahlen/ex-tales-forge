@@ -76,13 +76,6 @@ defmodule TalesForge.Config do
   def player_quote_min_benign_confidence,
     do: Application.get_env(:ex_tales_forge, :player_quote_min_benign_confidence, 0.90)
 
-  @doc """
-  The turn reads its acting character from the `characters` rows
-  (`TalesForge.Characters.turn_session/2`, refactor step 10a): CHARACTERS=on.
-  Default off: the turn reads `world_state["character"]`.
-  """
-  def characters?, do: System.get_env("CHARACTERS", "off") in ~w(on true 1)
-
   @doc "NPC reaction prototype (Jev, before the GM call): NPC_REACTIONS=on. Default off."
   def npc_reactions?, do: System.get_env("NPC_REACTIONS", "off") in ~w(on true 1)
 

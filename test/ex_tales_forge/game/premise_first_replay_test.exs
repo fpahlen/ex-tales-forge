@@ -63,7 +63,7 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
 
   defp session(adventure_id, start, location_id \\ nil) do
     {:ok, session} = GameSessions.create_session(%{name: "Replay", adventure_id: adventure_id})
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
     put_location = &if(location_id, do: Map.put(&1, "location_id", location_id), else: &1)
 
     character =
@@ -73,7 +73,7 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
       |> put_location.()
 
     world = session.world_state |> Map.put("character", character) |> put_location.()
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session |> GameSession.changeset(%{world_state: world}) |> save_session!()
   end
 
   defp play(session_id, step) do
@@ -92,7 +92,7 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
   end
 
   defp books(session_id) do
-    character = Repo.get!(GameSession, session_id).world_state["character"]
+    character = GameSessions.get_session!(session_id).world_state["character"]
 
     {Inventory.coin_total_copper(character["coins"]),
      character["inventory"] |> Enum.map(&{&1["id"], &1["quantity"]}) |> Enum.sort()}

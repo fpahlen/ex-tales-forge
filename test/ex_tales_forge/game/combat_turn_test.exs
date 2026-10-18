@@ -35,8 +35,8 @@ defmodule TalesForge.Game.CombatTurnTest do
 
     flags = Map.merge(@flags, Keyword.get(opts, :flags, %{}))
 
-    session
-    |> Turn.new(1, text, action, Keyword.merge(opts, flags: flags, role: :playtest))
+    {session, 1}
+    |> Turn.new({text, action}, Keyword.merge(opts, flags: flags, role: :playtest))
     |> Turn.Mechanics.apply()
   end
 

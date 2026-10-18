@@ -22,7 +22,8 @@ defmodule TalesForge.Playtest.CharacterChanges do
       from its text and from the GM's `npc_memory_updates` in the same
       `gm_reasoning` event.
     * **Player character**: the sheet copied into `characters.definition` at
-      creation (start) and `world_state["character"]` (end); travel from
+      creation (start) and the character's row (end,
+      `TalesForge.Characters.player_sheets/1`); travel from
       `player.travel` session events; learning points and improvement rolls
       from each turn's `mechanical_resolution`.
     * **Levers**: OCEAN, Maslow level and concerns from the `characters` rows.
@@ -43,6 +44,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   import Ecto.Query
 
+  alias TalesForge.Characters
   alias TalesForge.Game.Pack
 
   alias TalesForge.Playtest.CharacterChanges.{
@@ -137,31 +139,36 @@ defmodule TalesForge.Playtest.CharacterChanges do
   def for_sessions(session_ids) when is_list(session_ids) do
     ids = Enum.uniq(session_ids)
     worlds = load_worlds(ids)
-    npcs = ids |> load_npcs() |> Enum.group_by(& &1.session_id)
-    characters = ids |> load_characters() |> Enum.group_by(& &1.session_id)
-    memories = ids |> load_memories() |> Enum.group_by(& &1.session_id)
-    gm_turns = ids |> load_gm_turns() |> Enum.group_by(& &1.session_id)
-    travel = ids |> load_travel() |> Enum.group_by(& &1.session_id)
-    turns = ids |> load_turns() |> Enum.group_by(& &1.session_id)
-    calls = ids |> load_reaction_calls() |> Enum.group_by(& &1.session_id)
+
+    loaded =
+      Map.new(loaders(), fn {key, load} ->
+        {key, ids |> load.() |> Enum.group_by(& &1.session_id)}
+      end)
 
     Map.new(ids, fn id ->
-      {id,
-       build(%{
-         session_id: id,
-         world: Map.get(worlds, id, %{}),
-         npcs: Map.get(npcs, id, []),
-         characters: Map.get(characters, id, []),
-         memories: Map.get(memories, id, []),
-         gm_turns: Map.get(gm_turns, id, []),
-         travel: Map.get(travel, id, []),
-         turns: Map.get(turns, id, []),
-         reaction_calls: Map.get(calls, id, [])
-       })}
+      src = Map.new(loaded, fn {key, by_session} -> {key, Map.get(by_session, id, [])} end)
+      {id, build(Map.merge(src, %{session_id: id, world: Map.get(worlds, id, %{})}))}
     end)
   end
 
+  # The rows `build/1` reads besides the world, each by session.
+  defp loaders do
+    [
+      npcs: &load_npcs/1,
+      characters: &load_characters/1,
+      memories: &load_memories/1,
+      gm_turns: &load_gm_turns/1,
+      travel: &load_travel/1,
+      turns: &load_turns/1,
+      reaction_calls: &load_reaction_calls/1
+    ]
+  end
+
+  # The world keys `build/1` reads, with the player character from its row
+  # (`TalesForge.Characters.put_world_sheet/2`).
   defp load_worlds(ids) do
+    sheets = Characters.player_sheets(ids)
+
     from(g in GameSession,
       where: g.id in ^ids,
       select:
@@ -173,7 +180,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
          }}
     )
     |> Repo.all()
-    |> Map.new()
+    |> Map.new(fn {id, world} -> {id, Characters.put_world_sheet(world, sheets[id])} end)
   end
 
   defp load_npcs(ids) do

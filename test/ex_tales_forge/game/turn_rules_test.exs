@@ -51,14 +51,14 @@ defmodule TalesForge.Game.TurnRulesTest do
     {:ok, session} =
       GameSessions.create_session(%{name: "Room", adventure_id: "crossroads_ledger"})
 
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
 
     world =
       session.world_state
       |> put_in(["character", "location_id"], "crossroads_square")
       |> Map.put("location_id", "crossroads_square")
 
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session |> GameSession.changeset(%{world_state: world}) |> save_session!()
 
     action = %{
       "overall_intent" => "I pay for a room and go to sleep.",

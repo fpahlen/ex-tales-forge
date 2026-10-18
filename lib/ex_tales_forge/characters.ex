@@ -3,17 +3,22 @@ defmodule TalesForge.Characters do
   One Character entity for player characters and NPCs (Character plan in
   ex-tales-forge, phases 1 and 1b).
 
-  The game still runs on `world_state["character"]` and `npc_instances`;
-  nothing reads `characters` yet. This module keeps the rows in step:
+  The player character's row is its only stored copy (refactor step 10b-2):
+  `game_sessions.world_state` is saved without `"character"`
+  (`TalesForge.Schemas.WorldState`). In memory the turn still plays on
+  `world_state["character"]`, which `put_sheet/1` fills from the row when a
+  session is loaded. NPCs still run on `npc_instances`; their rows are kept
+  in step with them:
 
-    * `seed_session/2` writes them when a session is created.
-    * `mirror/1` is the double-write: after every turn it copies the current
-      player character and NPC state (location, sheet, stock, mood,
-      relationship, runtime, memories) onto the rows. It never fails a turn.
+    * `seed_session/2` writes the rows when a session is created.
+    * `write_multi/1` is the characters step of the turn Multi (and of the
+      admin world-state edit): it writes the player character and the NPC
+      state (location, sheet, stock, mood, relationship, runtime, memories)
+      onto the rows, in the same transaction as the session.
     * `backfill/0` does the same for every existing session. Idempotent and
       re-runnable.
 
-  All three go through `sync_session/2`: insert missing rows, update the
+  All three build the rows the same way: insert missing rows, update the
   mirrored fields of existing ones, add NPC memories not yet recorded. Levers
   (OCEAN, Maslow, concerns), controller, owner, origin and definition are set
   when a row is first written and are not overwritten by later syncs.
@@ -77,18 +82,37 @@ defmodule TalesForge.Characters do
   end
 
   @doc """
-  The characters write of a turn, as a step of the turn's Multi (refactor
-  step 10b): the rows from the session the `:session` step saved, after the
-  NPC updates, so a GM memory gets its row in the same transaction.
+  The characters write, as a step of a Multi after its `:session` step: the
+  rows from the session that step saved, whose in-memory world still holds
+  the player character (`TalesForge.Schemas.WorldState`). The turn Multi
+  runs it after the NPC updates, so a GM memory gets its row in the same
+  transaction; the admin world-state edit runs it after the session.
 
   A row that doesn't validate (a broken sheet) skips the write with a
-  warning, as the after-turn mirror did, so it never fails the turn.
+  warning, so it never fails the turn.
   """
-  @spec turn_multi(Ecto.Multi.t()) :: Ecto.Multi.t()
-  def turn_multi(%Ecto.Multi{} = multi) do
+  @spec write_multi(Ecto.Multi.t()) :: Ecto.Multi.t()
+  def write_multi(%Ecto.Multi{} = multi) do
     Ecto.Multi.run(multi, :characters, fn _repo, %{session: session} ->
       {:ok, write_turn(session)}
     end)
+  end
+
+  @doc """
+  Saves a session changeset and its characters in one transaction
+  (`write_multi/1`): the save for a world whose `"character"` may have
+  changed outside a turn, such as the admin world-state edit.
+  """
+  @spec save_session(Ecto.Changeset.t()) :: {:ok, GameSession.t()} | {:error, term()}
+  def save_session(%Ecto.Changeset{data: %GameSession{}} = changeset) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.update(:session, changeset)
+    |> write_multi()
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{session: session}} -> {:ok, session}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
   end
 
   defp write_turn(%GameSession{id: id} = session) do
@@ -116,7 +140,13 @@ defmodule TalesForge.Characters do
     pc = player_character_attrs(session, opts, tick)
     moods = Map.get(session.world_state, "npc_moods") || %{}
     instances = NPC.list_instances(session.id)
-    npcs = Enum.map(instances, &from_npc_instance(&1, tick, pc.slug, Map.get(moods, &1.npc_id)))
+
+    npcs =
+      Enum.map(
+        instances,
+        &from_npc_instance(&1, tick, %{pc_slug: pc.slug, reaction: Map.get(moods, &1.npc_id)})
+      )
+
     {[pc | npcs], instances}
   end
 
@@ -126,33 +156,12 @@ defmodule TalesForge.Characters do
   end
 
   @doc """
-  `sync_session/1` for a session written outside a turn (the admin
-  world-state edit). Never fails the turn: an error is logged and the next turn syncs
-  again. Returns `:ok`.
-  """
-  @spec mirror(GameSession.t()) :: :ok
-  def mirror(%GameSession{} = session) do
-    case sync_session(session) do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("characters mirror failed session=#{session.id} reason=#{inspect(reason)}")
-        :ok
-    end
-  rescue
-    e ->
-      Logger.warning(
-        "characters mirror crashed session=#{session.id} error=#{Exception.message(e)}"
-      )
-
-      :ok
-  end
-
-  @doc """
   Writes or refreshes the characters of every existing session. Sessions that
   ran under the persona runner get the player character as `bot` with the
-  persona as `controller_ref`. Idempotent and safe to re-run.
+  persona as `controller_ref`. The player character comes from
+  `put_sheets/1`: a sheet still stored in `world_state` (a session not
+  saved since 10b-2) is copied to the row, else the row is written again as
+  it is. Idempotent and safe to re-run.
 
   Returns `%{sessions: n, inserted: n, characters: n, memories: n, failed: [{session_id, reason}]}`.
   """
@@ -165,6 +174,7 @@ defmodule TalesForge.Characters do
       GameSession
       |> order_by([g], asc: g.inserted_at)
       |> Repo.all()
+      |> put_sheets()
       |> Enum.flat_map(fn session ->
         case sync_session(session, backfill_opts(personas[session.id])) do
           :ok -> []
@@ -256,77 +266,51 @@ defmodule TalesForge.Characters do
 
   defp memory_attrs(_), do: nil
 
-  defmodule Present do
-    @moduledoc """
-    The characters of a session at one place: `actor`, the character whose
-    intentions come from a human (the player or the persona runner), and
-    `others`, the characters at its location, by slug.
-    """
-    defstruct actor: nil, others: []
+  @doc """
+  The session with its player character in `world_state["character"]`, the
+  sheet the turn and every page read: `GameCharacter.to_sheet/1` of the
+  character's row. A sheet still stored in the column (a session not saved
+  since 10b-2) comes first, as it did before; the next turn writes it to
+  the row and saves the session without it (`backfill/0` copies it for
+  every session). A session with neither is returned as it is.
+  """
+  @spec put_sheet(GameSession.t()) :: GameSession.t()
+  def put_sheet(%GameSession{} = session), do: hd(put_sheets([session]))
 
-    @type t :: %__MODULE__{
-            actor: TalesForge.GameCharacter.t() | nil,
-            others: [TalesForge.GameCharacter.t()]
-          }
+  @doc "`put_sheet/1` for a list of sessions, with one query for the rows."
+  @spec put_sheets([GameSession.t()]) :: [GameSession.t()]
+  def put_sheets(sessions) when is_list(sessions) do
+    sheets = sessions |> Enum.map(& &1.id) |> player_sheets()
+
+    Enum.map(sessions, fn %GameSession{} = session ->
+      %{session | world_state: put_world_sheet(session.world_state, sheets[session.id])}
+    end)
   end
 
   @doc """
-  The session's characters as GameCharacters: the human-controlled one (the
-  only place that asks who controls a character, because that is where its
-  intentions come in) and the others at its location. `actor` is nil when
-  the session has no rows yet.
+  `world` with the player character `sheet` from its row, unless `world`
+  still holds a stored sheet (see `put_sheet/1`) or there is no row (`nil`).
   """
-  @spec load_present(GameSession.t()) :: Present.t()
-  def load_present(%GameSession{id: id}) do
-    {humans, gm} =
-      id |> list_for_session() |> Enum.split_with(&(&1.controller in ~w(player bot)))
-
-    case humans do
-      [row | _] ->
-        actor = GameCharacter.from_schema(row)
-        here = Enum.filter(gm, &(&1.location_id == actor.location_id))
-        %Present{actor: actor, others: Enum.map(here, &GameCharacter.from_schema/1)}
-
-      [] ->
-        %Present{}
-    end
-  end
+  @spec put_world_sheet(map() | nil, map() | nil) :: map() | nil
+  def put_world_sheet(world, nil), do: world
+  def put_world_sheet(%{"character" => stored} = world, _sheet) when not is_nil(stored), do: world
+  def put_world_sheet(world, sheet), do: Map.put(world || %{}, "character", sheet)
 
   @doc """
-  The session the turn plays on. With `CHARACTERS=on` (`TalesForge.Config.characters?/0`)
-  its `world_state["character"]` is the acting character's row
-  (`load_present/1`, `GameCharacter.to_sheet/1`); without a row, or with
-  the flag off, the session is unchanged. A row that differs from the
-  stored sheet is logged as drift: the turn still plays on the row.
+  The player character sheet of each session that has a row, by session id
+  (`GameCharacter.to_sheet/1`).
   """
-  @spec turn_session(GameSession.t(), boolean()) :: GameSession.t()
-  def turn_session(%GameSession{} = session, false), do: session
-
-  def turn_session(%GameSession{} = session, true) do
-    world = session.world_state || %{}
-
-    case load_present(session) do
-      %Present{actor: nil} ->
-        Logger.warning("characters read: no row session=#{session.id}; using world_state")
-        session
-
-      %Present{actor: actor} ->
-        sheet = GameCharacter.to_sheet(actor)
-        log_drift(session.id, Map.get(world, "character"), sheet)
-        %{session | world_state: Map.put(world, "character", sheet)}
-    end
-  end
-
-  defp log_drift(_id, sheet, sheet), do: :ok
-
-  defp log_drift(id, stored, sheet) do
-    keys =
-      (Map.keys(stored || %{}) ++ Map.keys(sheet))
-      |> Enum.uniq()
-      |> Enum.filter(&(Map.get(stored || %{}, &1) !== Map.get(sheet, &1)))
-      |> Enum.sort()
-
-    Logger.warning("characters read drift session=#{id} keys=#{inspect(keys)}")
+  @spec player_sheets([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => map()}
+  def player_sheets(session_ids) do
+    Character
+    |> where([c], c.game_session_id in ^session_ids and c.controller in ~w(player bot))
+    |> order_by([c], asc: c.slug)
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn row, acc ->
+      Map.put_new_lazy(acc, row.game_session_id, fn ->
+        row |> GameCharacter.from_schema() |> GameCharacter.to_sheet()
+      end)
+    end)
   end
 
   @doc "The session's characters, ordered by slug."
@@ -445,22 +429,18 @@ defmodule TalesForge.Characters do
   Character attrs for an NPC instance (controller `gm`). Stats default to 10
   and OCEAN to 5 when the definition has none; without `maslow` the Maslow
   level is read from `motivations.primary_need`, else `"safety"`.
+
+  `ctx` has the player character's slug (`:pc_slug`, for the NPC's
+  relationship) and the NPC's latest Jev reaction (`:reaction`).
   """
-  @spec from_npc_instance(NpcInstance.t(), integer(), String.t() | nil, map() | nil) :: map()
-  def from_npc_instance(%NpcInstance{} = inst, tick, pc_slug \\ nil, reaction \\ nil) do
+  @spec from_npc_instance(NpcInstance.t(), integer(), map()) :: map()
+  def from_npc_instance(%NpcInstance{} = inst, tick, ctx \\ %{}) do
     definition = inst.personality || %{}
     runtime = inst.runtime_state || %{}
 
-    %{
-      slug: inst.npc_id,
-      controller: "gm",
-      controller_ref: nil,
-      owner_player_id: nil,
-      origin: %{"source" => "pack", "definition_id" => inst.npc_id},
-      definition: definition,
-      name: definition["name"] || inst.npc_id,
-      race: definition["race"],
-      role: definition["role"],
+    inst
+    |> npc_identity(definition)
+    |> Map.merge(%{
       location_id: runtime["location_id"] || definition["default_location_id"],
       stats: Character.Stats.from_sheet(definition["stats"]),
       skills: int_map(definition["skills"]),
@@ -471,8 +451,23 @@ defmodule TalesForge.Characters do
       inventory: inventory(runtime["stock"]),
       coins: definition["coins"] || %{},
       mood: runtime["mood"],
-      relationships: relationships(runtime, pc_slug),
-      runtime: npc_runtime(runtime, reaction)
+      relationships: relationships(runtime, ctx[:pc_slug]),
+      runtime: npc_runtime(runtime, ctx[:reaction])
+    })
+  end
+
+  # Who the NPC is: the columns set from its definition.
+  defp npc_identity(%NpcInstance{npc_id: npc_id}, definition) do
+    %{
+      slug: npc_id,
+      controller: "gm",
+      controller_ref: nil,
+      owner_player_id: nil,
+      origin: %{"source" => "pack", "definition_id" => npc_id},
+      definition: definition,
+      name: definition["name"] || npc_id,
+      race: definition["race"],
+      role: definition["role"]
     }
   end
 

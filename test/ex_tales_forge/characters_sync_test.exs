@@ -48,7 +48,7 @@ defmodule TalesForge.CharactersSyncTest do
 
   defp put_character(session, fun) do
     world = Map.update!(session.world_state, "character", fun)
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session |> GameSession.changeset(%{world_state: world}) |> save_session!()
   end
 
   describe "double-write after a turn" do
@@ -90,21 +90,9 @@ defmodule TalesForge.CharactersSyncTest do
       wait_turn(reload(session.id), %{})
       assert length(Characters.list_memories(innkeep)) == 1
     end
-
-    test "a failing mirror never fails the turn", %{session: session} do
-      broken = %{
-        session
-        | world_state:
-            Map.put(session.world_state, "character", %{"id" => "elara_voss", "name" => nil})
-      }
-
-      log = capture_log(fn -> assert :ok = Characters.mirror(broken) end)
-      assert log =~ "characters mirror failed"
-      assert Characters.get_by_slug(session.id, "elara_voss").name == "Elara Voss"
-    end
   end
 
-  describe "turn_multi/1" do
+  describe "write_multi/1" do
     defp coins_session(session, coins) do
       %{session | world_state: put_in(session.world_state, ["character", "coins"], coins)}
     end
@@ -115,7 +103,7 @@ defmodule TalesForge.CharactersSyncTest do
       assert {:error, :boom, :failed, _} =
                Ecto.Multi.new()
                |> Ecto.Multi.put(:session, saved)
-               |> Characters.turn_multi()
+               |> Characters.write_multi()
                |> Ecto.Multi.run(:boom, fn _repo, _ -> {:error, :failed} end)
                |> Repo.transaction()
 
@@ -125,7 +113,7 @@ defmodule TalesForge.CharactersSyncTest do
       assert {:ok, %{characters: :ok}} =
                Ecto.Multi.new()
                |> Ecto.Multi.put(:session, saved)
-               |> Characters.turn_multi()
+               |> Characters.write_multi()
                |> Repo.transaction()
 
       assert Characters.get_by_slug(session.id, "elara_voss").coins == %{"silver" => 7}
@@ -144,7 +132,7 @@ defmodule TalesForge.CharactersSyncTest do
           assert {:ok, %{characters: :skipped}} =
                    Ecto.Multi.new()
                    |> Ecto.Multi.put(:session, broken)
-                   |> Characters.turn_multi()
+                   |> Characters.write_multi()
                    |> Repo.transaction()
         end)
 
@@ -173,12 +161,15 @@ defmodule TalesForge.CharactersSyncTest do
       })
       |> Repo.update!()
 
-      put_character(session, fn c ->
-        Map.put(c, "inventory", [
+      # Its sheet is stored in world_state, as before 10b-2.
+      put_stored_world!(
+        session.id,
+        "character",
+        Map.put(session.world_state["character"], "inventory", [
           %{"name" => "Rope Coil", "quantity" => "2"},
           %{"id" => "nameless"}
         ])
-      end)
+      )
 
       Repo.insert!(
         PlaytestRun.changeset(%PlaytestRun{}, %{

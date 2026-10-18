@@ -97,7 +97,7 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
       {path, _flash} = assert_redirect(view)
       "/play/" <> session_id = path
 
-      session = Repo.get!(GameSession, session_id)
+      session = TalesForge.GameSessions.get_session!(session_id)
       pc = session.world_state["character"]
       assert session.name == "Tin Valley · Sela Vorn"
       assert pc["id"] == "pc_sela_vorn"
@@ -137,7 +137,7 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
       {"/play/" <> id, _} = assert_redirect(view)
 
       assert %{"name" => "Brann", "location_id" => "weary_pilgrim"} =
-               Repo.get!(GameSession, id).world_state["character"]
+               TalesForge.GameSessions.get_session!(id).world_state["character"]
     end
   end
 
@@ -332,7 +332,7 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
     view |> element("#quick-tin_valley") |> render_click()
     {"/play/" <> id, _} = assert_redirect(view)
-    assert Repo.get!(GameSession, id).world_state["character"]["id"] == "elara_voss"
+    assert TalesForge.GameSessions.get_session!(id).world_state["character"]["id"] == "elara_voss"
   end
 
   describe "the dice model" do
@@ -423,7 +423,7 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
       view |> form("#name-form", %{"name" => "Dice Wren"}) |> render_submit()
       {"/play/" <> id, _} = assert_redirect(view)
 
-      pc = Repo.get!(GameSession, id).world_state["character"]
+      pc = TalesForge.GameSessions.get_session!(id).world_state["character"]
       assert pc["name"] == "Dice Wren"
       assert Enum.all?(Map.values(pc["stats"]), &(&1 in 3..18))
 
@@ -472,7 +472,7 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
 
       view |> form("#name-form", %{"name" => "Mira Vale"}) |> render_submit()
       {"/play/" <> id, _} = assert_redirect(view)
-      pc = Repo.get!(GameSession, id).world_state["character"]
+      pc = TalesForge.GameSessions.get_session!(id).world_state["character"]
       assert {pc["race"], pc["class"]} == {"elf", "ranger"}
       assert TalesForge.CharacterDrafts.get("tf-tester", "tin_valley") == nil
     end

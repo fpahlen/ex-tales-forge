@@ -43,11 +43,6 @@ kill_timeout = "30s"
   # written, the recall is built, the GM prompt stays the same. Production
   # stays off (fly.toml).
   CHARACTER_MEMORY = "shadow"
-  # The turn reads its acting character from the characters row (refactor
-  # step 10a, TalesForge.Characters.turn_session/2), so the drift logs
-  # ("characters read drift" / "characters read: no row") can be measured
-  # before 10b-2. Playtest only: production stays off (fly.toml).
-  CHARACTERS = "on"
 
 [http_service]
   internal_port = 4000

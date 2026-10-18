@@ -63,7 +63,7 @@ defmodule TalesForge.CharacterCreationSessionTest do
     end
   end
 
-  test "the per-turn mirror keeps the created character's levers and origin" do
+  test "the per-turn characters write keeps the created character's levers and origin" do
     character = created("tin_valley")
 
     {:ok, session} =
@@ -73,9 +73,9 @@ defmodule TalesForge.CharacterCreationSessionTest do
 
     session = GameSessions.get_session!(session.id)
     ws = put_in(session.world_state, ["character", "skills", "stealth"], 4)
-    {:ok, session} = session |> GameSession.changeset(%{world_state: ws}) |> Repo.update()
 
-    assert :ok = Characters.mirror(session)
+    session |> GameSession.changeset(%{world_state: ws}) |> save_session!()
+
     assert Characters.backfill().failed == []
 
     after_ = pc_row(session)

@@ -3,8 +3,8 @@ defmodule TalesForge.Game.Turn do
   One turn as one pipe over a `%Turn{}` struct (ex-tales-forge
   `docs/architecture.md`):
 
-      session
-      |> Turn.new(number, raw_action, intent, opts)
+      {session, number}
+      |> Turn.new({raw_action, intent}, opts)
       |> Turn.Premise.check()
       |> Turn.Mechanics.apply()
       |> Turn.Npcs.react()
@@ -19,7 +19,7 @@ defmodule TalesForge.Game.Turn do
 
   Each stage writes its own field: `premise`, `outcome`, `npcs`, `notice`, `prompt`,
   `narration` and `result`. The feature flags and the role are read one time,
-  in `new/5`. IO goes through `adapters` (`TalesForge.Game.Turn.Adapters`).
+  in `new/3`. IO goes through `adapters` (`TalesForge.Game.Turn.Adapters`).
   A rejected action is data (`outcome.handler` has `"rejected" => true`). A
   failed GM call is data too: `narration` is `{:error, reason}`, and the
   stages after it pass the turn through.
@@ -74,18 +74,18 @@ defmodule TalesForge.Game.Turn do
   @doc """
   A new turn. Reads the feature flags and the role one time. `opts` are the
   intent options of `TalesForge.Game.TurnProcessor.run/3` plus `:adapters`
-  and `:flags` (both for tests). This is where the turn reads its acting
-  character: from `world_state["character"]`, or with `CHARACTERS=on` from
-  its `characters` row (the `characters` adapter).
+  and `:flags` (both for tests). The session's `world_state["character"]`
+  is the acting character, from its `characters` row
+  (`TalesForge.Characters.put_sheet/1`, when the session is loaded).
   """
-  @spec new(GameSession.t(), integer(), String.t(), PlayerAction.t(), keyword()) :: t()
-  def new(%GameSession{} = session, number, raw_action, %PlayerAction{} = intent, opts \\ []) do
+  @spec new({GameSession.t(), integer()}, {String.t(), PlayerAction.t()}, keyword()) :: t()
+  def new({%GameSession{} = session, number}, {raw_action, %PlayerAction{} = intent}, opts \\ []) do
     flags = Keyword.get_lazy(opts, :flags, &read_flags/0)
     injected = flag?(flags, :history_strip_injection) and HistoryStrip.injected?(raw_action)
     adapters = Keyword.get(opts, :adapters, %Adapters{})
 
     %__MODULE__{
-      session: adapters.characters.(session, flag?(flags, :characters)),
+      session: session,
       number: number,
       raw_action: raw_action,
       history_action: if(injected, do: HistoryStrip.placeholder(), else: raw_action),
@@ -106,8 +106,7 @@ defmodule TalesForge.Game.Turn do
       turn_state_from_mechanics: Config.turn_state_from_mechanics?(),
       turn_apply_outcomes: Config.turn_apply_outcomes?(),
       history_strip_injection: Config.history_strip_injection?(),
-      jev_catalogue_v2: Config.jev_catalogue_v2?(),
-      characters: Config.characters?()
+      jev_catalogue_v2: Config.jev_catalogue_v2?()
     })
   end
 

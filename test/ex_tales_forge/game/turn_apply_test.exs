@@ -36,8 +36,8 @@ defmodule TalesForge.Game.TurnApplyTest do
 
     player_action = %PlayerAction{overall_intent: text, action: action}
 
-    session
-    |> Turn.new(1, text, player_action, adapters: adapters, flags: flags, role: :playtest)
+    {session, 1}
+    |> Turn.new({text, player_action}, adapters: adapters, flags: flags, role: :playtest)
     |> Turn.Premise.check()
     |> Turn.Mechanics.apply()
     |> Turn.Npcs.react()

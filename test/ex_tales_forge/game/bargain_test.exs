@@ -7,19 +7,19 @@ defmodule TalesForge.Game.BargainTest do
   alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{GameSession, NpcInstance}
+  alias TalesForge.Schemas.NpcInstance
 
   doctest TalesForge.Game.Bargain
 
   setup do
     {:ok, session} = GameSessions.create_session(%{name: "Bargain", adventure_id: "tin_valley"})
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
 
     set_runtime(session.id, %{
       "stock" => [%{"id" => "rope", "name" => "Rope", "price_copper" => 110, "quantity" => 3}]
     })
 
-    {:ok, session: Repo.get!(GameSession, session.id)}
+    {:ok, session: GameSessions.get_session!(session.id)}
   end
 
   defp set_runtime(session_id, changes) do

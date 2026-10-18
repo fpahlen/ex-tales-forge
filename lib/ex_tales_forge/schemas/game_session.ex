@@ -1,6 +1,9 @@
 defmodule TalesForge.Schemas.GameSession do
   @moduledoc """
-  Ecto schema: a game session and its `world_state` map (character, location, NPCs, clock, moods).
+  Ecto schema: a game session and its `world_state` map (location, NPCs,
+  clock, moods). The player character is in memory under
+  `world_state["character"]` but is stored only in its `characters` row
+  (`TalesForge.Schemas.WorldState`).
   """
 
   use Ecto.Schema
@@ -14,7 +17,7 @@ defmodule TalesForge.Schemas.GameSession do
   schema "game_sessions" do
     field :name, :string
     field :status, :string, default: "active"
-    field :world_state, :map, default: %{}
+    field :world_state, TalesForge.Schemas.WorldState, default: %{}
     field :world_clock, :utc_datetime
 
     has_many :turns, TalesForge.Schemas.Turn

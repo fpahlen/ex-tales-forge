@@ -60,7 +60,6 @@ defmodule TalesForge.Playtest.RunMeta do
     %{
       "npc_reactions" => on_off(Config.npc_reactions?()),
       "world_agents" => on_off(Config.world_agents?()),
-      "characters" => on_off(Config.characters?()),
       "inn_world" => on_off(Features.on?(world_state, "inn_world")),
       "world_antagonist" => on_off(Features.on?(world_state, "antagonist")),
       "intent_jev" => intent_jev(world_state),

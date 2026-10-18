@@ -61,7 +61,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
 
   defp session(adventure_id, start, location_id \\ nil) do
     {:ok, session} = GameSessions.create_session(%{name: "Replay", adventure_id: adventure_id})
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
 
     character =
       session.world_state["character"]
@@ -74,7 +74,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
       |> Map.put("character", character)
       |> then(&if(location_id, do: Map.put(&1, "location_id", location_id), else: &1))
 
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session |> GameSession.changeset(%{world_state: world}) |> save_session!()
   end
 
   defp play(session_id, step) do
@@ -94,7 +94,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
   end
 
   defp books(session_id) do
-    character = Repo.get!(GameSession, session_id).world_state["character"]
+    character = GameSessions.get_session!(session_id).world_state["character"]
 
     {TalesForge.Game.Inventory.coin_total_copper(character["coins"]),
      character["inventory"] |> Enum.map(&{&1["id"], &1["quantity"]}) |> Enum.sort()}

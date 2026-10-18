@@ -193,7 +193,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     {:ok, run_id} = Runner.start("lotta", "tin_valley", turn_limit: 1)
     assert {:ok, %{status: "finished"} = run} = await(run_id)
 
-    character = Repo.get!(GameSession, run.game_session_id).world_state["character"]
+    character = GameSessions.get_session!(run.game_session_id).world_state["character"]
     assert %{"name" => "Hilde Stonebrook", "race" => "dwarf", "class" => "druid"} = character
     assert character["stats"]["WIS"] == 15
 
@@ -219,7 +219,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     assert {:ok, %{status: "finished"} = run} = await(run_id)
 
     assert %{"name" => "Elara Voss"} =
-             Repo.get!(GameSession, run.game_session_id).world_state["character"]
+             GameSessions.get_session!(run.game_session_id).world_state["character"]
 
     assert_received {:persona_system, system}
     refute system =~ "You created this character"
@@ -326,9 +326,13 @@ defmodule TalesForge.Playtest.RunnerTest do
   end
 
   defp kill_character do
-    session = Repo.one!(from(s in GameSession, order_by: [desc: s.inserted_at], limit: 1))
+    session =
+      from(s in GameSession, order_by: [desc: s.inserted_at], limit: 1)
+      |> Repo.one!()
+      |> TalesForge.Characters.put_sheet()
+
     world = put_in(session.world_state, ["character", "vitality"], "dead")
-    session |> GameSession.changeset(%{status: "dead", world_state: world}) |> Repo.update!()
+    session |> GameSession.changeset(%{status: "dead", world_state: world}) |> save_session!()
   end
 
   defp hide_secret_event do

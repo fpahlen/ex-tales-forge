@@ -16,10 +16,7 @@ defmodule TalesForge.Game.Turn.Adapters do
       (`TalesForge.NPC.combat_profile/2`; only with `COMBAT_OPPOSED=on`);
     * `character_rules` — the character defaults rules of an adventure, for
       a minor foe (`TalesForge.Characters.Defaults.rules/1`; only with
-      `COMBAT_OPPOSED=on`);
-    * `characters` — the session the turn plays on, its acting character
-      read from the `characters` rows with `CHARACTERS=on`
-      (`TalesForge.Characters.turn_session/2`).
+      `COMBAT_OPPOSED=on`).
   """
 
   defstruct npc: &TalesForge.Game.NpcReactions.react/1,
@@ -28,8 +25,7 @@ defmodule TalesForge.Game.Turn.Adapters do
             profiles: &TalesForge.NPC.notice_profiles/2,
             store: &TalesForge.Game.Turn.Store.persist/1,
             fighter: &TalesForge.NPC.combat_profile/2,
-            character_rules: &TalesForge.Characters.Defaults.rules/1,
-            characters: &TalesForge.Characters.turn_session/2
+            character_rules: &TalesForge.Characters.Defaults.rules/1
 
   @type t :: %__MODULE__{
           npc: (TalesForge.Game.NpcReactions.Moment.t() -> {[map()], map()}),
@@ -38,9 +34,7 @@ defmodule TalesForge.Game.Turn.Adapters do
           profiles: (String.t(), [String.t()] -> [map()]),
           store: (TalesForge.Game.Turn.Store.t() -> {:ok, map()} | {:error, term()}),
           fighter: (String.t(), String.t() -> map() | nil),
-          character_rules: (String.t() | nil -> map()),
-          characters: (TalesForge.Schemas.GameSession.t(), boolean() ->
-                         TalesForge.Schemas.GameSession.t())
+          character_rules: (String.t() | nil -> map())
         }
 
   @doc "The default `stream` adapter: broadcasts the chunk on the session topic."
