@@ -171,6 +171,49 @@ defmodule TalesForge.NPCInitiativeTest do
              memories(session, "marta_kellen")
   end
 
+  # Before this fix the turn compared the saved session with itself, so no
+  # time ever passed for the NPCs: concern_wait_ticks stayed 0 and no NPC
+  # spoke up on its own (seen in the 10e golden of Gentry's 38-turn script).
+  test "time passing in a real turn builds Marta's concern and she speaks up" do
+    {:ok, session} = GameSessions.create_session(%{name: "NPC Turn Time"})
+    SessionPubSub.subscribe(session.id)
+
+    priority = fn ->
+      get_in(NPC.get_instance(session.id, "marta_kellen").runtime_state, [
+        "current_concern",
+        "priority"
+      ])
+    end
+
+    before = priority.()
+
+    wait = %{
+      "overall_intent" => "I wait by the fire for an hour.",
+      "action" => %{"action_type" => "wait", "target" => nil, "parameters" => %{"ticks" => 4}},
+      "deferred_actions" => [],
+      "confidence" => 0.9
+    }
+
+    # Through the turn job, as the play page submits it: the broadcast comes
+    # from wherever the turn commits (World.Instance from refactor 10f PR 2).
+    assert :ok =
+             TalesForge.Workers.ProcessTurn.perform(%Oban.Job{
+               args: %{
+                 "session_id" => session.id,
+                 "raw_action" => "I wait by the fire for an hour.",
+                 "player_action" => wait
+               }
+             })
+
+    assert GameSessions.get_session!(session.id).world_state["world_tick"] ==
+             session.world_state["world_tick"] + 4
+
+    # Four ticks of worry: the concern escalates and Marta speaks up.
+    assert priority.() == before + 1
+    assert_receive {:npc_initiative, %{npc_id: "marta_kellen", text: text}}
+    assert text =~ "ledger"
+  end
+
   test "concern priority surfaces in world npc_state" do
     assert {:ok, session} = GameSessions.create_session(%{name: "NPC Concern UI"})
 

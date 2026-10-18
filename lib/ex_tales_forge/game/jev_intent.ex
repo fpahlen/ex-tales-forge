@@ -32,8 +32,9 @@ defmodule TalesForge.Game.JevIntent do
     @moduledoc """
     What `TalesForge.Game.JevIntent.decode/3` read from a Jev reply, built
     once and passed to each step that makes the extraction: the action and
-    its target, the skill, the later action, the manner and split, the
-    player's words, the turn context and the confidence.
+    its target (and a sale's item), the skill, the later action, the manner and split, the
+    player's words, the turn context, the confidence and the candidates
+    by label.
     """
 
     @enforce_keys [:action, :safety, :text, :context]
@@ -41,6 +42,7 @@ defmodule TalesForge.Game.JevIntent do
       :action,
       :safety,
       :target,
+      :item,
       :skill,
       :later,
       :later_target,
@@ -49,13 +51,15 @@ defmodule TalesForge.Game.JevIntent do
       :text,
       :context,
       :confidence,
-      :raw_confidence
+      :raw_confidence,
+      candidates: %{}
     ]
 
     @type t :: %__MODULE__{
             action: atom(),
             safety: atom(),
             target: String.t() | nil,
+            item: String.t() | nil,
             skill: String.t() | nil,
             later: atom() | nil,
             later_target: String.t() | nil,
@@ -64,7 +68,8 @@ defmodule TalesForge.Game.JevIntent do
             text: String.t(),
             context: map(),
             confidence: float() | nil,
-            raw_confidence: float() | nil
+            raw_confidence: float() | nil,
+            candidates: %{atom() => map()}
           }
   end
 
@@ -580,10 +585,11 @@ defmodule TalesForge.Game.JevIntent do
       action: reply[:action] || :other,
       safety: reply[:safety] || :benign,
       text: text,
-      context: context
+      context: context,
+      candidates: by_label
     }
 
-    c = choose(base, reply, by_label)
+    c = choose(base, reply)
     probs = get_in(reply, [:probabilities, :action]) || %{}
 
     %{
@@ -614,23 +620,28 @@ defmodule TalesForge.Game.JevIntent do
   # The rest of the reply read against the candidates into the %Choice{}
   # (action, safety, words and context already set), for the steps that
   # make the extraction.
-  defp choose(%Choice{action: action, text: text, context: context} = c, reply, by_label) do
+  defp choose(%Choice{action: action, text: text} = c, reply) do
     later = later_type(reply[:later], action, c.safety)
     raw_confidence = intent_confidence(reply, action)
 
     %{
       c
-      | target: pick_target(reply, :target, action, by_label, context, text),
+      | target: pick_target(c, action, answer(reply, :target)),
         skill: decode_skill(action, skill_name(reply[:skill]), text),
         later: later,
-        later_target:
-          if(later, do: pick_target(reply, :later_target, later, by_label, context, text)),
+        later_target: if(later, do: pick_target(c, later, answer(reply, :later_target))),
         manner: manner(reply[:manner]),
         split: split(reply[:split]),
         confidence: IntentCalibration.apply(raw_confidence),
         raw_confidence: raw_confidence
     }
+    |> sale(reply)
   end
+
+  # The reply's answer to a target `question`: its probabilities by label and
+  # its pick.
+  defp answer(reply, question),
+    do: {get_in(reply, [:probabilities, question]) || %{}, reply[question]}
 
   # Post-processing (a fact about the game, fitted on nothing): "I pay for a
   # room and go to sleep" is the payment now and the sleep later
@@ -784,35 +795,38 @@ defmodule TalesForge.Game.JevIntent do
   # so a guess must not move the character. Gentry's session 0caf18f5 on
   # 2026-10-12: "I claim my reward" at the inn was read as speak to Henrik
   # Bale, who was in the square, and the character was walked there.
-  defp pick_target(reply, question, action, by_label, context, text) do
-    kinds = Map.get(@target_kinds, action, [])
-    probs = get_in(reply, [:probabilities, question]) || %{}
-
-    ranked =
-      probs
-      |> Enum.filter(fn {label, _p} ->
-        label == :none or Map.get(by_label, label, %{})[:kind] in kinds
-      end)
-      |> Enum.reject(fn {label, _p} ->
-        action == :speak and unnamed_elsewhere?(Map.get(by_label, label), text)
-      end)
-      |> Enum.reject(fn {label, _p} -> action == :move and label == :none end)
-      |> Enum.sort_by(fn {label, p} -> {-p, label} end)
-
-    case {ranked, map_size(probs)} do
+  defp pick_target(%Choice{candidates: by_label} = c, action, {probs, picked}) do
+    case {ranked(c, action, probs), map_size(probs)} do
       {_, 0} ->
-        cand = Map.get(by_label, reply[question])
-
-        if action == :speak and unnamed_elsewhere?(cand, text),
+        if action == :speak and unnamed_elsewhere?(Map.get(by_label, picked), c.text),
           do: nil,
-          else: resolve_target(candidate_id(by_label, reply[question]), action, context)
+          else: resolve_target(candidate_id(by_label, picked), action, c.context)
 
       {[{label, _p} | _], _} ->
-        resolve_target(candidate_id(by_label, label), action, context)
+        resolve_target(candidate_id(by_label, label), action, c.context)
 
       {[], _} ->
         nil
     end
+  end
+
+  # The labels `action` can be aimed at, most likely first.
+  defp ranked(%Choice{} = c, action, probs) do
+    probs
+    |> Enum.filter(fn {label, _p} -> aimable?(c, action, label) end)
+    |> Enum.sort_by(fn {label, p} -> {-p, label} end)
+  end
+
+  # A move needs a place; a speak goes to a person elsewhere only when the
+  # words name them.
+  defp aimable?(_c, :move, :none), do: false
+  defp aimable?(_c, _action, :none), do: true
+
+  defp aimable?(%Choice{candidates: by_label, text: text}, action, label) do
+    cand = Map.get(by_label, label, %{})
+
+    cand[:kind] in Map.get(@target_kinds, action, []) and
+      not (action == :speak and unnamed_elsewhere?(cand, text))
   end
 
   @doc """
@@ -962,7 +976,41 @@ defmodule TalesForge.Game.JevIntent do
     end
   end
 
+  defp put_numbers(params, %Choice{action: :sell, context: context} = c),
+    do: Map.merge(params, Inventory.sale(c.item, c.text, context["player_inventory"]))
+
   defp put_numbers(params, %Choice{}), do: params
+
+  # A sale has one target: the buyer ("to Brenna") or the item ("sell a mug
+  # of ale"). Aimed at anything but a person, the buyer is the present person
+  # Jev ranks highest, or nobody, and the item is the target when it is
+  # carried; else put_numbers/2 takes the item the words name
+  # (Inventory.sale/3). Playtest v319 on 2026-10-18 (drift session
+  # 464229eb): a sale aimed at the person had no item, and a sale aimed at
+  # the item was sold to the item itself, for nothing.
+  defp sale(%Choice{action: :sell, target: target, candidates: by_label} = c, reply) do
+    if Enum.any?(by_label, fn {_l, cand} -> cand.kind == :npc and cand.id == target end) do
+      c
+    else
+      carried = c.context |> Map.get("player_inventory", []) |> Inventory.normalize_items()
+      item = if Enum.any?(carried, &(&1["id"] == target)), do: target
+      %{c | target: top_person(reply, by_label), item: item}
+    end
+  end
+
+  defp sale(%Choice{} = c, _reply), do: c
+
+  defp top_person(reply, by_label) do
+    reply
+    |> get_in([:probabilities, :target])
+    |> Kernel.||(%{})
+    |> Enum.filter(fn {label, _p} -> match?(%{kind: :npc}, Map.get(by_label, label)) end)
+    |> Enum.sort_by(fn {label, p} -> {-p, label} end)
+    |> case do
+      [{label, _p} | _] -> candidate_id(by_label, label)
+      [] -> nil
+    end
+  end
 
   defp price_for(_context, nil), do: nil
 

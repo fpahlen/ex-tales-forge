@@ -128,15 +128,17 @@ defmodule TalesForge.Game.Turn.Store do
     end)
   end
 
-  # `saved` is the session the Multi saved, so its world_state is the one
-  # after the turn, as in the signals before 10e.
-  defp heard(%__MODULE__{world: world, ctx: ctx, raw_action: raw_action}, saved) do
+  # The ticks that passed for the NPCs: the world after the turn less the
+  # session as the turn loaded it. Comparing with `saved` (the session the
+  # Multi saved, already the world after) gave 0, so no concern built and no
+  # NPC spoke up on its own.
+  defp heard(%__MODULE__{session: before, world: world, ctx: ctx} = store, saved) do
     %NPCSignals.Turn{
       session_id: saved.id,
       world_state: world,
       handler: ctx.handler,
-      raw_action: raw_action,
-      world_before: saved.world_state
+      raw_action: store.raw_action,
+      world_before: before.world_state
     }
   end
 
