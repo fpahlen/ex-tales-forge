@@ -37,7 +37,19 @@ defmodule TalesForge.GameSessions do
     |> Repo.all()
   end
 
-  def get_session!(id), do: Repo.get!(GameSession, id)
+  @doc """
+  The session with its player character in `world_state["character"]`, read
+  from the character's row (`TalesForge.Characters.put_sheet/1`).
+  """
+  @spec get_session!(Ecto.UUID.t()) :: GameSession.t()
+  def get_session!(id), do: GameSession |> Repo.get!(id) |> Characters.put_sheet()
+
+  defp get_session(id) do
+    case Repo.get(GameSession, id) do
+      nil -> {:error, :not_found}
+      session -> {:ok, Characters.put_sheet(session)}
+    end
+  end
 
   @character_opts [:controller, :controller_ref, :owner_player_id, :character]
 
@@ -195,16 +207,12 @@ defmodule TalesForge.GameSessions do
     if trimmed == "" and not option_pick?(opts) do
       {:error, :empty_message}
     else
-      with %GameSession{} = session <- Repo.get(GameSession, session_id),
+      with {:ok, session} <- get_session(session_id),
            :ok <- reject_if_dead(session),
            {:ok, action_text} <- action_text(session, trimmed, opts),
            :ok <- ensure_runtime_started(session),
-           :ok <- require_scene_ready(session),
-           {:ok, outcome} <- resolve_and_enqueue(session, action_text, opts) do
-        {:ok, outcome}
-      else
-        nil -> {:error, :not_found}
-        {:error, _} = err -> err
+           :ok <- require_scene_ready(session) do
+        resolve_and_enqueue(session, action_text, opts)
       end
     end
   end

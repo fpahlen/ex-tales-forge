@@ -81,7 +81,13 @@ defmodule TalesForgeWeb.AdminLive.SessionLiveTest do
     |> render_submit()
 
     assert render(view) =~ "World state saved."
-    assert Admin.get_session!(session.id).world_state == %{"location_id" => "x"}
+    # The player character is stored in its row, so an edit without it keeps it.
+    character = session.world_state["character"]
+
+    assert Admin.get_session!(session.id).world_state == %{
+             "location_id" => "x",
+             "character" => character
+           }
 
     view
     |> form("#session-form", session: %{name: "World Form 2"})
@@ -89,6 +95,6 @@ defmodule TalesForgeWeb.AdminLive.SessionLiveTest do
 
     saved = Admin.get_session!(session.id)
     assert saved.name == "World Form 2"
-    assert saved.world_state == %{"location_id" => "x"}
+    assert saved.world_state == %{"location_id" => "x", "character" => character}
   end
 end

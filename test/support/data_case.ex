@@ -60,6 +60,30 @@ defmodule TalesForge.DataCase do
     end)
   end
 
+  @doc """
+  Saves a session changeset with its characters, the way the turn does
+  (`TalesForge.Characters.save_session/1`), so a test can set up
+  `world_state["character"]`: the column is stored without it.
+  """
+  def save_session!(%Ecto.Changeset{} = changeset) do
+    {:ok, session} = TalesForge.Characters.save_session(changeset)
+    session
+  end
+
+  @doc """
+  Writes `value` under `key` straight into the session's `world_state`
+  column, past `TalesForge.Schemas.WorldState`: a session stored before
+  step 10b-2, or a corrupt one.
+  """
+  def put_stored_world!(session_id, key, value) do
+    TalesForge.Repo.query!(
+      "UPDATE game_sessions SET world_state = jsonb_set(world_state, $1, $2) WHERE id = $3",
+      [[key], value, Ecto.UUID.dump!(session_id)]
+    )
+
+    :ok
+  end
+
   defp stop_jido_agents do
     agents = TalesForge.Jido.list_agents()
 

@@ -14,8 +14,6 @@ defmodule TalesForge.Game.TinjacksTest do
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.NPC
-  alias TalesForge.Repo
-  alias TalesForge.Schemas.GameSession
 
   @features ["inn_world", "antagonist"]
 
@@ -301,7 +299,7 @@ defmodule TalesForge.Game.TinjacksTest do
       assert {:ok, _} =
                GameSessions.submit_message(session.id, "I wait by the fire for two hours.")
 
-      world = Repo.get!(GameSession, session.id).world_state
+      world = GameSessions.get_session!(session.id).world_state
       assert world["location_id"] == "valley_inn"
       assert "rusk" in world["present_npcs"] and "cobb" in world["present_npcs"]
       assert Enum.any?(world["public_facts"], &(&1["id"] == "tinjacks_toll"))
@@ -320,12 +318,12 @@ defmodule TalesForge.Game.TinjacksTest do
           |> Map.merge(%{"location_id" => "smithy", "last_scene_location" => "smithy"})
           |> put_in(["character", "location_id"], "smithy")
       )
-      |> Repo.update!()
+      |> save_session!()
 
       assert {:ok, _} =
                GameSessions.submit_message(session.id, "I wait by the forge for two hours.")
 
-      world = Repo.get!(GameSession, session.id).world_state
+      world = GameSessions.get_session!(session.id).world_state
       assert world["location_id"] == "smithy"
       assert "rusk" in world["present_npcs"] and "cobb" in world["present_npcs"]
 

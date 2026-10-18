@@ -7,6 +7,7 @@ defmodule TalesForge.Admin do
 
   require Logger
 
+  alias TalesForge.Characters
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, NpcInstance, Scene, Turn}
@@ -31,6 +32,7 @@ defmodule TalesForge.Admin do
       GameSession
       |> order_by([s], desc: s.inserted_at)
       |> Repo.all()
+      |> Characters.put_sheets()
 
     counts = turn_counts(Enum.map(sessions, & &1.id))
 
@@ -49,6 +51,7 @@ defmodule TalesForge.Admin do
 
     GameSession
     |> Repo.get!(id)
+    |> Characters.put_sheet()
     |> Repo.preload(preloads)
   end
 
@@ -63,19 +66,27 @@ defmodule TalesForge.Admin do
     |> Repo.update()
   end
 
+  @doc """
+  Saves an edited world state. Its `"character"` is the player character's
+  sheet, so the session and the characters rows are written in one
+  transaction (`TalesForge.Characters.save_session/1`). The row is the only
+  copy of the sheet, so an edit without `"character"` keeps the current one.
+  """
   def update_session_world_state(session, json_string)
       when is_binary(json_string) do
-    id = Map.get(session, :id)
-    ecto_session = Repo.get!(GameSession, id)
+    with {:ok, world_state} <- decode_json_map(json_string) do
+      current = get_session!(Map.get(session, :id))
 
-    with {:ok, world_state} <- decode_json_map(json_string),
-         {:ok, updated} <- update_session(ecto_session, %{world_state: world_state}) do
-      # Keep the character rows in step with an edited sheet, so a later turn
-      # with CHARACTERS=on reads the edit rather than the old row.
-      :ok = TalesForge.Characters.mirror(updated)
-      {:ok, updated}
+      current
+      |> GameSession.changeset(%{world_state: keep_character(world_state, current.world_state)})
+      |> Characters.save_session()
     end
   end
+
+  defp keep_character(edited, %{"character" => %{} = sheet}),
+    do: Map.put_new(edited, "character", sheet)
+
+  defp keep_character(edited, _current), do: edited
 
   @doc """
   Deletes the session. The foreign keys cascade: turns, scenes, NPC instances,
@@ -102,7 +113,7 @@ defmodule TalesForge.Admin do
     |> Repo.delete_all()
 
     # For seed/refresh we need the Ecto struct or world_state; fetch fresh
-    ecto_session = Repo.get!(GameSession, id)
+    ecto_session = get_session!(id)
     :ok = NPC.seed_session(ecto_session)
 
     case NPC.refresh_session_world_state(ecto_session) do

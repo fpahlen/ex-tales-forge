@@ -51,8 +51,8 @@ defmodule TalesForge.Game.QaD100Qa3Test do
       action: %SingleAction{action_type: type, target: target, parameters: params}
     }
 
-    session
-    |> Turn.new(1, text, pa, flags: @flags, role: :playtest)
+    {session, 1}
+    |> Turn.new({text, pa}, flags: @flags, role: :playtest)
     |> Turn.Mechanics.apply()
   end
 

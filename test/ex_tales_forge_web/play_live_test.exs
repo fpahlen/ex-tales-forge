@@ -65,7 +65,7 @@ defmodule TalesForgeWeb.PlayLiveTest do
         |> put_in(["character", "coins"], %{"gold" => 0, "silver" => 20, "copper" => 300})
         |> put_in(["character", "skills"], %{"climbing" => 25, "stealth" => 5})
 
-      session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+      session |> GameSession.changeset(%{world_state: world}) |> save_session!()
 
       Repo.insert!(%Turn{
         game_session_id: session.id,
@@ -108,7 +108,7 @@ defmodule TalesForgeWeb.PlayLiveTest do
 
     session
     |> GameSession.changeset(%{status: "dead", world_state: world})
-    |> Repo.update!()
+    |> save_session!()
 
     {:ok, view, html} = live(conn, ~p"/play/#{session.id}")
 
@@ -285,14 +285,17 @@ defmodule TalesForgeWeb.PlayLiveTest do
       assert [%Turn{player_action: "I go over there."}] =
                Turn |> Repo.all() |> Enum.filter(&(&1.game_session_id == session.id))
 
-      refute Map.has_key?(Repo.get!(GameSession, session.id).world_state, "pending_clarification")
+      refute Map.has_key?(
+               GameSessions.get_session!(session.id).world_state,
+               "pending_clarification"
+             )
     end
 
     test "the question also appears live, without a reload", %{conn: conn, session: session} do
       {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
 
       question =
-        GameSessions.pending_clarification(Repo.get!(GameSession, session.id).world_state)
+        GameSessions.pending_clarification(GameSessions.get_session!(session.id).world_state)
 
       send(view.pid, {:clarification_needed, Map.put(question, "question", "Left or right?")})
       assert render(view) =~ "Left or right?"
@@ -302,9 +305,9 @@ defmodule TalesForgeWeb.PlayLiveTest do
          %{conn: conn, session: session} do
       {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
 
-      session = Repo.get!(GameSession, session.id)
+      session = GameSessions.get_session!(session.id)
       world = Map.delete(session.world_state, "pending_clarification")
-      session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+      session |> GameSession.changeset(%{world_state: world}) |> save_session!()
 
       view |> element(~s(button[phx-value-option_id="inn"])) |> render_click()
 

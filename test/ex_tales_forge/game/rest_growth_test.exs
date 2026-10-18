@@ -68,7 +68,7 @@ defmodule TalesForge.Game.RestGrowthTest do
         |> Map.put("learning_failures", %{skill => 20})
       end)
 
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session |> GameSession.changeset(%{world_state: world}) |> save_session!()
 
     assert {:ok, _} = GameSessions.submit_message(session.id, text)
     assert_received {:gm_prompt, user}

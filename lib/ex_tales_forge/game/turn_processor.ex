@@ -16,6 +16,7 @@ defmodule TalesForge.Game.TurnProcessor do
   require Logger
 
   alias TalesForge.AICalls.{Steps, Tags}
+  alias TalesForge.Characters
 
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction}
 
@@ -62,13 +63,14 @@ defmodule TalesForge.Game.TurnProcessor do
       nil ->
         {:error, :not_found}
 
-      %GameSession{} = session ->
+      %GameSession{} = stored ->
+        session = Characters.put_sheet(stored)
         turn_number = Store.next_turn_number(session_id)
 
         {result, steps} =
           Steps.collect(fn ->
-            session
-            |> Turn.new(turn_number, raw_action, PlayerAction.decode(player_action_map), opts)
+            {session, turn_number}
+            |> Turn.new({raw_action, PlayerAction.decode(player_action_map)}, opts)
             |> Turn.Premise.check()
             |> Turn.Mechanics.apply()
             |> Turn.Npcs.react()

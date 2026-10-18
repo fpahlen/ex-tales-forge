@@ -28,6 +28,7 @@ defmodule TalesForgeWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import TalesForgeWeb.ConnCase
+      import TalesForge.DataCase, only: [save_session!: 1, put_stored_world!: 3]
     end
   end
 

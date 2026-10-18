@@ -1,20 +1,21 @@
 defmodule TalesForge.GameCharacterTest do
   @moduledoc """
-  Refactor step 10a: the turn reads its acting character from the
-  `characters` row with `CHARACTERS=on`. The proof that nothing changes:
+  Refactor step 10b-2: the player character's `characters` row is its only
+  stored copy. `game_sessions.world_state` is saved without `"character"`,
+  and a loaded session gets the sheet back from the row. The proof that
+  nothing changes:
 
-    * the mirror is lossless: `to_sheet/1` of the mirrored row is
-      `world_state["character"]` after every turn (`===`, so `5` is not `5.0`);
-    * the same script of turns, played with the flag off and on, gives
-      byte-identical GM prompts (system and user) and world states.
+    * the row is lossless: `to_sheet/1` of the row is the sheet the turn
+      played, after every turn (`===`, so `5` is not `5.0`);
+    * a session stored before 10b-2 plays on its stored sheet, and its next
+      save moves it to the row.
   """
   use TalesForge.DataCase, async: false
 
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
 
   alias TalesForge.Characters
-  alias TalesForge.Characters.Present
-  alias TalesForge.Game.{Turn, TurnProcessor}
+  alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameCharacter
   alias TalesForge.GameSessions
   alias TalesForge.Jido
@@ -72,63 +73,58 @@ defmodule TalesForge.GameCharacterTest do
     }
   end
 
-  defp row_sheet(session_id) do
-    %Present{actor: actor} = Characters.load_present(Repo.get!(GameSession, session_id))
-    GameCharacter.to_sheet(actor)
+  defp row_sheet(session_id), do: Characters.player_sheets([session_id])[session_id]
+
+  defp stored_world(session_id), do: Repo.get!(GameSession, session_id).world_state
+
+  # Saves the session with `sheet` as its player character, the way the turn
+  # and the admin edit do: the session and the rows in one Multi.
+  defp save_sheet(%GameSession{} = session, sheet) do
+    session
+    |> GameSession.changeset(%{world_state: Map.put(session.world_state, "character", sheet)})
+    |> save_session!()
   end
 
-  # Plays the script with CHARACTERS off or on. Each turn gives the GM
-  # prompt, the world after it, and the row's sheet after it, with the
+  # Plays the script. Each turn gives the GM prompt, the world the turn
+  # stored, the session as a page loads it, and the row's sheet, with the
   # session id taken out.
-  defp play(characters?) do
+  defp play do
     :rand.seed(:exsss, {10, 20, 30})
     {:ok, session} = GameSessions.create_session(%{name: "Golden", adventure_id: "tin_valley"})
-    flags = Map.put(Turn.read_flags(), :characters, characters?)
 
     Enum.map(@script, fn {text, _, _, _} = step ->
-      {:ok, _} = TurnProcessor.run(session.id, {text, action(step)}, flags: flags)
+      {:ok, _} = TurnProcessor.run(session.id, {text, action(step)})
       assert_received {:gm_prompt, system, user}
-      world = Repo.get!(GameSession, session.id).world_state
 
-      {system, user, world, row_sheet(session.id)}
+      {system, user, stored_world(session.id), GameSessions.get_session!(session.id).world_state,
+       row_sheet(session.id)}
       |> :erlang.term_to_binary()
       |> :binary.replace(session.id, "SESSION", [:global])
       |> :erlang.binary_to_term()
     end)
   end
 
-  test "the mirrored row gives back the sheet after every turn" do
-    for {_system, _user, world, sheet} <- play(false) do
-      assert sheet === world["character"]
+  test "the row is the only stored sheet, and a loaded session plays on it" do
+    turns = play()
+    assert length(turns) == length(@script)
+
+    for {_system, _user, stored, loaded, sheet} <- turns do
+      refute Map.has_key?(stored, "character")
+      assert loaded === Map.put(stored, "character", sheet)
     end
-  end
-
-  test "the turns play the same with CHARACTERS off and on" do
-    off = play(false)
-    {on, log} = ExUnit.CaptureLog.with_log(fn -> play(true) end)
-
-    assert length(on) == length(@script)
-    # Every flag-on turn read a row, and no row differed from the sheet.
-    refute log =~ "characters read"
 
     # The script changed the sheet: coins (the ale), the equipped knife,
-    # the fight and the rest are all in the last world state.
-    {_, _, first, _} = hd(off)
-    {_, _, last, _} = List.last(off)
-    assert first["character"]["coins"] != last["character"]["coins"]
-    assert Enum.any?(last["character"]["inventory"], &(&1["equipped"] == true))
-    assert first["character"] != last["character"]
-
-    for {{a, b}, n} <- off |> Enum.zip(on) |> Enum.with_index(1) do
-      assert elem(a, 0) === elem(b, 0), "turn #{n}: GM system prompt"
-      assert elem(a, 1) === elem(b, 1), "turn #{n}: GM user prompt"
-      assert elem(a, 2) === elem(b, 2), "turn #{n}: world state"
-    end
+    # the fight and the rest are all in the last row.
+    {_, _, _, _, first} = hd(turns)
+    {_, _, _, _, last} = List.last(turns)
+    assert first["coins"] != last["coins"]
+    assert Enum.any?(last["inventory"], &(&1["equipped"] == true))
+    assert first != last
   end
 
   test "a sheet with keys the columns lack round-trips through the row" do
     {:ok, session} = GameSessions.create_session(%{name: "Odd", adventure_id: "tin_valley"})
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
 
     sheet =
       session.world_state["character"]
@@ -147,19 +143,15 @@ defmodule TalesForge.GameCharacterTest do
       })
       |> Map.delete("learning_failures")
 
-    session =
-      session
-      |> GameSession.changeset(%{world_state: Map.put(session.world_state, "character", sheet)})
-      |> Repo.update!()
-
-    assert :ok = Characters.mirror(session)
-    assert row_sheet(session.id) === Repo.get!(GameSession, session.id).world_state["character"]
+    save_sheet(session, sheet)
+    assert row_sheet(session.id) === sheet
+    assert GameSessions.get_session!(session.id).world_state["character"] === sheet
   end
 
   # 10b-1.5: the keys the row kept in runtime["sheet"] are columns now.
   test "the promoted sheet keys are columns and the row keeps no runtime sheet" do
     {:ok, session} = GameSessions.create_session(%{name: "Promoted", adventure_id: "tin_valley"})
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
     [row] = Enum.filter(Characters.list_for_session(session.id), &(&1.controller == "player"))
 
     # A row written before the promotion, with "class" in the bridge.
@@ -179,12 +171,7 @@ defmodule TalesForge.GameCharacterTest do
         "learning_points" => %{"melee_combat" => 1.0}
       })
 
-    session =
-      session
-      |> GameSession.changeset(%{world_state: Map.put(session.world_state, "character", sheet)})
-      |> Repo.update!()
-
-    assert :ok = Characters.mirror(session)
+    save_sheet(session, sheet)
     [row] = Enum.filter(Characters.list_for_session(session.id), &(&1.controller == "player"))
 
     assert {row.class, row.creation["occupation"], row.reflecting, row.improved_since_rest} ==
@@ -203,7 +190,7 @@ defmodule TalesForge.GameCharacterTest do
 
   test "from_sheet/1 is lossless for sheets, NPC profiles and npc_state entries" do
     {:ok, session} = GameSessions.create_session(%{name: "Sheets", adventure_id: "tin_valley"})
-    pc = Repo.get!(GameSession, session.id).world_state["character"]
+    pc = GameSessions.get_session!(session.id).world_state["character"]
 
     sheets = [
       pc,
@@ -241,40 +228,47 @@ defmodule TalesForge.GameCharacterTest do
     assert GameCharacter.sheet_value(GameCharacter.from_sheet(%{}), "vitality") == nil
   end
 
-  test "load_present gives the human-controlled character and the others at its place" do
-    {:ok, session} = GameSessions.create_session(%{name: "Here", adventure_id: "tin_valley"})
+  test "a session stored before 10b-2 plays on its stored sheet, and the turn moves it to the row" do
+    {:ok, session} = GameSessions.create_session(%{name: "Legacy", adventure_id: "tin_valley"})
+    row = row_sheet(session.id)
+    legacy = Map.put(row, "coins", %{"silver" => 7})
 
-    %Present{actor: actor, others: others} = Characters.load_present(session)
-    assert actor.slug == "elara_voss"
-    assert Enum.all?(others, &(&1.location_id == actor.location_id))
-    assert "innkeep" in Enum.map(others, & &1.slug)
+    # As a session saved before 10b-2: the sheet is in the column, and the
+    # row is behind it.
+    put_stored_world!(session.id, "character", legacy)
+
+    assert GameSessions.get_session!(session.id).world_state["character"] === legacy
+    assert row_sheet(session.id) === row
+
+    step = {"I study the regulars", :observe, nil, %{"skill" => "insight"}}
+    {:ok, _} = TurnProcessor.run(session.id, {"I study the regulars", action(step)})
+
+    refute Map.has_key?(stored_world(session.id), "character")
+    assert row_sheet(session.id)["coins"] == %{"silver" => 7}
   end
 
-  test "with CHARACTERS on and no row, the turn plays on world_state" do
+  test "a session with no row is loaded as it is stored" do
     {:ok, session} = GameSessions.create_session(%{name: "None", adventure_id: "tin_valley"})
-    session = Repo.get!(GameSession, session.id)
     Repo.delete_all(Ecto.assoc(session, :characters))
+    stored = Repo.get!(GameSession, session.id)
 
-    log =
-      ExUnit.CaptureLog.capture_log(fn ->
-        assert Characters.turn_session(session, true) == session
-      end)
-
-    assert log =~ "characters read: no row"
-    assert Characters.turn_session(session, false) == session
+    assert Characters.put_sheet(stored) == stored
+    refute Map.has_key?(stored.world_state, "character")
   end
 
-  test "an admin edit of the sheet reaches the row, so CHARACTERS on reads it" do
+  test "an admin edit of the sheet is written to the row in the same transaction" do
     {:ok, session} = GameSessions.create_session(%{name: "Admin", adventure_id: "tin_valley"})
-    world = Repo.get!(GameSession, session.id).world_state
+    world = GameSessions.get_session!(session.id).world_state
     edited = put_in(world, ["character", "coins"], %{"silver" => 9})
 
     assert {:ok, updated} =
              TalesForge.Admin.update_session_world_state(session, Jason.encode!(edited))
 
+    assert updated.world_state["character"]["coins"] == %{"silver" => 9}
     assert row_sheet(session.id)["coins"] == %{"silver" => 9}
+    refute Map.has_key?(stored_world(session.id), "character")
 
-    assert Characters.turn_session(updated, true).world_state["character"]["coins"] == %{
+    assert GameSessions.get_session!(session.id).world_state["character"]["coins"] == %{
              "silver" => 9
            }
   end

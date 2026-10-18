@@ -23,7 +23,6 @@ defmodule TalesForge.Game.SceneChangeTest do
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.Prompt.Assemble
-  alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 
   @paul_t6 "Mistress Brenna, your bread and your blessing both warm a traveler more than any fire could. " <>
@@ -47,7 +46,7 @@ defmodule TalesForge.Game.SceneChangeTest do
     {:ok, session} =
       GameSessions.create_session(%{name: "Scene", adventure_id: "tin_valley"})
 
-    Repo.get!(GameSession, session.id)
+    GameSessions.get_session!(session.id)
   end
 
   defp intent(session), do: Context.build_intent_context(session)
@@ -55,10 +54,10 @@ defmodule TalesForge.Game.SceneChangeTest do
   defp at(session, location_id) do
     world = put_in(session.world_state, ["character", "location_id"], location_id)
 
-    {:ok, session} =
+    session =
       session
       |> GameSession.changeset(%{world_state: Map.put(world, "location_id", location_id)})
-      |> Repo.update()
+      |> save_session!()
 
     {:ok, session} = TalesForge.NPC.refresh_session_world_state(session)
     session
@@ -241,7 +240,7 @@ defmodule TalesForge.Game.SceneChangeTest do
       assert move_turn =~ "Brenna Holt at Valley Inn"
 
       # Turn 7: Paul speaks to Osric. Brenna is not in the scene any more.
-      session = Repo.get!(GameSession, session.id)
+      session = GameSessions.get_session!(session.id)
       context = Context.build_gm_context(session)
       t7 = heuristic(@paul_t7, context.intent_context)
 

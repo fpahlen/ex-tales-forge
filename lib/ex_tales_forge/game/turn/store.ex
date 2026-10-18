@@ -3,7 +3,7 @@ defmodule TalesForge.Game.Turn.Store do
   The persist step of a turn (the effect at the end of the pipeline): one
   Multi with the session, the turn row, its events, the GM reasoning, the
   fronts and NPC ticks, the work-log push, the GM's NPC updates and the
-  characters (`TalesForge.Characters.turn_multi/1`); then character
+  characters (`TalesForge.Characters.write_multi/1`); then character
   memory, the registry sync, the thought and the turn signals.
 
   `TalesForge.Game.Turn.Adapters` uses `persist/1` as the default `store`.
@@ -133,7 +133,7 @@ defmodule TalesForge.Game.Turn.Store do
     |> Fronts.persist_tick_multi(session.id, ctx.sim)
     |> NPC.persist_tick_multi(session.id, ctx.sim)
     |> npc_gm_updates(store)
-    |> Characters.turn_multi()
+    |> Characters.write_multi()
   end
 
   # The GM's NPC memory updates, before the characters step mirrors them.

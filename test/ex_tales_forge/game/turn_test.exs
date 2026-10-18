@@ -39,7 +39,7 @@ defmodule TalesForge.Game.TurnTest do
     }
 
     flags = Map.merge(@off, Keyword.get(opts, :flags, %{}))
-    Turn.new(session, 1, text, action, Keyword.merge(opts, flags: flags, role: :playtest))
+    Turn.new({session, 1}, {text, action}, Keyword.merge(opts, flags: flags, role: :playtest))
   end
 
   test "new/5 reads the flags and the role one time", %{session: session} do
