@@ -70,6 +70,9 @@ defmodule TalesForge.Admin do
 
     with {:ok, world_state} <- decode_json_map(json_string),
          {:ok, updated} <- update_session(ecto_session, %{world_state: world_state}) do
+      # Keep the character rows in step with an edited sheet, so a later turn
+      # with CHARACTERS=on reads the edit rather than the old row.
+      :ok = TalesForge.Characters.mirror(updated)
       {:ok, updated}
     end
   end

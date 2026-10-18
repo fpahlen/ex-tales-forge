@@ -26,6 +26,7 @@ defmodule TalesForge.Characters do
   alias TalesForge.Characters.Levers
   alias TalesForge.Game.Pack
   alias TalesForge.Game.WorldClock
+  alias TalesForge.GameCharacter
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, GameSession, NpcInstance, PlaytestRun}
@@ -207,6 +208,79 @@ defmodule TalesForge.Characters do
 
   defp memory_attrs(_), do: nil
 
+  defmodule Present do
+    @moduledoc """
+    The characters of a session at one place: `actor`, the character whose
+    intentions come from a human (the player or the persona runner), and
+    `others`, the characters at its location, by slug.
+    """
+    defstruct actor: nil, others: []
+
+    @type t :: %__MODULE__{
+            actor: TalesForge.GameCharacter.t() | nil,
+            others: [TalesForge.GameCharacter.t()]
+          }
+  end
+
+  @doc """
+  The session's characters as GameCharacters: the human-controlled one (the
+  only place that asks who controls a character, because that is where its
+  intentions come in) and the others at its location. `actor` is nil when
+  the session has no rows yet.
+  """
+  @spec load_present(GameSession.t()) :: Present.t()
+  def load_present(%GameSession{id: id}) do
+    {humans, gm} =
+      id |> list_for_session() |> Enum.split_with(&(&1.controller in ~w(player bot)))
+
+    case humans do
+      [row | _] ->
+        actor = GameCharacter.from_schema(row)
+        here = Enum.filter(gm, &(&1.location_id == actor.location_id))
+        %Present{actor: actor, others: Enum.map(here, &GameCharacter.from_schema/1)}
+
+      [] ->
+        %Present{}
+    end
+  end
+
+  @doc """
+  The session the turn plays on. With `CHARACTERS=on` (`TalesForge.Config.characters?/0`)
+  its `world_state["character"]` is the acting character's row
+  (`load_present/1`, `GameCharacter.to_sheet/1`); without a row, or with
+  the flag off, the session is unchanged. A row that differs from the
+  stored sheet is logged as drift: the turn still plays on the row.
+  """
+  @spec turn_session(GameSession.t(), boolean()) :: GameSession.t()
+  def turn_session(%GameSession{} = session, false), do: session
+
+  def turn_session(%GameSession{} = session, true) do
+    world = session.world_state || %{}
+
+    case load_present(session) do
+      %Present{actor: nil} ->
+        Logger.warning("characters read: no row session=#{session.id}; using world_state")
+        session
+
+      %Present{actor: actor} ->
+        sheet = GameCharacter.to_sheet(actor)
+        log_drift(session.id, Map.get(world, "character"), sheet)
+        %{session | world_state: Map.put(world, "character", sheet)}
+    end
+  end
+
+  defp log_drift(_id, sheet, sheet), do: :ok
+
+  defp log_drift(id, stored, sheet) do
+    keys =
+      (Map.keys(stored || %{}) ++ Map.keys(sheet))
+      |> Enum.uniq()
+      |> Enum.filter(&(Map.get(stored || %{}, &1) !== Map.get(sheet, &1)))
+      |> Enum.sort()
+
+    Logger.warning("characters read drift session=#{id} keys=#{inspect(keys)}")
+  end
+
   @doc "The session's characters, ordered by slug."
   def list_for_session(session_id) do
     Character
@@ -253,39 +327,60 @@ defmodule TalesForge.Characters do
     sheet = Map.get(world_state, "character") || Pack.sheet(file)
     controller = opt(opts, :controller) || "player"
 
-    origin =
-      if created,
-        do: %{"source" => "created", "adventure_id" => adventure_id},
-        else: %{"source" => "pack", "adventure_id" => adventure_id, "definition_id" => file["id"]}
-
     %{
       slug: sheet["id"] || file["id"],
       controller: controller,
       controller_ref: opt(opts, :controller_ref),
       owner_player_id: opt(opts, :owner_player_id),
-      origin: origin,
+      origin: origin(created, adventure_id, file),
       definition: file,
-      name: sheet["name"],
-      race: sheet["race"],
       role: nil,
-      location_id: sheet["location_id"] || world_state["location_id"],
-      stats: Character.Stats.from_sheet(sheet["stats"]),
-      skills: int_map(sheet["skills"]),
       ocean: Levers.ocean_source(file),
       maslow_level: file["maslow"] || "safety",
       maslow_since_tick: tick,
       concerns: concerns(file["concerns"], tick),
+      mood: nil,
+      relationships: %{},
+      runtime: %{}
+    }
+    |> Map.merge(sheet_attrs(sheet, world_state))
+    |> put_sheet_runtime(sheet)
+  end
+
+  defp origin(nil, adventure_id, file),
+    do: %{"source" => "pack", "adventure_id" => adventure_id, "definition_id" => file["id"]}
+
+  defp origin(_created, adventure_id, _file),
+    do: %{"source" => "created", "adventure_id" => adventure_id}
+
+  # The columns that come from the sheet.
+  defp sheet_attrs(sheet, world_state) do
+    %{
+      name: sheet["name"],
+      race: sheet["race"],
+      location_id: sheet["location_id"] || world_state["location_id"],
+      stats: Character.Stats.from_sheet(sheet["stats"]),
+      skills: int_map(sheet["skills"]),
       inventory: inventory(sheet["inventory"]),
       coins: sheet["coins"] || %{},
       wounds: int(sheet["wounds"], 0),
       wound_max: int(sheet["wound_max"], 3),
       vitality: sheet["vitality"] || "ok",
       learning_points: sheet["learning_points"] || %{},
-      learning_failures: sheet["learning_failures"] || %{},
-      mood: nil,
-      relationships: %{},
-      runtime: %{}
+      learning_failures: sheet["learning_failures"] || %{}
     }
+  end
+
+  # What the columns can't round-trip of the sheet goes to runtime["sheet"],
+  # so `GameCharacter.to_sheet/1` of the row is this sheet.
+  defp put_sheet_runtime(attrs, sheet) do
+    gc =
+      %Character{}
+      |> Character.changeset(attrs)
+      |> Ecto.Changeset.apply_changes()
+      |> GameCharacter.from_schema()
+
+    %{attrs | runtime: %{"sheet" => GameCharacter.sheet_runtime(gc, sheet)}}
   end
 
   @doc """
@@ -373,21 +468,23 @@ defmodule TalesForge.Characters do
     items
     |> List.wrap()
     |> Enum.flat_map(fn
-      %{"name" => name} = item when is_binary(name) and name != "" ->
-        [
-          %{
-            "id" =>
-              item["id"] || name |> String.downcase() |> String.replace(~r/[^a-z0-9]+/, "_"),
-            "name" => name,
-            "quantity" => int(item["quantity"], 1),
-            "price_copper" => if(is_integer(item["price_copper"]), do: item["price_copper"])
-          }
-        ]
-
-      _ ->
-        []
+      %{"name" => name} = item when is_binary(name) and name != "" -> [inventory_item(item, name)]
+      _ -> []
     end)
   end
+
+  defp inventory_item(item, name) do
+    %{
+      "id" => item["id"] || name |> String.downcase() |> String.replace(~r/[^a-z0-9]+/, "_"),
+      "name" => name,
+      "quantity" => int(item["quantity"], 1),
+      "price_copper" => typed(item["price_copper"], &is_integer/1),
+      "copper_value" => typed(item["copper_value"], &is_integer/1),
+      "equipped" => typed(item["equipped"], &is_boolean/1)
+    }
+  end
+
+  defp typed(value, type?), do: if(type?.(value), do: value)
 
   defp int_map(map) when is_map(map) do
     for {k, v} <- map, is_integer(v) or is_float(v), into: %{}, do: {to_string(k), trunc(v)}
