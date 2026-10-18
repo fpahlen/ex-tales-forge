@@ -33,3 +33,4 @@ Good design is design that is easier to change than the alternative. Every decis
 - The domain never calls the web layer. The UI is built from components first; layouts and styles come after.
 - Risky game behaviour ships behind a flag that stays off on prod until it passes on playtest.
 - Times are stored in UTC and shown in the viewer's local time. A dependency is added only if it is actively maintained or held in high standing in the community.
+- Design, UX and plan docs live in docs/ on GitHub, never only on the bot box.
