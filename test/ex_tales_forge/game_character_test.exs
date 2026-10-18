@@ -156,6 +156,51 @@ defmodule TalesForge.GameCharacterTest do
     assert row_sheet(session.id) === Repo.get!(GameSession, session.id).world_state["character"]
   end
 
+  # 10b-1.5: the keys the row kept in runtime["sheet"] are columns now.
+  test "the promoted sheet keys are columns and the row keeps no runtime sheet" do
+    {:ok, session} = GameSessions.create_session(%{name: "Promoted", adventure_id: "tin_valley"})
+    session = Repo.get!(GameSession, session.id)
+    [row] = Enum.filter(Characters.list_for_session(session.id), &(&1.controller == "player"))
+
+    # A row written before the promotion, with "class" in the bridge.
+    row
+    |> Ecto.Changeset.change(
+      runtime: %{"sheet" => %{"extra" => %{"class" => "old"}, "missing" => []}}
+    )
+    |> Repo.update!()
+
+    sheet =
+      Map.merge(session.world_state["character"], %{
+        "class" => "warrior",
+        "creation" => %{"seed_key" => "s1", "occupation" => "drover"},
+        "reflecting" => ["climbing"],
+        "improved_since_rest" => ["insight"],
+        "skills" => %{"insight" => 10.5, "climbing" => 3},
+        "learning_points" => %{"melee_combat" => 1.0}
+      })
+
+    session =
+      session
+      |> GameSession.changeset(%{world_state: Map.put(session.world_state, "character", sheet)})
+      |> Repo.update!()
+
+    assert :ok = Characters.mirror(session)
+    [row] = Enum.filter(Characters.list_for_session(session.id), &(&1.controller == "player"))
+
+    assert {row.class, row.creation["occupation"], row.reflecting, row.improved_since_rest} ==
+             {"warrior", "drover", ["climbing"], ["insight"]}
+
+    assert row.skills["insight"] === 10.5
+    assert row.runtime == %{}
+    assert GameCharacter.to_sheet(GameCharacter.from_schema(row)) === sheet
+
+    # A sheet without the optional keys gets none of them back.
+    plain = Map.drop(sheet, ~w(class creation reflecting improved_since_rest))
+    gc = GameCharacter.from_sheet(plain)
+    assert {gc.class, gc.reflecting, gc.extra, gc.missing} == {nil, nil, %{}, []}
+    assert GameCharacter.to_sheet(gc) === plain
+  end
+
   test "from_sheet/1 is lossless for sheets, NPC profiles and npc_state entries" do
     {:ok, session} = GameSessions.create_session(%{name: "Sheets", adventure_id: "tin_valley"})
     pc = Repo.get!(GameSession, session.id).world_state["character"]
