@@ -120,8 +120,16 @@ defmodule TalesForge.Game.Turn.Store do
     end
   end
 
-  defp multi(%__MODULE__{session: session, world: world, ctx: ctx} = store) do
+  defp multi(%__MODULE__{session: session} = store) do
     Ecto.Multi.new()
+    |> lock_session(session.id)
+    |> turn_rows(store)
+    |> world_rows(store)
+  end
+
+  # The session row, the turn and what the GM wrote down about it.
+  defp turn_rows(multi, %__MODULE__{session: session, world: world, ctx: ctx} = store) do
+    multi
     |> Ecto.Multi.update(:session, GameSession.changeset(session, session_attrs(world)))
     |> Ecto.Multi.insert(:turn, turn_changeset(store))
     |> push_work_log(Map.get(ctx, :founder))
@@ -129,11 +137,29 @@ defmodule TalesForge.Game.Turn.Store do
       %GMReasoning.At{session_id: session.id, tick: Map.get(world, "world_tick")},
       ctx.gm_result
     )
+  end
+
+  # What the turn did to the world: events, fronts, NPCs and characters.
+  defp world_rows(multi, %__MODULE__{session: session, ctx: ctx} = store) do
+    multi
     |> insert_events(session.id, ctx.events)
     |> Fronts.persist_tick_multi(session.id, ctx.sim)
     |> NPC.persist_tick_multi(session.id, ctx.sim)
     |> npc_gm_updates(store)
     |> Characters.write_multi()
+  end
+
+  # The session's turn lock, held until the transaction ends: the backstop
+  # behind TalesForge.World.Instance, which already runs one turn at a time,
+  # for a turn from anywhere else (another machine, a script). Postgres has
+  # no Ecto API for advisory locks. The first key keeps these locks apart
+  # from other advisory locks (Oban's).
+  @lock_class 10_006
+
+  defp lock_session(multi, session_id) do
+    Ecto.Multi.run(multi, :session_lock, fn repo, _changes ->
+      repo.query("SELECT pg_advisory_xact_lock($1, hashtext($2))", [@lock_class, session_id])
+    end)
   end
 
   # The GM's NPC memory updates, before the characters step mirrors them.

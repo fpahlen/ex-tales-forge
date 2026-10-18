@@ -6,7 +6,7 @@ defmodule TalesForge.Workers.ProcessTurn do
   """
   use Oban.Worker, queue: :llm, max_attempts: 3
 
-  alias TalesForge.Game.TurnProcessor
+  alias TalesForge.World.{Instance, TurnRequest}
 
   @impl Oban.Worker
   def perform(%Oban.Job{
@@ -22,7 +22,10 @@ defmodule TalesForge.Workers.ProcessTurn do
     # founder: the signed-in founder who played the turn (work log), or absent.
     gm = [gm_quote: args["gm_quote"], gm_note: args["gm_note"], founder: args["founder"]]
 
-    case TurnProcessor.run(session_id, {raw_action, player_action}, gm) do
+    request = TurnRequest.new(session_id, {raw_action, player_action}, gm)
+
+    # One turn at a time per session (refactor step 10f, PR 1).
+    case Instance.run_turn(session_id, request) do
       {:ok, _payload} -> :ok
       {:error, {:spend_cap, _kind} = reason} -> {:cancel, reason}
       {:error, reason} -> {:error, reason}

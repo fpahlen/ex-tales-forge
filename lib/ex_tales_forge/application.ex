@@ -10,10 +10,13 @@ defmodule TalesForge.Application do
     children = [
       TalesForgeWeb.Telemetry,
       TalesForge.Repo,
-      {Oban, Application.fetch_env!(:ex_tales_forge, Oban)},
-      TalesForge.Jido,
+      # Before Oban, so they stop after it: a turn job still running in its
+      # shutdown grace period keeps its World.Instance and Task.
       {Registry, keys: :unique, name: TalesForge.World.Registry},
       {DynamicSupervisor, name: TalesForge.World.Supervisor, strategy: :one_for_one},
+      {Task.Supervisor, name: TalesForge.World.TaskSupervisor},
+      {Oban, Application.fetch_env!(:ex_tales_forge, Oban)},
+      TalesForge.Jido,
       TalesForge.NPCRecovery,
       {DNSCluster, query: Application.get_env(:ex_tales_forge, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: TalesForge.PubSub},
