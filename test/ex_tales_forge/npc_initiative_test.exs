@@ -194,11 +194,16 @@ defmodule TalesForge.NPCInitiativeTest do
       "confidence" => 0.9
     }
 
-    assert {:ok, _} =
-             TalesForge.Game.TurnProcessor.run(
-               session.id,
-               {"I wait by the fire for an hour.", wait}
-             )
+    # Through the turn job, as the play page submits it: the broadcast comes
+    # from wherever the turn commits (World.Instance from refactor 10f PR 2).
+    assert :ok =
+             TalesForge.Workers.ProcessTurn.perform(%Oban.Job{
+               args: %{
+                 "session_id" => session.id,
+                 "raw_action" => "I wait by the fire for an hour.",
+                 "player_action" => wait
+               }
+             })
 
     assert GameSessions.get_session!(session.id).world_state["world_tick"] ==
              session.world_state["world_tick"] + 4
