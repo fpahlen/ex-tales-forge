@@ -116,7 +116,7 @@ defmodule TalesForge.Game.IntentClarification do
     confidence = reading.confidence || 1.0
 
     cond do
-      unsure?(confidence, raw_confidence(reading), ask_below, ask_below_raw) and
+      unsure?({confidence, raw_confidence(reading)}, {ask_below, ask_below_raw}) and
           split_class?(reading) ->
         :ask
 
@@ -128,7 +128,8 @@ defmodule TalesForge.Game.IntentClarification do
     end
   end
 
-  defp unsure?(confidence, raw, ask_below, ask_below_raw) do
+  # `{calibrated, raw}` confidence against `{ask_below, ask_below_raw}`.
+  defp unsure?({confidence, raw}, {ask_below, ask_below_raw}) do
     confidence < ask_below or (is_number(raw) and raw < ask_below_raw)
   end
 
@@ -247,12 +248,13 @@ defmodule TalesForge.Game.IntentClarification do
     ranked = Enum.map(target_ranking(reading), &elem(&1, 0))
 
     types
-    |> Enum.flat_map(&type_options(&1, primary, [primary.target | ranked], candidates))
+    |> Enum.flat_map(&type_options(&1, primary, {[primary.target | ranked], candidates}))
     |> Enum.uniq_by(&{&1.action_type, &1.target})
     |> Enum.take(@max_options)
   end
 
-  defp type_options(type, primary, targets, candidates) do
+  # `{targets, candidates}`: the ranked targets and who may be targeted.
+  defp type_options(type, primary, {targets, candidates}) do
     keep = if type == primary.action_type, do: 2, else: 1
 
     targets

@@ -176,7 +176,7 @@ defmodule TalesForge.CharacterCreation.FromText do
         value = Map.get(wanted, stat, draft.base_stats[stat])
         {stat, value |> max(lo) |> max(lo - mod) |> min(hi) |> min(hi - mod)}
       end)
-      |> fit_budget(budget, lo, modifiers)
+      |> fit_budget(%{budget: budget, lo: lo, modifiers: modifiers})
 
     Enum.reduce(stats, draft, fn {stat, value}, acc ->
       case CC.set_stat(acc, stat, value) do
@@ -188,20 +188,21 @@ defmodule TalesForge.CharacterCreation.FromText do
 
   defp apply_stats(draft, _label), do: draft
 
-  # Lowers the highest stat by one until the stats fit the budget.
-  defp fit_budget(stats, budget, lo, modifiers) do
+  # Lowers the highest stat by one until the stats fit the budget. `limits`
+  # has the point budget, the lowest stat and the stat modifiers.
+  defp fit_budget(stats, %{budget: budget} = limits) do
     if stats |> Map.values() |> Enum.sum() <= budget,
       do: stats,
-      else: lower_highest(stats, budget, lo, modifiers)
+      else: lower_highest(stats, limits)
   end
 
-  defp lower_highest(stats, budget, lo, modifiers) do
+  defp lower_highest(stats, %{lo: lo, modifiers: modifiers} = limits) do
     stats
     |> Enum.filter(fn {stat, v} -> v > max(lo, lo - Map.get(modifiers, stat, 0)) end)
     |> Enum.max_by(fn {_stat, v} -> v end, fn -> nil end)
     |> case do
       nil -> stats
-      {stat, v} -> fit_budget(Map.put(stats, stat, v - 1), budget, lo, modifiers)
+      {stat, v} -> fit_budget(Map.put(stats, stat, v - 1), limits)
     end
   end
 

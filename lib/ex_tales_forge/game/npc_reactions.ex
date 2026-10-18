@@ -135,7 +135,7 @@ defmodule TalesForge.Game.NpcReactions do
       npcs ->
         moment = seen(moment)
         reactions = run_all(npcs, moment)
-        {reactions, put_moods(world, moment.moods, reactions, moment.turn_number)}
+        {reactions, put_moods(world, moment.moods, reactions)}
     end
   end
 
@@ -202,7 +202,7 @@ defmodule TalesForge.Game.NpcReactions do
 
       {{:exit, reason}, inst} ->
         Logger.warning("npc reaction timed out npc=#{inst.npc_id} reason=#{inspect(reason)}")
-        record(session_id, turn_number, "error", timeout + 500, %{})
+        record({session_id, turn_number}, {"error", timeout + 500}, %{})
         []
     end)
   end
@@ -223,11 +223,11 @@ defmodule TalesForge.Game.NpcReactions do
 
     case result do
       {:ok, reply} ->
-        record(session_id, turn_number, "ok", elapsed, reply)
+        record({session_id, turn_number}, {"ok", elapsed}, reply)
         {:ok, reaction(inst, reply, turn_number)}
 
       {:error, reason} ->
-        record(session_id, turn_number, "error", elapsed, %{})
+        record({session_id, turn_number}, {"error", elapsed}, %{})
         {:error, reason}
     end
   rescue
@@ -378,9 +378,9 @@ defmodule TalesForge.Game.NpcReactions do
     }
   end
 
-  defp put_moods(world, _moods, [], _turn_number), do: world
+  defp put_moods(world, _moods, []), do: world
 
-  defp put_moods(world, moods, reactions, _turn_number) do
+  defp put_moods(world, moods, reactions) do
     updated =
       Enum.reduce(reactions, moods, fn r, acc ->
         Map.put(
@@ -393,7 +393,9 @@ defmodule TalesForge.Game.NpcReactions do
     Map.put(world, "npc_moods", updated)
   end
 
-  defp record(session_id, turn_number, status, latency_ms, reply) do
+  # The Jev call of turn `{session_id, turn_number}` as an AI call row, with
+  # its `{status, latency_ms}`.
+  defp record({session_id, turn_number}, {status, latency_ms}, reply) do
     usage = Map.get(reply, :usage) || %{}
     input = usage[:input_tokens] || 0
 
