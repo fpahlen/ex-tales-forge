@@ -2,9 +2,9 @@ defmodule TalesForge.Game.Turn.Store do
   @moduledoc """
   The persist step of a turn (the effect at the end of the pipeline): one
   Multi with the session, the turn row, its events, the GM reasoning, the
-  fronts and NPC ticks and the work-log push; then the NPC updates, the
-  characters mirror, character memory, the registry sync, the thought and
-  the turn signals.
+  fronts and NPC ticks, the work-log push, the GM's NPC updates and the
+  characters (`TalesForge.Characters.turn_multi/1`); then character
+  memory, the registry sync, the thought and the turn signals.
 
   `TalesForge.Game.Turn.Adapters` uses `persist/1` as the default `store`.
 
@@ -61,12 +61,9 @@ defmodule TalesForge.Game.Turn.Store do
     tick = Map.get(world, "world_tick")
     memory = TalesForge.Config.character_memory()
 
-    with :ok <- NPC.apply_gm_updates(session.id, ctx.gm_result, tick),
-         # Double-write to `characters` (nothing reads it yet); never fails the turn.
-         :ok <- Characters.mirror(session),
-         # Character memory (board card fc3c9371): scene end moves working
-         # memory to short-term; never fails the turn.
-         :ok <- TalesForge.Characters.Memory.on_turn(session.id, events, memory),
+    # Character memory (board card fc3c9371): scene end moves working
+    # memory to short-term; never fails the turn.
+    with :ok <- TalesForge.Characters.Memory.on_turn(session.id, events, memory),
          # PR 2 (board card 845b6b15): Jev compression in a task, after commit.
          :ok <-
            TalesForge.Characters.Compression.after_turn(session.id, events,
@@ -135,6 +132,15 @@ defmodule TalesForge.Game.Turn.Store do
     |> insert_events(session.id, ctx.events)
     |> Fronts.persist_tick_multi(session.id, ctx.sim)
     |> NPC.persist_tick_multi(session.id, ctx.sim)
+    |> npc_gm_updates(store)
+    |> Characters.turn_multi()
+  end
+
+  # The GM's NPC memory updates, before the characters step mirrors them.
+  defp npc_gm_updates(multi, %__MODULE__{session: session, world: world, ctx: ctx}) do
+    Ecto.Multi.run(multi, :npc_gm_updates, fn _repo, _ ->
+      {:ok, NPC.apply_gm_updates(session.id, ctx.gm_result, Map.get(world, "world_tick"))}
+    end)
   end
 
   defp turn_changeset(%__MODULE__{session: session, ctx: ctx} = store) do

@@ -104,6 +104,55 @@ defmodule TalesForge.CharactersSyncTest do
     end
   end
 
+  describe "turn_multi/1" do
+    defp coins_session(session, coins) do
+      %{session | world_state: put_in(session.world_state, ["character", "coins"], coins)}
+    end
+
+    test "the rows are written in the turn's transaction", %{session: session} do
+      saved = coins_session(session, %{"silver" => 7})
+
+      assert {:error, :boom, :failed, _} =
+               Ecto.Multi.new()
+               |> Ecto.Multi.put(:session, saved)
+               |> Characters.turn_multi()
+               |> Ecto.Multi.run(:boom, fn _repo, _ -> {:error, :failed} end)
+               |> Repo.transaction()
+
+      # The turn failed, so the row kept its coins.
+      refute Characters.get_by_slug(session.id, "elara_voss").coins == %{"silver" => 7}
+
+      assert {:ok, %{characters: :ok}} =
+               Ecto.Multi.new()
+               |> Ecto.Multi.put(:session, saved)
+               |> Characters.turn_multi()
+               |> Repo.transaction()
+
+      assert Characters.get_by_slug(session.id, "elara_voss").coins == %{"silver" => 7}
+    end
+
+    test "a sheet that doesn't validate skips the write and never fails the turn",
+         %{session: session} do
+      broken = %{
+        session
+        | world_state:
+            Map.put(session.world_state, "character", %{"id" => "elara_voss", "name" => nil})
+      }
+
+      log =
+        capture_log(fn ->
+          assert {:ok, %{characters: :skipped}} =
+                   Ecto.Multi.new()
+                   |> Ecto.Multi.put(:session, broken)
+                   |> Characters.turn_multi()
+                   |> Repo.transaction()
+        end)
+
+      assert log =~ "characters write skipped session=#{session.id} slugs=elara_voss"
+      assert Characters.get_by_slug(session.id, "elara_voss").name == "Elara Voss"
+    end
+  end
+
   describe "backfill/0" do
     test "writes rows for sessions from before characters, idempotently", %{session: session} do
       # A session as it looked before #48: no characters, NPC definitions without levers.
