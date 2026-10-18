@@ -164,7 +164,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
       {_record, prompt} = play(session.id, step)
 
       assert prompt =~
-               "Rejected: sell (smith). Reason: Elara Voss has no 'enchanted_armor' to give."
+               "Rejected: sell (smith). Reason: Hilde Brask does not buy 'enchanted_armor'."
 
       assert prompt =~ "Coins: no change (500 copper in total)."
     end

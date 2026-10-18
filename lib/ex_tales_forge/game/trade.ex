@@ -12,21 +12,25 @@ defmodule TalesForge.Game.Trade do
   lost. It is pure; the caller saves both parties in one transaction (the
   turn's, `TalesForge.Game.Turn.Store`).
 
-  A character refuses through its `runtime`: `"refuses_trade"` (a reason)
-  refuses any trade, and `"buys"` (item ids) is all it takes as payment
-  in goods. A character without them accepts any trade it can make.
+  A character's `runtime` sets how it trades: `"refuses_trade"` (a
+  reason) refuses any trade; `"buys"` (item ids) is all it buys;
+  `"lends"` (words, such as "mug") names what it only lends with what it
+  serves, never for sale; `"serves"` (item ids) is what it serves to be
+  eaten or drunk on the spot, so the receiver pays and carries nothing
+  away. A character without them accepts any trade it can make.
 
       iex> alias TalesForge.Game.Trade
-      iex> brenna = %TalesForge.GameCharacter{name: "Brenna Holt", coins: %{"gold" => 1},
-      ...>   inventory: [%{"id" => "ale_mug", "name" => "Mug of Ale", "price_copper" => 2, "quantity" => 99}]}
+      iex> brenna = %TalesForge.GameCharacter{name: "Brenna Holt", coins: %{"gold" => 2},
+      ...>   inventory: [%{"id" => "ale_mug", "name" => "Ale", "price_copper" => 2, "quantity" => 72}],
+      ...>   runtime: %{"serves" => ["ale_mug"], "lends" => ["mug"], "buys" => []}}
       iex> aric = %TalesForge.GameCharacter{name: "Aric", coins: %{"silver" => 1}, inventory: []}
       iex> {:ok, trade} = Trade.execute(%Trade{giver: brenna, receiver: aric, price: 2,
-      ...>   item: %{"id" => "ale_mug", "name" => "Mug of Ale", "quantity" => 1}})
-      iex> {trade.giver.coins, hd(trade.giver.inventory)["quantity"], trade.receiver.coins}
-      {%{"gold" => 1, "copper" => 2}, 98, %{"copper" => 8}}
+      ...>   item: %{"id" => "ale_mug", "name" => "Ale", "quantity" => 1}})
+      iex> {trade.giver.coins, hd(trade.giver.inventory)["quantity"], trade.receiver.coins, trade.receiver.inventory}
+      {%{"gold" => 2, "copper" => 2}, 71, %{"copper" => 8}, []}
       iex> Trade.execute(%Trade{giver: aric, receiver: brenna, price: 2,
-      ...>   item: %{"id" => "ale_mug", "name" => "Mug of Ale", "quantity" => 1}})
-      {:error, "Aric has no Mug of Ale to give."}
+      ...>   item: %{"id" => "ale_mug", "name" => "Ale", "quantity" => 1}})
+      {:error, "The mug is Brenna Holt's, lent with the drink; it is not for sale."}
   """
 
   alias TalesForge.Game.Goods
@@ -45,9 +49,9 @@ defmodule TalesForge.Game.Trade do
   @doc "The trade done, or `{:error, reason}` with nothing moved."
   @spec execute(t()) :: {:ok, t()} | {:error, String.t()}
   def execute(%__MODULE__{} = trade) do
-    with :ok <- priced(trade),
-         :ok <- accepts(trade.giver, trade),
+    with :ok <- accepts(trade.giver, trade),
          :ok <- accepts(trade.receiver, trade),
+         :ok <- priced(trade),
          :ok <- delivers(trade),
          :ok <- pays(trade),
          do: {:ok, exchange(trade)}
@@ -62,17 +66,28 @@ defmodule TalesForge.Game.Trade do
        when is_binary(reason),
        do: {:error, reason}
 
-  defp accepts(%GameCharacter{runtime: %{"buys" => buys}} = receiver, %__MODULE__{
-         receiver: receiver,
-         item: %{"id" => id} = item
-       })
+  defp accepts(%GameCharacter{} = receiver, %__MODULE__{receiver: receiver, item: item}) do
+    with :ok <- not_lent(receiver, item), do: buys(receiver, item)
+  end
+
+  defp accepts(%GameCharacter{}, %__MODULE__{}), do: :ok
+
+  # A thing the receiver only lends (the inn's mug) is never bought back.
+  defp not_lent(%GameCharacter{runtime: runtime, name: name}, %{"id" => id}) do
+    case Enum.find(Map.get(runtime || %{}, "lends", []), &String.contains?(id, &1)) do
+      nil -> :ok
+      word -> {:error, "The #{word} is #{name}'s, lent with the drink; it is not for sale."}
+    end
+  end
+
+  defp buys(%GameCharacter{runtime: %{"buys" => buys}} = receiver, %{"id" => id} = item)
        when is_list(buys) do
     if id in buys,
       do: :ok,
       else: {:error, "#{receiver.name} does not buy #{name(item)}."}
   end
 
-  defp accepts(%GameCharacter{}, %__MODULE__{}), do: :ok
+  defp buys(%GameCharacter{}, _item), do: :ok
 
   defp delivers(%__MODULE__{giver: giver, item: %{"id" => id} = item}) do
     if Goods.item_quantity(giver.inventory, id) >= quantity(item),
@@ -101,11 +116,22 @@ defmodule TalesForge.Game.Trade do
         },
         receiver: %{
           receiver
-          | inventory: Goods.add_item(receiver.inventory, moved),
+          | inventory: carried_away(giver, receiver.inventory, moved),
             coins: Goods.deduct_coins(receiver.coins, price)
         }
     }
   end
+
+  # What the receiver carries away: nothing for a serving (eaten or drunk
+  # where it is bought), else the item.
+  defp carried_away(%GameCharacter{runtime: %{"serves" => served}} = giver, inventory, moved)
+       when is_list(served) do
+    if moved["id"] in served,
+      do: inventory,
+      else: carried_away(%{giver | runtime: %{}}, inventory, moved)
+  end
+
+  defp carried_away(%GameCharacter{}, inventory, moved), do: Goods.add_item(inventory, moved)
 
   defp quantity(item), do: max(1, item["quantity"] || 1)
 

@@ -169,7 +169,7 @@
           {
             "type": "sell",
             "status": "rejected",
-            "reason": "Elara Voss has no 'enchanted_armor' to give."
+            "reason": "Hilde Brask does not buy 'enchanted_armor'."
           }
         ],
         "delta_copper": 0,

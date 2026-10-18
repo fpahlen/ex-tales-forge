@@ -25,6 +25,7 @@
     "Her cart of salt vanished on the west road last week. She will pay 2 silver to whoever brings it back, and more for the name of who took it.",
     "She says there were no orc tracks, only boots and a cart turned off the road into the pines."
   ],
+  "buys": ["rope_coil", "lamp_oil", "lantern"],
   "stock": [
     {
       "id": "rope_coil",

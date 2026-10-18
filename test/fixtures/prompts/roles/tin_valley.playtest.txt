@@ -819,9 +819,9 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
     "stock": [
       {
         "id": "ale_mug",
-        "name": "Mug of Ale",
+        "name": "Ale",
         "price_copper": 2,
-        "quantity": 99
+        "quantity": 72
       }
     ]
   }

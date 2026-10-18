@@ -111,112 +111,136 @@ defmodule TalesForge.Game.TradeTest do
   end
 
   # The whole turn (TurnProcessor.run/3: intent → rules → board → prompt →
-  # GM → store) with a stubbed GM, against Brenna Holt as the Tin Valley
-  # pack seeds her: Mug of Ale x99 at 2c and a purse of 1 gold.
+  # GM → store) with a stubbed GM, against the traders as the Tin Valley
+  # pack seeds them: Brenna Holt with a cask of 72 servings of Ale at 2c,
+  # served in a mug she lends, a purse of 2 gold (1000c) and `buys: []`;
+  # with INN_WORLD, Hilde Brask the smith, who buys blades, with a purse
+  # of 1 gold (500c).
   describe "a trade in a whole turn" do
     setup do
+      previous = System.get_env("INN_WORLD")
+      System.put_env("INN_WORLD", "on")
+
+      on_exit(fn ->
+        if previous,
+          do: System.put_env("INN_WORLD", previous),
+          else: System.delete_env("INN_WORLD")
+      end)
+
       {:ok, session} = GameSessions.create_session(%{name: "Trade", adventure_id: "tin_valley"})
       session = GameSessions.get_session!(session.id)
-      %{"innkeep" => brenna} = NPC.traders(session.id, ["innkeep"])
+      %{"innkeep" => brenna, "smith" => hilde} = NPC.traders(session.id, ["innkeep", "smith"])
 
-      assert Inventory.item_quantity(brenna.inventory, "ale_mug") == 99
-      assert copper(brenna) == 500
+      assert Inventory.item_quantity(brenna.inventory, "ale_mug") == 72
+      assert copper(brenna) == 1000
+      assert brenna.runtime == %{"buys" => [], "lends" => ["mug"], "serves" => ["ale_mug"]}
+      assert copper(hilde) == 500
+      assert hilde.runtime == %{"buys" => ["hunting_knife", "spearhead", "short_sword"]}
 
       {:ok, session: session}
     end
 
-    test "T7: a buy pays Brenna and takes the mug from her stock", %{session: session} do
-      before = wealth(session)
+    test "T7: a serving of ale is drunk there: Brenna is paid and her cask goes down",
+         %{session: session} do
+      before = wealth(session, "innkeep")
 
       {prompt, saved} =
-        play(session, "I buy a mug of ale from Brenna and pay her.", buy("ale_mug"))
+        play(session, "I buy a mug of ale from Brenna and pay her.", buy("ale_mug"), "innkeep")
 
       assert copper(saved.player) == copper(before.player) - 2
-      assert Inventory.item_quantity(saved.player["inventory"], "ale_mug") == 1
-      assert copper(saved.brenna) == 502
-      assert Inventory.item_quantity(saved.brenna.inventory, "ale_mug") == 98
-      assert totals(saved) == totals(before)
+      assert carried(saved.player) == carried(before.player)
+      refute Enum.any?(saved.player["inventory"], &(&1["id"] == "ale_mug"))
+      assert copper(saved.trader) == 1002
+      assert Inventory.item_quantity(saved.trader.inventory, "ale_mug") == 71
+      assert copper(saved.player) + copper(saved.trader) == copper(before.player) + 1000
       assert prompt =~ "The server made this trade: bought 1x ale_mug for 2c."
     end
 
-    test "T8: a sell-back Brenna accepts is made, and the GM is told it is done",
-         %{session: session} do
-      {_prompt, _saved} =
-        play(session, "I buy a mug of ale from Brenna and pay her.", buy("ale_mug"))
+    for {what, item_id, reason} <- [
+          {"the mug", "ale_mug",
+           "The mug is Brenna Holt's, lent with the drink; it is not for sale."},
+          {"the ale", "ale", "Brenna Holt does not buy 'ale'."}
+        ] do
+      test "T8: selling #{what} back to Brenna is refused, nothing changes, and the GM is told",
+           %{session: session} do
+        bought(session)
+        before = session.id |> GameSessions.get_session!() |> wealth("innkeep")
+        row = npc_row(session, "innkeep")
 
-      before = session.id |> GameSessions.get_session!() |> wealth()
+        {prompt, saved} =
+          play(
+            session,
+            "I sell #{unquote(what)} back to Brenna Holt.",
+            sell(unquote(item_id)),
+            "innkeep"
+          )
 
-      {prompt, saved} =
-        play(session, "I sell the mug of ale back to Brenna Holt.", sell("ale_mug"))
-
-      assert Inventory.item_quantity(saved.player["inventory"], "ale_mug") == 0
-      assert Inventory.item_quantity(saved.brenna.inventory, "ale_mug") == 99
-      assert copper(saved.brenna) == 500
-      assert totals(saved) == totals(before)
-      assert prompt =~ "The server made this trade: sold 1x ale_mug for 2c."
-      assert prompt =~ "the trader does not refuse it"
+        assert saved.player["inventory"] == before.player["inventory"]
+        assert saved.player["coins"] == before.player["coins"]
+        assert saved.trader.inventory == before.trader.inventory
+        assert npc_row(session, "innkeep").coins == row.coins
+        assert npc_row(session, "innkeep").inventory == row.inventory
+        assert prompt =~ "The server refused this trade: #{unquote(reason)}"
+        assert prompt =~ "narrate no payment and no handover"
+      end
     end
 
-    test "T8: a refused sell-back changes nothing, and the GM is told no coins moved",
-         %{session: session} do
-      {_prompt, _saved} =
-        play(session, "I buy a mug of ale from Brenna and pay her.", buy("ale_mug"))
-
-      put_innkeep(session, &%{definition: Map.put(&1.definition, "buys", [])})
-      before = session.id |> GameSessions.get_session!() |> wealth()
-      row_coins = innkeep_row(session).coins
+    test "a sale to a trader who buys the item pays the character", %{session: session} do
+      session = value(session, "hunting_knife", 15)
+      before = wealth(session, "smith")
 
       {prompt, saved} =
-        play(session, "I sell the mug of ale back to Brenna Holt.", sell("ale_mug"))
+        play(
+          session,
+          "I sell my hunting knife to Hilde.",
+          sell("hunting_knife", "smith"),
+          "smith"
+        )
 
-      assert saved.player["inventory"] == before.player["inventory"]
-      assert saved.player["coins"] == before.player["coins"]
-      assert saved.brenna.inventory == before.brenna.inventory
-      assert innkeep_row(session).coins == row_coins
-      assert prompt =~ "The server refused this trade: Brenna Holt does not buy Mug of Ale."
-      assert prompt =~ "narrate no payment and no handover"
-    end
-
-    test "a sale pays the character, and Brenna keeps the cloak", %{session: session} do
-      session = carry(session, Map.put(@cloak, "copper_value", 40))
-      before = wealth(session)
-
-      {_prompt, saved} =
-        play(session, "I sell my travel cloak to Brenna Holt.", sell("travel_cloak"))
-
-      assert copper(saved.player) == copper(before.player) + 40
-      assert Inventory.item_quantity(saved.brenna.inventory, "travel_cloak") == 1
-      assert copper(saved.brenna) == 460
+      assert copper(saved.player) == copper(before.player) + 15
+      assert Inventory.item_quantity(saved.player["inventory"], "hunting_knife") == 0
+      assert Inventory.item_quantity(saved.trader.inventory, "hunting_knife") == 4
+      assert copper(saved.trader) == 485
       assert totals(saved) == totals(before)
+      assert prompt =~ "The server made this trade: sold 1x hunting_knife for 15c."
     end
 
     test "an NPC who cannot afford it refuses, and nothing changes", %{session: session} do
-      session = carry(session, Map.put(@cloak, "copper_value", 40))
-      put_innkeep(session, fn _row -> %{coins: %{"copper" => 39}} end)
-      before = wealth(session)
+      session = value(session, "hunting_knife", 15)
+      put_npc(session, "smith", fn _row -> %{coins: %{"copper" => 14}} end)
+      before = wealth(session, "smith")
 
       {prompt, saved} =
-        play(session, "I sell my travel cloak to Brenna Holt.", sell("travel_cloak"))
+        play(
+          session,
+          "I sell my hunting knife to Hilde.",
+          sell("hunting_knife", "smith"),
+          "smith"
+        )
 
       assert saved.player["inventory"] == before.player["inventory"]
       assert saved.player["coins"] == before.player["coins"]
-      assert saved.brenna.inventory == before.brenna.inventory
-      assert innkeep_row(session).coins == %{"copper" => 39}
+      assert saved.trader.inventory == before.trader.inventory
+      assert npc_row(session, "smith").coins == %{"copper" => 14}
 
       assert prompt =~
-               "The server refused this trade: Brenna Holt cannot pay 40c for Travel Cloak."
+               "The server refused this trade: Hilde Brask cannot pay 15c for hunting knife."
     end
 
     test "a sale with no price is refused, and the GM gets the reason", %{session: session} do
-      session = carry(session, @cloak)
-      before = wealth(session)
+      before = wealth(session, "smith")
 
       {prompt, saved} =
-        play(session, "I sell my travel cloak to Brenna Holt.", sell("travel_cloak"))
+        play(
+          session,
+          "I sell my hunting knife to Hilde.",
+          sell("hunting_knife", "smith"),
+          "smith"
+        )
 
       assert saved.player["inventory"] == before.player["inventory"]
-      assert saved.brenna == before.brenna
-      assert prompt =~ ~s("reason": "No price for Travel Cloak: nothing changed hands.")
+      assert saved.trader == before.trader
+      assert prompt =~ ~s("reason": "No price for hunting knife: nothing changed hands.")
     end
   end
 
@@ -233,8 +257,8 @@ defmodule TalesForge.Game.TradeTest do
   end
 
   # One turn through TurnProcessor.run/3 with the GM stubbed: the per-turn
-  # GM prompt, and the player and Brenna as saved.
-  defp play(%GameSession{id: id}, text, action) do
+  # GM prompt, and the player and the trader `npc_id` as saved.
+  defp play(%GameSession{id: id}, text, action, npc_id) do
     me = self()
 
     adapters = %Adapters{
@@ -242,7 +266,7 @@ defmodule TalesForge.Game.TradeTest do
       stream: fn _id, _chunk -> :ok end,
       gm: fn messages, _action, _handler, _n, _opts ->
         send(me, {:gm_prompt, List.last(messages).content})
-        {:ok, %GMStructuredResponse{narrative: "Brenna nods."}}
+        {:ok, %GMStructuredResponse{narrative: "The trader nods."}}
       end
     }
 
@@ -256,32 +280,36 @@ defmodule TalesForge.Game.TradeTest do
              )
 
     assert_received {:gm_prompt, prompt}
-    {prompt, id |> GameSessions.get_session!() |> wealth()}
+    {prompt, id |> GameSessions.get_session!() |> wealth(npc_id)}
   end
+
+  # T7, the mug of ale bought from Brenna.
+  defp bought(session),
+    do: play(session, "I buy a mug of ale from Brenna and pay her.", buy("ale_mug"), "innkeep")
 
   defp buy(item_id),
     do: %{"action_type" => "buy", "target" => "innkeep", "parameters" => %{"item_id" => item_id}}
 
-  defp sell(item_id),
+  defp sell(item_id, npc_id \\ "innkeep"),
     do: %{
       "action_type" => "sell",
-      "target" => "innkeep",
-      "parameters" => %{"item_id" => item_id, "npc_id" => "innkeep"}
+      "target" => npc_id,
+      "parameters" => %{"item_id" => item_id, "npc_id" => npc_id}
     }
 
-  defp wealth(%GameSession{id: id, world_state: world}) do
-    %{"innkeep" => brenna} = NPC.traders(id, ["innkeep"])
-    %{player: world["character"], brenna: brenna}
+  defp wealth(%GameSession{id: id, world_state: world}, npc_id) do
+    %{^npc_id => trader} = NPC.traders(id, [npc_id])
+    %{player: world["character"], trader: trader}
   end
 
-  # The coins and the count of each item, over the player and Brenna.
-  defp totals(%{player: player, brenna: brenna}) do
+  # The coins and the count of each item, over the player and the trader.
+  defp totals(%{player: player, trader: trader}) do
     items =
-      (Inventory.normalize_items(player["inventory"]) ++ brenna.inventory)
+      (Inventory.normalize_items(player["inventory"]) ++ trader.inventory)
       |> Enum.group_by(& &1["id"], & &1["quantity"])
       |> Map.new(fn {id, qtys} -> {id, Enum.sum(qtys)} end)
 
-    {copper(player) + copper(brenna), items}
+    {copper(player) + copper(trader), items}
   end
 
   defp assert_same_wealth(after_trade, before_trade),
@@ -290,22 +318,33 @@ defmodule TalesForge.Game.TradeTest do
   defp pair([%GameCharacter{} = a, %GameCharacter{} = b]),
     do: %{
       player: GameCharacter.to_sheet(a),
-      brenna: %{b | inventory: Inventory.normalize_items(b.inventory)}
+      trader: %{b | inventory: Inventory.normalize_items(b.inventory)}
     }
 
-  defp innkeep_row(%GameSession{id: id}),
-    do: Repo.get_by!(Character, game_session_id: id, slug: "innkeep")
+  defp npc_row(%GameSession{id: id}, slug),
+    do: Repo.get_by!(Character, game_session_id: id, slug: slug)
 
-  defp put_innkeep(session, changes) do
-    row = innkeep_row(session)
+  defp put_npc(session, slug, changes) do
+    row = npc_row(session, slug)
     row |> Ecto.Changeset.change(changes.(row)) |> Repo.update!()
   end
 
-  defp carry(%GameSession{} = session, item) do
-    world = update_in(session.world_state, ["character", "inventory"], &[item | &1])
+  # The session with the carried item `item_id` worth `copper`.
+  defp value(%GameSession{} = session, item_id, copper) do
+    world =
+      update_in(session.world_state, ["character", "inventory"], fn items ->
+        Enum.map(
+          items,
+          &if(&1["id"] == item_id, do: Map.put(&1, "copper_value", copper), else: &1)
+        )
+      end)
+
     session |> GameSession.changeset(%{world_state: world}) |> save_session!()
     GameSessions.get_session!(session.id)
   end
+
+  defp carried(%{"inventory" => inventory}),
+    do: Enum.map(inventory, &{&1["id"], &1["quantity"]})
 
   defp copper(%GameCharacter{coins: coins}), do: Inventory.coin_total_copper(coins)
   defp copper(%{} = sheet), do: Inventory.coin_total_copper(sheet["coins"])
