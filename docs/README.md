@@ -25,6 +25,7 @@ Also in this folder:
 - [Module audit of ex-tales-forge (2026-10-07)](module-audit-2026-10-07.md): every module grouped as in use, framework, dead or unsure, with a ranked removal proposal
 - [Plan: remove Ash (plain Ecto)](plan-remove-ash.md): what goes, the admin forms on Ecto, the safe table drop, deps, rollout and rollback (done: #47 merged and deployed 2026-10-07)
 - [Plan: one Character entity for PCs and NPCs](plan-unify-character.md): today's two shapes side by side, the target `characters` table and agent, the controller (player or GM, AFK, companions), data migration, levers, what breaks, phased rollout (plan; waiting for OK)
+- [Plan: Tales Forge refactoring round 2026-10-17](plan-tf-refactor-2026-10-17.md): health targets and steps, including GameCharacter 10a–10f, the 10b split (10b-1, 10b-1.5 sheet promotion, 10b-2) and the `runtime["sheet"]` bridge condition
 - [Design sketch: world agents](design-world-agents.md): persons, locations and items as Elixir agents that hold facts for the GM, and the [living world](design-world-agents.md#living-world-design-to-try): factions with plans and clocks on world time (to try)
 - [Design: the Tin Valley world around the inn](design-tin-valley-world.md): new places and people for every player type (`INN_WORLD`), the Tinjacks antagonist on world time (`WORLD_ANTAGONIST`), flags and cost
 - [Design: playtest loop](design-playtest-loop.md): how persona bots play, get scored, and feed fixes and decisions (draft)
