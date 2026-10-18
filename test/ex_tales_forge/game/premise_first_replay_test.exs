@@ -78,7 +78,7 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
 
   defp play(session_id, step) do
     before = outcome_events(session_id)
-    assert {:ok, _payload} = TurnProcessor.run(session_id, step["text"], step["player_action"])
+    assert {:ok, _payload} = TurnProcessor.run(session_id, {step["text"], step["player_action"]})
     assert_received {:gm_prompt, prompt}
     [record] = outcome_events(session_id) -- before
     {record, prompt}
