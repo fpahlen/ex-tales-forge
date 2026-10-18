@@ -365,6 +365,14 @@ golden prompts, plus the replay diff):
     item or a trade's give leg still goes to no one, and NPC coins still
     don't change; making the NPC side keep them is user-visible and not part
     of 10d.
+  - Merged 2026-10-18 as #438 (merge commit `8c64549`). The replay on main
+    and the branch is identical (buy, haggled buy, sell, haggled sell, NPC
+    trade, out-of-stock buy; with `JEV_CATALOGUE_V2` off and on). Playtest
+    v319 (image `GH_SHA=fa7d6b5`, which includes `8c64549`): a buy takes
+    the ale out of the innkeep's stock on both `npc_instances` and the
+    characters row (99 → 98), and a sell pays the player. The logs show no
+    errors. The haggle path is not reachable on playtest, because
+    `JEV_CATALOGUE_V2` is off there.
 - **10e. Intention input.**
   - `%Intention{by: …}`.
   - `NpcReactions`, `NpcInitiative` and `Actions.NPC.*` emit Intentions; the
@@ -376,6 +384,8 @@ golden prompts, plus the replay diff):
   - The per-world process from the 2026-10-08 note replaces `NPCAgent` and
     `PlayerSessionAgent` (using PubSub and Oban, not a hand-rolled registry
     sync).
+  - Design for Case's review, before any code:
+    [design-gc-10f-one-process.md](design-gc-10f-one-process.md).
   - Then drop `npc_instances` with the row-check pattern from #47 (plan
     phases 3 and 4).
 
@@ -401,6 +411,20 @@ run per comparison. General playtesting stays paused.
 | 10e, 10f | Intention input; one process (user-visible) | | | **last**; a playtest comparison before and after each |
 
 ## Noted for after the round (not started)
+
+- **Conservation in trades** (Fredrik's rule, 2026-10-18). Items and coins
+  always change place and are never created or destroyed.
+  - **Buy:** the coins go from the player to the NPC, and the item goes from
+    the NPC to the player.
+  - **Sell and trade:** the reverse. A sold item joins the NPC's inventory,
+    and so does a trade's give leg.
+  - **Today (after 10d):** the NPC's coins never change, and a sold item or a
+    trade's give leg goes to no one.
+  - This is its own PR, after 10e/10f. It is user-visible: an NPC can sell
+    back what it bought, and its purse runs down.
+  - **Open question:** what happens when the NPC can't afford a sale. Case
+    suggests that it refuses, the same way `Catalogue.refuses_trade?/1`
+    refuses a trade today.
 
 - **Kaizen practice** in both repos' `docs/principles.md`: every feature PR
   must leave the files it touches at least one health point better (cycles,
