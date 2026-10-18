@@ -50,13 +50,12 @@ TalesForge.Supervisor
   ├── TalesForge.Repo
   ├── Oban                         # queues: default:10, llm:5
   ├── TalesForge.Jido              # global Jido runtime (max_tasks: 1000 = Task.Supervisor max_children, not agent cap)
-  ├── TalesForge.NPCRecovery       # re-syncs present NPC agents on boot
   ├── DNSCluster
   ├── Phoenix.PubSub
   └── TalesForgeWeb.Endpoint
 ```
 
-There is **no session supervisor**. `PlayerSessionAgent` (`lib/ex_tales_forge/agents/player_session_agent.ex`) is a thin Jido agent (`session_id`, `turn_count`, `entries`) started by `GameSessions.ensure_agent/1` with id `session-{id}`. NPC agents live under the same global Jido runtime, keyed `npc-{session_id}-{npc_id}`, started/stopped by `TalesForge.NPCRegistry` to match `world_state["present_npcs"]`.
+There is **no session supervisor**. `PlayerSessionAgent` (`lib/ex_tales_forge/agents/player_session_agent.ex`) is a thin Jido agent (`session_id`, `turn_count`, `entries`) started by `GameSessions.ensure_agent/1` with id `session-{id}`. NPCs have no process of their own (refactor step 10f PR 2 retired the Jido NPC agents, `NPCRegistry` and `NPCRecovery`): what a turn means for them comes in as Intentions applied in the turn's transaction.
 
 One `GameSession` (`lib/ex_tales_forge/schemas/game_session.ex`) is one instance. Mutable world is a JSON map (`world_state`) plus related rows:
 
@@ -82,7 +81,6 @@ Play pipeline (`AGENTS.md` + `GameSessions` + workers):
 ```
 create_session
   → NPC.seed_session (pack npcs/ for tin_valley, else all priv/npcs/*.json)
-  → NPCRegistry.sync (agents only for present_npcs)
   → ProcessScene (Oban :llm) until last_scene_location == location_id
 submit_message
   → require scene ready
@@ -97,9 +95,9 @@ submit_message
        NpcReactions → {:feel, mood} Intentions → Turn.Intentions.feel (npc_moods)
        persist GameSession + Turn, and in the same transaction
          NPCSignals.intentions → Turn.Intentions.apply_all (present NPCs only)
-       NPCRegistry.sync
-       PubSub {:npc_initiative, payload} for any NPC that spoke up
        PubSub {:turn_completed, payload}
+     → World.Instance, once the turn has committed:
+       PubSub {:npc_initiative, payload} for any NPC that spoke up (payload.npc_initiatives)
 ```
 
 NPC agency today is **present-only**:
@@ -219,7 +217,7 @@ Marta remains a **person with a concern**, not a front. The thing under the mine
 4. Inserts `GameSession`. Default `name` is `"Crossroads Hamlet"` (`create_session/1` Map.merge) unless attrs pass `name`.
 5. `NPC.seed_session/1` inserts an `NpcInstance` for the pack's `npcs/` on tin_valley, else for **every** `priv/npcs/*.json` (Marta **and** Henrik).
 6. `present_npcs` is whoever shares the player's location (`NPC.sync_present_npcs/2`).
-7. Starts `PlayerSessionAgent`; `NPCRegistry.sync/1` starts agents only for present NPCs.
+7. Starts `PlayerSessionAgent`.
 8. `ensure_scene/1` enqueues `TalesForge.Workers.ProcessScene` if `last_scene_location != location_id`.
 
 `HomeLive` lists one "New game" card per adventure (Tin Valley, Crossroads Hamlet). Each card links to the creation screen (`/new/:adventure`) and keeps the quick start as Elara (`create_session(%{name: ..., adventure_id: ...})`, no character).
@@ -774,7 +772,7 @@ Authored in the pack (`portents/they_dig_too_deep.md` + trigger in the guild fro
 
 ### Today (keep working until PR-5)
 
-Global Jido + `NPCRegistry` prefix scan. Fine for the tracer. `NPCRecovery` already re-hydrates present NPC agents after boot from `GameSession` rows with `status == "active"`.
+Global Jido for `PlayerSessionAgent`, and one `World.Instance` per session that runs its turns (refactor step 10f). NPCs have no process: the NPC agents, `NPCRegistry` and `NPCRecovery` were retired in 10f PR 2, so nothing is restarted at boot.
 
 ### Target (failure domains)
 

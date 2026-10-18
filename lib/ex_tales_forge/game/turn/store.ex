@@ -5,8 +5,10 @@ defmodule TalesForge.Game.Turn.Store do
   fronts and NPC ticks, the work-log push, the GM's NPC updates, the
   characters (`TalesForge.Characters.write_multi/1`) and the NPC Intentions
   of the turn (`TalesForge.NPCSignals.intentions/1`, applied by
-  `TalesForge.Game.Turn.Intentions.apply_all/2`); then character memory,
-  the registry sync, the thought and the initiative broadcasts.
+  `TalesForge.Game.Turn.Intentions.apply_all/2`); then character memory
+  and the thought. The NPC initiatives go back in the payload
+  (`:npc_initiatives`), and `TalesForge.World.Instance` broadcasts them
+  once the turn has committed.
 
   `TalesForge.Game.Turn.Adapters` uses `persist/1` as the default `store`.
 
@@ -31,8 +33,6 @@ defmodule TalesForge.Game.Turn.Store do
   alias TalesForge.GMReasoning
   alias TalesForge.LLM
   alias TalesForge.NPC
-  alias TalesForge.NPCInitiative
-  alias TalesForge.NPCRegistry
   alias TalesForge.NPCSignals
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent}
@@ -51,8 +51,8 @@ defmodule TalesForge.Game.Turn.Store do
         }
 
   @doc """
-  Persists the turn, with the NPC Intentions it led to, and broadcasts the
-  initiatives. The payload goes to the play page.
+  Persists the turn, with the NPC Intentions it led to. The payload goes to
+  the play page; its `:npc_initiatives` are the NPCs that spoke up.
   """
   @spec persist(t()) :: {:ok, map()} | {:error, term()}
   def persist(%__MODULE__{} = store) do
@@ -61,8 +61,10 @@ defmodule TalesForge.Game.Turn.Store do
          moment = moment(store, turn),
          :ok <- after_commit(moment, session),
          thought = store_thought(moment, turn) do
-      Enum.each(initiatives, &NPCInitiative.broadcast(session.id, &1))
-      {:ok, payload(store, %{session: session, turn: turn}, thought)}
+      {:ok,
+       store
+       |> payload(%{session: session, turn: turn}, thought)
+       |> Map.put(:npc_initiatives, initiatives)}
     end
   end
 
@@ -82,14 +84,12 @@ defmodule TalesForge.Game.Turn.Store do
   defp after_commit(%Moment{} = moment, session) do
     # Character memory (board card fc3c9371): scene end moves working
     # memory to short-term; never fails the turn.
-    with :ok <- TalesForge.Characters.Memory.on_turn(moment),
-         # PR 2 (board card 845b6b15): Jev compression in a task, after commit.
-         :ok <-
-           TalesForge.Characters.Compression.after_turn(session.id, moment.events,
-             now: Map.get(moment.world, "world_tick"),
-             mode: moment.mode
-           ) do
-      NPCRegistry.sync(session)
+    with :ok <- TalesForge.Characters.Memory.on_turn(moment) do
+      # PR 2 (board card 845b6b15): Jev compression in a task, after commit.
+      TalesForge.Characters.Compression.after_turn(session.id, moment.events,
+        now: Map.get(moment.world, "world_tick"),
+        mode: moment.mode
+      )
     end
   end
 

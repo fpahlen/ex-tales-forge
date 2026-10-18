@@ -71,12 +71,14 @@ There is one writer per session. Cron ticks and, later, several players use the 
 ## Migration: small PRs, each with the replay proof
 
 1. **Serialize.** Add `World.Instance`, `run_turn/2` and the advisory lock. `ProcessTurn` goes through the instance, and nothing else changes. The new test: two concurrent submits give turns 1 and 2 in order.
-2. **Retire the NPC agents.** With 10e, the agents' work already comes in as Intentions applied in the turn. Delete `NPCSignals`, `Actions.NPC.*`, `NPCAgent`, `NPCRegistry` and `NPCRecovery`, and send `NpcInitiative`'s broadcast from the instance after the commit.
+2. **Retire the NPC agents.** With 10e, the agents' work already comes in as Intentions applied in the turn. Delete `NPCAgent`, `NPCRegistry` and `NPCRecovery`, and send `NpcInitiative`'s broadcast from the instance after the commit. `NPCSignals` and `Actions.NPC.*` stay: since 10e they only make the Intentions and deliver nothing to an agent. *(Done in PR 2: the payload carries `:npc_initiatives`, and `World.Instance` broadcasts them after the turn's `{:turn_completed, _}`.)*
 3. **Retire `PlayerSessionAgent`.** Delete it and `ensure_agent/1`. Remove the `jido` dependency (a `mix.lock` change, so it goes through the security lane and needs Fredrik's OK).
 4. **Drop `world_state["npc_state"]` and `"npc_moods"`** (Fredrik, 2026-10-18 08:16: with 10e/10f).
    - The 21 files that read them switch to the NPC GameCharacters from the rows.
    - `Schemas.WorldState.dump/1` leaves both keys out, the same pattern 10b-2 used for `"character"`. A session stored before this is read as stored until its next turn.
-   - Minor foes, which today live only in `npc_state`, need a home first. My proposal is a `characters` row with `controller: "gm"` and a new `minor` column, written by an additive migration. **Case to decide.**
+   - Minor foes, which today live only in `npc_state`, need a home first. **Case decided (2026-10-18):** each minor foe gets a `characters` row with `controller: "gm"`, plus one new column with a default, written by an additive migration.
+     - The column is named for what it governs, its lifetime (for example `lifetime`, default `"session"`), not for what the character is. A minor foe's row says it is removed when its scene or fight ends.
+     - Nothing may branch on that column except the cleanup that removes the row. Prompts, mechanics and the play page treat a minor foe like any other GM character.
 5. **Drop `npc_instances`** with the row-check pattern from #47.
    - First a read-only check on playtest and prod that every instance equals its row (mood, location, stock, memories): 0 differences.
    - Then the readers move to the rows, and the NPC stock moves to `characters.inventory`.
@@ -102,5 +104,5 @@ There is one writer per session. Cron ticks and, later, several players use the 
 
 ## Open questions for Case
 
-1. Where minor foes live once `npc_state` is gone (the proposal is in step 4).
+1. ~~Where minor foes live once `npc_state` is gone.~~ Decided: `characters` rows with `controller: "gm"` and a defaulted lifetime column (step 4).
 2. Whether PR 1 should ship on its own before 10e. It changes no game behaviour; it only makes double submits safe.

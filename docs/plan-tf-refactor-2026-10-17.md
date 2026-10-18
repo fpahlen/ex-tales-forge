@@ -403,6 +403,12 @@ golden prompts, plus the replay diff):
     `ProcessTurn` goes through it, and the turn transaction takes a
     `pg_advisory_xact_lock` on the session as a backstop. No NPC or
     `npc_state` change; the replay on main and the branch is identical.
+  - PR 2, Retire the NPC agents (2026-10-18): `NPCAgent`, `NPCRegistry`,
+    `NPCRecovery` and the NPC helpers only they used are deleted, so nothing
+    starts NPC processes at create, submit, after a turn or at boot. The
+    turn's payload carries its `:npc_initiatives`, and `World.Instance`
+    broadcasts them once the turn has committed, after `{:turn_completed, _}`.
+    The Gentry, 10d and 10b-2 replays give the same state after every turn.
   - Then drop `npc_instances` with the row-check pattern from #47 (plan
     phases 3 and 4).
 
