@@ -53,7 +53,7 @@ Ask these of every design and PR:
 - [ ] Does memory stay bounded, and does recall stay correct, over 100 hours?
 - [ ] Can time pass without the player (ticks, catch-up)?
 - [ ] Is the cost per turn independent of town size?
-- [ ] Is position one fact (\`location_id\`) that presence is derived from?
+- [ ] Is position one fact (`location_id`) that presence is derived from?
 
 ## Known gaps today
 
@@ -72,16 +72,16 @@ From the 2026-10-18 playtests ([before](https://github.com/whyse-ab/ex-tales-for
 What exists:
 
 - A place graph with exits (pack locations).
-- \`GameCharacter.location_id\`.
-- Behind the flag \`HIERARCHICAL_LOCATIONS\`: a place tree. Each place has a parent, a position (at \`[x, y]\`), a scale (building, settlement or region) and \`cell_m\`. Travel time comes from distance (\`Game.Travel\`, \`Game.Movement\`, \`Game.WorldClock\` with 15-minute ticks).
+- `GameCharacter.location_id`.
+- Behind the flag `HIERARCHICAL_LOCATIONS`: a place tree. Each place has a parent, a position (at `[x, y]`), a scale (building, settlement or region) and `cell_m`. Travel time comes from distance (`Game.Travel`, `Game.Movement`, `Game.WorldClock` with 15-minute ticks).
 
 Gaps:
 
-- Places live as a JSON map in \`world_state\`, copied from the pack. They are not their own data.
+- Places live as a JSON map in `world_state`, copied from the pack. They are not their own data.
 - The place tree is behind a flag.
 - Only the player moves. NPCs have no routines that move them.
 - There is no "who is near" query.
-- The scene PRESENT list is separate from the characters' \`location_id\`. The two drift: NPCs leave in the prose but stay present.
+- The scene PRESENT list is separate from the characters' `location_id`. The two drift: NPCs leave in the prose but stay present.
 
 ## First experiment (when picked up, not now)
 
