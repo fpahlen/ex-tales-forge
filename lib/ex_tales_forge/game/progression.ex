@@ -306,7 +306,7 @@ defmodule TalesForge.Game.Progression do
   @doc """
   One training session: a free attempt (no LP spent) with the trainer bonus on
   the roll. Whether the session may happen at all (trainer present, skill gap,
-  fee, vitality) is `TalesForge.Game.Train.qualify/5`.
+  fee, vitality) is `TalesForge.Game.Train.qualify/3`.
 
       iex> character = %{"skills" => %{"persuasion" => 60}, "learning_points" => %{}}
       iex> {trained, attempt} = TalesForge.Game.Progression.train(character, "persuasion", %{"persuasion" => {35, 3}})

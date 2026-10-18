@@ -279,7 +279,11 @@ defmodule TalesForge.Game.Turn.Board do
     character = Map.get(world, "character", %{})
 
     {taught, improvements, training, ticks} =
-      Train.apply(character, npc_def, present_ids, action, opts)
+      Train.apply(
+        %Train.Session{character: character, trainer: npc_def, present_ids: present_ids},
+        action,
+        opts
+      )
 
     world =
       world

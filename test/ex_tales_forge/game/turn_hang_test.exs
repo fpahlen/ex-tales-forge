@@ -151,7 +151,7 @@ defmodule TalesForge.Game.TurnHangTest do
       session = session()
       {_label, raw_action, player_action} = List.last(@hung_jobs)
 
-      assert {:ok, payload} = TurnProcessor.run(session.id, raw_action, player_action)
+      assert {:ok, payload} = TurnProcessor.run(session.id, {raw_action, player_action})
       assert payload.world_state["location_id"] == "market_square"
     end
   end
