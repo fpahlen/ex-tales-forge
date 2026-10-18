@@ -29,6 +29,7 @@ defmodule TalesForge.Game.Turn do
   alias TalesForge.Game.HistoryStrip
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.Turn.Adapters
+  alias TalesForge.Intention
   alias TalesForge.Schemas.GameSession
 
   defstruct [
@@ -37,6 +38,7 @@ defmodule TalesForge.Game.Turn do
     :raw_action,
     :history_action,
     :intent,
+    :intention,
     :role,
     :outcome,
     :notice,
@@ -57,6 +59,7 @@ defmodule TalesForge.Game.Turn do
           raw_action: String.t(),
           history_action: String.t(),
           intent: PlayerAction.t(),
+          intention: Intention.t(),
           role: atom(),
           outcome: map() | nil,
           notice: %{level: atom(), details: [String.t()]} | nil,
@@ -76,7 +79,8 @@ defmodule TalesForge.Game.Turn do
   intent options of `TalesForge.Game.TurnProcessor.run/3` plus `:adapters`
   and `:flags` (both for tests). The session's `world_state["character"]`
   is the acting character, from its `characters` row
-  (`TalesForge.Characters.put_sheet/1`, when the session is loaded).
+  (`TalesForge.Characters.put_sheet/1`, when the session is loaded); the
+  turn plays its Intention (`intention`, `by: :human`).
   """
   @spec new({GameSession.t(), integer()}, {String.t(), PlayerAction.t()}, keyword()) :: t()
   def new({%GameSession{} = session, number}, {raw_action, %PlayerAction{} = intent}, opts \\ []) do
@@ -90,6 +94,7 @@ defmodule TalesForge.Game.Turn do
       raw_action: raw_action,
       history_action: if(injected, do: HistoryStrip.placeholder(), else: raw_action),
       intent: intent,
+      intention: Intention.human(actor_id(session.world_state), intent),
       role: Keyword.get_lazy(opts, :role, &TalesForge.AppRole.role/0),
       opts: opts,
       flags: flags,
@@ -123,4 +128,9 @@ defmodule TalesForge.Game.Turn do
   @spec result(t()) :: {:ok, map()} | {:error, term()}
   def result(%__MODULE__{narration: {:ok, _}, result: result}), do: result
   def result(%__MODULE__{narration: error}), do: error
+
+  # The acting character's slug; a world the rules cannot read fails inside
+  # the recorded rules step, not here.
+  defp actor_id(%{"character" => %{"id" => id}}), do: id
+  defp actor_id(_world), do: nil
 end

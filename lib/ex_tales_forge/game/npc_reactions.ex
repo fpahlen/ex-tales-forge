@@ -24,7 +24,8 @@ defmodule TalesForge.Game.NpcReactions do
 
   The reactions go to the GM as one short line per NPC in the per-turn section
   (`prompt_section/1`); the mood carries over in the session's
-  `world_state["npc_moods"]`. Each call is an `ai_calls` row with
+  `world_state["npc_moods"]`, applied by the turn as `{:feel, mood}`
+  Intentions (`intentions/1`). Each call is an `ai_calls` row with
   call_type `jev`, purpose `npc_reaction`.
   """
 
@@ -34,6 +35,7 @@ defmodule TalesForge.Game.NpcReactions do
 
   alias TalesForge.AICalls
   alias TalesForge.Config
+  alias TalesForge.Intention
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Scene, Turn}
@@ -121,21 +123,31 @@ defmodule TalesForge.Game.NpcReactions do
   end
 
   @doc """
-  Reactions of the NPCs present in the world of `moment` this turn, and the
-  world with their moods carried over in `"npc_moods"`. Returns
-  `{reactions, world}`; `{[], world}` when off, nobody is present, or every
-  call failed.
+  Reactions of the NPCs present in the world of `moment` this turn; `[]`
+  when off, nobody is present, or every call failed. Writes nothing: the
+  turn applies the moods as Intentions (`intentions/1`).
   """
-  @spec react(Moment.t()) :: {[reaction()], map()}
-  def react(%Moment{world: world} = moment) do
+  @spec react(Moment.t()) :: [reaction()]
+  def react(%Moment{} = moment) do
     case reacting(moment) do
-      [] ->
-        {[], world}
+      [] -> []
+      npcs -> run_all(npcs, seen(moment))
+    end
+  end
 
-      npcs ->
-        moment = seen(moment)
-        reactions = run_all(npcs, moment)
-        {reactions, put_moods(world, moment.moods, reactions)}
+  @doc """
+  Each reaction as a `{:feel, mood}` Intention of its NPC: the mood that
+  carries over in `world_state["npc_moods"]`.
+
+      iex> [i] = TalesForge.Game.NpcReactions.intentions([%{"npc_id" => "innkeep", "emotion" => "wary", "intensity" => 0.5, "stance" => "cool", "confidence" => 0.7, "turn_number" => 3, "name" => "Brenna"}])
+      iex> {i.character_id, i.by, i.action}
+      {"innkeep", :system, {:feel, %{"emotion" => "wary", "intensity" => 0.5, "stance" => "cool", "confidence" => 0.7, "turn_number" => 3}}}
+  """
+  @spec intentions([reaction()]) :: [Intention.t()]
+  def intentions(reactions) do
+    for r <- reactions do
+      mood = Map.take(r, ~w(emotion intensity stance confidence turn_number))
+      Intention.system(r["npc_id"], {:feel, mood}, nil)
     end
   end
 
@@ -376,21 +388,6 @@ defmodule TalesForge.Game.NpcReactions do
       "confidence" => min_confidence([confidence[:emotion], confidence[:stance]]),
       "turn_number" => turn_number
     }
-  end
-
-  defp put_moods(world, _moods, []), do: world
-
-  defp put_moods(world, moods, reactions) do
-    updated =
-      Enum.reduce(reactions, moods, fn r, acc ->
-        Map.put(
-          acc,
-          r["npc_id"],
-          Map.take(r, ~w(emotion intensity stance confidence turn_number))
-        )
-      end)
-
-    Map.put(world, "npc_moods", updated)
   end
 
   # The Jev call of turn `{session_id, turn_number}` as an AI call row, with

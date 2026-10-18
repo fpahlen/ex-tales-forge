@@ -29,7 +29,7 @@ defmodule TalesForge.Characters.Thought do
   require Logger
 
   alias TalesForge.Characters
-  alias TalesForge.Characters.Memory
+  alias TalesForge.Characters.{Memory, Moment}
   alias TalesForge.LLM
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, SessionEvent, Turn}
@@ -45,23 +45,6 @@ defmodule TalesForge.Characters.Thought do
   in the memories. Reply as JSON: {"thought": "..."}.
   """
 
-  defmodule Moment do
-    @moduledoc """
-    The turn a thought may come from: the session, the turn number, the
-    turn's events, the world after the turn and the CHARACTER_MEMORY mode.
-    """
-    defstruct [:session_id, :turn_number, events: [], world: %{}, mode: :off]
-
-    @typedoc "The turn a thought may come from."
-    @type t :: %__MODULE__{
-            session_id: Ecto.UUID.t(),
-            turn_number: integer(),
-            events: [map()],
-            world: map(),
-            mode: :off | :shadow | :on
-          }
-  end
-
   @typedoc "A trigger: who or what the thought is about, with the memories."
   @type trigger ::
           {:person, Character.t(), [CharacterMemory.t()]}
@@ -74,7 +57,7 @@ defmodule TalesForge.Characters.Thought do
   def for_turn(%Moment{mode: :off}), do: nil
 
   def for_turn(%Moment{session_id: session_id} = moment) do
-    with %Character{} = pc <- pc(session_id),
+    with %Character{} = pc <- actor(moment),
          scene = scene_key(session_id, moment.world),
          trigger when not is_nil(trigger) <- trigger(moment, pc, scene),
          {:ok, text} <- text(pc, trigger, moment) do
@@ -176,8 +159,11 @@ defmodule TalesForge.Characters.Thought do
     "#{world["location_id"]}:#{travel || 0}"
   end
 
-  defp pc(session_id),
-    do: session_id |> Characters.list_for_session() |> Enum.find(&(&1.controller != "gm"))
+  # The character whose Intention the turn played.
+  defp actor(%Moment{actor: nil}), do: nil
+
+  defp actor(%Moment{session_id: session_id, actor: slug}),
+    do: Characters.get_by_slug(session_id, slug)
 
   # -- text ----------------------------------------------------------------
 

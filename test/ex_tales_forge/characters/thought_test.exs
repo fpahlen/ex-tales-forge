@@ -2,7 +2,7 @@ defmodule TalesForge.Characters.ThoughtTest do
   use TalesForge.DataCase, async: false
 
   alias TalesForge.Characters
-  alias TalesForge.Characters.Thought
+  alias TalesForge.Characters.{Moment, Thought}
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.Repo
@@ -114,8 +114,9 @@ defmodule TalesForge.Characters.ThoughtTest do
   end
 
   defp moment(session, events, world, turn_number, mode),
-    do: %Thought.Moment{
+    do: %Moment{
       session_id: session.id,
+      actor: get_in(session.world_state, ["character", "id"]),
       events: events,
       world: world,
       turn_number: turn_number,

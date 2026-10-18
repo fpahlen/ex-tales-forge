@@ -28,7 +28,7 @@ defmodule TalesForge.Game.Turn.Adapters do
             character_rules: &TalesForge.Characters.Defaults.rules/1
 
   @type t :: %__MODULE__{
-          npc: (TalesForge.Game.NpcReactions.Moment.t() -> {[map()], map()}),
+          npc: (TalesForge.Game.NpcReactions.Moment.t() -> [map()]),
           gm: function(),
           stream: (String.t(), String.t() -> term()),
           profiles: (String.t(), [String.t()] -> [map()]),

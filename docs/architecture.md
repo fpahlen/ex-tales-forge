@@ -94,17 +94,21 @@ submit_message
        Inventory.apply_transaction (pure; a trade between the character and an NPC trader, both GameCharacters; Turn.Board loads the traders with NPC.traders/2 and saves them with NPC.put_inventories/2)
        WorldClock.advance(+1)
        NPC.apply_gm_updates (npc_memory_updates)
-       persist GameSession + Turn
+       NpcReactions → {:feel, mood} Intentions → Turn.Intentions.feel (npc_moods)
+       persist GameSession + Turn, and in the same transaction
+         NPCSignals.intentions → Turn.Intentions.apply_all (present NPCs only)
        NPCRegistry.sync
-       NPCSignals.emit_turn_signals
+       PubSub {:npc_initiative, payload} for any NPC that spoke up
        PubSub {:turn_completed, payload}
 ```
 
 NPC agency today is **present-only**:
 
-- `world.time.passed` → `ReactToTime` → `AdjustConcern` (priority +1 every 4 wait ticks) → `EmitInitiative` if priority ≥ 8 and wait ≥ 4.
-- `player.talked_to` → memory + relationship +0.05.
-- `conversation.message` → overheard memory for non-target present NPCs.
+Each turn gives every present NPC `TalesForge.Intention`s (`by: :system`), which the turn applies in its transaction (`Turn.Intentions`); nothing that makes an Intention writes state:
+
+- `ReactToTime` → `{:wait, delta}` (`NPC.adjust_concern`: priority +1 every 4 wait ticks) then `:speak_up` (`NPCInitiative.speak_up`) if priority ≥ 8 and wait ≥ 4.
+- `OnPlayerTalked` (the speak target) → `{:remember, _}` + `{:warm, 0.05}`.
+- `OnOverheard` → overheard memory for non-target present NPCs.
 - Memories: last 20 on the instance; last 5 concatenated into the table GM prompt via `NPC.format_gm_sections/2`. **Only present NPCs.** Distant facts rot out of the prompt.
 
 Marta (`priv/npcs/marta_kellen.json`) has `agency_tier: "normal"`, OCEAN, and `current_concern: {focus: "missing ledger", priority: 8}`. After four ticks of worry she speaks about the ledger (`NPC.initiative_text/1`). That is a person with a concern — not a plan with scouts, coin, and a portent.
@@ -247,18 +251,18 @@ The hole: there is no `outcome_bounds` structure. Social skills (intimidation, p
 ```mermaid
 flowchart LR
   TP[TurnProcessor] --> Persist
-  Persist --> Sync[NPCRegistry.sync]
-  Sync --> Sig[NPCSignals]
-  Sig -->|"world.time.passed"| RT[ReactToTime]
-  Sig -->|"player.talked_to"| Talk[OnPlayerTalked]
-  Sig -->|"conversation.message"| Over[OnOverheard]
-  RT --> Adj[AdjustConcern]
-  Adj --> Emit[EmitInitiative]
-  Emit --> PS[PubSub npc_initiative]
+  Persist --> Sig[NPCSignals.intentions]
+  Sig -->|"time passed"| RT[ReactToTime]
+  Sig -->|"spoken to"| Talk[OnPlayerTalked]
+  Sig -->|"overheard"| Over[OnOverheard]
+  RT --> Apply[Turn.Intentions.apply_all]
+  Talk --> Apply
+  Over --> Apply
+  Apply -->|"after commit"| PS[PubSub npc_initiative]
   PS --> LV[PlayLive narrative log]
 ```
 
-The shape is right (signals, rule-based concern, persist then notify). The scope is wrong: present people only, no resources, no hidden events.
+The shape is right (Intentions, rule-based concern, persist then notify). The scope is wrong: present people only, no resources, no hidden events.
 
 ### Pack vs runtime (keep the split)
 
