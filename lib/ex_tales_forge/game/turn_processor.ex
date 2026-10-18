@@ -54,8 +54,8 @@ defmodule TalesForge.Game.TurnProcessor do
 
   Without them the GM prompt is byte-identical to before.
   """
-  @spec run(String.t(), String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
-  def run(session_id, raw_action, player_action_map, opts \\ []) do
+  @spec run(String.t(), {String.t(), map()}, keyword()) :: {:ok, map()} | {:error, term()}
+  def run(session_id, {raw_action, player_action_map}, opts \\ []) do
     started = System.monotonic_time(:millisecond)
 
     case Repo.get(GameSession, session_id) do
@@ -79,12 +79,17 @@ defmodule TalesForge.Game.TurnProcessor do
             |> Turn.result()
           end)
 
-        Steps.record(steps, session_id, turn_number, Tags.for_world(session.world_state))
-        finish(result, session_id, turn_number, started)
+        Steps.record(steps, {session_id, turn_number}, Tags.for_world(session.world_state))
+        finish(result, %{session_id: session_id, turn_number: turn_number, started: started})
     end
   end
 
-  defp finish({:ok, payload}, session_id, turn_number, started) do
+  # `at` has the session id, the turn number and when the turn started.
+  defp finish({:ok, payload}, %{
+         session_id: session_id,
+         turn_number: turn_number,
+         started: started
+       }) do
     elapsed = System.monotonic_time(:millisecond) - started
 
     Logger.info(
@@ -95,13 +100,16 @@ defmodule TalesForge.Game.TurnProcessor do
     {:ok, payload}
   end
 
-  defp finish({:error, reason} = err, session_id, _turn_number, _started) do
+  defp finish({:error, reason} = err, %{session_id: session_id}) do
     Logger.error("turn processor failed session=#{session_id} reason=#{inspect(reason)}")
     SessionPubSub.broadcast(session_id, {:turn_failed, SessionPubSub.failure_reason(reason)})
     err
   end
 
-  defp finish({:crash, kind, reason, stacktrace}, session_id, turn_number, _started) do
+  defp finish({:crash, kind, reason, stacktrace}, %{
+         session_id: session_id,
+         turn_number: turn_number
+       }) do
     Logger.error(
       "turn processor crashed session=#{session_id} turn=#{turn_number}\n" <>
         Exception.format(kind, reason, stacktrace)

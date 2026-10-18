@@ -55,7 +55,7 @@ defmodule TalesForge.Game.HistoryStripTest do
       "confidence" => 0.9
     }
 
-    {:ok, _} = TurnProcessor.run(session.id, @text, action)
+    {:ok, _} = TurnProcessor.run(session.id, {@text, action})
 
     {before, Repo.get!(GameSession, session.id).world_state,
      Repo.get_by!(Turn, game_session_id: session.id)}

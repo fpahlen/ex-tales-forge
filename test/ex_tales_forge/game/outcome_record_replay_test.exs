@@ -79,7 +79,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
 
   defp play(session_id, step) do
     before = outcome_events(session_id)
-    assert {:ok, _payload} = TurnProcessor.run(session_id, step["text"], step["player_action"])
+    assert {:ok, _payload} = TurnProcessor.run(session_id, {step["text"], step["player_action"]})
     assert_received {:gm_prompt, prompt}
 
     [record] = outcome_events(session_id) -- before
@@ -180,7 +180,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
       step = Enum.find(fixture["cases"], &(&1["id"] == "h-fp14-sell"))
       session = session(fixture["adventure_id"], fixture["start"])
 
-      assert {:ok, _} = TurnProcessor.run(session.id, step["text"], step["player_action"])
+      assert {:ok, _} = TurnProcessor.run(session.id, {step["text"], step["player_action"]})
       assert_received {:gm_prompt, prompt}
       refute prompt =~ @heading
 
