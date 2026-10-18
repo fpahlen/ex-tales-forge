@@ -387,11 +387,30 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
       "notes" => handler.notes
     }
 
-    case handler.state_hints do
-      %{"reason" => reason} when is_binary(reason) -> Map.put(payload, "reason", reason)
-      _ -> payload
-    end
+    hints = handler.state_hints || %{}
+
+    payload
+    |> put_hint("reason", hints["reason"])
+    |> put_hint("trade", trade_line(hints["trade"]))
   end
+
+  defp put_hint(payload, _key, nil), do: payload
+  defp put_hint(payload, key, text) when is_binary(text), do: Map.put(payload, key, text)
+  defp put_hint(payload, _key, _other), do: payload
+
+  # The board's decision on a buy or a sale (`TalesForge.Game.Turn.Board.trade_outcome/2`):
+  # the GM narrates that outcome and no other.
+  defp trade_line(%{"status" => "done", "detail" => detail}),
+    do:
+      "The server made this trade: #{detail}. The item and the coins have changed hands; " <>
+        "narrate it as done, and the trader does not refuse it."
+
+  defp trade_line(%{"status" => "refused", "detail" => detail}),
+    do:
+      "The server refused this trade: #{detail} No item and no coins changed hands; " <>
+        "narrate no payment and no handover, and name no price or goods the reason does not."
+
+  defp trade_line(_trade), do: nil
 end
 
 defmodule TalesForge.Prompt.Sections.NoticedDetails do

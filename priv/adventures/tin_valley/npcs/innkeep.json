@@ -21,11 +21,15 @@
   "stock": [
     {
       "id": "ale_mug",
-      "name": "Mug of Ale",
+      "name": "Ale",
       "price_copper": 2,
-      "quantity": 99
+      "quantity": 72
     }
   ],
+  "serves": ["ale_mug"],
+  "lends": ["mug"],
+  "buys": [],
+  "coins": {"gold": 2},
   "maslow": "belonging",
   "concerns": [
     {

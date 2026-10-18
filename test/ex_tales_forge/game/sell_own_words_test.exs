@@ -8,6 +8,10 @@ defmodule TalesForge.Game.SellOwnWordsTest do
   Playtest v319 on 2026-10-18 (drift session 464229eb, turns 3 and 4):
   "I sell my mug of ale to Brenna for 2 copper" was a sale with no item,
   rejected with "Sell requires parameters.item_id.", and the mug stayed.
+
+  The shipped Brenna serves her ale and lends the mug, so nothing she sells
+  can be sold back (`TalesForge.Game.TradeTest`). These tests are about the
+  words, so their Brenna sells ale by the mug and buys it back.
   """
   use TalesForge.DataCase, async: false
 
@@ -39,6 +43,7 @@ defmodule TalesForge.Game.SellOwnWordsTest do
     {:ok, session} =
       GameSessions.create_session(%{name: "Sell", adventure_id: "tin_valley", intent_jev: "on"})
 
+    mug_trader(session)
     start = coins(session)
     play(session, "I buy a mug of ale from Brenna.", :buy, %{"ale_mug" => 0.9})
     assert {ale(session), coins(session)} == {1, start - 2}
@@ -114,5 +119,18 @@ defmodule TalesForge.Game.SellOwnWordsTest do
 
   defp ale(session) do
     Enum.find_value(sheet(session)["inventory"], 0, &(&1["id"] == "ale_mug" && &1["quantity"]))
+  end
+
+  # Brenna as a trader in mugs of ale: she buys them back, and a mug bought
+  # is carried away.
+  defp mug_trader(session) do
+    row =
+      TalesForge.Repo.get_by!(TalesForge.Schemas.Character,
+        game_session_id: session.id,
+        slug: "innkeep"
+      )
+
+    definition = row.definition |> Map.drop(["serves", "lends"]) |> Map.put("buys", ["ale_mug"])
+    row |> Ecto.Changeset.change(definition: definition) |> TalesForge.Repo.update!()
   end
 end

@@ -10,7 +10,7 @@ defmodule TalesForge.World.Instance do
   `TalesForge.World.TaskSupervisor`, so its mailbox stays free while the GM
   call runs. The Task is linked to the instance: when the instance dies, the
   turn dies with it and its transaction rolls back, and the caller gets an
-  error that Oban retries.
+  error. The turn job does not retry it (`TalesForge.Workers.ProcessTurn`).
 
   The instance is started on the first `run_turn/2` under
   `TalesForge.World.Supervisor` (`restart: :transient`), registered in
@@ -88,7 +88,7 @@ defmodule TalesForge.World.Instance do
   `TurnProcessor.run/3` returned; a turn that raised raises again here, with
   its stacktrace, as it did in the caller before. Starts the instance when
   none runs. An instance or Task that dies gives
-  `{:error, {:turn_down, reason}}`, which Oban retries.
+  `{:error, {:turn_down, reason}}`.
   """
   @spec run_turn(Ecto.UUID.t(), TurnRequest.t()) :: {:ok, map()} | {:error, term()}
   def run_turn(session_id, %TurnRequest{session_id: session_id} = request) do

@@ -132,7 +132,8 @@ defmodule TalesForge.World.InstanceTest do
     refute Process.alive?(killed)
     assert turns(session.id) == []
 
-    # Oban's retry starts a new instance and plays the turn once.
+    # The next turn job (the player acts again) starts a new instance and
+    # plays the turn once.
     assert :ok = ProcessTurn.perform(job(session.id, "I wait"))
     assert turns(session.id) == [{1, "I wait"}]
     assert Instance.whereis(session.id) not in [nil, killed]

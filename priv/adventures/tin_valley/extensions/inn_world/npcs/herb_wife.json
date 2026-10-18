@@ -27,6 +27,7 @@
     "She knows orc ways from her girlhood: they raid for food and iron and leave sign on what they take.",
     "She would pay in salves for help gathering moss and roots on the west road, where she no longer goes alone."
   ],
+  "buys": ["poultice"],
   "stock": [
     {
       "id": "poultice",

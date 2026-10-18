@@ -26,6 +26,7 @@
     "She reads the marks on tin and tools: Guild stamps, old miners' tallies, the hand sign cut above the old workings.",
     "She has been buying cheap tin at her back door after dark. Asked kindly she will admit it; pushed hard she shuts the forge."
   ],
+  "buys": ["hunting_knife", "spearhead", "short_sword"],
   "stock": [
     {
       "id": "hunting_knife",

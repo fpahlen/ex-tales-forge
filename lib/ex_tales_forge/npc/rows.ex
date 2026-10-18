@@ -64,24 +64,23 @@ defmodule TalesForge.NPC.Rows do
   A row without a relationship yet gets it to the session's player character.
   """
   @spec update!(Person.t(), map()) :: Person.t()
-  def update!(%Person{} = person, runtime_state), do: save!(person, runtime_state, %{})
-
-  @doc """
-  Saves the inventory and the coins of `trader` (the NPC after a trade,
-  `TalesForge.NPC.traders/2`) as the NPC's stock and coins.
-  """
-  @spec put_goods!(Person.t(), GameCharacter.t()) :: Person.t()
-  def put_goods!(%Person{} = person, %GameCharacter{inventory: inventory, coins: coins}),
-    do: save!(person, Map.put(person.runtime_state, "stock", inventory), %{coins: coins})
-
-  defp save!(%Person{row: row} = person, runtime_state, columns) do
+  def update!(%Person{row: row} = person, runtime_state) do
     row =
       row
-      |> Character.changeset(Map.merge(Person.attrs(row, runtime_state, pc_slug(row)), columns))
+      |> Character.changeset(Person.attrs(row, runtime_state, pc_slug(row)))
       |> Repo.update!()
 
     %Person{person | row: row, runtime_state: runtime_state}
   end
+
+  @doc """
+  Saves the inventory and the coins of `trader` (the NPC after a trade,
+  `TalesForge.NPC.traders/2`) as the NPC's stock and purse.
+  """
+  @spec put_goods!(Person.t(), GameCharacter.t()) :: Person.t()
+  def put_goods!(%Person{} = person, %GameCharacter{inventory: inventory, coins: coins}),
+    do:
+      update!(person, Map.merge(person.runtime_state, %{"stock" => inventory, "coins" => coins}))
 
   @doc "The changeset of `update!/2`, for a Multi."
   @spec changeset(Person.t(), map()) :: Ecto.Changeset.t()

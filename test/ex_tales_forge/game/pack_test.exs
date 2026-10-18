@@ -229,7 +229,8 @@ defmodule TalesForge.Game.PackTest do
         |> Enum.find(&(&1["id"] == "ale_mug"))
 
       assert ale["price_copper"] == 2
-      assert ale["quantity"] == 99
+      assert ale["quantity"] == 72
+      assert brenna.runtime_state["coins"] == %{"gold" => 2}
     end
   end
 
