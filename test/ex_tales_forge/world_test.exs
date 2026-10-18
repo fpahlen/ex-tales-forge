@@ -16,7 +16,6 @@ defmodule TalesForge.WorldTest do
   alias TalesForge.Game.{Context, Intent, Prompts, TurnProcessor}
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.LLM
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Schemas.AICall
@@ -26,7 +25,6 @@ defmodule TalesForge.WorldTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       for k <- ~w(WORLD_AGENTS XAI_API_KEY), do: System.delete_env(k)
       Application.delete_env(:ex_tales_forge, :world_extract_mode)
       System.put_env("LLM_PROVIDER", "mock")

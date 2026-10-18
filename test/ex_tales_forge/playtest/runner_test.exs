@@ -7,7 +7,6 @@ defmodule TalesForge.Playtest.RunnerTest do
 
   alias TalesForge.GameSessions
   alias TalesForge.GMReasoning
-  alias TalesForge.Jido
   alias TalesForge.Playtest.Runner
   alias TalesForge.Schemas.{AICall, GameSession, Scene, SessionEvent, Turn}
 
@@ -18,7 +17,6 @@ defmodule TalesForge.Playtest.RunnerTest do
       for pid <- Task.Supervisor.children(TalesForge.Playtest.Supervisor),
           do: Task.Supervisor.terminate_child(TalesForge.Playtest.Supervisor, pid)
 
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("XAI_API_KEY")
       System.delete_env("TIER1_HEURISTIC_THRESHOLD")

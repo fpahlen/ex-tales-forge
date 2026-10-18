@@ -14,7 +14,6 @@ defmodule TalesForge.Game.NpcReactionsTest do
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.Turn.Intentions
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Schemas.AICall
@@ -50,7 +49,6 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       for k <- ~w(NPC_REACTIONS NPC_REACTIONS_TIMEOUT_MS XAI_API_KEY), do: System.delete_env(k)
       System.put_env("LLM_PROVIDER", "mock")
       Application.put_env(:jev, :api_key, nil)

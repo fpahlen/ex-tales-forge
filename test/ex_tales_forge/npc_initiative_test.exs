@@ -8,21 +8,12 @@ defmodule TalesForge.NPCInitiativeTest do
   alias TalesForge.Game.Turn.Intentions
   alias TalesForge.GameSessions
   alias TalesForge.Intention
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.NPCInitiative
   alias TalesForge.NPCSignals
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.NpcInstance
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   # A finished turn of `session` in which `delta` ticks passed.
   defp turn(session, handler, raw_action, delta \\ 0) do

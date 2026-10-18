@@ -4,16 +4,10 @@ defmodule TalesForge.Characters.MemoryTest do
   alias TalesForge.Characters
   alias TalesForge.Characters.{Memory, Moment}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, SessionEvent}
 
   doctest Memory
-
-  setup do
-    on_exit(fn -> for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id) end)
-    :ok
-  end
 
   test "a pack interests list replaces the defaults" do
     c = %Character{definition: %{"interests" => ["ore"]}, ocean: nil, concerns: []}

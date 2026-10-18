@@ -21,7 +21,6 @@ defmodule TalesForge.Game.SceneChangeTest do
   alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Schemas.GameSession
 
@@ -34,7 +33,6 @@ defmodule TalesForge.Game.SceneChangeTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.delete_env("XAI_API_KEY")
       System.put_env("LLM_PROVIDER", "mock")
     end)

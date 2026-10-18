@@ -4,18 +4,9 @@ defmodule TalesForge.NPCTest do
   alias TalesForge.Game.Schemas.GMStructuredResponse
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.NpcInstance
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   test "create_session seeds NpcInstance rows from priv/npcs" do
     assert {:ok, session} = GameSessions.create_session(%{name: "NPC Seed"})

@@ -8,7 +8,6 @@ defmodule TalesForge.Game.InnWorldTest do
 
   alias TalesForge.GameSessions
   alias TalesForge.Game.{Features, Pack}
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
@@ -28,8 +27,6 @@ defmodule TalesForge.Game.InnWorldTest do
       for {key, value} <- previous do
         if value, do: System.put_env(key, value), else: System.delete_env(key)
       end
-
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
     end)
 
     # These tests read the world without the place tree (default on).

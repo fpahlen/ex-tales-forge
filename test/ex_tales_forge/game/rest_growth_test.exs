@@ -14,7 +14,6 @@ defmodule TalesForge.Game.RestGrowthTest do
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Reflection
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Schemas.GameSession
 
   doctest Context, only: [rest_growth_section: 1]
@@ -26,8 +25,6 @@ defmodule TalesForge.Game.RestGrowthTest do
     mode = Application.get_env(:ex_tales_forge, :intent_jev)
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
       if mode,
         do: Application.put_env(:ex_tales_forge, :intent_jev, mode),
         else: Application.delete_env(:ex_tales_forge, :intent_jev)

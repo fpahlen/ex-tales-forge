@@ -4,17 +4,8 @@ defmodule TalesForge.CharactersTest do
   alias TalesForge.Characters
   alias TalesForge.Game.Pack
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, GameSession, SessionEvent}
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   defp create(attrs) do
     {:ok, session} = GameSessions.create_session(Map.merge(%{name: "Characters"}, attrs))

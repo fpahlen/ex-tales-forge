@@ -9,7 +9,6 @@ defmodule TalesForge.Game.VitalityTest do
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.Game.Turn.Board
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 
@@ -22,14 +21,6 @@ defmodule TalesForge.Game.VitalityTest do
     "wound_max" => 3,
     "vitality" => "ok"
   }
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   test "no harm stamps ok vitality and wound_max from CON" do
     world = apply_to(%{"stats" => %{"CON" => 18}}, none())

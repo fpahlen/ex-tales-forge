@@ -13,14 +13,12 @@ defmodule TalesForge.GMOutputTrimTest do
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction}
   alias TalesForge.GameSessions
   alias TalesForge.GMReasoning
-  alias TalesForge.Jido
   alias TalesForge.LLM
   alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.delete_env("LLM_PROVIDER")
       System.delete_env("XAI_API_KEY")
     end)

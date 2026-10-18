@@ -9,16 +9,11 @@ defmodule TalesForge.CharactersSyncTest do
   alias TalesForge.Game.{ActionHandler, Intent, TurnProcessor}
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, GameSession, NpcInstance, PlaytestRun}
 
   setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, session} = GameSessions.create_session(%{name: "Sync", adventure_id: "tin_valley"})
     %{session: session}
   end

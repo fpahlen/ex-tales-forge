@@ -4,7 +4,6 @@ defmodule TalesForge.Playtest.ScorerTest do
   import ExUnit.CaptureLog
   import TalesForge.PlaytestHelpers
 
-  alias TalesForge.Jido
   alias TalesForge.Playtest.{Reports, Runner, Scorer}
   alias TalesForge.Schemas.{AICall, PlaytestScore}
 
@@ -17,7 +16,6 @@ defmodule TalesForge.Playtest.ScorerTest do
       for pid <- Task.Supervisor.children(TalesForge.Playtest.Supervisor),
           do: Task.Supervisor.terminate_child(TalesForge.Playtest.Supervisor, pid)
 
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("XAI_API_KEY")
       Application.delete_env(:ex_tales_forge, :playtest_runner_enabled)

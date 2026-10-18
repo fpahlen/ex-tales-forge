@@ -8,7 +8,6 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
 
   alias TalesForge.GameSessions
   alias TalesForge.NPC
-  alias TalesForge.Jido
   alias TalesForge.Repo
 
   alias TalesForge.Schemas.{
@@ -29,7 +28,6 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
       for pid <- Task.Supervisor.children(TalesForge.Playtest.Supervisor),
           do: Task.Supervisor.terminate_child(TalesForge.Playtest.Supervisor, pid)
 
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       Application.delete_env(:ex_tales_forge, :playtest_runner_enabled)
     end)
 

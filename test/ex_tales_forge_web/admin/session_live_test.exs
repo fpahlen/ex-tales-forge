@@ -5,13 +5,8 @@ defmodule TalesForgeWeb.AdminLive.SessionLiveTest do
 
   alias TalesForge.Admin
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
 
   setup %{conn: conn} do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, conn: log_in_admin(conn)}
   end
 

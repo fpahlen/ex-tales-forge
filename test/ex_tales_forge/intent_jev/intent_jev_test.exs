@@ -11,7 +11,6 @@ defmodule TalesForge.IntentJevTest do
   alias TalesForge.GameSessions
   alias TalesForge.IntentJev
   alias TalesForge.IntentJev.Read
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.AICall
 
@@ -29,7 +28,6 @@ defmodule TalesForge.IntentJevTest do
     endpoints = Application.get_env(:jev, :endpoints)
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       Application.put_env(:jev, :endpoints, endpoints)
       Application.delete_env(:ex_tales_forge, :intent_jev)
       System.put_env("LLM_PROVIDER", "mock")

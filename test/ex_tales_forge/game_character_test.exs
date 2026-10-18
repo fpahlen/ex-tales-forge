@@ -18,7 +18,6 @@ defmodule TalesForge.GameCharacterTest do
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameCharacter
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 
@@ -41,7 +40,6 @@ defmodule TalesForge.GameCharacterTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.delete_env("XAI_API_KEY")
       System.put_env("LLM_PROVIDER", "mock")
     end)

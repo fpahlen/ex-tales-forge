@@ -2,17 +2,8 @@ defmodule TalesForge.GameSessionsTest do
   use TalesForge.DataCase, async: false
 
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, Turn}
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   test "submit_message enqueues a turn and persists GM narration" do
     assert {:ok, session} = GameSessions.create_session(%{name: "Test Session"})

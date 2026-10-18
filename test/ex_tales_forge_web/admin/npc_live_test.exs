@@ -5,13 +5,8 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
 
   alias TalesForge.Admin
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
 
   setup %{conn: conn} do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, session} = GameSessions.create_session(%{name: "NPC Live Test"})
     [npc | _] = Admin.list_npc_instances(session.id)
 

@@ -12,7 +12,6 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.WorldSim
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
@@ -23,10 +22,6 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   @secret_what "tore the tin corner from the guild post; I will have them killed"
 
   setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, session} =
       GameSessions.create_session(%{name: "Tin Valley", adventure_id: "tin_valley"})
 

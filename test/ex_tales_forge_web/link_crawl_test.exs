@@ -13,7 +13,6 @@ defmodule TalesForgeWeb.LinkCrawlTest do
   use TalesForgeWeb.ConnCase, async: false
 
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{PlaytestRun, PlaytestScore, Turn}
 
@@ -21,7 +20,6 @@ defmodule TalesForgeWeb.LinkCrawlTest do
 
   setup %{conn: conn} do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       Application.delete_env(:ex_tales_forge, :code_docs_dir)
       Application.delete_env(:ex_tales_forge, :tales_forge_docs_path)
     end)

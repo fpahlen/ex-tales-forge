@@ -84,7 +84,6 @@ defmodule TalesForge.MixProject do
       {:assent, "~> 0.3.1"},
       # Web push (VAPID, RFC 8291 aes128gcm) for the installed team app
       {:web_push_ex, "~> 0.2"},
-      {:jido, "~> 2.3"},
       {:time_zone_info, "~> 0.7"},
       {:oban, "~> 2.23"},
       {:telemetry_metrics, "~> 1.0"},

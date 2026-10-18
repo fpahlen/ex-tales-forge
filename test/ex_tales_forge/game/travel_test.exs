@@ -4,7 +4,6 @@ defmodule TalesForge.Game.TravelTest do
 
   alias TalesForge.Game.{Pack, Travel}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 
@@ -74,7 +73,6 @@ defmodule TalesForge.Game.TravelTest do
 
       on_exit(fn ->
         for {k, v} <- previous, do: if(v, do: System.put_env(k, v), else: System.delete_env(k))
-        for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       end)
 
       :ok

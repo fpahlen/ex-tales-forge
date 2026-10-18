@@ -6,7 +6,7 @@ status: draft
 
 # Call types: Elixir function, Jev, or LLM
 
-**Status:** draft, 2026-10-07. Agreed rule for the Tales Forge app ([whyse-ab/ex-tales-forge](https://github.com/whyse-ab/ex-tales-forge), Elixir/Phoenix/Jido).
+**Status:** draft, 2026-10-07. Agreed rule for the Tales Forge app ([whyse-ab/ex-tales-forge](https://github.com/whyse-ab/ex-tales-forge), Elixir/Phoenix).
 
 Every piece of work in a turn is one of three call types. Pick by the shape of the input and the output.
 

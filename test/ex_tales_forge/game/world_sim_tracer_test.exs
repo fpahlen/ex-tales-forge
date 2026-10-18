@@ -12,7 +12,6 @@ defmodule TalesForge.Game.WorldSimTracerTest do
   alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.WorldSim
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.{FrontInstance, SessionEvent}
@@ -21,10 +20,6 @@ defmodule TalesForge.Game.WorldSimTracerTest do
   @hiring "The Miners Guild is hiring steel in the square — retainers with new spears, paid in advance."
 
   setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, session} =
       GameSessions.create_session(%{name: "Tin Valley", adventure_id: "tin_valley"})
 

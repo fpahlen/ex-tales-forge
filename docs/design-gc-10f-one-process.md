@@ -13,7 +13,7 @@ status: design for Case's review (no code)
 | Process | Owns | Notes |
 |---|---|---|
 | `NPCAgent` (Jido, one per present NPC per session) | A copy of mood, relationship, concern wait and initiative flags | Handles 3 signals through `Actions.NPC.*`, which write `npc_instances` and memories **outside** the turn transaction |
-| `PlayerSessionAgent` (Jido, one per session) | `turn_count` and `entries` | Started by `GameSessions.ensure_agent/1`; nothing reads it |
+| `PlayerSessionAgent` (Jido, one per session) | `turn_count` and `entries` | Started by `GameSessions.ensure_agent/1`; nothing reads it. *Retired in PR 3* |
 | `NPCRegistry.sync/1` | Starts and stops agents to match `present_npcs` | Runs at create, at submit and after every turn |
 | `NPCRecovery` (GenServer) | Syncs **every** active session at boot | Its cost grows with the number of sessions, not with the number of players |
 | `NPCSignals` | Calls each present agent with `AgentServer.call/2` after the commit | A missing agent drops the signal (logged at debug) |
@@ -72,7 +72,7 @@ There is one writer per session. Cron ticks and, later, several players use the 
 
 1. **Serialize.** Add `World.Instance`, `run_turn/2` and the advisory lock. `ProcessTurn` goes through the instance, and nothing else changes. The new test: two concurrent submits give turns 1 and 2 in order.
 2. **Retire the NPC agents.** With 10e, the agents' work already comes in as Intentions applied in the turn. Delete `NPCAgent`, `NPCRegistry` and `NPCRecovery`, and send `NpcInitiative`'s broadcast from the instance after the commit. `NPCSignals` and `Actions.NPC.*` stay: since 10e they only make the Intentions and deliver nothing to an agent. *(Done in PR 2: the payload carries `:npc_initiatives`, and `World.Instance` broadcasts them after the turn's `{:turn_completed, _}`.)*
-3. **Retire `PlayerSessionAgent`.** Delete it and `ensure_agent/1`. Remove the `jido` dependency (a `mix.lock` change, so it goes through the security lane and needs Fredrik's OK).
+3. **Retire `PlayerSessionAgent`.** Delete it and `ensure_agent/1`. Remove the `jido` dependency (a `mix.lock` change, so it goes through the security lane and needs Fredrik's OK). *(Done in PR 3: nothing read its `turn_count` or `entries`, so nothing moved to `World.Instance`. `TalesForge.Jido`, its supervision child and config, `ensure_agent_started/1` and `agent_id/1` are gone, and `mix deps.unlock --unused` took `jido` and the 8 packages only it used out of `mix.lock`. `rg Jido lib` finds nothing.)*
 4. **Drop `world_state["npc_state"]` and `"npc_moods"`** (Fredrik, 2026-10-18 08:16: with 10e/10f).
    - The 21 files that read them switch to the NPC GameCharacters from the rows.
    - `Schemas.WorldState.dump/1` leaves both keys out, the same pattern 10b-2 used for `"character"`. A session stored before this is read as stored until its next turn.

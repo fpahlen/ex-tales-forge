@@ -4,7 +4,6 @@ defmodule TalesForge.Playtest.JevScorerTest do
   import ExUnit.CaptureLog
   import TalesForge.PlaytestHelpers
 
-  alias TalesForge.Jido
   alias TalesForge.Playtest.{AffectLevels, JevScorer, Reports, Runner, Scorer}
   alias TalesForge.Schemas.AICall
 
@@ -16,7 +15,6 @@ defmodule TalesForge.Playtest.JevScorerTest do
       for pid <- Task.Supervisor.children(TalesForge.Playtest.Supervisor),
           do: Task.Supervisor.terminate_child(TalesForge.Playtest.Supervisor, pid)
 
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       Application.delete_env(:ex_tales_forge, :playtest_runner_enabled)
       Application.put_env(:jev, :api_key, nil)
       System.put_env("LLM_PROVIDER", "mock")

@@ -14,7 +14,6 @@ defmodule TalesForge.Game.PromptPrefixTest do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.LLM
   alias TalesForge.Prompt.Assemble
 
@@ -34,10 +33,6 @@ defmodule TalesForge.Game.PromptPrefixTest do
   ]
 
   setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     # Mock provider: the opening scene is written without an HTTP request.
     {:ok, a} = GameSessions.create_session(%{name: "Prefix A"})
     {:ok, b} = GameSessions.create_session(%{name: "Prefix B"})

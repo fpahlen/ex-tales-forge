@@ -119,7 +119,7 @@
            ]}
         ],
         disabled: [
-          # Nested module refs are common in Phoenix/Jido code; alias at top is optional
+          # Nested module refs are common in Phoenix code; alias at top is optional
           {Credo.Check.Design.AliasUsage, []}
         ]
       }

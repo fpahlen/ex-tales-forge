@@ -3,18 +3,9 @@ defmodule TalesForge.Game.GMOpeningPromptTest do
 
   alias TalesForge.Game.Context
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.Scene
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   test "GM turn prompt includes the opening scene, clearly labelled" do
     {:ok, session} = GameSessions.create_session(%{name: "GM Opening Prompt"})

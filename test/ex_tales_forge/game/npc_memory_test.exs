@@ -11,7 +11,6 @@ defmodule TalesForge.Game.NpcMemoryTest do
 
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent}
 
@@ -23,8 +22,6 @@ defmodule TalesForge.Game.NpcMemoryTest do
     saved = Map.new(@env, &{&1, System.get_env(&1)})
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
       Enum.each(saved, fn
         {key, nil} -> System.delete_env(key)
         {key, value} -> System.put_env(key, value)

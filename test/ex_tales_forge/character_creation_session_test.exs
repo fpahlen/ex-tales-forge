@@ -4,17 +4,8 @@ defmodule TalesForge.CharacterCreationSessionTest do
   alias TalesForge.CharacterCreation, as: CC
   alias TalesForge.Characters
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession}
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   defp created(adventure) do
     {:ok, d} = CC.new(adventure, seed_key: "s1") |> CC.choose_class("thief")

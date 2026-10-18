@@ -16,7 +16,6 @@ defmodule TalesForge.IntentJev.GmPromptGoldenTest do
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
 
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
 
   @dir Path.expand("../../fixtures/prompts/gm_turn", __DIR__)
@@ -27,7 +26,6 @@ defmodule TalesForge.IntentJev.GmPromptGoldenTest do
     mode = Application.get_env(:ex_tales_forge, :intent_jev)
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       Application.put_env(:jev, :endpoints, endpoints)
       restore(:intent_jev, mode)
       System.put_env("LLM_PROVIDER", "mock")

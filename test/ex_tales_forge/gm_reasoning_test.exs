@@ -10,7 +10,6 @@ defmodule TalesForge.GMReasoningTest do
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction}
   alias TalesForge.GameSessions
   alias TalesForge.GMReasoning
-  alias TalesForge.Jido
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
@@ -27,7 +26,6 @@ defmodule TalesForge.GMReasoningTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("XAI_API_KEY")
     end)

@@ -9,14 +9,8 @@ defmodule TalesForge.Game.RollRulesTest do
   alias TalesForge.Game.{ActionHandler, Context, Intent, Mechanics, NpcReactions, Prompts}
   alias TalesForge.Game.Schemas.{IntentExtraction, MechanicalResolution, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
 
   doctest Mechanics, only: [infer_check_skill: 1, untrained_floor: 1]
-
-  setup do
-    on_exit(fn -> for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id) end)
-    :ok
-  end
 
   defp session do
     {:ok, session} = GameSessions.create_session(%{name: "Rolls", adventure_id: "tin_valley"})

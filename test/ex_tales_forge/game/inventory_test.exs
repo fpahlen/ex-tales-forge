@@ -8,16 +8,7 @@ defmodule TalesForge.Game.InventoryTest do
   alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Repo
-  alias TalesForge.Jido
   alias TalesForge.Schemas.Turn
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   describe "coin and item primitives" do
     test "coin math" do
