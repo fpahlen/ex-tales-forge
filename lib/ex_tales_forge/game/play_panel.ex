@@ -6,52 +6,41 @@ defmodule TalesForge.Game.PlayPanel do
   calls this module so the domain layer does not reference the web layer.
   """
 
+  alias TalesForge.Game.Cast
   alias TalesForge.Game.Inventory
 
-  @doc "The people of the Present panel. See TalesForgeWeb.PlayComponents.present_npcs/1."
-  def present_npcs(world_state) when is_map(world_state) do
-    npc_state = Map.get(world_state, "npc_state") || %{}
-    npc_ids = living_present(world_state, npc_state)
-    foe_ids = minor_foes_here(npc_state, npc_ids, world_state["location_id"])
-    Enum.map(npc_ids ++ foe_ids, &person(&1, Map.get(npc_state, &1) || %{}))
+  @doc """
+  The people of the Present panel, from the world and the session's cast
+  (`TalesForge.Game.Cast`). See TalesForgeWeb.PlayComponents.present_npcs/2.
+  """
+  def present_npcs(world_state, cast) when is_map(world_state) and is_map(cast) do
+    listed = world_state |> Map.get("present_npcs", []) |> List.wrap()
+    living = Enum.reject(listed, &Cast.dead?(cast, &1))
+    others = Cast.others_here(cast, world_state["location_id"], listed)
+    Enum.map(living ++ others, &person(&1, cast[&1]))
   end
 
-  defp living_present(world_state, npc_state) do
-    world_state
-    |> Map.get("present_npcs", [])
-    |> List.wrap()
-    |> Enum.reject(&(get_in(npc_state, [&1, "vitality"]) == "dead"))
-  end
+  defp person(npc_id, nil), do: person(npc_id, %TalesForge.GameCharacter{slug: npc_id})
 
-  defp minor_foes_here(npc_state, npc_ids, location_id) do
-    npc_state
-    |> Enum.filter(&minor_foe_here?(&1, npc_ids, location_id))
-    |> Enum.map(&elem(&1, 0))
-    |> Enum.sort()
-  end
+  defp person(npc_id, member) do
+    detail = Cast.details(member)
 
-  defp minor_foe_here?({id, npc}, npc_ids, location_id) do
-    is_map(npc) and npc["minor"] == true and npc["vitality"] != "dead" and
-      id not in npc_ids and npc["location_id"] == location_id
-  end
-
-  defp person(npc_id, detail) do
     %{
       id: npc_id,
-      name: Map.get(detail, "name", npc_id),
-      role: Map.get(detail, "role", "present"),
-      concern_priority: Map.get(detail, "concern_priority", 0),
-      portrait_url: Map.get(detail, "portrait_url"),
-      wounds_label: wounds_label(detail)
+      name: detail["name"],
+      role: detail["role"],
+      concern_priority: detail["concern_priority"],
+      portrait_url: detail["portrait_url"],
+      wounds_label: wounds_label(member)
     }
   end
 
-  defp wounds_label(%{"vitality" => "dead"}), do: "dead"
+  defp wounds_label(%{vitality: "dead"}), do: "dead"
 
-  defp wounds_label(%{"wounds" => wounds} = detail) when is_integer(wounds) do
-    max = detail["wound_max"] || 3
+  defp wounds_label(%{wounds: wounds} = member) when is_integer(wounds) do
+    max = member.wound_max || 3
 
-    case {detail["vitality"], wounds} do
+    case {member.vitality, wounds} do
       {"down", _} -> "down · #{wounds}/#{max} wounds"
       {_, 0} -> nil
       _ -> "#{wounds}/#{max} wounds"

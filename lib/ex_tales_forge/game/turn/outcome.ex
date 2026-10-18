@@ -34,13 +34,8 @@ defmodule TalesForge.Game.Turn.Outcome do
   @spec persist(Turn.t()) :: Turn.t()
   def persist(%Turn{narration: {:ok, gm_result}} = turn) do
     %{board: booked, handler: handler, mechanical: mechanical} = turn.outcome
-    mismatches = prose_check(turn, gm_result.narrative, booked)
-    {board, repeats} = npc_memory(turn, booked, gm_result.narrative)
-
-    Gestures.log_repeats(gm_result.narrative, Map.get(turn.prompt.context, :recent_gestures),
-      session: turn.session.id,
-      turn: turn.number
-    )
+    {board, checks} = checked(turn, booked, gm_result.narrative)
+    log_gestures(turn, gm_result.narrative)
 
     result =
       Steps.time(:persist, fn ->
@@ -48,11 +43,7 @@ defmodule TalesForge.Game.Turn.Outcome do
           handler: handler,
           mechanical: mechanical,
           gm_result: gm_result,
-          events:
-            board.events ++
-              Premise.events(turn.premise.findings, board.world) ++
-              record_events(turn, board) ++
-              List.wrap(mismatches) ++ List.wrap(repeats)
+          events: turn_events(turn, board, checks)
         })
       end)
 
@@ -62,6 +53,29 @@ defmodule TalesForge.Game.Turn.Outcome do
 
   def persist(%Turn{} = turn), do: turn
 
+  # The prose check's mismatches and the NPC memory step's repeats, with the
+  # board after the memory step.
+  defp checked(turn, booked, narrative) do
+    mismatches = prose_check(turn, narrative, booked)
+    {board, repeats} = npc_memory(turn, booked, narrative)
+    {board, List.wrap(mismatches) ++ List.wrap(repeats)}
+  end
+
+  defp log_gestures(turn, narrative) do
+    Gestures.log_repeats(narrative, Map.get(turn.prompt.context, :recent_gestures),
+      session: turn.session.id,
+      turn: turn.number
+    )
+  end
+
+  # The events of the turn: the board's, the premise findings, the outcome
+  # record's and the prose and repeat checks.
+  defp turn_events(turn, board, checks) do
+    board.events ++
+      Premise.events(turn.premise.findings, board.world) ++
+      record_events(turn, board) ++ checks
+  end
+
   # The store adapter's write: the world after the allow-listed GM patches.
   defp write(%Turn{} = turn, board, ctx) do
     turn.adapters.store.(%Store{
@@ -70,7 +84,12 @@ defmodule TalesForge.Game.Turn.Outcome do
       number: turn.number,
       raw_action: turn.history_action,
       ctx:
-        Map.merge(ctx, %{sim: board.sim, founder: turn.opts[:founder], intention: turn.intention})
+        Map.merge(ctx, %{
+          sim: board.sim,
+          cast: board.cast,
+          founder: turn.opts[:founder],
+          intention: turn.intention
+        })
     })
   end
 

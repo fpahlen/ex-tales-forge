@@ -3,7 +3,7 @@ defmodule TalesForge.Game.Turn.Store do
   The persist step of a turn (the effect at the end of the pipeline): one
   Multi with the session, the turn row, its events, the GM reasoning, the
   fronts and NPC ticks, the work-log push, the GM's NPC updates, the
-  characters (`TalesForge.Characters.write_multi/1`) and the NPC Intentions
+  characters (`TalesForge.Characters.write_multi/2`) and the NPC Intentions
   of the turn (`TalesForge.NPCSignals.intentions/1`, applied by
   `TalesForge.Game.Turn.Intentions.apply_all/2`); then character memory
   and the thought. The NPC initiatives go back in the payload
@@ -14,8 +14,12 @@ defmodule TalesForge.Game.Turn.Store do
 
   A `%Store{}` is one write: the session before the turn, the world after
   it, the turn number, the raw action and `ctx` (`:handler`,
-  `:mechanical`, `:gm_result`, `:events`, `:sim`, `:founder`, and
-  `:intention`, the acting character's `TalesForge.Intention`).
+  `:mechanical`, `:gm_result`, `:events`, `:sim`, `:founder`,
+  `:intention`, the acting character's `TalesForge.Intention`, and
+  `:cast`, the session's GM characters after the turn,
+  `TalesForge.Game.Cast`; without it the store loads the cast). The cast
+  goes to the `characters` rows, and the rows that live for a scene go
+  when the turn ends that scene (`TalesForge.Characters.end_scene_multi/2`).
   """
 
   require Logger
@@ -175,7 +179,8 @@ defmodule TalesForge.Game.Turn.Store do
     |> Fronts.persist_tick_multi(session.id, ctx.sim)
     |> NPC.persist_tick_multi(session.id, ctx.sim)
     |> npc_gm_updates(store)
-    |> Characters.write_multi()
+    |> Characters.write_multi(Map.get_lazy(ctx, :cast, fn -> Characters.cast(session.id) end))
+    |> Characters.end_scene_multi(Characters.Memory.scene_end(ctx.events))
     |> npc_intentions(store)
   end
 

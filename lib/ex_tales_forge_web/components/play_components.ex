@@ -443,18 +443,23 @@ defmodule TalesForgeWeb.PlayComponents do
   end
 
   @doc """
-  The people of the Present panel: the present NPCs, then the minor foes
-  (#270) at the current location. Each person has a `wounds_label` when the
-  person has a wound or is down (QA 2026-10-14 08:57). A dead person is
-  never present (QA 2026-10-15 retest, session 9a1ff8c2: a dead Marta, kept
-  as a minor foe, stayed in the panel with an empty `present_npcs`).
+  The people of the Present panel: the present NPCs, then the other
+  characters of the session's cast at the current location, such as a minor
+  foe (#270). Each person has a `wounds_label` when the person has a wound
+  or is down (QA 2026-10-14 08:57). A dead person is never present (QA
+  2026-10-15 retest, session 9a1ff8c2: a dead Marta, kept as a minor foe,
+  stayed in the panel with an empty `present_npcs`).
 
-      iex> TalesForgeWeb.PlayComponents.present_npcs(%{"location_id" => "inn", "present_npcs" => [],
-      ...>   "npc_state" => %{"marta_kellen" => %{"name" => "Marta Kellen", "minor" => true,
-      ...>   "location_id" => "inn", "vitality" => "dead"}}})
+      iex> cast = %{"marta_kellen" => %TalesForge.GameCharacter{slug: "marta_kellen",
+      ...>   name: "Marta Kellen", minor: true, location_id: "inn", vitality: "dead"}}
+      iex> TalesForgeWeb.PlayComponents.present_npcs(%{"location_id" => "inn", "present_npcs" => []}, cast)
       []
+      iex> cast = put_in(cast["marta_kellen"].vitality, "down")
+      iex> [marta] = TalesForgeWeb.PlayComponents.present_npcs(%{"location_id" => "inn"}, cast)
+      iex> {marta.name, marta.wounds_label}
+      {"Marta Kellen", "down · 0/3 wounds"}
   """
-  defdelegate present_npcs(world_state), to: PlayPanel
+  defdelegate present_npcs(world_state, cast), to: PlayPanel
 
   @doc """
   The last combat exchange text of the world (`combat_last`), or nil. The
@@ -549,17 +554,19 @@ defmodule TalesForgeWeb.PlayComponents do
     end
     |> Enum.filter(fn {_skill, level} -> is_integer(level) and level > 0 end)
     |> Enum.sort_by(fn {skill, _level} -> skill end)
-    |> Enum.map(fn {skill, level} ->
-      %{
-        skill: skill,
-        label: skill |> String.replace("_", " ") |> String.capitalize(),
-        raw: level,
-        effective: Mechanics.effective_level(character, skill)
-      }
-    end)
+    |> Enum.map(&skill_row(character, &1))
   end
 
   def skill_rows(_character), do: []
+
+  defp skill_row(character, {skill, level}) do
+    %{
+      skill: skill,
+      label: skill |> String.replace("_", " ") |> String.capitalize(),
+      raw: level,
+      effective: Mechanics.effective_level(character, skill)
+    }
+  end
 
   @doc """
   The coins as gold, silver and copper, converted up first (QA 2026-10-14

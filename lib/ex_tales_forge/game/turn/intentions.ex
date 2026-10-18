@@ -5,7 +5,8 @@ defmodule TalesForge.Game.Turn.Intentions do
   nothing.
 
     * `feel/2`, in the NPC stage (`TalesForge.Game.Turn.Npcs`): the NPCs'
-      gut reactions become their moods in `world_state["npc_moods"]`.
+      gut reactions go on their characters in the turn's cast
+      (`runtime["reaction"]`), and so to their `characters` rows.
     * `apply_all/2`, in the turn transaction (`TalesForge.Game.Turn.Store`):
       what the NPCs heard and how long their concerns waited
       (`TalesForge.NPCSignals.intentions/1`), on their NPC instances. It
@@ -13,30 +14,32 @@ defmodule TalesForge.Game.Turn.Intentions do
       commit.
   """
 
+  alias TalesForge.Game.Cast
   alias TalesForge.Intention
   alias TalesForge.NPC
   alias TalesForge.NPCInitiative
 
   @doc """
-  The world with the `{:feel, mood}` Intentions as each NPC's mood in
-  `"npc_moods"`; the world as it is when there are none.
+  The cast (`TalesForge.Game.Cast`) with the `{:feel, mood}` Intentions as
+  each character's gut reaction, `runtime["reaction"]`. A character that is
+  not in the cast is left out.
 
+      iex> cast = %{"innkeep" => %TalesForge.GameCharacter{slug: "innkeep"}}
       iex> feel = TalesForge.Intention.system("innkeep", {:feel, %{"emotion" => "wary"}}, nil)
-      iex> TalesForge.Game.Turn.Intentions.feel(%{"npc_moods" => %{"smith" => %{}}}, [feel])
-      %{"npc_moods" => %{"smith" => %{}, "innkeep" => %{"emotion" => "wary"}}}
-      iex> TalesForge.Game.Turn.Intentions.feel(%{}, [])
-      %{}
+      iex> TalesForge.Game.Turn.Intentions.feel(cast, [feel])["innkeep"].runtime
+      %{"reaction" => %{"emotion" => "wary"}}
+      iex> TalesForge.Game.Turn.Intentions.feel(cast, []) == cast
+      true
   """
-  @spec feel(map(), [Intention.t()]) :: map()
-  def feel(world, []), do: world
+  @spec feel(Cast.t(), [Intention.t()]) :: Cast.t()
+  def feel(cast, intentions) do
+    Enum.reduce(intentions, cast, fn
+      %Intention{character_id: id, action: {:feel, mood}}, acc when is_map_key(acc, id) ->
+        Map.update!(acc, id, &%{&1 | runtime: Map.put(&1.runtime, "reaction", mood)})
 
-  def feel(world, intentions) do
-    moods =
-      Enum.reduce(intentions, world["npc_moods"] || %{}, fn
-        %Intention{character_id: id, action: {:feel, mood}}, acc -> Map.put(acc, id, mood)
-      end)
-
-    Map.put(world, "npc_moods", moods)
+      _intention, acc ->
+        acc
+    end)
   end
 
   @doc """

@@ -416,6 +416,10 @@ golden prompts, plus the replay diff):
   - PR 3, Retire `PlayerSessionAgent` (2026-10-18): it, `ensure_agent/1`
     and the `jido` dependency (9 packages out of `mix.lock`) are deleted.
     The replays are identical.
+  - PR 4, Minor foes on `characters`, drop `npc_state` and `npc_moods`
+    (2026-10-18): minor foes are GM rows with `lifetime: :scene`, removed at
+    the scene's end; the turn reads the GM characters as its cast. The
+    replays are identical except for the removed keys and the foe's row.
   - Then drop `npc_instances` with the row-check pattern from #47 (plan
     phases 3 and 4).
 

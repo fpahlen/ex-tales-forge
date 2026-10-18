@@ -520,17 +520,12 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
 
     {:ok, _} = NPC.bump_relationship(session.id, "innkeep", 0.05)
 
-    world =
-      Map.put(session.world_state, "npc_moods", %{
-        "innkeep" => %{
-          "emotion" => "wary",
-          "intensity" => 0.6,
-          "stance" => "cool",
-          "turn_number" => 1
-        }
-      })
+    reaction = %{"emotion" => "wary", "intensity" => 0.6, "stance" => "cool", "turn_number" => 1}
 
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session.id
+    |> TalesForge.Characters.get_by_slug("innkeep")
+    |> Ecto.Changeset.change(runtime: %{"reaction" => reaction})
+    |> Repo.update!()
 
     {:ok, view, _html} = live(conn, ~p"/admin/play/runs/#{run.id}")
 

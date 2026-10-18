@@ -41,17 +41,7 @@ defmodule TalesForge.NPC do
     location_id = Map.get(session.world_state, "location_id", "weary_pilgrim")
 
     world_state =
-      session.world_state
-      |> Map.put("present_npcs", sync_present_npcs(session.id, location_id))
-      |> Map.put(
-        "npc_state",
-        # QA 2026-10-14 08:57 (e): keep the NPC wounds and the minor foes of
-        # the fights (#270) when the scene changes.
-        TalesForge.Game.NpcState.carry(
-          Map.get(session.world_state, "npc_state"),
-          refresh_world_npc_state(session.id)
-        )
-      )
+      Map.put(session.world_state, "present_npcs", sync_present_npcs(session.id, location_id))
 
     session
     |> GameSession.changeset(%{world_state: world_state})
@@ -369,13 +359,36 @@ defmodule TalesForge.NPC do
     end)
   end
 
-  def refresh_world_npc_state(session_id) do
-    session_id
-    |> list_instances()
-    |> Enum.into(%{}, fn inst ->
-      {inst.npc_id, display_npc(inst)}
-    end)
+  @doc """
+  The NPC of `inst` as a member of the session's cast
+  (`TalesForge.Game.Cast`, `TalesForge.Characters.cast/1`): `row` (its
+  character row, or nil before the first write) with the name, role, place,
+  mood, current concern and portrait of the NPC instance, which stays the
+  NPC's store for those until refactor step 10f PR 5.
+  """
+  @spec cast_member(NpcInstance.t(), GameCharacter.t() | nil) :: GameCharacter.t()
+  def cast_member(%NpcInstance{} = inst, row) do
+    definition = inst.personality || %{}
+    runtime = inst.runtime_state || %{}
+    member = row || %GameCharacter{}
+
+    %GameCharacter{
+      member
+      | slug: inst.npc_id,
+        name: Map.get(definition, "name", inst.npc_id),
+        role: Map.get(definition, "role", "present"),
+        location_id: Map.get(runtime, "location_id"),
+        mood: Map.get(runtime, "mood", "neutral"),
+        runtime:
+          member.runtime
+          |> Map.take(["reaction"])
+          |> Map.merge(Map.take(runtime, ["current_concern"])),
+        extra: portrait(definition["portrait_url"])
+    }
   end
+
+  defp portrait(nil), do: %{}
+  defp portrait(url), do: %{"portrait_url" => url}
 
   @doc """
   The GM prompt sections for the present NPCs. With the option
@@ -532,20 +545,6 @@ defmodule TalesForge.NPC do
     inst
     |> NpcInstance.changeset(%{runtime_state: runtime_state})
     |> Repo.update!()
-  end
-
-  defp display_npc(%NpcInstance{} = inst) do
-    definition = inst.personality || %{}
-
-    %{
-      "id" => inst.npc_id,
-      "name" => Map.get(definition, "name", inst.npc_id),
-      "role" => Map.get(definition, "role", "present"),
-      "disposition" => Map.get(inst.runtime_state, "mood", "neutral"),
-      "concern_priority" => concern_priority(inst),
-      "portrait_url" => Map.get(definition, "portrait_url"),
-      "location_id" => Map.get(inst.runtime_state, "location_id")
-    }
   end
 
   defp prompt_npc_context(%NpcInstance{} = inst) do

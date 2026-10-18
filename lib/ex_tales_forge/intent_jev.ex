@@ -40,6 +40,7 @@ defmodule TalesForge.IntentJev do
   alias TalesForge.Game.Combat
   alias TalesForge.Game.{Intent, IntentClarification, JevIntent, NpcReactions, PlayerQuote, Rest}
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
+  alias TalesForge.GameCharacter
   alias TalesForge.IntentJev.Read
 
   @model "jev-1.13.0"
@@ -157,7 +158,6 @@ defmodule TalesForge.IntentJev do
 
   defp do_read(context, text, opts) do
     purpose = Keyword.get(opts, :purpose, "intent")
-    session_id = context["session_id"]
     context = with_narration(context)
     candidates = JevIntent.candidates(context)
     started_at = DateTime.utc_now()
@@ -169,40 +169,32 @@ defmodule TalesForge.IntentJev do
     result = post_within(state, questions, timeout)
 
     elapsed = System.monotonic_time(:millisecond) - started
+    meta = %{purpose: purpose, latency_ms: elapsed, started_at: started_at}
 
     case result do
       {:ok, reply} ->
         reading = JevIntent.decode(reply, candidates, text: text, context: context)
-
-        record_call(context, reply, %{
-          purpose: purpose,
-          status: "ok",
-          latency_ms: elapsed,
-          started_at: started_at
-        })
-
+        record_call(context, reply, Map.put(meta, :status, "ok"))
         {:ok, reading, candidates, elapsed}
 
       {:error, error} ->
-        reason = error_reason(error)
-
-        record_call(context, %{}, %{
-          purpose: purpose,
-          status: "error",
-          latency_ms: elapsed,
-          started_at: started_at
-        })
-
-        Logger.warning(
-          "jev intent failed session=#{session_id} purpose=#{purpose} reason=#{reason} duration_ms=#{elapsed}"
-        )
-
-        {:error, reason}
+        failed(context, error_reason(error), meta)
     end
   rescue
     e ->
       Logger.error("jev intent crashed error=#{Exception.message(e)}")
       {:error, :crashed}
+  end
+
+  # A failed call: the ai_calls row and the log line.
+  defp failed(context, reason, meta) do
+    record_call(context, %{}, Map.put(meta, :status, "error"))
+
+    Logger.warning(
+      "jev intent failed session=#{context["session_id"]} purpose=#{meta.purpose} reason=#{reason} duration_ms=#{meta.latency_ms}"
+    )
+
+    {:error, reason}
   end
 
   # The receive timeout alone does not bound connecting or a stalled pool, so
@@ -401,12 +393,15 @@ defmodule TalesForge.IntentJev do
     |> Enum.map(fn id -> {id, get_in(details, [id, "name"]) || id} end)
   end
 
+  # The scene of the context for `Combat.target/3`: the present people, and a
+  # cast with their names.
   defp context_world(context, people) do
-    %{
+    world = %{
       "present_npcs" => Enum.map(people, &elem(&1, 0)),
-      "npc_state" => Map.new(people, fn {id, name} -> {id, %{"name" => name}} end),
       "location_id" => context["location_id"]
     }
+
+    {world, Map.new(people, fn {id, name} -> {id, %GameCharacter{slug: id, name: name}} end)}
   end
 
   @doc """

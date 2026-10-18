@@ -7,9 +7,10 @@ defmodule TalesForge.Game.Turn.Combat do
       at. An unclear target blocks the action, and the turn asks the player.
     * `exchange/3` — after the roll: the player's d100 is the attack, and the
       defender may counterattack.
-    * `book/3` — after the board: keeps the NPC wounds and minor foes in
-      `world_state["npc_state"]`, writes the exchange to the outcome record
-      and adds the `npc.down` or `npc.dead` event.
+    * `book/2` — after the board: writes the defender's wounds to its
+      character in the turn's cast (`board.cast`, a new minor foe joins
+      it), writes the exchange to the outcome record and adds the
+      `npc.down` or `npc.dead` event.
 
   NPC fighters and the character rules come from the `fighter` and
   `character_rules` adapters. The rolls come from `opts[:combat_rolls]` in
@@ -18,7 +19,6 @@ defmodule TalesForge.Game.Turn.Combat do
 
   alias TalesForge.Characters.Defaults
   alias TalesForge.Game.Combat
-  alias TalesForge.Game.NpcState
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.Turn
   alias TalesForge.GameCharacter
@@ -50,7 +50,7 @@ defmodule TalesForge.Game.Turn.Combat do
     if on?(turn) and combat_roll?(handler) do
       text = target_text(played, turn.raw_action)
 
-      case Combat.target(played.action.target, text, Turn.world_before(turn)) do
+      case Combat.target(played.action.target, text, {Turn.world_before(turn), turn.cast}) do
         {:unclear, names} -> {unrolled(played), ask(names), {:unclear, names}}
         found -> {played, handler, found}
       end
@@ -118,25 +118,31 @@ defmodule TalesForge.Game.Turn.Combat do
     }
   end
 
+  # A minor foe of the cast fights as it is. Another person fights with the
+  # fighter profile and the wounds of its character.
   defp defender(turn, {:npc, id}) do
-    state = get_in(Turn.world_before(turn), ["npc_state", id]) || %{}
-
-    if state["minor"] == true do
-      {GameCharacter.from_sheet(state), nil}
-    else
-      case turn.adapters.fighter.(turn.session.id, id) do
-        nil ->
-          new_foe(turn, id, state["name"] || id)
-
-        profile ->
-          {profile
-           |> Map.merge(Map.take(state, ~w(wounds vitality)))
-           |> GameCharacter.from_sheet(), nil}
-      end
+    case turn.cast[id] do
+      %GameCharacter{minor: true} = foe -> {foe, nil}
+      member -> fighter(turn, id, member)
     end
   end
 
   defp defender(turn, {:foe, id, name}), do: new_foe(turn, id, name)
+
+  defp fighter(turn, id, member) do
+    case turn.adapters.fighter.(turn.session.id, id) do
+      nil ->
+        new_foe(turn, id, (member && member.name) || id)
+
+      profile ->
+        {profile |> Map.merge(wounds(member)) |> GameCharacter.from_sheet(), nil}
+    end
+  end
+
+  defp wounds(%GameCharacter{} = member),
+    do: member |> GameCharacter.to_sheet() |> Map.take(~w(wounds vitality))
+
+  defp wounds(nil), do: %{}
 
   defp new_foe(turn, id, name) do
     rules = turn.adapters.character_rules.(Turn.world_before(turn)["adventure_id"])
@@ -187,29 +193,22 @@ defmodule TalesForge.Game.Turn.Combat do
   def qa_rolls(_turn), do: %{}
 
   @doc """
-  Books the fight on the board: carries the combat state of the world
-  before the turn into the new npc_state, writes the defender's wounds,
-  puts the exchange in the outcome record (`"combat"`) and adds the events.
+  Books the fight on the board: writes the defender's wounds to its
+  character in `board.cast` (a new minor foe joins the cast), puts the
+  exchange in the outcome record (`"combat"`) and adds the events.
   """
-  @spec book(map(), map(), Fight.t()) :: map()
-  def book(board, world_before, %Fight{exchange: exchange, foe: foe}) do
-    before = Map.get(world_before, "npc_state") || %{}
-    carried = NpcState.carry(before, Map.get(board.world, "npc_state"))
-    carried_world = Map.put(board.world, "npc_state", carried)
-
-    {world, events} =
-      case exchange do
-        %{"attack" => _} ->
-          {booked, events} = Combat.book(carried_world, {exchange, foe}, before)
-          {Map.put(booked, "combat_last", last(booked, exchange)), events}
-
-        _ ->
-          {carried_world, []}
-      end
+  @spec book(map(), Fight.t()) :: map()
+  def book(board, %Fight{exchange: %{"attack" => _} = exchange, foe: foe}) do
+    {cast, events} = Combat.book(board.cast, board.world, {exchange, foe})
+    world = Map.put(board.world, "combat_last", last(board.world, exchange))
 
     %{board | world: world, events: board.events ++ events}
+    |> Map.put(:cast, cast)
     |> Map.put(:outcome, with_combat(Map.get(board, :outcome), exchange))
   end
+
+  def book(board, %Fight{exchange: exchange}),
+    do: Map.put(board, :outcome, with_combat(Map.get(board, :outcome), exchange))
 
   defp with_combat(record, exchange) when is_map(record) and is_map(exchange),
     do: Map.put(record, "combat", exchange)

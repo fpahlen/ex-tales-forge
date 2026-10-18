@@ -375,8 +375,7 @@ defmodule TalesForge.Playtest.Runner do
       PlayerView.render(
         state.run.game_session_id,
         clarification,
-        state.turns_played + 1,
-        state.run.turn_limit
+        {state.turns_played + 1, state.run.turn_limit}
       )
 
     case LLM.complete_persona(state.system, user,

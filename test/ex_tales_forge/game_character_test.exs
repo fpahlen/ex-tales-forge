@@ -186,7 +186,7 @@ defmodule TalesForge.GameCharacterTest do
     assert GameCharacter.to_sheet(gc) === plain
   end
 
-  test "from_sheet/1 is lossless for sheets, NPC profiles and npc_state entries" do
+  test "from_sheet/1 is lossless for sheets, NPC profiles and minor foes" do
     {:ok, session} = GameSessions.create_session(%{name: "Sheets", adventure_id: "tin_valley"})
     pc = GameSessions.get_session!(session.id).world_state["character"]
 

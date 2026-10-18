@@ -20,16 +20,8 @@ defmodule TalesForge.Game.Turn.Prompt do
     Steps.time(:prompt, fn ->
       context =
         %{session | world_state: outcome.board.world}
-        |> Context.build_gm_context()
-        |> Map.put(:npc_reactions, turn.npcs.reactions)
-        |> Map.put(:world_facts, outcome.agents)
-        |> Map.put(:price_lines, outcome.price_lines)
-        |> Map.put(:moved_from, moved_from(session.world_state, outcome.board.world))
-        |> Map.put(:premise_findings, turn.premise.findings)
-        |> Map.put(:outcome_record, Map.get(outcome.board, :outcome))
-        |> Map.put(:rest_growth, rest_growth(outcome))
-        |> Map.put(:noticed, turn.notice)
-        |> Map.put(:combat, Map.get(outcome, :combat))
+        |> Context.build_gm_context(outcome.board.cast)
+        |> Map.merge(turn_context(turn))
         |> put_player_request(turn.opts[:gm_note])
 
       messages =
@@ -37,6 +29,23 @@ defmodule TalesForge.Game.Turn.Prompt do
 
       %{turn | prompt: %{context: context, messages: messages}}
     end)
+  end
+
+  # What this turn adds to the GM context: the NPC reactions, the world facts,
+  # the prices, the move, the premise findings, the outcome record, the rest
+  # growth, what the character noticed and the combat exchange.
+  defp turn_context(%Turn{outcome: outcome, session: session} = turn) do
+    %{
+      npc_reactions: turn.npcs.reactions,
+      world_facts: outcome.agents,
+      price_lines: outcome.price_lines,
+      moved_from: moved_from(session.world_state, outcome.board.world),
+      premise_findings: turn.premise.findings,
+      outcome_record: Map.get(outcome.board, :outcome),
+      rest_growth: rest_growth(outcome),
+      noticed: turn.notice,
+      combat: Map.get(outcome, :combat)
+    }
   end
 
   # What the turn adds to the GM prompt: the resolution, the action the GM

@@ -92,14 +92,14 @@ defmodule TalesForge.Game.Notice do
        the concern on their mind, and one strong personality trait.
 
   `world` is the turn's world state plus `"npc_profiles"` (the present NPCs:
-  `name`, `personality_traits`, `concern_focus`) and `"front_facts"`. Each
+  `name`, `personality_traits`, `concern_focus` and `reaction`, the NPC's
+  gut reaction) and `"front_facts"`. Each
   detail is hidden from the player today; none is made up.
 
       iex> world = %{
       ...>   "present_npcs" => ["innkeep"],
-      ...>   "npc_moods" => %{"innkeep" => %{"emotion" => "wary"}},
       ...>   "npc_profiles" => [%{"id" => "innkeep", "name" => "Brenna Holt",
-      ...>     "concern_focus" => "the restless hills",
+      ...>     "concern_focus" => "the restless hills", "reaction" => %{"emotion" => "wary"},
       ...>     "personality_traits" => %{"neuroticism" => 3, "extraversion" => 8}}]
       ...> }
       iex> TalesForge.Game.Notice.details(world, "insight", :low)
@@ -136,7 +136,6 @@ defmodule TalesForge.Game.Notice do
 
   defp npc_details(world) do
     present = List.wrap(world["present_npcs"])
-    moods = world["npc_moods"] || %{}
 
     world
     |> Map.get("npc_profiles", [])
@@ -145,7 +144,7 @@ defmodule TalesForge.Game.Notice do
       name = npc["name"] || npc["id"]
 
       [
-        mood_detail(name, moods[npc["id"]]),
+        mood_detail(name, npc["reaction"]),
         concern_detail(name, npc["concern_focus"]),
         trait_detail(name, npc["personality_traits"])
       ]
