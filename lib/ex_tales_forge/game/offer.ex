@@ -5,8 +5,9 @@ defmodule TalesForge.Game.Offer do
   offer moves nothing (`docs/design-trade-offers.md`). Asking a price ("How
   much for a mug of ale?") is an offer, never a purchase (dev lead's call
   on #470's retest, 2026-10-18); a purchase is the offer the `receiver`
-  accepts, which `TalesForge.Game.Offer.to_trade/2` makes the one `TalesForge.Game.Trade` to
-  execute.
+  accepts, made the one `TalesForge.Game.Trade` to execute.
+
+  `to_trade/2` makes the accepted offer that trade.
 
   An unclear buy ("I order a meal") is an offer with no `item` and the
   seller's matching stock as `options` (2-3, cheapest first, the first the
@@ -99,7 +100,7 @@ defmodule TalesForge.Game.Offer do
       ...>   %{"id" => "bread", "name" => "Bread and Cheese", "price_copper" => 3}]
       iex> TalesForge.Game.Offer.options("I order a meal", stock) |> Enum.map(& &1["id"])
       ["bread", "stew"]
-      iex> TalesForge.Game.Offer.options("I order a meal", [hd(tl(stock))])
+      iex> TalesForge.Game.Offer.options("I order a meal", [%{"id" => "ale_mug", "name" => "Ale", "price_copper" => 2}])
       []
   """
   @spec options(String.t() | nil, [map()]) :: [map()]
