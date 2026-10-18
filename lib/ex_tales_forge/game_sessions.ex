@@ -25,7 +25,6 @@ defmodule TalesForge.GameSessions do
   alias TalesForge.GameSessions.TurnRequest
   alias TalesForge.IntentJev
   alias TalesForge.NPC
-  alias TalesForge.NPCRegistry
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
@@ -104,7 +103,6 @@ defmodule TalesForge.GameSessions do
          {:ok, session} <- NPC.refresh_session_world_state(session),
          :ok <- Characters.seed_session(session, character_opts),
          :ok <- ensure_agent(session),
-         :ok <- NPCRegistry.sync(session),
          {:ok, _} <- ensure_scene(session) do
       {:ok, Repo.preload(session, [:npc_instances, :front_instances])}
     end
@@ -210,7 +208,7 @@ defmodule TalesForge.GameSessions do
       with {:ok, session} <- get_session(session_id),
            :ok <- reject_if_dead(session),
            {:ok, action_text} <- action_text(session, trimmed, opts),
-           :ok <- ensure_runtime_started(session),
+           :ok <- ensure_agent(session),
            :ok <- require_scene_ready(session) do
         resolve_and_enqueue(session, action_text, opts)
       end
@@ -298,21 +296,12 @@ defmodule TalesForge.GameSessions do
 
   defp thought_rows(_turn, _visible), do: []
 
-  def ensure_agent_started(%GameSession{} = session) do
-    ensure_runtime_started(session)
-  end
+  def ensure_agent_started(%GameSession{} = session), do: ensure_agent(session)
 
   def ensure_agent_started(session_id) when is_binary(session_id) do
     session_id
     |> get_session!()
-    |> ensure_runtime_started()
-  end
-
-  def ensure_runtime_started(%GameSession{} = session) do
-    with :ok <- ensure_agent(session),
-         :ok <- NPCRegistry.sync(session) do
-      :ok
-    end
+    |> ensure_agent()
   end
 
   def agent_id(session_id), do: "session-#{session_id}"

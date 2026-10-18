@@ -14,8 +14,6 @@
 
 [selection_path, out_path] = System.argv()
 
-Mix.Task.run("app.config")
-Application.put_env(:ex_tales_forge, :npc_recovery_on_boot, false)
 {:ok, _} = Application.ensure_all_started(:ex_tales_forge)
 
 alias TalesForge.Game.JevIntent

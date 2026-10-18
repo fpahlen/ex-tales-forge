@@ -246,18 +246,6 @@ defmodule TalesForge.NPC do
      }}
   end
 
-  def evaluate_initiative(session_id, npc_id) do
-    inst = get_instance(session_id, npc_id)
-    priority = concern_priority(inst)
-    waiting = concern_wait_ticks(inst)
-    emitted? = initiative_emitted?(inst)
-
-    %{
-      initiative_pending: waiting >= 4 and priority >= 8 and not emitted?,
-      concern_priority: priority
-    }
-  end
-
   def initiative_text(%NpcInstance{npc_id: "worried_merchant"} = inst) do
     focus =
       inst.runtime_state
@@ -317,31 +305,6 @@ defmodule TalesForge.NPC do
   end
 
   def concern_priority(nil), do: 0
-
-  def build_agent_state(session_id, npc_id) do
-    case get_instance(session_id, npc_id) do
-      %NpcInstance{} = inst ->
-        %{initiative_pending: pending?, concern_priority: priority} =
-          evaluate_initiative(session_id, npc_id)
-
-        %{
-          session_id: session_id,
-          npc_id: npc_id,
-          location_id: Map.get(inst.runtime_state, "location_id"),
-          mood: Map.get(inst.runtime_state, "mood", "neutral"),
-          relationship_score: Map.get(inst.runtime_state, "relationship_score", 0.0),
-          concern_priority: priority,
-          concern_wait_ticks: concern_wait_ticks(inst),
-          initiative_pending: pending?,
-          initiative_emitted: initiative_emitted?(inst),
-          last_initiative_tick: Map.get(inst.runtime_state, "initiative_emitted_at_tick"),
-          last_interaction_tick: Map.get(inst.runtime_state, "last_interaction_tick")
-        }
-
-      nil ->
-        %{session_id: session_id, npc_id: npc_id}
-    end
-  end
 
   def apply_gm_updates(session_id, gm_result, world_tick) do
     gm_result.npc_memory_updates
@@ -441,38 +404,40 @@ defmodule TalesForge.NPC do
           else: context
       end)
 
-    npc_json = Jason.encode!(contexts, pretty: true)
-
-    memory_lines =
-      present
-      |> Enum.flat_map(fn inst ->
-        inst
-        |> recent_memories()
-        |> Enum.map(fn mem ->
-          text = Map.get(mem, "what") || Map.get(mem, "summary", "")
-          "- #{inst.npc_id}: #{text}"
-        end)
-      end)
-
-    memory_block =
-      if memory_lines == [],
-        do: "(none)",
-        else: Enum.join(memory_lines, "\n")
-
-    rule =
-      if opts[:first_meeting],
-        do:
-          contexts
-          |> Enum.map(&{&1["name"], meeting[&1["id"]], Map.has_key?(&1, "hooks")})
-          |> FirstMeeting.rule()
-
     """
     ## Present NPCs (merged definition + runtime)
-    #{npc_json}
+    #{Jason.encode!(contexts, pretty: true)}
 
     ## NPC Memories (recent)
-    #{memory_block}
-    """ <> if(rule, do: "\n" <> rule <> "\n", else: "")
+    #{memory_block(present)}
+    """ <> meeting_rule(opts[:first_meeting], contexts, meeting)
+  end
+
+  defp memory_block(present) do
+    case Enum.flat_map(present, &memory_lines/1) do
+      [] -> "(none)"
+      lines -> Enum.join(lines, "\n")
+    end
+  end
+
+  defp memory_lines(%NpcInstance{npc_id: npc_id} = inst) do
+    inst
+    |> recent_memories()
+    |> Enum.map(&"- #{npc_id}: #{Map.get(&1, "what") || Map.get(&1, "summary", "")}")
+  end
+
+  # The GM's first-meeting rule (flag NPC_FIRST_MEETING), as its own block.
+  defp meeting_rule(first_meeting, _contexts, _meeting) when first_meeting in [nil, false],
+    do: ""
+
+  defp meeting_rule(_first_meeting, contexts, meeting) do
+    contexts
+    |> Enum.map(&{&1["name"], meeting[&1["id"]], Map.has_key?(&1, "hooks")})
+    |> FirstMeeting.rule()
+    |> case do
+      nil -> ""
+      rule -> "\n" <> rule <> "\n"
+    end
   end
 
   defp to_sim(%NpcInstance{} = inst) do
@@ -654,15 +619,8 @@ defmodule TalesForge.NPC do
 
   defp maybe_escalate_concern(waiting, concern), do: {waiting, concern}
 
-  defp concern_wait_ticks(%NpcInstance{} = inst),
-    do: Map.get(inst.runtime_state, "concern_wait_ticks", 0)
-
-  defp concern_wait_ticks(nil), do: 0
-
   defp initiative_emitted?(%NpcInstance{} = inst),
     do: Map.get(inst.runtime_state, "initiative_emitted", false)
-
-  defp initiative_emitted?(nil), do: false
 
   defp maybe_reset_initiative_emitted(runtime, old_priority, new_priority)
        when new_priority > old_priority do

@@ -7,7 +7,10 @@ defmodule TalesForge.World.InstanceTest do
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
 
   alias TalesForge.GameSessions
+  alias TalesForge.NPC
+  alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
+  alias TalesForge.Schemas.NpcInstance
   alias TalesForge.Schemas.Turn
   alias TalesForge.Workers.ProcessTurn
   alias TalesForge.World.{Instance, TurnRequest}
@@ -164,6 +167,44 @@ defmodule TalesForge.World.InstanceTest do
              DynamicSupervisor.which_children(TalesForge.World.Supervisor),
              &match?({_, ^pid, _, _}, &1)
            )
+  end
+
+  # Refactor step 10f, PR 2: the instance, not the turn's store, broadcasts
+  # the NPCs that spoke up, once the turn has committed.
+  test "an NPC that speaks up in a turn is broadcast after the turn has committed" do
+    stub_llm(fn _kind, _user, _system -> :default end)
+    {:ok, session} = GameSessions.create_session(%{name: "Initiative After Commit"})
+
+    # Marta's concern has waited long enough, so she speaks up this turn.
+    marta = NPC.get_instance(session.id, "marta_kellen")
+    concern = Map.put(marta.runtime_state["current_concern"], "priority", 8)
+
+    marta
+    |> NpcInstance.changeset(%{
+      runtime_state:
+        Map.merge(marta.runtime_state, %{"current_concern" => concern, "concern_wait_ticks" => 4})
+    })
+    |> Repo.update!()
+
+    SessionPubSub.subscribe(session.id)
+    assert :ok = ProcessTurn.perform(job(session.id, "I wait a moment"))
+
+    assert [{:turn_completed, _}, {:npc_initiative, initiative}] = turn_messages([])
+    assert %{npc_id: "marta_kellen", npc_name: "Marta Kellen"} = initiative
+    assert initiative.text =~ "ledger"
+
+    # Committed: the speak-up is stored before anyone hears it.
+    assert NPC.get_instance(session.id, "marta_kellen").runtime_state["initiative_emitted"]
+  end
+
+  # The turn's broadcasts, in the order they came.
+  defp turn_messages(acc) do
+    receive do
+      {:turn_completed, _} = message -> turn_messages([message | acc])
+      {:npc_initiative, _} = message -> turn_messages([message | acc])
+    after
+      200 -> Enum.reverse(acc)
+    end
   end
 
   test "run_turn/2 only takes a request for its own session" do

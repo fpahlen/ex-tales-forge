@@ -17,7 +17,6 @@ defmodule TalesForge.Application do
       {Task.Supervisor, name: TalesForge.World.TaskSupervisor},
       {Oban, Application.fetch_env!(:ex_tales_forge, Oban)},
       TalesForge.Jido,
-      TalesForge.NPCRecovery,
       {DNSCluster, query: Application.get_env(:ex_tales_forge, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: TalesForge.PubSub},
       TalesForge.Presence,

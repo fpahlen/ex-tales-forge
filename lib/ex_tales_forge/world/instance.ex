@@ -18,6 +18,11 @@ defmodule TalesForge.World.Instance do
   15 minutes without work (`config :ex_tales_forge, :world_instance_idle_ms`).
   It is not started at boot.
 
+  Once a turn has committed, the instance broadcasts the NPCs that spoke up
+  in it (`:npc_initiatives` in the turn's payload,
+  `TalesForge.NPCInitiative.broadcast/2`), after the turn's own
+  `{:turn_completed, _}`.
+
   Its state is a cache, never the truth: the world tick and the session's
   GameCharacters, read from Postgres when it starts and after every turn.
   Nothing reads the cache yet.
@@ -30,6 +35,7 @@ defmodule TalesForge.World.Instance do
   alias TalesForge.Characters
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameCharacter
+  alias TalesForge.NPCInitiative
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
   alias TalesForge.World.TurnRequest
@@ -126,6 +132,7 @@ defmodule TalesForge.World.Instance do
   @impl true
   def handle_info({ref, result}, %__MODULE__{running: {ref, from}} = state) do
     Process.demonitor(ref, [:flush])
+    announce(state.session_id, result)
     GenServer.reply(from, result)
     {:noreply, %{state | running: nil} |> load() |> next()}
   end
@@ -175,6 +182,12 @@ defmodule TalesForge.World.Instance do
   catch
     kind, reason -> {:crashed, kind, reason, __STACKTRACE__}
   end
+
+  # The NPCs that spoke up in a committed turn.
+  defp announce(session_id, {:played, {:ok, %{npc_initiatives: initiatives}}, _rand}),
+    do: Enum.each(initiatives, &NPCInitiative.broadcast(session_id, &1))
+
+  defp announce(_session_id, _result), do: :ok
 
   defp load(%__MODULE__{session_id: session_id} = state) do
     case Repo.get(GameSession, session_id) do

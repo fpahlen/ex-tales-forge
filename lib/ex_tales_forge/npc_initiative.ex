@@ -3,8 +3,9 @@ defmodule TalesForge.NPCInitiative do
   An NPC speaking up about a concern that has waited long enough.
 
   The turn applies a `:speak_up` Intention with `speak_up/3` in its
-  transaction, and broadcasts the payload to the play page with
-  `broadcast/2` after the commit.
+  transaction and returns the payload in the turn's `:npc_initiatives`;
+  `TalesForge.World.Instance` broadcasts it to the play page with
+  `broadcast/2` once the turn has committed.
   """
 
   alias TalesForge.NPC
