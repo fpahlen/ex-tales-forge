@@ -339,6 +339,11 @@ golden prompts, plus the replay diff):
     `class`, `creation`, `reflecting`, `improved_since_rest`; skill numbers
     kept as they are; the bridge is no longer written when empty). The run
     also found a memory compression crash, which is fixed in #433.
+    The playtest backfill brought `runtime["sheet"]` rows from 4 to 0
+    (prod: 0 of 28). 10b-2 is #435.
+  - Decision (Fredrik, 2026-10-18): 10b-2 drops only
+    `world_state["character"]`. The `npc_state` and `npc_moods` copies are
+    dropped in 10e/10f, when NPCs get their single write path.
 - **10c. One vitality and combat path.**
   - Every fighter is a `%GameCharacter{}`, and a minor foe is a transient
     one.
@@ -352,6 +357,8 @@ golden prompts, plus the replay diff):
   - `NpcReactions`, `NpcInitiative` and `Actions.NPC.*` emit Intentions; the
     turn applies them.
   - `Memory` and `Thought` stop filtering on `controller`.
+  - With 10f: drop the `world_state["npc_state"]` and `"npc_moods"` copies
+    (decision 2026-10-18).
 - **10f. One process.**
   - The per-world process from the 2026-10-08 note replaces `NPCAgent` and
     `PlayerSessionAgent` (using PubSub and Oban, not a hand-rolled registry
