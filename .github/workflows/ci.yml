@@ -111,6 +111,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The deploy script of playtest.yml and deploy-production.yml and its
+      # test (a fake flyctl on PATH, no Fly access). Runs on every PR,
+      # docs-only included: a few seconds, before the BEAM setup. shellcheck
+      # is preinstalled on ubuntu runners. The test exits 1 if any case fails.
+      - name: Deploy script (shellcheck and fake-flyctl test)
+        run: |
+          shellcheck --version | sed -n 2p
+          shellcheck .github/scripts/fly_deploy.sh .github/scripts/fly_deploy_test.sh
+          .github/scripts/fly_deploy_test.sh
+
       - uses: erlef/setup-beam@v1
         id: beam
         with:

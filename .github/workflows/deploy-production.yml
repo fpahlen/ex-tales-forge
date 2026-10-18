@@ -194,7 +194,8 @@ jobs:
       - name: flyctl deploy
         if: steps.guard.outputs.deploy == 'true'
         # GIT_SHA: the commit goes into the image (Dockerfile), so the app knows it.
-        # The script retries once when the release machine never starts.
+        # The script redeploys the same image once when the release machine
+        # or the bluegreen green machine never starts.
         run: .github/scripts/fly_deploy.sh
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
