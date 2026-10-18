@@ -156,7 +156,7 @@ defmodule TalesForge.Game.TurnApply do
       )
       when is_binary(target) and target != "" do
     params = action.parameters || %{}
-    item? = params["item_id"] in [nil, ""] and not person_or_nil?(cast, target)
+    item? = params["item_id"] in [nil, ""] and not person?(cast, target)
 
     if item?,
       do: listed({player_action, handler}, params, target),
@@ -173,9 +173,7 @@ defmodule TalesForge.Game.TurnApply do
      %{handler | state_hints: hints}}
   end
 
-  defp person_or_nil?(_cast, nil), do: true
-  defp person_or_nil?(_cast, ""), do: true
-  defp person_or_nil?(cast, target), do: Map.has_key?(cast, target)
+  defp person?(cast, target), do: Map.has_key?(cast, target)
 
   @doc """
   Adds the sleep of "I pay for a room and go to sleep" to the handler as
