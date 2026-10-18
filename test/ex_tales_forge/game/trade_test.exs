@@ -133,7 +133,13 @@ defmodule TalesForge.Game.TradeTest do
 
       assert Inventory.item_quantity(brenna.inventory, "ale_mug") == 72
       assert copper(brenna) == 1000
-      assert brenna.runtime == %{"buys" => [], "lends" => ["mug"], "serves" => ["ale_mug"]}
+
+      assert brenna.runtime == %{
+               "buys" => [],
+               "lends" => ["mug"],
+               "serves" => ["ale_mug", "stew_bowl", "bread_cheese"]
+             }
+
       assert copper(hilde) == 500
       assert hilde.runtime == %{"buys" => ["hunting_knife", "spearhead", "short_sword"]}
 

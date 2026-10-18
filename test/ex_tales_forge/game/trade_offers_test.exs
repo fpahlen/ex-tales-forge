@@ -109,35 +109,22 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert open_offer(session.id) == nil
   end
 
-  test "an unclear 'I order a meal': a counter-question with options, then the pick trades",
+  test "an unclear 'I order a meal': a counter-question with options from the pack, then the pick trades",
        %{session: session} do
-    stock(session.id, fn stock ->
-      stock ++
-        [
-          %{"id" => "stew_bowl", "name" => "Bowl of Stew", "price_copper" => 5, "quantity" => 4},
-          %{
-            "id" => "bread_cheese",
-            "name" => "Bread and Cheese",
-            "price_copper" => 3,
-            "quantity" => 6
-          }
-        ]
-    end)
-
     {before, asked} = play(session.id, "I order a meal.", :buy)
     assert diff(before, asked) == []
 
     assert %{
              "item" => nil,
              "options" => [
-               %{"item" => %{"id" => "bread_cheese"}},
-               %{"item" => %{"id" => "stew_bowl"}}
+               %{"item" => %{"id" => "bread_cheese"}, "price" => 2},
+               %{"item" => %{"id" => "stew_bowl"}, "price" => 5}
              ]
            } =
              open_offer(session.id)
 
     assert last_gm() =~
-             "The server listed these options from stock: Brenna Holt has Bread and Cheese for 3c, or Bowl of Stew for 5c"
+             "The server listed these options from stock: Brenna Holt has Bread and Cheese for 2c, or Bowl of Stew for 5c"
 
     {_, picked} =
       play(session.id, "The stew, please.", :speak, offer_answer: :accept, offer_pick: :o1)
@@ -145,14 +132,39 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert_received {:jev_questions, %{"offer_pick" => _}}
     assert copper(picked, "innkeep") == copper(asked, "innkeep") + 5
     assert copper(picked, "player") == copper(asked, "player") - 5
-    assert qty(picked, "innkeep", "stew_bowl") == 3
-    assert qty(picked, "player", "stew_bowl") == 1
-    assert qty(picked, "innkeep", "bread_cheese") == 6
+    assert qty(picked, "innkeep", "stew_bowl") == qty(asked, "innkeep", "stew_bowl") - 1
+    # A serving from the pot is eaten at the table: nobody carries it.
+    assert qty(picked, "player", "stew_bowl") == 0
+    assert qty(picked, "innkeep", "bread_cheese") == qty(asked, "innkeep", "bread_cheese")
+    assert open_offer(session.id) == nil
+    assert_conserved(before, picked)
+  end
+
+  test "a plain yes to an unclear buy picks nothing: the offer stays open, then a pick buys",
+       %{session: session} do
+    {before, _} = play(session.id, "I order a meal.", :buy)
+    offered = open_offer(session.id)
+
+    {_, yes} = play(session.id, "Yes, please.", :buy, offer_answer: :accept)
+    assert diff(before, yes) == []
+    assert open_offer(session.id) == offered
+    assert last_gm() =~ "The player said yes but picked none of the options"
+
+    {_, picked} =
+      play(session.id, "Bread and cheese.", :speak, offer_answer: :accept, offer_pick: :o0)
+
+    assert copper(picked, "player") == copper(yes, "player") - 2
+    assert copper(picked, "innkeep") == copper(yes, "innkeep") + 2
+    assert qty(picked, "innkeep", "bread_cheese") == qty(yes, "innkeep", "bread_cheese") - 1
     assert open_offer(session.id) == nil
     assert_conserved(before, picked)
   end
 
   test "an unclear buy with no matching stock: no offer, nothing moves", %{session: session} do
+    stock(session.id, fn stock ->
+      Enum.reject(stock, &(&1["id"] in ~w(stew_bowl bread_cheese)))
+    end)
+
     {before, after_order} = play(session.id, "I order a meal.", :buy)
     assert diff(before, after_order) == []
     assert open_offer(session.id) == nil
@@ -256,8 +268,10 @@ defmodule TalesForge.Game.TradeOffersTest do
     NPC.put_inventories(session_id, [%{brenna | inventory: fun.(brenna.inventory)}])
   end
 
-  # Coins and items are conserved; a serving (Brenna's ale) is drunk where
-  # it is bought, so it leaves her cask and nobody carries it.
+  # Coins and items are conserved; a serving (Brenna's ale, stew, bread and
+  # cheese) is eaten or drunk where it is bought, so it leaves her cask or
+  # pot and nobody carries it.
+  @servings ~w(ale_mug stew_bowl bread_cheese)
   defp assert_conserved(before, now) do
     {coins_before, items_before} = totals(before)
     {coins_now, items_now} = totals(now)
@@ -287,7 +301,7 @@ defmodule TalesForge.Game.TradeOffersTest do
     snap
     |> Map.values()
     |> Enum.reduce({0, %{}}, fn {c, items}, {sum, all} ->
-      {sum + c, Map.merge(all, Map.delete(items, "ale_mug"), fn _k, a, b -> a + b end)}
+      {sum + c, Map.merge(all, Map.drop(items, @servings), fn _k, a, b -> a + b end)}
     end)
   end
 
