@@ -21,6 +21,7 @@ defmodule TalesForge.Game.Turn.Combat do
   alias TalesForge.Game.NpcState
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.Turn
+  alias TalesForge.GameCharacter
 
   defmodule Fight do
     @moduledoc """
@@ -30,7 +31,7 @@ defmodule TalesForge.Game.Turn.Combat do
     defstruct [:exchange, :foe]
 
     @typedoc "An exchange and the minor foe the server made, if any."
-    @type t :: %__MODULE__{exchange: map() | nil, foe: map() | nil}
+    @type t :: %__MODULE__{exchange: map() | nil, foe: TalesForge.GameCharacter.t() | nil}
   end
 
   @doc "True when opposed combat is on for `turn`."
@@ -106,7 +107,9 @@ defmodule TalesForge.Game.Turn.Combat do
     character = Map.get(Turn.world_before(turn), "character", %{})
 
     player =
-      Map.merge(character, %{"id" => "player", "name" => character["name"] || "the character"})
+      character
+      |> Map.merge(%{"id" => "player", "name" => character["name"] || "the character"})
+      |> GameCharacter.from_sheet()
 
     %Fight{
       exchange: Combat.exchange({player, defender}, mechanical.skill, rolls(turn, mechanical)),
@@ -118,11 +121,16 @@ defmodule TalesForge.Game.Turn.Combat do
     state = get_in(Turn.world_before(turn), ["npc_state", id]) || %{}
 
     if state["minor"] == true do
-      {state, nil}
+      {GameCharacter.from_sheet(state), nil}
     else
       case turn.adapters.fighter.(turn.session.id, id) do
-        nil -> new_foe(turn, id, state["name"] || id)
-        profile -> {Map.merge(profile, Map.take(state, ~w(wounds vitality))), nil}
+        nil ->
+          new_foe(turn, id, state["name"] || id)
+
+        profile ->
+          {profile
+           |> Map.merge(Map.take(state, ~w(wounds vitality)))
+           |> GameCharacter.from_sheet(), nil}
       end
     end
   end
