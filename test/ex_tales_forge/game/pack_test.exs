@@ -6,18 +6,9 @@ defmodule TalesForge.Game.PackTest do
   alias TalesForge.Game.Pack
   alias TalesForge.Game.World
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.FrontInstance
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   defp create_tin_valley_session do
     GameSessions.create_session(%{name: "Tin Valley", adventure_id: "tin_valley"})

@@ -20,10 +20,6 @@ config :ex_tales_forge, :skill_split,
   triple: 150,
   min_uneven_part: 25
 
-config :ex_tales_forge, TalesForge.Jido,
-  max_tasks: 1000,
-  agent_pools: []
-
 # The code heat map (TalesForge.CodeHeat). Off by default; config/runtime.exs
 # turns it on from CODE_HEAT_MAP=on (playtest only, never production).
 config :ex_tales_forge, TalesForge.CodeHeat, enabled: false

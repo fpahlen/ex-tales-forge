@@ -12,7 +12,6 @@ defmodule TalesForge.Game.TinjacksTest do
   alias TalesForge.Game.{Events, Pack, WorldSim}
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
 
   @features ["inn_world", "antagonist"]
@@ -27,8 +26,6 @@ defmodule TalesForge.Game.TinjacksTest do
       for {key, value} <- previous do
         if value, do: System.put_env(key, value), else: System.delete_env(key)
       end
-
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
     end)
 
     # These tests read the world without the place tree (default on).

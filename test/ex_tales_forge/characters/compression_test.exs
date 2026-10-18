@@ -4,7 +4,6 @@ defmodule TalesForge.Characters.CompressionTest do
   alias TalesForge.Characters
   alias TalesForge.Characters.Compression
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{AICall, CharacterMemory}
 
@@ -16,7 +15,6 @@ defmodule TalesForge.Characters.CompressionTest do
 
     on_exit(fn ->
       Application.put_env(:jev, :api_key, key)
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
     end)
 
     {:ok, session} = GameSessions.create_session(%{name: "Comp", adventure_id: "tin_valley"})

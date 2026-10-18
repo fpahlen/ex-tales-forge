@@ -25,7 +25,6 @@ defmodule TalesForge.Game.TurnHangTest do
   alias TalesForge.Game.{Context, Intent, TurnProcessor}
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Playtest.Runner
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
@@ -97,8 +96,6 @@ defmodule TalesForge.Game.TurnHangTest do
     on_exit(fn ->
       for pid <- Task.Supervisor.children(TalesForge.Playtest.Supervisor),
           do: Task.Supervisor.terminate_child(TalesForge.Playtest.Supervisor, pid)
-
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
 
       Enum.each(saved, fn
         {key, nil} -> System.delete_env(key)

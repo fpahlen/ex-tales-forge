@@ -196,7 +196,7 @@ Notes from the first deploy:
 
 - If the Depot builder hangs at "Waiting for depot builder...", use Fly's own builder:
   `fly deploy --remote-only --depot=false -a tales-forge --ha=false`.
-- The Docker image uses Elixir 1.18 (jido requires `~> 1.18`).
+- The Docker image uses Elixir 1.18 (`mix.exs` requires `~> 1.18`).
 - `mix compile` must run before `mix assets.deploy` (Phoenix 1.8 colocated hooks/CSS).
 - `ECTO_IPV6=true` is set in `fly.toml` because `.flycast` / `.internal` addresses are IPv6-only.
 - The HTTP health check hits `GET /health`, the only page that needs no sign-in (everything

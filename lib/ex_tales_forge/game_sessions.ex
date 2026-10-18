@@ -9,7 +9,6 @@ defmodule TalesForge.GameSessions do
 
   require Logger
 
-  alias TalesForge.Agents.PlayerSessionAgent
   alias TalesForge.AICalls.{Steps, Tags}
   alias TalesForge.Characters
   alias TalesForge.Fronts
@@ -102,7 +101,6 @@ defmodule TalesForge.GameSessions do
          :ok <- Fronts.seed_session(session),
          {:ok, session} <- NPC.refresh_session_world_state(session),
          :ok <- Characters.seed_session(session, character_opts),
-         :ok <- ensure_agent(session),
          {:ok, _} <- ensure_scene(session) do
       {:ok, Repo.preload(session, [:npc_instances, :front_instances])}
     end
@@ -208,7 +206,6 @@ defmodule TalesForge.GameSessions do
       with {:ok, session} <- get_session(session_id),
            :ok <- reject_if_dead(session),
            {:ok, action_text} <- action_text(session, trimmed, opts),
-           :ok <- ensure_agent(session),
            :ok <- require_scene_ready(session) do
         resolve_and_enqueue(session, action_text, opts)
       end
@@ -296,16 +293,6 @@ defmodule TalesForge.GameSessions do
 
   defp thought_rows(_turn, _visible), do: []
 
-  def ensure_agent_started(%GameSession{} = session), do: ensure_agent(session)
-
-  def ensure_agent_started(session_id) when is_binary(session_id) do
-    session_id
-    |> get_session!()
-    |> ensure_agent()
-  end
-
-  def agent_id(session_id), do: "session-#{session_id}"
-
   defp resolve_and_enqueue(%GameSession{} = session, raw_action, opts) do
     req = %TurnRequest{session: session, raw_action: raw_action, opts: opts}
 
@@ -318,47 +305,53 @@ defmodule TalesForge.GameSessions do
   # Today's intent path (INTENT_JEV off or shadow). In shadow the Jev read runs
   # in the background after the path has decided and is only logged; nothing
   # here changes.
-  defp resolve_and_enqueue_current(
-         %TurnRequest{session: session, raw_action: raw_action} = req,
-         mode
-       ) do
+  defp resolve_and_enqueue_current(%TurnRequest{session: session} = req, mode) do
     req = %{req | context: Context.build_intent_context(session)}
-    started_at = DateTime.utc_now()
-    started = System.monotonic_time(:millisecond)
+    {read, timing} = timed(fn -> read_current(req) end)
+    record_intent_step(session, timing)
 
-    try do
-      {player_action, intent_source} = build_player_action(req)
-
-      elapsed = System.monotonic_time(:millisecond) - started
-      record_intent_step(session, %{started_at: started_at, elapsed_ms: elapsed})
-
-      Logger.info(
-        "intent resolved session=#{session.id} duration_ms=#{elapsed} source=#{intent_source}"
-      )
-
-      maybe_shadow(mode, req, %{
-        source: intent_source,
-        action: player_action,
-        clarification: false
-      })
-
-      enqueue_turn(req, player_action, nil)
-    rescue
-      e in [Intent.ClarificationNeeded] ->
-        elapsed = System.monotonic_time(:millisecond) - started
-        record_intent_step(session, %{started_at: started_at, elapsed_ms: elapsed})
-        clarification = Intent.build_clarification(e.extraction, raw_action)
-        save_clarification(session, clarification, raw_action)
+    case read do
+      {:act, player_action, intent_source} ->
+        Logger.info(
+          "intent resolved session=#{session.id} duration_ms=#{timing.elapsed_ms} source=#{intent_source}"
+        )
 
         maybe_shadow(mode, req, %{
-          source: :llm,
-          action: nil,
-          clarification: true
+          source: intent_source,
+          action: player_action,
+          clarification: false
         })
 
-        SessionPubSub.broadcast(session.id, {:clarification_needed, clarification})
-        {:ok, %{status: :clarification, clarification: clarification}}
+        enqueue_turn(req, player_action, nil)
+
+      {:ask, extraction} ->
+        clarification = Intent.build_clarification(extraction, req.raw_action)
+        save_clarification(session, clarification, req.raw_action)
+        maybe_shadow(mode, req, %{source: :llm, action: nil, clarification: true})
+        ask_player(session, clarification)
     end
+  end
+
+  defp read_current(%TurnRequest{} = req) do
+    {player_action, intent_source} = build_player_action(req)
+    {:act, player_action, intent_source}
+  rescue
+    e in [Intent.ClarificationNeeded] -> {:ask, e.extraction}
+  end
+
+  # Runs `fun` and returns its result with the step timing
+  # (`:started_at`, `:elapsed_ms`) record_intent_step/2 takes.
+  defp timed(fun) do
+    started_at = DateTime.utc_now()
+    started = System.monotonic_time(:millisecond)
+    result = fun.()
+    {result, %{started_at: started_at, elapsed_ms: System.monotonic_time(:millisecond) - started}}
+  end
+
+  # The clarification is saved; the play page shows the question.
+  defp ask_player(session, clarification) do
+    SessionPubSub.broadcast(session.id, {:clarification_needed, clarification})
+    {:ok, %{status: :clarification, clarification: clarification}}
   end
 
   # Shadow reads only the player's own messages, not a clicked option.
@@ -387,30 +380,24 @@ defmodule TalesForge.GameSessions do
 
   # INTENT_JEV=on: the Jev read drives the turn (TalesForge.IntentJev). The
   # heuristic reads only when Jev fails or times out.
-  defp resolve_and_enqueue_jev(%TurnRequest{session: session, raw_action: raw_action} = req) do
+  defp resolve_and_enqueue_jev(%TurnRequest{session: session} = req) do
     req = %{req | context: jev_context(session)}
-    started_at = DateTime.utc_now()
-    started = System.monotonic_time(:millisecond)
-
-    outcome = jev_outcome(req)
-    elapsed = System.monotonic_time(:millisecond) - started
-    timing = %{started_at: started_at, elapsed_ms: elapsed}
+    {outcome, timing} = timed(fn -> jev_outcome(req) end)
 
     case outcome do
       {:act, player_action, gm, meta} ->
         record_intent_step(session, Map.put(timing, :meta, meta))
 
         Logger.info(
-          "intent resolved session=#{session.id} duration_ms=#{elapsed} source=#{meta["source"]}"
+          "intent resolved session=#{session.id} duration_ms=#{timing.elapsed_ms} source=#{meta["source"]}"
         )
 
         enqueue_turn(req, player_action, gm)
 
       {:ask, clarification, meta} ->
         record_intent_step(session, Map.put(timing, :meta, meta))
-        save_clarification(session, clarification, raw_action)
-        SessionPubSub.broadcast(session.id, {:clarification_needed, clarification})
-        {:ok, %{status: :clarification, clarification: clarification}}
+        save_clarification(session, clarification, req.raw_action)
+        ask_player(session, clarification)
     end
   end
 
@@ -645,23 +632,5 @@ defmodule TalesForge.GameSessions do
     session
     |> GameSession.changeset(%{world_state: world_state})
     |> Repo.update()
-  end
-
-  defp ensure_agent(%GameSession{id: id}) do
-    aid = agent_id(id)
-
-    if TalesForge.Jido.whereis(aid) do
-      :ok
-    else
-      case TalesForge.Jido.start_agent(PlayerSessionAgent,
-             id: aid,
-             initial_state: %{session_id: id, turn_count: 0, entries: []}
-           ) do
-        {:ok, _pid} -> :ok
-        {:error, {:already_started, _pid}} -> :ok
-        {:error, {:already_registered, _pid}} -> :ok
-        other -> other
-      end
-    end
   end
 end

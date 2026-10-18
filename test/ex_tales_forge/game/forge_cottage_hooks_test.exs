@@ -11,7 +11,6 @@ defmodule TalesForge.Game.ForgeCottageHooksTest do
 
   alias TalesForge.Game.{Context, Pack, Perception}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
@@ -27,8 +26,6 @@ defmodule TalesForge.Game.ForgeCottageHooksTest do
       for {key, value} <- previous do
         if value, do: System.put_env(key, value), else: System.delete_env(key)
       end
-
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
     end)
 
     System.delete_env("INN_WORLD")

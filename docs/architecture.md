@@ -24,7 +24,7 @@ The big calls are written down so we do not reopen them by accident.
 
 We noticed something while we were building the game: the AI was more consistent if we cleaned up what the player said *before* the storyteller saw it.
 
-Tales Forge is a text-first, instanced RPG on the BEAM. Phoenix LiveView for the table, Jido for the hot session and present NPCs, Ecto + PostgreSQL for the save, Oban for LLM work (and later simulation). Authored content is pack files under `priv/`. Persistence is 100% Ecto.
+Tales Forge is a text-first, instanced RPG on the BEAM. Phoenix LiveView for the table, one `World.Instance` process per active session that runs its turns, Ecto + PostgreSQL for the save, Oban for LLM work (and later simulation). Authored content is pack files under `priv/`. Persistence is 100% Ecto.
 
 Today the loop is a two-tier turn against a static location graph. NPCs have personality, OCEAN traits, and a `current_concern` that can escalate into a line of dialogue. That is a person with a worry — not an adventure. **Crossroads Ledger** is a missing-ledger hook. Nobody is looking for the ledger off-screen. No guild is hiring steel. No nest is preparing. The table waits. The world does not run.
 
@@ -48,14 +48,22 @@ The OTP root in `lib/ex_tales_forge/application.ex` is a **flat** `:one_for_one`
 TalesForge.Supervisor
   ├── TalesForgeWeb.Telemetry
   ├── TalesForge.Repo
-  ├── Oban                         # queues: default:10, llm:5
-  ├── TalesForge.Jido              # global Jido runtime (max_tasks: 1000 = Task.Supervisor max_children, not agent cap)
+  ├── TalesForge.World.Registry        # Registry (unique): {:instance, session_id} → World.Instance
+  ├── TalesForge.World.Supervisor      # DynamicSupervisor: one World.Instance per active session, started lazily
+  ├── TalesForge.World.TaskSupervisor  # Task.Supervisor: the running turn's Task
+  ├── Oban                             # queues: default:10, llm:5
   ├── DNSCluster
   ├── Phoenix.PubSub
-  └── TalesForgeWeb.Endpoint
+  ├── TalesForge.Presence, TalesForge.Online.Peer
+  ├── Task.Supervisors                 # Playtest, Playtest series, IntentJev runs
+  ├── AdminAuth.MembershipCache, Survey.Cache
+  ├── TalesForgeWeb.Endpoint
+  └── TalesForge.CodeHeat.Sampler      # playtest only
 ```
 
-There is **no session supervisor**. `PlayerSessionAgent` (`lib/ex_tales_forge/agents/player_session_agent.ex`) is a thin Jido agent (`session_id`, `turn_count`, `entries`) started by `GameSessions.ensure_agent/1` with id `session-{id}`. NPCs have no process of their own (refactor step 10f PR 2 retired the Jido NPC agents, `NPCRegistry` and `NPCRecovery`): what a turn means for them comes in as Intentions applied in the turn's transaction.
+The three `World.*` children start before Oban, so they stop after it: a turn job still running in its shutdown grace period keeps its `World.Instance` and Task.
+
+The only long-lived process per session is `TalesForge.World.Instance` (`lib/ex_tales_forge/world/instance.ex`, [design](https://github.com/whyse-ab/ex-tales-forge/blob/main/docs/design-gc-10f-one-process.md)). `Workers.ProcessTurn` asks it to run the turn; it runs one turn at a time in a Task and stops after 15 minutes idle. Its state is a cache rebuilt from Postgres. NPCs have no process of their own (refactor step 10f PR 2 retired the NPC agents, `NPCRegistry` and `NPCRecovery`): what a turn means for them comes in as Intentions applied in the turn's transaction. 10f PR 3 retired `PlayerSessionAgent` (nothing read it) and removed the `jido` dependency.
 
 One `GameSession` (`lib/ex_tales_forge/schemas/game_session.ex`) is one instance. Mutable world is a JSON map (`world_state`) plus related rows:
 
@@ -120,7 +128,7 @@ The other holes we have to close:
 1. **Omniscient GM prompt.** `Assemble.format_gm_prompt/1` concatenates pack rules, formatted intent (including `situation_lines` and recent-turn **player** text slices), and `NPC.format_gm_sections/2`. It does **not** dump raw `world_state`. The leak today is `NPC.merged_npc_context/1` putting the full `runtime_state` (memories, concern wait-ticks, initiative flags) into the present-NPC JSON. Front clocks would be a second leak if injected the same way. `context_summary` → `situation_lines` can persist invented hidden facts across later turns.
 2. **GM invents mechanics.** `Mechanics` rolls 1d20 and awards LP, but social outcomes are unbounded: a nat-1 intimidation can be narrated as "he tells you everything" because `gm_system.txt` does not constrain by relative power, personality, or beliefs. (`overlay_deltas` were decoded and never applied; removed from the GM schema in Oct 2026.)
 3. **Memories are not retrieved.** Last-5 of present NPCs is not "last year's slight." If the fact never reaches the prompt, the sim does not matter.
-4. **OTP is global, not a session crash domain.** An NPC agent crash is isolated by Jido, but there is no session-shaped supervisor for WorldSim / fronts / extras. Geography is not (and must not become) a supervision tree.
+4. **OTP is global, not a session crash domain.** `World.Instance` isolates one session's turns, but there is no session-shaped supervisor for WorldSim / fronts / extras. Geography is not (and must not become) a supervision tree.
 
 ### Adjacent work (not this design)
 
@@ -217,8 +225,7 @@ Marta remains a **person with a concern**, not a front. The thing under the mine
 4. Inserts `GameSession`. Default `name` is `"Crossroads Hamlet"` (`create_session/1` Map.merge) unless attrs pass `name`.
 5. `NPC.seed_session/1` inserts an `NpcInstance` for the pack's `npcs/` on tin_valley, else for **every** `priv/npcs/*.json` (Marta **and** Henrik).
 6. `present_npcs` is whoever shares the player's location (`NPC.sync_present_npcs/2`).
-7. Starts `PlayerSessionAgent`.
-8. `ensure_scene/1` enqueues `TalesForge.Workers.ProcessScene` if `last_scene_location != location_id`.
+7. `ensure_scene/1` enqueues `TalesForge.Workers.ProcessScene` if `last_scene_location != location_id`.
 
 `HomeLive` lists one "New game" card per adventure (Tin Valley, Crossroads Hamlet). Each card links to the creation screen (`/new/:adventure`) and keeps the quick start as Elara (`create_session(%{name: ..., adventure_id: ...})`, no character).
 
@@ -772,7 +779,7 @@ Authored in the pack (`portents/they_dig_too_deep.md` + trigger in the guild fro
 
 ### Today (keep working until PR-5)
 
-Global Jido for `PlayerSessionAgent`, and one `World.Instance` per session that runs its turns (refactor step 10f). NPCs have no process: the NPC agents, `NPCRegistry` and `NPCRecovery` were retired in 10f PR 2, so nothing is restarted at boot.
+One `World.Instance` per active session that runs its turns (refactor step 10f), and no other per-session process. NPCs have no process: the NPC agents, `NPCRegistry` and `NPCRecovery` were retired in 10f PR 2, and `PlayerSessionAgent` and the `jido` dependency in 10f PR 3, so nothing is restarted at boot. The target below predates 10f; [design-gc-10f-one-process.md](https://github.com/whyse-ab/ex-tales-forge/blob/main/docs/design-gc-10f-one-process.md) replaces its per-entity agents with one process per world.
 
 ### Target (failure domains)
 
@@ -781,14 +788,12 @@ flowchart TB
   App[TalesForge.Supervisor]
   App --> Repo
   App --> Oban
-  App --> Jido
   App --> PubSub
   App --> Endpoint
   App --> SR[SessionRegistry]
   App --> SSSup[SessionSupervisor - DynamicSupervisor]
 
   SSSup --> S1[SessionDomain session_id]
-  S1 --> PSA[PlayerSessionAgent]
   S1 --> WSim[WorldSim GenServer]
   S1 --> NPCSup[NPC DynamicSupervisor]
   S1 --> FrontSup[Front DynamicSupervisor]
@@ -802,12 +807,11 @@ flowchart TB
 | Process | Crash domain meaning | Restarts from |
 |---------|----------------------|---------------|
 | `SessionDomain` | One instance's in-memory agents. Crash ≠ other players. | Ecto (`GameSession`, `FrontInstance`, `NpcInstance`) |
-| `PlayerSessionAgent` | Hot UI-adjacent session state (already exists) | `GameSessions.ensure_agent/1` |
 | `WorldSim` | Due dates + which clocks tick this player-turn | `FrontInstance` rows + `session_events` |
 | `NPCAgent` | Present people **and** session extras currently "on stage" | `NpcInstance` via existing `NPC.build_agent_state/2` |
 | `FrontAgent` (optional) | Live front while its clocks are live | `FrontInstance`. **Not** parent of rooms or soldiers |
 
-**Lookup:** extend the `NPCRegistry` pattern (`agent_id/2`, `sync/1`, `whereis` via Jido) with:
+**Lookup:** a `Registry` with `{:via, Registry, ...}` names, as `World.Registry` does for `World.Instance` (the Jido `NPCRegistry` pattern is gone), with:
 
 - `TalesForge.FrontRegistry.agent_id(session_id, front_id)` → `front-{session_id}-{front_id}`
 - `TalesForge.SessionRegistry` → `{:via, Registry, {TalesForge.SessionRegistry, session_id}}` for the session domain.
@@ -824,12 +828,12 @@ flowchart TB
 | Quantity | Estimate |
 |----------|----------|
 | Concurrent instanced players (design target) | 1_000 |
-| Processes per session (typical) | ~8–15 (session domain, player agent, WorldSim, 3–8 NPCs, 2–3 fronts) |
+| Processes per session (typical) | ~8–15 (session domain, WorldSim, 3–8 NPCs, 2–3 fronts) |
 | Worst case | ~30 (extras + more present NPCs) → 10k–30k processes cluster-wide |
 | BEAM comfort | Fine |
 | Real limiter | LLM: Oban `:llm` concurrency is **5** today (`config/config.exs`). Table GM must keep that budget. Chronicler goes on a new `:sim` queue (concurrency 2–5) so it cannot starve turns. Cap one job per session per turn, often zero |
 
-`config :ex_tales_forge, TalesForge.Jido, max_tasks: 1000` is **`Task.Supervisor` `max_children`** (`deps/jido/lib/jido.ex` `init/1`), not an agent cap. The agent `DynamicSupervisor` has no `max_children`. Do not quote `max_tasks` as proof that 10k–30k session processes fit. 1000 concurrent Jido *tasks* could matter if actions fan out; NPC signals today are `AgentServer.cast`. The real limiter remains Oban `:llm` concurrency **5**. Confirm task vs agent semantics before any production scale claim. Not a tracer blocker.
+The real limiter is Oban `:llm` concurrency **5**, not process count.
 
 Session DynamicSupervisor should use `:one_for_one`. WorldSim crash: log, restart, reload from Ecto; do not replay the in-flight turn.
 
@@ -1446,8 +1450,8 @@ Not open: instancing, turn ticks, no invented major fronts, Ecto runtime, table 
 - `lib/ex_tales_forge_web/live/home_live.ex` — hardcodes Crossroads `create_session`.
 - `lib/ex_tales_forge_web/live/play_live.ex` — `maybe_start_scene_after_travel/3` enqueues scene after `turn_completed`.
 - `lib/ex_tales_forge/game/mechanics.ex` — 1d20 + LP; social unbounded.
-- `lib/ex_tales_forge/npc.ex`, `npc_registry.ex`, `npc_signals.ex`, `npc_recovery.ex` — present-NPC agency.
-- `lib/ex_tales_forge/agents/npc_agent.ex`, `player_session_agent.ex`.
+- `lib/ex_tales_forge/npc.ex`, `npc_signals.ex` — present-NPC agency.
+- `lib/ex_tales_forge/world/instance.ex` — the one process per active session.
 - `lib/ex_tales_forge/schemas/*` — `GameSession`, `Turn`, `NpcInstance`, `Scene`.
 - `priv/adventures/crossroads_ledger/` — hook without an opposing plan.
 - `priv/npcs/marta_kellen.json` — `current_concern`, OCEAN, `agency_tier` (person, not a front).

@@ -4,15 +4,10 @@ defmodule TalesForgeWeb.PlayLiveTest do
   import Phoenix.LiveViewTest
 
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, Turn}
 
   setup %{conn: conn} do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, conn: log_in_admin(conn)}
   end
 

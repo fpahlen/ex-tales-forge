@@ -4,14 +4,12 @@ defmodule TalesForge.Characters.ThoughtTest do
   alias TalesForge.Characters
   alias TalesForge.Characters.{Moment, Thought}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{AICall, Turn}
 
   doctest Thought
 
   setup do
-    on_exit(fn -> for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id) end)
     {:ok, session} = GameSessions.create_session(%{name: "Thought", adventure_id: "tin_valley"})
     chars = Characters.list_for_session(session.id)
     pc = Enum.find(chars, &(&1.controller != "gm"))

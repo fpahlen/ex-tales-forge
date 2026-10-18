@@ -413,6 +413,9 @@ golden prompts, plus the replay diff):
     turn's payload carries its `:npc_initiatives`, and `World.Instance`
     broadcasts them once the turn has committed, after `{:turn_completed, _}`.
     The Gentry, 10d and 10b-2 replays give the same state after every turn.
+  - PR 3, Retire `PlayerSessionAgent` (2026-10-18): it, `ensure_agent/1`
+    and the `jido` dependency (9 packages out of `mix.lock`) are deleted.
+    The replays are identical.
   - Then drop `npc_instances` with the row-check pattern from #47 (plan
     phases 3 and 4).
 

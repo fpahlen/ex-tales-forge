@@ -15,7 +15,6 @@ defmodule TalesForge.Game.SellOwnWordsTest do
 
   alias TalesForge.Game.{Context, JevIntent}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
 
   doctest TalesForge.Game.Inventory, only: [sale: 3]
 
@@ -23,7 +22,6 @@ defmodule TalesForge.Game.SellOwnWordsTest do
     endpoints = Application.get_env(:jev, :endpoints)
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       Application.put_env(:jev, :endpoints, endpoints)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("TURN_APPLY_OUTCOMES")

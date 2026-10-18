@@ -5,18 +5,9 @@ defmodule TalesForge.SceneProcessorTest do
 
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Scene, Turn}
   alias TalesForge.Workers.ProcessScene
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   test "create_session opens with a scene before player can act" do
     assert {:ok, session} = GameSessions.create_session(%{name: "Scene Test"})

@@ -11,7 +11,6 @@ defmodule TalesForge.Game.TrainTest do
   alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
 
@@ -23,10 +22,6 @@ defmodule TalesForge.Game.TrainTest do
   }
 
   setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, session} =
       GameSessions.create_session(%{name: "Trainers", adventure_id: "tin_valley"})
 

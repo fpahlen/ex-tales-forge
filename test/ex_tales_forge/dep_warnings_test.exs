@@ -6,7 +6,13 @@ defmodule TalesForge.DepWarningsTest do
   doctest TalesForge.DepWarnings
 
   @dir Path.expand("../fixtures/dep_warnings", __DIR__)
-  @known DepWarnings.parse_known(File.read!(".github/dep-warnings-known.txt"))
+  # The fixture log is from before 10f PR 3 removed jido, so the known list
+  # here keeps the Lua entry the repo's list (.github/dep-warnings-known.txt)
+  # dropped with it.
+  @known DepWarnings.parse_known("""
+         jido_action | \\bLua\\b.*(is undefined|undefined \\(module) | Optional dependency `lua` of Jido.Tools.LuaEval: we do not use the Lua tool, so `lua` is not installed.
+         oban | expected_error\\?/1 is never used | MySQL-only clause in Oban; we use Postgres; upstream code, no effect on us
+         """)
 
   defp fixture(name), do: File.read!(Path.join(@dir, name))
 
@@ -22,7 +28,7 @@ defmodule TalesForge.DepWarningsTest do
     assert Enum.all?(warnings, &is_binary(&1.location))
   end
 
-  test "the repo's known list marks the Lua and oban warnings as known; the local-only :public_key ones are new" do
+  test "the known list marks the Lua and oban warnings as known; the local-only :public_key ones are new" do
     report =
       "deps_compile.log" |> fixture() |> DepWarnings.parse_log() |> DepWarnings.classify(@known)
 
@@ -30,6 +36,18 @@ defmodule TalesForge.DepWarningsTest do
              %{"jido_action" => 6, "oban" => 1}
 
     assert Enum.map(report.new, & &1.package) == ["jido_signal", "jido_signal"]
+  end
+
+  test "the repo's known list parses and still marks the oban warning as known" do
+    repo_known = DepWarnings.parse_known(File.read!(".github/dep-warnings-known.txt"))
+
+    report =
+      "deps_compile.log"
+      |> fixture()
+      |> DepWarnings.parse_log()
+      |> DepWarnings.classify(repo_known)
+
+    assert Enum.map(report.known, fn {w, _} -> w.package end) == ["oban"]
   end
 
   test "parse_log/1: Erlang warnings and a location without a package use the ==> header" do

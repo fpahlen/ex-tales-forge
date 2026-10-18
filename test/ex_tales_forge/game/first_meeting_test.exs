@@ -3,7 +3,6 @@ defmodule TalesForge.Game.FirstMeetingTest do
 
   alias TalesForge.Game.FirstMeeting
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
@@ -53,8 +52,6 @@ defmodule TalesForge.Game.FirstMeetingTest do
         if previous,
           do: System.put_env("INN_WORLD", previous),
           else: System.delete_env("INN_WORLD")
-
-        for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       end)
 
       System.put_env("INN_WORLD", "on")

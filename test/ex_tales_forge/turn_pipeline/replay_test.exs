@@ -8,7 +8,6 @@ defmodule TalesForge.TurnPipeline.ReplayTest do
   # test/fixtures/turn_pipeline/README.md.
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Jido
   alias TalesForge.TurnPipeline.{Landed, Replay}
 
   @path "test/fixtures/turn_pipeline/items.jsonl"
@@ -20,7 +19,6 @@ defmodule TalesForge.TurnPipeline.ReplayTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("XAI_API_KEY")
     end)

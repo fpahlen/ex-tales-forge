@@ -16,7 +16,6 @@ defmodule TalesForge.Application do
       {DynamicSupervisor, name: TalesForge.World.Supervisor, strategy: :one_for_one},
       {Task.Supervisor, name: TalesForge.World.TaskSupervisor},
       {Oban, Application.fetch_env!(:ex_tales_forge, Oban)},
-      TalesForge.Jido,
       {DNSCluster, query: Application.get_env(:ex_tales_forge, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: TalesForge.PubSub},
       TalesForge.Presence,

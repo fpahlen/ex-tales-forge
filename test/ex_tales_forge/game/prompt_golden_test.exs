@@ -22,19 +22,10 @@ defmodule TalesForge.Game.PromptGoldenTest do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
 
   @dir Path.expand("../../fixtures/prompts", __DIR__)
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   for adventure <- ~w(crossroads_ledger tin_valley) do
     test "#{adventure}: prompts are byte-identical to the golden file" do

@@ -7,7 +7,6 @@ defmodule TalesForge.AICallsTest do
   alias TalesForge.Game.{Context, Intent, TurnProcessor}
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Schemas.{AICall, Turn}
   alias TalesForge.Workers.ProcessTurn
@@ -53,7 +52,6 @@ defmodule TalesForge.AICallsTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("XAI_API_KEY")
       Application.delete_env(:ex_tales_forge, :ai_spend_caps)

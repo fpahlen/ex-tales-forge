@@ -1,13 +1,13 @@
 # ex-tales-forge
 
-A few friends and I have been building a text-first RPG on Elixir. Phoenix for the table, Jido for the hot session, Postgres for the save, Oban for the slow thinking.
+A few friends and I have been building a text-first RPG on Elixir. Phoenix for the table, one OTP process per live session, Postgres for the save, Oban for the slow thinking.
 
 ## Stack
 
 | Layer | Technology |
 |-------|------------|
 | UI | Phoenix LiveView |
-| Game runtime | Jido 2.x agents + actions |
+| Game runtime | Plain OTP (one `World.Instance` GenServer per active session) |
 | Database | PostgreSQL + Ecto |
 | Background jobs | Oban |
 | LLM | xAI Grok (Tier 1 intent + Tier 2 GM) |
@@ -124,11 +124,11 @@ See [docs/DEPLOY-FLY.md](docs/DEPLOY-FLY.md) for Fly.io deploy steps.
 ```
 lib/
   ex_tales_forge/
-    agents/          # Jido agents (PlayerSessionAgent, NPC agents later)
-    actions/         # Jido actions (PlayerMessage, LLM pipeline later)
+    world/           # World.Instance: one process per active session
+    actions/npc/     # NPC signal handlers (turn events in, Intentions out)
     game/            # Pure game logic (mechanics, inventory)
     schemas/         # Ecto schemas (runtime persistence)
-    game_sessions.ex # Session + agent coordination
+    game_sessions.ex # Session create, submit, Oban enqueue
   ex_tales_forge_web/
     live/            # HomeLive, PlayLive
 priv/
