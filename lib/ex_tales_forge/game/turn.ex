@@ -74,15 +74,18 @@ defmodule TalesForge.Game.Turn do
   @doc """
   A new turn. Reads the feature flags and the role one time. `opts` are the
   intent options of `TalesForge.Game.TurnProcessor.run/3` plus `:adapters`
-  and `:flags` (both for tests).
+  and `:flags` (both for tests). This is where the turn reads its acting
+  character: from `world_state["character"]`, or with `CHARACTERS=on` from
+  its `characters` row (the `characters` adapter).
   """
   @spec new(GameSession.t(), integer(), String.t(), PlayerAction.t(), keyword()) :: t()
   def new(%GameSession{} = session, number, raw_action, %PlayerAction{} = intent, opts \\ []) do
     flags = Keyword.get_lazy(opts, :flags, &read_flags/0)
     injected = flag?(flags, :history_strip_injection) and HistoryStrip.injected?(raw_action)
+    adapters = Keyword.get(opts, :adapters, %Adapters{})
 
     %__MODULE__{
-      session: session,
+      session: adapters.characters.(session, flag?(flags, :characters)),
       number: number,
       raw_action: raw_action,
       history_action: if(injected, do: HistoryStrip.placeholder(), else: raw_action),
@@ -91,7 +94,7 @@ defmodule TalesForge.Game.Turn do
       opts: opts,
       flags: flags,
       injected: injected,
-      adapters: Keyword.get(opts, :adapters, %Adapters{})
+      adapters: adapters
     }
   end
 
@@ -103,7 +106,8 @@ defmodule TalesForge.Game.Turn do
       turn_state_from_mechanics: Config.turn_state_from_mechanics?(),
       turn_apply_outcomes: Config.turn_apply_outcomes?(),
       history_strip_injection: Config.history_strip_injection?(),
-      jev_catalogue_v2: Config.jev_catalogue_v2?()
+      jev_catalogue_v2: Config.jev_catalogue_v2?(),
+      characters: Config.characters?()
     })
   end
 
