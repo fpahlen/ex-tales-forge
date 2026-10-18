@@ -166,6 +166,22 @@ GitHub Actions secrets for the lane (repo Settings → Secrets and variables →
 | `SECURITY_LANE_WEBHOOK_URL` | Optional: Bobby's webhook for the note after a security-lane deploy | No note; the run summary says so |
 | `SECURITY_LANE_WEBHOOK_KEY` | Optional: the key for the bearer token and the HMAC signature | The note goes out unsigned |
 
+### Auto lane (merge only)
+
+[Design: auto-merge](https://github.com/whyse-ab/ex-tales-forge/blob/main/docs/design-auto-merge.md). A PR that does not change `mix.lock` is merged by the
+bot (the `whyse-merge-bot` App, through the secrets above) when it is **docs-only** (every path
+under `docs/`) or the **health-history** PR, nothing it changes is on `[founder]` in
+`.github/deploy-lanes.txt`, it deletes nothing outside `docs/` and `test/`, it has no
+`user-visible` label, and every check run and commit status on its head sha passed.
+`.github/workflows/security-lane.yml` checks this after CI with the rules from `main`
+(`TalesForge.DeployLanes.Auto`, `elixir .github/scripts/auto_lane.exs`) and merges with
+`gh pr merge --squash --match-head-commit <sha>`. Everything else waits for a founder. The auto
+lane only merges: the deploy that follows is the normal lane (playtest, then a founder's Approve).
+
+Dry runs, which never merge: `gh workflow run security-lane.yml -f pr=<number>` (merging needs
+`-f dry_run=false`), or locally over merged PRs:
+`elixir .github/scripts/auto_lane.exs history --prs prs.json`.
+
 Normal lane: production is the manual GitHub Actions workflow
 `.github/workflows/deploy-production.yml` ("Deploy to production"), started once the build has
 been checked on playtest and Fredrik has OK'd it:

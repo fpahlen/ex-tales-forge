@@ -25,7 +25,26 @@
 # must be allowed to merge into main without a review (a bypass for the App in
 # the main branch ruleset), because this lane has no founder OK.
 #
-# By hand (re-check one PR): gh workflow run security-lane.yml -f pr=<number>
+# The auto lane (docs/design-auto-merge.md; TalesForge.DeployLanes.Auto,
+# .github/scripts/auto_lane.exs): a PR that does not change mix.lock is merged
+# by the bot when
+#   1. no changed path is on [founder] in .github/deploy-lanes.txt (priv/,
+#      SQL, mix.exs/mix.lock, fly*.toml, Dockerfile, rel/, config/, .github/,
+#      docs/decisions.md),
+#   2. it deletes nothing outside docs/ and test/,
+#   3. it has no `user-visible` label (that label only adds founder review),
+#   4. it is docs-only (every path under docs/) or health-history (branch
+#      health-history, only docs/health/history.csv and trend.svg); refactors
+#      wait for a Replay check in CI,
+#   5. every check run and commit status on its head sha passed (success,
+#      skipped or neutral), Test included.
+# Anything else waits for a founder. The rules run from main, like the
+# security lane's, and the merge is `--match-head-commit` for the sha that was
+# checked. The bot is the whyse-merge-bot app (the secrets below).
+#
+# By hand (re-check one PR; a dry run unless dry_run=false):
+#   gh workflow run security-lane.yml -f pr=<number>
+#   gh workflow run security-lane.yml -f pr=<number> -f dry_run=false
 name: Security lane
 
 on:
@@ -38,11 +57,17 @@ on:
         description: "Pull request number to check"
         required: true
         type: string
+      dry_run:
+        description: "Only classify; never merge"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
   pull-requests: read
   checks: read
+  statuses: read
 
 env:
   ELIXIR_VERSION: "1.18.4"
@@ -50,12 +75,16 @@ env:
 
 jobs:
   classify:
-    name: Security lane check
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request'
+    name: Merge lane check
+    # pull_request CI runs, and the dispatched CI run of the health-history PR.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.event == 'pull_request' ||
+      github.event.workflow_run.event == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
-      lane: ${{ steps.lane.outputs.lane || 'normal' }}
+      lane: ${{ steps.security.outputs.lane || steps.auto.outputs.lane || 'normal' }}
       pr: ${{ steps.pr.outputs.number }}
       head: ${{ steps.pr.outputs.head }}
     steps:
@@ -79,8 +108,8 @@ jobs:
             exit 0
           fi
           gh pr view "$number" -R "$GITHUB_REPOSITORY" \
-            --json number,title,body,labels,headRefOid,baseRefName,baseRefOid,files,isCrossRepository,state > "$RUNNER_TEMP/pr.json"
-          jq '{title, body, labels}' "$RUNNER_TEMP/pr.json" > "$RUNNER_TEMP/pr-meta.json"
+            --json number,title,body,labels,headRefName,headRefOid,baseRefName,baseRefOid,files,isCrossRepository,state > "$RUNNER_TEMP/pr.json"
+          jq '{title, body, labels, headRefName}' "$RUNNER_TEMP/pr.json" > "$RUNNER_TEMP/pr-meta.json"
           head="$(jq -r .headRefOid "$RUNNER_TEMP/pr.json")"
           if [ -n "${HEAD_SHA:-}" ] && [ "$head" != "$HEAD_SHA" ]; then
             echo "PR #$number moved on to \`$head\`; its own CI run decides." >> "$GITHUB_STEP_SUMMARY"
@@ -92,11 +121,13 @@ jobs:
             echo "PR #$number: not an open PR from this repo into main. Normal lane." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if ! jq -e '[.files[].path] | index("mix.lock")' "$RUNNER_TEMP/pr.json" > /dev/null; then
-            echo "PR #$number does not change \`mix.lock\`: normal lane." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+          # mix.lock: the security lane decides; anything else: the auto lane.
+          lock=false
+          if jq -e '[.files[].path] | index("mix.lock")' "$RUNNER_TEMP/pr.json" > /dev/null; then
+            lock=true
           fi
           {
+            echo "lock=$lock"
             echo "number=$number"
             echo "head=$head"
             echo "base=$(jq -r .baseRefOid "$RUNNER_TEMP/pr.json")"
@@ -104,7 +135,7 @@ jobs:
 
       - name: CI is green (Test and Dialyzer on the head sha)
         id: ci
-        if: steps.pr.outputs.number != ''
+        if: steps.pr.outputs.lock == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ steps.pr.outputs.head }}
@@ -118,6 +149,24 @@ jobs:
             [ "$conclusion" = "success" ] || result=failure
           done
           echo "result=$result" >> "$GITHUB_OUTPUT"
+
+      # The auto lane: every check run and commit status on the head sha.
+      - name: Checks on the head sha
+        if: steps.pr.outputs.lock == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.pr.outputs.head }}
+        run: |
+          set -euo pipefail
+          runs="$(gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?filter=latest&per_page=100" \
+            --jq '.check_runs[] | {name, status, conclusion}' | jq -s .)"
+          statuses="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/status" \
+            --jq '[.statuses[] | {name: .context,
+                    status: (if .state == "pending" then "in_progress" else "completed" end),
+                    conclusion: (if .state == "error" then "failure" elif .state == "pending" then null else .state end)}]')"
+          jq -n --argjson runs "$runs" --argjson statuses "$statuses" '{checks: ($runs + $statuses)}' \
+            > "$RUNNER_TEMP/checks.json"
+          jq -r '.checks[] | "\(.name): \(.status) \(.conclusion)"' "$RUNNER_TEMP/checks.json"
 
       - uses: actions/checkout@v7
         if: steps.pr.outputs.number != ''
@@ -133,9 +182,9 @@ jobs:
 
       # Runs the rules from main (not from the PR), so a PR cannot change them
       # for itself. Writes lane=security|normal and the PASS/FAIL list.
-      - name: Pick the lane
-        id: lane
-        if: steps.pr.outputs.number != ''
+      - name: Security lane
+        id: security
+        if: steps.pr.outputs.lock == 'true'
         env:
           PR: ${{ steps.pr.outputs.number }}
           BASE: ${{ steps.pr.outputs.base }}
@@ -148,10 +197,28 @@ jobs:
           elixir .github/scripts/security_lane.exs pr --base "$BASE" --head "$HEAD" \
             --pr "$RUNNER_TEMP/pr-meta.json" --ci "$CI"
 
+      # Also from main. Writes lane=auto|normal, class= and the rule list.
+      - name: Auto lane
+        id: auto
+        if: steps.pr.outputs.lock == 'false'
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          BASE: ${{ steps.pr.outputs.base }}
+          HEAD: ${{ steps.pr.outputs.head }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/pull/$PR/head:refs/remotes/pr/$PR" "$BASE"
+          echo "#### PR #$PR" >> "$GITHUB_STEP_SUMMARY"
+          elixir .github/scripts/auto_lane.exs pr --base "$BASE" --head "$HEAD" \
+            --pr "$RUNNER_TEMP/pr-meta.json" --checks "$RUNNER_TEMP/checks.json"
+
   merge:
-    name: Squash-merge (security lane)
+    name: Squash-merge (merge lane)
     needs: classify
-    if: needs.classify.outputs.lane == 'security'
+    # A dispatched run merges only with dry_run=false.
+    if: >-
+      (needs.classify.outputs.lane == 'security' || needs.classify.outputs.lane == 'auto') &&
+      (github.event_name != 'workflow_dispatch' || inputs.dry_run == false)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
@@ -170,6 +237,7 @@ jobs:
           GH_TOKEN: ${{ steps.app.outputs.token || secrets.SECURITY_BOT_TOKEN }}
           PR: ${{ needs.classify.outputs.pr }}
           HEAD: ${{ needs.classify.outputs.head }}
+          LANE: ${{ needs.classify.outputs.lane }}
         run: |
           set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
@@ -178,4 +246,4 @@ jobs:
             exit 0
           fi
           gh pr merge "$PR" -R "$GITHUB_REPOSITORY" --squash --match-head-commit "$HEAD"
-          echo "Merged PR #$PR (squash, head \`$HEAD\`). playtest.yml deploys it after CI on main." >> "$GITHUB_STEP_SUMMARY"
+          echo "Merged PR #$PR ($LANE lane, squash, head \`$HEAD\`). playtest.yml deploys it after CI on main." >> "$GITHUB_STEP_SUMMARY"

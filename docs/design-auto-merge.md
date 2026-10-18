@@ -1,12 +1,12 @@
 ---
 title: "Design: auto-merge, fewer but better decisions"
 updated: 2026-10-18
-status: design for review (no code)
+status: ex-tales-forge auto lane built; workflow waits for the app install
 ---
 
 # Design: auto-merge (ex-tales-forge and workflow)
 
-**Status:** design, 2026-10-18. No code yet. It covers both repos. This file is the only copy; `whyse-ab/workflow` gets the same rules when it is built (step 6).
+**Status:** design, 2026-10-18. Built for ex-tales-forge (docs-only and health-history; see `docs/DEPLOY-FLY.md`, "Auto lane"). workflow waits until `whyse-merge-bot` is installed there. It covers both repos. This file is the only copy; `whyse-ab/workflow` gets the same rules when it is built (step 6).
 
 **Intent (Fredrik):** fewer but better decisions. A PR whose safety CI can prove merges on its own. Fredrik approves only the PRs that are real decisions.
 
@@ -25,7 +25,7 @@ status: design for review (no code)
    - **refactor with a byte-identical replay:** only `lib/**` and `test/**` change (no forced path), and the `Replay` check on the head sha says identical. **Until that check exists, refactors stay needs-founder** (see "Replay in CI").
 3. **security**: unchanged. [`security-lane.yml`](https://github.com/whyse-ab/ex-tales-forge/blob/main/.github/workflows/security-lane.yml) and `TalesForge.DeployLanes.Security` keep their own rules.
 
-A needs-founder PR starts its body with one line, `What you're deciding: ...`. A non-required `Merge class` check fails without that line, so the gap shows on the PR.
+A needs-founder PR starts its body with one line, `What you're deciding: ...`. The lane run adds a warning annotation when that line is missing. (A check that runs after CI from `workflow_run` doesn't show on the PR, so the warning appears on the lane run.)
 
 ## How it works (reuse, not new machinery)
 
