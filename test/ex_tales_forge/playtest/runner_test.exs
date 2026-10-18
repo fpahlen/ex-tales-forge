@@ -225,7 +225,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     assert system == TalesForge.Playtest.Personas.system_prompt(lotta)
   end
 
-  test "the persona sees the story but no hidden events, GM notes or rolls" do
+  test "the persona sees the story but no hidden events, GM bookkeeping or rolls" do
     test_pid = self()
 
     stub_llm(fn
@@ -241,7 +241,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     {:ok, run_id} = Runner.start("paul", "tin_valley", turn_limit: 2)
     assert {:ok, %{status: "finished"} = run} = await(run_id)
 
-    assert [%{payload: %{"gm_notes" => "SECRET-GM-NOTE"}} | _] =
+    assert [%{payload: %{"gm_reply" => %{"context_summary" => "SECRET-GM-SUMMARY"}}} | _] =
              GMReasoning.list_for_session(run.game_session_id)
 
     assert Repo.exists?(from(e in SessionEvent, where: e.payload["text"] == "SECRET-EVENT"))
@@ -251,7 +251,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     assert second =~ "The lamp gutters as the innkeeper eyes you."
     assert second =~ "Character: Corvin Ashdown"
     refute second =~ "SECRET"
-    refute second =~ ~r/roll|difficulty|gm_notes/i
+    refute second =~ ~r/roll|difficulty|context_summary/i
   end
 
   test "the GM opens the scene before the persona's first move, and the persona sees it first" do

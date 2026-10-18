@@ -18,7 +18,7 @@ defmodule TalesForge.Prompt.Profile do
     * `WORLD_AGENTS` adds the world facts and the prices;
     * `SKILL_DETAIL_LEVEL` adds the noticed details;
     * the production role gets the lean GM task (`gm_task_fragments/1`);
-      its lean reply (no `location_name`, no `gm_notes`) is the `:lean`
+      its lean reply (no `location_name`) is the `:lean`
       variant of `TalesForge.LLM.gm_variant/1`.
   """
 

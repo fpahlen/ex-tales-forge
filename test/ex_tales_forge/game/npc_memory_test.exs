@@ -39,8 +39,7 @@ defmodule TalesForge.Game.NpcMemoryTest do
         send(test_pid, {:gm_prompt, user})
 
         %{
-          "narrative" => ~s(Brenna Holt sets down a mug. "We close at midnight, traveller."),
-          "gm_notes" => "n"
+          "narrative" => ~s(Brenna Holt sets down a mug. "We close at midnight, traveller.")
         }
 
       _kind, _user, _system ->

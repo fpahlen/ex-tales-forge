@@ -80,7 +80,9 @@ defmodule TalesForge.Playtest.ScorerTest do
     assert prompt =~ "[Scene] Rain drums on the inn's shutters."
     assert prompt =~ "T1 [Player] Evening! Are you not aware of the new regulations?"
     assert prompt =~ "T1 [GM] The lamp gutters as the innkeeper eyes you."
-    assert prompt =~ "T1 (GM notes) SECRET-GM-NOTE"
+    # The turn's code-layer session events, hidden from the player.
+    assert prompt =~ ~r/^T1 \(events\) time\.passed/m
+    refute prompt =~ "GM notes"
     assert prompt =~ "stopped by turn_limit"
 
     assert {:ok, _again} = Scorer.score(run_id)

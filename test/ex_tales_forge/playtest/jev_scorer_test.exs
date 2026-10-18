@@ -52,9 +52,9 @@ defmodule TalesForge.Playtest.JevScorerTest do
   defp restore_env(name, nil), do: System.delete_env(name)
   defp restore_env(name, value), do: System.put_env(name, value)
 
-  test "build_state is player text and GM narration only — no gm_notes" do
+  test "build_state is player text and GM narration only — none of the GM's bookkeeping" do
     stub_llm(fn
-      :gm, _ -> %{"narrative" => "VISIBLE-GM-NARRATION", "gm_notes" => "SECRET-GM-NOTE"}
+      :gm, _ -> %{"narrative" => "VISIBLE-GM-NARRATION", "context_summary" => "SECRET-GM-SUMMARY"}
       _, _ -> :default
     end)
 
@@ -64,8 +64,7 @@ defmodule TalesForge.Playtest.JevScorerTest do
 
     assert state.text =~ "VISIBLE-GM-NARRATION"
     assert state.text =~ "Player:" or state.text =~ "Opening"
-    refute state.text =~ "SECRET-GM-NOTE"
-    refute state.text =~ "gm_notes"
+    refute state.text =~ "SECRET-GM-SUMMARY"
   end
 
   test "scale maps Jev 0-index to 1–5" do

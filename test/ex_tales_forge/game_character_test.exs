@@ -49,7 +49,7 @@ defmodule TalesForge.GameCharacterTest do
     stub_llm(fn
       :gm, user, system ->
         send(test_pid, {:gm_prompt, system, user})
-        %{"narrative" => "The valley goes on.", "gm_notes" => "n"}
+        %{"narrative" => "The valley goes on."}
 
       _kind, _user, _system ->
         :default

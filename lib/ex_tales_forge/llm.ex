@@ -54,9 +54,6 @@ defmodule TalesForge.LLM do
   @scorer_max_tokens 800
   @scorer_temperature 0.2
 
-  # Output budget for gm_notes on top of the narration's TIER2_MAX_TOKENS.
-  @gm_notes_max_tokens 100
-
   # No maxLength / maxItems in the schema: with them xAI does not reuse the
   # prompt cache for the request at all (every GM call came back with
   # cached_tokens 128, measured 2026-10-07; the same request without them hit
@@ -81,9 +78,9 @@ defmodule TalesForge.LLM do
   would stop it from warming the cache for GM turn 1. The scene fills
   `narrative` + `location_name`; the GM leaves `location_name` out.
 
-  `variant` `:lean` (the production GM call) has no `location_name` and no
-  `gm_notes`. Its schema is different from the scene schema, so on production
-  the scene call does not warm the cache for the first GM turn after it.
+  `variant` `:lean` (the production GM call) has no `location_name`. Its
+  schema is different from the scene schema, so on production the scene call
+  does not warm the cache for the first GM turn after it.
   """
   @spec narration_schema(gm_variant()) :: map()
   def narration_schema(variant \\ :full) do
@@ -96,8 +93,8 @@ defmodule TalesForge.LLM do
 
   @typedoc """
   The GM reply variant. `:full` has every narration field (playtest and local).
-  `:lean` has no `gm_notes` and no `location_name` (production). The scene call
-  always uses `:full`, because the scene owns `location_name`.
+  `:lean` has no `location_name` (production). The scene call always uses
+  `:full`, because the scene owns `location_name`.
   """
   @type gm_variant :: :full | :lean
 
@@ -115,7 +112,7 @@ defmodule TalesForge.LLM do
   def gm_variant(_role), do: :full
 
   # The reply fields of the variant, in schema order: the lean reply
-  # (production) has no location_name and no gm_notes.
+  # (production) has no location_name.
   defp narration_properties(variant) do
     fields = narration_fields(variant)
     Enum.filter(all_narration_properties(), fn {key, _} -> key in fields end)
@@ -124,7 +121,7 @@ defmodule TalesForge.LLM do
   defp narration_fields(:lean), do: ~w(narrative npc_memory_updates context_summary)
 
   defp narration_fields(:full),
-    do: ~w(narrative location_name npc_memory_updates context_summary gm_notes)
+    do: ~w(narrative location_name npc_memory_updates context_summary)
 
   defp all_narration_properties do
     [
@@ -142,8 +139,7 @@ defmodule TalesForge.LLM do
            }
          }
        }},
-      {"context_summary", %{"type" => ["string", "null"]}},
-      {"gm_notes", %{"type" => ["string", "null"]}}
+      {"context_summary", %{"type" => ["string", "null"]}}
     ]
   end
 
@@ -617,7 +613,7 @@ defmodule TalesForge.LLM do
   defp gm_opts(variant, turn_number, opts) do
     [
       tier: :tier2,
-      max_tokens: Config.tier2_max_tokens() + notes_budget(variant),
+      max_tokens: Config.tier2_max_tokens(),
       session_id: opts[:session_id],
       turn_number: turn_number,
       structured_output: "narration",
@@ -627,9 +623,6 @@ defmodule TalesForge.LLM do
       variant: variant
     ]
   end
-
-  defp notes_budget(:full), do: @gm_notes_max_tokens
-  defp notes_budget(:lean), do: 0
 
   defp valid_gm_reply?(%{"narrative" => narrative}) when is_binary(narrative),
     do: String.trim(narrative) != ""

@@ -239,7 +239,7 @@ Player input is blocked in `PlayLive` while `scene_loading` or `thinking` (`inpu
 | Tier | Where | Model / temp | Input | Output |
 |------|-------|--------------|-------|--------|
 | 1 Intent | `GameSessions.resolve_and_enqueue/3` **before** Oban | `INTENT_JEV=on`: one Jev call (`IntentJev.resolve/3`); the heuristic on a Jev error or timeout. No LLM call | Raw player text + intent context | `PlayerAction` JSON |
-| 2 Table GM | `TurnProcessor.run/3` inside `ProcessTurn` | `LLM.complete_turn` temp 0.7, 700 tokens | Validated `PlayerAction` + handler + rules + present NPCs | `GMStructuredResponse` (narrative first; capped npc_memory_updates, context_summary, gm_notes) |
+| 2 Table GM | `TurnProcessor.run/3` inside `ProcessTurn` | `LLM.complete_turn` temp 0.7, 700 tokens | Validated `PlayerAction` + handler + rules + present NPCs | `GMStructuredResponse` (narrative first; capped npc_memory_updates, context_summary) |
 | Scene | `SceneProcessor` / `ProcessScene` | Same model as Tier 2 | Location + GM context | `{location_name, narrative}` |
 
 Raw player text never reaches Tier 2 (`Intent.sanitize_summary/1` strips instruction-injection phrases; `gm_system.txt` restates this). `TalesForge.LLM` is the only LLM client. Config lives in `TalesForge.Config`. Target: full turn < 3s (`mix e2e.smoke`).

@@ -42,17 +42,17 @@ defmodule TalesForge.Game.Prompts do
 
   @doc """
   The fragments of the GM task prompt (`priv/prompts/gm_system/`) for the app
-  role. Production has a lean reply with no `gm_notes` and no
-  `location_name`, so its prompt leaves out the fragments that ask for them.
+  role. Production has a lean reply with no `location_name`, so its prompt
+  leaves out the fragment that asks for it.
 
       iex> TalesForge.Game.Prompts.gm_task_fragments(%TalesForge.Prompt.Ctx{role: :production})
       ~w(head output)
       iex> TalesForge.Game.Prompts.gm_task_fragments(%TalesForge.Prompt.Ctx{role: :playtest})
-      ~w(head location_name output gm_notes)
+      ~w(head location_name output)
   """
   @spec gm_task_fragments(Ctx.t()) :: [String.t()]
   def gm_task_fragments(%Ctx{role: :production}), do: ~w(head output)
-  def gm_task_fragments(%Ctx{}), do: ~w(head location_name output gm_notes)
+  def gm_task_fragments(%Ctx{}), do: ~w(head location_name output)
 
   @doc "Task prompt of the opening/arrival scene, message 3 (`scene_system.txt`)."
   @spec scene_system() :: String.t()

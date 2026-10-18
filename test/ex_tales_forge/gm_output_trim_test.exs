@@ -1,11 +1,12 @@
 defmodule TalesForge.GMOutputTrimTest do
   @moduledoc """
   The GM reply carries only what the code uses: narrative first, then small,
-  capped bookkeeping (npc_memory_updates, context_summary, gm_notes). The caps
+  capped bookkeeping (npc_memory_updates, context_summary). The caps
   live in GMStructuredResponse.decode/1, not in the schema: maxLength /
   maxItems in the strict schema stop xAI from reusing the prompt cache.
   state_updates (discarded by TurnProcessor) and overlay_deltas (never read)
-  are gone from the schema, the prompt and the struct.
+  are gone from the schema, the prompt and the struct, and so is gm_notes
+  (dropped 2026-10-18; playtest QA reads the turn's session events instead).
   """
   use TalesForge.DataCase, async: false
 
@@ -31,11 +32,12 @@ defmodule TalesForge.GMOutputTrimTest do
     %Jason.OrderedObject{values: props} = schema["properties"]
 
     assert Enum.map(props, &elem(&1, 0)) ==
-             ~w(narrative location_name npc_memory_updates context_summary gm_notes)
+             ~w(narrative location_name npc_memory_updates context_summary)
 
     props = Map.new(props)
     refute Map.has_key?(props, "state_updates")
     refute Map.has_key?(props, "overlay_deltas")
+    refute Map.has_key?(props, "gm_notes")
 
     assert schema["required"] == ["narrative"]
   end
@@ -54,14 +56,12 @@ defmodule TalesForge.GMOutputTrimTest do
     gm =
       GMStructuredResponse.decode(%{
         "narrative" => long,
-        "gm_notes" => long,
         "context_summary" => long,
         "npc_memory_updates" => for(i <- 1..5, do: %{"npc_id" => "npc_#{i}", "summary" => long})
       })
 
     caps = GMStructuredResponse.caps()
     assert gm.narrative == long
-    assert String.length(gm.gm_notes) == caps.gm_notes
     assert String.length(gm.context_summary) == caps.context_summary
     assert length(gm.npc_memory_updates) == caps.npc_memory_items
     assert Enum.map(gm.npc_memory_updates, & &1["npc_id"]) == ~w(npc_1 npc_2 npc_3)
@@ -71,17 +71,21 @@ defmodule TalesForge.GMOutputTrimTest do
              &(String.length(&1["summary"]) == caps.npc_memory_summary)
            )
 
-    short = GMStructuredResponse.decode(%{"narrative" => "n", "gm_notes" => "ok"})
-    assert short.gm_notes == "ok"
+    refute Map.has_key?(caps, :gm_notes)
+
+    short = GMStructuredResponse.decode(%{"narrative" => "n"})
     assert short.context_summary == nil
     assert short.npc_memory_updates == []
   end
 
-  test "the GM prompt no longer asks for state_updates or overlay_deltas" do
+  test "the GM prompt no longer asks for state_updates, overlay_deltas or gm_notes" do
+    for role <- [:local, :playtest, :production] do
+      refute Prompts.gm_system(role) =~ "gm_notes"
+    end
+
     gm = Prompts.gm_system()
     refute gm =~ "state_updates"
     refute gm =~ "overlay_deltas"
-    assert gm =~ "gm_notes"
     assert gm =~ "context_summary"
     assert gm =~ "npc_memory_updates"
   end
@@ -91,17 +95,17 @@ defmodule TalesForge.GMOutputTrimTest do
       "narrative" => "n",
       "state_updates" => [%{"path" => "npcs/marta_kellen.json", "patch" => %{"mood" => "angry"}}],
       "overlay_deltas" => %{"tension" => 0.2},
-      "gm_notes" => "kept"
+      "gm_notes" => "ignored"
     }
 
     gm = GMStructuredResponse.decode(legacy)
     refute Map.has_key?(gm, :state_updates)
     refute Map.has_key?(gm, :overlay_deltas)
-    assert gm.gm_notes == "kept"
+    refute Map.has_key?(gm, :gm_notes)
     assert gm.raw == legacy
   end
 
-  test "gm_notes, context_summary and NPC memories still reach reports and the next turn" do
+  test "the raw reply, context_summary and NPC memories still reach reports and the next turn" do
     {:ok, session} = GameSessions.create_session(%{name: "Trimmed GM"})
     context = Context.build_intent_context(session)
 
@@ -119,8 +123,7 @@ defmodule TalesForge.GMOutputTrimTest do
       "npc_memory_updates" => [
         %{"npc_id" => "marta_kellen", "summary" => "The stranger asked nothing and paid."}
       ],
-      "context_summary" => "- Weary Pilgrim, evening\n- Marta is wary of the door",
-      "gm_notes" => "Quiet look; Marta stays guarded."
+      "context_summary" => "- Weary Pilgrim, evening\n- Marta is wary of the door"
     }
 
     Req.Test.stub(TalesForge.LLM, fn conn ->
@@ -139,7 +142,8 @@ defmodule TalesForge.GMOutputTrimTest do
              ["- Weary Pilgrim, evening", "- Marta is wary of the door"]
 
     assert [event] = GMReasoning.list_for_session(session.id)
-    assert event.payload["gm_notes"] == "Quiet look; Marta stays guarded."
+    assert event.payload["gm_reply"] == reply
+    refute Map.has_key?(event.payload, "gm_notes")
 
     memories = NPC.get_person(session.id, "marta_kellen").runtime_state["memories"]
     assert Enum.any?(memories, &(&1["summary"] =~ "asked nothing and paid"))

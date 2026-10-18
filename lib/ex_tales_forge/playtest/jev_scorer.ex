@@ -5,8 +5,8 @@ defmodule TalesForge.Playtest.JevScorer do
   One Jev call asks `persona_session_affect` plus `persona_turn_affect_N` for
   each turn, with five persona-grounded levels from
   `TalesForge.Playtest.AffectLevels`. State is player-visible text only:
-  opening scene and per-turn player action + GM narration — never gm_notes,
-  gm_reasoning, or player_aware=false events.
+  opening scene and per-turn player action + GM narration — never the
+  gm_reasoning event or other player_aware=false events.
 
   Primary auto-score when a TypeSafe key is configured (see `configured?/0`;
   `config/runtime.exs` maps `TYPESAFE_API_KEY` to `config :jev, :api_key`).

@@ -24,7 +24,7 @@ Every piece of work in a turn is one of three call types. Pick by the shape of t
 
 ## Corollary: structured output from the LLM is a smell
 
-Whenever we are about to ask the LLM for structured output, move that work to Jev or Elixir. Today the GM also returns bookkeeping fields (gm_notes, context summary, NPC memories, state updates, mood adjustments). Only about 46% of GM output is player-facing story, and output length dominates GM latency (p50 about 5.9 s against a 3 s target). Taking the bookkeeping out of the LLM call makes the game faster and cheaper.
+Whenever we are about to ask the LLM for structured output, move that work to Jev or Elixir. Today the GM also returns bookkeeping fields (context summary, NPC memories, state updates, mood adjustments). Only about 46% of GM output is player-facing story, and output length dominates GM latency (p50 about 5.9 s against a 3 s target). Taking the bookkeeping out of the LLM call makes the game faster and cheaper.
 
 ## Tales Forge examples
 
