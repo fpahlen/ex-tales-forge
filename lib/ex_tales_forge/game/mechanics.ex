@@ -522,7 +522,7 @@ defmodule TalesForge.Game.Mechanics do
   Inject `opts[:death_roll]` (1..100) in tests.
 
   With `opts[:opposed]` true (`COMBAT_OPPOSED=on`), the exchange in
-  `opts[:combat]` (`TalesForge.Game.Combat.exchange/4`) replaces the failed
+  `opts[:combat]` (`TalesForge.Game.Combat.exchange/3`) replaces the failed
   combat roll: the character takes a wound only from a counterattack hit.
   """
   @spec apply_vitality(map(), MechanicalResolution.t() | nil, keyword()) :: map()

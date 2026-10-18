@@ -109,7 +109,7 @@ defmodule TalesForge.Game.Turn.Combat do
       Map.merge(character, %{"id" => "player", "name" => character["name"] || "the character"})
 
     %Fight{
-      exchange: Combat.exchange(player, defender, mechanical.skill, rolls(turn, mechanical)),
+      exchange: Combat.exchange({player, defender}, mechanical.skill, rolls(turn, mechanical)),
       foe: foe
     }
   end
@@ -131,7 +131,7 @@ defmodule TalesForge.Game.Turn.Combat do
 
   defp new_foe(turn, id, name) do
     rules = turn.adapters.character_rules.(Turn.world_before(turn)["adventure_id"])
-    foe = Combat.minor_foe(id, name, rules, Defaults.seed(turn.session.id, id))
+    foe = Combat.minor_foe({id, name}, rules, Defaults.seed(turn.session.id, id))
     {foe, foe}
   end
 
@@ -191,7 +191,7 @@ defmodule TalesForge.Game.Turn.Combat do
     {world, events} =
       case exchange do
         %{"attack" => _} ->
-          {booked, events} = Combat.book(carried_world, exchange, foe, before)
+          {booked, events} = Combat.book(carried_world, {exchange, foe}, before)
           {Map.put(booked, "combat_last", last(booked, exchange)), events}
 
         _ ->

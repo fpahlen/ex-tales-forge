@@ -173,7 +173,7 @@ defmodule TalesForge.Game.QaD100Qa3Test do
       defender = %{"id" => "marta_kellen", "name" => "Marta Kellen", "skills" => %{"dodge" => 40}}
       rolls = %{attack: 100, counter_chance: 1.0, counter: 99, death: 1}
 
-      ex = Combat.exchange(attacker, defender, "melee_combat", rolls)
+      ex = Combat.exchange({attacker, defender}, "melee_combat", rolls)
       assert ex["attack"]["result"] == "critical_failure"
       assert ex["self_wound"]
       assert ex["attacker_wounded"]

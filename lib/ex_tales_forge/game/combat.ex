@@ -17,15 +17,15 @@ defmodule TalesForge.Game.Combat do
   hit. A fighter is a string-keyed map with `stats`, `skills` and,
   for an NPC, `ocean`, `maslow`, `concerns`, `wounds` and `wound_max`.
 
-  NPC wounds live in `world_state["npc_state"][id]` (`book/4`). An NPC at the
+  NPC wounds live in `world_state["npc_state"][id]` (`book/3`). An NPC at the
   wound cap is down. A hit on an NPC that is down makes the death roll of
   `combat.md`: a d100 greater than CON × 2.5 kills it. The death stays in the
-  session. A minor foe (`minor_foe/4`) has 1 wound and the untrained floor.
+  session. A minor foe (`minor_foe/3`) has 1 wound and the untrained floor.
   """
 
   defmodule Hit do
     @moduledoc """
-    One attack on the defender, as `TalesForge.Game.Combat.exchange/4` books
+    One attack on the defender, as `TalesForge.Game.Combat.exchange/3` books
     it: whether it hit, the defender's wounds, wound cap and vitality before
     it, the defender and the death roll (d100).
     """
@@ -228,13 +228,9 @@ defmodule TalesForge.Game.Combat do
   `attacker_wounded` are true (QA 2026-10-15 retest: the prose told the
   wound and the sheet stayed at 0/3).
   """
-  @spec exchange(fighter(), fighter(), String.t() | nil, rolls()) :: map()
-  def exchange(attacker, defender, skill, rolls) do
-    {attack_skill, attack_level} = combat_skill(attacker, skill)
-    defender_parry = parry(defender)
-    target = attack_target(attack_level, defender_parry)
-    hit = hit?(rolls.attack, target)
-    result = result(rolls.attack, target)
+  @spec exchange({fighter(), fighter()}, String.t() | nil, rolls()) :: map()
+  def exchange({attacker, defender} = pair, skill, rolls) do
+    %{"hit" => hit, "result" => result} = attack = attack(pair, skill, rolls)
 
     %Hit{cap: cap} = on_defender = hit_on(defender, hit, rolls)
     {wounds, vitality} = take_hit(on_defender)
@@ -246,7 +242,7 @@ defmodule TalesForge.Game.Combat do
       end
 
     self_wound = result == "critical_failure"
-    attacker_wounds = Enum.count([self_wound, counter_hit?(counter)], & &1)
+    attacker_wounds = attacker_wounds(self_wound, counter)
 
     %{
       "attacker" => name(attacker),
@@ -254,16 +250,7 @@ defmodule TalesForge.Game.Combat do
       "defender" => name(defender),
       "defender_id" => Map.get(defender, "id"),
       "minor" => Map.get(defender, "minor", false),
-      "attack" => %{
-        "skill" => attack_skill,
-        "level" => attack_level,
-        "parry" => defender_parry,
-        "target" => target,
-        "roll" => rolls.attack,
-        "hit" => hit,
-        "result" => result,
-        "untrained" => untrained?(attacker, attack_skill)
-      },
+      "attack" => attack,
       "death" => death,
       "qa_forced" => Map.get(rolls, :qa_forced, false),
       "counter" => counter,
@@ -273,6 +260,28 @@ defmodule TalesForge.Game.Combat do
       "self_wound" => self_wound,
       "attacker_wounds" => attacker_wounds,
       "attacker_wounded" => attacker_wounds > 0
+    }
+  end
+
+  # A critical miss and a counterattack that hit each wound the attacker once.
+  defp attacker_wounds(self_wound, counter),
+    do: Enum.count([self_wound, counter_hit?(counter)], & &1)
+
+  # The attacker's roll against the defender's parry, as the exchange's "attack".
+  defp attack({attacker, defender}, skill, rolls) do
+    {attack_skill, attack_level} = combat_skill(attacker, skill)
+    defender_parry = parry(defender)
+    target = attack_target(attack_level, defender_parry)
+
+    %{
+      "skill" => attack_skill,
+      "level" => attack_level,
+      "parry" => defender_parry,
+      "target" => target,
+      "roll" => rolls.attack,
+      "hit" => hit?(rolls.attack, target),
+      "result" => result(rolls.attack, target),
+      "untrained" => untrained?(attacker, attack_skill)
     }
   end
 
@@ -514,8 +523,8 @@ defmodule TalesForge.Game.Combat do
   A minor foe for the scene: stats from `Defaults.derive/3` (the occupation
   of the person word, or laborer), no skills (the untrained floor) and 1 wound.
   """
-  @spec minor_foe(String.t(), String.t(), Defaults.rules(), integer()) :: fighter()
-  def minor_foe(id, name, rules, seed) do
+  @spec minor_foe({String.t(), String.t()}, Defaults.rules(), integer()) :: fighter()
+  def minor_foe({id, name}, rules, seed) do
     noun = String.replace_prefix(id, "foe_", "")
     occupation = if Map.has_key?(rules["occupations"] || %{}, noun), do: noun, else: "laborer"
 
@@ -541,10 +550,10 @@ defmodule TalesForge.Game.Combat do
   `{world, events}`; the events are `npc.down` or `npc.dead` when the
   defender went down or died in this exchange.
   """
-  @spec book(map(), map() | nil, fighter() | nil, map()) :: {map(), [map()]}
-  def book(world, nil, _foe, _before), do: {world, []}
+  @spec book(map(), {map() | nil, fighter() | nil}, map()) :: {map(), [map()]}
+  def book(world, {nil, _foe}, _before), do: {world, []}
 
-  def book(world, exchange, foe, before) do
+  def book(world, {exchange, foe}, before) do
     id = exchange["defender_id"]
     state = Map.get(world, "npc_state") || %{}
     base = Map.get(state, id) || foe_entry(foe, world)
