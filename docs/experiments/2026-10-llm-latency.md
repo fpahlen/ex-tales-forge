@@ -2,7 +2,101 @@
 
 Measure only. No app code was changed, and no turns were played for this.
 
-## Method
+Production runs the **`:lean`** GM profile (`TalesForge.LLM.gm_variant(:production)`):
+no `gm_notes`, no `location_name`, `max_tokens` = `TIER2_MAX_TOKENS` 700 with no
+notes budget. The first run below used playtest's **`:full`** profile; its numbers
+are kept further down, labelled **playtest (:full)**.
+
+![chart](2026-10-llm-latency.svg)
+
+## Production (:lean): GM turn call
+
+### Method
+
+- Same place and client as the playtest run: the `tales-forge-playtest` machine in
+  `arn` (same region as prod), the app's Req client, base URL and `XAI_API_KEY`
+  read inside the release, no DB writes, calls not recorded in `ai_calls`.
+- Prod's settings, read from the prod machine (`rpc`, read only): model
+  `grok-4.20-0309-non-reasoning`, temperature 0.7, `TIER2_MAX_TOKENS` 700, role
+  `production`, variant `lean`, and prod's feature flags (`TalesForge.Game.Turn.read_flags/0`;
+  on prod `npc_reactions`, `combat_opposed` and `turn_apply_outcomes` are off).
+- Prompt: `Assemble.gm_messages/3` with `role: :production` and prod's flags, on the
+  same playtest session state as before (Gentry's `643b8031-...`, read in a
+  `READ ONLY` transaction), schema `narration_schema(:lean)` (`narrative`,
+  `npc_memory_updates`, `context_summary`), strict `json_schema`, streaming,
+  `max_tokens` 700. 13,298 input tokens.
+- **Narrative end, measured in the stream:** the script keeps the streamed text
+  and marks the first chunk after which the `"narrative"` JSON string is closed
+  (first unescaped `"`). It records that time, the chunk index and the character
+  offset. Every run had exactly one content chunk per output token (chunks =
+  `completion_tokens` in all 10 runs), so the chunk index is the token position.
+- One warm-up call, then 10 runs. Script: `2026-10-llm-latency-scripts/lat_lean.exs`.
+
+### Results (10 runs, median / p90)
+
+| | Median | p90 |
+|---|---|---|
+| First token (TTFT) | 551 ms | 724 ms |
+| First narrative character | 629 ms | 785 ms |
+| Narrative ends | 3,631 ms | 4,012 ms |
+| **Total** | **4,899 ms** | **5,398 ms** |
+| Input tokens (cached) | 13,298 (13,184) | 13,298 (13,184) |
+| Output tokens | 357 | 411 |
+| ...of which narrative (up to its closing quote) | 234 tokens / 1,038 chars | 288 / 1,299 |
+| ...of which after the narrative | 122 tokens / 537 chars | 147 / 644 |
+| Time after the narrative ends | 1,337 ms | 1,678 ms |
+
+Generation is ~12.3 ms per output token (median). Across the 10 runs **33% of
+the output tokens and 25% of the call time come after the narrative**: the
+`npc_memory_updates` and `context_summary` fields, which the player never reads.
+So even without `gm_notes`, a prod GM call spends ~1.3 s after the text is
+complete.
+
+### Prod real turns
+
+Prod has **no turns today** (0 `ai_calls` rows with a session on 2026-10-18,
+read only), so there is no prod per-turn split. One pipeline difference follows
+from prod's flags: `npc_reactions` is off, so a prod turn has no NPC-reaction Jev
+calls. It runs 1 Jev intent call and 1 Grok GM call, one after the other. Using the
+playtest step times as a stand-in, prod's own pipeline before the GM is ~0.3 s
+(intent ~240 ms + rules/prompt/handoff ~55 ms) and persist ~100 ms after it.
+
+## Where the time goes (prod)
+
+A prod turn is about **0.3 s of our pipeline and the Jev intent call, then ~4.9 s
+of one Grok GM call, then ~0.1 s persist**. Inside the GM call: ~0.55 s waiting
+for the first token, ~3.1 s streaming the narrative (234 tokens), and **~1.3 s
+streaming bookkeeping after the narrative** (122 tokens). The player sees text from
+~0.9 s and the full narrative at ~3.9 s, but the turn only ends at ~5.3 s. Network
+(12 ms connect+TLS) and input size (cached) are not factors, and no faster Grok
+model is on our key (see the playtest run, exp 5).
+
+## Options to cut it (ranked for prod)
+
+1. **Finish the turn for the player when the narrative closes.** `narrative` is
+   the first schema field, so the input can come back as soon as its string ends,
+   and `npc_memory_updates` / `context_summary` finish in the background (or move
+   to a separate, cheaper call after the turn). Expected gain: **~1.3 s median
+   (p90 ~1.7 s), ~25% of the GM call**, with no change to what the model writes.
+2. **Shorter narrative.** Each token costs ~12 ms, so each 100 narrative tokens
+   cut ~= 1.2 s. Going from ~234 to ~170 tokens would save ~0.8 s. This is a
+   product trade-off (less prose), so it comes second.
+3. **Pipeline before the GM.** On prod only the Jev intent call (~0.24 s) and
+   ~55 ms of our own steps come before the GM call; at most ~0.2-0.3 s to win.
+
+**Dropping `gm_notes` saves nothing on prod:** the `:lean` profile already has no
+`gm_notes` and no notes budget. `gm_notes` is being removed from playtest too, in a
+separate PR. Playtest QA will read the code-layer turn events instead. Playtest
+turns will then lose the notes part of their after-narrative tail (not measured
+separately here).
+
+## Earlier run: playtest (:full)
+
+All numbers in this section are **playtest (:full)**: `narration_schema(:full)`
+(with `gm_notes` and `location_name`), `max_tokens` 700 + 100. They describe
+playtest, not prod.
+
+### Method (playtest :full run)
 
 - **Where:** the `tales-forge-playtest` machine (`d89905da19e408`, region `arn`, the
   same region as production). Scripts ran inside the release with
@@ -32,9 +126,7 @@ Scripts: [`2026-10-llm-latency-scripts/`](2026-10-llm-latency-scripts/). Raw dat
 [`2026-10-llm-latency.csv`](2026-10-llm-latency.csv) (experiments, one row per call)
 and [`2026-10-llm-latency-turns.csv`](2026-10-llm-latency-turns.csv) (one row per turn).
 
-![chart](2026-10-llm-latency.svg)
-
-## Results: API experiments (10 runs each, median / p90, ms)
+### Results: API experiments, playtest (:full) (10 runs each, median / p90, ms)
 
 | # | Call | TTFT | Total | In tokens | Out tokens | Cached |
 |---|------|------|-------|-----------|------------|--------|
@@ -63,10 +155,11 @@ What this says:
   `grok-4.20-0309-non-reasoning` is the fastest option today.
 - **Streaming vs not:** about the same total (5.25 vs 5.65 s median), but only the
   stream shows text early.
+- **Note:** this run built the prompt with no feature flags and the playtest role, not playtest's live flags (`npc_reactions` etc. are on there). Input size still matched real playtest turns.
 - **Prompt cache:** hits were 13,312 of 13,360 tokens in the experiments (the same
   prompt repeated). The first call of each new `conv-id` missed (cached 128).
 
-## Results: real turns (from `ai_calls`, median / p90, ms)
+### Results: real playtest (:full) turns (from `ai_calls`, median / p90, ms)
 
 | Step | Gentry 643b8031 (10 turns) | All today (97 turns) | Kind |
 |------|------|------|------|
@@ -95,7 +188,7 @@ Not covered: the time before `turn.intent` (LiveView submit) and after persist
 (PubSub broadcast, render). The 5.7-9.9 s seen by players includes these, so they
 are likely a few hundred ms. The playtest log buffer no longer had these turns.
 
-## Where the time goes
+### Where the time went (playtest :full)
 
 In Gentry's turns, **90% of the wall time is the one Grok GM call** (6.1 of 6.8 s);
 across all of today's turns it is 88%. Of that call, ~1.1 s is waiting for the first
@@ -113,7 +206,7 @@ exp 4 waited 0.6 s. Cache misses do not explain it (today's 28 turns with
 `cached_tokens` 128 had the same median TTFT as the 69 hits, 1.09 vs 1.11 s; misses
 cost ~2-3x per call, though).
 
-## Options to cut it (ranked)
+### Options as first ranked (playtest :full; superseded by the prod ranking above)
 
 1. **Fewer output tokens per GM reply.** Each token costs ~12-14 ms. Dropping the
    bookkeeping tail (e.g. the `:lean` variant production already uses: no `gm_notes`,
@@ -133,5 +226,6 @@ cost ~2-3x per call, though).
 
 ## Cost of this run
 
-60 model calls (no turns): **$0.32** total by the provider's own cost field
-(exp 2 $0.001, exp 3 $0.041, exp 4 $0.102, exp 5 $0.175). `/models` calls are free.
+Playtest (:full) run: 60 model calls, $0.32. Prod (:lean) run: 11 model calls
+(1 warm-up + 10), $0.05. **Total $0.37** by the provider's own cost field
+(`cost_in_usd_ticks`). `/models` calls are free.
