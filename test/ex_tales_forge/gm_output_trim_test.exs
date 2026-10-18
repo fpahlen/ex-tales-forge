@@ -133,7 +133,7 @@ defmodule TalesForge.GMOutputTrimTest do
     end)
 
     assert {:ok, %{turn_count: 1}} =
-             TurnProcessor.run(session.id, "look around the tavern", player_action)
+             TurnProcessor.run(session.id, {"look around the tavern", player_action})
 
     session = GameSessions.get_session!(session.id)
 

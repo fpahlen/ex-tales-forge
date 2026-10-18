@@ -17,21 +17,36 @@ defmodule TalesForge.Game.Train do
   alias TalesForge.Game.Progression
   alias TalesForge.Game.WorldClock
 
+  defmodule Session do
+    @moduledoc """
+    Who takes part in a training session: the character, the trainer's
+    definition (`nil` when unknown) and the ids of the NPCs present.
+    """
+    defstruct [:character, :trainer, present_ids: []]
+
+    @typedoc "The character, the trainer and who is present."
+    @type t :: %__MODULE__{
+            character: map(),
+            trainer: map() | nil,
+            present_ids: [String.t()] | nil
+          }
+  end
+
   @doc """
   Runs a training action. Returns the character, the attempts (tagged with
   `trainer_npc_id`), `"took_place"` or `"declined"`, and the ticks that pass
   (one when declined). Option: `:improvement_rolls` (injected d100s for
   tests).
   """
-  @spec apply(map(), map() | nil, [String.t()] | nil, struct(), keyword()) ::
+  @spec apply(Session.t(), struct(), keyword()) ::
           {map(), [map()], String.t(), non_neg_integer()}
-  def apply(character, npc_def, present_ids, action, opts \\ []) do
+  def apply(%Session{character: character} = session, action, opts \\ []) do
     params = action.parameters || %{}
     skill = Mechanics.normalize_skill_name(Map.get(params, "skill"))
     ticks = WorldClock.clamp_wait(Map.get(params, "ticks"))
     npc_id = action.target
 
-    case qualify(character, npc_def, present_ids, skill, ticks) do
+    case qualify(session, skill, ticks) do
       {:ok, fee} ->
         rolls = opts[:improvement_rolls] || %{}
         {taught, entry} = Progression.train(character, skill, rolls)
@@ -48,16 +63,25 @@ defmodule TalesForge.Game.Train do
   Whether a training session may take place: `{:ok, fee_copper}` or
   `{:error, reason}`.
   """
-  @spec qualify(map(), map() | nil, [String.t()] | nil, String.t() | nil, integer()) ::
+  @spec qualify(Session.t(), String.t() | nil, integer()) ::
           {:ok, pos_integer()} | {:error, atom()}
-  def qualify(character, npc_def, present_ids, skill, ticks) do
-    npc_id = Map.get(npc_def || %{}, "id")
-    npc_skill = get_in(npc_def || %{}, ["skills", skill])
-    fee_rate = Map.get(npc_def || %{}, "fee_copper")
-    raw = character |> get_in(["skills", skill]) |> to_int(0)
-    vitality = training_vitality(character)
-    coins = Map.get(character, "coins", %{})
+  def qualify(%Session{} = session, skill, ticks),
+    do: session |> facts(skill) |> verdict(ticks)
 
+  defp facts(%Session{character: character, trainer: npc_def, present_ids: present_ids}, skill) do
+    %{
+      skill: skill,
+      npc_id: Map.get(npc_def || %{}, "id"),
+      present_ids: List.wrap(present_ids),
+      npc_skill: get_in(npc_def || %{}, ["skills", skill]),
+      fee_rate: Map.get(npc_def || %{}, "fee_copper"),
+      raw: character |> get_in(["skills", skill]) |> to_int(0),
+      vitality: training_vitality(character),
+      coins: Map.get(character, "coins", %{})
+    }
+  end
+
+  defp verdict(%{skill: skill, npc_id: npc_id, npc_skill: npc_skill} = f, ticks) do
     cond do
       not is_binary(skill) or skill == "" ->
         {:error, :no_skill}
@@ -65,22 +89,29 @@ defmodule TalesForge.Game.Train do
       not is_binary(npc_id) or npc_id == "" ->
         {:error, :no_npc}
 
-      npc_id not in List.wrap(present_ids) ->
+      npc_id not in f.present_ids ->
         {:error, :not_present}
 
       not is_integer(npc_skill) ->
         {:error, :no_skill_rating}
 
-      npc_skill < raw + Progression.trainer_bonus() ->
+      npc_skill < f.raw + Progression.trainer_bonus() ->
         {:error, :gap}
 
+      true ->
+        paid_verdict(f, ticks)
+    end
+  end
+
+  defp paid_verdict(%{fee_rate: fee_rate} = f, ticks) do
+    cond do
       not (is_integer(fee_rate) and fee_rate > 0) ->
         {:error, :no_fee}
 
-      Inventory.coin_total_copper(coins) < session_fee(fee_rate, ticks) ->
+      Inventory.coin_total_copper(f.coins) < session_fee(fee_rate, ticks) ->
         {:error, :cannot_pay}
 
-      vitality not in ["ok", "hurt"] ->
+      f.vitality not in ["ok", "hurt"] ->
         {:error, :vitality}
 
       true ->
