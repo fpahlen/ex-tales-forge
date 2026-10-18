@@ -1,6 +1,8 @@
 defmodule TalesForge.Agents.NPCAgent do
   @moduledoc """
-  Jido agent for one present NPC in a play session.
+  Jido agent for one present NPC in a play session. Since refactor step 10e
+  it gets no signals: what it handled comes in as Intentions that the turn
+  applies (`TalesForge.NPCSignals`). Refactor step 10f, PR 2, deletes it.
 
   Core runtime. Ecto only.
   """
@@ -19,10 +21,5 @@ defmodule TalesForge.Agents.NPCAgent do
       initiative_emitted: [type: :boolean, default: false],
       last_initiative_tick: [type: :integer, default: nil],
       last_interaction_tick: [type: :integer, default: nil]
-    ],
-    signal_routes: [
-      {"world.time.passed", TalesForge.Actions.NPC.ReactToTime},
-      {"player.talked_to", TalesForge.Actions.NPC.OnPlayerTalked},
-      {"conversation.message", TalesForge.Actions.NPC.OnOverheard}
     ]
 end

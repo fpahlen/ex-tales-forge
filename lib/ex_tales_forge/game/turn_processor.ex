@@ -22,6 +22,7 @@ defmodule TalesForge.Game.TurnProcessor do
 
   alias TalesForge.Game.Turn
   alias TalesForge.Game.Turn.{Board, Store}
+  alias TalesForge.Intention
   alias TalesForge.LLM
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
@@ -158,7 +159,8 @@ defmodule TalesForge.Game.TurnProcessor do
         mechanical: %{mechanical | improvements: improvements, training: training},
         gm_result: gm_result,
         events: events,
-        sim: sim
+        sim: sim,
+        intention: Intention.human(character["id"], nil)
       }
     })
   end

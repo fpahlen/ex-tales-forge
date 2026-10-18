@@ -12,6 +12,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
   alias TalesForge.Config
   alias TalesForge.Game.{Context, Intent, NpcReactions, Prompts, TurnProcessor}
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
+  alias TalesForge.Game.Turn.Intentions
   alias TalesForge.GameSessions
   alias TalesForge.Jido
   alias TalesForge.NPC
@@ -143,7 +144,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
     world = session.world_state
     assert "innkeep" in world["present_npcs"]
 
-    {[r], world} =
+    [r] =
       NpcReactions.react(%NpcReactions.Moment{
         session_id: session.id,
         world: world,
@@ -158,12 +159,14 @@ defmodule TalesForge.Game.NpcReactionsTest do
     assert {r["emotion"], r["intensity"], r["stance"], r["confidence"]} ==
              {"wary", 0.7, "cool", 0.74}
 
+    # The turn feels the reactions (Turn.Intentions.feel/2): the mood carries over.
+    world = Intentions.feel(world, NpcReactions.intentions([r]))
     assert world["npc_moods"]["innkeep"]["emotion"] == "wary"
     assert_receive {:jev, request}
     assert inspect(request) =~ "Mood before this moment: neutral."
 
     # The next turn's call starts from the carried-over mood.
-    {[_], _world} =
+    [_] =
       NpcReactions.react(%NpcReactions.Moment{
         session_id: session.id,
         world: world,
@@ -189,7 +192,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
     Req.Test.stub(Jev.HTTP, &Jev.Test.error(&1, 500, "boom"))
 
     capture_log(fn ->
-      assert {[], ^world} =
+      assert [] =
                NpcReactions.react(%NpcReactions.Moment{
                  session_id: session.id,
                  world: world,
@@ -205,7 +208,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
     end)
 
     capture_log(fn ->
-      assert {[], ^world} =
+      assert [] =
                NpcReactions.react(%NpcReactions.Moment{
                  session_id: session.id,
                  world: world,
@@ -217,6 +220,9 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
     assert Repo.all(from c in AICall, where: c.purpose == "npc_reaction", select: c.status) ==
              ["error", "error"]
+
+    # No reaction, no Intention: the mood is kept.
+    assert Intentions.feel(world, NpcReactions.intentions([])) == world
   end
 
   test "the reaction is a per-turn line; the cached prefix is unchanged", %{session: session} do

@@ -380,6 +380,16 @@ golden prompts, plus the replay diff):
   - `Memory` and `Thought` stop filtering on `controller`.
   - With 10f: drop the `world_state["npc_state"]` and `"npc_moods"` copies
     (decision 2026-10-18).
+  - Status (2026-10-18): `TalesForge.Intention` (`by: :human | :gm |
+    :system`). The turn carries the player's Intention; `NpcReactions` gives
+    `{:feel, mood}` Intentions that the NPC stage applies; `NPCSignals` and
+    `Actions.NPC.*` give `{:wait, _}`, `:speak_up`, `{:remember, _}` and
+    `{:warm, _}` Intentions for the present NPCs, which the turn transaction
+    applies (`Turn.Intentions`) after the characters write, and the
+    initiative broadcasts after the commit. The NPC agents get no signals
+    any more (10f PR 2 deletes them). `Memory` and `Thought` take the actor
+    from the turn's Intention, not from `controller`. The Gentry 10e script
+    replays identically on main and the branch.
 - **10f. One process.**
   - The per-world process from the 2026-10-08 note replaces `NPCAgent` and
     `PlayerSessionAgent` (using PubSub and Oban, not a hand-rolled registry

@@ -1,7 +1,8 @@
 defmodule TalesForge.Game.Turn.Npcs do
   @moduledoc """
   Stage 4 of a turn: the NPC reactions (prototype, `NPC_REACTIONS=on` or
-  `WORLD_AGENTS=on`), before the GM call. Moods carry over in
+  `WORLD_AGENTS=on`), before the GM call. Each reaction is a `{:feel, mood}`
+  Intention that this stage applies, so the moods carry over in
   `world_state["npc_moods"]`; this turn's reactions go to the per-turn prompt.
   The reactions come from the `npc` adapter (the Jev call and its 600 ms
   timeout).
@@ -14,7 +15,7 @@ defmodule TalesForge.Game.Turn.Npcs do
   alias TalesForge.AICalls.Steps
   alias TalesForge.Game.NpcReactions
   alias TalesForge.Game.Turn
-  alias TalesForge.Game.Turn.Premise
+  alias TalesForge.Game.Turn.{Intentions, Premise}
 
   @doc "Writes `npcs.reactions` and `premise.findings`."
   @spec react(Turn.t()) :: Turn.t()
@@ -38,7 +39,7 @@ defmodule TalesForge.Game.Turn.Npcs do
   defp reactions(turn, board, findings) do
     if enabled?(turn) do
       Steps.time(:npc_reactions, fn ->
-        {reactions, world} =
+        reactions =
           turn.adapters.npc.(%NpcReactions.Moment{
             session_id: turn.session.id,
             world: board.world,
@@ -48,6 +49,7 @@ defmodule TalesForge.Game.Turn.Npcs do
             findings: findings
           })
 
+        world = Intentions.feel(board.world, NpcReactions.intentions(reactions))
         {reactions, %{board | world: world}}
       end)
     else

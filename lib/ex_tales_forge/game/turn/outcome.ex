@@ -56,7 +56,7 @@ defmodule TalesForge.Game.Turn.Outcome do
         })
       end)
 
-    commit_agents(result, turn, board, gm_result)
+    commit_agents(result, turn, board)
     %{turn | result: result}
   end
 
@@ -69,7 +69,8 @@ defmodule TalesForge.Game.Turn.Outcome do
       world: Board.turn_patches(board.world, ctx.gm_result, turn.injected),
       number: turn.number,
       raw_action: turn.history_action,
-      ctx: Map.merge(ctx, %{sim: board.sim, founder: turn.opts[:founder]})
+      ctx:
+        Map.merge(ctx, %{sim: board.sim, founder: turn.opts[:founder], intention: turn.intention})
     })
   end
 
@@ -129,8 +130,9 @@ defmodule TalesForge.Game.Turn.Outcome do
     end
   end
 
-  defp commit_agents({:ok, _}, %Turn{outcome: %{agents: agents}} = turn, board, gm_result)
+  defp commit_agents({:ok, _}, %Turn{outcome: %{agents: agents}} = turn, board)
        when agents != [] do
+    {:ok, gm_result} = turn.narration
     WorldAgents.commit(turn.session.id, [], turn.npcs.reactions)
 
     Extract.run_async(%Extract.Job{
@@ -143,5 +145,5 @@ defmodule TalesForge.Game.Turn.Outcome do
     })
   end
 
-  defp commit_agents(_result, _turn, _board, _gm_result), do: :ok
+  defp commit_agents(_result, _turn, _board), do: :ok
 end

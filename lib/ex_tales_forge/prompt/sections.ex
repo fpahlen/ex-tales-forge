@@ -444,10 +444,12 @@ defmodule TalesForge.Prompt.Sections.CharacterMemory do
     if present == [] do
       nil
     else
-      location = get_in(ctx.data, [:world_state, "location_id"])
+      world = Map.get(ctx.data, :world_state) || %{}
+      # The place and the acting character (the world's "character").
+      about = [world["location_id"], get_in(world, ["character", "id"])]
 
       ctx.data.session_id
-      |> TalesForge.Characters.Memory.recall_for_scene(present, location)
+      |> TalesForge.Characters.Memory.recall_for_scene(present, about)
       |> TalesForge.Characters.Memory.section()
     end
   end

@@ -1,37 +1,24 @@
 defmodule TalesForge.Actions.NPC.OnPlayerTalked do
-  @moduledoc false
+  @moduledoc """
+  The acting character spoke to this NPC: it remembers the words and warms
+  a little to the speaker. The turn applies both
+  (`TalesForge.Game.Turn.Intentions.apply_all/2`).
+  """
 
-  use Jido.Action,
-    name: "npc_on_player_talked",
-    description: "Record player dialogue and warm relationship on direct speech",
-    schema: []
+  alias TalesForge.Intention
+  alias TalesForge.NPCSignals.Turn
 
-  alias TalesForge.Actions.NPC.UpdateMemory
-  alias TalesForge.NPC
+  @relationship_bump 0.05
 
-  @concern_relationship_bump 0.05
+  @doc "The Intentions of NPC `npc_id` when the player of `turn` spoke to it."
+  @spec intentions(String.t(), Turn.t()) :: [Intention.t()]
+  def intentions(npc_id, %Turn{} = turn) do
+    tick = Turn.world_tick(turn)
+    summary = "Player spoke to me: #{String.slice(turn.raw_action || "", 0, 120)}"
 
-  @impl true
-  def run(_params, context) do
-    %{session_id: session_id, npc_id: npc_id} = context.state
-    data = normalize_keys(context.signal.data)
-
-    player_text = Map.get(data, "player_text", "")
-    world_tick = Map.get(data, "world_tick", 0)
-
-    summary = "Player spoke to me: #{String.slice(player_text, 0, 120)}"
-
-    with {:ok, _} <- UpdateMemory.run(%{summary: summary, world_tick: world_tick}, context),
-         {:ok, relationship_score} <-
-           NPC.bump_relationship(session_id, npc_id, @concern_relationship_bump) do
-      {:ok, %{last_interaction_tick: world_tick, relationship_score: relationship_score}}
-    end
-  end
-
-  defp normalize_keys(map) when is_map(map) do
-    Map.new(map, fn
-      {k, v} when is_atom(k) -> {Atom.to_string(k), v}
-      {k, v} -> {k, v}
-    end)
+    [
+      Intention.system(npc_id, {:remember, summary}, tick),
+      Intention.system(npc_id, {:warm, @relationship_bump}, tick)
+    ]
   end
 end

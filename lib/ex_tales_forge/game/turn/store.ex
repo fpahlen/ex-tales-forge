@@ -2,15 +2,18 @@ defmodule TalesForge.Game.Turn.Store do
   @moduledoc """
   The persist step of a turn (the effect at the end of the pipeline): one
   Multi with the session, the turn row, its events, the GM reasoning, the
-  fronts and NPC ticks, the work-log push, the GM's NPC updates and the
-  characters (`TalesForge.Characters.write_multi/1`); then character
-  memory, the registry sync, the thought and the turn signals.
+  fronts and NPC ticks, the work-log push, the GM's NPC updates, the
+  characters (`TalesForge.Characters.write_multi/1`) and the NPC Intentions
+  of the turn (`TalesForge.NPCSignals.intentions/1`, applied by
+  `TalesForge.Game.Turn.Intentions.apply_all/2`); then character memory,
+  the registry sync, the thought and the initiative broadcasts.
 
   `TalesForge.Game.Turn.Adapters` uses `persist/1` as the default `store`.
 
   A `%Store{}` is one write: the session before the turn, the world after
   it, the turn number, the raw action and `ctx` (`:handler`,
-  `:mechanical`, `:gm_result`, `:events`, `:sim`, `:founder`).
+  `:mechanical`, `:gm_result`, `:events`, `:sim`, `:founder`, and
+  `:intention`, the acting character's `TalesForge.Intention`).
   """
 
   require Logger
@@ -18,15 +21,17 @@ defmodule TalesForge.Game.Turn.Store do
   import Ecto.Query, only: [where: 3, select: 3]
 
   alias TalesForge.Characters
-  alias TalesForge.Characters.Thought
+  alias TalesForge.Characters.{Moment, Thought}
   alias TalesForge.Fronts
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.RollLine
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.MechanicalResolution
+  alias TalesForge.Game.Turn.Intentions
   alias TalesForge.GMReasoning
   alias TalesForge.LLM
   alias TalesForge.NPC
+  alias TalesForge.NPCInitiative
   alias TalesForge.NPCRegistry
   alias TalesForge.NPCSignals
   alias TalesForge.Repo
@@ -45,30 +50,44 @@ defmodule TalesForge.Game.Turn.Store do
           ctx: map()
         }
 
-  @doc "Persists the turn and signals it. The payload goes to the play page."
+  @doc """
+  Persists the turn, with the NPC Intentions it led to, and broadcasts the
+  initiatives. The payload goes to the play page.
+  """
   @spec persist(t()) :: {:ok, map()} | {:error, term()}
   def persist(%__MODULE__{} = store) do
-    with {:ok, %{session: session, turn: turn}} <- transaction(store),
-         :ok <- after_commit(store, session),
-         thought = store_thought(store, turn),
-         :ok <- maybe_emit_turn_signals(store, session) do
+    with {:ok, %{session: session, turn: turn, npc_intentions: initiatives}} <-
+           transaction(store),
+         moment = moment(store, turn),
+         :ok <- after_commit(moment, session),
+         thought = store_thought(moment, turn) do
+      Enum.each(initiatives, &NPCInitiative.broadcast(session.id, &1))
       {:ok, payload(store, %{session: session, turn: turn}, thought)}
     end
   end
 
-  defp after_commit(%__MODULE__{world: world, ctx: ctx}, session) do
-    events = Map.get(ctx, :events, [])
-    tick = Map.get(world, "world_tick")
-    memory = TalesForge.Config.character_memory()
+  # The saved turn as character memory and the thought see it; `actor` is
+  # the character whose Intention the turn played.
+  defp moment(%__MODULE__{session: session, world: world, ctx: ctx}, turn) do
+    %Moment{
+      session_id: session.id,
+      turn_number: turn.turn_number,
+      actor: ctx.intention.character_id,
+      events: Map.get(ctx, :events, []),
+      world: world,
+      mode: TalesForge.Config.character_memory()
+    }
+  end
 
+  defp after_commit(%Moment{} = moment, session) do
     # Character memory (board card fc3c9371): scene end moves working
     # memory to short-term; never fails the turn.
-    with :ok <- TalesForge.Characters.Memory.on_turn(session.id, events, memory),
+    with :ok <- TalesForge.Characters.Memory.on_turn(moment),
          # PR 2 (board card 845b6b15): Jev compression in a task, after commit.
          :ok <-
-           TalesForge.Characters.Compression.after_turn(session.id, events,
-             now: tick,
-             mode: memory
+           TalesForge.Characters.Compression.after_turn(session.id, moment.events,
+             now: Map.get(moment.world, "world_tick"),
+             mode: moment.mode
            ) do
       NPCRegistry.sync(session)
     end
@@ -95,22 +114,30 @@ defmodule TalesForge.Game.Turn.Store do
     }
   end
 
-  # `session` is the one the Multi saved: its status and world_state are
-  # after the turn.
-  defp maybe_emit_turn_signals(%__MODULE__{}, %{status: "dead"}), do: :ok
+  # What the present NPCs heard and how long their concerns waited, as
+  # Intentions applied in the transaction (`Turn.Intentions.apply_all/2`),
+  # after the characters write, so the rows mirror them on the next turn as
+  # before. None when the character died. Returns the initiative payloads.
+  defp npc_intentions(multi, %__MODULE__{world: world} = store) do
+    Ecto.Multi.run(multi, :npc_intentions, fn _repo, %{session: saved} ->
+      if saved.status == "dead" or Mechanics.dead?(world) do
+        {:ok, []}
+      else
+        {:ok, Intentions.apply_all(saved.id, NPCSignals.intentions(heard(store, saved)))}
+      end
+    end)
+  end
 
-  defp maybe_emit_turn_signals(%__MODULE__{world: world} = store, session) do
-    if Mechanics.dead?(world) do
-      :ok
-    else
-      NPCSignals.emit_turn_signals(%NPCSignals.Turn{
-        session_id: session.id,
-        world_state: world,
-        handler: store.ctx.handler,
-        raw_action: store.raw_action,
-        world_before: session.world_state
-      })
-    end
+  # `saved` is the session the Multi saved, so its world_state is the one
+  # after the turn, as in the signals before 10e.
+  defp heard(%__MODULE__{world: world, ctx: ctx, raw_action: raw_action}, saved) do
+    %NPCSignals.Turn{
+      session_id: saved.id,
+      world_state: world,
+      handler: ctx.handler,
+      raw_action: raw_action,
+      world_before: saved.world_state
+    }
   end
 
   defp transaction(%__MODULE__{} = store) do
@@ -147,6 +174,7 @@ defmodule TalesForge.Game.Turn.Store do
     |> NPC.persist_tick_multi(session.id, ctx.sim)
     |> npc_gm_updates(store)
     |> Characters.write_multi()
+    |> npc_intentions(store)
   end
 
   # The session's turn lock, held until the transaction ends: the backstop
@@ -233,28 +261,18 @@ defmodule TalesForge.Game.Turn.Store do
 
   # Board card 845b6b15, PR 3: the player character's thought, stored on the
   # turn (also in shadow), shown only with CHARACTER_MEMORY=on.
-  defp store_thought(%__MODULE__{session: session, world: world, ctx: ctx}, turn) do
-    mode = TalesForge.Config.character_memory()
-
-    moment = %Thought.Moment{
-      session_id: session.id,
-      turn_number: turn.turn_number,
-      events: Map.get(ctx, :events, []),
-      world: world,
-      mode: mode
-    }
-
+  defp store_thought(%Moment{} = moment, turn) do
     case Thought.for_turn(moment) do
       nil ->
         nil
 
       thought ->
         turn |> Ecto.Changeset.change(thought: thought) |> Repo.update!()
-        if mode == :on, do: thought
+        if moment.mode == :on, do: thought
     end
   rescue
     e ->
-      Logger.warning("thought not stored session=#{session.id} #{Exception.message(e)}")
+      Logger.warning("thought not stored session=#{moment.session_id} #{Exception.message(e)}")
       nil
   end
 

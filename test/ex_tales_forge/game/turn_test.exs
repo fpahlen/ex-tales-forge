@@ -74,9 +74,9 @@ defmodule TalesForge.Game.TurnTest do
     reaction = %{"name" => "Brenna Holt", "emotion" => "wary"}
 
     adapters = %Adapters{
-      npc: fn %{world: world} ->
+      npc: fn _moment ->
         send(me, :npc)
-        {[reaction], world}
+        [reaction]
       end,
       gm: fn messages, _action, _handler, _n, opts ->
         send(me, {:gm, List.last(messages).content})
