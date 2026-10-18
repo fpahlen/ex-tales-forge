@@ -188,12 +188,20 @@ defmodule TalesForge.LLM do
     if mock?(model) do
       {:ok, mock_scene_response(intent_context)}
     else
-      complete_json(model, messages, narration_schema(), Config.tier2_temperature(),
-        tier: :scene,
-        max_tokens: Config.tier2_max_tokens(),
-        session_id: opts[:session_id],
-        structured_output: "narration",
-        validate: &valid_scene_reply?/1
+      complete_json(
+        %Request{
+          model: model,
+          messages: messages,
+          temperature: Config.tier2_temperature(),
+          opts: [
+            tier: :scene,
+            max_tokens: Config.tier2_max_tokens(),
+            session_id: opts[:session_id],
+            structured_output: "narration",
+            validate: &valid_scene_reply?/1
+          ]
+        },
+        narration_schema()
       )
       |> case do
         {:ok, %{"location_name" => location_name, "narrative" => narrative}}
@@ -218,14 +226,18 @@ defmodule TalesForge.LLM do
       {:ok, %{"action" => "I look around and listen.", "option_id" => nil}}
     else
       complete_json(
-        model,
-        simple_messages(system, user),
-        @persona_schema,
-        Config.tier2_temperature(),
-        tier: :persona,
-        max_tokens: @persona_max_tokens,
-        session_id: opts[:session_id],
-        turn_number: opts[:turn_number]
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: Config.tier2_temperature(),
+          opts: [
+            tier: :persona,
+            max_tokens: @persona_max_tokens,
+            session_id: opts[:session_id],
+            turn_number: opts[:turn_number]
+          ]
+        },
+        @persona_schema
       )
     end
   end
@@ -265,13 +277,17 @@ defmodule TalesForge.LLM do
       {:ok, mock_persona_interview()}
     else
       complete_json(
-        model,
-        simple_messages(system, user),
-        @persona_interview_schema,
-        Config.tier2_temperature(),
-        tier: :persona_interview,
-        max_tokens: @persona_interview_max_tokens,
-        session_id: opts[:session_id]
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: Config.tier2_temperature(),
+          opts: [
+            tier: :persona_interview,
+            max_tokens: @persona_interview_max_tokens,
+            session_id: opts[:session_id]
+          ]
+        },
+        @persona_interview_schema
       )
     end
   end
@@ -320,11 +336,19 @@ defmodule TalesForge.LLM do
     if mock?(model) do
       {:ok, %{"facts" => []}}
     else
-      complete_json(model, simple_messages(system, user), @fact_extract_schema, 0.0,
-        tier: :fact_extract,
-        max_tokens: @fact_extract_max_tokens,
-        session_id: opts[:session_id],
-        turn_number: opts[:turn_number]
+      complete_json(
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: 0.0,
+          opts: [
+            tier: :fact_extract,
+            max_tokens: @fact_extract_max_tokens,
+            session_id: opts[:session_id],
+            turn_number: opts[:turn_number]
+          ]
+        },
+        @fact_extract_schema
       )
     end
   end
@@ -337,10 +361,14 @@ defmodule TalesForge.LLM do
     if mock?(model) do
       {:ok, mock_scorecard(Keyword.get(opts, :criteria, 0))}
     else
-      complete_json(model, simple_messages(system, user), @scorer_schema, @scorer_temperature,
-        tier: :scorer,
-        max_tokens: @scorer_max_tokens,
-        session_id: opts[:session_id]
+      complete_json(
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: @scorer_temperature,
+          opts: [tier: :scorer, max_tokens: @scorer_max_tokens, session_id: opts[:session_id]]
+        },
+        @scorer_schema
       )
     end
   end
@@ -424,9 +452,14 @@ defmodule TalesForge.LLM do
 
       {:ok, mock_character_text()}
     else
-      complete_json(model, simple_messages(system, user), @character_text_schema, 0.0,
-        tier: :character_text,
-        max_tokens: @character_text_max_tokens
+      complete_json(
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: 0.0,
+          opts: [tier: :character_text, max_tokens: @character_text_max_tokens]
+        },
+        @character_text_schema
       )
     end
   end
@@ -478,11 +511,19 @@ defmodule TalesForge.LLM do
 
       {:ok, %{"thought" => "Something about this stays with me, warm and a little uneasy."}}
     else
-      complete_json(model, simple_messages(system, user), @thought_schema, 0.7,
-        tier: :thought,
-        max_tokens: @thought_max_tokens,
-        session_id: opts[:session_id],
-        turn_number: opts[:turn_number]
+      complete_json(
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: 0.7,
+          opts: [
+            tier: :thought,
+            max_tokens: @thought_max_tokens,
+            session_id: opts[:session_id],
+            turn_number: opts[:turn_number]
+          ]
+        },
+        @thought_schema
       )
     end
   end
@@ -520,9 +561,14 @@ defmodule TalesForge.LLM do
     if mock?(model) do
       {:ok, %{"title" => "", "matches" => []}}
     else
-      complete_json(model, simple_messages(system, user), @board_similar_schema, 0.0,
-        tier: :board_similar,
-        max_tokens: @board_similar_max_tokens
+      complete_json(
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: 0.0,
+          opts: [tier: :board_similar, max_tokens: @board_similar_max_tokens]
+        },
+        @board_similar_schema
       )
     end
   end
@@ -554,26 +600,32 @@ defmodule TalesForge.LLM do
     if mock?(model) do
       {:ok, mock_turn_response(player_action, handler, turn_number)}
     else
-      complete_json(
-        model,
-        messages,
-        narration_schema(variant),
-        Config.tier2_temperature(),
-        tier: :tier2,
-        max_tokens: Config.tier2_max_tokens() + notes_budget(variant),
-        session_id: opts[:session_id],
-        turn_number: turn_number,
-        structured_output: "narration",
-        validate: &valid_gm_reply?/1,
-        stream: true,
-        on_text: opts[:on_text],
-        variant: variant
-      )
+      %Request{
+        model: model,
+        messages: messages,
+        temperature: Config.tier2_temperature(),
+        opts: gm_opts(variant, turn_number, opts)
+      }
+      |> complete_json(narration_schema(variant))
       |> case do
         {:ok, map} -> {:ok, GMStructuredResponse.decode(map)}
         error -> error
       end
     end
+  end
+
+  defp gm_opts(variant, turn_number, opts) do
+    [
+      tier: :tier2,
+      max_tokens: Config.tier2_max_tokens() + notes_budget(variant),
+      session_id: opts[:session_id],
+      turn_number: turn_number,
+      structured_output: "narration",
+      validate: &valid_gm_reply?/1,
+      stream: true,
+      on_text: opts[:on_text],
+      variant: variant
+    ]
   end
 
   defp notes_budget(:full), do: @gm_notes_max_tokens
@@ -626,12 +678,8 @@ defmodule TalesForge.LLM do
   # One retry on unparseable JSON or a reply that fails :validate. The retry
   # re-sends the identical messages with a short correction APPENDED, so the
   # cached prefix (system + rules + state) still matches.
-  defp complete_json(model, messages, schema, temperature, opts) do
-    req =
-      prepare_schema(
-        %Request{model: model, messages: messages, temperature: temperature, opts: opts},
-        schema
-      )
+  defp complete_json(%Request{opts: opts} = req, schema) do
+    req = prepare_schema(req, schema)
 
     validate = Keyword.get(req.opts, :validate, fn _map -> true end)
 
