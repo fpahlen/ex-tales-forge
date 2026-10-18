@@ -61,7 +61,7 @@ defmodule TalesForge.Game.NpcMemoryTest do
       "confidence" => 0.9
     }
 
-    {:ok, _} = TurnProcessor.run(session_id, "Ask Brenna, turn #{n}.", action)
+    {:ok, _} = TurnProcessor.run(session_id, {"Ask Brenna, turn #{n}.", action})
     assert_received {:gm_prompt, prompt}
     prompt
   end

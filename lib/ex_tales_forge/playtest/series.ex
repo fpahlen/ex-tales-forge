@@ -48,10 +48,11 @@ defmodule TalesForge.Playtest.Series do
   @type counts :: %{optional({String.t(), String.t()}) => non_neg_integer()}
 
   @doc """
-  The runs still to play, in order: round `r` holds every persona × variant pair
-  that has fewer than `r` done runs. The variant order flips each round.
+  The runs still to play for `{personas, variants, runs}`, in order: round `r`
+  holds every persona × variant pair that has fewer than `r` done runs. The
+  variant order flips each round.
 
-      iex> TalesForge.Playtest.Series.plan(~w(paul lotta), ~w(a b), 2, %{{"paul", "a"} => 1})
+      iex> TalesForge.Playtest.Series.plan({~w(paul lotta), ~w(a b), 2}, %{{"paul", "a"} => 1})
       [
         %{persona: "paul", variant: "b", round: 1},
         %{persona: "lotta", variant: "a", round: 1},
@@ -62,8 +63,8 @@ defmodule TalesForge.Playtest.Series do
         %{persona: "lotta", variant: "a", round: 2}
       ]
   """
-  @spec plan([String.t()], [String.t()], pos_integer(), counts()) :: [item()]
-  def plan(personas, variants, runs, done \\ %{}) do
+  @spec plan({[String.t()], [String.t()], pos_integer()}, counts()) :: [item()]
+  def plan({personas, variants, runs}, done \\ %{}) do
     for round <- 1..runs//1,
         persona <- personas,
         variant <- if(rem(round, 2) == 1, do: variants, else: Enum.reverse(variants)),
@@ -167,41 +168,42 @@ defmodule TalesForge.Playtest.Series do
   defp string_list?([_ | _] = list), do: Enum.all?(list, &(is_binary(&1) and &1 =~ ~r/^\w+$/))
   defp string_list?(_), do: false
 
-  defp launch(name, {personas, variants, runs}, opts) do
+  defp launch(name, spec, opts) do
     if playing?() do
       {:error, :already_running}
     else
-      items = plan(personas, variants, runs, done_counts(name))
+      items = plan(spec, done_counts(name))
 
       {:ok, _pid} =
-        Task.Supervisor.start_child(@supervisor, fn -> play(name, items, opts, 0) end)
+        Task.Supervisor.start_child(@supervisor, fn -> play(name, {items, 0}, opts) end)
 
       Logger.info("playtest series started series=#{name} planned=#{length(items)}")
       {:ok, length(items)}
     end
   end
 
-  defp play(name, [], _opts, _failures),
+  # `{items, failures}`: the runs still to play and the failures in a row.
+  defp play(name, {[], _failures}, _opts),
     do: Logger.info("playtest series done series=#{name}")
 
-  defp play(name, _items, _opts, @max_failures_in_a_row),
+  defp play(name, {_items, @max_failures_in_a_row}, _opts),
     do: Logger.warning("playtest series stopped series=#{name}: failures in a row")
 
-  defp play(name, [item | rest] = items, opts, failures) do
+  defp play(name, {[item | rest] = items, failures}, opts) do
     case run_one(name, item, opts) do
       :busy ->
         Process.sleep(Keyword.get(opts, :busy_retry_ms, @busy_retry_ms))
-        play(name, items, opts, failures)
+        play(name, {items, failures}, opts)
 
       :done ->
-        play(name, rest, opts, 0)
+        play(name, {rest, 0}, opts)
 
       :spend_cap ->
         Logger.warning("playtest series paused series=#{name}: spend cap, start it again later")
 
       {:failed, why} ->
         Logger.warning("playtest series run failed series=#{name} reason=#{inspect(why)}")
-        play(name, rest, opts, failures + 1)
+        play(name, {rest, failures + 1}, opts)
     end
   end
 

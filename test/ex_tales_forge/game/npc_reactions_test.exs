@@ -279,7 +279,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
     {action, _handler} = action(Context.build_gm_context(session), "ask Brenna for a room")
 
     assert {:ok, %{turn_count: 1}} =
-             TurnProcessor.run(session.id, "ask Brenna for a room", PlayerAction.encode(action))
+             TurnProcessor.run(session.id, {"ask Brenna for a room", PlayerAction.encode(action)})
 
     assert_receive {:at, :jev, t_jev}
     assert_receive {:at, :gm, t_gm, body}
@@ -311,7 +311,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
     {action, _handler} = action(Context.build_gm_context(session), "ask Brenna for a room")
 
     assert {:ok, _} =
-             TurnProcessor.run(session.id, "ask Brenna for a room", PlayerAction.encode(action))
+             TurnProcessor.run(session.id, {"ask Brenna for a room", PlayerAction.encode(action)})
 
     refute Map.has_key?(GameSessions.get_session!(session.id).world_state, "npc_moods")
     assert Repo.all(from c in AICall, where: c.purpose == "npc_reaction") == []
