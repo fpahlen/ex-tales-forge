@@ -30,7 +30,7 @@ defmodule TalesForge.Game.GesturePromptTest do
     stub_llm(fn
       :gm, user, system ->
         send(test_pid, {:gm_prompt, system, user})
-        %{"narrative" => @narrative, "gm_notes" => "n"}
+        %{"narrative" => @narrative}
 
       _kind, _user, _system ->
         :default

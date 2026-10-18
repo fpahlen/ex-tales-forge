@@ -33,7 +33,7 @@ defmodule TalesForge.Game.PremisePromptTest do
     stub_llm(fn
       :gm, user, _system ->
         send(test_pid, {:gm_prompt, user})
-        %{"narrative" => "Brenna looks at you.", "gm_notes" => "n"}
+        %{"narrative" => "Brenna looks at you."}
 
       _kind, _user, _system ->
         :default

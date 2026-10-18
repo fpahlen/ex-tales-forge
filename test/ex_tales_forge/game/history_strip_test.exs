@@ -32,7 +32,7 @@ defmodule TalesForge.Game.HistoryStripTest do
 
     stub_llm(fn
       :gm, _user, _system ->
-        %{"narrative" => "Osric frowns.", "gm_notes" => "n", "context_summary" => "Dawnbreaker!"}
+        %{"narrative" => "Osric frowns.", "context_summary" => "Dawnbreaker!"}
 
       _kind, _user, _system ->
         :default

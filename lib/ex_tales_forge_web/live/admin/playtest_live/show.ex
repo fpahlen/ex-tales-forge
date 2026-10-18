@@ -376,8 +376,15 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Show do
             <p class="text-sm">
               <span class="text-[var(--paper-muted)]">Roll:</span> {turn.roll || "none"}
             </p>
-            <p class="text-sm text-[var(--paper-muted)]">GM notes:</p>
-            <p class="whitespace-pre-wrap text-sm">{turn.gm_notes || "none recorded"}</p>
+            <p class="text-sm text-[var(--paper-muted)]">Events:</p>
+            <ul
+              :if={turn.events != []}
+              id={"turn-#{turn.turn_number}-events"}
+              class="space-y-0.5 text-sm"
+            >
+              <li :for={line <- turn.events} class="break-words">{line}</li>
+            </ul>
+            <p :if={turn.events == []} class="text-sm">none recorded</p>
           </div>
         </article>
       </.section_card>

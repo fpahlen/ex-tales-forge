@@ -1,8 +1,11 @@
 defmodule TalesForge.GMReasoning do
   @moduledoc """
-  The GM's hidden notes and raw JSON reply for each turn, stored as a
-  player-unaware `gm_reasoning` session event for session reports. Never shown
-  to the player, never fed back into a prompt.
+  The GM's raw JSON reply for each turn, stored as a player-unaware
+  `gm_reasoning` session event with the turn's number and world tick.
+  `TalesForge.Playtest.CharacterChanges` reads it (the GM's NPC memory
+  updates, and the tick that places a memory on a turn) and
+  `TalesForge.Playtest.Reports` reads its tick to place the turn's other
+  session events. Never shown to the player, never fed back into a prompt.
   """
 
   require Logger
@@ -50,7 +53,6 @@ defmodule TalesForge.GMReasoning do
       payload: %{
         "turn_id" => turn.id,
         "turn_number" => turn.turn_number,
-        "gm_notes" => gm_result.gm_notes,
         "gm_reply" => gm_result.raw
       }
     })

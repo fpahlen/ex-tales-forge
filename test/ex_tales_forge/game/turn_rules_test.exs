@@ -36,7 +36,7 @@ defmodule TalesForge.Game.TurnRulesTest do
     end)
 
     stub_llm(fn
-      :gm, _user, _system -> %{"narrative" => "The square is quiet.", "gm_notes" => "n"}
+      :gm, _user, _system -> %{"narrative" => "The square is quiet."}
       _kind, _user, _system -> :default
     end)
 

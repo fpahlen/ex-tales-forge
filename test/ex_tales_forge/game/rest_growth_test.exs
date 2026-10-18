@@ -39,7 +39,7 @@ defmodule TalesForge.Game.RestGrowthTest do
     stub_llm(fn
       :gm, user, _system ->
         send(test_pid, {:gm_prompt, user})
-        %{"narrative" => "Morning light.", "gm_notes" => "n"}
+        %{"narrative" => "Morning light."}
 
       _kind, _user, _system ->
         :default

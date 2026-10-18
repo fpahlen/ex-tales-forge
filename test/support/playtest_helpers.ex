@@ -7,7 +7,7 @@ defmodule TalesForge.PlaytestHelpers do
 
   @gm_reply %{
     "narrative" => "The lamp gutters as the innkeeper eyes you.",
-    "gm_notes" => "SECRET-GM-NOTE"
+    "context_summary" => "SECRET-GM-SUMMARY"
   }
 
   @doc """

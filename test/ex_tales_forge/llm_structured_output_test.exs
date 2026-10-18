@@ -57,7 +57,7 @@ defmodule TalesForge.LLMStructuredOutputTest do
   test "GM call uses strict json_schema with narrative as the first property", %{
     session: session
   } do
-    stub_replies([~s({"narrative":"The lamp gutters.","gm_notes":"n"})])
+    stub_replies([~s({"narrative":"The lamp gutters."})])
 
     assert {:ok, %GMStructuredResponse{narrative: "The lamp gutters."}} = gm_turn(session)
 
@@ -95,7 +95,10 @@ defmodule TalesForge.LLMStructuredOutputTest do
   test "a reply without narrative fails validation and is retried the same way", %{
     session: session
   } do
-    stub_replies([~s({"narrative":"  ","gm_notes":"x"}), ~s({"narrative":"Now with prose."})])
+    stub_replies([
+      ~s({"narrative":"  ","context_summary":"x"}),
+      ~s({"narrative":"Now with prose."})
+    ])
 
     assert {:ok, %GMStructuredResponse{narrative: "Now with prose."}} = gm_turn(session)
 

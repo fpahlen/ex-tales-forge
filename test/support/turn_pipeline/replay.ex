@@ -230,7 +230,7 @@ defmodule TalesForge.TurnPipeline.Replay do
     stub_llm(fn
       :gm, user, _system ->
         send(test_pid, {:replay_gm_prompt, user})
-        %{"narrative" => prose, "gm_notes" => "n"}
+        %{"narrative" => prose}
 
       _kind, _user, _system ->
         :default
