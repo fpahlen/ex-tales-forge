@@ -87,6 +87,7 @@ defmodule TalesForge.Game.Turn.Outcome do
         Map.merge(ctx, %{
           sim: board.sim,
           cast: board.cast,
+          traders: Map.get(board, :traders, []),
           founder: turn.opts[:founder],
           intention: turn.intention
         })

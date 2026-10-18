@@ -38,7 +38,7 @@ defmodule TalesForge.Game.Turn.Board do
   alias TalesForge.Game.Progression
   alias TalesForge.Game.Reflection
 
-  alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
+  alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction, SingleAction}
 
   alias TalesForge.Game.Train
   alias TalesForge.Game.TurnApply
@@ -91,8 +91,11 @@ defmodule TalesForge.Game.Turn.Board do
         inventory_result
       )
 
-    Map.put(result, :outcome, outcome)
+    Map.merge(result, %{outcome: outcome, traders: traders(inventory_result)})
   end
+
+  defp traders({:ok, %{traders: traders}}), do: traders
+  defp traders(_inventory_result), do: []
 
   # Trade, catalogue and the premise of the inventory. Gives the world, the
   # inventory result and `board` with the handler marked rejected or as an
@@ -105,7 +108,13 @@ defmodule TalesForge.Game.Turn.Board do
       |> apply_catalogue(board)
 
     inventory_result = premise_result(handler, traded)
-    handler = handler |> mark_rejected(inventory_result) |> unpaid_sleep(inventory_result)
+
+    handler =
+      handler
+      |> mark_rejected(inventory_result)
+      |> unpaid_sleep(inventory_result)
+      |> refused_trade(inventory_result, board.player_action.action)
+
     {world_traded, inventory_result, %{board | handler: handler}}
   end
 
@@ -362,16 +371,17 @@ defmodule TalesForge.Game.Turn.Board do
       else: {world_state, nil}
   end
 
-  # The inventory step is pure; the traders it reads and the traders whose
-  # inventory it changes are loaded and saved here.
+  # The inventory step is pure; the traders it reads are loaded here, and
+  # the traders whose inventory and coins it changes go with the result
+  # (`:traders`), saved in the turn's transaction (`Turn.Store`) with the
+  # character, so a trade is all or nothing.
   defp apply_inventory(world_state, session_id, action) do
     ids = Inventory.trader_ids(action, Map.get(world_state, "present_npcs", []))
 
     case Inventory.apply_transaction(world_state, NPC.traders(session_id, ids), action) do
       {:ok, updated, details, changed} ->
-        :ok = NPC.put_inventories(session_id, changed)
         Logger.info("inventory applied session=#{session_id} changes=#{inspect(details.applied)}")
-        {updated, {:ok, details}}
+        {updated, {:ok, Map.put(details, :traders, changed)}}
 
       {:error, reason} ->
         Logger.warning("inventory skipped session=#{session_id} reason=#{reason}")
@@ -542,6 +552,33 @@ defmodule TalesForge.Game.Turn.Board do
   end
 
   defp mark_rejected(handler, _result), do: handler
+
+  # A buy or a sale that did not happen: nothing moved, and the GM is told
+  # why (`refusal/2`), so the prose books no payment.
+  defp refused_trade(handler, {:error, reason}, %SingleAction{action_type: type})
+       when type in [:buy, :sell],
+       do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "trade_refused", reason)}
+
+  defp refused_trade(handler, _result, _action), do: handler
+
+  @doc """
+  `handler` (what the GM gets) with the reason the board step refused the
+  buy or the sale of `board_handler`, as the handler's `"reason"`
+  (the GM turn section of the prompt). Gentry's playtest session
+  643b8031 on 2026-10-18: a sale that paid nothing was narrated as paid.
+
+      iex> refused = %TalesForge.Game.Schemas.HandlerResult{handler: "inventory",
+      ...>   state_hints: %{"trade_refused" => "Sell requires a price for 'cloak'."}}
+      iex> TalesForge.Game.Turn.Board.refusal(%TalesForge.Game.Schemas.HandlerResult{handler: "inventory"}, refused).state_hints
+      %{"reason" => "Sell requires a price for 'cloak'."}
+  """
+  @spec refusal(HandlerResult.t(), HandlerResult.t()) :: HandlerResult.t()
+  def refusal(%HandlerResult{} = handler, %HandlerResult{
+        state_hints: %{"trade_refused" => reason}
+      }),
+      do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "reason", reason)}
+
+  def refusal(handler, _board_handler), do: handler
 
   # A failed room payment gives the short sleep, with no paid bed.
   defp unpaid_sleep(handler, {:error, _reason}), do: TurnApply.unpaid_sleep(handler)
