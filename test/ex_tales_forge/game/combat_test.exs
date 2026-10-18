@@ -113,7 +113,7 @@ defmodule TalesForge.Game.CombatTest do
     end
 
     test "an NPC at the cap goes down and does not counterattack" do
-      cap = Combat.wound_max(f(@guard))
+      cap = Mechanics.wound_max(f(@guard))
       guard = Map.put(@guard, "wounds", cap - 1)
 
       ex =
@@ -130,7 +130,7 @@ defmodule TalesForge.Game.CombatTest do
     end
 
     test "a hit on a down NPC makes the death roll from combat.md" do
-      cap = Combat.wound_max(f(@guard))
+      cap = Mechanics.wound_max(f(@guard))
       down = Map.merge(@guard, %{"wounds" => cap, "vitality" => "down"})
 
       assert Combat.exchange({f(@player), f(down)}, "melee_combat", %{attack: 10, death: 30})[
@@ -144,11 +144,32 @@ defmodule TalesForge.Game.CombatTest do
                "down"
     end
 
+    test "a hit wounds an NPC by the player character's rule (Mechanics.wound/2)" do
+      guard = f(@guard)
+
+      for {wounds, death} <- [{0, 50}, {2, 50}, {3, 10}, {3, 90}, {-1, 50}] do
+        ex =
+          Combat.exchange({f(@player), %{guard | wounds: wounds}}, "melee_combat", %{
+            attack: 10,
+            death: death
+          })
+
+        pc_rule = Mechanics.wound(%{guard | wounds: wounds, vitality: "ok"}, death)
+
+        assert {ex["defender_wounds"], ex["defender_vitality"]} ==
+                 {pc_rule.wounds, pc_rule.vitality}
+      end
+
+      # Wounds below 0 count as 0 for everyone (10c-b; the NPC path used to give 0).
+      ex = Combat.exchange({f(@player), %{guard | wounds: -1}}, "melee_combat", %{attack: 10})
+      assert {ex["defender_wounds"], ex["defender_vitality"]} == {1, "hurt"}
+    end
+
     test "a minor foe has 1 wound and goes down on the first hit" do
       foe = Combat.minor_foe({"foe_miner", "a miner"}, Defaults.rules("tin_valley"), 7)
 
       assert %GameCharacter{skills: %{}, minor: true, role: "minor foe"} = foe
-      assert Combat.wound_max(f(foe)) == 1
+      assert Mechanics.wound_max(f(foe)) == 1
       ex = Combat.exchange({f(@player), f(foe)}, "melee_combat", %{attack: 15})
       assert ex["defender_vitality"] == "down"
       assert ex["minor"]
@@ -237,7 +258,7 @@ defmodule TalesForge.Game.CombatTest do
         "npc_state" => %{"gate_guard" => %{"name" => "Gate Guard"}}
       }
 
-      guard = Map.put(@guard, "wounds", Combat.wound_max(f(@guard)) - 1)
+      guard = Map.put(@guard, "wounds", Mechanics.wound_max(f(@guard)) - 1)
       ex = Combat.exchange({f(@player), f(guard)}, "melee_combat", %{attack: 10})
 
       {world, [event]} = Combat.book(world, {ex, nil}, world["npc_state"])

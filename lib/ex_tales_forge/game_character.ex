@@ -140,6 +140,21 @@ defmodule TalesForge.GameCharacter do
     %{gc | extra: extra, missing: missing}
   end
 
+  @doc """
+  Sets fields and drops their sheet keys from `extra` and `missing`, so
+  `to_sheet/1` gives the new values.
+
+      iex> gc = TalesForge.GameCharacter.from_sheet(%{"id" => "ada"})
+      iex> TalesForge.GameCharacter.to_sheet(TalesForge.GameCharacter.put(gc, wounds: 1))
+      %{"id" => "ada", "wounds" => 1}
+  """
+  @spec put(t(), keyword()) :: t()
+  def put(%__MODULE__{} = gc, fields) when is_list(fields) do
+    keys = for {field, _} <- fields, {key, ^field} <- @sheet_fields, do: key
+    gc = struct!(gc, fields)
+    %{gc | extra: Map.drop(gc.extra, keys), missing: gc.missing -- keys}
+  end
+
   @doc "The sheet value of `key` (a `sheet_keys/0` key), nil when the sheet lacks it."
   @spec sheet_value(t(), String.t()) :: term()
   def sheet_value(%__MODULE__{missing: missing} = gc, key) do

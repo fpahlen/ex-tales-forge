@@ -306,7 +306,7 @@ defmodule TalesForge.Game.Combat do
 
   # The attack on `defender`, with its wounds, wound cap and vitality before it.
   defp hit_on(%GameCharacter{} = defender, hit, rolls) do
-    cap = wound_max(defender)
+    cap = Mechanics.wound_max(defender)
     before = defender.wounds |> to_int(0) |> min(cap)
 
     %Hit{
@@ -335,16 +335,14 @@ defmodule TalesForge.Game.Combat do
   defp untrained?(%GameCharacter{minor: true}, _skill), do: true
   defp untrained?(fighter, skill), do: Mechanics.raw_level(levels(fighter), skill) <= 0
 
+  # A hit is one wound by the rule every character takes (`Mechanics.wound/2`).
   defp take_hit(%Hit{hit: false, wounds: wounds, vitality: vitality}), do: {wounds, vitality}
-  defp take_hit(%Hit{wounds: wounds, vitality: "dead"}), do: {wounds, "dead"}
 
-  defp take_hit(%Hit{wounds: wounds, cap: cap} = hit) when wounds >= cap do
-    if hit.roll > con(hit) * 2.5, do: {cap, "dead"}, else: {cap, "down"}
-  end
+  defp take_hit(%Hit{defender: defender, wounds: wounds, vitality: vitality, roll: roll}) do
+    %GameCharacter{wounds: after_hit, vitality: vitality_after} =
+      Mechanics.wound(%{defender | wounds: wounds, vitality: vitality}, roll)
 
-  defp take_hit(%Hit{wounds: wounds, cap: cap}) do
-    after_hit = wounds + 1
-    {after_hit, vitality(after_hit, cap)}
+    {after_hit, vitality_after}
   end
 
   defp con(%Hit{defender: defender}), do: defender |> stat("CON") |> to_int(10)
@@ -381,11 +379,6 @@ defmodule TalesForge.Game.Combat do
       }
     end
   end
-
-  @doc "The wound cap of a fighter: 1 for a minor foe, otherwise `Mechanics.wound_max/1`."
-  @spec wound_max(fighter()) :: pos_integer()
-  def wound_max(%GameCharacter{minor: true}), do: 1
-  def wound_max(%GameCharacter{} = fighter), do: Mechanics.wound_max(levels(fighter))
 
   defp vitality(wounds, cap) when wounds >= cap, do: "down"
   defp vitality(wounds, _cap) when wounds > 0, do: "hurt"
