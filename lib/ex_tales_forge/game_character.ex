@@ -43,10 +43,34 @@ defmodule TalesForge.GameCharacter do
             mood: nil,
             relationships: %{},
             runtime: %{},
+            minor: false,
             extra: %{},
             missing: []
 
   @type t :: %__MODULE__{}
+
+  # Sheet keys (a world_state sheet, an NPC fighter profile, an npc_state
+  # entry) and the field each one sets in `from_sheet/1`.
+  @sheet_fields [
+    {"id", :slug},
+    {"name", :name},
+    {"race", :race},
+    {"role", :role},
+    {"location_id", :location_id},
+    {"stats", :stats},
+    {"skills", :skills},
+    {"ocean", :ocean},
+    {"maslow", :maslow_level},
+    {"concerns", :concerns},
+    {"inventory", :inventory},
+    {"coins", :coins},
+    {"wounds", :wounds},
+    {"wound_max", :wound_max},
+    {"vitality", :vitality},
+    {"learning_points", :learning_points},
+    {"learning_failures", :learning_failures},
+    {"minor", :minor}
+  ]
 
   @doc """
   The GameCharacter of a `characters` row. `runtime["sheet"]` becomes
@@ -88,6 +112,41 @@ defmodule TalesForge.GameCharacter do
   end
 
   @doc """
+  The GameCharacter of a sheet map: the player character's
+  `world_state["character"]`, an NPC's fighter profile or an `npc_state`
+  entry. Each known key sets its field as it is (no casting), a
+  `current_concern` goes to `runtime`, and `extra` and `missing` keep the
+  rest, so `to_sheet(from_sheet(sheet)) === sheet` for every sheet. A key
+  the sheet lacks keeps the field's default.
+
+      iex> gc = TalesForge.GameCharacter.from_sheet(%{"id" => "foe_thug", "name" => "a thug",
+      ...>   "minor" => true, "role" => "minor foe", "stats" => %{"CON" => 9}})
+      iex> {gc.slug, gc.minor, gc.wounds}
+      {"foe_thug", true, 0}
+      iex> TalesForge.GameCharacter.to_sheet(gc)
+      %{"id" => "foe_thug", "name" => "a thug", "minor" => true, "role" => "minor foe",
+        "stats" => %{"CON" => 9}}
+  """
+  @spec from_sheet(map()) :: t()
+  def from_sheet(sheet) when is_map(sheet) do
+    fields =
+      for {key, field} <- @sheet_fields,
+          Map.has_key?(sheet, key),
+          into: %{},
+          do: {field, sheet[key]}
+
+    gc = struct(__MODULE__, Map.put(fields, :runtime, Map.take(sheet, ["current_concern"])))
+    %{"extra" => extra, "missing" => missing} = sheet_runtime(gc, sheet)
+    %{gc | extra: extra, missing: missing}
+  end
+
+  @doc "The sheet value of `key` (a `sheet_keys/0` key), nil when the sheet lacks it."
+  @spec sheet_value(t(), String.t()) :: term()
+  def sheet_value(%__MODULE__{missing: missing} = gc, key) do
+    if key in missing, do: nil, else: Map.get(to_sheet(gc), key)
+  end
+
+  @doc """
   The sheet map of a GameCharacter, as the turn reads it from
   `world_state["character"]`: the sheet columns, then `extra` on top,
   without the `missing` keys.
@@ -125,15 +184,17 @@ defmodule TalesForge.GameCharacter do
 
   @doc """
   What `runtime["sheet"]` must hold so that `to_sheet/1` of `gc` is `sheet`:
-  each sheet key whose value differs (strictly, so `5` is not `5.0`) and the
-  column keys the sheet does not have.
+  each sheet key that `to_sheet/1` doesn't give back as it is (strictly, so
+  `5` is not `5.0`, and a key with a nil value is kept) and the column keys
+  the sheet does not have.
   """
   @spec sheet_runtime(t(), map()) :: map()
   def sheet_runtime(%__MODULE__{} = gc, sheet) when is_map(sheet) do
     built = to_sheet(%{gc | extra: %{}, missing: []})
 
     %{
-      "extra" => for({k, v} <- sheet, Map.get(built, k) !== v, into: %{}, do: {k, v}),
+      "extra" =>
+        for({k, v} <- sheet, not Map.has_key?(built, k) or built[k] !== v, into: %{}, do: {k, v}),
       "missing" => Enum.reject(sheet_keys(), &Map.has_key?(sheet, &1))
     }
   end

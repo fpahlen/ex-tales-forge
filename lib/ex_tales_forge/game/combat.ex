@@ -14,8 +14,9 @@ defmodule TalesForge.Game.Combat do
        skill against the attacker's Parry. A hit gives the attacker one wound.
 
   A miss is only a miss. The attacker takes a wound only from a counterattack
-  hit. A fighter is a string-keyed map with `stats`, `skills` and,
-  for an NPC, `ocean`, `maslow`, `concerns`, `wounds` and `wound_max`.
+  hit. A fighter is a `%TalesForge.GameCharacter{}` (refactor step 10c):
+  the player character and NPCs alike, and a minor foe is a transient one.
+  `GameCharacter.from_sheet/1` makes one from a sheet or an NPC profile.
 
   NPC wounds live in `world_state["npc_state"][id]` (`book/3`). An NPC at the
   wound cap is down. A hit on an NPC that is down makes the death roll of
@@ -45,6 +46,7 @@ defmodule TalesForge.Game.Combat do
 
   alias TalesForge.Characters.Defaults
   alias TalesForge.Game.Mechanics
+  alias TalesForge.GameCharacter
 
   @combat_skills ~w(melee_combat ranged_combat unarmed_combat)
 
@@ -57,7 +59,7 @@ defmodule TalesForge.Game.Combat do
   @attack_verbs ~w(attack attacks hit strike stab punch slash kick shoot charge tackle lunge
                    swing cut)
 
-  @type fighter :: map()
+  @type fighter :: GameCharacter.t()
   @type rolls :: %{
           required(:attack) => 1..100,
           optional(:counter_chance) => float(),
@@ -77,13 +79,13 @@ defmodule TalesForge.Game.Combat do
   the effective dodge level (`Mechanics.effective_level/2`), so an untrained
   fighter uses the untrained floor.
 
-      iex> TalesForge.Game.Combat.parry(%{"stats" => %{"DEX" => 10}, "skills" => %{"dodge" => 20}})
+      iex> TalesForge.Game.Combat.parry(%TalesForge.GameCharacter{stats: %{"DEX" => 10}, skills: %{"dodge" => 20}})
       60
   """
   @spec parry(fighter()) :: integer()
-  def parry(fighter) do
-    dodge = Mechanics.effective_level(fighter, "dodge")
-    dex = fighter |> get_in(["stats", "DEX"]) |> to_int(10)
+  def parry(%GameCharacter{} = fighter) do
+    dodge = Mechanics.effective_level(levels(fighter), "dodge")
+    dex = fighter |> stat("DEX") |> to_int(10)
     div(dodge, 2) + 50 + 5 * Integer.floor_div(dex - 10, 2)
   end
 
@@ -149,19 +151,26 @@ defmodule TalesForge.Game.Combat do
   @spec combat_skill(fighter(), String.t() | nil) :: {String.t(), non_neg_integer()}
   def combat_skill(fighter, preferred \\ nil)
 
-  def combat_skill(fighter, preferred) when preferred in @combat_skills,
+  def combat_skill(%GameCharacter{} = fighter, preferred) when preferred in @combat_skills,
     do: {preferred, level(fighter, preferred)}
 
-  def combat_skill(fighter, _preferred) do
+  def combat_skill(%GameCharacter{} = fighter, _preferred) do
     @combat_skills
     |> Enum.map(&{&1, level(fighter, &1)})
     |> Enum.max_by(fn {_skill, lvl} -> lvl end)
   end
 
-  defp level(%{"minor" => true} = fighter, skill),
-    do: Mechanics.effective_level(Map.put(fighter, "skills", %{}), skill)
+  defp level(%GameCharacter{minor: true} = fighter, skill),
+    do: Mechanics.effective_level(%{levels(fighter) | "skills" => %{}}, skill)
 
-  defp level(fighter, skill), do: Mechanics.effective_level(fighter, skill)
+  defp level(fighter, skill), do: Mechanics.effective_level(levels(fighter), skill)
+
+  # What the sheet rules of `Mechanics` read of a fighter: stats and skills.
+  defp levels(%GameCharacter{stats: stats, skills: skills}),
+    do: %{"stats" => stats, "skills" => skills}
+
+  defp stat(%GameCharacter{stats: stats}, key) when is_map(stats), do: stats[key]
+  defp stat(%GameCharacter{}, _key), do: nil
 
   @doc """
   The chance (0.05 to 0.95) that `npc` fights back when it is attacked. The
@@ -173,22 +182,27 @@ defmodule TalesForge.Game.Combat do
   A guard fights back most of the time. A scared shopkeeper often does not.
   """
   @spec counter_chance(fighter()) :: float()
-  def counter_chance(npc) do
+  def counter_chance(%GameCharacter{} = npc) do
     {_skill, lvl} = combat_skill(npc)
-    ocean = Map.get(npc, "ocean") || %{}
-    trait = fn name -> ocean |> Map.get(name, 5) |> to_int(5) end
 
+    # Summed left to right in the order of the rule, so the float is the same.
     chance =
-      0.5 +
-        0.006 * (min(lvl, 70) - 20) +
-        0.04 * (5 - trait.("agreeableness")) +
-        0.02 * (trait.("extraversion") - 5) -
-        0.05 * (trait.("neuroticism") - 5) +
-        maslow_shift(Map.get(npc, "maslow")) +
-        concern_shift(npc) -
-        0.1 * (npc |> Map.get("wounds", 0) |> to_int(0))
+      (0.5 + 0.006 * (min(lvl, 70) - 20))
+      |> add_ocean(npc.ocean || %{})
+      |> Kernel.+(maslow_shift(npc.maslow_level))
+      |> Kernel.+(concern_shift(npc))
+      |> Kernel.-(0.1 * to_int(npc.wounds, 0))
 
     chance |> max(0.05) |> min(0.95) |> Float.round(2)
+  end
+
+  # Low agreeableness and high extraversion raise the chance; high
+  # neuroticism lowers it (each trait 0 to 10, 5 when unknown).
+  defp add_ocean(chance, ocean) do
+    trait = fn name -> ocean |> Map.get(name, 5) |> to_int(5) end
+
+    chance + 0.04 * (5 - trait.("agreeableness")) + 0.02 * (trait.("extraversion") - 5) -
+      0.05 * (trait.("neuroticism") - 5)
   end
 
   defp maslow_shift("physiological"), do: -0.15
@@ -199,9 +213,9 @@ defmodule TalesForge.Game.Combat do
   @bold_focuses ~w(duty order revenge fame)
   @timid_focuses ["safety", "family", "survival", "escape the past"]
 
-  defp concern_shift(npc) do
+  defp concern_shift(%GameCharacter{} = npc) do
     focuses =
-      [Map.get(npc, "current_concern") | List.wrap(Map.get(npc, "concerns"))]
+      [npc.runtime["current_concern"] | List.wrap(npc.concerns)]
       |> Enum.flat_map(fn
         %{"focus" => focus} when is_binary(focus) -> [focus]
         _ -> []
@@ -229,7 +243,7 @@ defmodule TalesForge.Game.Combat do
   wound and the sheet stayed at 0/3).
   """
   @spec exchange({fighter(), fighter()}, String.t() | nil, rolls()) :: map()
-  def exchange({attacker, defender} = pair, skill, rolls) do
+  def exchange({%GameCharacter{} = attacker, %GameCharacter{} = defender} = pair, skill, rolls) do
     %{"hit" => hit, "result" => result} = attack = attack(pair, skill, rolls)
 
     %Hit{cap: cap} = on_defender = hit_on(defender, hit, rolls)
@@ -238,7 +252,7 @@ defmodule TalesForge.Game.Combat do
 
     counter =
       if vitality in ~w(ok hurt) do
-        counterattack(attacker, Map.put(defender, "wounds", wounds), rolls)
+        counterattack(attacker, %{defender | wounds: wounds}, rolls)
       end
 
     self_wound = result == "critical_failure"
@@ -246,10 +260,10 @@ defmodule TalesForge.Game.Combat do
 
     %{
       "attacker" => name(attacker),
-      "attacker_id" => Map.get(attacker, "id", "player"),
+      "attacker_id" => attacker_id(attacker),
       "defender" => name(defender),
-      "defender_id" => Map.get(defender, "id"),
-      "minor" => Map.get(defender, "minor", false),
+      "defender_id" => defender.slug,
+      "minor" => defender.minor,
       "attack" => attack,
       "death" => death,
       "qa_forced" => Map.get(rolls, :qa_forced, false),
@@ -261,6 +275,11 @@ defmodule TalesForge.Game.Combat do
       "attacker_wounds" => attacker_wounds,
       "attacker_wounded" => attacker_wounds > 0
     }
+  end
+
+  # The attacker's id; "player" when the sheet has none.
+  defp attacker_id(%GameCharacter{} = attacker) do
+    if "id" in attacker.missing, do: "player", else: attacker.slug
   end
 
   # A critical miss and a counterattack that hit each wound the attacker once.
@@ -286,15 +305,15 @@ defmodule TalesForge.Game.Combat do
   end
 
   # The attack on `defender`, with its wounds, wound cap and vitality before it.
-  defp hit_on(defender, hit, rolls) do
+  defp hit_on(%GameCharacter{} = defender, hit, rolls) do
     cap = wound_max(defender)
-    before = defender |> Map.get("wounds", 0) |> to_int(0) |> min(cap)
+    before = defender.wounds |> to_int(0) |> min(cap)
 
     %Hit{
       hit: hit,
       wounds: before,
       cap: cap,
-      vitality: Map.get(defender, "vitality") || vitality(before, cap),
+      vitality: GameCharacter.sheet_value(defender, "vitality") || vitality(before, cap),
       defender: defender,
       roll: Map.get(rolls, :death, 1)
     }
@@ -313,8 +332,8 @@ defmodule TalesForge.Game.Combat do
 
   # A fighter with level 0 in the skill rolls the untrained floor
   # (`Mechanics.untrained_floor/1`). A minor foe is always untrained.
-  defp untrained?(%{"minor" => true}, _skill), do: true
-  defp untrained?(fighter, skill), do: Mechanics.raw_level(fighter, skill) <= 0
+  defp untrained?(%GameCharacter{minor: true}, _skill), do: true
+  defp untrained?(fighter, skill), do: Mechanics.raw_level(levels(fighter), skill) <= 0
 
   defp take_hit(%Hit{hit: false, wounds: wounds, vitality: vitality}), do: {wounds, vitality}
   defp take_hit(%Hit{wounds: wounds, vitality: "dead"}), do: {wounds, "dead"}
@@ -328,7 +347,7 @@ defmodule TalesForge.Game.Combat do
     {after_hit, vitality(after_hit, cap)}
   end
 
-  defp con(%Hit{defender: defender}), do: defender |> get_in(["stats", "CON"]) |> to_int(10)
+  defp con(%Hit{defender: defender}), do: defender |> stat("CON") |> to_int(10)
 
   defp self_wound_line(%{"self_wound" => true} = ex),
     do: "- #{ex["attacker"]} takes 1 wound from the critical miss. The server books it."
@@ -365,8 +384,8 @@ defmodule TalesForge.Game.Combat do
 
   @doc "The wound cap of a fighter: 1 for a minor foe, otherwise `Mechanics.wound_max/1`."
   @spec wound_max(fighter()) :: pos_integer()
-  def wound_max(%{"minor" => true}), do: 1
-  def wound_max(fighter), do: Mechanics.wound_max(fighter)
+  def wound_max(%GameCharacter{minor: true}), do: 1
+  def wound_max(%GameCharacter{} = fighter), do: Mechanics.wound_max(levels(fighter))
 
   defp vitality(wounds, cap) when wounds >= cap, do: "down"
   defp vitality(wounds, _cap) when wounds > 0, do: "hurt"
@@ -520,7 +539,8 @@ defmodule TalesForge.Game.Combat do
   defp foe_target(noun, _world), do: {:foe, "foe_" <> noun, "a " <> noun}
 
   @doc """
-  A minor foe for the scene: stats from `Defaults.derive/3` (the occupation
+  A minor foe for the scene, as a transient `%GameCharacter{}` (no row):
+  stats from `Defaults.derive/3` (the occupation
   of the person word, or laborer), no skills (the untrained floor) and 1 wound.
   """
   @spec minor_foe({String.t(), String.t()}, Defaults.rules(), integer()) :: fighter()
@@ -542,6 +562,7 @@ defmodule TalesForge.Game.Combat do
       "wounds" => 0,
       "wound_max" => 1
     })
+    |> GameCharacter.from_sheet()
   end
 
   @doc """
@@ -572,8 +593,9 @@ defmodule TalesForge.Game.Combat do
 
   defp foe_entry(nil, _world), do: %{}
 
-  defp foe_entry(foe, world) do
+  defp foe_entry(%GameCharacter{} = foe, world) do
     foe
+    |> GameCharacter.to_sheet()
     |> Map.take(~w(id name role minor stats ocean maslow concerns))
     |> Map.put("location_id", world["location_id"])
   end
@@ -809,7 +831,7 @@ defmodule TalesForge.Game.Combat do
     "- #{ex["defender"]} counterattacks #{ex["attacker"]} (#{level_text(c)}, Parry #{c["parry"]}): d100 #{c["roll"]} against #{c["target"]}. #{result}"
   end
 
-  defp name(fighter), do: Map.get(fighter, "name") || Map.get(fighter, "id") || "the character"
+  defp name(%GameCharacter{name: name, slug: slug}), do: name || slug || "the character"
 
   defp to_int(value, _default) when is_integer(value), do: value
   defp to_int(value, _default) when is_float(value), do: trunc(value)
