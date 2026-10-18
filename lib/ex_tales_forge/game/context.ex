@@ -493,7 +493,7 @@ defmodule TalesForge.Game.Context do
     end)
   end
 
-  # A session with no cast (an old session with no NPC instances) falls back
+  # A session with no cast (an old session with no NPCs) falls back
   # to the default NPCs of the world.
   defp npc_details(npc_ids, cast) when cast == %{},
     do: Map.new(npc_ids, &{&1, Map.get(World.npcs(), &1, %{})})

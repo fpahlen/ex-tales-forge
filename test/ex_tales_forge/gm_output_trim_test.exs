@@ -141,7 +141,7 @@ defmodule TalesForge.GMOutputTrimTest do
     assert [event] = GMReasoning.list_for_session(session.id)
     assert event.payload["gm_notes"] == "Quiet look; Marta stays guarded."
 
-    memories = NPC.get_instance(session.id, "marta_kellen").runtime_state["memories"]
+    memories = NPC.get_person(session.id, "marta_kellen").runtime_state["memories"]
     assert Enum.any?(memories, &(&1["summary"] =~ "asked nothing and paid"))
 
     # The next GM turn sees the summary as its situation.

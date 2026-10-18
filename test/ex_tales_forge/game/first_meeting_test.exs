@@ -67,7 +67,7 @@ defmodule TalesForge.Game.FirstMeetingTest do
 
       marks =
         present
-        |> Enum.map(&{&1, NPC.get_instance(session.id, &1).runtime_state})
+        |> Enum.map(&{&1, NPC.get_person(session.id, &1).runtime_state})
         |> FirstMeeting.mark(@fixture["npc_memory"], @fixture["character"])
 
       for {id, want} <- @fixture["expect"], do: assert(to_string(marks[id]) == want)

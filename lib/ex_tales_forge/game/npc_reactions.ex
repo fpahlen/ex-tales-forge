@@ -154,7 +154,7 @@ defmodule TalesForge.Game.NpcReactions do
     end
   end
 
-  # The NPC instances that react: present and alive, at most #{@max_npcs};
+  # The NPCs that react: present and alive, at most #{@max_npcs};
   # none when off.
   defp reacting(%Moment{session_id: session_id, world: world, cast: cast}) do
     # A dead person does not react (QA 2026-10-15, session 99817343).
@@ -165,7 +165,7 @@ defmodule TalesForge.Game.NpcReactions do
 
     if enabled?() and present != [] do
       session_id
-      |> NPC.list_instances()
+      |> NPC.list_people()
       |> Enum.filter(&(&1.npc_id in present))
       |> Enum.take(@max_npcs)
     else

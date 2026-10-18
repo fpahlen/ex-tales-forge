@@ -329,9 +329,9 @@ defmodule Mix.Tasks.E2e.Smoke do
   end
 
   defp evaluate_npc_expect(session_id, :marta_memory) do
-    case NPC.get_instance(session_id, "marta_kellen") do
+    case NPC.get_person(session_id, "marta_kellen") do
       nil ->
-        {["marta_kellen instance missing"], %{}}
+        {["marta_kellen missing"], %{}}
 
       inst ->
         memories = Map.get(inst.runtime_state, "memories", [])

@@ -558,10 +558,6 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
       from c in TalesForge.Schemas.Character, where: c.game_session_id == ^run.game_session_id
     )
 
-    Repo.delete_all(
-      from n in TalesForge.Schemas.NpcInstance, where: n.game_session_id == ^run.game_session_id
-    )
-
     session = Repo.get!(GameSession, run.game_session_id)
 
     session

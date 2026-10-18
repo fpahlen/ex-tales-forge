@@ -31,7 +31,7 @@ defmodule TalesForge.Canon.SessionSnapshot do
   @spec from_session(GameSession.t()) :: t()
   def from_session(%GameSession{} = session) do
     world = session.world_state || %{}
-    instances = NPC.list_instances(session.id)
+    instances = NPC.list_people(session.id)
 
     names =
       Map.new(instances, fn inst ->

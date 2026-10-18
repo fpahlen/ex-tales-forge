@@ -12,8 +12,6 @@ defmodule TalesForge.NPCInitiativeTest do
   alias TalesForge.NPCInitiative
   alias TalesForge.NPCSignals
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
-  alias TalesForge.Repo
-  alias TalesForge.Schemas.NpcInstance
 
   # A finished turn of `session` in which `delta` ticks passed.
   defp turn(session, handler, raw_action, delta \\ 0) do
@@ -33,7 +31,7 @@ defmodule TalesForge.NPCInitiativeTest do
     do: Intentions.apply_all(session.id, NPCSignals.intentions(turn))
 
   defp memories(session, npc_id),
-    do: NPC.get_instance(session.id, npc_id).runtime_state |> Map.get("memories", [])
+    do: NPC.get_person(session.id, npc_id).runtime_state |> Map.get("memories", [])
 
   defp speak(target), do: %{handler: "speak", target: target, skill: "persuasion", notes: "test"}
   defp freeform, do: %{handler: "freeform", target: nil, skill: nil, notes: "test"}
@@ -76,7 +74,7 @@ defmodule TalesForge.NPCInitiativeTest do
     assert memory["summary"] == "Player spoke to me: Marta, tell me about the ledger"
     assert memory["tick"] == Map.get(session.world_state, "world_tick")
 
-    assert NPC.get_instance(session.id, "marta_kellen").runtime_state["relationship_score"] ==
+    assert NPC.get_person(session.id, "marta_kellen").runtime_state["relationship_score"] ==
              0.05
   end
 
@@ -103,13 +101,13 @@ defmodule TalesForge.NPCInitiativeTest do
     {:ok, session} = GameSessions.create_session(%{name: "NPC Time"})
     for _ <- 1..4, do: play(session, turn(session, freeform(), "", 1))
 
-    concern = NPC.get_instance(session.id, "marta_kellen").runtime_state["current_concern"]
+    concern = NPC.get_person(session.id, "marta_kellen").runtime_state["current_concern"]
     assert concern["priority"] >= 9
 
     {:ok, other} = GameSessions.create_session(%{name: "NPC Wait Concern"})
     play(other, turn(other, freeform(), "", 288))
 
-    assert get_in(NPC.get_instance(other.id, "marta_kellen").runtime_state, [
+    assert get_in(NPC.get_person(other.id, "marta_kellen").runtime_state, [
              "current_concern",
              "priority"
            ]) == 10
@@ -119,12 +117,12 @@ defmodule TalesForge.NPCInitiativeTest do
     {:ok, session} =
       GameSessions.create_session(%{name: "Tin Valley Wait", adventure_id: "tin_valley"})
 
-    before = NPC.get_instance(session.id, "innkeep")
+    before = NPC.get_person(session.id, "innkeep")
     assert get_in(before.runtime_state, ["current_concern", "focus"]) =~ "hills are restless"
 
     play(session, turn(session, freeform(), "", 288))
 
-    assert get_in(NPC.get_instance(session.id, "innkeep").runtime_state, [
+    assert get_in(NPC.get_person(session.id, "innkeep").runtime_state, [
              "current_concern",
              "priority"
            ]) >
@@ -140,7 +138,7 @@ defmodule TalesForge.NPCInitiativeTest do
     assert [payload] = Enum.filter(payloads, &(&1.npc_id == "marta_kellen"))
     assert payload.npc_name == "Marta Kellen"
     assert payload.text =~ "ledger"
-    assert NPC.get_instance(session.id, "marta_kellen").runtime_state["initiative_emitted"]
+    assert NPC.get_person(session.id, "marta_kellen").runtime_state["initiative_emitted"]
 
     :ok = NPCInitiative.broadcast(session.id, payload)
     assert_receive {:npc_initiative, ^payload}
@@ -170,7 +168,7 @@ defmodule TalesForge.NPCInitiativeTest do
     SessionPubSub.subscribe(session.id)
 
     priority = fn ->
-      get_in(NPC.get_instance(session.id, "marta_kellen").runtime_state, [
+      get_in(NPC.get_person(session.id, "marta_kellen").runtime_state, [
         "current_concern",
         "priority"
       ])
@@ -208,16 +206,14 @@ defmodule TalesForge.NPCInitiativeTest do
   test "concern priority surfaces in the session's cast" do
     assert {:ok, session} = GameSessions.create_session(%{name: "NPC Concern UI"})
 
-    inst = NPC.get_instance(session.id, "marta_kellen")
+    inst = NPC.get_person(session.id, "marta_kellen")
 
-    inst
-    |> NpcInstance.changeset(%{
-      runtime_state:
-        inst.runtime_state
-        |> Map.put("concern_wait_ticks", 4)
-        |> put_in(["current_concern", "priority"], 9)
-    })
-    |> Repo.update!()
+    NPC.put_state!(
+      inst,
+      inst.runtime_state
+      |> Map.put("concern_wait_ticks", 4)
+      |> put_in(["current_concern", "priority"], 9)
+    )
 
     marta = TalesForge.Characters.cast(session.id)["marta_kellen"]
 

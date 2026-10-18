@@ -91,7 +91,7 @@ defmodule TalesForgeWeb.AdminLive.DashboardLive do
           <.stat_card label="Sessions" value={@stats.sessions} />
           <.stat_card label="Active sessions" value={@stats.active_sessions} />
           <.stat_card label="Turns" value={@stats.turns} />
-          <.stat_card label="NPC instances" value={@stats.npc_instances} />
+          <.stat_card label="NPCs" value={@stats.npcs} />
           <.stat_card label="Scenes" value={@stats.scenes} />
         </div>
       </section>

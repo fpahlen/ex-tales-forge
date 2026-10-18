@@ -72,8 +72,8 @@ One `GameSession` (`lib/ex_tales_forge/schemas/game_session.ex`) is one instance
 | `game_sessions` | Instance: `name`, `status`, `world_state` (stored without `"character"`: `TalesForge.Schemas.WorldState`), unused `world_clock` UTC column |
 | `turns` | Auditable history: `player_action`, `narrative`, `mechanical_resolution` |
 | `scenes` | Per `(session, location_id)` exposition + optional `image_url` |
-| `npc_instances` | Per-session NPC: `personality` (authored copy) + `runtime_state` |
-| `characters` | One row per character, player or NPC (`controller` `player` \| `gm` \| `bot`), with OCEAN, Maslow level and concerns. Written at session create and in each turn's Multi (`TalesForge.Characters.write_multi/2`), and backfilled for older sessions with `TalesForge.Characters.backfill/0`. The player character's row is its only stored copy (refactor step 10b-2): a loaded session gets `world_state["character"]` from it (`TalesForge.Characters.put_sheet/1`). NPC rows are kept in step with `npc_instances`, which the game still runs on. The GM characters' rows, read as the session's cast (`TalesForge.Characters.cast/1`, `TalesForge.Game.Cast`), hold the NPCs' wounds and vitality, their gut reaction (`runtime["reaction"]`) and the minor foes (10f PR 4). `lifetime` (`persistent` by default, `scene` for a minor foe) says when a row goes: `TalesForge.Characters.end_scene_multi/2` removes the `scene` rows of a place when the player leaves it or takes a long rest there, and nothing else reads the column |
+| `npc_instances` | Per-session NPC (`personality` + `runtime_state`) until 10f PR 5; no longer read or written, kept until Fredrik OKs the drop. An NPC's state is its `characters` row |
+| `characters` | One row per character, player or NPC (`controller` `player` \| `gm` \| `bot`), with OCEAN, Maslow level and concerns. Written at session create and in each turn's Multi (`TalesForge.Characters.write_multi/2`), and backfilled for older sessions with `TalesForge.Characters.backfill/0`. The player character's row is its only stored copy (refactor step 10b-2): a loaded session gets `world_state["character"]` from it (`TalesForge.Characters.put_sheet/1`). A pack NPC's row is its only store (10f PR 5): `TalesForge.NPC` reads and writes it through `TalesForge.NPC.Rows` as a `TalesForge.NPC.Person` (place, mood, stock in `inventory`, relationship, and `runtime` with the memories, concern wait and initiative flags), in the caller's transaction, and gives each memory its `character_memories` row when it is recorded. The GM characters' rows, read as the session's cast (`TalesForge.Characters.cast/1`, `TalesForge.Game.Cast`), hold the NPCs' wounds and vitality, their gut reaction (`runtime["reaction"]`) and the minor foes (10f PR 4). `lifetime` (`persistent` by default, `scene` for a minor foe) says when a row goes: `TalesForge.Characters.end_scene_multi/2` removes the `scene` rows of a place when the player leaves it or takes a long rest there, and nothing else reads the column |
 | `character_memories` | One character's own view (felt, salience, secret) of an event in `session_events`. Mirrored from each NPC's `runtime_state["memories"]` (matched on tick + text, never duplicated); nothing reads it yet |
 
 NPC skills, stats and OCEAN defaults come from `TalesForge.Characters.Defaults`: pure Elixir from race, class, standing, occupation and seniority. The global labels are in `priv/characters/defaults.json`, and each pack can add its own in `character_defaults.json`. An NPC file's `derive` block holds the inputs, and its authored keys are overrides. NPC skills are on the PC scale (journeyman 8, master 12) and are used only by `Train`. The GM prompt never shows them.
@@ -224,7 +224,7 @@ Marta remains a **person with a concern**, not a front. The thing under the mine
 2. `tin_valley` materializes from its pack (`Pack.materialize/1`); every other id uses `World.default_world_state/0` (`adventure_id: "crossroads_ledger"`, start `weary_pilgrim`, tick 36 = "Day 1 · late afternoon"). (Until 2026-10-07 an Ash `Authoring.Adventure` row could overlay this; that path is gone.)
 3. `Context.build_intent_context/1` falls back to `present_npcs: ["marta_kellen"]` when the list is empty on Crossroads.
 4. Inserts `GameSession`. Default `name` is `"Crossroads Hamlet"` (`create_session/1` Map.merge) unless attrs pass `name`.
-5. `NPC.seed_session/1` inserts an `NpcInstance` for the pack's `npcs/` on tin_valley, else for **every** `priv/npcs/*.json` (Marta **and** Henrik).
+5. `NPC.seed_session/1` inserts a `characters` row (controller `gm`, origin `pack`) for the pack's `npcs/` on tin_valley, else for **every** `priv/npcs/*.json` (Marta **and** Henrik).
 6. `present_npcs` is whoever shares the player's location (`NPC.sync_present_npcs/2`).
 7. `ensure_scene/1` enqueues `TalesForge.Workers.ProcessScene` if `last_scene_location != location_id`.
 
@@ -353,7 +353,7 @@ end
 
 **PR-2 acceptance (both paths, no WorldSim yet):**
 
-- **tin_valley:** `location_id` and `character.location_id` are `valley_inn`; `location_name` is the pack inn name; Elara stats/inventory match `World.default_world_state()["character"]` except `location_id`; `locations["valley_inn"]["exits"]` includes `market_square`; two live `FrontInstance` rows + one dormant; `NpcInstance` ids are innkeep/guild_steward only (no `marta_kellen`, no `worried_merchant`). `Pack.load("tin_valley")` raises if an exit target is missing.
+- **tin_valley:** `location_id` and `character.location_id` are `valley_inn`; `location_name` is the pack inn name; Elara stats/inventory match `World.default_world_state()["character"]` except `location_id`; `locations["valley_inn"]["exits"]` includes `market_square`; two live `FrontInstance` rows + one dormant; NPC rows are innkeep/guild_steward/prospector only (no `marta_kellen`, no `worried_merchant`). `Pack.load("tin_valley")` raises if an exit target is missing.
 - **crossroads_ledger:** `GameSessions.create_session(%{})` and HomeLive still work; `kings_road` dangling exit does **not** raise; Marta **and** Henrik instances exist; zero fronts; `mix e2e.smoke` scenario still valid (`npc_hardening_test` still sees Henrik at the square).
 - `Pack.load("crossroads_ledger")` is **not** required to succeed in PR-2; do not invoke it from `create_session`.
 
@@ -749,7 +749,7 @@ Replace the string-only memory in `NPC.persist_memory/3`:
 }
 ```
 
-- NPC memories stay on `NpcInstance.runtime_state["memories"]` (hot list).
+- NPC memories stay on the NPC's row, `characters.runtime["memories"]` (hot list, newest 20), each also a `character_memories` row.
 - Front memories stay on `FrontInstance.runtime_state["memories"]`.
 - Tracer: append this shape; keep a higher cap (e.g. 100) so a short playtest cannot drop the approach memory. **PR-3 test:** after a miss, the nest `FrontInstance` still has a memory with `what` matching the approach; that memory is **not** in the `orc_approach` GM/scene prompt (it is not a `public_fact` there).
 - PR-8: retrieval function `Memories.retrieve(session_id, query)` used by both table GM and chronicler. Query keys: current location, live front ids, player action tags, `felt` debts. Recency is a score, not the only sort. If last year's slight never ranks in, the sim does not matter — tests should plant a tick-old debt and assert it appears in the GM prompt when the player re-enters that social graph.
@@ -822,7 +822,7 @@ flowchart TB
 - Supervise `weary_pilgrim` under `crossroads_hamlet` under `region`.
 - Make `orc_nest` the OTP parent of `orc_approach` or of extras. Extras are NPC agents. Places are data. Signals go over PubSub topics such as `session:{id}:location:weary_pilgrim` (optional; today `game_session:{id}` is enough).
 
-**Occupied `LocationAgent`:** deferred. Presence is `NpcInstance.runtime_state["location_id"]` vs player location, already used by `sync_present_npcs/2`.
+**Occupied `LocationAgent`:** deferred. Presence is the NPC row's `location_id` vs player location, already used by `sync_present_npcs/2`.
 
 ### Scale
 

@@ -15,7 +15,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{NpcInstance, SessionEvent}
+  alias TalesForge.Schemas.SessionEvent
 
   @hiring "The Miners Guild is hiring steel in the square — retainers with new spears, paid in advance."
   @blades "Osric Vane's hired blades watch the square — his own steel, not Guild retainers."
@@ -59,7 +59,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     assert %SessionEvent{player_aware: true, actor: "guild_steward", location_id: "market_square"} =
              slight
 
-    osric = NPC.get_instance(session.id, "guild_steward")
+    osric = NPC.get_person(session.id, "guild_steward")
     assert get_in(osric.runtime_state, ["resources", "coin"]) == 7
 
     assert Enum.any?(osric.runtime_state["memories"], fn mem ->
@@ -93,8 +93,8 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     refute_plan_leak(prompt)
     refute_plan_leak(scene)
 
-    brenna = NPC.get_instance(session.id, "innkeep")
-    caldern = NPC.get_instance(session.id, "prospector")
+    brenna = NPC.get_person(session.id, "innkeep")
+    caldern = NPC.get_person(session.id, "prospector")
 
     refute Enum.any?(
              brenna.runtime_state["public_facts"] || [],
@@ -114,7 +114,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     set_npc_coin!(session.id, "guild_steward", 0)
     session = session |> move("market_square") |> interact("guild post")
 
-    osric = NPC.get_instance(session.id, "guild_steward")
+    osric = NPC.get_person(session.id, "guild_steward")
     assert get_in(osric.runtime_state, ["resources", "coin"]) == 0
 
     refute Enum.any?(
@@ -331,7 +331,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   defp reload(id) do
     id
     |> GameSessions.get_session!()
-    |> Repo.preload([:front_instances, :npc_instances])
+    |> Repo.preload([:front_instances])
   end
 
   defp prompts(session) do
@@ -343,18 +343,16 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
   defp npc_coin(session_id, npc_id) do
     session_id
-    |> NPC.get_instance(npc_id)
+    |> NPC.get_person(npc_id)
     |> Map.get(:runtime_state, %{})
     |> get_in(["resources", "coin"])
   end
 
   defp set_npc_coin!(session_id, npc_id, coin) do
-    inst = NPC.get_instance(session_id, npc_id)
+    inst = NPC.get_person(session_id, npc_id)
     runtime = put_in(inst.runtime_state, ["resources", "coin"], coin)
 
-    inst
-    |> NpcInstance.changeset(%{runtime_state: runtime})
-    |> Repo.update!()
+    NPC.put_state!(inst, runtime)
   end
 
   defp refute_plan_leak(text) do
