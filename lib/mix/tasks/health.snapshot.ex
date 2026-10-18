@@ -191,7 +191,7 @@ defmodule Mix.Tasks.Health.Snapshot do
   @segments [
     {"cycles", "xref cycles", "#b91c1c"},
     {"complex_functions", "complex functions", "#15803d"},
-    {"web_refs", "domain → web refs", "#7c3aed"},
+    {"web_refs", "domain-to-web refs", "#7c3aed"},
     {"params_4plus", "functions with 4+ params", "#b45309"}
   ]
 
@@ -203,10 +203,13 @@ defmodule Mix.Tasks.Health.Snapshot do
 
   @doc """
   The rows as a stacked bar chart: one bar per merge, its segments xref
-  cycles, complex functions, domain -> web refs and functions with 4+
-  parameters (bottom to top). Each
-  segment shows its value, each bar its total on top, and a thin dashed
-  line joins a segment's top to the same segment's top on the next bar.
+  cycles, complex functions, domain-to-web refs and functions with 4+
+  parameters (bottom to top). Every bar is drawn, and a thin dashed line
+  joins a segment's top to the same segment's top on the next bar. Only
+  the bars of `labelled/1` show their segment values and their total on
+  top; two of them closer than @label_gap set their numbers apart, the
+  first ending at its bar's right edge and the second starting at its
+  bar's left edge. The SVG text is plain ASCII.
   A bar whose `counting` differs from the bar before it (a row without one
   counts as 1) gets a grey dashed line topped with its counting version
   ("v2"), which the legend names "counting changed": that drop or rise
@@ -225,10 +228,10 @@ defmodule Mix.Tasks.Health.Snapshot do
     <rect width="#{@w}" height="#{@h}" fill="#ffffff"/>
     <text x="#{@pad.l}" y="24" font-size="15" font-weight="bold">Tales Forge code health per merge to main: total, lower is better</text>
     #{grid(g)}
+    #{marks(rows, g)}
     #{rows |> Enum.zip(tops) |> Enum.with_index() |> Enum.map_join("\n", &bar(&1, g))}
     #{links(tops, g)}
     #{axis(rows, g)}
-    #{marks(rows, g)}
     #{legend()}
     </svg>
     """
@@ -238,7 +241,30 @@ defmodule Mix.Tasks.Health.Snapshot do
   defp geometry(rows) do
     top = rows |> Enum.map(&total/1) |> Enum.max(fn -> 10 end) |> ceil_to(20) |> max(20)
     slot = (@w - @pad.l - @pad.r) / max(length(rows), 1)
-    %{top: top, slot: slot, bar: slot * 0.6}
+    shown = labelled(rows)
+    %{top: top, slot: slot, bar: slot * 0.6, align: align(shown, slot)}
+  end
+
+  # How each labelled bar's numbers sit: centred, or, for two labelled bars
+  # closer than @label_gap, the first ends at its bar's right edge and the
+  # second starts at its bar's left edge, so the two never overlap.
+  defp align(shown, slot) do
+    close =
+      for {a, b} <- Enum.zip(shown, Enum.drop(shown, 1)), (b - a) * slot < @label_gap, do: {a, b}
+
+    Enum.reduce(close, Map.new(shown, &{&1, :middle}), fn {a, b}, acc ->
+      acc |> Map.put(a, :end) |> Map.put(b, :start)
+    end)
+  end
+
+  # The x and text-anchor of bar i's numbers; nil when the bar shows none.
+  defp anchor(g, i) do
+    case g.align[i] do
+      nil -> nil
+      :middle -> {x(g, i) + g.bar / 2, "middle"}
+      :end -> {x(g, i) + g.bar, "end"}
+      :start -> {x(g, i), "start"}
+    end
   end
 
   defp x(g, i), do: @pad.l + i * g.slot + (g.slot - g.bar) / 2
@@ -251,18 +277,41 @@ defmodule Mix.Tasks.Health.Snapshot do
     end)
   end
 
+  # Every bar is drawn; only the labelled bars (`labelled/1`) show their
+  # segment numbers and the total on top.
   defp bar({{row, segs}, i}, g) do
-    cx = x(g, i) + g.bar / 2
+    rects =
+      for(
+        {{k, _, color}, {from, to}} <- Enum.zip(@segments, segs),
+        to > from,
+        do: segment(g, i, row[k], color, {from, to})
+      )
+      |> Enum.join()
 
-    for(
-      {{k, _, color}, {from, to}} <- Enum.zip(@segments, segs),
-      to > from,
-      do: segment(g, i, row[k], color, {from, to})
-    )
-    |> Enum.join()
-    |> Kernel.<>(
-      ~s|<text x="#{f(cx)}" y="#{f(y(g, total(row)) - 5)}" text-anchor="middle" font-weight="bold">#{total(row)}</text>|
-    )
+    rects <> bar_total(g, i, total(row))
+  end
+
+  # The bold total on top of bar i, when the bar is labelled.
+  defp bar_total(g, i, value) do
+    case anchor(g, i) do
+      nil ->
+        ""
+
+      {tx, side} ->
+        haloed(
+          ~s|x="#{f(tx)}" y="#{f(y(g, value) - 5)}" text-anchor="#{side}" font-weight="bold"|,
+          value,
+          ""
+        )
+    end
+  end
+
+  # A number with a white halo, so it reads over a bar or a dashed line. The
+  # halo is its own text under the number: not every SVG renderer knows
+  # paint-order.
+  defp haloed(at, value, fill) do
+    ~s|<text #{at} fill="#ffffff" stroke="#ffffff" stroke-width="3">#{value}</text>| <>
+      ~s|<text #{at}#{fill}>#{value}</text>|
   end
 
   @doc """
@@ -306,14 +355,25 @@ defmodule Mix.Tasks.Health.Snapshot do
     Enum.join(texts, "\n")
   end
 
-  # One segment with its value inside. A thin segment gets a smaller
-  # number, so it stays inside.
+  # One segment, with its value on a labelled bar: dark with a white halo,
+  # so it reads over any bar. A thin segment gets a smaller number.
   defp segment(g, i, value, color, {from, to}) do
     {low, high} = {y(g, from), y(g, to)}
     size = (low - high - 1) |> min(10) |> max(6) |> round()
 
-    ~s|<rect x="#{f(x(g, i))}" y="#{f(high)}" width="#{f(g.bar)}" height="#{f(low - high)}" fill="#{color}"/>| <>
-      ~s|<text x="#{f(x(g, i) + g.bar / 2)}" y="#{f((low + high) / 2 + size * 0.35)}" text-anchor="middle" fill="#ffffff" font-size="#{size}">#{value}</text>|
+    rect =
+      ~s|<rect x="#{f(x(g, i))}" y="#{f(high)}" width="#{f(g.bar)}" height="#{f(low - high)}" fill="#{color}"/>|
+
+    case anchor(g, i) do
+      nil ->
+        rect
+
+      {tx, side} ->
+        at =
+          ~s|x="#{f(tx)}" y="#{f((low + high) / 2 + size * 0.35)}" text-anchor="#{side}" font-size="#{size}"|
+
+        rect <> haloed(at, value, ~s| fill="#111827"|)
+    end
   end
 
   # A thin dashed line from each segment's top to its top on the next bar.

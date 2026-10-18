@@ -96,5 +96,25 @@ defmodule Mix.Tasks.Health.SnapshotTest do
     assert names == [["84"], ["86"], ["89"]]
     # Every bar is still drawn: 6 bars of 4 segments, the background and 4 legend boxes.
     assert length(Regex.scan(~r/<rect /, svg)) == 6 * 4 + 1 + 4
+    # Only those 3 bars show their total and their 4 segment values.
+    assert length(Regex.scan(~r/font-weight="bold">\d+<\/text>/, svg)) == 3
+    assert length(Regex.scan(~r/fill="#111827"/, svg)) == 3 * 4
+  end
+
+  test "two labelled bars side by side set their numbers apart" do
+    old = Map.delete(Snapshot.row(@numbers, "2026-10-17", 84), "counting")
+    new = &Snapshot.row(@numbers, "2026-10-18", &1)
+    # The counting change (#85) and the last bar (#86) are neighbours.
+    svg = Snapshot.svg(List.duplicate(old, 40) ++ [new.(85), new.(86)])
+
+    assert svg =~ ~s(text-anchor="end" font-weight="bold">)
+    assert svg =~ ~s(text-anchor="start" font-weight="bold">)
+  end
+
+  test "the chart text is plain ASCII" do
+    svg = Snapshot.svg([Snapshot.row(@numbers, "2026-10-17", 84)])
+
+    assert svg =~ "domain-to-web refs"
+    refute svg =~ ~r/[^\x00-\x7F]/
   end
 end
