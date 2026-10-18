@@ -335,6 +335,46 @@ defmodule TalesForge.Game.Inventory do
 
   def resolve_item_id(_, _), do: nil
 
+  @doc """
+  The sale of a carried item, as a purchase takes its item and price from
+  the stock: `"item_id"` is the item of `inventory` whose id is `item`, else
+  the one `text` names, and `"price_copper"` is its value when it has one.
+  Empty when no carried item matches.
+
+  Playtest v319 on 2026-10-18 (drift session 464229eb): "I sell my mug of
+  ale to Brenna" was a sale with no item.
+
+      iex> inventory = [%{"id" => "ale_mug", "name" => "Mug of Ale", "copper_value" => 2}]
+      iex> TalesForge.Game.Inventory.sale(nil, "I sell my mug of ale to Brenna", inventory)
+      %{"item_id" => "ale_mug", "price_copper" => 2}
+      iex> TalesForge.Game.Inventory.sale("ale_mug", "I sell it", inventory)
+      %{"item_id" => "ale_mug", "price_copper" => 2}
+      iex> TalesForge.Game.Inventory.sale(nil, "I sell my boots", inventory)
+      %{}
+  """
+  @spec sale(String.t() | nil, String.t() | nil, [map()] | nil) :: map()
+  def sale(item, text, inventory) do
+    items = normalize_items(inventory)
+
+    case Enum.find(items, &(&1["id"] == item)) || named_item(text, items) do
+      nil ->
+        %{}
+
+      %{"copper_value" => value, "id" => id} when value > 0 ->
+        %{"item_id" => id, "price_copper" => value}
+
+      %{"id" => id} ->
+        %{"item_id" => id}
+    end
+  end
+
+  defp named_item(text, items) do
+    case resolve_item_id(to_string(text || ""), items) do
+      nil -> nil
+      id -> Enum.find(items, &(&1["id"] == id))
+    end
+  end
+
   defp matching_item_id(normalized, item) do
     id = item["id"]
     name = String.downcase(Map.get(item, "name", id))

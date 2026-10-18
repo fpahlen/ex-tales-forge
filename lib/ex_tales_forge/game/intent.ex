@@ -671,10 +671,8 @@ defmodule TalesForge.Game.Intent do
         buy_parameters(raw_action, Map.get(context, "npc_stock", %{}), target_npc)
 
       :sell ->
-        item_id = match_item_in_text(raw_action, context["player_inventory"] || [])
-
-        %{}
-        |> maybe_put("item_id", item_id)
+        nil
+        |> Inventory.sale(raw_action, context["player_inventory"])
         |> maybe_put("npc_id", target_npc)
         |> Map.put("quantity", 1)
 
