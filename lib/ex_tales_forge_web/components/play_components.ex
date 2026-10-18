@@ -31,6 +31,13 @@ defmodule TalesForgeWeb.PlayComponents do
           >
             Admin
           </.link>
+          <%!-- -my-2.5: the 44px tap area overlaps the header padding, so the bar keeps its height --%>
+          <TalesForgeWeb.AppComponents.env_badge
+            id="play-env-badge"
+            switch_path={~p"/"}
+            compact
+            class="-my-2.5 shrink-0"
+          />
         </div>
         <dl class="flex flex-wrap items-center gap-x-4 gap-y-0 text-xs sm:gap-x-6 sm:gap-y-1 sm:text-sm">
           <div class="flex items-baseline gap-2">
