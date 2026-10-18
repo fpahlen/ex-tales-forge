@@ -49,7 +49,13 @@ defmodule TalesForge.CharactersTest do
       assert steward.runtime["resources"] == %{"coin" => 12}
 
       innkeep = Characters.get_by_slug(session.id, "innkeep")
-      assert [%{id: "ale_mug", price_copper: 2}] = innkeep.inventory
+
+      assert [
+               %{id: "ale_mug", price_copper: 2},
+               %{id: "stew_bowl", price_copper: 5},
+               %{id: "bread_cheese", price_copper: 2}
+             ] = innkeep.inventory
+
       # Derived defaults: skills on the PC scale, authored OCEAN kept, stats within ±1 of 10.
       assert innkeep.skills == %{"persuasion" => 40, "insight" => 40, "etiquette" => 20}
       assert innkeep.ocean.conscientiousness == 7

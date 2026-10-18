@@ -59,7 +59,11 @@ them on the offer as `options`. The GM voices that list as a
 counter-question ("The stew, or bread and cheese?"), and nothing moves.
 The player's next message picks one option; Jev resolves the pick against
 the listed options only. That pick counts as proposal plus acceptance in
-one step. Then the NPC decides in code as usual (stock, purse). If
+one step. Then the NPC decides in code as usual (stock, purse). A plain
+yes that picks no option buys nothing: the offer stays open with the same
+options, and the GM asks which one the player wants, as an innkeeper
+would. That turn does not count toward the 2-turn expiry; leaving the
+place, the giver gone or a new offer still end it. If
 nothing matches the stock, there is no offer and nothing moves. If the
 reply matches none of the options, treat it like any other message under
 the existing expiry rules.
@@ -70,6 +74,8 @@ the existing expiry rules.
 - **Unclear buy (open options):** "The server listed these options from
   stock: … Nothing changed hands; voice them as a counter-question and
   wait for the player's pick."
+- **Yes with no pick:** "The player said yes but picked none of the
+  options (…). Nothing changed hands; ask which one they want."
 - **Accepted and done:** the existing "The server made this trade: ..."
   line.
 - **Declined, expired or refused:** "No item and no coins changed hands"

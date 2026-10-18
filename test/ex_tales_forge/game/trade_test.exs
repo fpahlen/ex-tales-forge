@@ -133,7 +133,13 @@ defmodule TalesForge.Game.TradeTest do
 
       assert Inventory.item_quantity(brenna.inventory, "ale_mug") == 72
       assert copper(brenna) == 1000
-      assert brenna.runtime == %{"buys" => [], "lends" => ["mug"], "serves" => ["ale_mug"]}
+
+      assert brenna.runtime == %{
+               "buys" => [],
+               "lends" => ["mug"],
+               "serves" => ["ale_mug", "stew_bowl", "bread_cheese"]
+             }
+
       assert copper(hilde) == 500
       assert hilde.runtime == %{"buys" => ["hunting_knife", "spearhead", "short_sword"]}
 
@@ -253,7 +259,7 @@ defmodule TalesForge.Game.TradeTest do
         play(session, "How much for a mug of ale, Brenna?", buy(nil), "innkeep")
 
       assert saved == before
-      assert prompt =~ "the server quotes it: Brenna Holt sells Ale for 2c"
+      assert prompt =~ "The server quotes: Brenna Holt sells Ale for 2c"
     end
 
     test "the mug is not for sale: refused, and nothing moves that turn", %{session: session} do

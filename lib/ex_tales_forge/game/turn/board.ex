@@ -105,6 +105,7 @@ defmodule TalesForge.Game.Turn.Board do
     {world_traded, traded} =
       world_before
       |> put_in(["character"], board.character)
+      |> answer_offer(board.player_action)
       |> trade(board)
       |> apply_catalogue(board)
 
@@ -115,9 +116,44 @@ defmodule TalesForge.Game.Turn.Board do
       |> mark_rejected(inventory_result)
       |> unpaid_sleep(inventory_result)
       |> decided_trade(inventory_result, board.player_action.action)
+      |> declined(world_before["open_offer"], board.player_action)
+      |> ask_pick(put_in(world_before, ["character"], board.character), board.player_action)
 
     {world_traded, inventory_result, %{board | handler: handler}}
   end
+
+  # The open offer answered (design-trade-offers.md): an accept is already
+  # the purchase (`Offer.answered/2`, at the turn's intention), so both an
+  # accept and a decline close it; any other message ages it. A plain yes
+  # to an unclear buy picks nothing and keeps the offer as it is, not aged:
+  # the seller asks which option (leaving, the giver gone or a new offer
+  # still end it).
+  defp answer_offer(world, %PlayerAction{} = player_action)
+       when is_map_key(world, "open_offer") and player_action.offer_answer == :accept do
+    if Offer.awaits_pick?(player_action, world),
+      do: world,
+      else: Map.delete(world, "open_offer")
+  end
+
+  defp answer_offer(world, %PlayerAction{offer_answer: answer})
+       when answer in [:accept, :decline],
+       do: Map.delete(world, "open_offer")
+
+  defp answer_offer(%{"open_offer" => %{} = stored} = world, %PlayerAction{}) do
+    case Offer.aged(stored) do
+      nil -> Map.delete(world, "open_offer")
+      aged -> Map.put(world, "open_offer", aged)
+    end
+  end
+
+  defp answer_offer(world, %PlayerAction{}), do: world
+
+  # The open offer ends when the player leaves its place or its giver is gone.
+  defp expire_offer(%{"open_offer" => %{} = stored} = world) do
+    if Offer.expired?(stored, world), do: Map.delete(world, "open_offer"), else: world
+  end
+
+  defp expire_offer(world), do: world
 
   # The move, who is present, then the pause or the training.
   defp pause_step(world_traded, %__MODULE__{opts: opts} = board) do
@@ -126,6 +162,7 @@ defmodule TalesForge.Game.Turn.Board do
     world_traded
     |> maybe_move(board.handler)
     |> apply_location_presence(board.session)
+    |> expire_offer()
     |> apply_pause_or_train(%{board | opts: Keyword.put(opts, :moved_from, moved_from)})
   end
 
@@ -388,7 +425,7 @@ defmodule TalesForge.Game.Turn.Board do
 
     case decide_inventory(world_state, traders, board.player_action) do
       {:ok, %Offer{} = offer} ->
-        {world_state, {:ok, %{applied: [], traders: [], offer: offer}}}
+        {open_offer(world_state, offer), {:ok, %{applied: [], traders: [], offer: offer}}}
 
       {:ok, updated, details, changed} ->
         Logger.info("inventory applied session=#{session.id} changes=#{inspect(details.applied)}")
@@ -400,12 +437,20 @@ defmodule TalesForge.Game.Turn.Board do
     end
   end
 
-  # Asking a price is never a purchase (#470 retest, session 8a9dbde9):
-  # the seller's offer, and nothing moves.
+  # The offer is the session's one open offer, replacing any other, made here.
+  defp open_offer(world_state, %Offer{} = offer) do
+    place = get_in(world_state, ["character", "location_id"])
+    Map.put(world_state, "open_offer", Offer.to_world(%{offer | location_id: place}))
+  end
+
+  # Asking a price is never a purchase (#470 retest, session 8a9dbde9), and
+  # an unclear buy lists the options: the seller's offer stays open, and
+  # nothing moves. An accepted offer is the purchase.
   defp decide_inventory(world_state, traders, %{action: %SingleAction{action_type: :buy}} = pa) do
     action = Inventory.named_item(pa.action, traders, pa.overall_intent)
+    asked? = Offer.asked?(pa.overall_intent) and pa.offer_answer != :accept
 
-    if Offer.asked?(pa.overall_intent),
+    if asked? or Inventory.unclear?(action),
       do: Inventory.offer(world_state, traders, action),
       else: Inventory.apply_transaction(world_state, traders, action)
   end
@@ -596,6 +641,9 @@ defmodule TalesForge.Game.Turn.Board do
       {:error, reason} ->
         put_trade(handler, %{"status" => "refused", "detail" => reason})
 
+      {:ok, %{offer: %Offer{item: nil} = offer}} ->
+        put_trade(handler, %{"status" => "options", "detail" => Offer.text(offer)})
+
       {:ok, %{offer: %Offer{} = offer}} ->
         put_trade(handler, %{"status" => "offered", "detail" => Offer.text(offer)})
 
@@ -608,6 +656,27 @@ defmodule TalesForge.Game.Turn.Board do
   end
 
   defp decided_trade(handler, _result, _action), do: handler
+
+  # The player declined the open offer: nothing moves, and the GM says so.
+  defp declined(handler, %{} = stored, %PlayerAction{offer_answer: :decline}),
+    do:
+      put_trade(handler, %{
+        "status" => "declined",
+        "detail" => stored |> Offer.from_world() |> Offer.text()
+      })
+
+  defp declined(handler, _stored, _player_action), do: handler
+
+  # A plain yes to an unclear buy: nothing moves, and the GM asks which option.
+  defp ask_pick(handler, world, %PlayerAction{} = player_action) do
+    if Offer.awaits_pick?(player_action, world),
+      do:
+        put_trade(handler, %{
+          "status" => "ask_pick",
+          "detail" => world["open_offer"] |> Offer.from_world() |> Offer.text()
+        }),
+      else: handler
+  end
 
   defp put_trade(handler, trade),
     do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "trade", trade)}

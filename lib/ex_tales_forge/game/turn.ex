@@ -34,6 +34,7 @@ defmodule TalesForge.Game.Turn do
   alias TalesForge.Config
   alias TalesForge.Game.Cast
   alias TalesForge.Game.HistoryStrip
+  alias TalesForge.Game.Offer
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.Turn.Adapters
   alias TalesForge.Intention
@@ -93,7 +94,9 @@ defmodule TalesForge.Game.Turn do
   turn plays its Intention (`intention`, `by: :human`).
   """
   @spec new({GameSession.t(), integer()}, {String.t(), PlayerAction.t()}, keyword()) :: t()
-  def new({%GameSession{} = session, number}, {raw_action, %PlayerAction{} = intent}, opts \\ []) do
+  def new({%GameSession{} = session, number}, {raw_action, %PlayerAction{} = answer}, opts \\ []) do
+    # An answer to the open trade offer is the purchase it accepts (TalesForge.Game.Offer).
+    intent = Offer.answered(answer, session.world_state)
     flags = Keyword.get_lazy(opts, :flags, &read_flags/0)
     injected = flag?(flags, :history_strip_injection) and HistoryStrip.injected?(raw_action)
 

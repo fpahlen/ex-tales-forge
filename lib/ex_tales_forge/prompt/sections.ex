@@ -412,8 +412,25 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
 
   defp trade_line(%{"status" => "offered", "detail" => detail}),
     do:
-      "The player asked a price; the server quotes it: #{detail}. Nothing changed hands; " <>
-        "narrate the quote only, with no payment and no handover."
+      "The server quotes: #{detail}. Nothing changed hands; " <>
+        "narrate the quote and wait for the player's answer, with no payment and no handover."
+
+  defp trade_line(%{"status" => "options", "detail" => detail}),
+    do:
+      "The server listed these options from stock: #{detail}. Nothing changed hands; " <>
+        "voice them as a counter-question and wait for the player's pick, " <>
+        "with no payment and no handover."
+
+  defp trade_line(%{"status" => "ask_pick", "detail" => detail}),
+    do:
+      "The player said yes but picked none of the options (#{detail}). Nothing changed hands; " <>
+        "ask which one they want, as an innkeeper would, and wait for the pick, " <>
+        "with no payment and no handover."
+
+  defp trade_line(%{"status" => "declined", "detail" => detail}),
+    do:
+      "The player declined the offer (#{detail}). No item and no coins changed hands; " <>
+        "narrate no payment and no handover."
 
   defp trade_line(_trade), do: nil
 end

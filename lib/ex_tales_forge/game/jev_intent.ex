@@ -270,6 +270,8 @@ defmodule TalesForge.Game.JevIntent do
           later: atom() | nil,
           later_target: String.t() | nil,
           then: [atom()],
+          offer_answer: :accept | :decline | :other | nil,
+          offer_pick: non_neg_integer() | nil,
           manner: atom() | nil,
           safety: atom(),
           confidence: float() | nil,
@@ -514,6 +516,66 @@ defmodule TalesForge.Game.JevIntent do
     |> Map.put(:none, "No specific target, or none of these.")
   end
 
+  @offer_answers %{
+    accept: "The player accepts the offer: yes, a deal, takes it or pays for it.",
+    decline: "The player turns the offer down: no, not now, too dear.",
+    other: "Neither: the player says or does something else."
+  }
+
+  # Literal labels for an unclear buy's options (no atoms from input).
+  @option_labels ~w(o0 o1 o2)a
+
+  @doc """
+  The questions about the session's open trade offer
+  (`TalesForge.Game.Offer.to_world/1`), asked only while one is open: does
+  the player accept, decline or neither, and for an unclear buy which of
+  its options (only those) the player picks. None with no offer open.
+
+      iex> TalesForge.Game.JevIntent.offer_questions(nil)
+      []
+      iex> offer = %{"giver" => "innkeep", "giver_name" => "Brenna Holt", "price" => 2,
+      ...>   "item" => %{"id" => "ale_mug", "name" => "Ale", "quantity" => 1}}
+      iex> TalesForge.Game.JevIntent.offer_questions(offer) |> Keyword.keys()
+      [:offer_answer]
+  """
+  @spec offer_questions(map() | nil) :: keyword()
+  def offer_questions(%{} = stored) do
+    offer = TalesForge.Game.Offer.from_world(stored)
+    text = TalesForge.Game.Offer.text(offer)
+
+    answer = [
+      offer_answer:
+        {"Open offer: #{text}. Does the player's message accept it, decline it, or neither?",
+         @offer_answers}
+    ]
+
+    case offer.options do
+      [] ->
+        answer
+
+      options ->
+        answer ++
+          [
+            offer_pick:
+              {"Which of the offered options does the player pick?", option_criteria(options)}
+          ]
+    end
+  end
+
+  def offer_questions(_stored), do: []
+
+  defp option_criteria(options) do
+    @option_labels
+    |> Enum.zip(options)
+    |> Map.new(fn {label, %{"item" => item, "price" => price}} ->
+      {label, "#{item["name"] || item["id"]} (#{price}c)"}
+    end)
+    |> Map.put(:none, "None of these options.")
+  end
+
+  defp offer_answer(answer) when answer in [:accept, :decline, :other], do: answer
+  defp offer_answer(_answer), do: nil
+
   @doc """
   The deterministic `state` sent to Jev: the scene the player can see, plus
   their text. A plain map; JSON encodes its keys sorted, so it is stable.
@@ -610,10 +672,22 @@ defmodule TalesForge.Game.JevIntent do
       benign_probability: get_in(reply, [:probabilities, :safety, :benign]),
       action_probabilities: probs,
       top2: top2(probs, c.action),
-      target_ranking: target_ranking(reply, by_label),
-      usage: Map.get(reply, :usage, %{}),
-      cost: reply |> Map.get(:usage, %{}) |> Map.get(:cost, 0.0),
-      model: Map.get(reply, :model)
+      target_ranking: target_ranking(reply, by_label)
+    }
+    |> Map.merge(spend(reply))
+    |> Map.merge(offer_reply(reply))
+  end
+
+  defp spend(reply) do
+    usage = Map.get(reply, :usage, %{})
+    %{usage: usage, cost: Map.get(usage, :cost, 0.0), model: Map.get(reply, :model)}
+  end
+
+  # The answer to the open offer's questions (`offer_questions/1`).
+  defp offer_reply(reply) do
+    %{
+      offer_answer: offer_answer(reply[:offer_answer]),
+      offer_pick: Enum.find_index(@option_labels, &(&1 == reply[:offer_pick]))
     }
   end
 
