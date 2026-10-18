@@ -188,9 +188,59 @@ defmodule TalesForge.Game.TradeOffersTest do
     |> Repo.update_all(set: [coins: %{"copper" => 1}])
 
     before = snapshot(session.id)
+    # The ale is in stock: only the purse refuses the trade.
+    assert qty(before, "innkeep", "ale_mug") > 1
     {_, refused} = play(session.id, "Yes, one please.", :speak, offer_answer: :accept)
     assert diff(before, refused) == []
     assert last_gm() =~ "cannot pay 2c"
+  end
+
+  # Gentry's retest of #476 (session 6d938a30), T1-T2. Jev read the price
+  # question as talk, so no offer opened; the GM quoted 2c and offered
+  # kindling work in the same reply, and the "Yes." took the work: 0c moved.
+  test "a price question read as talk still quotes; a plain yes buys the quote, not the GM's side offer",
+       %{session: session} do
+    {before, quoted} =
+      play(session.id, "How much for an ale?", :speak,
+        narrative:
+          "\"Two copper for the ale, love.\" Brenna glances at the hearth. " <>
+            "\"And if you've a mind for work, the kindling wants splitting.\""
+      )
+
+    assert diff(before, quoted) == []
+    assert %{"item" => %{"id" => "ale_mug"}, "price" => 2} = open_offer(session.id)
+    assert last_gm() =~ "The server quotes: Brenna Holt sells Ale for 2c"
+
+    # Jev, seeing the work offer in the narration, reads the yes as neither.
+    {_, accepted} = play(session.id, "Yes.", :speak, offer_answer: :other)
+    assert copper(accepted, "player") == copper(quoted, "player") - 2
+    assert copper(accepted, "innkeep") == copper(quoted, "innkeep") + 2
+    assert qty(accepted, "innkeep", "ale_mug") == qty(quoted, "innkeep", "ale_mug") - 1
+    assert open_offer(session.id) == nil
+    assert_conserved(before, accepted)
+  end
+
+  # Same session, T5-T6: a plain "Yes." to Brenna's meal options got the
+  # generic question "Do you want to buy Brenna Holt, or talk to Brenna
+  # Holt?" instead of her "which one?".
+  test "a plain yes to the options is not a generic clarification: the seller asks which one",
+       %{session: session} do
+    {before, _} = play(session.id, "I'd like a meal.", :buy)
+    offered = open_offer(session.id)
+    assert %{"item" => nil, "options" => [_, _]} = offered
+
+    # An unsure read split between buying and talking: without the open
+    # offer this asks the player which one they meant.
+    {_, yes} =
+      play(session.id, "Yes.", :buy,
+        offer_answer: :other,
+        confidence: %{action: 0.3, target: 0.95, safety: 0.99},
+        probabilities: %{action: %{buy: 0.5, speak: 0.45, observe: 0.05}}
+      )
+
+    assert diff(before, yes) == []
+    assert open_offer(session.id) == offered
+    assert last_gm() =~ "The player said yes but picked none of the options"
   end
 
   # One turn: Jev reads `action` at `opts[:target]` (default the innkeep)
@@ -203,7 +253,9 @@ defmodule TalesForge.Game.TradeOffersTest do
     target =
       Enum.find_value(JevIntent.candidates(context), :none, &(&1.id == target_id && &1.label))
 
-    answers = Map.new(Keyword.take(opts, [:offer_answer, :offer_pick]))
+    answers = Map.new(Keyword.take(opts, [:offer_answer, :offer_pick, :probabilities]))
+    confidence = Keyword.get(opts, :confidence, %{action: 0.95, target: 0.95, safety: 0.99})
+    narrative = Keyword.get(opts, :narrative, "Brenna nods.")
     test = self()
 
     Req.Test.stub(Jev.HTTP, fn conn ->
@@ -218,7 +270,7 @@ defmodule TalesForge.Game.TradeOffersTest do
           skill: :none,
           later: :none,
           safety: :benign,
-          confidence: %{action: 0.95, target: 0.95, safety: 0.99}
+          confidence: confidence
         })
       )
     end)
@@ -226,7 +278,7 @@ defmodule TalesForge.Game.TradeOffersTest do
     stub_llm(fn
       :gm, user, _system ->
         send(test, {:gm_prompt, user})
-        %{"narrative" => "Brenna nods.", "context_summary" => "", "npc_memory_updates" => []}
+        %{"narrative" => narrative, "context_summary" => "", "npc_memory_updates" => []}
 
       _kind, _user, _system ->
         :default

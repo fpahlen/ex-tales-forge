@@ -15,11 +15,18 @@ both have accepted, `Trade.execute/1` runs in the turn's transaction.
    item, price, options}` from the seller's stock, or from the buyer's
    buy price for a sale. `item` may be `nil` when the buy is unclear
    (see Unclear buy); `options` defaults to `[]`. It is stored as the
-   session's open offer. Nothing moves. The GM gets the quote.
+   session's open offer. Nothing moves. The GM gets the quote. A price
+   question that names stock for sale here is this offer even when Jev
+   reads it as talk: the read becomes a buy that only asks
+   (`Offer.price_question?/1`; Gentry's retest of #476, session 6d938a30).
 2. **Player answer.** On the next turn, Jev classifies the player's
    message against the open offer as `accept`, `decline` or `other`. This
    is a new question in the Jev request, asked only while an offer is open.
-   There is no button.
+   There is no button. A plain yes ("Yes.", "Aye, please") while an offer
+   is open is always `accept` (`Offer.plain_yes?/1`): the price the player
+   asked for wins over any side offer the GM made in the same reply. A yes
+   or a pick to the open offer never gets the generic "Do you want to …?"
+   clarification; the offer was the question.
 3. **NPC acceptance (pure).** `Offer.accepts?/1` checks the same things as
    `Trade.execute`'s acceptance: the NPC still has the stock or wants the
    item (`buys`), and the paying side can afford it. Later it also checks

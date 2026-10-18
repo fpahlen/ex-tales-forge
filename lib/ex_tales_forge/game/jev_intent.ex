@@ -75,6 +75,7 @@ defmodule TalesForge.Game.JevIntent do
 
   alias TalesForge.Game.IntentCalibration
   alias TalesForge.Game.Inventory
+  alias TalesForge.Game.Offer
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, SingleAction}
   alias TalesForge.Game.WorldClock
@@ -223,6 +224,9 @@ defmodule TalesForge.Game.JevIntent do
   }
 
   # Action types whose reading is only meaningful with a target.
+  # The readings of a question that a price question about stock can get.
+  @asking_actions [nil, :speak, :observe, :freeform, :none_fits, :other]
+
   @target_actions ~w(speak move combat buy sell trade spend pickup drop interact use_item equip give)a
 
   # Which kinds of candidate each action type can be aimed at (post-processing
@@ -380,8 +384,7 @@ defmodule TalesForge.Game.JevIntent do
 
     stock =
       context
-      |> Map.get("npc_stock", %{})
-      |> Enum.flat_map(fn {_npc, list} -> Inventory.normalize_stock(list) end)
+      |> for_sale()
       |> Enum.map(fn item ->
         %{kind: :item, id: item["id"], text: "#{item["name"] || item["id"]} (for sale)"}
       end)
@@ -540,8 +543,8 @@ defmodule TalesForge.Game.JevIntent do
   """
   @spec offer_questions(map() | nil) :: keyword()
   def offer_questions(%{} = stored) do
-    offer = TalesForge.Game.Offer.from_world(stored)
-    text = TalesForge.Game.Offer.text(offer)
+    offer = Offer.from_world(stored)
+    text = Offer.text(offer)
 
     answer = [
       offer_answer:
@@ -573,8 +576,16 @@ defmodule TalesForge.Game.JevIntent do
     |> Map.put(:none, "None of these options.")
   end
 
-  defp offer_answer(answer) when answer in [:accept, :decline, :other], do: answer
-  defp offer_answer(_answer), do: nil
+  # A plain yes while an offer is open accepts it (`Offer.plain_yes?/1`),
+  # whatever else the GM offered in the same reply: Jev, seeing a side offer
+  # in the narration, can read the yes as "neither".
+  defp offer_answer(answer, text, %{"open_offer" => %{}}) when answer in [nil, :other],
+    do: if(Offer.plain_yes?(text), do: :accept, else: answer)
+
+  defp offer_answer(answer, _text, _context) when answer in [:accept, :decline, :other],
+    do: answer
+
+  defp offer_answer(_answer, _text, _context), do: nil
 
   @doc """
   The deterministic `state` sent to Jev: the scene the player can see, plus
@@ -589,7 +600,7 @@ defmodule TalesForge.Game.JevIntent do
       "elsewhere" => elsewhere_lines(context),
       "exits" => context |> Map.get("exits", []) |> List.wrap(),
       "inventory" => item_names(Map.get(context, "player_inventory", [])),
-      "for_sale" => stock_names(Map.get(context, "npc_stock", %{})),
+      "for_sale" => context |> for_sale() |> Enum.map(&(&1["name"] || &1["id"])),
       "last_narration" => last_narration(context),
       "player_text" => text |> to_string() |> String.trim() |> String.slice(0, @action_chars)
     }
@@ -616,10 +627,11 @@ defmodule TalesForge.Game.JevIntent do
     inventory |> Inventory.normalize_items() |> Enum.map(&(&1["name"] || &1["id"]))
   end
 
-  defp stock_names(stock) do
-    stock
+  # The stock for sale here: every present seller's, one list.
+  defp for_sale(context) do
+    context
+    |> Map.get("npc_stock", %{})
     |> Enum.flat_map(fn {_npc, list} -> Inventory.normalize_stock(list) end)
-    |> Enum.map(&(&1["name"] || &1["id"]))
   end
 
   defp last_narration(context) do
@@ -639,8 +651,10 @@ defmodule TalesForge.Game.JevIntent do
   @spec decode(map(), [candidate()], keyword()) :: reading()
   def decode(reply, candidates, opts \\ []) do
     text = opts |> Keyword.get(:text, "") |> to_string()
-    reply = if Map.has_key?(reply, :then), do: reply, else: lodging_booking(reply, text)
     context = Keyword.get(opts, :context, %{})
+
+    reply = facts(reply, text, context)
+
     by_label = Map.new(candidates, fn c -> {c.label, c} end)
 
     base = %Choice{
@@ -675,7 +689,7 @@ defmodule TalesForge.Game.JevIntent do
       target_ranking: target_ranking(reply, by_label)
     }
     |> Map.merge(spend(reply))
-    |> Map.merge(offer_reply(reply))
+    |> Map.merge(offer_reply(reply, text, context))
   end
 
   defp spend(reply) do
@@ -684,9 +698,9 @@ defmodule TalesForge.Game.JevIntent do
   end
 
   # The answer to the open offer's questions (`offer_questions/1`).
-  defp offer_reply(reply) do
+  defp offer_reply(reply, text, context) do
     %{
-      offer_answer: offer_answer(reply[:offer_answer]),
+      offer_answer: offer_answer(reply[:offer_answer], text, context),
       offer_pick: Enum.find_index(@option_labels, &(&1 == reply[:offer_pick]))
     }
   end
@@ -722,6 +736,25 @@ defmodule TalesForge.Game.JevIntent do
   # (Rest.lodging_then_sleep?/1). Jev read it as a wait only in Gentry's
   # session 0caf18f5 on 2026-10-12. A purchase stays a purchase; a message
   # that is not benign does not change.
+  # The reply with the game's facts applied before it is read: a room and
+  # then sleep is a booking, and a price question about stock a buy that asks.
+  defp facts(reply, text, context) do
+    reply = if Map.has_key?(reply, :then), do: reply, else: lodging_booking(reply, text)
+    price_question(reply, text, context)
+  end
+
+  # A price question about stock for sale here ("How much for an ale?") is
+  # a buy that only asks: the board makes the seller's offer and nothing
+  # moves (`TalesForge.Game.Offer`). Read as talk, no offer opened, and the
+  # next "Yes." had nothing to accept (Gentry's retest of #476, session
+  # 6d938a30, T1-T2: Jev read the question as `speak`).
+  defp price_question(reply, text, context) do
+    if (reply[:safety] || :benign) == :benign and reply[:action] in @asking_actions and
+         Offer.price_question?(text) and Inventory.names_stock?(text, for_sale(context)),
+       do: Map.put(reply, :action, :buy),
+       else: reply
+  end
+
   defp lodging_booking(reply, text) do
     action = reply[:action]
 
@@ -1090,8 +1123,7 @@ defmodule TalesForge.Game.JevIntent do
 
   defp price_for(context, item_id) do
     context
-    |> Map.get("npc_stock", %{})
-    |> Enum.flat_map(fn {_npc, list} -> Inventory.normalize_stock(list) end)
+    |> for_sale()
     |> Enum.find(&(&1["id"] == item_id))
     |> case do
       %{"price_copper" => price} when is_integer(price) -> price

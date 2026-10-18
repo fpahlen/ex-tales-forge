@@ -92,6 +92,51 @@ defmodule TalesForge.Game.Offer do
 
   def asked?(_text), do: false
 
+  @price_words ~r/\b(how much|price|prices|cost|costs|charge|charges)\b/iu
+
+  @doc """
+  True when the words only ask (`asked?/1`) and ask a price ("How much for an
+  ale?", "What does the stew cost?"). Such a question to a seller is a buy
+  that only asks: it makes her offer, and nothing moves.
+
+      iex> TalesForge.Game.Offer.price_question?("How much for an ale?")
+      true
+      iex> TalesForge.Game.Offer.price_question?("Is the ale any good?")
+      false
+      iex> TalesForge.Game.Offer.price_question?("How much for an ale? I'll take two.")
+      false
+  """
+  @spec price_question?(String.t() | nil) :: boolean()
+  def price_question?(text), do: asked?(text) and Regex.match?(@price_words, text)
+
+  @yes_words ~w(yes yeah yep yup aye sure ok okay alright deal)
+  @yes_fillers ~w(please thanks thank you one go on then right fine i'll take it)
+
+  @doc """
+  True when the words are a plain yes and nothing else ("Yes.", "Aye,
+  please.", "Sure, one."). While an offer is open, a plain yes accepts it:
+  the price the player asked for wins over any other offer the GM made in
+  the same reply (Gentry's retest of #476, session 6d938a30, T1-T2).
+
+      iex> TalesForge.Game.Offer.plain_yes?("Yes.")
+      true
+      iex> TalesForge.Game.Offer.plain_yes?("Aye, please!")
+      true
+      iex> TalesForge.Game.Offer.plain_yes?("Yes, I'll split the kindling.")
+      false
+      iex> TalesForge.Game.Offer.plain_yes?("No thanks.")
+      false
+  """
+  @spec plain_yes?(String.t() | nil) :: boolean()
+  def plain_yes?(text) when is_binary(text) do
+    words = ~r/[a-z']+/ |> Regex.scan(String.downcase(text)) |> List.flatten()
+
+    Enum.any?(words, &(&1 in @yes_words)) and
+      Enum.all?(words, &(&1 in @yes_words or &1 in @yes_fillers))
+  end
+
+  def plain_yes?(_text), do: false
+
   @doc """
   The options of an unclear buy: the items of `stock` (priced) that the
   words `text` ask for by kind ("a meal": stew, bread and cheese), at most

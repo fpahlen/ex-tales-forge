@@ -112,6 +112,72 @@ defmodule TalesForge.Game.JevIntentTest do
     assert reading.cost == 2.1e-5
   end
 
+  # Gentry's retest of #476 (session 6d938a30), T1-T2.
+  describe "decode: a price question and a plain yes to the open offer" do
+    defp talk(text, context, extra \\ %{}) do
+      cands = JevIntent.candidates(context)
+      brenna = Enum.find(cands, &(&1.id == "innkeep"))
+
+      reply =
+        Map.merge(
+          %{
+            action: :speak,
+            target: brenna.label,
+            skill: :none,
+            later: :none,
+            safety: :benign,
+            confidence: %{action: 0.86, target: 0.9, safety: 0.99}
+          },
+          extra
+        )
+
+      JevIntent.decode(reply, cands, text: text, context: context)
+    end
+
+    @open_offer %{
+      "giver" => "innkeep",
+      "giver_name" => "Brenna Holt",
+      "item" => %{"id" => "ale_mug", "name" => "Mug of Ale", "quantity" => 1},
+      "price" => 2,
+      "options" => [],
+      "location_id" => "valley_inn",
+      "age" => 0
+    }
+
+    test "a price question about stock for sale here, read as talk, is a buy that asks" do
+      reading = talk("How much for an ale?", context())
+      assert reading.action == :buy
+      assert reading.target == "innkeep"
+      assert [%{action_type: :buy}] = reading.extraction.actions
+    end
+
+    test "a question with no price, or a price of nothing sold here, stays talk" do
+      assert talk("Is the ale any good?", context()).action == :speak
+      assert talk("How much for a horse?", context()).action == :speak
+      assert talk("How much for an ale? I'll take two.", context()).action == :speak
+    end
+
+    test "a plain yes while an offer is open accepts it, whatever else the narration offered" do
+      context =
+        Map.merge(context(), %{
+          "open_offer" => @open_offer,
+          "last_narration" => "\"Two copper.\" And the kindling wants splitting, if you'll work."
+        })
+
+      assert talk("Yes.", context, %{offer_answer: :other}).offer_answer == :accept
+      assert talk("Aye, please.", context, %{offer_answer: :other}).offer_answer == :accept
+
+      assert talk("Yes, I'll split the kindling.", context, %{offer_answer: :other}).offer_answer ==
+               :other
+
+      assert talk("No thanks.", context, %{offer_answer: :decline}).offer_answer == :decline
+    end
+
+    test "with no offer open, a plain yes answers nothing" do
+      assert talk("Yes.", context()).offer_answer == nil
+    end
+  end
+
   test "decode fills a buy price and a deferred action from the later fields" do
     cands = JevIntent.candidates(context())
     ale = Enum.find(cands, &(&1.id == "ale_mug"))
