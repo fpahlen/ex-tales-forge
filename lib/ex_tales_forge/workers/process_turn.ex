@@ -3,8 +3,16 @@ defmodule TalesForge.Workers.ProcessTurn do
   Oban worker for Tier 2 GM narration and turn persistence.
 
   Core runtime path. Uses Ecto-only game modules.
+
+  One attempt (`max_attempts: 1`). A turn that fails has already told the
+  player (`TalesForge.Game.TurnProcessor` broadcasts `:turn_failed` for an
+  error and for a crash), so the job must not run the turn again: a second
+  attempt streamed new GM text onto a page that showed "Turn failed", and it
+  could commit a turn the player did not expect (or two, when they pressed
+  Act again). The player retries by acting again. The GM call keeps its own
+  JSON-correction retry inside the attempt (`TalesForge.LLM`).
   """
-  use Oban.Worker, queue: :llm, max_attempts: 3
+  use Oban.Worker, queue: :llm, max_attempts: 1
 
   alias TalesForge.World.{Instance, TurnRequest}
 
