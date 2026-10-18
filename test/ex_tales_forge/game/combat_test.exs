@@ -165,6 +165,17 @@ defmodule TalesForge.Game.CombatTest do
       assert {ex["defender_wounds"], ex["defender_vitality"]} == {1, "hurt"}
     end
 
+    test "the attacker id is the attacker's own, with no \"player\" default (10c-c)" do
+      rolls = %{attack: 50, counter_chance: 0.99}
+      elara = Map.put(@player, "id", "elara_voss")
+
+      assert Combat.exchange({f(elara), f(@guard)}, nil, rolls)["attacker_id"] == "elara_voss"
+      assert Combat.exchange({f(@guard), f(elara)}, nil, rolls)["attacker_id"] == "gate_guard"
+
+      assert Combat.exchange({f(Map.delete(elara, "id")), f(@guard)}, nil, rolls)["attacker_id"] ==
+               nil
+    end
+
     test "a minor foe has 1 wound and goes down on the first hit" do
       foe = Combat.minor_foe({"foe_miner", "a miner"}, Defaults.rules("tin_valley"), 7)
 
