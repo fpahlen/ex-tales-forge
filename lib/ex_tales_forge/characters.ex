@@ -67,27 +67,66 @@ defmodule TalesForge.Characters do
   """
   @spec sync_session(GameSession.t(), map()) :: :ok | {:error, term()}
   def sync_session(%GameSession{} = session, opts \\ %{}) do
-    tick = Map.get(session.world_state, "world_tick", WorldClock.default_start_tick())
-    pc = player_character_attrs(session, opts, tick)
-    moods = Map.get(session.world_state, "npc_moods") || %{}
-    instances = NPC.list_instances(session.id)
-    npcs = Enum.map(instances, &from_npc_instance(&1, tick, pc.slug, Map.get(moods, &1.npc_id)))
+    {rows, instances} = rows(session, opts)
 
-    result =
-      Repo.transaction(fn ->
-        Enum.each([pc | npcs], &upsert_or_rollback!(&1, session.id))
-        Enum.each(instances, &mirror_memories!(session.id, &1))
-      end)
-
-    case result do
+    case Repo.transaction(fn -> write_rows!(rows, instances, session.id) end) do
       {:ok, :ok} -> :ok
       {:error, reason} -> {:error, {:characters, reason}}
     end
   end
 
   @doc """
-  The double-write after a turn: `sync_session/1` for the session as just
-  persisted. Never fails the turn: an error is logged and the next turn syncs
+  The characters write of a turn, as a step of the turn's Multi (refactor
+  step 10b): the rows from the session the `:session` step saved, after the
+  NPC updates, so a GM memory gets its row in the same transaction.
+
+  A row that doesn't validate (a broken sheet) skips the write with a
+  warning, as the after-turn mirror did, so it never fails the turn.
+  """
+  @spec turn_multi(Ecto.Multi.t()) :: Ecto.Multi.t()
+  def turn_multi(%Ecto.Multi{} = multi) do
+    Ecto.Multi.run(multi, :characters, fn _repo, %{session: session} ->
+      {:ok, write_turn(session)}
+    end)
+  end
+
+  defp write_turn(%GameSession{id: id} = session) do
+    {rows, instances} = rows(session, %{})
+
+    case Enum.reject(
+           rows,
+           &Character.changeset(%Character{}, Map.put(&1, :game_session_id, id)).valid?
+         ) do
+      [] ->
+        write_rows!(rows, instances, id)
+
+      invalid ->
+        Logger.warning(
+          "characters write skipped session=#{id} slugs=#{Enum.map_join(invalid, ",", & &1.slug)}"
+        )
+
+        :skipped
+    end
+  end
+
+  # The player character and every NPC of the session, and its NPC instances.
+  defp rows(%GameSession{} = session, opts) do
+    tick = Map.get(session.world_state, "world_tick", WorldClock.default_start_tick())
+    pc = player_character_attrs(session, opts, tick)
+    moods = Map.get(session.world_state, "npc_moods") || %{}
+    instances = NPC.list_instances(session.id)
+    npcs = Enum.map(instances, &from_npc_instance(&1, tick, pc.slug, Map.get(moods, &1.npc_id)))
+    {[pc | npcs], instances}
+  end
+
+  defp write_rows!(rows, instances, session_id) do
+    Enum.each(rows, &upsert_or_rollback!(&1, session_id))
+    Enum.each(instances, &mirror_memories!(session_id, &1))
+  end
+
+  @doc """
+  `sync_session/1` for a session written outside a turn (the admin
+  world-state edit). Never fails the turn: an error is logged and the next turn syncs
   again. Returns `:ok`.
   """
   @spec mirror(GameSession.t()) :: :ok
