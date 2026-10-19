@@ -1,7 +1,7 @@
 ---
 title: "Design: social layer (listener readings, liking, obligations, two-speed)"
 updated: 2026-10-19
-status: design (rev. 2 after Case's review; no code yet)
+status: design (rev. 2; hearing decisions recorded 2026-10-19; no code yet)
 ---
 
 # Design: social layer
@@ -33,29 +33,30 @@ drives listener readings (§3) and System 2 (§6).
 
 Each item lists options. This doc does not pick for the founders.
 
-1. **Voice dB at 1 m (§2.2).** (a) whisper 40, talk 60, shout 85, Lombard rise
-   for talk and shout; (b) no Lombard rise; (c) other values after a playtest.
-2. **Clarity thresholds (§2.3).** (a) clear ≥ −3 dB SNR, partial ≥ −12;
-   (b) stricter: clear ≥ 0, partial ≥ −9.
-3. **Default noise and distance (§2.5).** (a) `ambient_db` per place file,
-   fallback 50; addressee 1 m, others 3 m; (b) a default per place `scale` only.
-4. **Whisper to the addressee in a loud room** (physics: none at 70 dB).
-   (a) physics stands; (b) the addressee of a whisper is never below partial.
-5. **Hearing modifier (§2.4); no hearing field exists today.** (a) race only
-   (elf +3 dB); (b) race + `perception` skill (only with `JEV_CATALOGUE_V2`);
-   (c) a new `hearing` value on `GameCharacter`.
-6. **Liking scale N:** (a) 3; (b) 5; (c) 10. Integers in −N..N.
-7. **Liking direction:** (a) directed, A→B and B→A are two rows; (b) symmetric.
-8. **Liking start:** (a) 0; (b) from today's `relationship_score`; (c) world data.
-9. **Partial hearing and liking:** (a) same delta (the misread is the effect);
-   (b) half the delta.
-10. **Ledger kinds first:** (a) `promise`; (b) + `debt`; (c) + `favour`, and a
-    gift creates a small favour owed.
-11. **An `accept` act** (the 14 labels lack it): (a) keep 14; (b) add `accept`,
-    `decline` (breaks comparison with survey 5).
-12. **System 2 model:** (a) a reasoning LLM; (b) a second Jev call; (c) decide
-    after the comparison.
-13. **The System 2 ship bar** (§6.5) and the level-2 labels (§6.4).
+1. **Liking scale N:** (a) 3; (b) 5; (c) 10. Integers in −N..N.
+2. **Liking direction:** (a) directed, A→B and B→A are two rows; (b) symmetric.
+3. **Liking start:** (a) 0; (b) from today's `relationship_score`; (c) world data.
+4. **Ledger kinds first:** (a) `promise`; (b) + `debt`; (c) + `favour`, and a
+   gift creates a small favour owed.
+5. **An `accept` act** (the 14 labels lack it): (a) keep 14; (b) add `accept`,
+   `decline` (breaks comparison with survey 5).
+6. **System 2 model:** (a) a reasoning LLM; (b) a second Jev call; (c) decide
+   after the comparison.
+7. **The System 2 ship bar** (§6.5) and the level-2 labels (§6.4).
+
+### Decided: hearing (Fredrik, 2026-10-19, on #489)
+
+- **A whisper can fail in a loud room.** The physics stands as designed. The
+  addressee of a whisper has no floor at partial.
+- **Hearing modifier = race + the existing `perception` skill.** No new field on
+  `GameCharacter`. Without `JEV_CATALOGUE_V2` the skill is absent and adds 0.
+- **Defaults:** ambient 50 dB; the addressee at 1 m (0.25 m when whispering);
+  everyone else in the place at 3 m.
+- **Liking changes only from the words a listener actually heard.** A partial
+  listener's reading, and so her liking delta, comes from the kept fragments
+  only. Dropped words never count.
+- **The dB values (§2.2) and clarity thresholds (§2.3) stand for now**, tuned in
+  playtest.
 
 ## 2. Hearing (pure game code, no LLM)
 
@@ -121,14 +122,15 @@ Worked numbers (defaults of §2.5, hearing 0):
 | talk, bystander 3 m, busy inn 70 dB | 75 − 9.5 − 70 = −4.5 | partial (keep 0.8) |
 | whisper, bystander 3 m, quiet inn | 40 − 9.5 − 50 = −19.5 | none |
 | whisper to the addressee, quiet inn | 40 + 12 − 50 = +2 | clear |
-| whisper to the addressee, busy inn | 52 − 70 = −18 | none (decision 4) |
+| whisper to the addressee, busy inn | 52 − 70 = −18 | none (decided: no floor) |
 | shout, 6 m, busy inn | 85 − 15.6 − 70 = −0.6 | clear |
 
 ### 2.4 Hearing modifier
 
 `hearing_db` comes from the character, through one pure function
 `Hearing.modifier(%GameCharacter{}) :: integer`. No branch on PC or NPC.
-Proposal (decision 5): race elf +3 dB (half-elf +1), and `perception` skill
+Decided: race + the existing `perception` skill, no new field. Values (tuned in
+playtest): race elf +3 dB (half-elf +1), and `perception` skill
 level / 25 rounded down (0..+4 dB). Kept small so that distance and noise
 dominate.
 
@@ -151,11 +153,10 @@ dominate.
   `Mechanics`). The elf "Keen Senses" trait (+10 to perception-based skills in
   natural settings) is rule text in `rules/races.md`, not code.
 
-**Minimal default:** an optional `ambient_db` key in each place file, read with
-the place; fallback 50 dB. Proposed seeds: valley inn 60 (busy evening 70 is a
-later time-of-day rule), market square 60, mine workings 70, cellar 35,
-outdoors 40. Distance: the addressee at 1 m (whisper 0.25 m), everyone else in
-the same place at 3 m. `%Listener{distance_m}` is a field, so positions inside a
+**Defaults (decided):** ambient 50 dB; the addressee at 1 m (0.25 m when
+whispering); everyone else in the same place at 3 m. Still a proposal, for
+playtest tuning: an optional `ambient_db` key per place file (seeds: valley inn
+60, market square 60, mine workings 70, cellar 35, outdoors 40). `%Listener{distance_m}` is a field, so positions inside a
 place can replace the default later without changing `clarity/2`.
 
 ### 2.6 Fragments (deterministic)
@@ -242,7 +243,8 @@ line, also an insult.
 - `delta(%Reading{}, %GameCharacter{} = listener) :: integer` — a table from act
   to base delta (`thanks` +1, `insult` −2, `threat` −2, …). OCEAN scales it (G2:
   high A softens a minus, high N enlarges it). `target` not `:me` gives 0 for
-  now. Partial clarity per decision 9.
+  now. A partial listener's delta comes only from the
+  kept fragments she read (decided).
 - `apply(%Liking{}, delta) :: %Liking{}` — adds and clamps to −N..N.
 - `band(%Liking{}) :: :hostile | :cool | :neutral | :warm | :close` — for prompts
   and Jev state, so no number reaches a model.
@@ -256,7 +258,7 @@ in the turn's Multi. `{:warm, number}` stays for sessions with the flag off.
 `to_character_id` (FK `characters`, cascade), `value` (integer, not null,
 default 0, check `between -N and N`), `last_turn` (integer, null), `inserted_at`,
 `updated_at` (`utc_datetime_usec`). Unique index `(from_character_id,
-to_character_id)`; symmetric (decision 7) adds a check `from < to`. Writes are
+to_character_id)`; symmetric (decision 2) adds a check `from < to`. Writes are
 upserts. One read per turn for the present characters, beside the cast.
 
 ## 5. Obligations ledger
@@ -278,7 +280,7 @@ Pure core, `TalesForge.Social.Ledger`:
   debtor to creditor with what was owed marks the entry `:kept`.
 - `age(ledger, tick) :: {ledger, [change]}` — past `due_tick` → `:broken`, which
   gives the creditor a liking delta (§4).
-- `forgive(ledger, id)` — only if the founders want it (decision 10).
+- `forgive(ledger, id)` — only if the founders want it (decision 4).
 
 **The trade rules hold.** The ledger never moves anything: items and coins move
 only through `Trade.execute/1`, both sides accept, nothing is created or
@@ -357,7 +359,7 @@ pass bar. Both systems get the same state. Per system: accuracy vs the founder
 majority (act, target, voice; real and scripted apart), harmful confusions,
 confident-wrong reads; for System 2 the trigger rate (and which trigger), lines
 changed (right→wrong, wrong→right), cost per line and per triggered line, p50/p95
-added latency. Proposed ship rule (decision 13):
+added latency. Proposed ship rule (decision 7):
 
 | Measure | Proposed bar |
 |---|---|
@@ -433,10 +435,11 @@ PRs 2 and 8 touch no game path and can run beside the others.
 - **Bad listener reads change liking.** #481 saw Brenna hear her own accepted
   quote as "curt". Mitigation: gate, clamp, readings logged per turn.
 - **Fragments mislead too much.** A 0.3 keep can turn any line into a threat.
-  Mitigation: partial readings get a lower confidence in practice; decision 9.
+  Mitigation: only kept words count (decided); partial readings get lower
+  confidence in practice; the thresholds are tuned in playtest.
 - **Untuned dB numbers and one bystander distance.** Rough real-world values in
   one module attribute; every bystander in a place hears alike until positions.
-- **The 14 labels lack `accept`** (decision 11).
+- **The 14 labels lack `accept`** (decision 5).
 - **Latency.** S2 adds wait on triggered turns (open deals are common); the bar caps it.
 - **Existing word checks.** `Offer.asked?/1` reads player words in Elixir. It is
   trade code, so it stays frozen; noted for when trade unfreezes.
@@ -451,4 +454,4 @@ PRs 2 and 8 touch no game path and can run beside the others.
 - Knowledge per character, lies and secrets (G5), groups and norms (G6/G7).
 - The System 2 prompt text and model tuning (after the comparison).
 - UI for liking or the ledger; PubSub signals for them.
-- Any DB backfill on production; decision 8 picks the start values first.
+- Any DB backfill on production; decision 3 picks the start values first.
