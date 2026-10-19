@@ -43,6 +43,11 @@ kill_timeout = "30s"
   # written, the recall is built, the GM prompt stays the same. Production
   # stays off (fly.toml).
   CHARACTER_MEMORY = "shadow"
+  # GM narration pacing (docs/design-gm-streaming.md): the "GM thinking" pause
+  # before the streamed text and the slowest reveal speed. Playtest sets them
+  # so Fredrik can try 1000, 1500 and 2000; production uses the defaults.
+  GM_MIN_DELAY_MS = "1500"
+  GM_REVEAL_MIN_MS_PER_CHAR = "8"
 
 [http_service]
   internal_port = 4000

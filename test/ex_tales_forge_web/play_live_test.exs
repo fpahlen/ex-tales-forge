@@ -120,7 +120,7 @@ defmodule TalesForgeWeb.PlayLiveTest do
     {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
 
     send(view.pid, {:turn_processing, %{}})
-    assert render(view) =~ "The GM is thinking…"
+    assert has_element?(view, "#gm-streaming [data-gm-dots]")
 
     # A stream insert while the placeholder is showing used to raise
     # "setting phx-update to \"stream\" requires setting an ID on each child".
@@ -132,36 +132,115 @@ defmodule TalesForgeWeb.PlayLiveTest do
 
     html = render(view)
     assert html =~ "Brenna waves."
-    assert html =~ "The GM is thinking…"
+    assert has_element?(view, "#gm-streaming [data-gm-dots]")
     refute has_element?(view, "#narrative-log > p")
 
     send(view.pid, {:turn_failed, "boom"})
-    refute render(view) =~ "The GM is thinking…"
+    refute has_element?(view, "#gm-streaming")
   end
 
-  test "the GM text shows while it streams, and a retry replaces it", %{conn: conn} do
-    {:ok, session} =
-      GameSessions.create_session(%{name: "Streaming Tin Valley", adventure_id: "tin_valley"})
+  describe "the streamed GM reply (docs/design-gm-streaming.md, PR 2)" do
+    setup do
+      on_exit(fn ->
+        System.delete_env("GM_MIN_DELAY_MS")
+        System.delete_env("GM_REVEAL_MIN_MS_PER_CHAR")
+      end)
+    end
 
-    {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+    test "the typing dots show after a submit, in place of a thinking line", %{conn: conn} do
+      {:ok, session} =
+        GameSessions.create_session(%{name: "Dots Tin Valley", adventure_id: "tin_valley"})
 
-    send(view.pid, {:turn_processing, %{}})
-    send(view.pid, {:turn_stream, {:text, "The lamp"}})
-    send(view.pid, {:turn_stream, {:text, "The lamp gutters."}})
-    html = render(view)
-    assert has_element?(view, "#gm-streaming", "The lamp gutters.")
-    refute html =~ "The GM is thinking…"
+      {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+      refute has_element?(view, "#gm-streaming")
 
-    # A JSON retry: the old text goes, the new reply replaces it.
-    send(view.pid, {:turn_stream, :reset})
-    refute has_element?(view, "#gm-streaming")
-    assert render(view) =~ "The GM is thinking…"
-    send(view.pid, {:turn_stream, {:text, "Rain falls."}})
-    assert has_element?(view, "#gm-streaming", "Rain falls.")
-    refute render(view) =~ "The lamp gutters."
+      send(view.pid, {:turn_processing, %{}})
+      assert has_element?(view, ~s(#gm-streaming[phx-hook$="GmReveal"][phx-update="ignore"]))
+      assert has_element?(view, ~s(#gm-streaming .gm-typing[aria-hidden="true"]))
+      assert has_element?(view, ~s(#gm-streaming [role="status"]), "The story continues…")
+      refute render(view) =~ "The GM is thinking…"
+    end
 
-    send(view.pid, {:turn_failed, "boom"})
-    refute has_element?(view, "#gm-streaming")
+    test "the reveal hook gets the pacing config as data attributes", %{conn: conn} do
+      {:ok, session} =
+        GameSessions.create_session(%{name: "Pace Tin Valley", adventure_id: "tin_valley"})
+
+      {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+      send(view.pid, {:turn_processing, %{}})
+
+      assert has_element?(
+               view,
+               ~s(#gm-streaming[data-min-delay-ms="1500"][data-min-ms-per-char="8"])
+             )
+
+      # Playtest sets them in fly.playtest.toml; the page reads them at mount.
+      System.put_env("GM_MIN_DELAY_MS", "2000")
+      System.put_env("GM_REVEAL_MIN_MS_PER_CHAR", "5")
+      {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+      send(view.pid, {:turn_processing, %{}})
+
+      assert has_element?(
+               view,
+               ~s(#gm-streaming[data-min-delay-ms="2000"][data-min-ms-per-char="5"])
+             )
+    end
+
+    test "each streamed chunk is pushed to the hook, and a retry pushes empty text",
+         %{conn: conn} do
+      {:ok, session} =
+        GameSessions.create_session(%{name: "Streaming Tin Valley", adventure_id: "tin_valley"})
+
+      {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+
+      send(view.pid, {:turn_processing, %{}})
+      send(view.pid, {:turn_stream, {:text, "The lamp"}})
+      assert_push_event(view, "gm_text", %{text: "The lamp"})
+      send(view.pid, {:turn_stream, {:text, "The lamp gutters."}})
+      assert_push_event(view, "gm_text", %{text: "The lamp gutters."})
+
+      # The hook owns the text: the server renders no copy of it.
+      assert has_element?(view, "#gm-streaming")
+      refute render(view) =~ "The lamp gutters."
+
+      # A JSON retry: the hook clears the old text and shows the dots again.
+      send(view.pid, {:turn_stream, :reset})
+      assert_push_event(view, "gm_text", %{text: ""})
+      send(view.pid, {:turn_stream, {:text, "Rain falls."}})
+      assert_push_event(view, "gm_text", %{text: "Rain falls."})
+
+      send(view.pid, {:turn_failed, "boom"})
+      refute has_element?(view, "#gm-streaming")
+    end
+
+    test "input stays locked until the commit, and the committed entry replaces the streamed one",
+         %{conn: conn} do
+      {:ok, session} =
+        GameSessions.create_session(%{name: "Commit Tin Valley", adventure_id: "tin_valley"})
+
+      {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+
+      send(view.pid, {:turn_processing, %{}})
+      send(view.pid, {:turn_stream, {:text, "The lamp gutters."}})
+      assert_push_event(view, "gm_text", %{text: "The lamp gutters."})
+      assert has_element?(view, "input[name=message][disabled]")
+      assert has_element?(view, "#act-button[disabled]", "GM is writing…")
+
+      # The commit: the GM entry has the full text and replaces the streamed one.
+      send(
+        view.pid,
+        {:turn_completed,
+         %{
+           world_state: session.world_state,
+           llm_source: "mock",
+           entries: [%{id: "t1-gm", role: "gm", text: "The lamp gutters. Rain falls."}]
+         }}
+      )
+
+      refute has_element?(view, "#gm-streaming")
+      assert has_element?(view, "#entries-t1-gm", "The lamp gutters. Rain falls.")
+      refute has_element?(view, "input[name=message][disabled]")
+      assert has_element?(view, "#act-button:not([disabled])", "Act")
+    end
   end
 
   test "the player's action shows as soon as it is sent, above the GM text",
@@ -207,9 +286,10 @@ defmodule TalesForgeWeb.PlayLiveTest do
     send(view.pid, {:turn_stream, {:text, "Mags turns."}})
     html = render(view)
 
-    assert has_element?(view, "#gm-streaming", "Game Master")
+    assert has_element?(view, "#gm-streaming [data-gm-heading]", "Game Master")
+    assert_push_event(view, "gm_text", %{text: "Mags turns."})
     {log_at, _} = :binary.match(html, "Mags waits.")
-    {gm_at, _} = :binary.match(html, "Mags turns.")
+    {gm_at, _} = :binary.match(html, ~s(id="gm-streaming"))
     assert log_at < gm_at
   end
 
@@ -242,7 +322,7 @@ defmodule TalesForgeWeb.PlayLiveTest do
     html = render(view)
     assert html =~ "resting until tomorrow"
     refute html =~ "Turn failed"
-    refute html =~ "The GM is thinking…"
+    refute has_element?(view, "#gm-streaming")
   end
 
   describe "clarification questions" do
@@ -313,7 +393,8 @@ defmodule TalesForgeWeb.PlayLiveTest do
     end
   end
 
-  test "Act reads Thinking… and is disabled while a turn is in flight", %{conn: conn} do
+  test "Act reads GM is writing… with the dots and is disabled while a turn is in flight",
+       %{conn: conn} do
     {:ok, session} =
       GameSessions.create_session(%{name: "Busy Tin Valley", adventure_id: "tin_valley"})
 
@@ -321,7 +402,9 @@ defmodule TalesForgeWeb.PlayLiveTest do
     assert has_element?(view, "#act-button:not([disabled])", "Act")
 
     send(view.pid, {:turn_processing, %{}})
-    assert has_element?(view, ~s(#act-button[disabled][aria-busy="true"]), "Thinking…")
+    assert has_element?(view, ~s(#act-button[disabled][aria-busy="true"]), "GM is writing…")
+    assert has_element?(view, ~s(#act-button[phx-disable-with="GM is writing…"]))
+    assert has_element?(view, ~s(#act-button .gm-typing[aria-hidden="true"]))
     assert has_element?(view, "input[name=message][disabled]")
 
     send(view.pid, {:turn_failed, "boom"})

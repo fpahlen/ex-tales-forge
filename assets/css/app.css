@@ -226,6 +226,22 @@
   line-height: 1.65;
 }
 
+/* GM typing dots (Slick, docs/design-gm-streaming.md section 6): where the GM's
+   next paragraph begins, and after "GM is writing…" on the Act button. The
+   GmReveal hook fades them out as the first words fade in. */
+.gm-typing{display:flex;gap:.375em;align-items:center;height:1lh;margin-top:var(--para-gap,1em);color:currentColor;animation:gm-in .15s ease-out}
+.gm-typing span{width:.375em;height:.375em;border-radius:50%;background:currentColor;opacity:.25;animation:gm-dot 1.2s ease-in-out infinite}
+.gm-typing span:nth-child(2){animation-delay:.15s}
+.gm-typing span:nth-child(3){animation-delay:.3s}
+.gm-typing[hidden]{display:none}
+.gm-typing:first-child{margin-top:0}
+.gm-typing-inline{display:inline-flex;height:auto;margin:0 0 0 .5em;vertical-align:middle}
+.gm-typing-out{opacity:0;transition:opacity .12s ease-out}
+.gm-text-in{animation:gm-in .12s ease-out}
+@keyframes gm-dot{0%,60%,100%{opacity:.25;transform:none}30%{opacity:1;transform:translateY(-2px)}}
+@keyframes gm-in{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.gm-typing,.gm-typing span,.gm-text-in{animation:none}.gm-typing span{opacity:.55}.gm-typing-out{transition:none}}
+
 /* This file is for your main application CSS */
 
 /* Readable Markdown bodies (shared docs, decision context).

@@ -11,6 +11,7 @@ defmodule TalesForgeWeb.PlayLive do
   alias TalesForge.GameSessions
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
+  alias TalesForgeWeb.PlayLive.GmReveal
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -35,7 +36,7 @@ defmodule TalesForgeWeb.PlayLive do
      |> assign(:cast, Characters.cast(session.id))
      |> assign(:connected, connected?(socket))
      |> assign(:thinking, false)
-     |> assign(:streaming_text, "")
+     |> assign(:gm_reveal, GmReveal.from_config())
      |> assign(:scene_loading, status.needs_scene)
      |> assign(:scene_image_url, current_scene_image(session))
      |> assign(:clarification, GameSessions.pending_clarification(session.world_state))
@@ -100,21 +101,23 @@ defmodule TalesForgeWeb.PlayLive do
     {:noreply, assign(socket, :thinking, true)}
   end
 
-  # The GM narration while it streams. Each event has the whole text so far,
-  # so the page replaces its text. :reset clears it before a JSON retry.
+  # The GM narration while it streams goes to the `.GmReveal` hook, which paces
+  # it on the client (docs/design-gm-streaming.md). Each event has the whole
+  # text so far, so a lost or doubled event does no harm. :reset (before a
+  # JSON retry) sends empty text: the hook clears it and shows the dots.
   def handle_info({:turn_stream, {:text, text}}, socket) do
-    {:noreply, socket |> assign(:thinking, true) |> assign(:streaming_text, text)}
+    {:noreply, socket |> assign(:thinking, true) |> push_event("gm_text", %{text: text})}
   end
 
   def handle_info({:turn_stream, :reset}, socket) do
-    {:noreply, assign(socket, :streaming_text, "")}
+    {:noreply, push_event(socket, "gm_text", %{text: ""})}
   end
 
   def handle_info({:clarification_needed, clarification}, socket) do
     {:noreply,
      socket
      |> assign(:thinking, false)
-     |> clear_streaming()
+     |> drop_pending_action()
      |> assign(:clarification, clarification)}
   end
 
@@ -127,7 +130,7 @@ defmodule TalesForgeWeb.PlayLive do
     socket =
       socket
       |> assign(:thinking, false)
-      |> clear_streaming()
+      |> drop_pending_action()
       |> assign(:clarification, nil)
       |> assign(:session, session)
       |> assign(:cast, Characters.cast(session.id))
@@ -142,7 +145,7 @@ defmodule TalesForgeWeb.PlayLive do
     {:noreply,
      socket
      |> assign(:thinking, false)
-     |> clear_streaming()
+     |> drop_pending_action()
      |> put_flash(:info, spend_cap_message(kind))}
   end
 
@@ -150,7 +153,7 @@ defmodule TalesForgeWeb.PlayLive do
     {:noreply,
      socket
      |> assign(:thinking, false)
-     |> clear_streaming()
+     |> drop_pending_action()
      |> put_flash(:error, "Turn failed: #{reason}")}
   end
 
@@ -207,7 +210,7 @@ defmodule TalesForgeWeb.PlayLive do
             streams={@streams}
             scene_loading={@scene_loading}
             thinking={@thinking}
-            streaming_text={@streaming_text}
+            gm_reveal={@gm_reveal}
             clarification={@clarification}
             input_disabled={@input_disabled}
             session_status={@session.status}
@@ -270,7 +273,7 @@ defmodule TalesForgeWeb.PlayLive do
   defp submit_failed(socket, reason) do
     socket
     |> assign(:thinking, false)
-    |> clear_streaming()
+    |> drop_pending_action()
     |> forget_expired_question(reason)
     |> put_flash(:error, submit_error(reason))
   end
@@ -311,11 +314,8 @@ defmodule TalesForgeWeb.PlayLive do
     end
   end
 
-  defp clear_streaming(socket) do
-    socket
-    |> assign(:streaming_text, "")
-    |> stream_delete_by_dom_id(:entries, "entries-" <> @pending_action_id)
-  end
+  defp drop_pending_action(socket),
+    do: stream_delete_by_dom_id(socket, :entries, "entries-" <> @pending_action_id)
 
   defp current_scene_image(%{world_state: world_state, scenes: scenes}) do
     location_id = Map.get(world_state || %{}, "location_id")

@@ -9,6 +9,7 @@ defmodule TalesForgeWeb.PhoneLayoutTest do
   import Phoenix.LiveViewTest
 
   alias TalesForgeWeb.{Layouts, PlayComponents}
+  alias TalesForgeWeb.PlayLive.GmReveal
 
   defp classes(html, selector) do
     html
@@ -26,7 +27,8 @@ defmodule TalesForgeWeb.PhoneLayoutTest do
           streams: %{entries: []},
           scene_loading: false,
           thinking: false,
-          input_disabled: false
+          input_disabled: false,
+          gm_reveal: GmReveal.from_config()
         )
 
       {:ok, html: html}

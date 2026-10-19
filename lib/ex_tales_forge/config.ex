@@ -76,6 +76,23 @@ defmodule TalesForge.Config do
   def player_quote_min_benign_confidence,
     do: Application.get_env(:ex_tales_forge, :player_quote_min_benign_confidence, 0.90)
 
+  @doc """
+  The minimum "GM thinking" pause before the streamed narration shows, in ms
+  (`GM_MIN_DELAY_MS`, default 1500). The play page's typing dots fill it
+  (docs/design-gm-streaming.md).
+  """
+  @spec gm_min_delay_ms() :: integer()
+  def gm_min_delay_ms, do: env_int("GM_MIN_DELAY_MS", 1500)
+
+  @doc """
+  The slowest the streamed narration is revealed, in ms per character
+  (`GM_REVEAL_MIN_MS_PER_CHAR`, default 8). A larger backlog reveals faster,
+  so the text never lags its arrival by more than about 250 ms
+  (docs/design-gm-streaming.md).
+  """
+  @spec gm_reveal_min_ms_per_char() :: integer()
+  def gm_reveal_min_ms_per_char, do: env_int("GM_REVEAL_MIN_MS_PER_CHAR", 8)
+
   @doc "NPC reaction prototype (Jev, before the GM call): NPC_REACTIONS=on. Default off."
   def npc_reactions?, do: System.get_env("NPC_REACTIONS", "off") in ~w(on true 1)
 
