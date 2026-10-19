@@ -10,14 +10,14 @@ defmodule Mix.Tasks.Health.Check.Files do
       to keep to the per-function limits that `Mix.Tasks.Health.Check`
       checks for all code (complexity, ABC size, 4+ parameters).
     * Cap: no file that exists at the base may score more than 10% above
-      its base score. Split it instead.
+      its base score, or 3 above it when that is more (so a file at 0 can
+      still grow). Split it instead.
 
   A file may get worse inside those bounds when the PR description says
   why. The gate cannot read the PR description, so it only lists those
   files.
   """
 
-  @cap_percent 10
   @why "A file that got worse needs a line in the PR description saying why (docs/principles.md)."
 
   @doc """
@@ -132,16 +132,16 @@ defmodule Mix.Tasks.Health.Check.Files do
   @doc """
   Problems with the touched files' scores, `base` and `pr` being file =>
   ABC sum (a file missing from `base` is new, one missing from `pr` is
-  deleted): an existing file more than 10% above its base score, or the
-  existing files not at least 1 lower in total.
+  deleted): an existing file more than 10% (and more than 3) above its base
+  score, or the existing files not at least 1 lower in total.
   """
   @spec errors(map(), map()) :: [String.t()]
   def errors(base, pr), do: cap_errors(base, pr) ++ net_errors(base, pr)
 
   defp cap_errors(base, pr) do
-    for {file, old} <- base, new = pr[file], new * 100 > old * (100 + @cap_percent) do
-      "#{file}: ABC #{new}, base #{old} (#{change(old, new)}), over the +#{@cap_percent}% " <>
-        "cap for one file: split it. #{@why}"
+    for {file, old} <- base, new = pr[file], new - old > max(old / 10, 3) do
+      "#{file}: ABC #{new}, base #{old} (#{change(old, new)}), over the cap for one file " <>
+        "(+10%, at least +3): split it. #{@why}"
     end
   end
 
@@ -151,7 +151,7 @@ defmodule Mix.Tasks.Health.Check.Files do
     old = base |> Map.values() |> Enum.sum()
     new = base |> Map.keys() |> Enum.map(&Map.get(pr, &1, 0)) |> Enum.sum()
 
-    if new - old <= -1,
+    if new < old,
       do: [],
       else: [
         "net: the touched lib/ files that exist on the base score ABC #{new}, base #{old} " <>
