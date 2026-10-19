@@ -57,6 +57,21 @@ numbers. Until 2026-10-17 the numbers were committed in `baseline.json`
 and every PR rewrote it; a base that still has that file is compared with
 it. `mix health.check --out FILE` writes the numbers as JSON.
 
+On top of never-worse, each PR must make the code it touches better (the
+Kaizen rule in `docs/principles.md`, `Mix.Tasks.Health.Check.Files`). A
+`lib/` file's score is the sum of the Credo ABC sizes of its functions.
+Over the `lib/` files changed since the merge base, measured at the merge
+base and in the working tree:
+
+- net: the changed files that exist at the base must score at least 1
+  lower in total. A deleted file scores 0 on the PR. A new file is left
+  out: it only has to keep to the per-function limits above;
+- cap: no file that exists at the base may score more than 10% above its
+  base score. Split it instead.
+
+The gate lists each file that got worse; the PR description must say why.
+It cannot read the PR description, so that part is on the reviewer.
+
 ## History
 
 ![Code health per merge to main](trend.svg)

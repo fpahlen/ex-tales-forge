@@ -35,7 +35,11 @@ defmodule Mix.Tasks.Health.Check do
       higher than its baseline value (its ceiling);
     * a function head has #{4} or more parameters and is not in the baseline
       (`wide_functions`, `Mix.Tasks.Health.Check.Params`), or a listed
-      function gains parameters.
+      function gains parameters;
+    * the touched `lib/` files that exist at the base do not score at least
+      1 lower in total Credo ABC size, or one of them scores more than 10%
+      above its base score (`Mix.Tasks.Health.Check.Files`). New files are
+      left out of that net and only keep to the limits above.
 
   "The baseline" below is the base's numbers. A raised Credo limit also
   fails. CI passes the merge's first parent as the base (the PR's base
@@ -47,7 +51,7 @@ defmodule Mix.Tasks.Health.Check do
   """
   use Mix.Task
 
-  alias Mix.Tasks.Health.Check.{LiveViews, Params, Schemas}
+  alias Mix.Tasks.Health.Check.{Files, LiveViews, Params, Schemas}
 
   # The committed baseline that bases from before the base run still carry.
   @old_baseline "docs/health/baseline.json"
@@ -79,7 +83,7 @@ defmodule Mix.Tasks.Health.Check do
     else
       ref = opts[:base] || "origin/main"
       base = base_numbers(ref)
-      report(check(base, collect()) ++ limit_errors(base, @limits), ref)
+      report(check(base, collect()) ++ limit_errors(base, @limits) ++ Files.check(ref), ref)
     end
   end
 
@@ -247,18 +251,12 @@ defmodule Mix.Tasks.Health.Check do
   end
 
   defp complex_functions do
-    config = Path.join(System.tmp_dir!(), "health_credo.exs")
-
-    File.write!(config, """
-    %{configs: [%{name: "default", files: %{included: ["lib/"]}, strict: true,
-      checks: %{enabled: [
-        {Credo.Check.Refactor.CyclomaticComplexity, [max_complexity: #{@limits["cyclomatic_complexity"]}]},
-        {Credo.Check.Refactor.ABCSize, [max_size: #{@limits["abc_size"]}]}
-      ]}}]}
-    """)
-
-    out = mix(["credo", "--config-file", config, "--strict", "--format", "json"])
-    out |> Jason.decode!() |> Map.fetch!("issues") |> parse_credo()
+    Files.credo([
+      {Credo.Check.Refactor.CyclomaticComplexity,
+       [max_complexity: @limits["cyclomatic_complexity"]]},
+      {Credo.Check.Refactor.ABCSize, [max_size: @limits["abc_size"]]}
+    ])
+    |> parse_credo()
   end
 
   @doc "Turns Credo complexity issues into one entry per function with its scores."
@@ -274,8 +272,8 @@ defmodule Mix.Tasks.Health.Check do
 
   defp add_score(issue, acc) do
     key = if issue["check"] =~ "ABCSize", do: "abc_size", else: "cyclomatic_complexity"
-    [_, score] = Regex.run(~r/is (\d+), max/, issue["message"])
-    Map.update(acc, key, String.to_integer(score), &max(&1, String.to_integer(score)))
+    score = Files.score(issue)
+    Map.update(acc, key, score, &max(&1, score))
   end
 
   @doc "Problems in `current` compared with `baseline` (empty when no worse)."
