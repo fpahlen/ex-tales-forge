@@ -14,6 +14,7 @@ defmodule TalesForge.Admin do
   alias TalesForge.Schemas.{Character, GameSession, Scene, Turn}
 
   @doc "Row counts for the admin dashboard."
+  @spec stats() :: %{atom() => non_neg_integer()}
   def stats do
     %{
       sessions: Repo.aggregate(GameSession, :count, :id),
@@ -31,6 +32,7 @@ defmodule TalesForge.Admin do
   end
 
   @doc "Every session, newest first, with its turn count, location and character name."
+  @spec list_sessions() :: [map()]
   def list_sessions do
     sessions =
       GameSession
@@ -50,6 +52,11 @@ defmodule TalesForge.Admin do
     end)
   end
 
+  @doc """
+  The session `id` with its character sheet and the `:preload` option's
+  associations; raises when there is none.
+  """
+  @spec get_session!(Ecto.UUID.t(), keyword()) :: GameSession.t()
   def get_session!(id, opts \\ []) do
     preloads = Keyword.get(opts, :preload, [])
 
@@ -60,10 +67,14 @@ defmodule TalesForge.Admin do
   end
 
   @doc "A changeset for the admin session form (name, status, world state, clock)."
+  @spec change_session(GameSession.t(), map()) :: Ecto.Changeset.t()
   def change_session(%GameSession{} = session, attrs \\ %{}) do
     GameSession.changeset(session, attrs)
   end
 
+  @doc "Saves the admin session form's `attrs` onto the session."
+  @spec update_session(GameSession.t(), map()) ::
+          {:ok, GameSession.t()} | {:error, Ecto.Changeset.t()}
   def update_session(%GameSession{} = session, attrs) do
     session
     |> GameSession.changeset(attrs)
@@ -76,6 +87,8 @@ defmodule TalesForge.Admin do
   transaction (`TalesForge.Characters.save_session/1`). The row is the only
   copy of the sheet, so an edit without `"character"` keeps the current one.
   """
+  @spec update_session_world_state(%{id: Ecto.UUID.t()}, String.t()) ::
+          {:ok, GameSession.t()} | {:error, term()}
   def update_session_world_state(session, json_string)
       when is_binary(json_string) do
     with {:ok, world_state} <- decode_json_map(json_string) do
@@ -97,6 +110,7 @@ defmodule TalesForge.Admin do
   session events, front instances and playtest runs go with it; AI call rows
   keep their data with `game_session_id` set to NULL.
   """
+  @spec delete_session(map()) :: :ok
   def delete_session(session) do
     id = Map.get(session, :id)
     name = Map.get(session, :name, "unknown")
@@ -115,6 +129,7 @@ defmodule TalesForge.Admin do
   seeds them again from the pack files. Each NPC's relationship to the
   player character is keyed again by the next turn.
   """
+  @spec reset_session_npcs(map()) :: {:ok, GameSession.t()} | {:error, Ecto.Changeset.t()}
   def reset_session_npcs(session) do
     id = Map.get(session, :id)
     slugs = NPC.Rows.slugs(id)
@@ -133,31 +148,44 @@ defmodule TalesForge.Admin do
   end
 
   @doc "The session's pack NPCs (`TalesForge.NPC.Person`), by slug."
+  @spec list_npcs(Ecto.UUID.t()) :: [Person.t()]
   def list_npcs(session_id), do: NPC.list_people(session_id)
 
   @doc """
   The NPC for the `npc_id` slug in that session, or `nil` when the session
   has no such NPC.
   """
+  @spec get_npc(Ecto.UUID.t(), String.t()) :: Person.t() | nil
   def get_npc(session_id, npc_id), do: NPC.get_person(session_id, npc_id)
 
   @doc """
   Saves `json_string` (a JSON object) as the NPC's runtime state: its place,
   mood, stock and relationship go to their columns, the rest to `runtime`
-  (`TalesForge.NPC.Person.attrs/3`).
+  (`TalesForge.NPC.Person.attrs/3`). `npc` is the copy the admin page
+  edited: when its row changed after that copy was read (a turn played, a
+  trade), nothing is saved and the result is `{:error, :stale}`.
   """
+  @spec update_npc_runtime_state(Person.t(), String.t()) ::
+          {:ok, Person.t()} | {:error, :stale | String.t()}
   def update_npc_runtime_state(%Person{} = npc, json_string) when is_binary(json_string) do
     with {:ok, runtime_state} <- decode_json_map(json_string) do
       npc
-      |> NPC.Rows.changeset(runtime_state)
-      |> Repo.update()
-      |> case do
-        {:ok, row} -> {:ok, Person.from_row(row)}
-        {:error, changeset} -> {:error, "Invalid runtime state: #{inspect(changeset.errors)}"}
-      end
+      |> NPC.Rows.edit_changeset(runtime_state)
+      |> Repo.update(stale_error_field: :lock_version)
+      |> saved_npc()
     end
   end
 
+  defp saved_npc({:ok, row}), do: {:ok, Person.from_row(row)}
+
+  defp saved_npc({:error, %Ecto.Changeset{errors: errors}}) do
+    if Keyword.has_key?(errors, :lock_version),
+      do: {:error, :stale},
+      else: {:error, "Invalid runtime state: #{inspect(errors)}"}
+  end
+
+  @doc "The session's turns, newest first."
+  @spec list_turns(Ecto.UUID.t()) :: [Turn.t()]
   def list_turns(session_id) do
     Turn
     |> where([t], t.game_session_id == ^session_id)
@@ -165,6 +193,8 @@ defmodule TalesForge.Admin do
     |> Repo.all()
   end
 
+  @doc "The turn `turn_id` of the session; raises when there is none."
+  @spec get_turn!(Ecto.UUID.t(), Ecto.UUID.t()) :: Turn.t()
   def get_turn!(session_id, turn_id) do
     Turn
     |> where([t], t.game_session_id == ^session_id and t.id == ^turn_id)
@@ -175,6 +205,7 @@ defmodule TalesForge.Admin do
   Summaries of the NPC definition files in `priv/npcs`. The admin pages show
   these read-only; the files are edited in git.
   """
+  @spec list_npc_definitions() :: [map()]
   def list_npc_definitions do
     npc_dir()
     |> File.ls!()
@@ -184,6 +215,7 @@ defmodule TalesForge.Admin do
   end
 
   @doc "The decoded NPC definition file for `npc_id`; raises `ArgumentError` if there is none."
+  @spec get_npc_definition!(String.t()) :: map()
   def get_npc_definition!(npc_id) do
     path = npc_definition_path(npc_id)
 
@@ -196,16 +228,22 @@ defmodule TalesForge.Admin do
     end
   end
 
+  @doc "The NPC definition file for `npc_id` (`get_npc_definition!/1`) as pretty JSON."
+  @spec npc_definition_json(String.t()) :: String.t()
   def npc_definition_json(npc_id) do
     npc_id
     |> get_npc_definition!()
     |> Jason.encode!(pretty: true)
   end
 
+  @doc "`data` as pretty JSON, for the admin JSON editors."
+  @spec encode_json(term()) :: String.t()
   def encode_json(data) do
     Jason.encode!(data, pretty: true)
   end
 
+  @doc "The JSON object in `json_string`, or a plain error for the admin page."
+  @spec decode_json_map(String.t()) :: {:ok, map()} | {:error, String.t()}
   def decode_json_map(json_string) when is_binary(json_string) do
     case Jason.decode(json_string) do
       {:ok, map} when is_map(map) -> {:ok, map}

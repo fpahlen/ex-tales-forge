@@ -12,6 +12,9 @@ defmodule TalesForge.Schemas.Turn do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
+  @typedoc "One played turn."
+  @type t :: %__MODULE__{}
+
   schema "turns" do
     field :turn_number, :integer
     field :player_action, :string
@@ -26,6 +29,8 @@ defmodule TalesForge.Schemas.Turn do
     timestamps(type: :utc_datetime, updated_at: false)
   end
 
+  @doc "The changeset of a new turn: its session, number and the player's action are required."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(turn, attrs) do
     turn
     |> cast(attrs, [

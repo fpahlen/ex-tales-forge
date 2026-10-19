@@ -147,15 +147,11 @@ defmodule TalesForge.TurnPipeline.Replay do
   defp put_skills(character, skills), do: Map.put(character, "skills", skills)
 
   defp put_stock(session_id, stock) do
-    Enum.each(stock, fn {npc_id, items} ->
-      case NPC.get_person(session_id, npc_id) do
-        %NPC.Person{} = inst ->
-          NPC.put_state!(inst, Map.put(inst.runtime_state, "stock", items))
+    # Written the way a trade writes goods (`NPC.put_inventories/2`).
+    traders = NPC.traders(session_id, Map.keys(stock))
 
-        nil ->
-          :ok
-      end
-    end)
+    :ok =
+      NPC.put_inventories(session_id, for({id, t} <- traders, do: %{t | inventory: stock[id]}))
   end
 
   # --- one turn ----------------------------------------------------------------

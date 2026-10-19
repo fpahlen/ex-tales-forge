@@ -99,11 +99,15 @@ defmodule TalesForge.Game.ClarifyTest do
                })
     end
 
+    # Live Jev's read of Gentry's v353 Tin Valley T14 (`TalesForge.JevLive`):
+    # buy 0.64 or speak 0.36, no target, in the clarify band.
     test "the band's clarify lists the readings" do
-      reading = %{buy_reading(%{}, nil) | top2: [:buy, :speak]}
+      turn = {"tin_valley", 14}
+      reading = Map.merge(buy_reading(%{}, nil), TalesForge.JevLive.reading(turn))
+      words = TalesForge.JevLive.text(turn)
 
       assert {:clarify, %Clarify{candidates: ["buy", "talk to them"]}} =
-               Clarify.decide(%Clarify.Input{reading: reading, band: :clarify, words: "Meal."})
+               Clarify.decide(%Clarify.Input{reading: reading, band: :clarify, words: words})
     end
 
     test "an accept of an offer with options and no pick clarifies between the options" do

@@ -5,23 +5,19 @@ defmodule TalesForge.NPC.Rows do
   step 10f PR 5; before it, `npc_instances`).
 
   A row written before this step has no memory list in its `runtime`; its
-  memories are read from the `character_memories` rows they were mirrored
-  to (kind `memory`, no event, not about anyone), the newest
-  20 by tick. The next write keeps them in the row.
+  memories are read from their `character_memories` rows
+  (`TalesForge.NPC.Memories.old/1`). The next write keeps them in the row.
   """
 
   import Ecto.Query
 
+  alias TalesForge.Characters.Attrs
   alias TalesForge.GameCharacter
-  alias TalesForge.NPC.Person
+  alias TalesForge.NPC.{Memories, Person}
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, CharacterMemory}
+  alias TalesForge.Schemas.Character
 
-  @memory_limit 20
-
-  @doc "The number of memories an NPC keeps in its row."
-  @spec memory_limit() :: pos_integer()
-  def memory_limit, do: @memory_limit
+  @goods ~w(stock coins)
 
   @doc "The session's pack NPCs, by slug."
   @spec list(Ecto.UUID.t()) :: [Person.t()]
@@ -39,7 +35,7 @@ defmodule TalesForge.NPC.Rows do
 
   defp people(query) do
     rows = query |> order_by([c], asc: c.slug) |> Repo.all()
-    memories = old_memories(rows)
+    memories = Memories.old(rows)
     Enum.map(rows, &Person.from_row(&1, Map.get(memories, &1.id, [])))
   end
 
@@ -48,7 +44,7 @@ defmodule TalesForge.NPC.Rows do
   def get(session_id, npc_id) when is_binary(npc_id) do
     case session_id |> query() |> where([c], c.slug == ^npc_id) |> Repo.one() do
       nil -> nil
-      row -> Person.from_row(row, Map.get(old_memories([row]), row.id, []))
+      row -> Person.from_row(row, Map.get(Memories.old([row]), row.id, []))
     end
   end
 
@@ -60,58 +56,52 @@ defmodule TalesForge.NPC.Rows do
     do: session_id |> query() |> select([c], c.slug) |> order_by([c], asc: c.slug) |> Repo.all()
 
   @doc """
-  Saves `runtime_state` as the NPC's state (`TalesForge.NPC.Person.attrs/3`).
-  A row without a relationship yet gets it to the session's player character.
+  Saves `runtime_state` as the NPC's state (`TalesForge.NPC.Person.attrs/3`),
+  except its goods: the stock and the coins stay as the row has them, since
+  only a trade moves them (`put_goods!/2`). A row without a relationship yet
+  gets it to the session's player character.
   """
   @spec update!(Person.t(), map()) :: Person.t()
-  def update!(%Person{row: row} = person, runtime_state) do
-    row =
-      row
-      |> Character.changeset(Person.attrs(row, runtime_state, pc_slug(row)))
-      |> Repo.update!()
+  def update!(%Person{} = person, runtime_state) do
+    row = person |> changeset(runtime_state) |> Repo.update!()
+    %Person{person | row: row, runtime_state: keep_goods(runtime_state, person)}
+  end
 
-    %Person{person | row: row, runtime_state: runtime_state}
+  @doc "The changeset of `update!/2` (the state without the goods), for a Multi."
+  @spec changeset(Person.t(), map()) :: Ecto.Changeset.t()
+  def changeset(%Person{row: row} = person, runtime_state) do
+    attrs = Person.attrs(row, keep_goods(runtime_state, person), pc_slug(row))
+    Character.changeset(row, Map.drop(attrs, [:inventory, :coins]))
   end
 
   @doc """
   Saves the inventory and the coins of `trader` (the NPC after a trade,
-  `TalesForge.NPC.traders/2`) as the NPC's stock and purse.
+  `TalesForge.NPC.traders/2`) as the NPC's stock and purse, and nothing
+  else: the one write of an NPC's goods in a turn.
   """
   @spec put_goods!(Person.t(), GameCharacter.t()) :: Person.t()
-  def put_goods!(%Person{} = person, %GameCharacter{inventory: inventory, coins: coins}),
-    do:
-      update!(person, Map.merge(person.runtime_state, %{"stock" => inventory, "coins" => coins}))
+  def put_goods!(%Person{row: row} = person, %GameCharacter{inventory: inventory, coins: coins}) do
+    row =
+      row
+      |> Character.changeset(%{inventory: Attrs.inventory(inventory), coins: coins})
+      |> Repo.update!()
 
-  @doc "The changeset of `update!/2`, for a Multi."
-  @spec changeset(Person.t(), map()) :: Ecto.Changeset.t()
-  def changeset(%Person{row: row}, runtime_state),
-    do: Character.changeset(row, Person.attrs(row, runtime_state, pc_slug(row)))
-
-  @doc """
-  Adds a memory row for `entry` (a memory of the NPC's runtime list) unless
-  the NPC already has one with that tick and text.
-  """
-  @spec add_memory!(Person.t(), map()) :: :ok
-  def add_memory!(%Person{row: %Character{id: id}}, %{"summary" => text} = entry) do
-    tick = entry["tick"]
-
-    known? =
-      CharacterMemory
-      |> where([m], m.character_id == ^id and m.text == ^text)
-      |> where_tick(tick)
-      |> Repo.exists?()
-
-    unless known? do
-      %CharacterMemory{}
-      |> CharacterMemory.changeset(%{character_id: id, kind: "memory", text: text, tick: tick})
-      |> Repo.insert!()
-    end
-
-    :ok
+    goods = %{"stock" => inventory, "coins" => coins}
+    %Person{person | row: row, runtime_state: Map.merge(person.runtime_state, goods)}
   end
 
-  defp where_tick(query, tick) when is_integer(tick), do: where(query, [m], m.tick == ^tick)
-  defp where_tick(query, _tick), do: where(query, [m], is_nil(m.tick))
+  @doc """
+  The changeset of an admin's edit of the NPC's whole state, goods
+  included. The row's lock version is checked: `Repo.update/2` with
+  `stale_error_field: :lock_version` returns an error, not a raise, when
+  the row changed after `person` was read.
+  """
+  @spec edit_changeset(Person.t(), map()) :: Ecto.Changeset.t()
+  def edit_changeset(%Person{row: row}, runtime_state),
+    do: Character.changeset(row, Person.attrs(row, runtime_state, pc_slug(row)))
+
+  defp keep_goods(runtime_state, %Person{runtime_state: read}),
+    do: Map.merge(runtime_state, Map.take(read, @goods))
 
   defp query(session_id),
     do: Character |> where([c], c.game_session_id == ^session_id) |> pack()
@@ -130,35 +120,4 @@ defmodule TalesForge.NPC.Rows do
     |> limit(1)
     |> Repo.one()
   end
-
-  # The memories of rows written before their runtime kept them, by row id.
-  defp old_memories(rows) do
-    case for(%Character{runtime: runtime, id: id} <- rows, not has_memories?(runtime), do: id) do
-      [] -> %{}
-      ids -> mirrored_memories(ids)
-    end
-  end
-
-  defp has_memories?(runtime), do: is_map(runtime) and Map.has_key?(runtime, "memories")
-
-  defp mirrored_memories(ids) do
-    CharacterMemory
-    |> where([m], m.character_id in ^ids and m.kind == "memory" and is_nil(m.session_event_id))
-    |> where([m], fragment("cardinality(?) = 0", m.about))
-    |> order_by([m], desc: m.tick, desc: m.inserted_at)
-    |> Repo.all()
-    |> Enum.group_by(& &1.character_id)
-    |> Map.new(fn {id, memories} ->
-      {id, memories |> Enum.take(@memory_limit) |> Enum.reverse() |> Enum.map(&entry/1)}
-    end)
-  end
-
-  defp entry(%CharacterMemory{} = memory) do
-    %{"summary" => memory.text, "tick" => memory.tick}
-    |> put_set("felt", memory.felt)
-    |> put_set("secret", if(memory.secret, do: true))
-  end
-
-  defp put_set(map, _key, nil), do: map
-  defp put_set(map, key, value), do: Map.put(map, key, value)
 end
