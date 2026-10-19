@@ -114,6 +114,26 @@ defmodule TalesForge.AdminTest do
     assert {:error, _} = Admin.update_npc_runtime_state(npc, "not json")
   end
 
+  test "update_npc_runtime_state refuses a copy read before the row changed" do
+    {:ok, session} = GameSessions.create_session(%{name: "Stale NPC Edit"})
+    [npc | _] = Admin.list_npcs(session.id)
+
+    # A turn changes the row after the admin page read it.
+    {:ok, _} = TalesForge.NPC.bump_relationship(session.id, npc.npc_id, 0.3)
+
+    json =
+      Jason.encode!(Map.merge(npc.runtime_state, %{"mood" => "wary", "coins" => %{"gold" => 9}}))
+
+    assert {:error, :stale} = Admin.update_npc_runtime_state(npc, json)
+
+    row = Admin.get_npc(session.id, npc.npc_id).row
+    assert {row.mood, row.coins} == {npc.row.mood, npc.row.coins}
+
+    fresh = Admin.get_npc(session.id, npc.npc_id)
+    assert {:ok, saved} = Admin.update_npc_runtime_state(fresh, json)
+    assert saved.runtime_state["mood"] == "wary"
+  end
+
   test "get_npc returns nil for an unknown slug" do
     {:ok, session} = GameSessions.create_session(%{name: "NPC Lookup Test"})
     [npc | _] = Admin.list_npcs(session.id)

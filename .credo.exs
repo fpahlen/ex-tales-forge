@@ -113,7 +113,11 @@
                  "lib/ex_tales_forge/code_heat.ex",
                  "lib/ex_tales_forge/code_heat/",
                  "lib/mix/tasks/code_heat.overhead.ex",
-                 "lib/ex_tales_forge/dep_warnings.ex"
+                 "lib/ex_tales_forge/dep_warnings.ex",
+                 "lib/ex_tales_forge/npc.ex",
+                 "lib/ex_tales_forge/npc/rows.ex",
+                 "lib/ex_tales_forge/npc/memories.ex",
+                 "lib/ex_tales_forge/admin.ex"
                ]
              }
            ]}

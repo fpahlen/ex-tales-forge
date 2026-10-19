@@ -1,0 +1,851 @@
+{
+ "source": "playtest v353 (main 0d2870eb), Gentry 2026-10-19 06:56-07:05 CEST; turns, turn.intent ai_calls meta and gm_reasoning events read-only",
+ "sessions": [
+  {
+   "adventure_id": "tin_valley",
+   "session_id": "169f4dcb-5efb-473a-9d96-ab704b403517",
+   "turns": [
+    {
+     "turn": 1,
+     "text": "How much for an ale?",
+     "jev": {
+      "action": "ask_price",
+      "target": "ale_mug",
+      "raw_confidence": 0.5,
+      "probabilities": {
+       "ask_price": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.868,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna Holt's broad smile widens as she wipes her hands on her apron and leans across the bar. \"Two copper for a good mug of ale, fresh from the cask,\" she says warmly, already reaching for a tankard. \"You look like you've come a ways—first one's on the house if you lend a hand with the evening rush later. The miners are restless about that missing salt cart again, and Osric Vane up in the square is offering decent coin to anyone with steel willing to clear the orc nest off the cut. What do you say?\"\n\nThe hearth crackles behind you, filling the air with the scent of woodsmoke as a few miners glance your way, their bowls nearly empty.",
+      "context_summary": "At the Valley Inn with Brenna Holt; she quoted 2c for ale and offered free meal for helping with the rush, plus leads on Osric Vane's orc-clearing job and the missing salt cart.",
+      "npc_memory_updates": []
+     }
+    },
+    {
+     "turn": 2,
+     "text": "Yes.",
+     "jev": {
+      "action": "speak",
+      "target": "innkeep",
+      "raw_confidence": 0.47,
+      "probabilities": {
+       "speak": 0.5,
+       "buy": 0.38
+      },
+      "stored": {
+       "band": "clarify",
+       "confidence": 0.8527,
+       "played": "speak",
+       "clarify": [
+        "something else offered in the last narration",
+        "yes to the open offer: Brenna Holt sells Ale for 2c"
+       ]
+      },
+      "offer_answer": "other_offer",
+      "offer_probabilities": {
+       "other_offer": 0.5,
+       "accept": 0.45,
+       "decline": 0.03,
+       "other": 0.02
+      }
+     },
+     "gm": {
+      "narrative": "Brenna tilts her head, one eyebrow lifting in good-natured confusion. \"Yes?\" she echoes, the word half question, half laugh. \"Yes to the ale for two copper, or were you thinking of the free bowl if you lend a hand with the evening rush?\" \n\nShe slides a clean tankard along the counter without filling it yet, her flour-dusted fingers tapping once against the wood. The miners at the nearest table keep their voices low, but one glances over at the exchange. Outside, the late-afternoon light slants through the small windows, catching dust motes above the hearth. \n\nBrenna waits, smile still easy, clearly ready to pour or point you toward the stew pot the moment you pick one.",
+      "context_summary": "At the Valley Inn speaking with Brenna Holt; she is waiting for you to clarify whether you want the ale for 2c or to help for a free meal and gossip; late afternoon with miners present.",
+      "npc_memory_updates": []
+     }
+    },
+    {
+     "turn": 3,
+     "text": "Brenna, what work is there around here?",
+     "jev": {
+      "action": "speak",
+      "target": "innkeep",
+      "raw_confidence": 0.98,
+      "probabilities": {
+       "speak": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9919,
+       "played": "speak",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna's eyes light up at your question, and she rests her elbows on the scarred counter, voice dropping to the easy cadence of someone sharing the local pulse. \"Work? Plenty, if you've a mind for it. Osric Vane up at the Guild house in the square pays good silver for anyone with steel who'll help clear the orc camp off the cut—raiders have been lifting salt carts again, though the prints never quite match. Or there's my own tables tonight; I'm short a pair of hands with the miners coming in thirsty. Lend one for an hour or two and the stew's on me, plus every scrap of gossip that crosses the bar.\"\n\nShe straightens, glancing toward the door as two more dusty figures shoulder in from the road. \"Or if it's honest metal you're after, take your blade down to Hilde Brask's forge off the square—she'll put an edge on it for two copper and might have bellows work if you look strong enough.\" Her smile returns, warm and expectant, waiting to see which thread you tug first.",
+      "context_summary": "At the Valley Inn speaking with Brenna; she has offered three leads (Guild steward Osric for orc work, help in the inn for free stew and gossip, or Hilde Brask's forge for blade work). Late afternoon, miners filtering in.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Player asked about work around here."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 4,
+     "text": "How much for an ale?",
+     "jev": {
+      "action": "ask_price",
+      "target": "ale_mug",
+      "raw_confidence": 0.59,
+      "probabilities": {
+       "ask_price": 0.99,
+       "speak": 0.01
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9141,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna's eyes light up at your question, and she leans across the bar with a quick grin. \"Two copper for a mug of ale, love, and it's drawn fresh from the cask this very hour.\" She straightens, already reaching for a tankard on the shelf behind her while the first of the evening miners shuffle in from the yard, stamping mud from their boots and calling for their usuals. The fire pops softly, sending sparks dancing up the chimney as the room fills with the low murmur of tired voices and the clink of coins changing hands at other tables. She sets the empty tankard down with a soft thud, waiting on your word before she fills it.\n\nA grizzled drover at the nearest table glances your way, then mutters something to his companion about another lost cart on the west road, his words half-lost under the growing din. Brenna's gaze flicks toward them for a moment before returning to you, expectant.",
+      "context_summary": "At the Valley Inn at dusk, speaking with Brenna who quoted 2c for ale. Miners arriving, talk of lost carts on west road. Leads still open: Osric for orc work, help for free stew/gossip, Hilde's forge.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Quoted the price of ale at 2 copper per mug."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 5,
+     "text": "Yes.",
+     "jev": {
+      "action": "buy",
+      "target": "ale_mug",
+      "raw_confidence": 0.63,
+      "probabilities": {
+       "buy": 0.92,
+       "speak": 0.08
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9345,
+       "played": "buy",
+       "clarify": null
+      },
+      "offer_answer": "accept"
+     },
+     "gm": {
+      "narrative": "Brenna's face brightens as she reaches under the counter and slides a foaming mug of ale across to you, the rich, malty scent rising with the foam. \"There you are, love. Drink up before the evening rush thickens.\" She pockets the two copper with a satisfied nod, already turning to stir the pot on the hearth where the stew simmers low. The miners at the nearest table glance over, one raising his own mug in silent salute while the fire crackles steadily behind you. \n\nOutside, the last light of dusk bleeds across the valley road, and a faint wind carries the distant clink of tools from the cut. Brenna wipes down a fresh spill without looking, then leans in a fraction. \"If you're after more than a drink, Osric Vane still needs blades for that orc nest up the cut. Pays well, he does. Or you could lend me a hand tonight; the place fills fast and a spare pair of legs earns a free bowl of stew and all the talk that comes with it.\"",
+      "context_summary": "At the Valley Inn at dusk, mug of ale in hand. Brenna offered work with Osric Vane clearing orcs or helping at the inn for free stew and gossip. Miners present, west road troubles still whispered.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Sold the player a mug of ale for 2 copper."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 6,
+     "text": "Meal.",
+     "jev": {
+      "action": "buy",
+      "target": "goods:a meal",
+      "target_note": "turn.intent meta keeps no id for a kind of goods; the turn bought from the kind's options (ProcessTurn args: buy, options bread_cheese and stew_bowl)",
+      "raw_confidence": 0.87,
+      "probabilities": {
+       "buy": 0.93,
+       "speak": 0.04
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9804,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna wipes her hands on her apron and leans across the scarred counter, eyes bright. \"Bread and cheese is two copper, or if you're after something heartier the stew's five copper tonight, thick with roots and a bit of venison. Which'll it be?\"\n\nRusk watches from his table near the hearth, one finger idly tracing the rim of his tankard, while Cobb shifts his weight and mutters something low about hungry strangers. The fire pops once, sending sparks dancing up the chimney into the gathering dusk. Outside, the valley road lies quiet but for the distant lowing of oxen heading back from the cut.\n\nBrenna's gaze flicks between you and the two men, her smile steady, waiting on your choice.",
+      "context_summary": "At the Valley Inn at dusk with mug of ale. Brenna quoted prices for bread & cheese (2c) or stew (5c) and awaits your choice. Rusk and Cobb present, watching quietly; west road troubles and toll still in the air.",
+      "npc_memory_updates": []
+     }
+    },
+    {
+     "turn": 7,
+     "text": "I order a meal.",
+     "jev": {
+      "action": "buy",
+      "target": null,
+      "raw_confidence": 0.87,
+      "probabilities": {
+       "buy": 0.97,
+       "speak": 0.03
+      },
+      "stored": {
+       "band": "clarify",
+       "confidence": 0.9804,
+       "played": "buy",
+       "clarify": [
+        "Bread and Cheese (2c)",
+        "Bowl of Stew (5c)"
+       ]
+      }
+     },
+     "gm": {
+      "narrative": "Brenna tilts her head, still smiling as she lifts a fresh bowl from the board. \"A meal? You hungry? Stew tonight is good and hot, five copper, or the bread and cheese for two if that's more your speed.\"\n\nShe waits, one hand on the ladle, while the hearth crackles and the miners murmur on. Across the room Rusk watches without expression, fingers drumming once on the table; Cobb just stares, knuckles white around his club. The smell of rosemary and onions drifts your way, promising warmth against the gathering dusk outside.\n\nBrenna's eyes flick toward the door as if expecting more travelers, then back to you. \"So which will it be?\"",
+      "context_summary": "At the Valley Inn at dusk, mug of ale in hand. Brenna awaits your choice of meal (stew 5c or bread & cheese 2c). Rusk and Cobb still watching quietly; toll and west road troubles linger in the air.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Asked the player to choose between stew for 5c or bread and cheese for 2c."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 8,
+     "text": "How much for an ale?",
+     "jev": {
+      "action": "ask_price",
+      "target": "ale_mug",
+      "raw_confidence": 0.66,
+      "probabilities": {
+       "ask_price": 0.99,
+       "speak": 0.01
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9461,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna leans across the scarred counter, her eyes bright. \"Two copper for the ale, same as the last one. Worth every sip on a night like this.\" She waits, cloth already in hand to wipe the next spill, while the fire snaps low behind her.\n\nRusk's gaze drifts your way again, cool and measuring, but he says nothing yet. Cobb shifts on his stool, knuckles whitening around his club, the weight of his stare heavy enough to feel.",
+      "context_summary": "At the Valley Inn at dusk, mug of ale in hand. Brenna has quoted 2c for another ale and awaits your answer. Rusk and Cobb still watching; toll and west road troubles linger in the air.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Quoted the player 2c for another mug of ale."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 9,
+     "text": "No, thank you.",
+     "jev": {
+      "action": "speak",
+      "target": "innkeep",
+      "raw_confidence": 0.49,
+      "probabilities": {
+       "speak": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.8629,
+       "played": "speak",
+       "clarify": null
+      },
+      "offer_answer": "decline"
+     },
+     "gm": {
+      "narrative": "Brenna's smile dims just a fraction at your polite refusal, but she gives a quick, understanding nod and turns back to the bar without pressing. \"Fair enough, love. Plenty more thirsty throats tonight.\" She reaches for a rag instead of the tap, her movements brisk as she begins wiping down the scarred counter once more.\n\nAcross the room Rusk leans back in his chair, eyes narrowing slightly while Cobb cracks his knuckles with a low grunt, the pair clearly losing patience with the delay. The fire crackles steadily, filling the brief lull, and outside the dusk deepens along the valley road. Brenna glances your way again after a moment, lowering her voice just enough for you to hear. \"If you're not here for the ale, maybe you're the strong arm Osric Vane keeps hiring for the square? The Guild pays well to clear trouble off the cut.\"",
+      "context_summary": "At the Valley Inn at dusk with Brenna, Rusk, and Cobb. Brenna suggested work with Osric Vane clearing the cut for the Guild. Toll tension lingers from Rusk and Cobb.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Player politely declined the ale offer."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 10,
+     "text": "How much for the bread and cheese?",
+     "jev": {
+      "action": "ask_price",
+      "target": "bread_cheese",
+      "raw_confidence": 0.93,
+      "probabilities": {
+       "ask_price": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9902,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna's smile brightens at your question. \"Bread and cheese? Two copper, fresh from the oven and the larder this morning.\"\n\nShe reaches under the scarred counter, sets a small wrapped bundle before you, and rests one hand on the bar. Across the room Rusk watches with a faint smirk, while Cobb shifts his bulk and grunts something low about hungry strangers. The fire pops once, sending sparks up the chimney as the evening deepens outside the windows.\n\nThe bundle sits between you, warm and inviting. What do you do?",
+      "context_summary": "At the Valley Inn at dusk with Brenna, Rusk, and Cobb. Bread and cheese offered for 2c; toll tension lingers. Brenna remains warm and helpful.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Quoted the player 2c for bread and cheese."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 11,
+     "text": "I look out the window.",
+     "jev": {
+      "action": "observe",
+      "target": null,
+      "raw_confidence": 1.0,
+      "probabilities": {
+       "observe": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9919,
+       "played": "observe",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "You turn toward the small, grimy window beside the hearth. Outside, the valley road lies quiet under a bruised sky, its ruts still damp from the last rain. A single lantern sways on a post near the weighing shed, throwing long shadows that do not quite hide the fresh scrape of boots in the mud leading west. No carts move; the hills feel heavier than usual.\n\nBrenna wipes her hands on a fresh rag and follows your gaze. \"Quiet tonight,\" she says, voice low enough that only you hear. \"Too quiet for my liking. If you're handy with a blade or a strong back, Osric Vane in the square is paying good coin to clear the cut of orcs. He might even throw in a Guild marker that opens doors around here.\"\n\nRusk leans back in his chair, one boot propped on the table leg, watching you with narrowed interest. Cobb shifts his weight, knuckles flexing around the haft of his club, but stays where he is. The bread and cheese still sit untouched on the counter, two coppers waiting.",
+      "context_summary": "At the Valley Inn at dusk. Brenna quietly suggested work with Osric Vane in the square to clear orcs from the cut. Rusk and Cobb watching closely; toll tension lingers.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Player looked out the window toward the west road."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 12,
+     "text": "I check my boots.",
+     "jev": {
+      "action": "observe",
+      "target": null,
+      "raw_confidence": 0.84,
+      "probabilities": {
+       "observe": 0.85,
+       "use_item": 0.07
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9755,
+       "played": "observe",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "You glance down at your boots, noting the fresh mud caked along the soles and heels from the valley road. The prints match the description of those left outside the weighing shed last night, a detail that draws a slow, heavy stare from Cobb across the room. He straightens from the wall, club resting against his thigh, irritation plain on his broken face as he mutters something low to Rusk.\n\nBrenna catches the exchange from behind the bar and tilts her head, her voice carrying over with easy warmth. \"Those boots have seen the west road, haven't they? If you're the helpful sort, Osric Vane still needs steady hands in the square tomorrow—coin up front for anyone who'll go after the orcs on the cut.\" Rusk's smile thins, his eyes flicking between you and the door, but he says nothing yet.\n\nThe hearth crackles low, and the miners at the far table nurse their drinks in uneasy quiet, the weight of the missing ingots and the vanished salt cart hanging thicker than the woodsmoke.",
+      "context_summary": "At the Valley Inn in the evening with Brenna, Rusk, and Cobb; muddy boot prints noticed, toll tension high; Brenna offering work clearing orcs for Osric Vane in the square.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "cobb",
+        "summary": "Noticed the player's muddy boots matching the weighing shed prints."
+       },
+       {
+        "npc_id": "innkeep",
+        "summary": "Offered the player work with Osric Vane clearing orcs."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 13,
+     "text": "Yes.",
+     "jev": {
+      "action": "speak",
+      "target": "innkeep",
+      "raw_confidence": 0.45,
+      "probabilities": {
+       "speak": 0.98,
+       "other": 0.01
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.8425,
+       "played": "speak",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna's eyes brighten at your agreement, and she straightens with a decisive nod. \"Good. Osric Vane is still in the square with his retainers, hiring steel for the orc nest on the cut. Tell him Brenna sent you; the pay is fair and the work honest.\" She slides a small loaf wrapped in cloth across the counter toward you. \"Take this for the road. The drovers say the orcs have been bolder since the last salt cart vanished.\"\n\nRusk leans back against a post, his smile thinning as he watches the exchange, while Cobb grunts and cracks his neck, the club resting heavy across his shoulder. The common room has grown quieter, the miners' glances shifting between you and the two roadmen. Outside, the evening light is fading fast over the valley road.",
+      "context_summary": "At the Valley Inn in the evening with Brenna, Rusk, and Cobb; Brenna just sent you to Osric Vane in the square for orc-clearing work and gave you a loaf; toll tension lingers with the roadmen watching.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Player agreed to take the work clearing orcs for Osric Vane."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 14,
+     "text": "I'd like something to eat.",
+     "jev": {
+      "action": "buy",
+      "target": null,
+      "raw_confidence": 0.62,
+      "probabilities": {
+       "buy": 0.64,
+       "speak": 0.36
+      },
+      "stored": {
+       "band": "clarify",
+       "confidence": 0.9294,
+       "played": "buy",
+       "clarify": [
+        "buy Bread and Cheese or Bowl of Stew",
+        "talk to Brenna Holt"
+       ]
+      }
+     },
+     "gm": {
+      "narrative": "Brenna glances over from the counter, her smile easy as she sets down a pitcher. \"Something to eat?\" she echoes, already reaching for a cloth. \"Stew's hot off the fire or I've bread and cheese if you'd rather keep it simple. Which'll it be?\"\n\nRusk leans back against the wall, arms crossed, watching the exchange with narrowed interest while Cobb shifts his bulk near the door, knuckles flexing around the grip of his club. The fire pops once, sending sparks dancing up the chimney, and the low murmur of the other patrons seems to dip for a moment before rising again. Outside, the evening wind carries the faint clink of harness from the yard.\n\nBrenna waits, one brow lifted in quiet expectation, the scent of herbs and roasted roots drifting stronger now from the kitchen door.",
+      "context_summary": "At the Valley Inn in the evening; Brenna offering food choices (stew or bread/cheese); toll tension with Rusk and Cobb watching closely; player agreed to orc-clearing work for Osric Vane.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Player asked for something to eat; Brenna clarified options of stew, bread and cheese."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 15,
+     "text": "How much for an ale?",
+     "jev": {
+      "action": "ask_price",
+      "target": "ale_mug",
+      "raw_confidence": 0.78,
+      "probabilities": {
+       "ask_price": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9657,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna's eyes brighten at your question. \"Two copper for a mug of the good stuff, fresh from the cask,\" she says, already reaching for a clean tankard. She sets it on the bar with a solid clunk, foam beading at the rim, while the fire's glow dances across her flour-dusted sleeves.\n\nAcross the room Rusk leans back in his chair, his cool gaze sharpening as he watches the exchange; Cobb grunts low in his throat, knuckles whitening on the table edge. The evening hum of the inn continues around you, the scent of stew still thick in the air, but the toll tension lingers like an unspoken threat at every table.\n\nBrenna tilts the pitcher, waiting on your nod before she pours. What do you do?",
+      "context_summary": "At the Valley Inn in the evening with Brenna, Rusk, and Cobb; toll tension high; player has agreed to orc-clearing work for Osric Vane.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Quoted 2 copper for a mug of ale."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 16,
+     "text": "I walk out to the market square.",
+     "jev": {
+      "action": "move",
+      "target": "market_square",
+      "raw_confidence": 1.0,
+      "probabilities": {
+       "move": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9919,
+       "played": "move",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "You step out of the Valley Inn into the cool evening air, boots crunching on the gravel path that curves past the inn yard and up toward the square. The last of the daylight clings to the hills, painting the mud and ore-carts in long shadows while a light breeze carries the metallic tang of tin from the nearby workings. Lanterns already flicker at the guild post, and a few late vendors are packing their stalls as the square empties for the night.\n\nOsric Vane stands near the guild board, ink-stained fingers tapping a rolled parchment against his thigh. His grey coat looks rumpled from a long day, and he glances up at your approach with a faint crease between his brows. \"The cut's still crawling with them,\" he says without preamble, voice clipped. \"If you're the one Brenna mentioned, the guild will pay twenty silver to any who clear the nest by week's end. Spears and a map of the approach if you sign on now.\" He holds your gaze, waiting, the parchment half-unrolled in his hand.",
+      "context_summary": "In Market Square at evening with Osric Vane; he offers 20 silver to clear the orc nest on the cut, providing spears and a map if accepted; village tension over recent thefts and attacks lingers.",
+      "npc_memory_updates": []
+     }
+    },
+    {
+     "turn": 17,
+     "text": "Yes.",
+     "jev": {
+      "action": "speak",
+      "target": "guild_steward",
+      "raw_confidence": 0.81,
+      "probabilities": {
+       "speak": 0.82,
+       "buy": 0.07
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9706,
+       "played": "speak",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Osric Vane's mouth tightens at your agreement, his ink-stained fingers drumming once on the guild post before he catches himself. \"Good. Saves me another hour shouting at cowards.\" He jerks his chin toward a weathered map case leaning against the board and a bundle of sturdy iron-tipped spears propped beside it. \"Take what you need. The nest's a half-hour scramble up the cut—three or four of the brutes, by the tracks. Clear them out and the village might breathe again. Twenty silver when you bring proof back.\"\n\nHe glances at the lengthening shadows across the square, voice dropping. \"Mind the west road on your way. Folk are saying the Tinjacks are moving again after last night's weighing-shed mess. If you spot anything odd, the Guild hears of it first.\"\n\nThe evening air cools quickly now, carrying the distant clank of ore-carts and the low mutter of miners closing their stalls. Osric waits, arms crossed, for you to claim the gear or ask anything further.",
+      "context_summary": "In Market Square at evening with Osric Vane; he has handed over the map and spears for the orc nest job (20s on proof of completion); village still tense about Tinjacks, thefts, and the west road.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "guild_steward",
+        "summary": "Player accepted the 20 silver contract to clear the orc nest on the cut."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 18,
+     "text": "I walk to the smithy.",
+     "jev": {
+      "action": "move",
+      "target": "smithy",
+      "raw_confidence": 0.52,
+      "probabilities": {
+       "move": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.8783,
+       "played": "move",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "You follow the short lane from the square, the evening air cooling as the last of the sun slips behind the hills. The rhythmic clang of hammer on metal grows louder, drawing you to the open-fronted forge where heat rolls out in waves. Hilde Brask glances up from the anvil, her scarred forearms flexing as she quenches a glowing spearhead in the trough; steam hisses up between you. She sets the tool aside and wipes her brow with the back of a thick glove, eyeing you with the wary look of someone who has seen too many strangers asking questions lately.\n\nThe half-sorted tin ingots in the nearby crate catch the firelight, their edges still raw. Hilde straightens, her voice blunt but not unfriendly. \"Forge is open if you've coin or work. What brings you through my door at this hour?\" She nods toward the back lane, where shadows already pool. The village tension lingers here too, thick as the coal smoke.",
+      "context_summary": "At Brask's forge in the evening with Hilde Brask. She is wary but open to talk of work, tin, or her back-door buyers. Village fears over the Tinjacks and thefts remain; Osric's map and orc job still active.",
+      "npc_memory_updates": []
+     }
+    },
+    {
+     "turn": 19,
+     "text": "I'd like something to eat.",
+     "jev": {
+      "action": "speak",
+      "target": "smith",
+      "raw_confidence": 0.83,
+      "probabilities": {
+       "speak": 0.84,
+       "buy": 0.07
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9739,
+       "played": "speak",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Hilde glances up from the anvil as you speak, hammer paused mid-swing, the heat rippling the air between you. \"Something to eat?\" she echoes, voice low and edged with the day's weariness. \"This isn't the inn, stranger. Brenna's got stew across the square if you're that hungry.\" She sets the hammer down with a dull clink and wipes soot from her scarred forearm with the edge of her apron, eyes narrowing slightly at the request. \"If you're after honest work instead, I could use a hand on the bellows tonight. Pays two silver or a free edge on that knife of yours. Otherwise, best move on before the Tinjacks stir more trouble.\"\n\nThe forge fire crackles louder in the quiet that follows, tin ingots glinting dully in their crate. She waits, one hand resting near the rack of blades, her stance still guarded but not outright dismissive.",
+      "context_summary": "At Brask's forge in the evening with Hilde. She offered paid bellows work (2s) or free sharpening. Tinjacks fear and thefts linger; Osric's map and orc job still open.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "smith",
+        "summary": "Player asked for food at the forge; Hilde offered bellows work for 2 silver or knife sharpening instead."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 20,
+     "text": "I walk to the Valley Inn.",
+     "jev": {
+      "action": "move",
+      "target": "valley_inn",
+      "raw_confidence": 0.87,
+      "probabilities": {
+       "move": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9804,
+       "played": "move",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "You leave the rhythmic clang of Hilde's hammer behind and follow the lantern-lit path back through the village as dusk deepens. The cool evening air carries the faint scent of woodsmoke and damp earth from the hills. Pushing open the heavy door of the Valley Inn, you step into the familiar warmth of yeasty ale and simmering herbs, the low murmur of miners' voices rising to greet your arrival.\n\nBrenna Holt glances up from polishing a tankard, her broad smile returning at once. \"Back already? The stew's still hot if you're ready for a bowl. Or perhaps a mug to wash the forge dust from your throat?\" She sets the tankard down with a soft clink and leans an elbow on the bar, eyes bright with the easy welcome of a host who likes her guests to feel at home.",
+      "context_summary": "Evening at the Valley Inn with Brenna Holt. Stew, ale, and bread available. Tinjacks, Osric's orc job, and the knocking adit remain open leads.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Player returned to the inn after working at Brask's forge."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 21,
+     "text": "How much for an ale?",
+     "jev": {
+      "action": "ask_price",
+      "target": "ale_mug",
+      "raw_confidence": 0.6,
+      "probabilities": {
+       "ask_price": 0.99,
+       "speak": 0.01
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9192,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna's smile widens as she reaches under the counter and lifts a frothy mug, sliding it toward you with a practiced flick of her wrist. \"Two copper for the ale, love. Fresh from the barrel this evening.\" She rests her hands on the worn wood, eyes bright with the easy warmth of someone who likes her work, and tilts her head slightly as if already anticipating your next words. The common room hums around you, miners trading low stories while the hearth throws shifting shadows across the tables.\n\nThe mug sits there, foam catching the firelight, waiting for your coin or your refusal. Outside, the evening wind stirs the valley road, carrying the faint scent of pine and distant rain. Brenna's gaze flicks briefly to the door, then back to you, ready to keep the conversation flowing.",
+      "context_summary": "Evening at the Valley Inn with Brenna Holt. A mug of ale quoted at 2c sits on the bar. Tinjacks, Osric's orc job, and the knocking adit remain open leads.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Quoted 2 copper for a mug of ale."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 22,
+     "text": "Yes.",
+     "jev": {
+      "action": "buy",
+      "target": "ale_mug",
+      "raw_confidence": 0.74,
+      "probabilities": {
+       "buy": 0.98,
+       "speak": 0.02
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9592,
+       "played": "buy",
+       "clarify": null
+      },
+      "offer_answer": "accept"
+     },
+     "gm": {
+      "narrative": "Brenna slides the frothy mug across the bar with a quick wink. \"There you are, love—best we have tonight.\" The ale tastes sharp and malty, chasing the day's dust from your throat as the common room's low chatter rolls on around you. She straightens a few tankards on the shelf, then leans in again, voice dropping just enough to carry over the hearth. \"If you're still looking for honest work, Osric Vane up at the square is paying good coin for anyone with steel to clear those orcs off the cut. Or if you'd rather stay closer, the forge off the square could use another pair of hands at the bellows.\"\n\nA miner at the next table drains his own cup and calls for another round, pulling her attention for a moment, but the offer hangs there, plain as the road outside.",
+      "context_summary": "Evening at the Valley Inn with Brenna Holt. Osric Vane hiring for the orc nest and Hilde Brask needing help at the forge remain open leads. The knocking adit and Tinjacks trouble still discussed by locals.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Player bought a mug of ale for 2 copper."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 23,
+     "text": "Meal.",
+     "jev": {
+      "action": "buy",
+      "target": "goods:a meal",
+      "target_note": "turn.intent meta keeps no id for a kind of goods; the turn bought from the kind's options (ProcessTurn args: buy, options bread_cheese and stew_bowl)",
+      "raw_confidence": 0.89,
+      "probabilities": {
+       "buy": 0.9,
+       "speak": 0.06
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9836,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna wipes her hands on her apron and gives you a bright nod. \"Bread and cheese is two copper, the stew five if you're after something hot and filling. Which'll it be?\" She glances toward the hearth where the pot simmers, then back at you, waiting for your choice while the low talk of the miners drifts on around the room.\n\nA drover at the next table mutters about another missing salt cart and the fool notion of orcs so close, then falls quiet when he catches her eye. The fire pops once, sending sparks dancing up the chimney. Outside, night has settled fully over the valley, and the wind carries the faint ring of a hammer from the direction of the forge.",
+      "context_summary": "Evening at the Valley Inn with Brenna Holt. She is quoting food prices and awaiting your choice between bread and cheese or stew. Osric Vane hiring for the orc nest and Hilde Brask needing help at the forge remain open leads.",
+      "npc_memory_updates": []
+     }
+    },
+    {
+     "turn": 24,
+     "text": "How much for an ale?",
+     "jev": {
+      "action": "ask_price",
+      "target": "ale_mug",
+      "raw_confidence": 0.6,
+      "probabilities": {
+       "ask_price": 0.99,
+       "speak": 0.01
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9192,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Brenna's eyes sparkle as she hears the question again, her broad hands pausing mid-motion over the counter. \"Two copper for the ale, same as always,\" she says with a quick, easy smile, already reaching for a clean mug. \"It's good and cold from the cellar tonight. You taking one?\"\n\nThe common room has thinned a little with the evening deepening; a miner at the far table coughs once and stares into his own drink. Outside, the wind stirs the valley trees with a low rustle that carries through the thick walls. Brenna waits, one brow lifted in friendly expectation, the scent of stew still drifting from the hearth.",
+      "context_summary": "Evening at the Valley Inn. Brenna quoted 2c for ale and awaits your answer. Osric Vane hiring for the orc nest and Hilde Brask needing help at the forge remain open leads.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Quoted 2 copper again for a mug of ale."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 25,
+     "text": "Yes.",
+     "jev": {
+      "action": "buy",
+      "target": "ale_mug",
+      "raw_confidence": 0.77,
+      "probabilities": {
+       "buy": 0.98,
+       "speak": 0.02
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9641,
+       "played": "buy",
+       "clarify": null
+      },
+      "offer_answer": "accept"
+     },
+     "gm": {
+      "narrative": "Brenna's smile fades a touch as she eyes the single copper you offer, then shakes her head with a sympathetic cluck. \"Afraid that won't quite cover it tonight, love. Come back when you've a bit more in your pouch and I'll pour you the best in the house.\" She turns instead to the hearth, stirring the simmering pot with a long wooden ladle, releasing another wave of rosemary and root-vegetable steam. A miner at the nearest table mutters something low about empty pockets and harder times, but the room's low chatter resumes around you. Outside, the night wind rattles the shutters, carrying faint echoes from the restless hills beyond the valley road.\n\nBrenna glances back over her shoulder, voice still warm. \"If you're looking to earn a few coppers quick, Osric Vane is still calling for hands in the square tomorrow. Or I could use an extra pair of arms right now clearing tables; the stew's on me if you pitch in.\"",
+      "context_summary": "Evening at the Valley Inn with Brenna. She offered work clearing tables for free stew or pointed to Osric Vane's hiring in the square. Player short on coin for ale.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "innkeep",
+        "summary": "Player tried to buy ale but lacked the 2 copper."
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "adventure_id": "crossroads_ledger",
+   "session_id": "f9467718-0284-4040-9b66-e37c9900a72f",
+   "turns": [
+    {
+     "turn": 1,
+     "text": "How much for a mug of ale?",
+     "jev": {
+      "action": "ask_price",
+      "target": "ale_mug",
+      "raw_confidence": 0.58,
+      "probabilities": {
+       "ask_price": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.909,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Marta sets a clean mug on the counter with a quiet clack and names her price. \"Two copper for the ale, stranger. Pay now and it's yours.\"\n\nThe fire snaps behind you, sending a brief flare of warmth across the empty tables. She watches your hands, the wary set of her shoulders easing only a fraction as she waits for your coins.",
+      "context_summary": "At the bar of the Weary Pilgrim, late afternoon. Marta has quoted 2c for a mug of ale and waits for payment. The room is otherwise empty.",
+      "npc_memory_updates": []
+     }
+    },
+    {
+     "turn": 2,
+     "text": "Yes.",
+     "jev": {
+      "action": "buy",
+      "target": "ale_mug",
+      "raw_confidence": 0.78,
+      "probabilities": {
+       "buy": 0.92,
+       "speak": 0.06
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9657,
+       "played": "buy",
+       "clarify": null
+      },
+      "offer_answer": "accept"
+     },
+     "gm": {
+      "narrative": "Marta slides two copper across the counter with a practiced flick of her wrist, then draws a fresh mug from the barrel behind her. The ale pours dark and foamy, its malty scent cutting through the woodsmoke as she sets it before you. \"There you are,\" she says, voice even but still guarded. \"First one always tastes best after the road.\"\n\nThe room feels a touch less watchful now that coin has changed hands, though the chalked slate still bears its silent tallies. Marta wipes her hands on her apron, eyes flicking once toward the empty tables before returning to you. \"If you're passing through, mind the square at dusk. Folk say a ledger went missing from the old counting house last night, and the watch is poking about for strangers. Not that I'm pointing fingers.\"\n\nShe leans an elbow on the bar, waiting to see whether the mug buys more than just a drink.",
+      "context_summary": "At the bar of the Weary Pilgrim, late afternoon with ale in hand. Marta mentioned a missing ledger from the counting house and that the watch is questioning strangers. Room otherwise empty.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "marta_kellen",
+        "summary": "Sold the stranger a mug of ale for 2c."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 3,
+     "text": "How much for a mug of ale?",
+     "jev": {
+      "action": "ask_price",
+      "target": "ale_mug",
+      "raw_confidence": 0.64,
+      "probabilities": {
+       "ask_price": 0.95,
+       "buy": 0.03
+      },
+      "stored": {
+       "band": "act",
+       "confidence": 0.9396,
+       "played": "buy",
+       "clarify": null
+      }
+     },
+     "gm": {
+      "narrative": "Marta sets the mug on the counter with a quiet clunk. \"Two copper,\" she says, voice even, her gaze steady on you as she waits for your coin. The fire crackles low behind her, sending a faint wave of warmth across the empty room. She rests one hand on the bar, thumb tapping once against the wood.\n\nThe slate behind her shows a fresh tally mark from the last round she served. Outside, the late afternoon light is beginning to slant through the small windows, turning the dust motes golden. She offers no further words, simply watching to see whether you will pay.",
+      "context_summary": "At the bar of the Weary Pilgrim, late afternoon. Marta just quoted 2c for the ale. Missing ledger still unmentioned.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "marta_kellen",
+        "summary": "Quoted 2 copper for a mug of ale and waits for payment."
+       }
+      ]
+     }
+    },
+    {
+     "turn": 4,
+     "text": "No, thank you.",
+     "jev": {
+      "action": "speak",
+      "target": "marta_kellen",
+      "raw_confidence": 0.33,
+      "probabilities": {
+       "speak": 1.0,
+       "other": 0.0
+      },
+      "stored": {
+       "band": "best_guess",
+       "confidence": 0.6684,
+       "played": "speak",
+       "clarify": null
+      },
+      "offer_answer": "decline"
+     },
+     "gm": {
+      "narrative": "Marta's mouth tightens at your refusal. \"Suit yourself,\" she says, sliding the untouched mug back behind the bar with a faint clink. Her gaze drifts to the slate behind her, then returns to you, a touch sharper now. \"If it's not ale you're after, perhaps it's work. The old ledger that tracks every debt in this place has gone missing—taken right off the shelf sometime last night. If you have a nose for that sort of thing and can bring it back before my regulars start asking questions, there'd be coin in it for you. Five silver, no questions asked.\"\n\nThe hearth pops once, sending a brief flare of light across the empty tables. Outside, the last of the daylight is bleeding from the sky, and the crossroads beyond the door grows quiet.",
+      "context_summary": "At the bar of the Weary Pilgrim at dusk. Marta has offered 5 silver to recover her missing ledger. Tone is cautious but pragmatic.",
+      "npc_memory_updates": [
+       {
+        "npc_id": "marta_kellen",
+        "summary": "Player declined the mug of ale offer."
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}
