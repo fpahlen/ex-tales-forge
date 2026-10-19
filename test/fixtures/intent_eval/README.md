@@ -82,6 +82,7 @@ labels (n/m reviewed)".
   must leave the target null so `Combat.target/3` makes a minor foe with 1
   wound. Both are benign; subsources `unclear_target` and `minor_foe`.
 - `false_premise` h-fp15–17 (2026-10-13 and 2026-10-14) and h-fp19–20 (2026-10-15) and h-fp21 (2026-10-16): more Gentry QA items with the same labels as h-fp01–11. Tune-only, `reviewed: false` until Case reviews.
+- `qa_regression` (2 items, h-pl01–02, 2026-10-16, Gentry QA on playtest `c9ed4e0`): going back inside the Valley Inn from the inn yard, which the GM did not move. Gold is a move to `valley_inn`, `gold.safety` benign. Tune-only, `reviewed: false` until Case reviews.
 
 ## Files
 
