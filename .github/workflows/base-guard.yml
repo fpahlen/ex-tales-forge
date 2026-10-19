@@ -9,6 +9,14 @@ name: Base guard
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
+    # Same filter as ci.yml: the rolling "Code health history" PR changes
+    # only these two files and is opened by github-actions[bot], whose
+    # pull_request runs GitHub holds for a human's approval (changelog
+    # 2026-06-11). Without a run there is no pending check; that PR always
+    # targets main, which this guard passes anyway.
+    paths-ignore:
+      - docs/health/history.csv
+      - docs/health/trend.svg
 
 permissions:
   contents: read
