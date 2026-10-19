@@ -4,6 +4,7 @@ defmodule TalesForgeWeb.PlayComponents do
 
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.PlayPanel
+  alias TalesForgeWeb.PlayLive.GmReveal
 
   attr :session_id, :string, required: true
   attr :session_name, :string, required: true
@@ -61,19 +62,18 @@ defmodule TalesForgeWeb.PlayComponents do
   attr :streams, :map, required: true
   attr :scene_loading, :boolean, required: true
   attr :thinking, :boolean, required: true
-  attr :streaming_text, :string, default: ""
+  attr :gm_reveal, GmReveal, required: true
   attr :clarification, :map, default: nil
   attr :input_disabled, :boolean, required: true
   attr :session_status, :string, default: "active"
 
   @doc """
-  The story column of the play page: the narrative log, the GM's "thinking"
-  placeholders, any clarification question, and the action form (text input
-  plus the Act button). The input and Act are disabled while a turn runs, and
-  also before the page connects, because a submit at that time is not sent.
-  While the GM reply streams, its text shows under a "Game Master" heading
-  after the player's action. On phones the input shrinks to the space left beside
-  Act, so the button stays on screen down to a 320px viewport.
+  The story column of the play page: the narrative log, the GM's streamed
+  reply (`gm_streaming/1`), any clarification question, and the action form
+  (text input plus the Act button, `act_button/1`). The input and Act are
+  disabled while a turn runs, and also before the page connects, because a
+  submit at that time is not sent. On phones the input shrinks to the space
+  left beside Act, so the button stays on screen down to a 320px viewport.
 
   When the player scrolled up and new text arrives, the "New text below"
   button shows above the action form. StoryScroll (assets/js/story_scroll.js)
@@ -106,7 +106,7 @@ defmodule TalesForgeWeb.PlayComponents do
                 {entry_heading(entry)}
               </p>
               <div :if={entry.role != "thought"} class={entry_body_class(entry)}>
-                <span class="play-narrative-body">{entry.text}</span>
+                <span class="play-narrative-body whitespace-pre-wrap">{entry.text}</span>
               </div>
               <p
                 :if={entry.role != "thought" and Map.get(entry, :roll)}
@@ -121,18 +121,7 @@ defmodule TalesForgeWeb.PlayComponents do
           <p :if={@scene_loading} class="text-sm italic text-[var(--paper-muted)]">
             The GM is setting the scene…
           </p>
-          <div :if={@thinking and @streaming_text != ""} id="gm-streaming" class="space-y-1">
-            <p class={entry_heading_class(%{role: "gm"})}>{entry_heading(%{role: "gm"})}</p>
-            <div class={entry_body_class(%{role: "gm"})}>
-              <span class="play-narrative-body">{@streaming_text}</span>
-            </div>
-          </div>
-          <p
-            :if={@thinking and @streaming_text == ""}
-            class="text-sm italic text-[var(--paper-muted)]"
-          >
-            The GM is thinking…
-          </p>
+          <.gm_streaming :if={@thinking} reveal={@gm_reveal} />
         </div>
 
         <div
@@ -196,21 +185,159 @@ defmodule TalesForgeWeb.PlayComponents do
             class="min-w-0 flex-1 rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-3 py-2 text-[var(--paper-ink)] placeholder:text-[var(--paper-muted)]"
             disabled={@input_disabled}
           />
-          <%!-- While a turn is in flight Act reads "Thinking…" and is disabled;
-               phx-disable-with covers the moment before the server answers. --%>
-          <button
-            type="submit"
-            id="act-button"
-            class="shrink-0 rounded bg-[var(--paper-accent)] px-4 py-2 font-medium text-white hover:opacity-90 disabled:cursor-wait disabled:opacity-50"
-            disabled={@input_disabled}
-            aria-busy={to_string(@thinking)}
-            phx-disable-with="Thinking…"
-          >
-            {if @thinking, do: "Thinking…", else: "Act"}
-          </button>
+          <.act_button thinking={@thinking} disabled={@input_disabled} />
         </.form>
       </div>
     </section>
+    """
+  end
+
+  attr :reveal, GmReveal, required: true
+
+  @doc """
+  The GM's reply while it streams (docs/design-gm-streaming.md). It mounts
+  when the turn starts and shows Slick's typing dots where the reply will
+  begin. The `.GmReveal` hook owns its content (`phx-update="ignore"`): it gets
+  each `gm_text` push (the whole text so far) and reveals it after at least
+  `min_delay_ms`, at the speed it arrives, no faster than one character per
+  `min_ms_per_char` unless the backlog needs about 250 ms to clear. The
+  committed GM entry replaces it at `:turn_completed`, so any part not yet
+  revealed shows then. The heading keeps its space while hidden, so nothing
+  shifts when the text replaces the dots.
+  """
+  @spec gm_streaming(map()) :: Phoenix.LiveView.Rendered.t()
+  def gm_streaming(assigns) do
+    ~H"""
+    <div
+      id="gm-streaming"
+      class="space-y-1"
+      phx-hook=".GmReveal"
+      phx-update="ignore"
+      data-min-delay-ms={@reveal.min_delay_ms}
+      data-min-ms-per-char={@reveal.min_ms_per_char}
+    >
+      <p class={[entry_heading_class(%{role: "gm"}), "invisible"]} data-gm-heading>
+        {entry_heading(%{role: "gm"})}
+      </p>
+      <div class={entry_body_class(%{role: "gm"})}>
+        <div class="gm-typing" aria-hidden="true" data-gm-dots>
+          <span></span><span></span><span></span>
+        </div>
+        <span class="play-narrative-body whitespace-pre-wrap" data-gm-body></span>
+      </div>
+      <span class="sr-only" role="status">The story continues…</span>
+    </div>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".GmReveal">
+      // Paces the streamed GM text (docs/design-gm-streaming.md section 2).
+      const CATCH_UP_MS = 250
+      const NO_DOTS_UNDER_MS = 300
+      const DOTS_OUT_MS = 120
+
+      export default {
+        mounted() {
+          const data = this.el.dataset
+          this.minDelay = Math.max(0, parseInt(data.minDelayMs, 10) || 0)
+          this.msPerChar = Math.max(1, parseInt(data.minMsPerChar, 10) || 1)
+          this.heading = this.el.querySelector("[data-gm-heading]")
+          this.dots = this.el.querySelector("[data-gm-dots]")
+          this.body = this.el.querySelector("[data-gm-body]")
+          this.node = this.body.appendChild(document.createTextNode(""))
+          this.text = ""
+          this.shown = 0
+          this.carry = 0
+          this.startAt = performance.now() + this.minDelay
+          // A pause under 300 ms shows no dots at all.
+          if (this.minDelay < NO_DOTS_UNDER_MS) {
+            this.dots.hidden = true
+            this.dotsTimer = setTimeout(() => { if (this.shown === 0) this.dots.hidden = false }, NO_DOTS_UNDER_MS)
+          }
+          this.handleEvent("gm_text", ({text}) => this.receive(text || ""))
+        },
+        destroyed() {
+          cancelAnimationFrame(this.frame)
+          clearTimeout(this.dotsTimer)
+          clearTimeout(this.waitTimer)
+        },
+        receive(text) {
+          // A retry (:reset, or text that does not extend what is shown) starts over.
+          if (!text.startsWith(this.text.slice(0, this.shown))) this.restart()
+          this.text = text
+          this.schedule()
+        },
+        restart() {
+          this.shown = 0
+          this.carry = 0
+          this.node.data = ""
+          this.heading.classList.add("invisible")
+          this.dots.classList.remove("gm-typing-out")
+          this.dots.hidden = false
+        },
+        schedule() {
+          if (this.frame || this.shown >= this.text.length) return
+          const wait = this.startAt - performance.now()
+          if (wait > 0) {
+            clearTimeout(this.waitTimer)
+            this.waitTimer = setTimeout(() => this.schedule(), wait)
+            return
+          }
+          this.last = performance.now()
+          this.frame = requestAnimationFrame((now) => this.tick(now))
+        },
+        tick(now) {
+          this.frame = null
+          const dt = Math.max(0, now - this.last)
+          this.last = now
+          const backlog = this.text.length - this.shown
+          if (backlog <= 0) return
+          if (this.shown === 0) this.begin()
+          // At most one character per msPerChar, unless the backlog needs
+          // more to clear in about CATCH_UP_MS.
+          const step = Math.max(dt / this.msPerChar, (backlog * dt) / CATCH_UP_MS) + this.carry
+          const n = Math.min(backlog, Math.floor(step))
+          this.carry = n === backlog ? 0 : step - n
+          if (n > 0) {
+            this.node.appendData(this.text.slice(this.shown, this.shown + n))
+            this.shown += n
+          }
+          if (this.shown < this.text.length) this.frame = requestAnimationFrame((t) => this.tick(t))
+        },
+        begin() {
+          clearTimeout(this.dotsTimer)
+          this.heading.classList.remove("invisible")
+          this.dots.classList.add("gm-typing-out")
+          setTimeout(() => { if (this.shown > 0) this.dots.hidden = true }, DOTS_OUT_MS)
+          this.body.classList.add("gm-text-in")
+        }
+      }
+    </script>
+    """
+  end
+
+  attr :thinking, :boolean, required: true
+  attr :disabled, :boolean, required: true
+
+  @doc """
+  The Act button. From the submit until the commit it is disabled and reads
+  "GM is writing…" with the typing dots; `phx-disable-with` covers the moment
+  before the server answers.
+  """
+  @spec act_button(map()) :: Phoenix.LiveView.Rendered.t()
+  def act_button(assigns) do
+    ~H"""
+    <button
+      type="submit"
+      id="act-button"
+      class="shrink-0 rounded bg-[var(--paper-accent)] px-4 py-2 font-medium text-white hover:opacity-90 disabled:cursor-wait disabled:opacity-50"
+      disabled={@disabled}
+      aria-busy={to_string(@thinking)}
+      phx-disable-with="GM is writing…"
+    >
+      <span :if={!@thinking}>Act</span>
+      <span :if={@thinking}>GM is writing…</span>
+      <span :if={@thinking} class="gm-typing gm-typing-inline" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </span>
+    </button>
     """
   end
 
@@ -520,23 +647,21 @@ defmodule TalesForgeWeb.PlayComponents do
 
   defp entry_body_class(%{role: "scene"}),
     do:
-      "whitespace-pre-wrap rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-3 py-2 text-sm text-[var(--paper-ink)] shadow-sm"
+      "rounded border border-[var(--paper-rule)] bg-[var(--paper-panel)] px-3 py-2 text-sm text-[var(--paper-ink)] shadow-sm"
 
   defp entry_body_class(%{role: "gm"}),
-    do:
-      "whitespace-pre-wrap rounded bg-[var(--paper-panel)] px-3 py-2 text-sm text-[var(--paper-ink)] shadow-sm"
+    do: "rounded bg-[var(--paper-panel)] px-3 py-2 text-sm text-[var(--paper-ink)] shadow-sm"
 
   defp entry_body_class(%{role: "player"}),
     do:
-      "whitespace-pre-wrap rounded border border-[var(--paper-rule)] bg-[var(--paper-bg)] px-3 py-2 text-sm text-[var(--paper-ink)]"
+      "rounded border border-[var(--paper-rule)] bg-[var(--paper-bg)] px-3 py-2 text-sm text-[var(--paper-ink)]"
 
   defp entry_body_class(%{role: "npc"}),
     do:
-      "whitespace-pre-wrap rounded border border-[var(--paper-accent)]/30 bg-[var(--paper-panel)] px-3 py-2 text-sm italic text-[var(--paper-ink)] shadow-sm"
+      "rounded border border-[var(--paper-accent)]/30 bg-[var(--paper-panel)] px-3 py-2 text-sm italic text-[var(--paper-ink)] shadow-sm"
 
   defp entry_body_class(_),
-    do:
-      "whitespace-pre-wrap rounded bg-[var(--paper-panel)] px-3 py-2 text-sm text-[var(--paper-ink)]"
+    do: "rounded bg-[var(--paper-panel)] px-3 py-2 text-sm text-[var(--paper-ink)]"
 
   defp input_placeholder(_scene_loading, "dead"), do: "You are dead."
   defp input_placeholder(true, _status), do: "Wait for the scene…"

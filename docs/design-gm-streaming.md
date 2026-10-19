@@ -1,12 +1,12 @@
 ---
 title: "Design: GM thinking delay and smoothed streamed narration"
-updated: 2026-10-18
-status: design, decisions settled (no code)
+updated: 2026-10-19
+status: PR 2 built (delay, dots, smoothing); PR 3 not started
 ---
 
 # Design: GM thinking delay and smoothed streamed narration
 
-**Status:** design, 2026-10-18. Case settled the open calls on #471. No code yet.
+**Status:** design, 2026-10-18. Case settled the open calls on #471. PR 2 (delay, dots and smoothing, §8) is built: `TalesForgeWeb.PlayComponents.gm_streaming/1` with its colocated `.GmReveal` hook, `act_button/1`, and `TalesForgeWeb.PlayLive.GmReveal`. PR 3 is not started.
 
 **Decided (Fredrik, Case):**
 - The GM narration keeps streaming. Before the first text there is a minimum "GM thinking" delay of **1.5 s**, shown as Slick's typing dots.
@@ -100,5 +100,5 @@ PlayLive reads both values at mount and hands them to the hook as `data-` attrib
 ## 8. PR plan
 
 1. **The Oban re-run bug:** [#472](https://github.com/whyse-ab/ex-tales-forge/pull/472), merged (one attempt per turn job, with a regression test).
-2. **Delay, dots and smoothing:** the `GmReveal` hook, Slick's CSS, the "GM is writing…" Act button, and `GM_MIN_DELAY_MS` and `GM_REVEAL_MIN_MS_PER_CHAR`. Proof: LiveView tests, screenshots, the playtest timings. Playtest first.
+2. **Delay, dots and smoothing (built):** the `GmReveal` hook, Slick's CSS, the "GM is writing…" Act button, and `GM_MIN_DELAY_MS` and `GM_REVEAL_MIN_MS_PER_CHAR`. Proof: LiveView tests, screenshots, the playtest timings. Playtest first.
 3. **Only if still needed:** the mid-stream failure handling (§3) and the correction line (§4).

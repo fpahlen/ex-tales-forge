@@ -1,8 +1,9 @@
 // StoryScroll keeps the newest story text visible on the play page.
 //
 // - When the page opens, the story box scrolls to the end.
-// - When new text arrives (a GM reply, the player's action, or a "GM is
-//   thinking" line) and the player is at the end, the box scrolls to the end.
+// - When new text arrives (a GM reply as it is revealed, the player's action,
+//   or the GM's typing dots) and the player is at the end, the box scrolls to
+//   the end.
 // - When new text arrives and the player scrolled up to read older text, the
 //   box stays where it is and the "New text below" button shows. The button
 //   scrolls to the end. The button goes away when the player is at the end.
