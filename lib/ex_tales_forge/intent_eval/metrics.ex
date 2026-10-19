@@ -312,7 +312,7 @@ defmodule TalesForge.IntentEval.Metrics do
         asks =
           Enum.filter(pairs, fn {_item, r} ->
             IntentClarification.band(r, ask_below: t, ask_below_raw: opts[:ask_below_raw] || t) ==
-              :ask
+              :clarify
           end)
 
         justified = Enum.count(asks, fn {item, r} -> not action_correct?(item, r) end)
@@ -340,7 +340,7 @@ defmodule TalesForge.IntentEval.Metrics do
     by_band = Enum.group_by(read, fn {_item, r} -> IntentClarification.band(r, band_opts) end)
 
     rows =
-      Enum.map([:act, :best_guess, :ask], fn band ->
+      Enum.map([:act, :best_guess, :clarify], fn band ->
         group = Map.get(by_band, band, [])
         correct = Enum.count(group, fn {item, r} -> action_correct?(item, r) end)
 

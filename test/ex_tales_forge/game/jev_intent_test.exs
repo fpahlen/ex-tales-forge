@@ -186,7 +186,7 @@ defmodule TalesForge.Game.JevIntentTest do
              ] = reading.extraction.actions
     end
 
-    test "unsure between buying and asking, the question offers the ask as a buy that only asks" do
+    test "unsure between buying and asking, the clarify candidates are both readings" do
       cands = JevIntent.candidates(context())
       ale = Enum.find(cands, &(&1.id == "ale_mug"))
 
@@ -205,16 +205,9 @@ defmodule TalesForge.Game.JevIntentTest do
 
       reading = JevIntent.decode(reply, cands, text: "Ett öl", context: context())
       assert reading.top2 == [:buy, :ask_price]
-      clarification = TalesForge.Game.IntentClarification.build(reading, cands)
 
-      assert clarification["question"] ==
-               "Do you want to buy Mug of Ale, or ask the price of Mug of Ale?"
-
-      assert [[%{"action_type" => "buy"} = buy], [%{"action_type" => "buy"} = ask]] =
-               clarification["option_actions"]
-
-      refute Map.has_key?(buy["parameters"], "ask")
-      assert %{"ask" => true, "item_id" => "ale_mug"} = ask["parameters"]
+      assert TalesForge.Game.IntentClarification.candidates(reading, cands) ==
+               ["buy Mug of Ale", "ask the price of Mug of Ale"]
     end
 
     test "a plain buy is unchanged: no ask" do

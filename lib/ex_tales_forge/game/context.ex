@@ -326,7 +326,27 @@ defmodule TalesForge.Game.Context do
     """
   end
 
+  def player_request_section(%{clarify: %{} = clarify}), do: clarify_section(clarify)
   def player_request_section(_context), do: nil
+
+  # The player's intent was unclear (`TalesForge.Game.Clarify`): nothing
+  # happened, and the person asks, as her patience lets her.
+  defp clarify_section(%{"style" => "brusque"} = clarify) do
+    """
+    ## Player's intent: unclear, nothing happened
+    The player said: "#{clarify["words"]}" It was unclear what they meant, so nothing happened: no item and no coins changed hands, and nobody did anything for them. #{asker(clarify)} has little patience for it: give a short, in-character brush-off (e.g. "Speak plainly or move on."), with no list of options. Do not narrate any of the possible meanings as done.
+    """
+  end
+
+  defp clarify_section(clarify) do
+    """
+    ## Player's intent: unclear, nothing happened
+    The player said: "#{clarify["words"]}" It was unclear what they meant, so nothing happened: no item and no coins changed hands, and nobody did anything for them. #{asker(clarify)} asks a short clarifying question in character, echoing the player's own words, and offers what they might mean: #{Enum.join(List.wrap(clarify["candidates"]), "; or ")}. (For example: "A meal? You hungry? Stew or bread and cheese?" or "Yes to the ale, or the kindling?") Do not narrate any of them as done.
+    """
+  end
+
+  defp asker(%{"npc" => name}) when is_binary(name), do: name
+  defp asker(_clarify), do: "The person the player addressed (or the narrator)"
 
   @doc """
   Where the character is, who is with them and where the

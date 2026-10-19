@@ -83,7 +83,8 @@
       "criteria": {
         "accept": "The player accepts the offer: yes, a deal, takes it or pays for it.",
         "decline": "The player turns the offer down: no, not now, too dear.",
-        "other": "Neither: the player says or does something else."
+        "other": "Neither: the player says or does something else.",
+        "other_offer": "The player answers something else offered in the last narration (work, a favour, another deal), not this open offer."
       },
       "instructions": "Open offer: Brenna Holt has Bread and Cheese for 2c, or Bowl of Stew for 5c. Does the player's message accept it, decline it, or neither?",
       "type": "choice"

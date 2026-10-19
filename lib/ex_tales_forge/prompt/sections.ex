@@ -421,12 +421,6 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
         "voice them as a counter-question and wait for the player's pick, " <>
         "with no payment and no handover."
 
-  defp trade_line(%{"status" => "ask_pick", "detail" => detail}),
-    do:
-      "The player said yes but picked none of the options (#{detail}). Nothing changed hands; " <>
-        "ask which one they want, as an innkeeper would, and wait for the pick, " <>
-        "with no payment and no handover."
-
   defp trade_line(%{"status" => "declined", "detail" => detail}),
     do:
       "The player declined the offer (#{detail}). No item and no coins changed hands; " <>

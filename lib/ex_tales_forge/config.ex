@@ -92,15 +92,6 @@ defmodule TalesForge.Config do
   def jev_catalogue_v2?, do: System.get_env("JEV_CATALOGUE_V2", "off") in ~w(on true 1)
 
   @doc """
-  Clarification v2 (`TalesForge.Game.IntentClarification.build/3`): the
-  question offers only options that the game state allows, at most three.
-  Env `INTENT_CLARIFICATION_V2`, default off.
-  """
-  @spec intent_clarification_v2?() :: boolean()
-  def intent_clarification_v2?,
-    do: System.get_env("INTENT_CLARIFICATION_V2", "off") in ~w(on true 1)
-
-  @doc """
   Turn pipeline PR 1: the outcome record of each turn goes to the per-turn GM
   prompt and to the turn (`TalesForge.Game.OutcomeRecord`):
   TURN_OUTCOME_RECORD=on. Default off.

@@ -263,12 +263,13 @@ defmodule TalesForge.IntentJevTest do
       TalesForge.Game.Context.build_intent_context(session)
     end
 
-    test "below the ask threshold with readings that play out differently, one question" do
+    test "below the ask threshold with readings that play out differently: the NPC clarifies, nothing moves" do
       context = intent_context()
       {reading, candidates} = unsure_reading(context)
-      assert IntentClarification.band(reading, act_min: 0.7, ask_below: 0.45) == :ask
+      assert IntentClarification.band(reading, act_min: 0.7, ask_below: 0.45) == :clarify
 
-      assert {:ask, clarification, meta} =
+      assert {:clarify, %PlayerAction{action: %SingleAction{action_type: :speak}} = action, _gm,
+              meta} =
                IntentJev.decide(%Read{
                  reading: reading,
                  candidates: candidates,
@@ -277,18 +278,9 @@ defmodule TalesForge.IntentJevTest do
                  latency_ms: 12
                })
 
-      assert clarification["source"] == "jev"
-      assert [%{"label" => "speak"}, %{"label" => "move"}] = clarification["options"]
-      assert length(clarification["option_actions"]) == 2
+      assert %{"words" => "Brenna, the square", "candidates" => [_, _]} = action.clarify
       assert meta["asked"] == true
-
-      # Clicking the second option plays its typed reading, no new call.
-      option = Enum.at(clarification["options"], 1)
-
-      assert {:act, %PlayerAction{action: %SingleAction{action_type: :move}}, _gm, opt_meta} =
-               IntentJev.resolve_option(clarification, option, context)
-
-      assert opt_meta["source"] == "clarification_option"
+      assert meta["source"] == "jev"
     end
 
     test "room and sleep (session 141e1b85 turn 5, wait 0.83 / spend 0.10) plays with no question" do
@@ -536,7 +528,13 @@ defmodule TalesForge.IntentJevTest do
     end
 
     test "when today's path asked, only the asks are compared" do
-      d = IntentJev.diff(pa(:speak, nil), :ask, %{source: :llm, action: nil, clarification: true})
+      d =
+        IntentJev.diff(pa(:speak, nil), :clarify, %{
+          source: :llm,
+          action: nil,
+          clarification: true
+        })
+
       assert d["asked"] == %{"jev" => true, "current" => true}
       refute Map.has_key?(d, "material")
     end
