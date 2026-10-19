@@ -45,6 +45,34 @@ defmodule TalesForge.Survey.DefinitionTest do
     end
   end
 
+  test "the shipped social-act survey snapshot is valid, labels every option and hides the origin" do
+    path = Path.join([File.cwd!(), "priv/surveys/founder-survey-5-social.json"])
+    raw = File.read!(path)
+    assert {:ok, definition} = Definition.parse(raw)
+    assert definition.id == "founder-survey-5-social"
+    assert Definition.active?(definition)
+    assert Definition.tab_title(definition) == "What does the line do?"
+
+    lines = Enum.filter(definition.sections, &String.starts_with?(&1.id, "line-"))
+    assert length(lines) == 40
+
+    for section <- lines do
+      assert [act, target, voice] = section.questions
+      assert length(act.options) == 15
+      assert "Unclear: two or more of these fit equally well" in act.options
+      assert "Everyone here (the whole room or group)" in target.options
+      assert length(voice.options) == 5
+
+      for q <- [act, target, voice] do
+        assert Enum.sort(Map.keys(q.option_labels)) == Enum.sort(q.options)
+      end
+    end
+
+    origins = raw |> Jason.decode!() |> Map.fetch!("sections") |> Enum.map(& &1["origin"])
+    assert Enum.frequencies(origins) == %{"real" => 24, "scripted" => 16, nil => 1}
+    refute Enum.any?(lines, &(&1.markdown =~ ~r/scripted|jev/i))
+  end
+
   test "option labels: parsed for single and checkboxes, checked against the options" do
     one = Definition.question(definition(), "one")
     assert one.option_labels["No"] == %{"reading" => "many", "later" => "move"}

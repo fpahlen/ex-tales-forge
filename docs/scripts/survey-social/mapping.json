@@ -1,0 +1,815 @@
+{
+  "survey_id": "founder-survey-5-social",
+  "survey_version": 1,
+  "social_acts": [
+    "none",
+    "request",
+    "offer",
+    "gift",
+    "thanks",
+    "compliment",
+    "flattery",
+    "joke",
+    "insult",
+    "threat",
+    "apology",
+    "promise",
+    "claim",
+    "refusal",
+    "unclear"
+  ],
+  "voice": [
+    "whisper",
+    "talk",
+    "shout",
+    "none",
+    "unclear"
+  ],
+  "counts": {
+    "real": 24,
+    "scripted": 16
+  },
+  "items": [
+    {
+      "position": 1,
+      "section_id": "line-01",
+      "question_ids": [
+        "act-01",
+        "target-01",
+        "voice-01"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+      "turn": 2,
+      "key": "r16",
+      "present": [
+        "innkeep"
+      ],
+      "line": "Yes."
+    },
+    {
+      "position": 2,
+      "section_id": "line-02",
+      "question_ids": [
+        "act-02",
+        "target-02",
+        "voice-02"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+      "turn": 33,
+      "key": "r14",
+      "present": [
+        "herb_wife"
+      ],
+      "line": "I ask the herb-wife to stitch my wounds, and I pay her fee."
+    },
+    {
+      "position": 3,
+      "section_id": "line-03",
+      "question_ids": [
+        "act-03",
+        "target-03",
+        "voice-03"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+      "turn": 20,
+      "key": "r09",
+      "present": [
+        "smith"
+      ],
+      "line": "I ask the smith: \"Lend me your best short sword for free. I'll bring it back someday.\""
+    },
+    {
+      "position": 4,
+      "section_id": "line-04",
+      "question_ids": [
+        "act-04",
+        "target-04",
+        "voice-04"
+      ],
+      "kind": "scripted",
+      "key": "s05",
+      "covers": [
+        "apology"
+      ],
+      "present": [
+        "innkeep"
+      ],
+      "line": "\"I'm sorry for what I said last night, Brenna. That was the ale talking, and you didn't deserve it.\""
+    },
+    {
+      "position": 5,
+      "section_id": "line-05",
+      "question_ids": [
+        "act-05",
+        "target-05",
+        "voice-05"
+      ],
+      "kind": "scripted",
+      "key": "s07",
+      "covers": [
+        "whisper",
+        "request"
+      ],
+      "present": [
+        "innkeep",
+        "rusk",
+        "cobb"
+      ],
+      "line": "I lean over the bar and whisper to Brenna, \"Is that man in the corner the one robbing the salt carts?\""
+    },
+    {
+      "position": 6,
+      "section_id": "line-06",
+      "question_ids": [
+        "act-06",
+        "target-06",
+        "voice-06"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "9a971f8d-dd18-4af8-a835-7a77eb1aaf08",
+      "turn": 2,
+      "key": "r23",
+      "present": [
+        "innkeep"
+      ],
+      "line": "I take out my hunting knife and hold it ready in my hand, equipped."
+    },
+    {
+      "position": 7,
+      "section_id": "line-07",
+      "question_ids": [
+        "act-07",
+        "target-07",
+        "voice-07"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "253e26a5-e4ab-46cb-b472-7af6cdb3c25d",
+      "turn": 6,
+      "key": "r05",
+      "present": [
+        "innkeep",
+        "rusk",
+        "cobb"
+      ],
+      "line": "Brenna, how much did you give me for the cloak?"
+    },
+    {
+      "position": 8,
+      "section_id": "line-08",
+      "question_ids": [
+        "act-08",
+        "target-08",
+        "voice-08"
+      ],
+      "kind": "scripted",
+      "key": "s13",
+      "covers": [
+        "whisper",
+        "threat"
+      ],
+      "present": [
+        "innkeep",
+        "rusk",
+        "cobb",
+        "pip"
+      ],
+      "line": "I lean close to Rusk and murmur, \"Leave the boy out of your night work, or the Guild learns where you sleep.\""
+    },
+    {
+      "position": 9,
+      "section_id": "line-09",
+      "question_ids": [
+        "act-09",
+        "target-09",
+        "voice-09"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+      "turn": 4,
+      "key": "r17",
+      "present": [
+        "innkeep"
+      ],
+      "line": "No, thank you."
+    },
+    {
+      "position": 10,
+      "section_id": "line-10",
+      "question_ids": [
+        "act-10",
+        "target-10",
+        "voice-10"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+      "turn": 13,
+      "key": "r21",
+      "present": [
+        "guild_steward"
+      ],
+      "line": "Yes."
+    },
+    {
+      "position": 11,
+      "section_id": "line-11",
+      "question_ids": [
+        "act-11",
+        "target-11",
+        "voice-11"
+      ],
+      "kind": "scripted",
+      "key": "s09",
+      "covers": [
+        "shout",
+        "insult",
+        "threat"
+      ],
+      "present": [
+        "rusk",
+        "cobb"
+      ],
+      "line": "I shout up the slope, \"Come down here and face me, you cowards!\""
+    },
+    {
+      "position": 12,
+      "section_id": "line-12",
+      "question_ids": [
+        "act-12",
+        "target-12",
+        "voice-12"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+      "turn": 10,
+      "key": "r20",
+      "present": [
+        "innkeep",
+        "rusk",
+        "cobb"
+      ],
+      "line": "Yes."
+    },
+    {
+      "position": 13,
+      "section_id": "line-13",
+      "question_ids": [
+        "act-13",
+        "target-13",
+        "voice-13"
+      ],
+      "kind": "scripted",
+      "key": "s08",
+      "covers": [
+        "shout",
+        "gift",
+        "offer"
+      ],
+      "present": [
+        "innkeep",
+        "rusk",
+        "cobb"
+      ],
+      "line": "I climb onto the bench and shout, \"A round for the whole room, on me!\""
+    },
+    {
+      "position": 14,
+      "section_id": "line-14",
+      "question_ids": [
+        "act-14",
+        "target-14",
+        "voice-14"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+      "turn": 6,
+      "key": "r18",
+      "present": [
+        "innkeep"
+      ],
+      "line": "The bowl of stew, please."
+    },
+    {
+      "position": 15,
+      "section_id": "line-15",
+      "question_ids": [
+        "act-15",
+        "target-15",
+        "voice-15"
+      ],
+      "kind": "scripted",
+      "key": "s15",
+      "covers": [
+        "sarcasm",
+        "insult",
+        "joke"
+      ],
+      "present": [
+        "innkeep",
+        "rusk",
+        "cobb"
+      ],
+      "line": "\"Lovely club, Cobb. Did you carve it yourself, or did it carve you?\""
+    },
+    {
+      "position": 16,
+      "section_id": "line-16",
+      "question_ids": [
+        "act-16",
+        "target-16",
+        "voice-16"
+      ],
+      "kind": "scripted",
+      "key": "s14",
+      "covers": [
+        "refusal"
+      ],
+      "present": [
+        "rusk",
+        "cobb"
+      ],
+      "line": "\"I'm not paying you a single copper. Step aside.\""
+    },
+    {
+      "position": 17,
+      "section_id": "line-17",
+      "question_ids": [
+        "act-17",
+        "target-17",
+        "voice-17"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+      "turn": 3,
+      "key": "r02",
+      "present": [
+        "innkeep"
+      ],
+      "line": "I tell the innkeeper: \"If anyone brings in my grey mule, Thistle, I'll pay them a silver. I lost her on the cut road three days ago.\""
+    },
+    {
+      "position": 18,
+      "section_id": "line-18",
+      "question_ids": [
+        "act-18",
+        "target-18",
+        "voice-18"
+      ],
+      "kind": "scripted",
+      "key": "s06",
+      "covers": [
+        "sarcasm"
+      ],
+      "present": [
+        "guild_steward"
+      ],
+      "line": "\"Five silver a week to fight orcs? My, how generous the Guild is.\""
+    },
+    {
+      "position": 19,
+      "section_id": "line-19",
+      "question_ids": [
+        "act-19",
+        "target-19",
+        "voice-19"
+      ],
+      "kind": "scripted",
+      "key": "s12",
+      "covers": [
+        "claim",
+        "request"
+      ],
+      "present": [
+        "smith"
+      ],
+      "line": "\"Osric Vane sent me. He said you'd give me a sword on the Guild's account.\""
+    },
+    {
+      "position": 20,
+      "section_id": "line-20",
+      "question_ids": [
+        "act-20",
+        "target-20",
+        "voice-20"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+      "turn": 36,
+      "key": "r15",
+      "present": [
+        "innkeep"
+      ],
+      "line": "I ask the innkeeper: \"Do you remember my sister's name, what she does, and where she lives?\""
+    },
+    {
+      "position": 21,
+      "section_id": "line-21",
+      "question_ids": [
+        "act-21",
+        "target-21",
+        "voice-21"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+      "turn": 21,
+      "key": "r10",
+      "present": [
+        "smith"
+      ],
+      "line": "I hold out a single copper coin and tell the smith it is full payment for a short sword."
+    },
+    {
+      "position": 22,
+      "section_id": "line-22",
+      "question_ids": [
+        "act-22",
+        "target-22",
+        "voice-22"
+      ],
+      "kind": "scripted",
+      "key": "s16",
+      "covers": [
+        "shout",
+        "thanks",
+        "promise"
+      ],
+      "present": [
+        "pip",
+        "stable_lad"
+      ],
+      "line": "I call after Pip, \"Thank you, lad! I won't forget this!\""
+    },
+    {
+      "position": 23,
+      "section_id": "line-23",
+      "question_ids": [
+        "act-23",
+        "target-23",
+        "voice-23"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+      "turn": 28,
+      "key": "r13",
+      "present": [
+        "rusk",
+        "cobb"
+      ],
+      "line": "I refuse to pay any toll and laugh at the biggest of them."
+    },
+    {
+      "position": 24,
+      "section_id": "line-24",
+      "question_ids": [
+        "act-24",
+        "target-24",
+        "voice-24"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+      "turn": 24,
+      "key": "r11",
+      "present": [
+        "herb_wife"
+      ],
+      "line": "I ask the herb-wife what the open hand carved above the old adit means."
+    },
+    {
+      "position": 25,
+      "section_id": "line-25",
+      "question_ids": [
+        "act-25",
+        "target-25",
+        "voice-25"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "643b8031-771d-42af-a63f-ddebbfe1ba82",
+      "turn": 7,
+      "key": "r24",
+      "present": [
+        "innkeep",
+        "rusk",
+        "cobb"
+      ],
+      "line": "I attack Rusk with my hunting knife."
+    },
+    {
+      "position": 26,
+      "section_id": "line-26",
+      "question_ids": [
+        "act-26",
+        "target-26",
+        "voice-26"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+      "turn": 25,
+      "key": "r12",
+      "present": [
+        "herb_wife"
+      ],
+      "line": "I give the herb-wife my coil of rope as a gift for her root gathering."
+    },
+    {
+      "position": 27,
+      "section_id": "line-27",
+      "question_ids": [
+        "act-27",
+        "target-27",
+        "voice-27"
+      ],
+      "kind": "scripted",
+      "key": "s01",
+      "covers": [
+        "insult"
+      ],
+      "present": [
+        "innkeep",
+        "rusk",
+        "cobb"
+      ],
+      "line": "I wipe my sleeve and say to Cobb, \"You smell like the back end of a mule, and you drink like one too.\""
+    },
+    {
+      "position": 28,
+      "section_id": "line-28",
+      "question_ids": [
+        "act-28",
+        "target-28",
+        "voice-28"
+      ],
+      "kind": "scripted",
+      "key": "s04",
+      "covers": [
+        "flattery"
+      ],
+      "present": [
+        "smith"
+      ],
+      "line": "\"Everyone from here to Kestrel Ford says yours are the finest blades in the valley, Hilde. Surely the finest smith can find a better price for a friend?\""
+    },
+    {
+      "position": 29,
+      "section_id": "line-29",
+      "question_ids": [
+        "act-29",
+        "target-29",
+        "voice-29"
+      ],
+      "kind": "scripted",
+      "key": "s10",
+      "covers": [
+        "compliment",
+        "thanks"
+      ],
+      "present": [
+        "herb_wife"
+      ],
+      "line": "\"Your poultice worked wonders, Maude. You have better hands than any surgeon in the city.\""
+    },
+    {
+      "position": 30,
+      "section_id": "line-30",
+      "question_ids": [
+        "act-30",
+        "target-30",
+        "voice-30"
+      ],
+      "kind": "scripted",
+      "key": "s03",
+      "covers": [
+        "threat"
+      ],
+      "present": [
+        "innkeep",
+        "rusk",
+        "cobb"
+      ],
+      "line": "I rest my hand on my knife and say to Rusk, \"Touch my purse again and you'll be counting your fingers.\""
+    },
+    {
+      "position": 31,
+      "section_id": "line-31",
+      "question_ids": [
+        "act-31",
+        "target-31",
+        "voice-31"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+      "turn": 19,
+      "key": "r08",
+      "present": [
+        "smith"
+      ],
+      "line": "I offer to sell the hunting knife back to the smith for 10 copper."
+    },
+    {
+      "position": 32,
+      "section_id": "line-32",
+      "question_ids": [
+        "act-32",
+        "target-32",
+        "voice-32"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "253e26a5-e4ab-46cb-b472-7af6cdb3c25d",
+      "turn": 3,
+      "key": "r04",
+      "present": [
+        "innkeep"
+      ],
+      "line": "How much for a mug of ale, Brenna?"
+    },
+    {
+      "position": 33,
+      "section_id": "line-33",
+      "question_ids": [
+        "act-33",
+        "target-33",
+        "voice-33"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "253e26a5-e4ab-46cb-b472-7af6cdb3c25d",
+      "turn": 2,
+      "key": "r03",
+      "present": [
+        "innkeep"
+      ],
+      "line": "Brenna Holt, what work is there around here?"
+    },
+    {
+      "position": 34,
+      "section_id": "line-34",
+      "question_ids": [
+        "act-34",
+        "target-34",
+        "voice-34"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3a27fdde-e89d-4d82-a093-062ff8e15129",
+      "turn": 2,
+      "key": "r06",
+      "present": [
+        "innkeep"
+      ],
+      "line": "I ask the innkeeper how business is tonight."
+    },
+    {
+      "position": 35,
+      "section_id": "line-35",
+      "question_ids": [
+        "act-35",
+        "target-35",
+        "voice-35"
+      ],
+      "kind": "scripted",
+      "key": "s02",
+      "covers": [
+        "joke"
+      ],
+      "present": [
+        "innkeep"
+      ],
+      "line": "I poke the spoon and grin. \"Brenna, if this stew gets any thicker I'll need a pick from the cut to eat it.\""
+    },
+    {
+      "position": 36,
+      "section_id": "line-36",
+      "question_ids": [
+        "act-36",
+        "target-36",
+        "voice-36"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+      "turn": 2,
+      "key": "r01",
+      "present": [
+        "innkeep"
+      ],
+      "line": "I walk up to the innkeeper and say: \"Good evening. My sister Wren makes lamps in Kestrel Ford. She sent me up the valley to find work.\""
+    },
+    {
+      "position": 37,
+      "section_id": "line-37",
+      "question_ids": [
+        "act-37",
+        "target-37",
+        "voice-37"
+      ],
+      "kind": "scripted",
+      "key": "s11",
+      "covers": [
+        "promise"
+      ],
+      "present": [
+        "guild_steward"
+      ],
+      "line": "I sign and say, \"You have my word. The nest will be clear before the next full moon.\""
+    },
+    {
+      "position": 38,
+      "section_id": "line-38",
+      "question_ids": [
+        "act-38",
+        "target-38",
+        "voice-38"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "464229eb-4376-4cfc-8d8b-6e5e58b9e2b1",
+      "turn": 2,
+      "key": "r07",
+      "present": [
+        "innkeep"
+      ],
+      "line": "I haggle with Brenna for a cheaper price and buy another mug of ale."
+    },
+    {
+      "position": 39,
+      "section_id": "line-39",
+      "question_ids": [
+        "act-39",
+        "target-39",
+        "voice-39"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+      "turn": 9,
+      "key": "r19",
+      "present": [
+        "innkeep",
+        "rusk",
+        "cobb"
+      ],
+      "line": "I stretch and yawn."
+    },
+    {
+      "position": 40,
+      "section_id": "line-40",
+      "question_ids": [
+        "act-40",
+        "target-40",
+        "voice-40"
+      ],
+      "kind": "real",
+      "env": "playtest",
+      "date": "2026-10-18",
+      "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+      "turn": 15,
+      "key": "r22",
+      "present": [
+        "innkeep"
+      ],
+      "line": "How much for three hundred mugs of ale?"
+    }
+  ]
+}
