@@ -1,0 +1,45 @@
+# Stacked-PR guard. A PR may sit on another PR's branch while that branch
+# is still open. It fails when its base is no longer valid: the base branch
+# was deleted, or it is the head of a PR that is merged or closed (with no
+# open PR on it). A PR merged into such a base never reaches main
+# (Workflow #63 was merged into #62's branch 19 s after #62 merged). `main` is always valid.
+# `edited` re-checks after a retarget. Not a required check.
+name: Base guard
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  base:
+    name: Base branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: The base is main or an open branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          [ "$BASE" = main ] && { echo "Base is main."; exit 0; }
+          stop() {
+            echo "::error::Base '$BASE' $1. Retarget to main; stacked PRs get lost when the lower one merges."
+            exit 1
+          }
+          ref=$(jq -rn --arg b "$BASE" '$b | @uri')
+          if ! out=$(gh api "repos/$REPO/branches/$ref" 2>&1 >/dev/null); then
+            case "$out" in *"HTTP 404"*) stop "was deleted" ;; esac
+            echo "::error::Could not read the base branch: $out"; exit 1
+          fi
+          open=$(gh pr list --repo "$REPO" --head "$BASE" --state open --json number --jq length)
+          done_prs=$(gh pr list --repo "$REPO" --head "$BASE" --state closed --json number --jq 'map("#\(.number)") | join(", ")')
+          if [ "$open" = 0 ] && [ -n "$done_prs" ]; then
+            stop "belongs to a merged or closed PR ($done_prs)"
+          fi
+          echo "Base '$BASE' is open (stacked on an open PR or branch)."
