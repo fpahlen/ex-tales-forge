@@ -13,6 +13,7 @@ snapshot when you change a survey's questions:
 
     cp docs/founder-survey-3.json priv/surveys/
     cp docs/founder-survey-4-intent.json priv/surveys/
+    cp docs/founder-survey-5-social.json priv/surveys/
 
 Every `docs/*survey*.json` is discovered (one directory listing, cached 60 s;
 the snapshots here are listed when that fails). Each survey is at
@@ -61,7 +62,11 @@ and `follow_ups` (`[{ "id", "label", "role"? }]`, optional short text; roles
 results page shows each option's labels under its bar, the CSV gets a `"<question>: labels"`
 column with the chosen option's labels as JSON, and the Markdown summary lists them after
 each option. Used by `founder-survey-4-intent` to map each suggested reading to intent labels
-(action, target, now or later, deferred action and target).
+(action, target, now or later, deferred action and target), and by
+`founder-survey-5-social` to map each option to a `social_act`, `target` or `voice` label.
+Keys the format does not name (for example `origin` and `source` on a
+`founder-survey-5-social` section) are ignored by the app: they stay in the stored file
+but never show.
 
 Answers are stored by option *text*. If you reword an option, older answers
 still count, listed as "(earlier wording)" in the results; bump `version` if

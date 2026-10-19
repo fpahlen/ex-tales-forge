@@ -1,0 +1,218 @@
+[
+  {
+    "key": "r01",
+    "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+    "turn": 2,
+    "at": "2026-10-18T08:42:07",
+    "line": "I walk up to the innkeeper and say: \"Good evening. My sister Wren makes lamps in Kestrel Ford. She sent me up the valley to find work.\"",
+    "prev_line": "I look around the common room. Who is here?",
+    "game_said": "[…] Outside, the valley road waits, and the late afternoon light is already softening against the hills. Brenna leans on the counter, clearly ready to talk if you are. \"If you're after honest work, Osric Vane up in the square pays good silver to anyone with steel who'll clear the orc nest off the cut. Or I could use an extra pair of hands tonight if the room and board sound fair.\""
+  },
+  {
+    "key": "r02",
+    "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+    "turn": 3,
+    "at": "2026-10-18T08:42:19",
+    "line": "I tell the innkeeper: \"If anyone brings in my grey mule, Thistle, I'll pay them a silver. I lost her on the cut road three days ago.\"",
+    "prev_line": "I walk up to the innkeeper and say: \"Good evening. My sister Wren makes lamps in Kestrel Ford. She sent me up the valley to find work.\"",
+    "game_said": "[…] \"Your sister ever mention Caldern? He's kin too, works the tin shaft. Drinks here when his pouch allows. The hills have been restless lately; he might know more than he lets on.\" The ale tastes malty and welcome, the common room's murmur rising again around you. The valley road waits beyond the door, along with the Market Square and the inn yard."
+  },
+  {
+    "key": "r03",
+    "session": "253e26a5-e4ab-46cb-b472-7af6cdb3c25d",
+    "turn": 2,
+    "at": "2026-10-18T17:08:17",
+    "line": "Brenna Holt, what work is there around here?",
+    "prev_line": "I look around the common room.",
+    "game_said": "[…] \"Plenty of talk about the cut lately. Osric Vane up in the square is offering good silver to any with steel who'll help clear an orc nest off the hill. Dangerous work, but it pays. Or if you're just passing through, the road east is still open for now.\" Brenna's eyes linger with open curiosity, waiting to see what you'll say or do next."
+  },
+  {
+    "key": "r04",
+    "session": "253e26a5-e4ab-46cb-b472-7af6cdb3c25d",
+    "turn": 3,
+    "at": "2026-10-18T17:08:28",
+    "line": "How much for a mug of ale, Brenna?",
+    "prev_line": "Brenna Holt, what work is there around here?",
+    "game_said": "[…] A loaf from me and a few coppers from you would buy her stitches if you need them later.\" The hearth crackles behind her, sending a fresh wave of stew-scented steam across the room as she waits, clearly ready to pour an ale or point the way if you ask."
+  },
+  {
+    "key": "r05",
+    "session": "253e26a5-e4ab-46cb-b472-7af6cdb3c25d",
+    "turn": 6,
+    "at": "2026-10-18T17:09:00",
+    "line": "Brenna, how much did you give me for the cloak?",
+    "prev_line": "I sell my travel cloak to Brenna Holt.",
+    "game_said": "[…] Brenna's eyes flick toward the door, then back to you, her voice dropping a little. \"Speaking of which, if you're still set on work, Osric Vane is always hiring blades for the cut. Or if it's coin you need quick, Hilde at the forge pays for a turn at the bellows.\""
+  },
+  {
+    "key": "r06",
+    "session": "3a27fdde-e89d-4d82-a093-062ff8e15129",
+    "turn": 2,
+    "at": "2026-10-18T07:40:37",
+    "line": "I ask the innkeeper how business is tonight.",
+    "prev_line": "I look around the common room.",
+    "game_said": "[…] Brenna's eyes linger on your cloak and knife, curious but not prying yet. Outside, the late-afternoon light slants through the warped glass, painting the scarred tables in gold. \"If it's work you're after,\" she adds, lowering her voice a touch, \"Osric Vane up in the Market Square pays good coin to anyone with steel who'll clear an orc nest off the cut. Dangerous, but honest pay.\""
+  },
+  {
+    "key": "r07",
+    "session": "464229eb-4376-4cfc-8d8b-6e5e58b9e2b1",
+    "turn": 2,
+    "at": "2026-10-18T07:02:29",
+    "line": "I haggle with Brenna for a cheaper price and buy another mug of ale.",
+    "prev_line": "I buy a mug of ale from Brenna and pay her.",
+    "game_said": "[…] Brenna glances their way, then back to you. \"If you're looking for honest work, Osric Vane up in the Market Square pays good silver to anyone with steel who'll clear the orc nest off the cut. Folk say the drovers have lost another salt cart on the west road, and the Guild wants that hill quiet again. Or if that's not your trouble, the stew's two copper and comes with all the gossip you can carry.\""
+  },
+  {
+    "key": "r08",
+    "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+    "turn": 19,
+    "at": "2026-10-18T08:46:35",
+    "line": "I offer to sell the hunting knife back to the smith for 10 copper.",
+    "prev_line": "I buy a hunting knife from the smith.",
+    "game_said": "[…] Sparks scatter across the packed earth. The night air carries the scent of hot iron and cooling charcoal, and beyond the open front you hear distant voices from the square. She doesn't look up again, but her shoulders stay tense, as though waiting for the next demand or the next shadow at her back door. The half-sorted tin ingots in their crate catch the firelight, stamped with marks you can't quite read from here."
+  },
+  {
+    "key": "r09",
+    "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+    "turn": 20,
+    "at": "2026-10-18T08:46:42",
+    "line": "I ask the smith: \"Lend me your best short sword for free. I'll bring it back someday.\"",
+    "prev_line": "I offer to sell the hunting knife back to the smith for 10 copper.",
+    "game_said": "[…] The forge fire crackles between you, throwing restless shadows across the half-sorted tin ingots in their crate. Her gaze stays level, wary, waiting to see whether you'll push the matter or let it drop. Outside, the night wind stirs the square, carrying the faint scent of woodsmoke from the inn. Hilde's eyes flick once toward the back door before returning to you, the tension in her shoulders unchanged."
+  },
+  {
+    "key": "r10",
+    "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+    "turn": 21,
+    "at": "2026-10-18T08:46:51",
+    "line": "I hold out a single copper coin and tell the smith it is full payment for a short sword.",
+    "prev_line": "I ask the smith: \"Lend me your best short sword for free. I'll bring it back someday.\"",
+    "game_said": "[…] It's too cheap, too unmarked. Rusk's men bring it, and if the Guild finds out I'm buying it, this whole place burns. You want to make yourself useful, help me pump these bellows tonight. I'll pay you two silver for the work and maybe talk more about that sword.\" The forge fire hisses as she waits for your answer, the night air outside carrying distant voices from the square."
+  },
+  {
+    "key": "r11",
+    "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+    "turn": 24,
+    "at": "2026-10-18T08:48:42",
+    "line": "I ask the herb-wife what the open hand carved above the old adit means.",
+    "prev_line": "I go to Old Maude's cottage off the Market Square.",
+    "game_said": "[…] \"Come in from the cold, then,\" she says, voice dry but not unkind, stepping aside so you can enter the rafter-hung space. Bundles of herbs sway overhead, jars gleam on the shelves beside old miners' keepsakes, and a simple cot waits in the corner for the sick or weary. She closes the door against the night wind and turns back to you, waiting to hear what brings a newcomer to her threshold at this hour."
+  },
+  {
+    "key": "r12",
+    "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+    "turn": 25,
+    "at": "2026-10-18T08:48:52",
+    "line": "I give the herb-wife my coil of rope as a gift for her root gathering.",
+    "prev_line": "I ask the herb-wife what the open hand carved above the old adit means.",
+    "game_said": "[…] She sets the roots aside and straightens a little, shawl shifting. \"The Guild pushes farther every season now, chasing tin that runs thin. My grandson Pip went that way too, following Rusk's lot up the west road. Fool boy.\" Her gaze lingers on you, calm but expectant, the cottage's herb scent thick around the silence that follows. Outside, the night wind stirs the square."
+  },
+  {
+    "key": "r13",
+    "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+    "turn": 28,
+    "at": "2026-10-18T08:49:23",
+    "line": "I refuse to pay any toll and laugh at the biggest of them.",
+    "prev_line": "I look around the adit mouth. Who is here?",
+    "game_said": "[…] \"Late for a stroll,\" he says, voice smooth as oiled leather. \"Road's ours tonight. Five silver to pass, or Cobb here gets to practice his swing. Your choice, stranger.\" Cobb grunts agreement, shifting his stance to bar the way more firmly. The night air carries the damp chill of the pines, and the adit mouth yawns dark beyond them, promising secrets if you can get past this toll."
+  },
+  {
+    "key": "r14",
+    "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+    "turn": 33,
+    "at": "2026-10-18T08:50:19",
+    "line": "I ask the herb-wife to stitch my wounds, and I pay her fee.",
+    "prev_line": "I go to Old Maude's cottage.",
+    "game_said": "[…] \"The square's empty tonight,\" she says quietly, voice dry as old leaves. \"Folk are bolting their shutters after what happened at the adit. Sit if you need to catch your breath. Or speak what's pressing on you.\" Her eyes rest on you with quiet curiosity, the weight of the valley's troubles hanging between you like the smoke from her hearth."
+  },
+  {
+    "key": "r15",
+    "session": "3705591b-f2f8-4f03-8114-fca1368b6ff1",
+    "turn": 36,
+    "at": "2026-10-18T08:50:47",
+    "line": "I ask the innkeeper: \"Do you remember my sister's name, what she does, and where she lives?\"",
+    "prev_line": "I sit down at the bar and wait quietly.",
+    "game_said": "[…] If you're still hunting answers up the cut, Osric Vane in the square pays hard silver for anyone with steel who'll clear the orc nest for good. Or I could use another pair of hands clearing these tables before the morning rush; stew's on the house if you pitch in.\" She waits, eyes bright with curiosity, the offer hanging between you like a lantern in the gloom."
+  },
+  {
+    "key": "r16",
+    "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+    "turn": 2,
+    "at": "2026-10-18T18:04:41",
+    "line": "Yes.",
+    "prev_line": "How much for an ale?",
+    "game_said": "[…] You look like you've come a ways; heading up the cut for work with Osric Vane's crew, or just passing through?\" She slides the mug across without waiting, the foam catching the firelight. A few heads at the nearest table turn your way, one miner muttering about the knocking sounds from the old sealed adit that Old Maude keeps asking after."
+  },
+  {
+    "key": "r17",
+    "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+    "turn": 4,
+    "at": "2026-10-18T18:05:00",
+    "line": "No, thank you.",
+    "prev_line": "How much for an ale?",
+    "game_said": "[…] Foam spills over the rim in a lazy trail. \"Drink up before the evening rush steals my attention. You still keen on that kindling, or shall I tell you what the drovers are saying about the latest cart that never made it back?\" The fire snaps behind you, sending a swirl of sparks up the chimney. One of the older miners glances over, then returns to his own cup. Outside, the valley wind rattles a loose shutter."
+  },
+  {
+    "key": "r18",
+    "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+    "turn": 6,
+    "at": "2026-10-18T18:05:34",
+    "line": "The bowl of stew, please.",
+    "prev_line": "I'd like a meal.",
+    "game_said": "[…] She nods toward the hearth where a pot simmers, the scent of onions and herbs curling through the room. \"Which will it be?\" The common room has thinned as dusk deepens; a pair of miners push back their benches, muttering about heading home before full dark. Brenna's gaze flicks to you again, expectant, one hand resting near the stack of wooden bowls."
+  },
+  {
+    "key": "r19",
+    "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+    "turn": 9,
+    "at": "2026-10-18T18:06:03",
+    "line": "I stretch and yawn.",
+    "prev_line": "I look around the common room.",
+    "game_said": "[…] The handful of miners at the long bench keep their heads down, voices low; one of them shoots a nervous glance at Rusk before draining his mug. Outside the small windows the last light bleeds from the valley. The room smells of woodsmoke, onions, and the faint iron tang of nervous sweat. No one speaks yet, but the silence feels stretched, waiting for the next move."
+  },
+  {
+    "key": "r20",
+    "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+    "turn": 10,
+    "at": "2026-10-18T18:06:13",
+    "line": "Yes.",
+    "prev_line": "I stretch and yawn.",
+    "game_said": "[…] \"Long road behind you, I reckon. The loaf's still warm if you're still peckish.\" She glances once toward the door as if expecting more travelers, then lowers her tone just enough for your table. \"If you're handy with a spear, the Guild steward Osric Vane is hiring steel in the square tomorrow morning. Pays in advance, and folk say the orcs on the cut have been quiet lately. Could be steady coin.\""
+  },
+  {
+    "key": "r21",
+    "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+    "turn": 13,
+    "at": "2026-10-18T18:06:43",
+    "line": "Yes.",
+    "prev_line": "I walk out to the square.",
+    "game_said": "[…] He offers a brisk nod, though his mouth tightens with the impatience of a man whose day has already run long. \"Square's closing down for the night,\" he says, voice clipped. \"If you're looking for work, the Guild is still hiring retainers for the cut—spears and five silver a week, paid today if you sign on now. The nest up there needs clearing before anything worse crawls out.\""
+  },
+  {
+    "key": "r22",
+    "session": "6d938a30-aaa6-46cf-8db8-f7e6f8c28f39",
+    "turn": 15,
+    "at": "2026-10-18T18:07:07",
+    "line": "How much for three hundred mugs of ale?",
+    "prev_line": "I walk to the Valley Inn.",
+    "game_said": "[…] She sets a clean platter down with a soft clack and leans one hip against the counter, studying you with easy curiosity. \"If you’re still set on helping at the forge before first light, Hilde will be glad of another pair of hands tonight. And if you see Old Maude, tell her I sent a loaf with you; she’ll want to hear whatever you’ve learned about her grandson on the west road.\""
+  },
+  {
+    "key": "r23",
+    "session": "9a971f8d-dd18-4af8-a835-7a77eb1aaf08",
+    "turn": 2,
+    "at": "2026-10-18T06:28:07",
+    "line": "I take out my hunting knife and hold it ready in my hand, equipped.",
+    "prev_line": "I buy a mug of ale from Brenna and pay her.",
+    "game_said": "[…] \"If you're handy with that knife at your belt, Osric Vane up in the Market Square is offering decent pay to anyone willing to clear an orc nest off the cut. The drovers keep losing salt carts on the west road, and the Guild wants the hill back.\" Her gaze lingers a beat, warm but expectant, as if weighing whether you'll bite or simply enjoy the ale."
+  },
+  {
+    "key": "r24",
+    "session": "643b8031-771d-42af-a63f-ddebbfe1ba82",
+    "turn": 7,
+    "at": "2026-10-18T13:21:24",
+    "line": "I attack Rusk with my hunting knife.",
+    "prev_line": "Brenna, how much did you give me for the cloak?",
+    "game_said": "[…] \"If you're looking for steadier coin than that, the Guild steward Osric is still paying for anyone with steel willing to clear the orc camp up on the cut. A strong back there earns more than a cloak ever will.\" Across the room Cobb shifts on the bench, his thick fingers drumming once on the scarred wood, while Rusk's thin smile stays fixed as he listens to the exchange."
+  }
+]
