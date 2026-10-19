@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Health.Check do
       function gains parameters;
     * the touched `lib/` files that exist at the base do not score at least
       1 lower in total Credo ABC size, or one of them scores more than 10%
-      above its base score (`Mix.Tasks.Health.Check.Files`). New files are
+      (and more than 3) above its base score (`Mix.Tasks.Health.Check.Files`). New files are
       left out of that net and only keep to the limits above.
 
   "The baseline" below is the base's numbers. A raised Credo limit also

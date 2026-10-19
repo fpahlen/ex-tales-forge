@@ -22,7 +22,7 @@ Good design is design that is easier to change than the alternative. Every decis
    Kaizen: every PR leaves the code we write a little better, counted as the Credo ABC complexity of the `lib/` files it touches (`mix health.check`).
    - Net: the touched files that already exist on main must together score at least one point lower than on main. A deleted file counts as all of its score taken away. A new file is left out of the net; it only has to keep to the per-function limits (complexity, ABC size, 4+ parameters), like all code.
    - One existing file may get slightly worse only when the same PR improves other code we write so the net still drops by at least one point, and the PR description says why that file got worse.
-   - Hard cap: no file may score more than 10% above main. Beyond that it must be split.
+   - Hard cap: no file may score more than 10% above main, or 3 points above it when that is more (so a small file can still grow). Beyond that it must be split.
    - The ratchet applies only to code we write (`lib/`), never to deps, framework-dictated shapes, `@impl` callbacks or `~p` router edges. Docs- and config-only PRs touch no `lib/` file, so the net does not apply to them.
 
 6. Guessing → Prove it.
