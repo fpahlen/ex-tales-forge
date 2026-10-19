@@ -148,7 +148,9 @@ defmodule TalesForge.Game.TradeOffersTest do
     {_, yes} = play(session.id, "Yes, please.", :buy, offer_answer: :accept)
     assert diff(before, yes) == []
     assert open_offer(session.id) == offered
-    assert last_gm() =~ "The player said yes but picked none of the options"
+    gm = last_gm()
+    assert gm =~ "Player's intent: unclear, nothing happened"
+    assert gm =~ "Bread and Cheese (2c); or Bowl of Stew (5c)"
 
     {_, picked} =
       play(session.id, "Bread and cheese.", :speak, offer_answer: :accept, offer_pick: :o0)
@@ -160,13 +162,25 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert_conserved(before, picked)
   end
 
-  # Case's review of #478: the game holds no language. The words "a meal"
-  # alone no longer list options; only Jev's kind target (`goods:a meal`) does.
-  test "the game reads no kind words: an unclear buy without Jev's kind target opens no offer",
+  # Case's review of #478: the game holds no language, so the words "a
+  # meal" alone list nothing. Fredrik's steer on the next PR: aimed at the
+  # innkeep with no kind target, it is unclear, not nothing: Brenna asks,
+  # with what she has, and nothing moves.
+  test "'I order a meal' aimed at the innkeep (no kind target) clarifies, not nothing",
        %{session: session} do
     {before, after_order} = play(session.id, "I order a meal.", :buy)
     assert diff(before, after_order) == []
     assert open_offer(session.id) == nil
+
+    gm = last_gm()
+    assert gm =~ "Player's intent: unclear, nothing happened"
+    assert gm =~ ~s(The player said: "I order a meal.")
+
+    assert gm =~
+             "Brenna Holt asks a short clarifying question in character, echoing the player's own words"
+
+    assert gm =~ "Bread and Cheese (2c)"
+    assert gm =~ "Bowl of Stew (5c)"
   end
 
   test "an unclear buy with no matching stock: no offer, nothing moves", %{session: session} do
@@ -273,7 +287,115 @@ defmodule TalesForge.Game.TradeOffersTest do
 
     assert diff(before, yes) == []
     assert open_offer(session.id) == offered
-    assert last_gm() =~ "The player said yes but picked none of the options"
+    assert last_gm() =~ "offers what they might mean: Bread and Cheese (2c); or Bowl of Stew (5c)"
+  end
+
+  describe "the in-character clarify (Fredrik via Case, the PR after #478)" do
+    # Gentry's retest of #476 (session 6d938a30), T1-T2: the GM quoted the
+    # ale and offered kindling work in one reply; "Yes." could be either.
+    test "Gentry's 'Yes.' after a quote and a side kindling offer clarifies; nothing moves",
+         %{session: session} do
+      {before, _} =
+        play(session.id, "How much for an ale?", :ask_price,
+          target: "ale_mug",
+          narrative:
+            "\"Two copper for the ale, love.\" Brenna glances at the hearth. " <>
+              "\"And if you've a mind for work, the kindling wants splitting.\""
+        )
+
+      offered = open_offer(session.id)
+      assert %{"item" => %{"id" => "ale_mug"}, "price" => 2} = offered
+
+      {_, yes} =
+        play(session.id, "Yes.", :speak,
+          offer_answer: :accept,
+          probabilities: %{
+            offer_answer: %{accept: 0.55, other_offer: 0.4, decline: 0.03, other: 0.02}
+          }
+        )
+
+      assert diff(before, yes) == []
+      assert open_offer(session.id) == offered
+
+      gm = last_gm()
+      assert gm =~ ~s(The player said: "Yes.")
+      assert gm =~ "yes to the open offer: Brenna Holt sells Ale for 2c"
+      assert gm =~ "something else offered in the last narration"
+    end
+
+    test "'Meal.' alone, Jev unsure between buying a meal and talking: clarifies; nothing moves",
+         %{session: session} do
+      {before, after_meal} =
+        play(session.id, "Meal.", :buy,
+          target: "goods:a meal",
+          confidence: %{action: 0.35, target: 0.9, safety: 0.99},
+          probabilities: %{action: %{buy: 0.5, speak: 0.45, observe: 0.05}}
+        )
+
+      assert diff(before, after_meal) == []
+      assert open_offer(session.id) == nil
+
+      gm = last_gm()
+      assert gm =~ ~s(The player said: "Meal.")
+      assert gm =~ "buy Bread and Cheese or Bowl of Stew"
+      assert gm =~ "talk to Brenna Holt"
+    end
+
+    test "a clear 'Yes' to the one open offer buys it", %{session: session} do
+      {before, quoted} = play(session.id, "How much for an ale?", :ask_price, target: "ale_mug")
+
+      {_, bought} =
+        play(session.id, "Yes.", :speak,
+          offer_answer: :accept,
+          probabilities: %{
+            offer_answer: %{accept: 0.97, decline: 0.01, other_offer: 0.01, other: 0.01}
+          }
+        )
+
+      assert copper(bought, "player") == copper(quoted, "player") - 2
+      assert qty(bought, "innkeep", "ale_mug") == qty(quoted, "innkeep", "ale_mug") - 1
+      refute last_gm() =~ "Player's intent: unclear"
+      assert_conserved(before, bought)
+    end
+
+    # The clarify style comes from the asker's own data (OCEAN, Maslow, mood:
+    # TalesForge.Game.Clarify.patience/1), as the packs author it: Brenna
+    # (A 8, C 7, belonging, cheerful) is 8.6, helpful; Hilde (A 4, C 8,
+    # safety, uneasy) is 2.6, a brush-off.
+    test "Brenna (patient) echoes the words and offers options; nothing moves",
+         %{session: session} do
+      {before, after_order} = play(session.id, "I'd like something.", :buy)
+      assert diff(before, after_order) == []
+
+      gm = last_gm()
+      assert gm =~ "echoing the player's own words, and offers what they might mean"
+      refute gm =~ "brush-off"
+    end
+
+    test "Hilde (gruff) gives a short brush-off; nothing moves", %{session: session} do
+      play(session.id, "I walk to the smithy.", :move, target: "smithy")
+      {before, after_order} = play(session.id, "I'd like something.", :buy, target: "smith")
+      assert diff(before, after_order) == []
+      assert open_offer(session.id) == nil
+
+      gm = last_gm()
+      assert gm =~ "Hilde Brask has little patience for it: give a short, in-character brush-off"
+      refute gm =~ "offers what they might mean"
+    end
+
+    test "unmet low needs lower patience: Brenna going hungry brushes off; nothing moves",
+         %{session: session} do
+      Character
+      |> where([c], c.game_session_id == ^session.id and c.slug == "innkeep")
+      |> Repo.update_all(set: [maslow_level: "physiological"])
+
+      {before, after_order} = play(session.id, "I'd like something.", :buy)
+      assert diff(before, after_order) == []
+
+      gm = last_gm()
+      assert gm =~ "Brenna Holt has little patience for it"
+      refute gm =~ "offers what they might mean"
+    end
   end
 
   # The Jev request (state and questions) while an offer with options is
@@ -303,6 +425,41 @@ defmodule TalesForge.Game.TradeOffersTest do
 
     assert golden =~ "Open offer: Brenna Holt has Bread and Cheese for 2c, or Bowl of Stew for 5c"
     assert golden =~ "Which of the offered options does the player pick?"
+    # The clarify schema: Jev reports how sure it is of each answer (its
+    # probabilities are the candidates), including a side offer in the narration.
+    assert golden =~ ~s("other_offer")
+    assert golden =~ "something else offered in the last narration"
+  end
+
+  # The GM side of the clarify schema, against
+  # `test/fixtures/gm/clarify_sections.txt` (UPDATE_GM_GOLDEN=1 rewrites it):
+  # what the helpful and the brusque asker are told.
+  @gm_golden Path.expand("../../fixtures/gm/clarify_sections.txt", __DIR__)
+  test "GM prompt fixture: the clarify section, helpful and brusque" do
+    clarify = %{
+      "words" => "Yes.",
+      "candidates" => [
+        "yes to the open offer: Brenna Holt sells Ale for 2c",
+        "something else offered in the last narration"
+      ],
+      "npc_id" => "innkeep",
+      "npc" => "Brenna Holt",
+      "style" => "helpful"
+    }
+
+    text =
+      TalesForge.Game.Context.player_request_section(%{clarify: clarify}) <>
+        "---\n" <>
+        TalesForge.Game.Context.player_request_section(%{
+          clarify: %{clarify | "npc" => "Hilde Brask", "style" => "brusque"}
+        })
+
+    if System.get_env("UPDATE_GM_GOLDEN") == "1" do
+      File.mkdir_p!(Path.dirname(@gm_golden))
+      File.write!(@gm_golden, text)
+    end
+
+    assert text == File.read!(@gm_golden)
   end
 
   # One turn: Jev reads `action` at `opts[:target]` (default the innkeep)

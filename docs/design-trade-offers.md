@@ -22,13 +22,14 @@ both have accepted, `Trade.execute/1` runs in the turn's transaction.
    `Offer.asks?/1`); the game never reads the player's words for it
    (Gentry's retest of #476, session 6d938a30).
 2. **Player answer.** On the next turn, Jev classifies the player's
-   message against the open offer as `accept`, `decline` or `other`. This
-   is a new question in the Jev request, asked only while an offer is open.
+   message against the open offer as `accept`, `decline`, `other_offer`
+   (something else offered in the narration, such as the GM's kindling
+   work) or `other`. This question is asked only while an offer is open.
    There is no button. While an offer is open, Jev's state also carries
-   it with its options (`"open_offer"`), so the reply is read against the
-   offer and not a side offer in the narration. A yes or a pick to the
-   open offer never gets the generic "Do you want to …?" clarification;
-   the offer was the question.
+   it with its options (`"open_offer"`). Jev reports its probabilities for
+   every answer; pure code decides whether the answer is clear (see
+   Unclear intent). A clear accept is the purchase; an unclear one moves
+   nothing and the seller asks.
 3. **NPC acceptance (pure).** `Offer.accepts?/1` checks the same things as
    `Trade.execute`'s acceptance: the NPC still has the stock or wants the
    item (`buys`), and the paying side can afford it. Later it also checks
@@ -72,13 +73,60 @@ counter-question ("The stew, or bread and cheese?"), and nothing moves.
 The player's next message picks one option; Jev resolves the pick against
 the listed options only. That pick counts as proposal plus acceptance in
 one step. Then the NPC decides in code as usual (stock, purse). A plain
-yes that picks no option buys nothing: the offer stays open with the same
-options, and the GM asks which one the player wants, as an innkeeper
-would. That turn does not count toward the 2-turn expiry; leaving the
-place, the giver gone or a new offer still end it. If
-nothing matches the stock, there is no offer and nothing moves. If the
-reply matches none of the options, treat it like any other message under
-the existing expiry rules.
+yes that picks no option is unclear (see below): nothing moves, the offer
+stays open with the same options, and the seller asks which one. A buy
+aimed at the seller with no kind target whose words name nothing in her
+stock ("I order a meal") is unclear too: she asks, offering her priced
+stock. If the reply matches none of the options, treat it like any other
+message under the existing expiry rules.
+
+## Unclear intent: the NPC asks, nothing moves
+Fredrik's steer (via Case, the PR after #478). When the player's intent
+is unclear, nothing moves and the person they address asks a short
+clarifying question in character, echoing the player's own words ("A
+meal? You hungry? Stew or bread and cheese?", "Yes to the ale, or the
+kindling?"). This replaces the templated "Do you want to buy X, or talk
+to X?" prompt (and clarification v2) for the Jev read.
+
+**Jev** only reports its confidence and its candidate readings (the
+probabilities of its labels), with the open offer in its context.
+`ask_price` and the offer answer stay Jev intents; Elixir reads no words.
+
+**Pure code** (`TalesForge.Game.Clarify.decide/1`,
+`TalesForge.Game.IntentClarification.band/2`) returns `:act` or
+`{:clarify, candidates}`:
+
+| Case | Clarifies when | Candidates |
+|---|---|---|
+| Open offer | two or more offer answers at ≥ 0.25 with `accept` among them; or `accept` below the goods threshold; or `accept` of an offer with options and no pick | the answers ("yes to the open offer: …", "something else offered in the last narration"), or the options |
+| Moving goods or coins (`buy`, `sell`, `trade`, `spend`, `pickup`, `drop`, `equip`, `give`) | calibrated confidence < `INTENT_ACT_MIN_CONFIDENCE` (0.70) | the top two readings |
+| Talk and the rest | confidence < `INTENT_ASK_BELOW_CONFIDENCE` (0.45), or raw < `INTENT_ASK_BELOW_RAW_CONFIDENCE` (0.45), and the top two differ in class (or a move/fight target is unsure) | the top two readings |
+| Any read | a runner-up of another class at ≥ 0.25 (two plausible readings) | the top two readings |
+| A buy that names nothing | aimed at a seller, no item, no options, and the words name nothing in her stock | her priced stock, cheapest first, at most 4 |
+
+A buy that only asks the price (`ask_price`) moves nothing, so it uses the
+talk threshold. A free-text answer to a pick question (`never_ask`) plays
+its best guess. A clarify turn plays as words to the asker: the board
+moves nothing and keeps an open offer as it is, not aged. The GM gets the
+`## Player's intent: unclear, nothing happened` section with the words
+and the candidates.
+
+**Style: how hard she tries.** One pure function,
+`TalesForge.Game.Clarify.patience/1`, from data the character already has
+(no new trait, column or pack field):
+
+    patience = 0.6 × agreeableness + 0.4 × conscientiousness      (OCEAN, 0-10; 5 when not authored)
+             + Maslow shift   physiological −4, safety −2, belonging 0, esteem +0.5, self-actualisation +1
+             + mood shift     a short mood (uneasy, aggrieved, angry, annoyed, irritated, impatient,
+                              hostile, busy, grim, tired) −1; a warm one (cheerful, friendly, content,
+                              happy, pleased, warm) +1; else 0
+
+At a patience of 5.0 or more she is **helpful**: she echoes the words and
+offers the candidates. Below 5.0 she is **brusque**: a short brush-off
+("Speak plainly or move on."), no list. Either way nothing moves. With the
+packs as authored: Brenna (A 8, C 7, belonging, cheerful) is 8.6, helpful;
+Hilde (A 4, C 8, safety, uneasy) is 2.6, brusque; Brenna going hungry
+(physiological) drops to 4.6, brusque. Jev never picks the style.
 
 ## GM narration rules
 - **Open offer:** "The server quotes: <Offer.text>. Nothing changed hands;
@@ -86,8 +134,10 @@ the existing expiry rules.
 - **Unclear buy (open options):** "The server listed these options from
   stock: … Nothing changed hands; voice them as a counter-question and
   wait for the player's pick."
-- **Yes with no pick:** "The player said yes but picked none of the
-  options (…). Nothing changed hands; ask which one they want."
+- **Unclear intent:** the `## Player's intent: unclear, nothing happened`
+  section: the player's words, the candidates, and the asker's style
+  (helpful: echo and offer; brusque: a short brush-off). No item and no
+  coins changed hands.
 - **Accepted and done:** the existing "The server made this trade: ..."
   line.
 - **Declined, expired or refused:** "No item and no coins changed hands"

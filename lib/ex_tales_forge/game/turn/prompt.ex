@@ -23,6 +23,7 @@ defmodule TalesForge.Game.Turn.Prompt do
         |> Context.build_gm_context(outcome.board.cast)
         |> Map.merge(turn_context(turn))
         |> put_player_request(turn.opts[:gm_note])
+        |> put_clarify(turn.intent.clarify)
 
       messages =
         Assemble.gm_messages(context, gm_turn(turn), flags: turn.flags, role: turn.role)
@@ -95,6 +96,10 @@ defmodule TalesForge.Game.Turn.Prompt do
 
   defp put_player_request(context, note) when is_binary(note),
     do: Map.put(context, :player_request, note)
+
+  # An unclear turn: the question the GM voices (`TalesForge.Game.Clarify`).
+  defp put_clarify(context, %{} = clarify), do: Map.put(context, :clarify, clarify)
+  defp put_clarify(context, _none), do: context
 
   # INTENT_JEV=on: the GM's quote replaces overall_intent in the prompt only.
   defp gm_action(player_action, quote) when is_binary(quote) and quote != "",

@@ -1,28 +1,30 @@
 defmodule TalesForge.Game.IntentClarification do
   @moduledoc """
-  The act / ask decision for a Jev intent reading, and the templated question
-  shown when the game asks.
+  The act / clarify decision for a Jev intent reading, the candidate
+  readings a clarifying question offers, and the question for an attack
+  with no clear target.
 
-  A turn acts when the read is confident (`>= act_min`), asks only when it is
-  unsure **and** the two most likely readings would play out differently, and
-  otherwise plays its best guess. "Unsure" is the calibrated confidence below
-  `ask_below`, **or** Jev's raw confidence below `ask_below_raw`: calibration
-  lifts low raw reads a long way (raw 0.41 reads 0.82 calibrated), so on the
-  calibrated value alone a raw read that low never asks. "Differently" means the top
-  two action types fall in different consequence classes (talk is cheap to get
-  wrong; a fight, a move, or spending coin is not), or, for a move or a fight,
-  the target read itself is unsure, so the top two targets compete. At most one
-  question per turn: the caller never asks again on the answer
-  (`TalesForge.IntentJev`). See `docs/design-jev-intent.md` §4.
+  The three entry points are `band/2`, `candidates/2` and `combat_target/3`.
 
-  The question payload keeps the shape of
-  `TalesForge.Game.Intent.build_clarification/2`, so the LiveView and the
-  persona bot read it unchanged; it adds `"source" => "jev"` and, per option,
-  the typed actions that option plays (`"option_actions"`).
+  A turn clarifies when the read is unsure or two plausible readings would
+  play out differently, acts when it is confident (`>= act_min`), and
+  otherwise plays its best guess:
+
+    * Moving goods or coins (`:coin` and `:items` classes) needs
+      `act_min`; below it the turn clarifies. Talk and the rest clarify
+      below `ask_below` (or Jev's raw confidence below `ask_below_raw`;
+      calibration lifts low raw reads a long way) only when the top two
+      readings fall in different classes, or for a move or a fight when the
+      target itself is unsure.
+    * A runner-up reading of another class with a probability of at least
+      #{0.25} is plausible: two plausible readings clarify.
+
+  The question itself is voiced by the GM, in character, echoing the
+  player's words (`TalesForge.Game.Clarify`); there is no templated
+  "Do you want to …?" prompt. See `docs/design-trade-offers.md`.
   """
 
   alias TalesForge.Game.JevIntent
-  alias TalesForge.Game.Offer
   alias TalesForge.Game.Schemas.SingleAction
 
   @default_act_min 0.70
@@ -30,6 +32,10 @@ defmodule TalesForge.Game.IntentClarification do
   @default_ask_below_raw 0.45
   # Two move/fight targets compete when the runner-up is this close to the top.
   @target_margin 0.25
+  # A runner-up reading at least this likely is plausible.
+  @plausible 0.25
+  # The classes that move goods or coins.
+  @goods_classes [:coin, :items]
 
   # Getting the class wrong is what a wrong guess costs the player. Talk-like
   # actions are cheap; the others commit the character to something.
@@ -77,8 +83,8 @@ defmodule TalesForge.Game.IntentClarification do
     other: "do something else"
   }
 
-  @typedoc "The turn's decision for a reading: act on it, play a best guess, or ask."
-  @type decision :: :act | :best_guess | :ask
+  @typedoc "The turn's decision for a reading: act on it, play a best guess, or clarify."
+  @type decision :: :act | :best_guess | :clarify
 
   @doc """
   The default band thresholds: `[act_min: #{@default_act_min}, ask_below:
@@ -103,12 +109,20 @@ defmodule TalesForge.Game.IntentClarification do
   (default #{@default_ask_below}) and `:ask_below_raw` (default
   #{@default_ask_below_raw}; `0.0` turns the raw check off).
 
-  The turn asks when the top two readings play out differently and either the
-  calibrated confidence is below `ask_below` or the raw confidence
-  (`reading.raw_confidence`, when present) is below `ask_below_raw`. The ask
-  check comes first, so a low raw read whose calibrated value clears `act_min`
-  still asks. Otherwise it acts at a calibrated confidence `>= act_min` and
+  The turn clarifies when a goods or coin read is below `act_min`, when the
+  top two readings play out differently and either the calibrated confidence
+  is below `ask_below` or the raw confidence (`reading.raw_confidence`, when
+  present) is below `ask_below_raw`, or when a runner-up of another class is
+  plausible. Otherwise it acts at a calibrated confidence `>= act_min` and
   plays its best guess in between.
+
+      iex> alias TalesForge.Game.IntentClarification, as: C
+      iex> C.band(%{action: :buy, confidence: 0.6, top2: [:buy, :speak], action_probabilities: %{buy: 0.9}})
+      :clarify
+      iex> C.band(%{action: :speak, confidence: 0.6, top2: [:speak, :observe], action_probabilities: %{speak: 0.6, observe: 0.4}})
+      :best_guess
+      iex> C.band(%{action: :speak, confidence: 0.9, top2: [:speak, :buy], action_probabilities: %{speak: 0.6, buy: 0.3}})
+      :clarify
   """
   @spec band(JevIntent.reading() | map(), keyword()) :: decision()
   def band(reading, opts \\ []) do
@@ -118,9 +132,15 @@ defmodule TalesForge.Game.IntentClarification do
     confidence = reading.confidence || 1.0
 
     cond do
+      moves_goods?(reading) and confidence < act_min ->
+        :clarify
+
       unsure?({confidence, raw_confidence(reading)}, {ask_below, ask_below_raw}) and
           split_class?(reading) ->
-        :ask
+        :clarify
+
+      plausible_rival?(reading) ->
+        :clarify
 
       confidence >= act_min ->
         :act
@@ -136,6 +156,28 @@ defmodule TalesForge.Game.IntentClarification do
   end
 
   defp raw_confidence(reading), do: Map.get(reading, :raw_confidence)
+
+  # A read that would move goods or coins; a buy that only asks the price
+  # (Jev's `ask_price`) moves nothing.
+  defp moves_goods?(%{action: action} = reading),
+    do: class(action) in @goods_classes and not asks?(reading)
+
+  defp asks?(%{extraction: %{actions: [%SingleAction{parameters: %{"ask" => true}} | _]}}),
+    do: true
+
+  defp asks?(_reading), do: false
+
+  # A runner-up action of another class, at least plausible (the top label
+  # is the read itself, also when decoding renamed it: `ask_price` is a buy).
+  defp plausible_rival?(%{action: action} = reading) do
+    top = List.first(Map.get(reading, :top2, [])) || action
+
+    reading
+    |> Map.get(:action_probabilities, %{})
+    |> Enum.any?(fn {other, p} ->
+      other not in [action, top] and p >= @plausible and class(other) != class(action)
+    end)
+  end
 
   # True when the top two readings would commit the character to different
   # kinds of consequence, or a move or fight whose target is itself unsure (so
@@ -156,49 +198,13 @@ defmodule TalesForge.Game.IntentClarification do
   defp split_target?(_reading), do: false
 
   @doc """
-  The clarification payload for a reading over `candidates`: a templated
-  question offering the top two readings ("Do you want to talk to Brenna Holt,
-  or go to Market Square?"), matching the shape
-  `TalesForge.Game.Intent.build_clarification/2` returns, plus `"source"` and
-  `"option_actions"` (each option's typed actions, primary first).
-
-  With `v2: true` (`INTENT_CLARIFICATION_V2`) the options come from
-  `options_v2/2`: only options that the game state allows, at most
-  #{3}. The question stays one templated sentence; there is no LLM call.
+  The readings a clarifying question offers, as short phrases: the top
+  reading with its target, and the runner-up ("buy Mug of Ale", "talk to
+  Brenna Holt").
   """
-  @spec build(JevIntent.reading(), [JevIntent.candidate()], keyword()) :: map()
-  def build(reading, candidates, opts \\ []) do
-    id = Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
-
-    readings =
-      if Keyword.get(opts, :v2, false),
-        do: options_v2(reading, candidates),
-        else: readings(reading, candidates)
-
-    %{
-      "clarification_id" => id,
-      "source" => "jev",
-      "question" =>
-        "Do you want to #{Enum.map_join(readings, ", or ", &phrase(&1, candidates))}?",
-      "options" =>
-        readings
-        |> Enum.with_index()
-        |> Enum.map(fn {r, idx} ->
-          %{
-            "id" => "option_#{idx}",
-            "label" => Atom.to_string(r.action_type),
-            "description" => phrase(r, candidates),
-            "action_index" => idx
-          }
-        end),
-      "option_actions" =>
-        Enum.map(readings, fn r -> Enum.map(option_actions(r, reading), &encode_action/1) end),
-      "allow_free_text" => true,
-      "overall_intent" => reading.extraction.overall_intent,
-      "confidence" => reading.confidence,
-      "raw_action" => reading.extraction.overall_intent,
-      "actions" => Enum.map(reading.extraction.actions, &encode_action/1)
-    }
+  @spec candidates(JevIntent.reading(), [JevIntent.candidate()]) :: [String.t()]
+  def candidates(reading, candidates) do
+    reading |> readings(candidates) |> Enum.map(&phrase(&1, candidates)) |> Enum.uniq()
   end
 
   # The two readings offered: the top action with its target, and either the
@@ -208,128 +214,26 @@ defmodule TalesForge.Game.IntentClarification do
     [first_type | rest] = Enum.uniq(reading.top2 ++ [reading.action])
     primary = List.first(reading.extraction.actions)
     first = %SingleAction{primary | action_type: first_type}
-
-    second =
-      case {rest, target_ranking(reading)} do
-        {[second_type | _], _} when second_type != first_type ->
-          if class(second_type) == class(first_type) and split_target?(reading),
-            do: runner_up_target(first, reading),
-            else: %SingleAction{
-              action_type: second_type,
-              target: best_target_for(second_type, reading, candidates),
-              parameters: %{}
-            }
-
-        _ ->
-          runner_up_target(first, reading)
-      end
-
+    second = second_reading(first, List.first(rest), {reading, candidates})
     Enum.uniq_by([first, second], &{&1.action_type, &1.target})
   end
 
-  @max_options 3
-  @goods ~w(buy sell trade pickup drop equip give use_item)a
+  defp second_reading(first, nil, {reading, _candidates}), do: runner_up_target(first, reading)
 
-  @doc """
-  Clarification v2: the options to offer for a reading, at most
-  #{@max_options}, each one that the game state allows:
-
-    * `buy` takes only an item for sale, never an item the character carries;
-    * `sell`, `drop`, `equip`, `give` (an item) and `use_item` take only a
-      carried item; `pickup` takes only an item on the ground;
-    * a goods action never takes a person as its target;
-    * `move` takes a place, `speak` and `combat` a person.
-
-  An option with a target that the state does not allow gets the best allowed
-  target from the ranking. When no allowed target exists, the option drops out.
-  """
-  @spec options_v2(JevIntent.reading(), [JevIntent.candidate()]) :: [SingleAction.t()]
-  def options_v2(reading, candidates) do
-    primary = List.first(reading.extraction.actions)
-    types = Enum.uniq([primary.action_type | reading.top2 ++ [reading.action]])
-    ranked = Enum.map(target_ranking(reading), &elem(&1, 0))
-
-    types
-    |> Enum.flat_map(&type_options(&1, primary, {[primary.target | ranked], candidates}))
-    |> Enum.uniq_by(&{&1.action_type, &1.target})
-    |> Enum.take(@max_options)
+  defp second_reading(first, type, {reading, candidates}) do
+    if class(type) == class(first.action_type) and split_target?(reading),
+      do: runner_up_target(first, reading),
+      else: %SingleAction{
+        action_type: type,
+        target: best_target_for(type, reading, candidates),
+        parameters: %{}
+      }
   end
-
-  # `{targets, candidates}`: the ranked targets and who may be targeted.
-  defp type_options(type, primary, {targets, candidates}) do
-    keep = if type == primary.action_type, do: 2, else: 1
-
-    targets
-    |> Enum.uniq()
-    |> Enum.filter(&allowed?(type, &1, candidates))
-    |> Enum.take(keep)
-    |> Enum.map(&option(type, &1, primary))
-  end
-
-  defp option(type, target, %{action_type: type, target: target} = primary), do: primary
-
-  defp option(type, target, _primary),
-    do: %SingleAction{action_type: type, target: target, parameters: %{}}
-
-  @doc """
-  True when the game state allows `type` on `target` (see `options_v2/2`).
-
-      iex> c = [%{kind: :item, id: "bread", text: "Bread (carried)"}, %{kind: :npc, id: "brenna", text: "Brenna — innkeeper (present)"}]
-      iex> TalesForge.Game.IntentClarification.allowed?(:buy, "bread", c)
-      false
-      iex> TalesForge.Game.IntentClarification.allowed?(:sell, "bread", c)
-      true
-      iex> TalesForge.Game.IntentClarification.allowed?(:buy, "brenna", c)
-      false
-  """
-  @spec allowed?(atom(), String.t() | nil, [JevIntent.candidate()]) :: boolean()
-  def allowed?(type, target, candidates) do
-    found = Enum.filter(candidates, &(&1.id == target))
-    person? = Enum.any?(found, &(&1.kind in [:npc, :npc_elsewhere]))
-
-    if type in @goods and type != :give and person?,
-      do: false,
-      else: allowed_on?(type, target, found)
-  end
-
-  # `allowed?/3` past the person check: `found` are the candidates `target` names.
-  defp allowed_on?(:buy, _target, found),
-    do: item_status?(found, "(for sale)") and not item_status?(found, "(carried)")
-
-  defp allowed_on?(type, _target, found) when type in [:sell, :drop, :equip, :use_item],
-    do: item_status?(found, "(carried)")
-
-  defp allowed_on?(:pickup, _target, found), do: item_status?(found, "(on the ground)")
-  defp allowed_on?(:give, _target, found), do: Enum.any?(found, &(&1.kind == :npc))
-
-  defp allowed_on?(:move, target, found),
-    do: target == nil or Enum.any?(found, &(&1.kind in [:place, :npc_elsewhere]))
-
-  defp allowed_on?(type, target, found) when type in [:speak, :combat],
-    do: target == nil or Enum.any?(found, &(&1.kind in [:npc, :npc_elsewhere]))
-
-  defp allowed_on?(_type, target, found), do: target == nil or found != []
-
-  defp item_status?(found, status),
-    do: Enum.any?(found, &(&1.kind == :item and &1.text =~ status))
 
   defp runner_up_target(first, reading) do
     case target_ranking(reading) do
       [_top, {id, _p} | _] -> %SingleAction{first | target: id}
       _ -> %SingleAction{action_type: :other, target: nil, parameters: %{}}
-    end
-  end
-
-  # The option's actions: the reading itself, plus the deferred action when
-  # the option is the primary reading.
-  defp option_actions(%SingleAction{} = r, reading) do
-    case reading.extraction.actions do
-      [primary | deferred]
-      when primary.action_type == r.action_type and primary.target == r.target ->
-        [r | deferred]
-
-      _ ->
-        [r]
     end
   end
 
@@ -366,6 +270,13 @@ defmodule TalesForge.Game.IntentClarification do
 
   defp phrase(%SingleAction{action_type: :speak, target: t}, candidates),
     do: "talk to #{target_text(t, candidates) || "them"}"
+
+  defp phrase(
+         %SingleAction{target: nil, parameters: %{"options" => [_ | _] = ids}} = a,
+         candidates
+       ),
+       do:
+         "#{@verbs[a.action_type] || a.action_type} #{Enum.map_join(ids, " or ", &target_text(&1, candidates))}"
 
   defp phrase(%SingleAction{action_type: type, target: t}, candidates) do
     case target_text(t, candidates) do
@@ -432,6 +343,5 @@ defmodule TalesForge.Game.IntentClarification do
     }
   end
 
-  # An `ask_price` option plays as the buy that only asks (`Offer.asked/1`).
-  defp encode_action(action), do: action |> Offer.asked() |> SingleAction.encode()
+  defp encode_action(action), do: SingleAction.encode(action)
 end

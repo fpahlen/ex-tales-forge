@@ -17,11 +17,13 @@ defmodule TalesForge.IntentJev do
       pick, today's reading, and the diff between the two. The job args, the
       `PlayerAction` and the GM prompt are exactly what `:off` produces.
     * `:on` — the Jev read drives the turn (`resolve/4`): act at a calibrated
-      confidence ≥ `INTENT_ACT_MIN_CONFIDENCE`, ask when the calibrated
-      confidence is below `INTENT_ASK_BELOW_CONFIDENCE` or the raw one below
-      `INTENT_ASK_BELOW_RAW_CONFIDENCE`, only when the top two readings would
-      play out differently, best guess in between; at most one templated question
-      per turn (`TalesForge.Game.IntentClarification`). The safety label sets
+      confidence ≥ `INTENT_ACT_MIN_CONFIDENCE`; clarify when unsure or when
+      two plausible readings would play out differently (moving goods or
+      coins needs `INTENT_ACT_MIN_CONFIDENCE`, talk only
+      `INTENT_ASK_BELOW_CONFIDENCE`), best guess in between
+      (`TalesForge.Game.IntentClarification`). A clarify moves nothing: the
+      GM voices the question in character, echoing the player's words
+      (`TalesForge.Game.Clarify`). The safety label sets
       the GM's quote (`TalesForge.Game.PlayerQuote`); `nefarious` is declined
       by the GM in character. On a Jev error, a timeout
       (`INTENT_JEV_TIMEOUT_MS`) or no key, the heuristic reads the turn and the
@@ -37,8 +39,8 @@ defmodule TalesForge.IntentJev do
 
   alias TalesForge.AICalls
   alias TalesForge.Config
-  alias TalesForge.Game.Combat
-  alias TalesForge.Game.{Intent, IntentClarification, JevIntent, NpcReactions, PlayerQuote, Rest}
+  alias TalesForge.Game.{Clarify, Combat, Intent, IntentClarification, JevIntent}
+  alias TalesForge.Game.{NpcReactions, PlayerQuote, Rest}
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
   alias TalesForge.GameCharacter
   alias TalesForge.IntentJev.Read
@@ -57,11 +59,15 @@ defmodule TalesForge.IntentJev do
 
   @typedoc """
   The outcome of `resolve/4` in `:on` mode: play `action` (with the GM's
-  `gm_quote` and an optional `gm_note`), or ask with `clarification`. `meta`
-  goes on the turn's `turn.intent` row either way.
+  `gm_quote` and an optional `gm_note`); `:clarify`, a turn that moves
+  nothing and whose action carries the question for the GM to voice
+  (`PlayerAction.clarify`); or ask with a `clarification` the player picks
+  from (an attack with no clear target). `meta` goes on the turn's
+  `turn.intent` row either way.
   """
   @type outcome ::
-          {:act, PlayerAction.t(), %{gm_quote: String.t(), gm_note: String.t() | nil}, map()}
+          {:act | :clarify, PlayerAction.t(), %{gm_quote: String.t(), gm_note: String.t() | nil},
+           map()}
           | {:ask, map(), map()}
 
   @typedoc "Today's reading, for the shadow diff: the played action, or the question it asked."
@@ -299,8 +305,8 @@ defmodule TalesForge.IntentJev do
   # later (JevIntent.decode/3 reads it so). The game plays it with no
   # question. Gentry's playtest session 141e1b85 on 2026-10-13: Jev read it
   # as wait 0.83, spend 0.10, and the game asked "wait, or pay?".
-  defp clear_lodging(:ask, %{action: action}, raw_action) when action in [:spend, :buy] do
-    if Rest.lodging_then_sleep?(raw_action), do: :act, else: :ask
+  defp clear_lodging(:clarify, %{action: action}, raw_action) when action in [:spend, :buy] do
+    if Rest.lodging_then_sleep?(raw_action), do: :act, else: :clarify
   end
 
   defp clear_lodging(band, _reading, _raw_action), do: band
@@ -313,30 +319,28 @@ defmodule TalesForge.IntentJev do
   def decide(%Read{reading: reading} = read) do
     band = decide_band(read)
     safety = safety(reading)
-    base_meta = reading_meta(reading, band, read.latency_ms)
 
-    cond do
-      PlayerQuote.decline?(safety) ->
-        decline(read, safety, base_meta)
+    if PlayerQuote.decline?(safety),
+      do: decline(read, safety, reading_meta(reading, band, read.latency_ms)),
+      else: decide_clear(read, band, safety)
+  end
 
-      band == :ask ->
-        {:ask, jev_question(read, safety),
-         Map.merge(base_meta, %{"source" => "jev", "asked" => true})}
-
-      clarification = combat_target_question(read) ->
-        clarification = Map.put(clarification, "safety", safety_map(safety))
-
-        {:ask, clarification,
-         Map.merge(base_meta, %{"source" => "combat_target", "asked" => true})}
-
-      true ->
-        act(read, band, safety)
+  # Clarify, ask whom an attack is for, or act.
+  defp decide_clear(%Read{reading: reading} = read, band, safety) do
+    with :act <- clarify_decision(read, band),
+         %{} = clarification <- combat_target_question(read) do
+      clarification = Map.put(clarification, "safety", safety_map(safety))
+      meta = reading_meta(reading, band, read.latency_ms)
+      {:ask, clarification, Map.merge(meta, %{"source" => "combat_target", "asked" => true})}
+    else
+      {:clarify, %Clarify{} = c} -> clarify(read, c, safety)
+      nil -> act(read, band, safety)
     end
   end
 
   # The confidence band, with `opts` overriding the config; a free-text answer
   # (`never_ask`) plays its best guess instead of asking.
-  defp decide_band(%Read{reading: reading, raw_action: raw_action, opts: opts} = read) do
+  defp decide_band(%Read{reading: reading, raw_action: raw_action, opts: opts}) do
     band_opts = [
       act_min: Keyword.get(opts, :act_min, Config.intent_act_min_confidence()),
       ask_below: Keyword.get(opts, :ask_below, Config.intent_ask_below_confidence()),
@@ -344,32 +348,56 @@ defmodule TalesForge.IntentJev do
     ]
 
     case IntentClarification.band(reading, band_opts) do
-      :ask -> if(Keyword.get(opts, :never_ask, false), do: :best_guess, else: :ask)
+      :clarify -> if(Keyword.get(opts, :never_ask, false), do: :best_guess, else: :clarify)
       other -> other
     end
     |> clear_lodging(reading, raw_action)
-    |> answers_offer(reading, read.context)
   end
 
-  # A yes or a pick to the open offer is not asked about: the offer was the
-  # question. The board buys it, or for a plain yes to an unclear buy the
-  # seller asks which one (`TalesForge.Game.Offer.awaits_pick?/2`). Gentry's
-  # retest of #476 (session 6d938a30, T6): a "Yes." to Brenna's meal
-  # options got "Do you want to buy Brenna Holt, or talk to Brenna Holt?".
-  defp answers_offer(:ask, %{offer_answer: :accept}, %{"open_offer" => %{}}), do: :act
+  # The pure clarify decision (`TalesForge.Game.Clarify`); a free-text answer
+  # to a question (`never_ask`) plays its best guess instead.
+  defp clarify_decision(%Read{opts: opts} = read, band) do
+    if Keyword.get(opts, :never_ask, false),
+      do: :act,
+      else:
+        Clarify.decide(%Clarify.Input{
+          reading: read.reading,
+          candidates: read.candidates,
+          context: read.context,
+          words: read.raw_action,
+          band: band,
+          goods_min: Keyword.get(opts, :act_min, Config.intent_act_min_confidence())
+        })
+  end
 
-  defp answers_offer(:ask, %{offer_pick: pick}, %{"open_offer" => %{}}) when is_integer(pick),
-    do: :act
+  # Unclear: nothing moves. The action is words to the person who asks (or
+  # none), and it carries the question for the GM to voice in character.
+  defp clarify(%Read{reading: reading, raw_action: raw_action} = read, %Clarify{} = c, safety) do
+    extraction = %TalesForge.Game.Schemas.IntentExtraction{
+      overall_intent: raw_action,
+      actions: [%SingleAction{action_type: :speak, target: c.npc_id, parameters: %{}}],
+      primary_index: 0,
+      confidence: reading.confidence || 1.0,
+      needs_clarification: false
+    }
 
-  defp answers_offer(band, _reading, _context), do: band
+    action = Intent.validate_player_action(extraction, read.context)
+    quote = PlayerQuote.decide(action, quote_read(raw_action, safety, read.opts))
 
-  defp jev_question(%Read{reading: reading, opts: opts} = read, safety) do
-    reading
-    |> IntentClarification.build(read.candidates,
-      v2: Keyword.get(opts, :clarification_v2, Config.intent_clarification_v2?())
-    )
-    |> Map.put("raw_action", read.raw_action)
-    |> Map.put("safety", safety_map(safety))
+    meta =
+      reading
+      |> reading_meta(:clarify, read.latency_ms)
+      |> Map.merge(%{
+        "source" => "jev",
+        "asked" => true,
+        "clarify" => c.candidates,
+        "quote" => PlayerQuote.meta(quote)
+      })
+
+    log_decision(read, :clarify, quote)
+
+    {:clarify, %{action | clarify: Clarify.to_map(c)}, %{gm_quote: quote.quote, gm_note: nil},
+     meta}
   end
 
   defp act(%Read{reading: reading, raw_action: raw_action} = read, band, safety) do
@@ -381,12 +409,16 @@ defmodule TalesForge.IntentJev do
 
     answer = %{
       action
-      | offer_answer: Map.get(reading, :offer_answer),
+      | offer_answer: offer_answer(Map.get(reading, :offer_answer)),
         offer_pick: Map.get(reading, :offer_pick)
     }
 
     {:act, answer, %{gm_quote: quote.quote, gm_note: nil}, meta}
   end
+
+  # Something else offered in the narration is, for the open offer, neither.
+  defp offer_answer(:other_offer), do: :other
+  defp offer_answer(answer), do: answer
 
   # #281 item 6 (QA 2026-10-14 21:15): a bare "I attack" with people here asks
   # whom, before the turn. The GM was told to ask, but it narrated the attack
@@ -670,7 +702,7 @@ defmodule TalesForge.IntentJev do
   def diff(nil, band, current) do
     %{
       "jev_valid" => false,
-      "asked" => %{"jev" => band == :ask, "current" => current.clarification}
+      "asked" => %{"jev" => band == :clarify, "current" => current.clarification}
     }
   end
 
@@ -678,7 +710,7 @@ defmodule TalesForge.IntentJev do
     %{
       "jev_valid" => true,
       "jev_action" => Atom.to_string(jev.action.action_type),
-      "asked" => %{"jev" => band == :ask, "current" => current.clarification}
+      "asked" => %{"jev" => band == :clarify, "current" => current.clarification}
     }
   end
 
@@ -700,7 +732,7 @@ defmodule TalesForge.IntentJev do
         not same_class or
           (a.action_type in [:move, :combat] and a.action_type == b.action_type and
              a.target != b.target),
-      "asked" => %{"jev" => band == :ask, "current" => current.clarification}
+      "asked" => %{"jev" => band == :clarify, "current" => current.clarification}
     }
   end
 

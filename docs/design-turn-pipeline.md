@@ -144,7 +144,7 @@ Small PRs. Each one has a flag and a default of off until its eval passes.
 3. **State from mechanics** (`TURN_STATE_FROM_MECHANICS`): coins, items, location and clock come only from stage 3. Add the prose post-check (log only).
 4. **NPC memory** (`NPC_DIALOGUE_MEMORY`): the last 3 lines per NPC, written by stage 4, plus a repetition guard. NPCs get the premise findings. Set `NPC_REACTIONS_TIMEOUT_MS` to 600.
 5. **Catalogue** (`JEV_CATALOGUE_V2`): `rest`, `work`, `equip`, `give`, 1 to 3 ordered actions, `none_fits`. `work` gives coins only. Retrain and re-run the eval. Remove the #198 rule after.
-6. **Clarification v2** (`INTENT_CLARIFICATION_V2`): state-filtered options. Rule: offer only options that are valid in the current state. Never offer the player's own items as buy targets. Never offer a person as goods.
+6. **Clarification v2** (`INTENT_CLARIFICATION_V2`): superseded by the in-character clarify (`TalesForge.Game.Clarify`, `docs/design-trade-offers.md`). An unclear turn moves nothing and the NPC asks, echoing the player's words, with candidates from Jev's readings and the state; the templated question and the flag are gone.
 7. **h-fa06** (`HISTORY_STRIP_INJECTION`): strip injected text from the history. Add the multi-turn test.
 
 Owners: Bobby builds the PRs. Case owns the eval plan and the fixtures. Gentry runs the adversarial and multi-turn sessions against the fixtures. Fredrik approves each flag flip to on.

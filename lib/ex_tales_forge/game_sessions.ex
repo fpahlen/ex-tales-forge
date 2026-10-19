@@ -385,20 +385,30 @@ defmodule TalesForge.GameSessions do
     {outcome, timing} = timed(fn -> jev_outcome(req) end)
 
     case outcome do
-      {:act, player_action, gm, meta} ->
-        record_intent_step(session, Map.put(timing, :meta, meta))
-
-        Logger.info(
-          "intent resolved session=#{session.id} duration_ms=#{timing.elapsed_ms} source=#{meta["source"]}"
-        )
-
-        enqueue_turn(req, player_action, gm)
-
       {:ask, clarification, meta} ->
-        record_intent_step(session, Map.put(timing, :meta, meta))
-        save_clarification(session, clarification, req.raw_action)
-        ask_player(session, clarification)
+        ask_jev(req, Map.put(timing, :meta, meta), clarification)
+
+      # :act or :clarify (an unclear turn plays as words; nothing moves).
+      {_kind, player_action, gm, meta} ->
+        play_jev(req, Map.put(timing, :meta, meta), {player_action, gm})
     end
+  end
+
+  # An attack with no clear target: the player picks whom.
+  defp ask_jev(%TurnRequest{session: session} = req, timing, clarification) do
+    record_intent_step(session, timing)
+    save_clarification(session, clarification, req.raw_action)
+    ask_player(session, clarification)
+  end
+
+  defp play_jev(%TurnRequest{session: session} = req, timing, {player_action, gm}) do
+    record_intent_step(session, timing)
+
+    Logger.info(
+      "intent resolved session=#{session.id} duration_ms=#{timing.elapsed_ms} source=#{timing.meta["source"]}"
+    )
+
+    enqueue_turn(req, player_action, gm)
   end
 
   defp jev_context(session) do
