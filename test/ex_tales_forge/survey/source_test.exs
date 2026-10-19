@@ -8,6 +8,8 @@ defmodule TalesForge.Survey.SourceTest do
   alias TalesForge.Survey.Cache
   alias TalesForge.Survey.Source
 
+  @snapshots ["founder-survey-3", "founder-survey-4-intent", "founder-survey-5-social"]
+
   setup do
     snapshot_only()
   end
@@ -21,7 +23,7 @@ defmodule TalesForge.Survey.SourceTest do
   end
 
   test "without docs, the survey list is the priv snapshots" do
-    assert Source.list_ids() == {["founder-survey-3", "founder-survey-4-intent"], []}
+    assert Source.list_ids() == {@snapshots, []}
   end
 
   test "a local docs checkout lists its *survey*.json files, cached for a minute" do
@@ -39,7 +41,7 @@ defmodule TalesForge.Survey.SourceTest do
     Application.put_env(:ex_tales_forge, :tales_forge_docs_path, dir)
     on_exit(fn -> Application.delete_env(:ex_tales_forge, :tales_forge_docs_path) end)
 
-    assert {["founder-survey-3", "founder-survey-4-intent"], [problem, note]} = Source.list_ids()
+    assert {@snapshots, [problem, note]} = Source.list_ids()
     assert problem =~ "could not list"
     assert note =~ "snapshots instead"
   end
@@ -136,16 +138,17 @@ defmodule TalesForge.Survey.SourceTest do
           %{"type" => "file", "name" => "founder-survey-3.md"},
           %{"type" => "file", "name" => "decisions.md"},
           %{"type" => "dir", "name" => "x-survey.json"},
-          %{"type" => "file", "name" => "founder-survey-4-intent.json"}
+          %{"type" => "file", "name" => "founder-survey-4-intent.json"},
+          %{"type" => "file", "name" => "founder-survey-5-social.json"}
         ])
       end)
 
-      assert Source.list_ids() == {["founder-survey-3", "founder-survey-4-intent"], []}
+      assert Source.list_ids() == {@snapshots, []}
     end
 
     test "a failed listing falls back to the snapshots" do
       Req.Test.stub(Source, &Plug.Conn.send_resp(&1, 403, "{}"))
-      assert {["founder-survey-3", "founder-survey-4-intent"], [problem | _]} = Source.list_ids()
+      assert {@snapshots, [problem | _]} = Source.list_ids()
       assert problem =~ "HTTP 403 listing docs/"
 
       Cache.clear()

@@ -176,13 +176,14 @@ defmodule TalesForgeWeb.AdminLive.SurveyLiveTest do
     assert html =~ "an open tab"
   end
 
-  test "the snapshots give two tabs: founder survey 3, then the intent survey", %{conn: conn} do
+  test "the snapshots give three tabs: surveys 3, 4 and 5", %{conn: conn} do
     {:ok, view, html} = live(conn, ~p"/admin/founders/survey")
 
     assert html =~ ~s(id="survey-tabs")
     assert html =~ "Play style &amp; scores"
     assert html =~ "What did the player mean?"
-    assert length(Regex.scan(~r/id="survey-tab-/, html)) == 2
+    assert html =~ "What does the line do?"
+    assert length(Regex.scan(~r/id="survey-tab-/, html)) == 3
     assert view |> element("#survey-tab-founder-survey-3[aria-current=page]") |> has_element?()
 
     {:ok, view, html} = live(conn, ~p"/admin/founders/surveys/founder-survey-4-intent")
@@ -193,6 +194,16 @@ defmodule TalesForgeWeb.AdminLive.SurveyLiveTest do
 
     assert html =~ "The player types:"
     refute html =~ "survey-inactive"
+
+    {:ok, view, html} = live(conn, ~p"/admin/founders/surveys/founder-survey-5-social")
+
+    assert view
+           |> element("#survey-tab-founder-survey-5-social[aria-current=page]")
+           |> has_element?()
+
+    assert html =~ "Now the player types:"
+    assert html =~ "Flattery: praise used to get something"
+    refute html =~ ~r/scripted|jev/i
   end
 
   test "tabs show only active, open surveys with this founder's status", %{conn: conn} do
