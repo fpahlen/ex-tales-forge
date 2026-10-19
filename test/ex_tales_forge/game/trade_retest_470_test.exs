@@ -20,13 +20,16 @@ defmodule TalesForge.Game.TradeRetest470Test do
 
   # {player text, Jev action, Jev target id, GM narrative (shortened)}, and
   # T4, the accept of T3's quote (PR B, docs/design-trade-offers.md), which
-  # the playtest did not have: Jev also answers the open offer.
+  # the playtest did not have: Jev also answers the open offer. T3 and T4
+  # are read as live Jev read the same turns in Gentry's v353 playtest
+  # (`TalesForge.JevLive`: Tin Valley T1, the price question, and T5, the
+  # "Yes." that bought), since session 8a9dbde9 predates `ask_price`.
   @script [
     {"I look around the common room.", :observe, nil, "Brenna smiles."},
     {"Brenna Holt, what work is there around here?", :speak, "innkeep", "Plenty of work."},
-    {"How much for a mug of ale, Brenna?", :buy, "innkeep",
+    {"How much for a mug of ale, Brenna?", {:live, {"tin_valley", 1}},
      "You slide two copper across the counter."},
-    {"Yes, one please.", :speak, "innkeep", "She draws a mug.", offer_answer: :accept},
+    {"Yes, one please.", {:live, {"tin_valley", 5}}, "She draws a mug."},
     {"I buy a loaf of bread and pay her.", :buy, "innkeep", "The loaves are all gone."},
     {"I sell my travel cloak to Brenna Holt.", :sell, "innkeep", "I don't trade in gear."},
     {"Brenna, how much did you give me for the cloak?", :speak, "innkeep", "Not a copper."},
@@ -118,6 +121,12 @@ defmodule TalesForge.Game.TradeRetest470Test do
     assert failures == []
   end
 
+  defp play(session_id, {text, {:live, turn}, narrative}) do
+    {action, read} = Keyword.pop!(TalesForge.JevLive.read(turn), :action)
+    {target_id, answers} = Keyword.pop!(read, :target)
+    play(session_id, {text, action, target_id, narrative, answers})
+  end
+
   defp play(session_id, {text, action, target_id, narrative}),
     do: play(session_id, {text, action, target_id, narrative, []})
 
@@ -131,14 +140,17 @@ defmodule TalesForge.Game.TradeRetest470Test do
 
       Jev.Test.respond(
         conn,
-        Map.merge(Map.new(answers), %{
-          action: action,
-          target: target,
-          skill: :none,
-          later: :none,
-          safety: :benign,
-          confidence: %{action: 0.95, target: 0.95, safety: 0.99}
-        })
+        Map.merge(
+          %{
+            action: action,
+            target: target,
+            skill: :none,
+            later: :none,
+            safety: :benign,
+            confidence: %{action: 0.95, target: 0.95, safety: 0.99}
+          },
+          Map.new(answers)
+        )
       )
     end)
 

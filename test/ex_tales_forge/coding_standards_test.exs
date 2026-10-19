@@ -35,7 +35,10 @@ defmodule TalesForge.CodingStandardsTest do
     TalesForge.AppRole,
     TalesForge.DeployLanes,
     TalesForge.DeployLanes.CLI,
-    Mix.Tasks.Deploy.CheckBoundaries
+    Mix.Tasks.Deploy.CheckBoundaries,
+    TalesForge.NPC,
+    TalesForge.NPC.Rows,
+    TalesForge.Admin
   ]
 
   for module <- @documented do

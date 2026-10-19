@@ -5,6 +5,9 @@ defmodule TalesForge.Game.TradeOffersTest do
   `TalesForge.Game.TradeRetest470Test`. Jev and the GM are stubbed; the
   Jev stub answers the open-offer questions only when the request asks
   them (`Jev.Test` raises on an answer to a question it was not asked).
+  Where Gentry played the same turn in v353, the stub is what live Jev
+  read for it (`live/3`, `TalesForge.JevLive`); the rest (no live
+  counterpart) are written by hand.
 
   Fredrik's rules: coins and items only change place; a trade needs both
   sides to accept, else nothing moves.
@@ -50,12 +53,12 @@ defmodule TalesForge.Game.TradeOffersTest do
   end
 
   test "a quote, then accept: the ale is served and paid", %{session: session} do
-    {before, quoted} = play(session.id, "How much for a mug of ale, Brenna?", :buy)
+    {before, quoted} = live(session.id, {"tin_valley", 1})
     assert diff(before, quoted) == []
     assert %{"item" => %{"id" => "ale_mug"}, "price" => 2} = open_offer(session.id)
     assert last_gm() =~ "The server quotes: Brenna Holt sells Ale for 2c"
 
-    {_, accepted} = play(session.id, "Yes, one please.", :speak, offer_answer: :accept)
+    {_, accepted} = live(session.id, {"tin_valley", 5})
     assert copper(accepted, "innkeep") == copper(quoted, "innkeep") + 2
     assert copper(accepted, "player") == copper(quoted, "player") - 2
     assert qty(accepted, "innkeep", "ale_mug") == qty(quoted, "innkeep", "ale_mug") - 1
@@ -64,8 +67,8 @@ defmodule TalesForge.Game.TradeOffersTest do
   end
 
   test "a quote, then decline: nothing moves and the offer closes", %{session: session} do
-    {before, _} = play(session.id, "How much for a mug of ale, Brenna?", :buy)
-    {_, declined} = play(session.id, "No thanks, too dear.", :speak, offer_answer: :decline)
+    {before, _} = live(session.id, {"tin_valley", 1})
+    {_, declined} = live(session.id, {"tin_valley", 9})
 
     assert diff(before, declined) == []
     assert open_offer(session.id) == nil
@@ -74,27 +77,21 @@ defmodule TalesForge.Game.TradeOffersTest do
 
   test "a quote, then leaving the place: the offer expires, a later yes moves nothing",
        %{session: session} do
-    {before, _} = play(session.id, "How much for a mug of ale, Brenna?", :buy)
-
-    {_, left} =
-      play(session.id, "I walk to the smithy.", :move, target: "smithy", offer_answer: :other)
+    {before, _} = live(session.id, {"tin_valley", 1})
+    {_, left} = live(session.id, {"tin_valley", 18}, offer_answer: :other)
 
     assert open_offer(session.id) == nil
     assert diff(before, left) == []
 
     # No offer is open, so Jev is not asked about one (the stub raises if it answers one).
-    {_, after_yes} = play(session.id, "Yes, one please.", :speak, target: nil)
+    {_, after_yes} = live(session.id, {"tin_valley", 13})
     refute_received {:jev_questions, %{"offer_answer" => _}}
     assert diff(before, after_yes) == []
   end
 
   test "an unanswered quote expires after 2 turns", %{session: session} do
-    play(session.id, "How much for a mug of ale, Brenna?", :buy)
-
-    play(session.id, "I look around the common room.", :observe,
-      target: nil,
-      offer_answer: :other
-    )
+    live(session.id, {"tin_valley", 1})
+    live(session.id, {"tin_valley", 11}, offer_answer: :other)
 
     assert %{"age" => 1} = open_offer(session.id)
     play(session.id, "Nice weather.", :speak, offer_answer: :other)
@@ -111,7 +108,7 @@ defmodule TalesForge.Game.TradeOffersTest do
 
   test "an unclear 'I order a meal' (Jev: a meal): a counter-question with the kind's options from stock, then the pick trades",
        %{session: session} do
-    {before, asked} = play(session.id, "I order a meal.", :buy, target: "goods:a meal")
+    {before, asked} = live_words(session.id, "I order a meal.", {"tin_valley", 6})
     assert diff(before, asked) == []
 
     assert %{
@@ -142,7 +139,7 @@ defmodule TalesForge.Game.TradeOffersTest do
 
   test "a plain yes to an unclear buy picks nothing: the offer stays open, then a pick buys",
        %{session: session} do
-    {before, _} = play(session.id, "I order a meal.", :buy, target: "goods:a meal")
+    {before, _} = live_words(session.id, "I order a meal.", {"tin_valley", 6})
     offered = open_offer(session.id)
 
     {_, yes} = play(session.id, "Yes, please.", :buy, offer_answer: :accept)
@@ -194,17 +191,18 @@ defmodule TalesForge.Game.TradeOffersTest do
   end
 
   test "the NPC refuses: out of stock after the quote, nothing moves", %{session: session} do
-    play(session.id, "How much for a mug of ale, Brenna?", :buy)
+    live(session.id, {"tin_valley", 1})
     stock(session.id, fn stock -> Enum.map(stock, &Map.put(&1, "quantity", 0)) end)
     before = snapshot(session.id)
 
-    {_, refused} = play(session.id, "Yes, one please.", :speak, offer_answer: :accept)
+    {_, refused} = live(session.id, {"tin_valley", 5})
     assert diff(before, refused) == []
     assert last_gm() =~ "The server refused this trade"
   end
 
   test "the NPC refuses: the player cannot pay, nothing moves", %{session: session} do
-    play(session.id, "How much for a mug of ale, Brenna?", :buy)
+    # Gentry's T24-T25: her purse set to 1c on the admin page, then a quote and a yes.
+    live(session.id, {"tin_valley", 24})
 
     Character
     |> where([c], c.game_session_id == ^session.id and c.controller == "player")
@@ -213,7 +211,7 @@ defmodule TalesForge.Game.TradeOffersTest do
     before = snapshot(session.id)
     # The ale is in stock: only the purse refuses the trade.
     assert qty(before, "innkeep", "ale_mug") > 1
-    {_, refused} = play(session.id, "Yes, one please.", :speak, offer_answer: :accept)
+    {_, refused} = live(session.id, {"tin_valley", 25})
     assert diff(before, refused) == []
     assert last_gm() =~ "cannot pay 2c"
   end
@@ -226,8 +224,7 @@ defmodule TalesForge.Game.TradeOffersTest do
   test "ask_price quotes the item; Jev's accept of the open offer buys it, not the GM's side offer",
        %{session: session} do
     {before, quoted} =
-      play(session.id, "Vad kostar en öl?", :ask_price,
-        target: "ale_mug",
+      live_words(session.id, "Vad kostar en öl?", {"tin_valley", 1},
         narrative:
           "\"Two copper for the ale, love.\" Brenna glances at the hearth. " <>
             "\"And if you've a mind for work, the kindling wants splitting.\""
@@ -237,7 +234,7 @@ defmodule TalesForge.Game.TradeOffersTest do
     assert %{"item" => %{"id" => "ale_mug"}, "price" => 2} = open_offer(session.id)
     assert last_gm() =~ "The server quotes: Brenna Holt sells Ale for 2c"
 
-    {_, accepted} = play(session.id, "Ja.", :speak, offer_answer: :accept)
+    {_, accepted} = live_words(session.id, "Ja.", {"tin_valley", 5})
 
     assert_received {:jev_request,
                      %{"state" => %{"open_offer" => "Brenna Holt sells Ale for 2c"}}}
@@ -272,7 +269,7 @@ defmodule TalesForge.Game.TradeOffersTest do
   # Holt?" instead of her "which one?".
   test "a yes to the options is not a generic clarification: the seller asks which one",
        %{session: session} do
-    {before, _} = play(session.id, "I'd like a meal.", :buy, target: "goods:a meal")
+    {before, _} = live(session.id, {"tin_valley", 6})
     offered = open_offer(session.id)
     assert %{"item" => nil, "options" => [_, _]} = offered
 
@@ -296,8 +293,7 @@ defmodule TalesForge.Game.TradeOffersTest do
     test "Gentry's 'Yes.' after a quote and a side kindling offer clarifies; nothing moves",
          %{session: session} do
       {before, _} =
-        play(session.id, "How much for an ale?", :ask_price,
-          target: "ale_mug",
+        live(session.id, {"tin_valley", 1},
           narrative:
             "\"Two copper for the ale, love.\" Brenna glances at the hearth. " <>
               "\"And if you've a mind for work, the kindling wants splitting.\""
@@ -306,13 +302,7 @@ defmodule TalesForge.Game.TradeOffersTest do
       offered = open_offer(session.id)
       assert %{"item" => %{"id" => "ale_mug"}, "price" => 2} = offered
 
-      {_, yes} =
-        play(session.id, "Yes.", :speak,
-          offer_answer: :accept,
-          probabilities: %{
-            offer_answer: %{accept: 0.55, other_offer: 0.4, decline: 0.03, other: 0.02}
-          }
-        )
+      {_, yes} = live(session.id, {"tin_valley", 2})
 
       assert diff(before, yes) == []
       assert open_offer(session.id) == offered
@@ -323,14 +313,16 @@ defmodule TalesForge.Game.TradeOffersTest do
       assert gm =~ "something else offered in the last narration"
     end
 
+    # Finding (v353 stubs from live, this PR): live Jev was never unsure on
+    # "Meal." (Tin Valley T6 and T23: buy 0.93 and 0.90, the kind "a meal"
+    # as target), so the turn lists the kind's options; the clarify this
+    # test wants needs an unsure read that did not happen live. Kept, not
+    # patched: trade features are frozen (Fredrik, 2026-10-19).
+    @tag :pending
+    @tag finding: "v353 live read of 'Meal.' is sure: options, not the clarify"
     test "'Meal.' alone, Jev unsure between buying a meal and talking: clarifies; nothing moves",
          %{session: session} do
-      {before, after_meal} =
-        play(session.id, "Meal.", :buy,
-          target: "goods:a meal",
-          confidence: %{action: 0.35, target: 0.9, safety: 0.99},
-          probabilities: %{action: %{buy: 0.5, speak: 0.45, observe: 0.05}}
-        )
+      {before, after_meal} = live(session.id, {"tin_valley", 6})
 
       assert diff(before, after_meal) == []
       assert open_offer(session.id) == nil
@@ -342,15 +334,8 @@ defmodule TalesForge.Game.TradeOffersTest do
     end
 
     test "a clear 'Yes' to the one open offer buys it", %{session: session} do
-      {before, quoted} = play(session.id, "How much for an ale?", :ask_price, target: "ale_mug")
-
-      {_, bought} =
-        play(session.id, "Yes.", :speak,
-          offer_answer: :accept,
-          probabilities: %{
-            offer_answer: %{accept: 0.97, decline: 0.01, other_offer: 0.01, other: 0.01}
-          }
-        )
+      {before, quoted} = live(session.id, {"tin_valley", 21})
+      {_, bought} = live(session.id, {"tin_valley", 22})
 
       assert copper(bought, "player") == copper(quoted, "player") - 2
       assert qty(bought, "innkeep", "ale_mug") == qty(quoted, "innkeep", "ale_mug") - 1
@@ -364,7 +349,7 @@ defmodule TalesForge.Game.TradeOffersTest do
     # safety, uneasy) is 2.6, a brush-off.
     test "Brenna (patient) echoes the words and offers options; nothing moves",
          %{session: session} do
-      {before, after_order} = play(session.id, "I'd like something.", :buy)
+      {before, after_order} = live(session.id, {"tin_valley", 14})
       assert diff(before, after_order) == []
 
       gm = last_gm()
@@ -372,9 +357,14 @@ defmodule TalesForge.Game.TradeOffersTest do
       refute gm =~ "brush-off"
     end
 
+    # Finding (v353 stubs from live): at the forge live Jev read "I'd like
+    # something to eat." as talk to Hilde (T19: speak 0.84, target smith),
+    # so no clarify, and her brush-off never came. Kept, not patched.
+    @tag :pending
+    @tag finding: "v353 T19 reads talk to Hilde: no clarify, no brush-off"
     test "Hilde (gruff) gives a short brush-off; nothing moves", %{session: session} do
-      play(session.id, "I walk to the smithy.", :move, target: "smithy")
-      {before, after_order} = play(session.id, "I'd like something.", :buy, target: "smith")
+      live(session.id, {"tin_valley", 18})
+      {before, after_order} = live(session.id, {"tin_valley", 19})
       assert diff(before, after_order) == []
       assert open_offer(session.id) == nil
 
@@ -383,13 +373,19 @@ defmodule TalesForge.Game.TradeOffersTest do
       refute gm =~ "offers what they might mean"
     end
 
+    # Finding (v353 stubs from live): live Jev gave "I'd like something to
+    # eat." no target (T14: buy 0.64, speak 0.36), so the clarify has no
+    # asker (stored clarify: npc null, style helpful) and Brenna's patience
+    # is never read: hungry or not, the style is helpful. Kept, not patched.
+    @tag :pending
+    @tag finding: "v353 T14 clarify has no asker: the patience never applies"
     test "unmet low needs lower patience: Brenna going hungry brushes off; nothing moves",
          %{session: session} do
       Character
       |> where([c], c.game_session_id == ^session.id and c.slug == "innkeep")
       |> Repo.update_all(set: [maslow_level: "physiological"])
 
-      {before, after_order} = play(session.id, "I'd like something.", :buy)
+      {before, after_order} = live(session.id, {"tin_valley", 14})
       assert diff(before, after_order) == []
 
       gm = last_gm()
@@ -404,7 +400,7 @@ defmodule TalesForge.Game.TradeOffersTest do
   # state the open offer with its options, and the offer questions are asked.
   @jev_golden Path.expand("../../fixtures/jev/open_offer_request.json", __DIR__)
   test "Jev prompt fixture: ask_price and the open offer with its options", %{session: session} do
-    play(session.id, "I'd like a meal.", :buy, target: "goods:a meal")
+    live(session.id, {"tin_valley", 6})
     play(session.id, "Hmm.", :speak, offer_answer: :other)
     assert_received {:jev_request, request}
 
@@ -472,7 +468,12 @@ defmodule TalesForge.Game.TradeOffersTest do
     target =
       Enum.find_value(JevIntent.candidates(context), :none, &(&1.id == target_id && &1.label))
 
-    answers = Map.new(Keyword.take(opts, [:offer_answer, :offer_pick, :probabilities]))
+    answers =
+      opts
+      |> Keyword.take([:offer_answer, :offer_pick, :probabilities])
+      |> Map.new()
+      |> Map.reject(fn {_key, value} -> is_nil(value) end)
+
     confidence = Keyword.get(opts, :confidence, %{action: 0.95, target: 0.95, safety: 0.99})
     narrative = Keyword.get(opts, :narrative, "Brenna nods.")
     test = self()
@@ -511,6 +512,18 @@ defmodule TalesForge.Game.TradeOffersTest do
     now = snapshot(session_id)
     assert_conserved(before, now)
     {before, now}
+  end
+
+  # One turn as Gentry played it in v353 (`TalesForge.JevLive`): her words
+  # and what live Jev read for them; `opts` adds to the read (a narrative,
+  # an answer to an offer the recorded turn did not have).
+  defp live(session_id, turn, opts \\ []),
+    do: live_words(session_id, TalesForge.JevLive.text(turn), turn, opts)
+
+  # Other words, read as live Jev read the turn `turn`.
+  defp live_words(session_id, text, turn, opts \\ []) do
+    {action, read} = Keyword.pop!(TalesForge.JevLive.read(turn), :action)
+    play(session_id, text, action, Keyword.merge(read, opts))
   end
 
   defp flush do

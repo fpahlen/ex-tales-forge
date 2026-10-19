@@ -13,9 +13,9 @@ defmodule TalesForge.Game.BargainTest do
     {:ok, session} = GameSessions.create_session(%{name: "Bargain", adventure_id: "tin_valley"})
     session = GameSessions.get_session!(session.id)
 
-    set_runtime(session.id, %{
-      "stock" => [%{"id" => "rope", "name" => "Rope", "price_copper" => 110, "quantity" => 3}]
-    })
+    put_stock(session.id, [
+      %{"id" => "rope", "name" => "Rope", "price_copper" => 110, "quantity" => 3}
+    ])
 
     {:ok, session: GameSessions.get_session!(session.id)}
   end
@@ -24,6 +24,12 @@ defmodule TalesForge.Game.BargainTest do
     inst = NPC.get_person(session_id, "innkeep")
 
     NPC.put_state!(inst, Map.merge(inst.runtime_state, changes))
+  end
+
+  # Brenna's stock, written the way a trade writes it (only a trade moves goods).
+  defp put_stock(session_id, items) do
+    %{"innkeep" => brenna} = NPC.traders(session_id, ["innkeep"])
+    :ok = NPC.put_inventories(session_id, [%{brenna | inventory: items}])
   end
 
   defp buy(session, text, opts) do

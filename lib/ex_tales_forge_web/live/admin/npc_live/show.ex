@@ -1,6 +1,11 @@
 defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
   @moduledoc """
   Admin: one NPC in a session (its character row), with its runtime state to edit.
+
+  The header names the session (name and id), so the page read is the
+  session played. Saving checks that the row has not changed since the
+  page read it (a turn played, a trade): a stale copy is not saved; the
+  page says so and shows the row as it is now.
   """
 
   use TalesForgeWeb, :live_view
@@ -38,18 +43,23 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
   @impl true
   def handle_event("save_runtime", %{"runtime_json" => json}, socket) do
     %{session: session, npc: npc} = socket.assigns
-
-    case Admin.update_npc_runtime_state(npc, json) do
-      {:ok, npc} ->
-        {:noreply,
-         socket
-         |> assign_npc(session, npc)
-         |> put_flash(:info, "Runtime state saved.")}
-
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, reason)}
-    end
+    {:noreply, saved(socket, session, Admin.update_npc_runtime_state(npc, json))}
   end
+
+  defp saved(socket, session, {:ok, npc}),
+    do: socket |> assign_npc(session, npc) |> put_flash(:info, "Runtime state saved.")
+
+  defp saved(socket, session, {:error, :stale}) do
+    socket
+    |> assign_npc(session, Admin.get_npc(session.id, socket.assigns.npc.npc_id))
+    |> put_flash(
+      :error,
+      "Not saved: this NPC changed after the page loaded (a turn was played). " <>
+        "The page now shows the current state; make your edit again."
+    )
+  end
+
+  defp saved(socket, _session, {:error, reason}), do: put_flash(socket, :error, reason)
 
   @impl true
   def render(assigns) do
@@ -63,6 +73,10 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
           ← NPCs
         </.link>
         <h2 class="font-serif text-2xl font-bold text-[var(--paper-ink)]">{@npc.npc_id}</h2>
+        <p id="npc-session" class="text-sm text-[var(--paper-ink)]">
+          Session <span class="font-semibold">{@session.name}</span>
+          <span class="font-mono">{@session.id}</span>
+        </p>
       </header>
 
       <.section_card title="Personality (read-only)">

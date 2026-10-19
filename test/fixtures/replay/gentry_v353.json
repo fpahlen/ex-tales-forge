@@ -156,7 +156,8 @@
      "text": "Meal.",
      "jev": {
       "action": "buy",
-      "target": null,
+      "target": "goods:a meal",
+      "target_note": "turn.intent meta keeps no id for a kind of goods; the turn bought from the kind's options (ProcessTurn args: buy, options bread_cheese and stew_bowl)",
       "raw_confidence": 0.87,
       "probabilities": {
        "buy": 0.93,
@@ -646,7 +647,8 @@
      "text": "Meal.",
      "jev": {
       "action": "buy",
-      "target": null,
+      "target": "goods:a meal",
+      "target_note": "turn.intent meta keeps no id for a kind of goods; the turn bought from the kind's options (ProcessTurn args: buy, options bread_cheese and stew_bowl)",
       "raw_confidence": 0.89,
       "probabilities": {
        "buy": 0.9,

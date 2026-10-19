@@ -1,0 +1,801 @@
+{
+  "crossroads_ledger": [
+    {
+      "coins": {
+        "copper": 2,
+        "gold": 1
+      },
+      "inventory": [
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "ale_mug",
+          "name": "Mug of Ale",
+          "price_copper": 2,
+          "quantity": 98
+        },
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "common_wine",
+          "name": "Bottle of Common Wine",
+          "price_copper": 15,
+          "quantity": 10
+        }
+      ],
+      "location_id": "weary_pilgrim",
+      "mood": "cautious",
+      "relationships": {
+        "elara_voss": 0.05
+      },
+      "runtime": {
+        "concern_wait_ticks": 0,
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "missing ledger",
+          "priority": 9,
+          "since_tick": 36
+        },
+        "initiative_emitted": true,
+        "initiative_emitted_at_tick": 40,
+        "memories": [
+          {
+            "summary": "Overheard player: How much for a mug of ale?",
+            "tick": 37
+          },
+          {
+            "summary": "Sold the stranger a mug of ale for 2c.",
+            "tick": 38
+          },
+          {
+            "summary": "Overheard player: Yes.",
+            "tick": 38
+          },
+          {
+            "summary": "Quoted 2 copper for a mug of ale and waits for payment.",
+            "tick": 39
+          },
+          {
+            "summary": "Overheard player: How much for a mug of ale?",
+            "tick": 39
+          },
+          {
+            "summary": "Player declined the mug of ale offer.",
+            "tick": 40
+          },
+          {
+            "summary": "Player spoke to me: No, thank you.",
+            "tick": 40
+          }
+        ],
+        "public_facts": [],
+        "reaction": {
+          "confidence": 1.0,
+          "emotion": "calm",
+          "intensity": 0.08,
+          "stance": "cool",
+          "turn_number": 4
+        },
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "marta_kellen",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 0,
+        "gold": 8,
+        "silver": 0
+      },
+      "inventory": [],
+      "location_id": "crossroads_square",
+      "mood": "anxious",
+      "relationships": {
+        "elara_voss": 0.0
+      },
+      "runtime": {
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "stolen ledger",
+          "priority": 8,
+          "since_tick": 36
+        },
+        "memories": [],
+        "public_facts": [],
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "worried_merchant",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 8,
+        "gold": 2,
+        "silver": 9
+      },
+      "inventory": [
+        {
+          "copper_value": 0,
+          "equipped": null,
+          "id": "travel_cloak",
+          "name": "travel cloak",
+          "price_copper": null,
+          "quantity": 1
+        },
+        {
+          "copper_value": 0,
+          "equipped": null,
+          "id": "hunting_knife",
+          "name": "hunting knife",
+          "price_copper": null,
+          "quantity": 1
+        }
+      ],
+      "location_id": "weary_pilgrim",
+      "mood": null,
+      "relationships": {},
+      "runtime": {},
+      "slug": "player",
+      "vitality": "ok",
+      "wounds": 0
+    }
+  ],
+  "tin_valley": [
+    {
+      "coins": {
+        "copper": 0,
+        "gold": 0,
+        "silver": 5
+      },
+      "inventory": [],
+      "location_id": "old_adit",
+      "mood": "surly",
+      "relationships": {
+        "elara_voss": 0.0
+      },
+      "runtime": {
+        "concern_wait_ticks": 2,
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "doing what Rusk says",
+          "priority": 10,
+          "since_tick": 36
+        },
+        "initiative_emitted": false,
+        "memories": [
+          {
+            "summary": "Overheard player: Meal.",
+            "tick": 42
+          },
+          {
+            "summary": "Overheard player: I order a meal.",
+            "tick": 43
+          },
+          {
+            "summary": "Overheard player: How much for an ale?",
+            "tick": 44
+          },
+          {
+            "summary": "Overheard player: No, thank you.",
+            "tick": 45
+          },
+          {
+            "summary": "Overheard player: How much for the bread and cheese?",
+            "tick": 46
+          },
+          {
+            "summary": "Overheard player: I look out the window.",
+            "tick": 47
+          },
+          {
+            "summary": "Noticed the player's muddy boots matching the weighing shed prints.",
+            "tick": 48
+          },
+          {
+            "summary": "Overheard player: I check my boots.",
+            "tick": 48
+          },
+          {
+            "summary": "Overheard player: Yes.",
+            "tick": 49
+          },
+          {
+            "summary": "Overheard player: I'd like something to eat.",
+            "tick": 50
+          },
+          {
+            "summary": "Overheard player: How much for an ale?",
+            "tick": 51
+          }
+        ],
+        "public_facts": [],
+        "reaction": {
+          "confidence": 1.0,
+          "emotion": "calm",
+          "intensity": 0.08,
+          "stance": "cool",
+          "turn_number": 15
+        },
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "cobb",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 0,
+        "gold": 1,
+        "silver": 0
+      },
+      "inventory": [
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "rope_coil",
+          "name": "Coil of rope",
+          "price_copper": 8,
+          "quantity": 4
+        },
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "lamp_oil",
+          "name": "Flask of lamp oil",
+          "price_copper": 3,
+          "quantity": 6
+        },
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "lantern",
+          "name": "Lantern",
+          "price_copper": 25,
+          "quantity": 1
+        }
+      ],
+      "location_id": "inn_yard",
+      "mood": "aggrieved",
+      "relationships": {
+        "elara_voss": 0.0
+      },
+      "runtime": {
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "getting her salt back, or the coin for it",
+          "priority": 8,
+          "since_tick": 36
+        },
+        "memories": [],
+        "public_facts": [],
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "drover",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 0,
+        "gold": 8,
+        "silver": 0
+      },
+      "inventory": [],
+      "location_id": "market_square",
+      "mood": "neutral",
+      "relationships": {
+        "elara_voss": 0.05
+      },
+      "runtime": {
+        "concern_wait_ticks": 1,
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "the nest on the cut",
+          "priority": 8,
+          "since_tick": 36
+        },
+        "memories": [
+          {
+            "summary": "Overheard player: I walk out to the market square.",
+            "tick": 51
+          },
+          {
+            "summary": "Player accepted the 20 silver contract to clear the orc nest on the cut.",
+            "tick": 52
+          },
+          {
+            "summary": "Player spoke to me: Yes.",
+            "tick": 52
+          }
+        ],
+        "public_facts": [],
+        "reaction": {
+          "confidence": 1.0,
+          "emotion": "calm",
+          "intensity": 0.08,
+          "stance": "cool",
+          "turn_number": 17
+        },
+        "resources": {
+          "coin": 12
+        },
+        "since_tick": 36
+      },
+      "slug": "guild_steward",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 0,
+        "gold": 1,
+        "silver": 0
+      },
+      "inventory": [
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "poultice",
+          "name": "Healing poultice",
+          "price_copper": 4,
+          "quantity": 5
+        }
+      ],
+      "location_id": "herb_cottage",
+      "mood": "watchful",
+      "relationships": {
+        "elara_voss": 0.0
+      },
+      "runtime": {
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "the Guild digging deeper, and the young ones going wild",
+          "priority": 8,
+          "since_tick": 36
+        },
+        "memories": [],
+        "public_facts": [
+          {
+            "id": "maude_west_road_news",
+            "text": "Old Maude, the herb-wife in the cottage off the Market Square, asks every drover for news from the west road, and says the old adit up there has been knocking again, as it did before the miners sealed it.",
+            "visibility": [
+              "valley_inn",
+              "inn_yard",
+              "market_square"
+            ]
+          }
+        ],
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "herb_wife",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 4,
+        "gold": 2
+      },
+      "inventory": [
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "ale_mug",
+          "name": "Ale",
+          "price_copper": 2,
+          "quantity": 70
+        },
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "stew_bowl",
+          "name": "Bowl of Stew",
+          "price_copper": 5,
+          "quantity": 20
+        },
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "bread_cheese",
+          "name": "Bread and Cheese",
+          "price_copper": 2,
+          "quantity": 12
+        }
+      ],
+      "location_id": "valley_inn",
+      "mood": "cheerful",
+      "relationships": {
+        "elara_voss": 0.2
+      },
+      "runtime": {
+        "concern_wait_ticks": 0,
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "keeping her guests fed, talking and safe while the hills are restless",
+          "priority": 10,
+          "since_tick": 36
+        },
+        "initiative_emitted": true,
+        "initiative_emitted_at_tick": 48,
+        "memories": [
+          {
+            "summary": "Overheard player: I look out the window.",
+            "tick": 47
+          },
+          {
+            "summary": "Offered the player work with Osric Vane clearing orcs.",
+            "tick": 48
+          },
+          {
+            "summary": "Overheard player: I check my boots.",
+            "tick": 48
+          },
+          {
+            "summary": "Player agreed to take the work clearing orcs for Osric Vane.",
+            "tick": 49
+          },
+          {
+            "summary": "Player spoke to me: Yes.",
+            "tick": 49
+          },
+          {
+            "summary": "Player asked for something to eat; Brenna clarified options of stew, bread and cheese.",
+            "tick": 50
+          },
+          {
+            "summary": "Overheard player: I'd like something to eat.",
+            "tick": 50
+          },
+          {
+            "summary": "Quoted 2 copper for a mug of ale.",
+            "tick": 51
+          },
+          {
+            "summary": "Overheard player: How much for an ale?",
+            "tick": 51
+          },
+          {
+            "summary": "Player returned to the inn after working at Brask's forge.",
+            "tick": 53
+          },
+          {
+            "summary": "Overheard player: I walk to the Valley Inn.",
+            "tick": 53
+          },
+          {
+            "summary": "Quoted 2 copper for a mug of ale.",
+            "tick": 54
+          },
+          {
+            "summary": "Overheard player: How much for an ale?",
+            "tick": 54
+          },
+          {
+            "summary": "Player bought a mug of ale for 2 copper.",
+            "tick": 55
+          },
+          {
+            "summary": "Overheard player: Yes.",
+            "tick": 55
+          },
+          {
+            "summary": "Overheard player: Meal.",
+            "tick": 56
+          },
+          {
+            "summary": "Quoted 2 copper again for a mug of ale.",
+            "tick": 57
+          },
+          {
+            "summary": "Overheard player: How much for an ale?",
+            "tick": 57
+          },
+          {
+            "summary": "Player tried to buy ale but lacked the 2 copper.",
+            "tick": 58
+          },
+          {
+            "summary": "Overheard player: Yes.",
+            "tick": 58
+          }
+        ],
+        "public_facts": [],
+        "reaction": {
+          "confidence": 1.0,
+          "emotion": "calm",
+          "intensity": 0.08,
+          "stance": "cool",
+          "turn_number": 25
+        },
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "innkeep",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 0,
+        "gold": 0,
+        "silver": 5
+      },
+      "inventory": [],
+      "location_id": "west_road",
+      "mood": "nervous",
+      "relationships": {
+        "elara_voss": 0.0
+      },
+      "runtime": {
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "getting out of the gang alive",
+          "priority": 8,
+          "since_tick": 36
+        },
+        "memories": [],
+        "public_facts": [],
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "pip",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 0,
+        "gold": 1,
+        "silver": 0
+      },
+      "inventory": [],
+      "location_id": "mine_workings",
+      "mood": "neutral",
+      "relationships": {
+        "elara_voss": 0.0
+      },
+      "runtime": {
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "orcs on the hill and the Guild's hurry to dig",
+          "priority": 8,
+          "since_tick": 36
+        },
+        "memories": [],
+        "public_facts": [],
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "prospector",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 0,
+        "gold": 0,
+        "silver": 5
+      },
+      "inventory": [],
+      "location_id": "old_adit",
+      "mood": "confident",
+      "relationships": {
+        "elara_voss": 0.0
+      },
+      "runtime": {
+        "concern_wait_ticks": 2,
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "squeezing the village before the Guild clears the cut and looks around",
+          "priority": 10,
+          "since_tick": 36
+        },
+        "initiative_emitted": false,
+        "memories": [
+          {
+            "summary": "Overheard player: Meal.",
+            "tick": 42
+          },
+          {
+            "summary": "Overheard player: I order a meal.",
+            "tick": 43
+          },
+          {
+            "summary": "Overheard player: How much for an ale?",
+            "tick": 44
+          },
+          {
+            "summary": "Overheard player: No, thank you.",
+            "tick": 45
+          },
+          {
+            "summary": "Overheard player: How much for the bread and cheese?",
+            "tick": 46
+          },
+          {
+            "summary": "Overheard player: I look out the window.",
+            "tick": 47
+          },
+          {
+            "summary": "Overheard player: I check my boots.",
+            "tick": 48
+          },
+          {
+            "summary": "Overheard player: Yes.",
+            "tick": 49
+          },
+          {
+            "summary": "Overheard player: I'd like something to eat.",
+            "tick": 50
+          },
+          {
+            "summary": "Overheard player: How much for an ale?",
+            "tick": 51
+          }
+        ],
+        "public_facts": [],
+        "reaction": {
+          "confidence": 1.0,
+          "emotion": "calm",
+          "intensity": 0.08,
+          "stance": "cool",
+          "turn_number": 15
+        },
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "rusk",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 0,
+        "gold": 1,
+        "silver": 0
+      },
+      "inventory": [
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "hunting_knife",
+          "name": "Hunting knife",
+          "price_copper": 15,
+          "quantity": 3
+        },
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "spearhead",
+          "name": "Spearhead",
+          "price_copper": 20,
+          "quantity": 2
+        },
+        {
+          "copper_value": null,
+          "equipped": null,
+          "id": "short_sword",
+          "name": "Short sword",
+          "price_copper": 60,
+          "quantity": 1
+        }
+      ],
+      "location_id": "smithy",
+      "mood": "uneasy",
+      "relationships": {
+        "elara_voss": 0.05
+      },
+      "runtime": {
+        "concern_wait_ticks": 1,
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "the cheap tin, and what it may cost her",
+          "priority": 8,
+          "since_tick": 36
+        },
+        "memories": [
+          {
+            "summary": "Overheard player: I walk to the smithy.",
+            "tick": 52
+          },
+          {
+            "summary": "Player asked for food at the forge; Hilde offered bellows work for 2 silver or knife sharpening instead.",
+            "tick": 53
+          },
+          {
+            "summary": "Player spoke to me: I'd like something to eat.",
+            "tick": 53
+          }
+        ],
+        "public_facts": [
+          {
+            "id": "smith_night_work",
+            "text": "Brask's forge off the Market Square rang past midnight again. Hilde Brask wants a strong arm at the bellows, and folk whisper that the tin she works these nights carries no Guild stamp.",
+            "visibility": [
+              "valley_inn",
+              "inn_yard",
+              "market_square"
+            ]
+          }
+        ],
+        "reaction": {
+          "confidence": 1.0,
+          "emotion": "calm",
+          "intensity": 0.08,
+          "stance": "cool",
+          "turn_number": 19
+        },
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "smith",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 0,
+        "gold": 1,
+        "silver": 0
+      },
+      "inventory": [],
+      "location_id": "inn_yard",
+      "mood": "restless",
+      "relationships": {
+        "elara_voss": 0.0
+      },
+      "runtime": {
+        "current_concern": {
+          "blocked_by": null,
+          "focus": "the night carts on the west road and the men who drive them",
+          "priority": 8,
+          "since_tick": 36
+        },
+        "memories": [],
+        "public_facts": [],
+        "resources": {},
+        "since_tick": 36
+      },
+      "slug": "stable_lad",
+      "vitality": "ok",
+      "wounds": 0
+    },
+    {
+      "coins": {
+        "copper": 1
+      },
+      "inventory": [
+        {
+          "copper_value": 0,
+          "equipped": null,
+          "id": "travel_cloak",
+          "name": "travel cloak",
+          "price_copper": null,
+          "quantity": 1
+        },
+        {
+          "copper_value": 0,
+          "equipped": null,
+          "id": "hunting_knife",
+          "name": "hunting knife",
+          "price_copper": null,
+          "quantity": 1
+        }
+      ],
+      "location_id": "valley_inn",
+      "mood": null,
+      "relationships": {},
+      "runtime": {},
+      "slug": "player",
+      "vitality": "ok",
+      "wounds": 0
+    }
+  ]
+}

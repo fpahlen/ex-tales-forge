@@ -19,6 +19,9 @@ defmodule TalesForge.Game.TradeReplayV353Test do
   @servings ~w(ale_mug stew_bowl bread_cheese)
   @prices %{"ale_mug" => 2, "stew_bowl" => 5, "bread_cheese" => 2}
   @fixture "test/fixtures/replay/gentry_v353.json" |> File.read!() |> Jason.decode!()
+  # The rows the replay ends with, recorded on main before the writers
+  # were narrowed (`REPLAY_RECORD=1 mix test` writes them again).
+  @final_path "test/fixtures/replay/gentry_v353_final.json"
 
   setup do
     flags = ~w(INN_WORLD WORLD_ANTAGONIST COMBAT_OPPOSED NPC_REACTIONS TURN_APPLY_OUTCOMES)
@@ -60,7 +63,8 @@ defmodule TalesForge.Game.TradeReplayV353Test do
       {:ok, _} = GameSessions.ensure_scene(session.id)
       start = snapshot(session.id)
 
-      Enum.reduce(@recorded["turns"], start, fn turn, before ->
+      @recorded["turns"]
+      |> Enum.reduce(start, fn turn, before ->
         maybe_admin_edit(session.id, @recorded["adventure_id"], turn["turn"])
         before = if turn["turn"] == 24, do: snapshot(session.id), else: before
         now = play(session.id, turn)
@@ -73,8 +77,64 @@ defmodule TalesForge.Game.TradeReplayV353Test do
 
         now
       end)
+
+      assert_final_rows(@recorded["adventure_id"], session.id)
     end
   end
+
+  # The replay ends with the same rows as before (every column the turns
+  # write; not ids, timestamps or the lock version).
+  defp assert_final_rows(adventure, session_id) do
+    rows = final_rows(session_id)
+
+    recorded =
+      if File.exists?(@final_path), do: @final_path |> File.read!() |> Jason.decode!(), else: %{}
+
+    if System.get_env("REPLAY_RECORD") == "1" do
+      File.write!(
+        @final_path,
+        Jason.encode!(Map.put(recorded, adventure, rows), pretty: true) <> "\n"
+      )
+    else
+      assert rows == Map.fetch!(recorded, adventure)
+    end
+  end
+
+  defp final_rows(session_id) do
+    Character
+    |> where([c], c.game_session_id == ^session_id)
+    |> order_by([c], asc: c.controller, asc: c.slug)
+    |> Repo.all()
+    |> Enum.map(fn c ->
+      slug = if c.controller in ~w(player bot), do: "player", else: c.slug
+
+      %{
+        "slug" => slug,
+        "coins" => c.coins,
+        "inventory" => Enum.map(c.inventory || [], &Map.drop(Map.from_struct(&1), [:id_hash])),
+        "location_id" => c.location_id,
+        "mood" => c.mood,
+        "relationships" => Map.new(c.relationships || %{}, fn {k, v} -> {anon(k), v} end),
+        "wounds" => c.wounds,
+        "vitality" => c.vitality,
+        "runtime" => scrub(c.runtime)
+      }
+      |> Jason.encode!()
+      |> Jason.decode!()
+    end)
+  end
+
+  # The player's slug carries the character's name; memories carry the clock.
+  defp anon(slug), do: if(String.starts_with?(slug, "pc"), do: "player", else: slug)
+
+  defp scrub(map) when is_map(map),
+    do:
+      map
+      |> Map.drop(["at", "updated_at", "inserted_at"])
+      |> Map.new(fn {k, v} -> {k, scrub(v)} end)
+
+  defp scrub(list) when is_list(list), do: Enum.map(list, &scrub/1)
+  defp scrub(value), do: value
 
   # Gentry's admin edit before Tin Valley turn 24: the player's coins to 1c.
   defp maybe_admin_edit(session_id, "tin_valley", 24) do

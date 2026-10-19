@@ -12,12 +12,14 @@ defmodule TalesForge.NPC.Rows do
 
   import Ecto.Query
 
+  alias TalesForge.Characters.Attrs
   alias TalesForge.GameCharacter
   alias TalesForge.NPC.Person
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory}
 
   @memory_limit 20
+  @goods ~w(stock coins)
 
   @doc "The number of memories an NPC keeps in its row."
   @spec memory_limit() :: pos_integer()
@@ -60,32 +62,52 @@ defmodule TalesForge.NPC.Rows do
     do: session_id |> query() |> select([c], c.slug) |> order_by([c], asc: c.slug) |> Repo.all()
 
   @doc """
-  Saves `runtime_state` as the NPC's state (`TalesForge.NPC.Person.attrs/3`).
-  A row without a relationship yet gets it to the session's player character.
+  Saves `runtime_state` as the NPC's state (`TalesForge.NPC.Person.attrs/3`),
+  except its goods: the stock and the coins stay as the row has them, since
+  only a trade moves them (`put_goods!/2`). A row without a relationship yet
+  gets it to the session's player character.
   """
   @spec update!(Person.t(), map()) :: Person.t()
-  def update!(%Person{row: row} = person, runtime_state) do
-    row =
-      row
-      |> Character.changeset(Person.attrs(row, runtime_state, pc_slug(row)))
-      |> Repo.update!()
+  def update!(%Person{} = person, runtime_state) do
+    row = person |> changeset(runtime_state) |> Repo.update!()
+    %Person{person | row: row, runtime_state: keep_goods(runtime_state, person)}
+  end
 
-    %Person{person | row: row, runtime_state: runtime_state}
+  @doc "The changeset of `update!/2` (the state without the goods), for a Multi."
+  @spec changeset(Person.t(), map()) :: Ecto.Changeset.t()
+  def changeset(%Person{row: row} = person, runtime_state) do
+    attrs = Person.attrs(row, keep_goods(runtime_state, person), pc_slug(row))
+    Character.changeset(row, Map.drop(attrs, [:inventory, :coins]))
   end
 
   @doc """
   Saves the inventory and the coins of `trader` (the NPC after a trade,
-  `TalesForge.NPC.traders/2`) as the NPC's stock and purse.
+  `TalesForge.NPC.traders/2`) as the NPC's stock and purse, and nothing
+  else: the one write of an NPC's goods in a turn.
   """
   @spec put_goods!(Person.t(), GameCharacter.t()) :: Person.t()
-  def put_goods!(%Person{} = person, %GameCharacter{inventory: inventory, coins: coins}),
-    do:
-      update!(person, Map.merge(person.runtime_state, %{"stock" => inventory, "coins" => coins}))
+  def put_goods!(%Person{row: row} = person, %GameCharacter{inventory: inventory, coins: coins}) do
+    row =
+      row
+      |> Character.changeset(%{inventory: Attrs.inventory(inventory), coins: coins})
+      |> Repo.update!()
 
-  @doc "The changeset of `update!/2`, for a Multi."
-  @spec changeset(Person.t(), map()) :: Ecto.Changeset.t()
-  def changeset(%Person{row: row}, runtime_state),
+    goods = %{"stock" => inventory, "coins" => coins}
+    %Person{person | row: row, runtime_state: Map.merge(person.runtime_state, goods)}
+  end
+
+  @doc """
+  The changeset of an admin's edit of the NPC's whole state, goods
+  included. The row's lock version is checked: `Repo.update/2` with
+  `stale_error_field: :lock_version` returns an error, not a raise, when
+  the row changed after `person` was read.
+  """
+  @spec edit_changeset(Person.t(), map()) :: Ecto.Changeset.t()
+  def edit_changeset(%Person{row: row}, runtime_state),
     do: Character.changeset(row, Person.attrs(row, runtime_state, pc_slug(row)))
+
+  defp keep_goods(runtime_state, %Person{runtime_state: read}),
+    do: Map.merge(runtime_state, Map.take(read, @goods))
 
   @doc """
   Adds a memory row for `entry` (a memory of the NPC's runtime list) unless
