@@ -51,7 +51,7 @@ defmodule TalesForge.Game.SkillSplitTest do
   end
 
   defp turn(session, text, flags, rolls) do
-    Turn.new(session, 1, text, action(text),
+    Turn.new({session, 1}, {text, action(text)},
       flags: Map.merge(@off, flags),
       role: :playtest,
       rolls: rolls
@@ -140,8 +140,14 @@ defmodule TalesForge.Game.SkillSplitTest do
       handler = %HandlerResult{handler: "observe"}
 
       {updated, res} =
-        SkillSplit.apply(character, action("three attacks"), handler, "three attacks",
-          rolls: [80, 80, 80]
+        SkillSplit.apply(
+          character,
+          %SkillSplit.Check{
+            player_action: action("three attacks"),
+            handler: handler,
+            text: "three attacks",
+            rolls: [80, 80, 80]
+          }
         )
 
       assert length(res.parts) == 3
@@ -165,7 +171,7 @@ defmodule TalesForge.Game.SkillSplitTest do
       off = played(session, "I attack twice", %{}, [12, 20])
 
       unset =
-        Turn.new(session, 1, "I attack twice", action("I attack twice"),
+        Turn.new({session, 1}, {"I attack twice", action("I attack twice")},
           flags: Map.delete(@off, :skill_split),
           role: :playtest
         )

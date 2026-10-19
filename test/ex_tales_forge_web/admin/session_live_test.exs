@@ -5,13 +5,8 @@ defmodule TalesForgeWeb.AdminLive.SessionLiveTest do
 
   alias TalesForge.Admin
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
 
   setup %{conn: conn} do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, conn: log_in_admin(conn)}
   end
 
@@ -81,7 +76,13 @@ defmodule TalesForgeWeb.AdminLive.SessionLiveTest do
     |> render_submit()
 
     assert render(view) =~ "World state saved."
-    assert Admin.get_session!(session.id).world_state == %{"location_id" => "x"}
+    # The player character is stored in its row, so an edit without it keeps it.
+    character = session.world_state["character"]
+
+    assert Admin.get_session!(session.id).world_state == %{
+             "location_id" => "x",
+             "character" => character
+           }
 
     view
     |> form("#session-form", session: %{name: "World Form 2"})
@@ -89,6 +90,6 @@ defmodule TalesForgeWeb.AdminLive.SessionLiveTest do
 
     saved = Admin.get_session!(session.id)
     assert saved.name == "World Form 2"
-    assert saved.world_state == %{"location_id" => "x"}
+    assert saved.world_state == %{"location_id" => "x", "character" => character}
   end
 end

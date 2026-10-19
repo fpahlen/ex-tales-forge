@@ -12,9 +12,10 @@ defmodule TalesForge.Game.NpcReactionsTest do
   alias TalesForge.Config
   alias TalesForge.Game.{Context, Intent, NpcReactions, Prompts, TurnProcessor}
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
+  alias TalesForge.Game.Turn.Intentions
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Schemas.AICall
 
   @xai_body %{
@@ -48,7 +49,6 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       for k <- ~w(NPC_REACTIONS NPC_REACTIONS_TIMEOUT_MS XAI_API_KEY), do: System.delete_env(k)
       System.put_env("LLM_PROVIDER", "mock")
       Application.put_env(:jev, :api_key, nil)
@@ -83,7 +83,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
   end
 
   test "Brenna has the barkeep OCEAN scores (rework 2026-10-07)", %{session: session} do
-    brenna = NPC.get_instance(session.id, "innkeep")
+    brenna = NPC.get_person(session.id, "innkeep")
 
     assert get_in(brenna.personality, ["motivations", "personality_traits"]) == %{
              "openness" => 6,
@@ -97,7 +97,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
   test "Jev input is player-visible: OCEAN, mood, last narration, words and outcome", %{
     session: session
   } do
-    brenna = NPC.get_instance(session.id, "innkeep")
+    brenna = NPC.get_person(session.id, "innkeep")
     mech = %MechanicalResolution{skill: "persuasion", outcome: "failure"}
     scene = NpcReactions.situation(session.id, "I tell her I'm the Guild's new assessor", mech)
     state = NpcReactions.state(brenna, nil, scene)
@@ -108,7 +108,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
     assert state =~ "I tell her I'm the Guild's new assessor"
     assert state =~ "How it comes across: failure (persuasion attempt)."
     # The opening scene is what the player last heard.
-    assert state =~ String.slice(GameSessions.opening_scene(session.id).narrative, -40, 40)
+    assert state =~ String.slice(TalesForge.Scenes.opening(session.id).narrative, -40, 40)
     refute state =~ "gm_notes"
     refute state =~ "secret"
 
@@ -127,7 +127,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
     assert stances == ~w(hostile cool neutral warm friendly)
   end
 
-  test "react/5 returns typed reactions, carries the mood and records jev rows", %{
+  test "react/1 returns typed reactions, carries the mood and records jev rows", %{
     session: session
   } do
     jev_on()
@@ -140,9 +140,18 @@ defmodule TalesForge.Game.NpcReactionsTest do
     end)
 
     world = session.world_state
+    cast = TalesForge.Characters.cast(session.id)
     assert "innkeep" in world["present_npcs"]
 
-    {[r], world} = NpcReactions.react(session.id, world, 1, "Any rooms?", %MechanicalResolution{})
+    [r] =
+      NpcReactions.react(%NpcReactions.Moment{
+        session_id: session.id,
+        world: world,
+        cast: cast,
+        turn_number: 1,
+        raw_action: "Any rooms?",
+        mechanical: %MechanicalResolution{}
+      })
 
     assert r["npc_id"] == "innkeep"
     assert r["name"] == "Brenna Holt"
@@ -150,12 +159,23 @@ defmodule TalesForge.Game.NpcReactionsTest do
     assert {r["emotion"], r["intensity"], r["stance"], r["confidence"]} ==
              {"wary", 0.7, "cool", 0.74}
 
-    assert world["npc_moods"]["innkeep"]["emotion"] == "wary"
+    # The turn feels the reactions (Turn.Intentions.feel/2): the mood carries over.
+    cast = Intentions.feel(cast, NpcReactions.intentions([r]))
+    assert cast["innkeep"].runtime["reaction"]["emotion"] == "wary"
     assert_receive {:jev, request}
     assert inspect(request) =~ "Mood before this moment: neutral."
 
     # The next turn's call starts from the carried-over mood.
-    {[_], _world} = NpcReactions.react(session.id, world, 2, "Please?", %MechanicalResolution{})
+    [_] =
+      NpcReactions.react(%NpcReactions.Moment{
+        session_id: session.id,
+        world: world,
+        cast: cast,
+        turn_number: 2,
+        raw_action: "Please?",
+        mechanical: %MechanicalResolution{}
+      })
+
     assert_receive {:jev, request2}
     assert inspect(request2) =~ "Mood before this moment: wary (0.7), stance cool."
 
@@ -168,12 +188,25 @@ defmodule TalesForge.Game.NpcReactionsTest do
   test "an error or a timeout means no reaction, and the mood is kept", %{session: session} do
     jev_on()
     System.put_env("NPC_REACTIONS_TIMEOUT_MS", "100")
-    world = Map.put(session.world_state, "npc_moods", %{"innkeep" => %{"emotion" => "calm"}})
+    world = session.world_state
+
+    cast =
+      session.id
+      |> TalesForge.Characters.cast()
+      |> update_in(["innkeep"], &%{&1 | runtime: %{"reaction" => %{"emotion" => "calm"}}})
 
     Req.Test.stub(Jev.HTTP, &Jev.Test.error(&1, 500, "boom"))
 
     capture_log(fn ->
-      assert {[], ^world} = NpcReactions.react(session.id, world, 1, "Hi", nil)
+      assert [] =
+               NpcReactions.react(%NpcReactions.Moment{
+                 session_id: session.id,
+                 world: world,
+                 cast: cast,
+                 turn_number: 1,
+                 raw_action: "Hi",
+                 mechanical: nil
+               })
     end)
 
     Req.Test.stub(Jev.HTTP, fn conn ->
@@ -182,11 +215,22 @@ defmodule TalesForge.Game.NpcReactionsTest do
     end)
 
     capture_log(fn ->
-      assert {[], ^world} = NpcReactions.react(session.id, world, 2, "Hi", nil)
+      assert [] =
+               NpcReactions.react(%NpcReactions.Moment{
+                 session_id: session.id,
+                 world: world,
+                 cast: cast,
+                 turn_number: 2,
+                 raw_action: "Hi",
+                 mechanical: nil
+               })
     end)
 
     assert Repo.all(from c in AICall, where: c.purpose == "npc_reaction", select: c.status) ==
              ["error", "error"]
+
+    # No reaction, no Intention: the mood is kept.
+    assert Intentions.feel(cast, NpcReactions.intentions([])) == cast
   end
 
   test "the reaction is a per-turn line; the cached prefix is unchanged", %{session: session} do
@@ -202,10 +246,17 @@ defmodule TalesForge.Game.NpcReactionsTest do
       "confidence" => 0.8
     }
 
-    plain = Prompts.gm_messages(context, mech, action, handler, 2)
+    turn = %Prompts.GmTurn{
+      mechanical: mech,
+      player_action: action,
+      handler: handler,
+      turn_number: 2
+    }
+
+    plain = Assemble.gm_messages(context, turn)
 
     with_reaction =
-      Prompts.gm_messages(Map.put(context, :npc_reactions, [reaction]), mech, action, handler, 2,
+      Assemble.gm_messages(Map.put(context, :npc_reactions, [reaction]), turn,
         flags: %{npc_reactions: true}
       )
 
@@ -242,15 +293,17 @@ defmodule TalesForge.Game.NpcReactionsTest do
     {action, _handler} = action(Context.build_gm_context(session), "ask Brenna for a room")
 
     assert {:ok, %{turn_count: 1}} =
-             TurnProcessor.run(session.id, "ask Brenna for a room", PlayerAction.encode(action))
+             TurnProcessor.run(session.id, {"ask Brenna for a room", PlayerAction.encode(action)})
 
     assert_receive {:at, :jev, t_jev}
     assert_receive {:at, :gm, t_gm, body}
     assert t_jev < t_gm
     assert List.last(body["messages"])["content"] =~ "- Brenna Holt — wary (0.7), stance cool"
 
-    world = GameSessions.get_session!(session.id).world_state
-    assert world["npc_moods"]["innkeep"]["stance"] == "cool"
+    refute Map.has_key?(GameSessions.get_session!(session.id).world_state, "npc_moods")
+
+    assert TalesForge.Characters.cast(session.id)["innkeep"].runtime["reaction"]["stance"] ==
+             "cool"
 
     purposes =
       Repo.all(
@@ -274,9 +327,9 @@ defmodule TalesForge.Game.NpcReactionsTest do
     {action, _handler} = action(Context.build_gm_context(session), "ask Brenna for a room")
 
     assert {:ok, _} =
-             TurnProcessor.run(session.id, "ask Brenna for a room", PlayerAction.encode(action))
+             TurnProcessor.run(session.id, {"ask Brenna for a room", PlayerAction.encode(action)})
 
-    refute Map.has_key?(GameSessions.get_session!(session.id).world_state, "npc_moods")
+    assert TalesForge.Characters.cast(session.id)["innkeep"].runtime["reaction"] == nil
     assert Repo.all(from c in AICall, where: c.purpose == "npc_reaction") == []
   end
 

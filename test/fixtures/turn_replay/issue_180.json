@@ -169,7 +169,7 @@
           {
             "type": "sell",
             "status": "rejected",
-            "reason": "Cannot sell 'enchanted_armor' — not in inventory."
+            "reason": "Hilde Brask does not buy 'enchanted_armor'."
           }
         ],
         "delta_copper": 0,

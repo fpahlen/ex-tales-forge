@@ -327,14 +327,19 @@ end
 
 defmodule TalesForge.Prompt.Sections.Fallen do
   @moduledoc """
-  The dead and the downed people of the world, from the server state
-  (`TalesForge.Game.Combat.fallen_section/1`). Empty when nobody is dead or
+  The dead and the downed people of the session's cast
+  (`TalesForge.Game.Combat.fallen_section/2`). Empty when nobody is dead or
   down.
   """
   use TalesForge.Prompt.Section, id: :fallen, slot: :turn
 
   @impl true
-  def render(ctx), do: TalesForge.Game.Combat.fallen_section(Map.get(ctx.data, :world_state))
+  def render(ctx),
+    do:
+      TalesForge.Game.Combat.fallen_section(
+        Map.get(ctx.data, :world_state),
+        Map.get(ctx.data, :cast)
+      )
 end
 
 defmodule TalesForge.Prompt.Sections.RestGrowth do
@@ -382,11 +387,46 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
       "notes" => handler.notes
     }
 
-    case handler.state_hints do
-      %{"reason" => reason} when is_binary(reason) -> Map.put(payload, "reason", reason)
-      _ -> payload
-    end
+    hints = handler.state_hints || %{}
+
+    payload
+    |> put_hint("reason", hints["reason"])
+    |> put_hint("trade", trade_line(hints["trade"]))
   end
+
+  defp put_hint(payload, _key, nil), do: payload
+  defp put_hint(payload, key, text) when is_binary(text), do: Map.put(payload, key, text)
+  defp put_hint(payload, _key, _other), do: payload
+
+  # The board's decision on a buy or a sale (`TalesForge.Game.Turn.Board.trade_outcome/2`):
+  # the GM narrates that outcome and no other.
+  defp trade_line(%{"status" => "done", "detail" => detail}),
+    do:
+      "The server made this trade: #{detail}. The item and the coins have changed hands; " <>
+        "narrate it as done, and the trader does not refuse it."
+
+  defp trade_line(%{"status" => "refused", "detail" => detail}),
+    do:
+      "The server refused this trade: #{detail} No item and no coins changed hands; " <>
+        "narrate no payment and no handover, and name no price or goods the reason does not."
+
+  defp trade_line(%{"status" => "offered", "detail" => detail}),
+    do:
+      "The server quotes: #{detail}. Nothing changed hands; " <>
+        "narrate the quote and wait for the player's answer, with no payment and no handover."
+
+  defp trade_line(%{"status" => "options", "detail" => detail}),
+    do:
+      "The server listed these options from stock: #{detail}. Nothing changed hands; " <>
+        "voice them as a counter-question and wait for the player's pick, " <>
+        "with no payment and no handover."
+
+  defp trade_line(%{"status" => "declined", "detail" => detail}),
+    do:
+      "The player declined the offer (#{detail}). No item and no coins changed hands; " <>
+        "narrate no payment and no handover."
+
+  defp trade_line(_trade), do: nil
 end
 
 defmodule TalesForge.Prompt.Sections.NoticedDetails do
@@ -444,10 +484,12 @@ defmodule TalesForge.Prompt.Sections.CharacterMemory do
     if present == [] do
       nil
     else
-      location = get_in(ctx.data, [:world_state, "location_id"])
+      world = Map.get(ctx.data, :world_state) || %{}
+      # The place and the acting character (the world's "character").
+      about = [world["location_id"], get_in(world, ["character", "id"])]
 
       ctx.data.session_id
-      |> TalesForge.Characters.Memory.recall_for_scene(present, location)
+      |> TalesForge.Characters.Memory.recall_for_scene(present, about)
       |> TalesForge.Characters.Memory.section()
     end
   end

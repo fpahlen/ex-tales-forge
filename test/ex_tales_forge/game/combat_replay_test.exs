@@ -10,28 +10,50 @@ defmodule TalesForge.Game.CombatReplayTest do
 
   alias TalesForge.Characters.Defaults
   alias TalesForge.Game.{Combat, ProseCheck}
+  alias TalesForge.GameCharacter
 
   @fixture "test/fixtures/combat/hakan_ezzor_turns_27_29.json"
            |> File.read!()
            |> Jason.decode!()
 
+  # The fixture's fighters are sheets; Combat takes their GameCharacters.
+  defp fighters(attacker, defender), do: {fighter(attacker), fighter(defender)}
+  defp fighter(%GameCharacter{} = gc), do: gc
+  defp fighter(sheet), do: GameCharacter.from_sheet(sheet)
+
+  # The fixture keeps the people as the session stored them then
+  # (`npc_state`); the turn now has them as the session's cast.
+  defp scene(world) do
+    cast =
+      Map.new(world["npc_state"], fn {id, npc} ->
+        {id, %GameCharacter{slug: id, name: npc["name"]}}
+      end)
+
+    {Map.delete(world, "npc_state"), cast}
+  end
+
   test "the record and the prose agree for turns 27 to 29" do
     rules = Defaults.rules("tin_valley")
     player = Map.put(@fixture["character"], "id", "player")
 
-    Enum.reduce(@fixture["turns"], @fixture["world"], fn turn, world ->
+    Enum.reduce(@fixture["turns"], scene(@fixture["world"]), fn turn, {world, cast} ->
       attacker = put_in(player, ["skills", "melee_combat"], turn["melee_combat"])
 
       {defender, foe} =
-        case Combat.target(nil, turn["player_action"], world) do
+        case Combat.target(nil, turn["player_action"], {world, cast}) do
           {:npc, "guild_steward"} ->
-            {Map.merge(@fixture["osric"], world["npc_state"]["guild_steward"]), nil}
+            osric = cast["guild_steward"]
+
+            {Map.merge(@fixture["osric"], %{
+               "wounds" => osric.wounds,
+               "vitality" => osric.vitality
+             }), nil}
 
           {:npc, id} ->
-            {world["npc_state"][id], nil}
+            {cast[id], nil}
 
           {:foe, id, name} ->
-            Combat.minor_foe(id, name, rules, 29) |> then(&{&1, &1})
+            Combat.minor_foe({id, name}, rules, 29) |> then(&{&1, &1})
         end
 
       rolls =
@@ -39,7 +61,7 @@ defmodule TalesForge.Game.CombatReplayTest do
         |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
         |> Map.put(:attack, turn["attack_roll"])
 
-      ex = Combat.exchange(attacker, defender, "melee_combat", rolls)
+      ex = Combat.exchange(fighters(attacker, defender), "melee_combat", rolls)
       expect = turn["expect"]
 
       assert ex["defender"] == expect["target"], "turn #{turn["turn"]}"
@@ -53,8 +75,8 @@ defmodule TalesForge.Game.CombatReplayTest do
       assert ProseCheck.check(turn["agreeing_prose"], record) == [],
              "turn #{turn["turn"]}: the agreeing prose tells the record"
 
-      {booked, _events} = Combat.book(world, ex, foe, world["npc_state"])
-      booked
+      {booked, _events} = Combat.book(cast, world, {ex, foe})
+      {world, booked}
     end)
   end
 
@@ -66,7 +88,7 @@ defmodule TalesForge.Game.CombatReplayTest do
       attacker = put_in(@fixture["character"], ["skills", "melee_combat"], turn["melee_combat"])
 
       ex =
-        Combat.exchange(attacker, osric, "melee_combat", %{
+        Combat.exchange(fighters(attacker, osric), "melee_combat", %{
           attack: turn["attack_roll"],
           counter_chance: 0.99
         })
@@ -80,6 +102,6 @@ defmodule TalesForge.Game.CombatReplayTest do
     t29 = List.last(@fixture["turns"])
 
     assert {:foe, "foe_miner", "a miner"} =
-             Combat.target(nil, t29["player_action"], @fixture["world"])
+             Combat.target(nil, t29["player_action"], scene(@fixture["world"]))
   end
 end

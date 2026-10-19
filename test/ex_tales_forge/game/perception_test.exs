@@ -4,19 +4,11 @@ defmodule TalesForge.Game.PerceptionTest do
   alias TalesForge.Game.Context
   alias TalesForge.Game.Perception
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
+  alias TalesForge.Prompt.Assemble
 
   test "Crossroads GM prompt keeps Marta focus and stock, drops initiative internals" do
     {:ok, session} = GameSessions.create_session(%{name: "Perception Crossroads"})
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
 
     assert prompt =~ "Marta"
     assert prompt =~ "missing ledger"

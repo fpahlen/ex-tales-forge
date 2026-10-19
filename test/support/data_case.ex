@@ -39,7 +39,7 @@ defmodule TalesForge.DataCase do
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(TalesForge.Repo, shared: not tags[:async])
 
     on_exit(fn ->
-      stop_jido_agents()
+      stop_world_instances()
       Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
     end)
   end
@@ -60,22 +60,35 @@ defmodule TalesForge.DataCase do
     end)
   end
 
-  defp stop_jido_agents do
-    agents = TalesForge.Jido.list_agents()
+  @doc """
+  Saves a session changeset with its characters, the way the turn does
+  (`TalesForge.Characters.save_session/1`), so a test can set up
+  `world_state["character"]`: the column is stored without it.
+  """
+  def save_session!(%Ecto.Changeset{} = changeset) do
+    {:ok, session} = TalesForge.Characters.save_session(changeset)
+    session
+  end
 
-    Enum.each(agents, fn
-      {id, pid} when is_pid(pid) ->
-        ref = Process.monitor(pid)
-        TalesForge.Jido.stop_agent(id)
+  @doc """
+  Writes `value` under `key` straight into the session's `world_state`
+  column, past `TalesForge.Schemas.WorldState`: a session stored before
+  step 10b-2, or a corrupt one.
+  """
+  def put_stored_world!(session_id, key, value) do
+    TalesForge.Repo.query!(
+      "UPDATE game_sessions SET world_state = jsonb_set(world_state, $1, $2) WHERE id = $3",
+      [[key], value, Ecto.UUID.dump!(session_id)]
+    )
 
-        receive do
-          {:DOWN, ^ref, :process, ^pid, _} -> :ok
-        after
-          200 -> :ok
-        end
+    :ok
+  end
 
-      {id, _} ->
-        TalesForge.Jido.stop_agent(id)
-    end)
+  # The test's TalesForge.World.Instance processes, before the sandbox owner
+  # goes (they read the database when they start and after each turn).
+  defp stop_world_instances do
+    TalesForge.World.Registry
+    |> Registry.select([{{{:instance, :_}, :"$1", :_}, [], [:"$1"]}])
+    |> Enum.each(&DynamicSupervisor.terminate_child(TalesForge.World.Supervisor, &1))
   end
 end

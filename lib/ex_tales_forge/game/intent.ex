@@ -56,6 +56,27 @@ defmodule TalesForge.Game.Intent do
     {"climb", "climbing"}
   ]
 
+  # The first verb that matches names the action (after a fight verb).
+  @verb_action_types [
+    {~r/\b(say|ask|tell|speak|shout|whisper|greet)\b/i, :speak},
+    {~r/\b(buy|purchase)\b/i, :buy},
+    {~r/\bpay\b.+\bfor\b/i, :buy},
+    {~r/\b(pay|tip|bribe|toll)\b/i, :spend},
+    {~r/\b(sell)\b/i, :sell},
+    {~r/\b(trade|swap|barter)\b/i, :trade},
+    {~r/\b(drop|discard)\b/i, :drop},
+    {~r/\b(pick up|pickup|take|grab)\b/i, :pickup},
+    {~r/\b(look|examine|study|read|search|inspect|listen)\b/i, :observe},
+    {~r/\b(use|drink|eat|open)\b/i, :use_item}
+  ]
+
+  defmodule Clues do
+    @moduledoc false
+    # What the heuristic read from the player's text: the text, the turn
+    # context, and the place, person and fixture it points at.
+    defstruct [:raw_action, :context, :location, :npc, :fixture]
+  end
+
   defmodule ClarificationNeeded do
     defexception [:extraction]
 
@@ -233,12 +254,15 @@ defmodule TalesForge.Game.Intent do
   """
   @spec heuristic_intent(String.t(), map()) :: IntentExtraction.t()
   def heuristic_intent(raw_action, context) do
-    target_location = infer_destination(raw_action, context)
-    target_npc = infer_target_npc(raw_action, context)
-    target_fixture = infer_target_fixture(raw_action, context)
+    clues = %Clues{
+      raw_action: raw_action,
+      context: context,
+      location: infer_destination(raw_action, context),
+      npc: infer_target_npc(raw_action, context),
+      fixture: infer_target_fixture(raw_action, context)
+    }
 
-    action_type =
-      infer_action_type(raw_action, target_location, target_fixture, target_npc)
+    action_type = infer_action_type(clues)
 
     skill = combat_skill(action_type, raw_action, Mechanics.infer_check_skill(raw_action))
 
@@ -248,10 +272,9 @@ defmodule TalesForge.Game.Intent do
       |> maybe_put_split(raw_action, TalesForge.Config.skill_split?())
       |> maybe_put_wait_ticks(raw_action, action_type)
       |> maybe_put_train_skill(raw_action, action_type)
-      |> Map.merge(infer_inventory_parameters(raw_action, action_type, context, target_npc))
+      |> Map.merge(infer_inventory_parameters(clues, action_type))
 
-    {target, action_parameters} =
-      inventory_target(action_type, target_location, target_npc, target_fixture, parameters)
+    {target, action_parameters} = inventory_target(clues, action_type, parameters)
 
     action = %SingleAction{
       action_type: action_type,
@@ -312,28 +335,35 @@ defmodule TalesForge.Game.Intent do
   defp combat_intent?(lowered),
     do: Regex.match?(@combat_verbs, Regex.replace(@quoted_speech, lowered, " "))
 
-  defp infer_action_type(raw_action, target_location, target_fixture, target_npc) do
+  defp infer_action_type(%Clues{raw_action: raw_action} = clues) do
     lowered = String.downcase(raw_action)
 
     cond do
-      train_intent?(lowered, target_npc) -> :train
-      Rest.lodging_then_sleep?(lowered) -> :spend
-      wait_intent?(lowered) -> :wait
-      target_location -> :move
-      combat_intent?(lowered) -> :combat
-      Regex.match?(~r/\b(say|ask|tell|speak|shout|whisper|greet)\b/i, lowered) -> :speak
-      Regex.match?(~r/\b(buy|purchase)\b/i, lowered) -> :buy
-      Regex.match?(~r/\bpay\b.+\bfor\b/i, lowered) -> :buy
-      Regex.match?(~r/\b(pay|tip|bribe|toll)\b/i, lowered) -> :spend
-      Regex.match?(~r/\b(sell)\b/i, lowered) -> :sell
-      Regex.match?(~r/\b(trade|swap|barter)\b/i, lowered) -> :trade
-      Regex.match?(~r/\b(drop|discard)\b/i, lowered) -> :drop
-      Regex.match?(~r/\b(pick up|pickup|take|grab)\b/i, lowered) -> :pickup
-      Regex.match?(~r/\b(look|examine|study|read|search|inspect|listen)\b/i, lowered) -> :observe
-      Regex.match?(~r/\b(use|drink|eat|open)\b/i, lowered) -> :use_item
-      is_binary(target_fixture) -> :interact
-      true -> :other
+      train_intent?(lowered, clues.npc) ->
+        :train
+
+      Rest.lodging_then_sleep?(lowered) ->
+        :spend
+
+      wait_intent?(lowered) ->
+        :wait
+
+      clues.location ->
+        :move
+
+      true ->
+        verb_action_type(lowered) || if(is_binary(clues.fixture), do: :interact, else: :other)
     end
+  end
+
+  # The action its verb names, or nil.
+  defp verb_action_type(lowered) do
+    if combat_intent?(lowered),
+      do: :combat,
+      else:
+        Enum.find_value(@verb_action_types, fn {regex, type} ->
+          Regex.match?(regex, lowered) && type
+        end)
   end
 
   # In order: a place the sentence sends the character to
@@ -379,7 +409,7 @@ defmodule TalesForge.Game.Intent do
     lowered = String.downcase(text)
 
     if Regex.match?(@move_verbs, text) do
-      verb_led_place(world, from, text, lowered) ||
+      verb_led_place(world, from, text) ||
         if(way_out?(text, lowered), do: Movement.way_out(world, from)) ||
         if(Regex.match?(@way_in, text), do: Movement.way_in(world, from, text)) ||
         sought_npc_location(lowered, context)
@@ -398,7 +428,9 @@ defmodule TalesForge.Game.Intent do
     Regex.match?(@move_verbs, binary_part(lowered, start, pos - start))
   end
 
-  defp verb_led_place(world, from, text, lowered) do
+  defp verb_led_place(world, from, text) do
+    lowered = String.downcase(text)
+
     world
     |> Movement.mentioned_places(from, text)
     |> Enum.find_value(fn {id, pos} -> if verb_before?(lowered, pos), do: id end)
@@ -414,44 +446,44 @@ defmodule TalesForge.Game.Intent do
   # Only someone one exit away ("I'll find Osric" from the inn); "head over to
   # Caldern's table" is a walk across the room the GM put him in, not a trip.
   defp sought_npc_location(lowered, context) do
-    location = absent_npc_location(lowered, context, @seek_npc)
+    location = absent_npc_location(lowered, context, :seek)
     if location in List.wrap(context["exits"]), do: location
   end
 
   # Only someone one exit away: speaking to them by name means the player
   # thinks they are here (the GM may have walked the character there).
   defp addressed_npc_location(lowered, context) do
-    location = absent_npc_location(lowered, context, @vocative_lead, true)
+    location = absent_npc_location(lowered, context, :vocative)
     if location in List.wrap(context["exits"]), do: location
   end
 
   # The location of a person who is not here, named in `lowered` right after
-  # text matching `lead` (with `vocative?`, only at the very start and followed
-  # by a comma, "!" or a dash, as when the player speaks to them).
-  defp absent_npc_location(lowered, context, lead, vocative? \\ false) do
+  # a lead: `:seek` ("I look for …") or `:vocative` (only at the very start and
+  # followed by a comma, "!" or a dash, as when the player speaks to them).
+  defp absent_npc_location(lowered, context, lead) do
     context
     |> Map.get("npc_locations", %{})
     |> Enum.find_value(fn {_npc_id, info} ->
       name = info["name"]
 
       if is_binary(name) and is_binary(info["location_id"]) and
-           npc_named?(lowered, name, lead, vocative?),
+           npc_named?(lowered, name, lead),
          do: info["location_id"]
     end)
   end
 
-  defp npc_named?(lowered, name, lead, vocative?) do
+  defp npc_named?(lowered, name, lead) do
+    lead_regex = if lead == :vocative, do: @vocative_lead, else: @seek_npc
+    tail = if lead == :vocative, do: "(?=\\s*[,!\\x{2014}-])", else: "(?![\\w])"
     full = String.downcase(name)
     first = full |> String.split() |> List.first()
 
     [full, first]
     |> Enum.uniq()
     |> Enum.any?(fn term ->
-      tail = if vocative?, do: "(?=\\s*[,!\\x{2014}-])", else: "(?![\\w])"
-
       ~r/(?<![\w])#{Regex.escape(term)}#{tail}/u
       |> Regex.scan(lowered, return: :index)
-      |> Enum.any?(fn [{pos, _}] -> Regex.match?(lead, binary_part(lowered, 0, pos)) end)
+      |> Enum.any?(fn [{pos, _}] -> Regex.match?(lead_regex, binary_part(lowered, 0, pos)) end)
     end)
   end
 
@@ -599,7 +631,7 @@ defmodule TalesForge.Game.Intent do
 
   defp maybe_put_split(params, _raw_action, _on), do: params
 
-  defp inventory_target(action_type, target_location, target_npc, target_fixture, parameters) do
+  defp inventory_target(%Clues{npc: target_npc} = clues, action_type, parameters) do
     case action_type do
       type when type in [:drop, :pickup] ->
         {Map.get(parameters, "item_id") || target_npc, parameters}
@@ -617,46 +649,52 @@ defmodule TalesForge.Game.Intent do
         {target_npc, parameters}
 
       _ ->
-        {target_location || target_npc || target_fixture, parameters}
+        {clues.location || target_npc || clues.fixture, parameters}
     end
   end
 
-  defp infer_inventory_parameters(raw_action, action_type, context, target_npc) do
+  defp infer_inventory_parameters(
+         %Clues{raw_action: raw_action, context: context, npc: target_npc},
+         action_type
+       ) do
     case action_type do
       :spend ->
         %{"amount_copper" => Inventory.parse_copper_hint(raw_action)}
 
       :drop ->
-        item_id = match_item_in_text(raw_action, context["player_inventory"] || [])
-        base = if(item_id, do: %{"item_id" => item_id}, else: %{})
-        Map.put(base, "quantity", 1)
+        one_item_parameters(raw_action, context["player_inventory"])
 
       :pickup ->
-        item_id = match_item_in_text(raw_action, context["ground_items"] || [])
-        base = if(item_id, do: %{"item_id" => item_id}, else: %{})
-        Map.put(base, "quantity", 1)
+        one_item_parameters(raw_action, context["ground_items"])
 
       :buy ->
-        {item_id, npc_id, price} =
-          resolve_buy_from_stock(raw_action, Map.get(context, "npc_stock", %{}), target_npc)
-
-        %{}
-        |> maybe_put("item_id", item_id)
-        |> maybe_put("npc_id", npc_id)
-        |> maybe_put("price_copper", price)
-        |> Map.put("quantity", 1)
+        buy_parameters(raw_action, Map.get(context, "npc_stock", %{}), target_npc)
 
       :sell ->
-        item_id = match_item_in_text(raw_action, context["player_inventory"] || [])
-
-        %{}
-        |> maybe_put("item_id", item_id)
+        nil
+        |> Inventory.sale(raw_action, context["player_inventory"])
         |> maybe_put("npc_id", target_npc)
         |> Map.put("quantity", 1)
 
       _ ->
         %{}
     end
+  end
+
+  defp one_item_parameters(raw_action, items) do
+    item_id = match_item_in_text(raw_action, items || [])
+    base = if(item_id, do: %{"item_id" => item_id}, else: %{})
+    Map.put(base, "quantity", 1)
+  end
+
+  defp buy_parameters(raw_action, npc_stock, target_npc) do
+    {item_id, npc_id, price} = resolve_buy_from_stock(raw_action, npc_stock, target_npc)
+
+    %{}
+    |> maybe_put("item_id", item_id)
+    |> maybe_put("npc_id", npc_id)
+    |> maybe_put("price_copper", price)
+    |> Map.put("quantity", 1)
   end
 
   defp resolve_buy_from_stock(raw_action, npc_stock, target_npc) do

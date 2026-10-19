@@ -110,7 +110,6 @@ defmodule TalesForge.Game.Pack do
       "situation_lines" => pack.situation_lines,
       "economy" => Map.get(pack, :economy, %{}),
       "character" => Map.put(elara, "location_id", start_id),
-      "npc_state" => %{},
       "locations" => pack.locations,
       "live_fronts" => live_fronts,
       "public_facts" => []
@@ -669,27 +668,23 @@ defmodule TalesForge.Game.Pack do
 
   defp scalar(val) do
     cond do
-      String.match?(val, ~r/^\[.*\]$/) ->
-        val
-        |> String.trim_leading("[")
-        |> String.trim_trailing("]")
-        |> String.split(~r/\s*,\s*/)
-        |> Enum.map(&String.trim/1)
-        |> Enum.reject(&(&1 == ""))
-        |> Enum.map(&String.trim(&1, "\"'"))
-
-      String.match?(val, ~r/^true$/i) ->
-        true
-
-      String.match?(val, ~r/^false$/i) ->
-        false
-
-      String.match?(val, ~r/^-?\d+$/) ->
-        String.to_integer(val)
-
-      true ->
-        String.trim(val, "\"'")
+      String.match?(val, ~r/^\[.*\]$/) -> inline_list(val)
+      String.match?(val, ~r/^true$/i) -> true
+      String.match?(val, ~r/^false$/i) -> false
+      String.match?(val, ~r/^-?\d+$/) -> String.to_integer(val)
+      true -> String.trim(val, "\"'")
     end
+  end
+
+  # `[a, "b"]` as a list of strings.
+  defp inline_list(val) do
+    val
+    |> String.trim_leading("[")
+    |> String.trim_trailing("]")
+    |> String.split(~r/\s*,\s*/)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(&String.trim(&1, "\"'"))
   end
 
   defp stringify_keys(map) when is_map(map) do

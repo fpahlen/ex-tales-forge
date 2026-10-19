@@ -13,6 +13,9 @@ defmodule TalesForge.DeployLanes do
     * `[game]`: game engine code. It must never depend on an `[admin]` file.
     * `[wiring]`: shared files allowed to name `[admin]` modules (the router,
       the application). Every other shared file must not depend on them either.
+    * `[founder]`: paths that always need a founder's review before a merge
+      (migrations and data, SQL, deps, deploy config, CI). A pull request that
+      touches one never takes the auto merge lane (`TalesForge.DeployLanes.Auto`).
 
   Anything not on `[admin]` (game, shared, CI, docs, unknown files) takes the
   **normal** lane: playtest first; a founder's Approve ships it to production.
@@ -36,7 +39,12 @@ defmodule TalesForge.DeployLanes do
   """
 
   @default_path ".github/deploy-lanes.txt"
-  @sections %{"admin" => :admin, "game" => :game, "wiring" => :wiring}
+  @sections %{
+    "admin" => :admin,
+    "game" => :game,
+    "wiring" => :wiring,
+    "founder" => :founder
+  }
 
   @typedoc "A deploy lane: `:admin` deploys playtest and production, `:normal` playtest only."
   @type lane :: :admin | :normal
@@ -45,7 +53,12 @@ defmodule TalesForge.DeployLanes do
   @type pattern :: %{source: String.t(), regex: Regex.t()}
 
   @typedoc "The parsed lanes file."
-  @type t :: %{admin: [pattern()], game: [pattern()], wiring: [pattern()]}
+  @type t :: %{
+          admin: [pattern()],
+          game: [pattern()],
+          wiring: [pattern()],
+          founder: [pattern()]
+        }
 
   @typedoc "The lane of a set of changed files, with the files split by list."
   @type classification :: %{lane: lane(), admin: [String.t()], other: [String.t()]}
@@ -71,7 +84,7 @@ defmodule TalesForge.DeployLanes do
       text
       |> String.split("\n")
       |> Enum.with_index(1)
-      |> Enum.reduce({%{admin: [], game: [], wiring: []}, nil}, &parse_line/2)
+      |> Enum.reduce({%{admin: [], game: [], wiring: [], founder: []}, nil}, &parse_line/2)
 
     lanes = Map.new(reversed, fn {key, patterns} -> {key, Enum.reverse(patterns)} end)
 
@@ -131,6 +144,10 @@ defmodule TalesForge.DeployLanes do
   @spec admin?(t(), String.t()) :: boolean()
   def admin?(lanes, path), do: matches?(lanes.admin, path)
 
+  @doc "True when `path` is on the `[founder]` list (always needs a founder's review)."
+  @spec founder?(t(), String.t()) :: boolean()
+  def founder?(lanes, path), do: matches?(lanes.founder, path)
+
   @doc """
   The lane for a set of changed files: `:admin` only when there is at least one
   file and every file is on the `[admin]` list; otherwise `:normal`.
@@ -174,8 +191,8 @@ defmodule TalesForge.DeployLanes do
     |> Enum.sort_by(&{&1.kind != :game, &1.from, &1.to})
   end
 
-  @doc "The patterns of `lanes` (`:admin`, `:game` or `:wiring`) that match none of `files`."
-  @spec unused_patterns(t(), :admin | :game | :wiring, [String.t()]) :: [String.t()]
+  @doc "The patterns of `lanes` (`:admin`, `:game`, `:wiring` or `:founder`) that match none of `files`."
+  @spec unused_patterns(t(), :admin | :game | :wiring | :founder, [String.t()]) :: [String.t()]
   def unused_patterns(lanes, key, files) do
     for pattern <- Map.fetch!(lanes, key),
         not Enum.any?(files, &Regex.match?(pattern.regex, &1)),

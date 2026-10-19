@@ -12,7 +12,6 @@ defmodule TalesForge.Game.TurnRulesTest do
 
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent}
 
@@ -27,8 +26,6 @@ defmodule TalesForge.Game.TurnRulesTest do
     saved = Map.new(@env, &{&1, System.get_env(&1)})
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
       Enum.each(saved, fn
         {key, nil} -> System.delete_env(key)
         {key, value} -> System.put_env(key, value)
@@ -39,7 +36,7 @@ defmodule TalesForge.Game.TurnRulesTest do
     end)
 
     stub_llm(fn
-      :gm, _user, _system -> %{"narrative" => "The square is quiet.", "gm_notes" => "n"}
+      :gm, _user, _system -> %{"narrative" => "The square is quiet."}
       _kind, _user, _system -> :default
     end)
 
@@ -51,14 +48,14 @@ defmodule TalesForge.Game.TurnRulesTest do
     {:ok, session} =
       GameSessions.create_session(%{name: "Room", adventure_id: "crossroads_ledger"})
 
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
 
     world =
       session.world_state
       |> put_in(["character", "location_id"], "crossroads_square")
       |> Map.put("location_id", "crossroads_square")
 
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session |> GameSession.changeset(%{world_state: world}) |> save_session!()
 
     action = %{
       "overall_intent" => "I pay for a room and go to sleep.",
@@ -71,7 +68,7 @@ defmodule TalesForge.Game.TurnRulesTest do
       "confidence" => 0.9
     }
 
-    {:ok, _} = TurnProcessor.run(session.id, "I pay for a room and go to sleep.", action)
+    {:ok, _} = TurnProcessor.run(session.id, {"I pay for a room and go to sleep.", action})
 
     SessionEvent
     |> where([e], e.game_session_id == ^session.id and e.kind == "turn.outcome")

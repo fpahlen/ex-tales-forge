@@ -1,6 +1,9 @@
 defmodule TalesForge.Schemas.NpcInstance do
   @moduledoc """
-  Ecto schema: an NPC as it exists in one game session (personality, runtime state, disposition).
+  Ecto schema: an NPC as it existed in one game session (personality,
+  runtime state, disposition) until refactor step 10f PR 5. Nothing reads or
+  writes the table any more: an NPC's state is its `characters` row
+  (`TalesForge.NPC.Rows`). The table stays until Fredrik OKs dropping it.
   """
 
   use Ecto.Schema

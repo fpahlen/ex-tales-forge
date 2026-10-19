@@ -7,25 +7,21 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   alias TalesForge.Game.Events
   alias TalesForge.Game.Fronts.Moves
   alias TalesForge.Game.Intent
-  alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.WorldSim
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{NpcInstance, SessionEvent}
+  alias TalesForge.Schemas.SessionEvent
 
   @hiring "The Miners Guild is hiring steel in the square — retainers with new spears, paid in advance."
   @blades "Osric Vane's hired blades watch the square — his own steel, not Guild retainers."
   @secret_what "tore the tin corner from the guild post; I will have them killed"
 
   setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, session} =
       GameSessions.create_session(%{name: "Tin Valley", adventure_id: "tin_valley"})
 
@@ -63,7 +59,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     assert %SessionEvent{player_aware: true, actor: "guild_steward", location_id: "market_square"} =
              slight
 
-    osric = NPC.get_instance(session.id, "guild_steward")
+    osric = NPC.get_person(session.id, "guild_steward")
     assert get_in(osric.runtime_state, ["resources", "coin"]) == 7
 
     assert Enum.any?(osric.runtime_state["memories"], fn mem ->
@@ -97,8 +93,8 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     refute_plan_leak(prompt)
     refute_plan_leak(scene)
 
-    brenna = NPC.get_instance(session.id, "innkeep")
-    caldern = NPC.get_instance(session.id, "prospector")
+    brenna = NPC.get_person(session.id, "innkeep")
+    caldern = NPC.get_person(session.id, "prospector")
 
     refute Enum.any?(
              brenna.runtime_state["public_facts"] || [],
@@ -118,7 +114,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     set_npc_coin!(session.id, "guild_steward", 0)
     session = session |> move("market_square") |> interact("guild post")
 
-    osric = NPC.get_instance(session.id, "guild_steward")
+    osric = NPC.get_person(session.id, "guild_steward")
     assert get_in(osric.runtime_state, ["resources", "coin"]) == 0
 
     refute Enum.any?(
@@ -160,7 +156,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
   test "Crossroads GM prompt still Marta/ledger/ale with no blades" do
     {:ok, session} = GameSessions.create_session(%{name: "Crossroads"})
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
 
     assert prompt =~ "Marta"
     assert prompt =~ "missing ledger"
@@ -244,15 +240,15 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     world = %{"character" => %{"location_id" => "square"}, "world_tick" => 1}
 
     events =
-      Events.from_turn(
-        player_action,
-        ActionHandler.resolve(player_action),
-        %MechanicalResolution{outcome: "none"},
-        world,
-        world,
-        [],
-        people
-      )
+      Events.from_turn(%Events.Turn{
+        player_action: player_action,
+        handler: ActionHandler.resolve(player_action),
+        mechanical: %MechanicalResolution{outcome: "none"},
+        world_before: world,
+        world_after: world,
+        fronts: [],
+        people: people
+      })
 
     slight = Enum.find(events, &(&1["kind"] == "npc.slighted"))
 
@@ -276,11 +272,13 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        raw,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        raw
       )
 
     reload(session.id)
@@ -299,11 +297,13 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        raw,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        raw
       )
 
     reload(session.id)
@@ -316,11 +316,13 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        raw,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        raw
       )
 
     reload(session.id)
@@ -329,30 +331,28 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   defp reload(id) do
     id
     |> GameSessions.get_session!()
-    |> Repo.preload([:front_instances, :npc_instances])
+    |> Repo.preload([:front_instances])
   end
 
   defp prompts(session) do
     {
-      Context.format_gm_prompt(Context.build_gm_context(session)),
-      Prompts.build_scene_user(session)
+      Assemble.format_gm_prompt(Context.build_gm_context(session)),
+      Assemble.build_scene_user(session)
     }
   end
 
   defp npc_coin(session_id, npc_id) do
     session_id
-    |> NPC.get_instance(npc_id)
+    |> NPC.get_person(npc_id)
     |> Map.get(:runtime_state, %{})
     |> get_in(["resources", "coin"])
   end
 
   defp set_npc_coin!(session_id, npc_id, coin) do
-    inst = NPC.get_instance(session_id, npc_id)
+    inst = NPC.get_person(session_id, npc_id)
     runtime = put_in(inst.runtime_state, ["resources", "coin"], coin)
 
-    inst
-    |> NpcInstance.changeset(%{runtime_state: runtime})
-    |> Repo.update!()
+    NPC.put_state!(inst, runtime)
   end
 
   defp refute_plan_leak(text) do

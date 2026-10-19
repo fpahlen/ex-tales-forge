@@ -29,12 +29,12 @@ defmodule TalesForge.Game.IntentClarificationTest do
     assert Clar.band(reading(0.85, [:speak, :move])) == :act
   end
 
-  test "asks only when unsure and the top two differ in class" do
-    assert Clar.band(reading(0.30, [:speak, :move]), ask_below: 0.45) == :ask
+  test "clarifies only when unsure and the top two differ in class" do
+    assert Clar.band(reading(0.30, [:speak, :move]), ask_below: 0.45) == :clarify
     assert Clar.band(reading(0.30, [:speak, :observe]), ask_below: 0.45) == :best_guess
   end
 
-  test "best guess between act and ask" do
+  test "best guess between act and clarify" do
     assert Clar.band(reading(0.55, [:speak, :move]), ask_below: 0.45) == :best_guess
   end
 
@@ -42,9 +42,9 @@ defmodule TalesForge.Game.IntentClarificationTest do
     defp raw_reading(confidence, raw, top2),
       do: Map.put(reading(confidence, top2), :raw_confidence, raw)
 
-    test "a low raw read asks even when calibration lifts it into the act band" do
+    test "a low raw read clarifies even when calibration lifts it into the act band" do
       # The Lotta case from the 2026-10-09 comparison: raw 0.41 -> 0.815, speak vs move.
-      assert Clar.band(raw_reading(0.815, 0.41, [:speak, :move])) == :ask
+      assert Clar.band(raw_reading(0.815, 0.41, [:speak, :move])) == :clarify
     end
 
     test "a low raw read still plays when the top two are in the same class" do
@@ -60,7 +60,7 @@ defmodule TalesForge.Game.IntentClarificationTest do
     test "ask_below_raw is configurable and 0.0 turns the raw check off" do
       assert Clar.band(raw_reading(0.815, 0.41, [:speak, :move]), ask_below_raw: 0.0) == :act
       assert Clar.band(raw_reading(0.815, 0.41, [:speak, :move]), ask_below_raw: 0.40) == :act
-      assert Clar.band(raw_reading(0.83, 0.43, [:move, :wait]), ask_below_raw: 0.5) == :ask
+      assert Clar.band(raw_reading(0.83, 0.43, [:move, :wait]), ask_below_raw: 0.5) == :clarify
     end
 
     test "a reading without raw_confidence uses the calibrated value only" do
@@ -72,17 +72,34 @@ defmodule TalesForge.Game.IntentClarificationTest do
     end
   end
 
-  test "build produces a clarification payload shaped like Intent.build_clarification" do
-    payload =
-      Clar.build(reading(0.30, [:move, :speak], "market_square"), [
-        %{label: :c0, kind: :place, id: "market_square", text: "Market Square (exit)"}
-      ])
+  describe "goods and plausible readings (the in-character clarify)" do
+    test "moving goods or coins needs act_min; talk does not" do
+      assert Clar.band(reading(0.60, [:buy, :buy])) == :clarify
+      assert Clar.band(reading(0.60, [:speak, :observe])) == :best_guess
+      assert Clar.band(reading(0.75, [:buy, :speak])) == :act
+    end
 
-    assert is_binary(payload["clarification_id"])
-    assert payload["allow_free_text"] == true
-    assert String.contains?(payload["question"], "go to")
-    assert length(payload["options"]) == 2
-    assert Enum.all?(payload["options"], &Map.has_key?(&1, "action_index"))
-    assert is_list(payload["actions"])
+    test "a plausible runner-up of another class clarifies, of the same class does not" do
+      rival =
+        Map.put(reading(0.9, [:speak, :buy]), :action_probabilities, %{speak: 0.6, buy: 0.3})
+
+      same =
+        Map.put(reading(0.9, [:speak, :observe]), :action_probabilities, %{
+          speak: 0.6,
+          observe: 0.35
+        })
+
+      faint = Map.put(rival, :action_probabilities, %{speak: 0.8, buy: 0.2})
+
+      assert Clar.band(rival) == :clarify
+      assert Clar.band(same) == :act
+      assert Clar.band(faint) == :act
+    end
+  end
+
+  test "candidates are the top two readings as short phrases" do
+    assert Clar.candidates(reading(0.30, [:move, :speak], "market_square"), [
+             %{label: :c0, kind: :place, id: "market_square", text: "Market Square (exit)"}
+           ]) == ["go to Market Square", "talk to them"]
   end
 end

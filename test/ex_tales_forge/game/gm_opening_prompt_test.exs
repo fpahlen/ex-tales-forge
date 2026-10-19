@@ -3,23 +3,15 @@ defmodule TalesForge.Game.GMOpeningPromptTest do
 
   alias TalesForge.Game.Context
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.Scene
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   test "GM turn prompt includes the opening scene, clearly labelled" do
     {:ok, session} = GameSessions.create_session(%{name: "GM Opening Prompt"})
 
     opening =
-      GameSessions.opening_scene(session.id) ||
+      TalesForge.Scenes.opening(session.id) ||
         Repo.insert!(%Scene{
           game_session_id: session.id,
           location_id: "weary_pilgrim",
@@ -36,7 +28,7 @@ defmodule TalesForge.Game.GMOpeningPromptTest do
       })
       |> Repo.update()
 
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
 
     assert prompt =~ "## Opening scene (The Weary Pilgrim) — already told to the player"
     assert prompt =~ "This is how the session began. Do not rewrite or re-narrate it."
@@ -49,9 +41,9 @@ defmodule TalesForge.Game.GMOpeningPromptTest do
   test "GM prompt omits the opening section when no scene exists yet" do
     Oban.Testing.with_testing_mode(:manual, fn ->
       {:ok, session} = GameSessions.create_session(%{name: "GM Opening Missing"})
-      assert GameSessions.opening_scene(session.id) == nil
+      assert TalesForge.Scenes.opening(session.id) == nil
 
-      prompt = Context.format_gm_prompt(Context.build_gm_context(session))
+      prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
 
       refute prompt =~ "## Opening scene — already told"
       refute prompt =~ "already told to the player"

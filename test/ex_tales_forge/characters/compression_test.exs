@@ -4,7 +4,6 @@ defmodule TalesForge.Characters.CompressionTest do
   alias TalesForge.Characters
   alias TalesForge.Characters.Compression
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{AICall, CharacterMemory}
 
@@ -16,7 +15,6 @@ defmodule TalesForge.Characters.CompressionTest do
 
     on_exit(fn ->
       Application.put_env(:jev, :api_key, key)
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
     end)
 
     {:ok, session} = GameSessions.create_session(%{name: "Comp", adventure_id: "tin_valley"})
@@ -35,14 +33,32 @@ defmodule TalesForge.Characters.CompressionTest do
 
   describe "timing (option 4)" do
     test "a long rest is always due" do
-      assert Compression.due?(true, false, nil, 10)
+      assert Compression.due?(
+               %Compression.Trigger{long_rest: true, scene_end: false, now: 10},
+               nil
+             )
     end
 
     test "a scene end is due after a dawn and one game day" do
-      refute Compression.due?(false, true, 10, 50)
-      refute Compression.due?(false, false, 10, 200)
-      assert Compression.due?(false, true, 10, 110)
-      refute Compression.due?(false, true, nil, 110)
+      refute Compression.due?(
+               %Compression.Trigger{long_rest: false, scene_end: true, now: 50},
+               10
+             )
+
+      refute Compression.due?(
+               %Compression.Trigger{long_rest: false, scene_end: false, now: 200},
+               10
+             )
+
+      assert Compression.due?(
+               %Compression.Trigger{long_rest: false, scene_end: true, now: 110},
+               10
+             )
+
+      refute Compression.due?(
+               %Compression.Trigger{long_rest: false, scene_end: true, now: 110},
+               nil
+             )
     end
   end
 
@@ -80,7 +96,7 @@ defmodule TalesForge.Characters.CompressionTest do
       %{"kind" => "time.passed", "location_id" => "inn", "payload" => %{"delta_ticks" => 40}}
     ]
 
-    assert :ok = Compression.after_turn(session.id, rest, 50, :shadow)
+    assert :ok = Compression.after_turn(session.id, rest, now: 50, mode: :shadow)
 
     [long] = pc |> Characters.list_memories() |> Enum.filter(&(&1.tier == "long"))
     assert long.text =~ "grateful: "
@@ -96,10 +112,28 @@ defmodule TalesForge.Characters.CompressionTest do
     assert Repo.get_by!(AICall, purpose: "memory.compress").call_type == "jev"
   end
 
+  # Playtest drift run 2026-10-18: a rest with only self-about rows raised
+  # "at least one question is required" in the compression task.
+  test "rows about no one else fade without a Jev call", %{session: session, pc: pc} do
+    short!(pc, "I slept badly", [], 5)
+    short!(pc, "I counted my coins", [pc.slug], 6)
+
+    Req.Test.stub(Jev.HTTP, fn _conn -> flunk("no Jev call without associations") end)
+
+    rest = [
+      %{"kind" => "time.passed", "location_id" => "inn", "payload" => %{"delta_ticks" => 40}}
+    ]
+
+    assert :ok = Compression.after_turn(session.id, rest, now: 50, mode: :shadow)
+    assert Enum.all?(tiers(pc), &(elem(&1, 0) == "faded"))
+    assert Repo.reload!(pc).memory_compressed_tick == 50
+    refute Repo.get_by(AICall, purpose: "memory.compress")
+  end
+
   test "no compression without a scene end or a rest", %{session: session, pc: pc} do
     short!(pc, "Mags laughed", ["mags"], 5)
-    assert :ok = Compression.after_turn(session.id, [], 500, :shadow)
-    assert :ok = Compression.after_turn(session.id, [], 500, :off)
+    assert :ok = Compression.after_turn(session.id, [], now: 500, mode: :shadow)
+    assert :ok = Compression.after_turn(session.id, [], now: 500, mode: :off)
     assert Repo.aggregate(CharacterMemory, :count) >= 1
     assert {"short", "Mags laughed"} in tiers(pc)
   end

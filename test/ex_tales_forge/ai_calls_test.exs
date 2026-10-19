@@ -7,7 +7,6 @@ defmodule TalesForge.AICallsTest do
   alias TalesForge.Game.{Context, Intent, TurnProcessor}
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Schemas.{AICall, Turn}
   alias TalesForge.Workers.ProcessTurn
@@ -53,7 +52,6 @@ defmodule TalesForge.AICallsTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("XAI_API_KEY")
       Application.delete_env(:ex_tales_forge, :ai_spend_caps)
@@ -152,7 +150,7 @@ defmodule TalesForge.AICallsTest do
     Req.Test.stub(TalesForge.LLM, &Req.Test.json(&1, @xai_body))
 
     assert {:ok, %{turn_count: 1}} =
-             TurnProcessor.run(session.id, "look around the tavern", player_action)
+             TurnProcessor.run(session.id, {"look around the tavern", player_action})
 
     assert [call] = Repo.all(from c in AICall, where: c.call_type == "llm")
     assert call.game_session_id == session.id
@@ -190,7 +188,8 @@ defmodule TalesForge.AICallsTest do
     Req.Test.stub(TalesForge.LLM, &Plug.Conn.send_resp(&1, 500, "boom"))
 
     capture_log(fn ->
-      assert {:error, _} = TurnProcessor.run(session.id, "look around the tavern", player_action)
+      assert {:error, _} =
+               TurnProcessor.run(session.id, {"look around the tavern", player_action})
     end)
 
     steps =
@@ -217,7 +216,7 @@ defmodule TalesForge.AICallsTest do
     log =
       capture_log(fn ->
         assert {:ok, %{turn_count: 1}} =
-                 TurnProcessor.run(session.id, "look around the tavern", player_action)
+                 TurnProcessor.run(session.id, {"look around the tavern", player_action})
       end)
 
     assert log =~ "ai_call not recorded"
@@ -328,7 +327,7 @@ defmodule TalesForge.AICallsTest do
       log =
         capture_log(fn ->
           assert {:error, {:spend_cap, :session}} =
-                   TurnProcessor.run(session.id, "look around the tavern", player_action)
+                   TurnProcessor.run(session.id, {"look around the tavern", player_action})
         end)
 
       refute_received :llm_request

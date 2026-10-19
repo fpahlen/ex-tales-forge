@@ -91,6 +91,24 @@ defmodule TalesForge.Characters.Compression do
           end)
          |> Map.new()
 
+  defmodule Trigger do
+    @moduledoc """
+    What the turn brings for compression: a long rest, a scene end, and the
+    world tick `now`.
+    """
+    defstruct long_rest: false, scene_end: false, now: nil
+
+    @typedoc "A long rest and/or a scene end at tick `now`."
+    @type t :: %__MODULE__{long_rest: boolean(), scene_end: boolean(), now: integer() | nil}
+  end
+
+  defmodule Outcome do
+    @moduledoc false
+    # One character's compression: the short-term `rows` it read, the `long`
+    # rows it writes, at tick `now`.
+    defstruct [:rows, :long, :now]
+  end
+
   # -- timing ---------------------------------------------------------------
 
   @doc "True when a dawn (slot #{@dawn_slot}) lies in `(from, to]`."
@@ -106,30 +124,40 @@ defmodule TalesForge.Characters.Compression do
 
   @doc """
   True when compression is due for a character: on a long rest, or at a scene
-  end when a dawn and one game day lie between `since` and `now`.
+  end when a dawn and one game day lie between `since` and the trigger's `now`.
   """
-  @spec due?(boolean(), boolean(), integer() | nil, integer()) :: boolean()
-  def due?(true = _long_rest, _scene_end, _since, _now), do: true
-  def due?(false, false, _since, _now), do: false
-  def due?(false, true, nil, _now), do: false
+  @spec due?(Trigger.t(), integer() | nil) :: boolean()
+  def due?(%Trigger{long_rest: true}, _since), do: true
+  def due?(%Trigger{scene_end: false}, _since), do: false
+  def due?(%Trigger{}, nil), do: false
 
-  def due?(false, true, since, now),
+  def due?(%Trigger{now: now}, since),
     do: now - since >= WorldClock.ticks_per_day() and dawn_between?(since, now)
 
   @doc """
   After the turn commits: compresses every due character of the session in a
-  task (inline when `:character_memory_compress` is `:sync`). Always `:ok`.
+  task (inline when `:character_memory_compress` is `:sync`). Options: `:now`
+  (the world tick; nil does nothing) and `:mode` (the CHARACTER_MEMORY mode;
+  `:off` does nothing). Always `:ok`.
   """
-  @spec after_turn(Ecto.UUID.t(), [map()], integer() | nil, :off | :shadow | :on) :: :ok
-  def after_turn(_session_id, _events, _now, :off), do: :ok
-  def after_turn(_session_id, _events, nil, _mode), do: :ok
+  @spec after_turn(Ecto.UUID.t(), [map()], keyword()) :: :ok
+  def after_turn(session_id, events, opts) do
+    now = Keyword.get(opts, :now)
 
-  def after_turn(session_id, events, now, _mode) do
-    long_rest = Memory.long_rest_in?(events)
-    scene_end = Memory.scene_end(events) != nil
+    if now != nil and Keyword.get(opts, :mode, :off) != :off,
+      do: compress_due(session_id, events, now),
+      else: :ok
+  end
 
-    if long_rest or scene_end do
-      fun = fn -> run(session_id, long_rest, scene_end, now) end
+  defp compress_due(session_id, events, now) do
+    trigger = %Trigger{
+      long_rest: Memory.long_rest_in?(events),
+      scene_end: Memory.scene_end(events) != nil,
+      now: now
+    }
+
+    if trigger.long_rest or trigger.scene_end do
+      fun = fn -> run(session_id, trigger) end
 
       case Application.get_env(:ex_tales_forge, :character_memory_compress, :async) do
         :sync -> fun.()
@@ -145,12 +173,12 @@ defmodule TalesForge.Characters.Compression do
   end
 
   @doc false
-  def run(session_id, long_rest, scene_end, now) do
+  def run(session_id, %Trigger{} = trigger) do
     for c <- Characters.list_for_session(session_id),
         rows = eligible_rows(c),
         rows != [],
-        due?(long_rest, scene_end, since(c, rows), now) do
-      compress(c, rows, now)
+        due?(trigger, since(c, rows)) do
+      compress(c, rows, trigger.now)
     end
 
     :ok
@@ -185,16 +213,25 @@ defmodule TalesForge.Characters.Compression do
 
   @doc """
   Compresses one character's rows with one Jev call. Without a TypeSafe key
-  nothing changes. Returns `:ok` or `{:error, reason}`.
+  nothing changes. Rows about no one else (no associations) make no call:
+  there is nothing to ask, so they fade with no long-term row, which is what
+  a call would give. Returns `:ok` or `{:error, reason}`.
   """
   @spec compress(Character.t(), [CharacterMemory.t()], integer()) :: :ok | {:error, term()}
   def compress(%Character{} = c, rows, now) do
-    groups = associations(rows, c.slug)
-
     with true <- configured?() || {:error, :jev_not_configured},
-         {:ok, reply, timing} <- call_jev(state(c, groups), questions(groups)) do
+         {:ok, long} <- long_term(c, associations(rows, c.slug), now) do
+      write(c, %Outcome{rows: rows, long: long, now: now})
+    end
+  end
+
+  # Jev requires at least one question, and with no associations there is none.
+  defp long_term(_c, [], _now), do: {:ok, []}
+
+  defp long_term(c, groups, now) do
+    with {:ok, reply, timing} <- call_jev(state(c, groups), questions(groups)) do
       record_usage(c, reply, timing)
-      write(c, rows, groups, reply, now)
+      {:ok, long_rows(groups, reply, now)}
     end
   end
 
@@ -208,10 +245,14 @@ defmodule TalesForge.Characters.Compression do
     rows
     |> Enum.flat_map(fn r -> for a <- r.about || [], a != own, do: {a, r} end)
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-    |> Enum.sort_by(fn {a, rs} -> {-Enum.sum_by(rs, &(&1.weight || 1.0)), a} end)
+    |> Enum.sort_by(&heaviest_first/1)
     |> Enum.take(@max_assoc)
     |> Enum.map(fn {a, rs} -> {a, Enum.take(Enum.reverse(rs), @max_rows)} end)
   end
+
+  # The sort key of an association: its total row weight, heaviest first,
+  # then its id.
+  defp heaviest_first({about, rows}), do: {-Enum.sum_by(rows, &(&1.weight || 1.0)), about}
 
   @doc false
   def state(%Character{} = c, groups) do
@@ -333,10 +374,10 @@ defmodule TalesForge.Characters.Compression do
   defp belief(about, :i_owe), do: "I owe #{about}"
   defp belief(about, label), do: "#{about} #{Map.fetch!(@belief_text, label)}"
 
-  defp write(c, rows, groups, reply, now) do
+  defp write(c, %Outcome{rows: rows, long: long, now: now}) do
     Repo.transaction(fn ->
       fade_long!(c)
-      Enum.each(long_rows(groups, reply, now), &({:ok, _} = Characters.add_memory(c, &1)))
+      Enum.each(long, &({:ok, _} = Characters.add_memory(c, &1)))
 
       ids = Enum.map(rows, & &1.id)
       Repo.update_all(from(m in CharacterMemory, where: m.id in ^ids), set: [tier: "faded"])

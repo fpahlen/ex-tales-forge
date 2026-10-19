@@ -7,6 +7,7 @@ defmodule TalesForgeWeb.PlayLive do
 
   import TalesForgeWeb.PlayComponents
 
+  alias TalesForge.Characters
   alias TalesForge.GameSessions
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
@@ -22,7 +23,6 @@ defmodule TalesForgeWeb.PlayLive do
       |> GameSessions.get_session!()
       |> Repo.preload([:turns, :scenes])
 
-    :ok = GameSessions.ensure_agent_started(session)
     {:ok, _} = GameSessions.ensure_scene(session)
 
     status = GameSessions.scene_status(id)
@@ -32,6 +32,7 @@ defmodule TalesForgeWeb.PlayLive do
      socket
      |> assign(:page_title, session.name)
      |> assign(:session, session)
+     |> assign(:cast, Characters.cast(session.id))
      |> assign(:connected, connected?(socket))
      |> assign(:thinking, false)
      |> assign(:streaming_text, "")
@@ -75,6 +76,7 @@ defmodule TalesForgeWeb.PlayLive do
      socket
      |> assign(:scene_loading, false)
      |> assign(:session, session)
+     |> assign(:cast, Characters.cast(session.id))
      |> assign(:llm_source, payload.llm_source)
      |> assign(:scene_image_url, payload.image_url)
      |> append_entries(payload.entries)}
@@ -128,6 +130,7 @@ defmodule TalesForgeWeb.PlayLive do
       |> clear_streaming()
       |> assign(:clarification, nil)
       |> assign(:session, session)
+      |> assign(:cast, Characters.cast(session.id))
       |> assign(:llm_source, payload.llm_source)
       |> append_entries(payload.entries)
       |> maybe_start_scene_after_travel(payload, session)
@@ -172,7 +175,7 @@ defmodule TalesForgeWeb.PlayLive do
       |> assign(:location_name, Map.get(world, "location_name", "Unknown"))
       |> assign(:world_clock, Map.get(world, "world_clock", "—"))
       |> assign(:character, character)
-      |> assign(:present_npcs, present_npcs(world))
+      |> assign(:present_npcs, present_npcs(world, assigns.cast))
       |> assign(:last_exchange, last_exchange(world))
       |> assign(:quick_stats, quick_stats(character))
       |> assign(
@@ -259,43 +262,29 @@ defmodule TalesForgeWeb.PlayLive do
       {:ok, %{status: :clarification}} ->
         {:noreply, assign(socket, :thinking, false)}
 
-      {:error, :empty_message} ->
-        {:noreply,
-         socket
-         |> assign(:thinking, false)
-         |> clear_streaming()
-         |> put_flash(:error, "Say something first.")}
-
-      {:error, :clarification_expired} ->
-        {:noreply,
-         socket
-         |> assign(:thinking, false)
-         |> clear_streaming()
-         |> assign(:clarification, nil)
-         |> put_flash(:error, "That question has passed. Say what you do.")}
-
-      {:error, :needs_scene} ->
-        {:noreply,
-         socket
-         |> assign(:thinking, false)
-         |> clear_streaming()
-         |> put_flash(:error, "Wait for the GM to describe the scene before you act.")}
-
-      {:error, :dead} ->
-        {:noreply,
-         socket
-         |> assign(:thinking, false)
-         |> clear_streaming()
-         |> put_flash(:error, "You are dead.")}
-
-      {:error, _reason} ->
-        {:noreply,
-         socket
-         |> assign(:thinking, false)
-         |> clear_streaming()
-         |> put_flash(:error, "Could not process that action.")}
+      {:error, reason} ->
+        {:noreply, submit_failed(socket, reason)}
     end
   end
+
+  defp submit_failed(socket, reason) do
+    socket
+    |> assign(:thinking, false)
+    |> clear_streaming()
+    |> forget_expired_question(reason)
+    |> put_flash(:error, submit_error(reason))
+  end
+
+  defp forget_expired_question(socket, :clarification_expired),
+    do: assign(socket, :clarification, nil)
+
+  defp forget_expired_question(socket, _reason), do: socket
+
+  defp submit_error(:empty_message), do: "Say something first."
+  defp submit_error(:clarification_expired), do: "That question has passed. Say what you do."
+  defp submit_error(:needs_scene), do: "Wait for the GM to describe the scene before you act."
+  defp submit_error(:dead), do: "You are dead."
+  defp submit_error(_reason), do: "Could not process that action."
 
   # The player's action shows in the story as soon as the server takes it, so
   # it sits above the GM text that streams next. The entry has a fixed id;

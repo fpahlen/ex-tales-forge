@@ -25,9 +25,10 @@ defmodule TalesForgeWeb.Layouts do
   @spec app_head(map()) :: Phoenix.LiveView.Rendered.t()
   def app_head(assigns) do
     assigns =
-      assigns
-      |> assign(:app_name, TalesForgeWeb.WebAppController.app_name())
-      |> assign(:theme_color, TalesForgeWeb.WebAppController.theme_color())
+      assign(assigns,
+        app_name: TalesForgeWeb.WebAppController.app_name(),
+        theme_color: TalesForgeWeb.WebAppController.theme_color()
+      )
 
     ~H"""
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -78,7 +79,8 @@ defmodule TalesForgeWeb.Layouts do
           <.link navigate={~p"/"} class="font-serif text-lg font-semibold text-[var(--paper-ink)]">
             Tales Forge
           </.link>
-          <div class="flex items-center gap-3">
+          <div class="flex flex-wrap items-center justify-end gap-x-3">
+            <TalesForgeWeb.AppComponents.env_badge switch_path={~p"/"} compact />
             <.link
               href={~p"/admin"}
               class="text-sm text-[var(--paper-muted)] hover:text-[var(--paper-accent)] hover:underline"
@@ -114,7 +116,7 @@ defmodule TalesForgeWeb.Layouts do
   attr :other_app_path, :string,
     default: nil,
     doc:
-      "for a page that both apps serve with their own data: its path, for \"Same page on <other app> ↗\""
+      "for a page that both apps serve with their own data: its path, for \"Same page on <other app> ↗\" and the environment badge (other pages: the badge opens /admin)"
 
   attr :wide, :boolean,
     default: false,
@@ -148,7 +150,7 @@ defmodule TalesForgeWeb.Layouts do
                 id: "admin-online",
                 session: %{"id_prefix" => "admin-online"}
               )}
-            <TalesForgeWeb.AppComponents.env_badge />
+            <TalesForgeWeb.AppComponents.env_badge switch_path={@other_app_path} />
             <.theme_toggle />
           </div>
         </div>

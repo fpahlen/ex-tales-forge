@@ -20,15 +20,18 @@ defmodule TalesForge.Game.QaD100Qa3Test do
     skill_detail_level: false
   }
 
-  @dead_marta %{
-    "name" => "Marta Kellen",
-    "role" => "barkeep",
-    "minor" => true,
-    "vitality" => "dead",
-    "wounds" => 1,
-    "wound_max" => 1,
-    "location_id" => "weary_pilgrim"
+  @dead_marta %TalesForge.GameCharacter{
+    slug: "marta_kellen",
+    name: "Marta Kellen",
+    role: "barkeep",
+    minor: true,
+    vitality: "dead",
+    wounds: 1,
+    wound_max: 1,
+    location_id: "weary_pilgrim"
   }
+
+  @henrik %TalesForge.GameCharacter{slug: "worried_merchant", name: "Henrik"}
 
   setup do
     {:ok, session} = GameSessions.create_session(%{name: "QA", adventure_id: "crossroads_ledger"})
@@ -38,53 +41,48 @@ defmodule TalesForge.Game.QaD100Qa3Test do
       |> Map.put("location_id", "weary_pilgrim")
       |> put_in(["character", "location_id"], "weary_pilgrim")
       |> Map.put("present_npcs", [])
-      |> Map.update("npc_state", %{"marta_kellen" => @dead_marta}, fn state ->
-        Map.put(state || %{}, "marta_kellen", @dead_marta)
-      end)
 
-    %{session: %{session | world_state: world}}
+    cast = session.id |> TalesForge.Characters.cast() |> Map.put("marta_kellen", @dead_marta)
+    %{session: %{session | world_state: world}, cast: cast}
   end
 
-  defp play(session, text, type, target, params \\ %{}) do
+  defp play(%{session: session, cast: cast}, text, type, target, params \\ %{}) do
     pa = %PlayerAction{
       overall_intent: text,
       action: %SingleAction{action_type: type, target: target, parameters: params}
     }
 
-    session
-    |> Turn.new(1, text, pa, flags: @flags, role: :playtest)
+    {session, 1}
+    |> Turn.new({text, pa}, flags: @flags, role: :playtest, cast: cast)
     |> Turn.Mechanics.apply()
   end
 
   describe "a dead person is never present" do
     test "the Present panel drops a dead minor foe and a dead listed person" do
-      world = %{
-        "location_id" => "weary_pilgrim",
-        "present_npcs" => [],
-        "npc_state" => %{"marta_kellen" => @dead_marta}
-      }
+      world = %{"location_id" => "weary_pilgrim", "present_npcs" => []}
+      cast = %{"marta_kellen" => @dead_marta}
 
-      assert PlayComponents.present_npcs(world) == []
+      assert PlayComponents.present_npcs(world, cast) == []
 
       listed = Map.put(world, "present_npcs", ["marta_kellen"])
-      assert PlayComponents.present_npcs(listed) == []
+      assert PlayComponents.present_npcs(listed, cast) == []
 
-      alive = put_in(world, ["npc_state", "marta_kellen", "vitality"], "hurt")
-      assert [%{id: "marta_kellen"}] = PlayComponents.present_npcs(alive)
+      alive = %{"marta_kellen" => %{@dead_marta | vitality: "hurt"}}
+      assert [%{id: "marta_kellen"}] = PlayComponents.present_npcs(world, alive)
     end
   end
 
   describe "the dead get no roll" do
-    test "the classifier route: persuasion with no target is blocked", %{session: session} do
-      t = play(session, "I persuade Marta", :speak, nil, %{"skill" => "persuasion"})
+    test "the classifier route: persuasion with no target is blocked", ctx do
+      t = play(ctx, "I persuade Marta", :speak, nil, %{"skill" => "persuasion"})
 
       assert t.outcome.handler.state_hints["target_rejected"]
       assert t.outcome.handler.state_hints["reason"] =~ "Marta Kellen is dead"
       assert t.outcome.mechanical.roll == nil
     end
 
-    test "the classifier route: a name as the target is blocked", %{session: session} do
-      t = play(session, "I persuade Marta", :speak, "Marta", %{"skill" => "persuasion"})
+    test "the classifier route: a name as the target is blocked", ctx do
+      t = play(ctx, "I persuade Marta", :speak, "Marta", %{"skill" => "persuasion"})
       assert t.outcome.handler.state_hints["target_rejected"]
       assert t.outcome.mechanical.roll == nil
     end
@@ -97,31 +95,30 @@ defmodule TalesForge.Game.QaD100Qa3Test do
           {"I attack Marta again", :combat},
           {"I trade my knife with Marta", :trade}
         ] do
-      test "the fallback route: #{text}", %{session: session} do
+      test "the fallback route: #{text}", ctx do
         params = %{"skill" => Mechanics.infer_check_skill(unquote(text))}
-        t = play(session, unquote(text), unquote(type), nil, params)
+        t = play(ctx, unquote(text), unquote(type), nil, params)
 
         assert t.outcome.handler.state_hints["target_rejected"], unquote(text)
         assert t.outcome.mechanical.roll == nil
       end
     end
 
-    test "looking at the body is no block", %{session: session} do
-      t = play(session, "I look at Marta's body", :observe, nil)
+    test "looking at the body is no block", ctx do
+      t = play(ctx, "I look at Marta's body", :observe, nil)
       refute t.outcome.handler.state_hints["target_rejected"]
     end
 
     test "talk about the dead to a living person is no block" do
-      world = %{
-        "present_npcs" => ["worried_merchant"],
-        "npc_state" => %{
-          "marta_kellen" => @dead_marta,
-          "worried_merchant" => %{"name" => "Henrik", "location_id" => "weary_pilgrim"}
-        }
+      world = %{"present_npcs" => ["worried_merchant"]}
+
+      cast = %{
+        "marta_kellen" => @dead_marta,
+        "worried_merchant" => %{@henrik | location_id: "weary_pilgrim"}
       }
 
       action = %SingleAction{action_type: :speak, target: "worried_merchant"}
-      assert TargetCheck.reason(world, action, "I ask Henrik about Marta") == nil
+      assert TargetCheck.reason({world, cast}, action, "I ask Henrik about Marta") == nil
     end
   end
 
@@ -156,14 +153,11 @@ defmodule TalesForge.Game.QaD100Qa3Test do
       assert pa.action.action_type == :speak
       assert pa.action.target == "worried_merchant"
 
-      world = %{
-        "present_npcs" => [],
-        "npc_state" => %{
-          "worried_merchant" => %{"name" => "Henrik", "location_id" => "crossroads_square"}
-        }
-      }
+      scene =
+        {%{"present_npcs" => []},
+         %{"worried_merchant" => %{@henrik | location_id: "crossroads_square"}}}
 
-      assert TargetCheck.reason(world, pa.action, "I persuade Henrik") =~ "Henrik is not here"
+      assert TargetCheck.reason(scene, pa.action, "I persuade Henrik") =~ "Henrik is not here"
     end
   end
 
@@ -173,7 +167,14 @@ defmodule TalesForge.Game.QaD100Qa3Test do
       defender = %{"id" => "marta_kellen", "name" => "Marta Kellen", "skills" => %{"dodge" => 40}}
       rolls = %{attack: 100, counter_chance: 1.0, counter: 99, death: 1}
 
-      ex = Combat.exchange(attacker, defender, "melee_combat", rolls)
+      ex =
+        Combat.exchange(
+          {TalesForge.GameCharacter.from_sheet(attacker),
+           TalesForge.GameCharacter.from_sheet(defender)},
+          "melee_combat",
+          rolls
+        )
+
       assert ex["attack"]["result"] == "critical_failure"
       assert ex["self_wound"]
       assert ex["attacker_wounded"]
@@ -193,8 +194,8 @@ defmodule TalesForge.Game.QaD100Qa3Test do
   end
 
   describe "a move to the current place" do
-    test "go inside the inn while in the inn plays no walk, flag off", %{session: session} do
-      t = play(session, "I go inside the inn.", :move, "pilgrim_cellar")
+    test "go inside the inn while in the inn plays no walk, flag off", ctx do
+      t = play(ctx, "I go inside the inn.", :move, "pilgrim_cellar")
 
       hints = t.outcome.handler.state_hints
       assert hints["same_place"]
@@ -202,8 +203,8 @@ defmodule TalesForge.Game.QaD100Qa3Test do
       assert t.outcome.board.world["location_id"] == "weary_pilgrim"
     end
 
-    test "a move with the current place as the target plays no walk", %{session: session} do
-      t = play(session, "I walk over to the bar.", :move, "weary_pilgrim")
+    test "a move with the current place as the target plays no walk", ctx do
+      t = play(ctx, "I walk over to the bar.", :move, "weary_pilgrim")
       assert t.outcome.handler.state_hints["same_place"]
     end
 

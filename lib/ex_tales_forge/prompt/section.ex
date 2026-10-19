@@ -9,7 +9,7 @@ defmodule TalesForge.Prompt.Section do
     * `render/1` — the text, or nil.
 
   The optional `glue/0` is the text before the section when it follows
-  another section in the same message (default `TalesForge.Prompt.separator/0`).
+  another section in the same message (default `separator/0`).
   """
 
   alias TalesForge.Prompt.Ctx
@@ -23,12 +23,18 @@ defmodule TalesForge.Prompt.Section do
   @callback glue() :: String.t()
   @optional_callbacks glue: 0
 
+  @separator "\n\n---\n\n"
+
+  @doc "The separator between two sections of one user message."
+  @spec separator() :: String.t()
+  def separator, do: @separator
+
   @doc "The glue before `section`."
   @spec glue(module()) :: String.t()
   def glue(section) do
     if function_exported?(section, :glue, 0),
       do: section.glue(),
-      else: TalesForge.Prompt.separator()
+      else: @separator
   end
 
   @doc false

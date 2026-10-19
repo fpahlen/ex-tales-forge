@@ -55,6 +55,20 @@ defmodule TalesForge.Game.Progression do
   alias TalesForge.Game.WorldClock
 
   @trainer_bonus 25
+
+  defmodule Run do
+    @moduledoc false
+    # The rolls one skill gets: `left` more, each costing `cost` LP.
+    defstruct [:skill, :left, :cost]
+  end
+
+  defmodule Attempt do
+    @moduledoc false
+    # One improvement roll: the d100 `roll`, an injected `gain` (or nil) and
+    # the `bonus` on the roll.
+    defstruct [:skill, :roll, :gain, bonus: 0]
+  end
+
   @defaults [
     attempt_floor: 51,
     lp_per_roll_divisor: 15,
@@ -232,7 +246,7 @@ defmodule TalesForge.Game.Progression do
       if needs_reflection?(level) and skill not in reflected do
         {char, acc, pending ++ [skill], rolls}
       else
-        {char, attempts, rolls} = resolve_skill(char, skill, level, rolls)
+        {char, attempts, rolls} = resolve_skill(char, skill, rolls)
         {char, acc ++ attempts, pending, rolls}
       end
     end)
@@ -265,15 +279,10 @@ defmodule TalesForge.Game.Progression do
   @spec resolve_turn(character(), rolls(), keyword()) :: {character(), [attempt()]}
   def resolve_turn(character, rolls \\ %{}, opts \\ [])
       when is_map(character) and is_map(rolls) and is_list(opts) do
-    reflected = Keyword.get(opts, :reflected, [])
-
     character
-    |> Map.get("learning_points", %{})
-    |> Enum.filter(fn {skill, lp} -> skill in @immediate_skills and to_float(lp) > 0.0 end)
-    |> Enum.map(fn {skill, _lp} -> skill end)
-    |> Enum.sort()
+    |> turn_skills(Keyword.get(opts, :reflected, []))
     |> Enum.reduce({character, [], rolls}, fn skill, {char, acc, rolls} ->
-      {char, attempts, rolls} = resolve_now(char, skill, reflected, rolls)
+      {char, attempts, rolls} = resolve_now(char, skill, rolls)
       {char, acc ++ attempts, rolls}
     end)
     |> then(fn {char, attempts, _rolls} -> {char, attempts} end)
@@ -297,7 +306,7 @@ defmodule TalesForge.Game.Progression do
   @doc """
   One training session: a free attempt (no LP spent) with the trainer bonus on
   the roll. Whether the session may happen at all (trainer present, skill gap,
-  fee, vitality) is `TalesForge.Game.Train.qualify/5`.
+  fee, vitality) is `TalesForge.Game.Train.qualify/3`.
 
       iex> character = %{"skills" => %{"persuasion" => 60}, "learning_points" => %{}}
       iex> {trained, attempt} = TalesForge.Game.Progression.train(character, "persuasion", %{"persuasion" => {35, 3}})
@@ -307,45 +316,60 @@ defmodule TalesForge.Game.Progression do
   @spec train(character(), String.t(), rolls()) :: {character(), attempt()}
   def train(character, skill, rolls \\ %{})
       when is_map(character) and is_binary(skill) and is_map(rolls) do
-    {roll, _rolls} = next_roll(rolls, skill)
-    {updated, entry} = attempt(character, skill, roll, @trainer_bonus)
+    {{roll, gain}, _rolls} = next_roll(rolls, skill)
+
+    {updated, entry} =
+      attempt(character, %Attempt{skill: skill, roll: roll, gain: gain, bonus: @trainer_bonus})
+
     {updated, entry |> Map.put("bonus", @trainer_bonus) |> Map.put("lp_spent", 0)}
   end
 
   # Rolls until the first success or until the LP run out, then clears every
   # LP of the skill: nothing carries over to the next night.
-  defp resolve_skill(character, skill, level, rolls) do
+  defp resolve_skill(character, skill, rolls) do
     lp = character |> get_in(["learning_points", skill]) |> to_float() |> trunc()
-    cost = lp_per_roll(level)
+    cost = character |> get_in(["skills", skill]) |> to_int() |> lp_per_roll()
 
     {character, rolled, rolls} =
-      roll_until_success(character, skill, div(lp, cost), cost, rolls)
+      roll_until_success(character, %Run{skill: skill, left: div(lp, cost), cost: cost}, rolls)
 
     {put_in(character, ["learning_points", skill], 0.0), mark_cleared(rolled, lp, cost), rolls}
   end
 
-  # One immediate skill at the end of a turn (resolve_turn/3).
-  defp resolve_now(character, skill, reflected, rolls) do
-    level = character |> get_in(["skills", skill]) |> to_int()
-
-    cond do
-      skill in Map.get(character, "improved_since_rest", []) ->
-        {put_in(character, ["learning_points", skill], 0.0), [], rolls}
-
-      needs_reflection?(level) and skill not in reflected ->
-        {character, [], rolls}
-
-      true ->
-        roll_now(character, skill, level, rolls)
-    end
+  # The immediate skills with banked LP that resolve this turn, alphabetical.
+  defp turn_skills(character, reflected) do
+    character
+    |> Map.get("learning_points", %{})
+    |> Enum.filter(fn {skill, lp} -> skill in @immediate_skills and to_float(lp) > 0.0 end)
+    |> Enum.map(fn {skill, _lp} -> skill end)
+    |> Enum.sort()
+    |> Enum.reject(&awaits_reflection?(character, &1, reflected))
   end
 
-  defp roll_now(character, skill, level, rolls) do
-    lp = character |> get_in(["learning_points", skill]) |> to_float()
-    cost = lp_per_roll(level)
+  # A skill at the reflection level that was not reflected on keeps its LP
+  # for the rest, unless it already improved this cycle (its LP are dropped).
+  # Each skill's level and improved mark only change for that skill, so this
+  # can be read before the turn's skills resolve.
+  defp awaits_reflection?(character, skill, reflected) do
+    level = character |> get_in(["skills", skill]) |> to_int()
 
-    {character, rolled, rolls} =
-      roll_until_success(character, skill, div(trunc(lp), cost), cost, rolls)
+    skill not in Map.get(character, "improved_since_rest", []) and
+      needs_reflection?(level) and skill not in reflected
+  end
+
+  # One immediate skill at the end of a turn (resolve_turn/3).
+  defp resolve_now(character, skill, rolls) do
+    if skill in Map.get(character, "improved_since_rest", []),
+      do: {put_in(character, ["learning_points", skill], 0.0), [], rolls},
+      else: roll_now(character, skill, rolls)
+  end
+
+  defp roll_now(character, skill, rolls) do
+    lp = character |> get_in(["learning_points", skill]) |> to_float()
+    cost = character |> get_in(["skills", skill]) |> to_int() |> lp_per_roll()
+    run = %Run{skill: skill, left: div(trunc(lp), cost), cost: cost}
+
+    {character, rolled, rolls} = roll_until_success(character, run, rolls)
 
     if Enum.any?(rolled, & &1["improved"]) do
       {character |> put_in(["learning_points", skill], 0.0) |> mark_improved(skill),
@@ -366,32 +390,28 @@ defmodule TalesForge.Game.Progression do
   defp mark_cleared(rolled, lp, cost),
     do: List.update_at(rolled, -1, &Map.put(&1, "lp_cleared", lp - cost * length(rolled)))
 
-  defp roll_until_success(character, _skill, 0, _cost, rolls), do: {character, [], rolls}
+  defp roll_until_success(character, %Run{left: 0}, rolls), do: {character, [], rolls}
 
-  defp roll_until_success(character, skill, left, cost, rolls) do
-    {roll, rolls} = next_roll(rolls, skill)
-    {updated, result} = attempt(character, skill, roll, 0)
+  defp roll_until_success(character, %Run{skill: skill, cost: cost} = run, rolls) do
+    {{roll, gain}, rolls} = next_roll(rolls, skill)
+    {updated, result} = attempt(character, %Attempt{skill: skill, roll: roll, gain: gain})
     entry = Map.put(result, "lp_spent", cost)
 
     if entry["improved"] do
       {updated, [entry], rolls}
     else
-      {updated, more, rolls} = roll_until_success(updated, skill, left - 1, cost, rolls)
+      {updated, more, rolls} = roll_until_success(updated, %{run | left: run.left - 1}, rolls)
       {updated, [entry | more], rolls}
     end
   end
 
-  defp attempt(character, skill, {roll, gain}, bonus) do
+  defp attempt(character, %Attempt{skill: skill, roll: roll, gain: gain, bonus: bonus}) do
     level = character |> get_in(["skills", skill]) |> to_int()
     improved = improves?(roll, level, bonus)
     gain = if improved, do: gain || improvement_gain(), else: 0
     new_level = min(setting(:skill_cap), level + gain)
 
-    updated =
-      character
-      |> Map.put_new("skills", %{})
-      |> Map.put_new("learning_points", %{})
-      |> then(&if improved, do: put_in(&1, ["skills", skill], new_level), else: &1)
+    updated = sheet(character, skill, if(improved, do: new_level))
 
     # The sheet shows the effective level (with the stat bonus or the
     # untrained floor), so the entry also has it before and after (QA
@@ -400,16 +420,25 @@ defmodule TalesForge.Game.Progression do
       %{"skill" => skill, "roll" => roll, "raw_skill" => level, "improved" => improved}
       |> then(&if improved, do: Map.put(&1, "gain", new_level - level), else: &1)
       |> then(
-        &if improved,
-          do:
-            Map.merge(&1, %{
-              "effective_before" => Mechanics.effective_level(character, skill),
-              "effective_after" => Mechanics.effective_level(updated, skill)
-            }),
-          else: &1
+        &if improved, do: Map.merge(&1, effective_change(character, updated, skill)), else: &1
       )
 
     {updated, entry}
+  end
+
+  # The sheet with both maps present and, after a success, the new level.
+  defp sheet(character, skill, new_level) do
+    character
+    |> Map.put_new("skills", %{})
+    |> Map.put_new("learning_points", %{})
+    |> then(&if new_level, do: put_in(&1, ["skills", skill], new_level), else: &1)
+  end
+
+  defp effective_change(before, after_attempt, skill) do
+    %{
+      "effective_before" => Mechanics.effective_level(before, skill),
+      "effective_after" => Mechanics.effective_level(after_attempt, skill)
+    }
   end
 
   @doc """

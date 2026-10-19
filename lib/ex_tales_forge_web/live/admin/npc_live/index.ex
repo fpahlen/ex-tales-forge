@@ -10,11 +10,11 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Index do
   @impl true
   def mount(%{"id" => session_id}, _session, socket) do
     session = Admin.get_session!(session_id)
-    npcs = Admin.list_npc_instances(session_id)
+    npcs = Admin.list_npcs(session_id)
 
     {:ok,
      socket
-     |> assign(:page_title, "NPC instances")
+     |> assign(:page_title, "NPCs")
      |> assign(:session, session)
      |> assign(:npcs, npcs)}
   end
@@ -30,7 +30,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Index do
         >
           ← {@session.name}
         </.link>
-        <h2 class="font-serif text-2xl font-bold text-[var(--paper-ink)]">NPC instances</h2>
+        <h2 class="font-serif text-2xl font-bold text-[var(--paper-ink)]">NPCs</h2>
       </header>
 
       <div class="overflow-x-auto rounded-lg border border-[var(--paper-rule)]">
@@ -40,7 +40,6 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Index do
               <th class="px-4 py-2">NPC</th>
               <th class="px-4 py-2">Location</th>
               <th class="px-4 py-2">Mood</th>
-              <th class="px-4 py-2">Disposition</th>
               <th class="px-4 py-2">Stock items</th>
               <th class="px-4 py-2"></th>
             </tr>
@@ -50,7 +49,6 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Index do
               <td class="px-4 py-3 font-medium">{npc.npc_id}</td>
               <td class="px-4 py-3">{Map.get(npc.runtime_state, "location_id", "—")}</td>
               <td class="px-4 py-3">{Map.get(npc.runtime_state, "mood", "—")}</td>
-              <td class="px-4 py-3">{npc.disposition}</td>
               <td class="px-4 py-3">{stock_count(npc)}</td>
               <td class="px-4 py-3">
                 <.link

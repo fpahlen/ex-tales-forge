@@ -28,6 +28,17 @@ defmodule TalesForge.Config do
   def tier2_max_tokens, do: env_int("TIER2_MAX_TOKENS", 700)
 
   @doc """
+  True when persona runs may start here: `PLAYTEST_RUNNER_ENABLED` is "true"
+  and this is not the production app (playtest runs live only on playtest;
+  `TalesForge.AppRole`). Persona runs, series and scoring use the same gate.
+  """
+  @spec playtest_runner?() :: boolean()
+  def playtest_runner? do
+    Application.get_env(:ex_tales_forge, :playtest_runner_enabled, false) == true and
+      TalesForge.AppRole.here?(:playtest_runs)
+  end
+
+  @doc """
   The Jev intent mode new default-variant sessions get (`INTENT_JEV`, read in
   `config/runtime.exs`): `:off` (today's intent path), `:shadow` (today's path
   plays; the Jev intent read runs alongside and is only logged) or `:on` (the
@@ -79,15 +90,6 @@ defmodule TalesForge.Config do
   """
   @spec jev_catalogue_v2?() :: boolean()
   def jev_catalogue_v2?, do: System.get_env("JEV_CATALOGUE_V2", "off") in ~w(on true 1)
-
-  @doc """
-  Clarification v2 (`TalesForge.Game.IntentClarification.build/3`): the
-  question offers only options that the game state allows, at most three.
-  Env `INTENT_CLARIFICATION_V2`, default off.
-  """
-  @spec intent_clarification_v2?() :: boolean()
-  def intent_clarification_v2?,
-    do: System.get_env("INTENT_CLARIFICATION_V2", "off") in ~w(on true 1)
 
   @doc """
   Turn pipeline PR 1: the outcome record of each turn goes to the per-turn GM

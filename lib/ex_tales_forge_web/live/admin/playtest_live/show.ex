@@ -10,7 +10,8 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Show do
   import TalesForgeWeb.AdminComponents
   import TalesForgeWeb.CharacterChangesComponents
 
-  alias TalesForge.Playtest.{CharacterChanges, JevHeadline, Reports, RunMeta, Runner, Scorer}
+  alias TalesForge.Config
+  alias TalesForge.Playtest.{CharacterChanges, JevHeadline, Reports, RunMeta, Scorer}
   alias TalesForgeWeb.TimeAgo
 
   @refresh_ms 3_000
@@ -26,7 +27,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Show do
         {:ok,
          socket
          |> assign(:page_title, "Playtest run")
-         |> assign(:enabled, Runner.enabled?())
+         |> assign(:enabled, Config.playtest_runner?())
          |> assign(:scoring, false)
          |> load(run)}
 
@@ -375,8 +376,15 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Show do
             <p class="text-sm">
               <span class="text-[var(--paper-muted)]">Roll:</span> {turn.roll || "none"}
             </p>
-            <p class="text-sm text-[var(--paper-muted)]">GM notes:</p>
-            <p class="whitespace-pre-wrap text-sm">{turn.gm_notes || "none recorded"}</p>
+            <p class="text-sm text-[var(--paper-muted)]">Events:</p>
+            <ul
+              :if={turn.events != []}
+              id={"turn-#{turn.turn_number}-events"}
+              class="space-y-0.5 text-sm"
+            >
+              <li :for={line <- turn.events} class="break-words">{line}</li>
+            </ul>
+            <p :if={turn.events == []} class="text-sm">none recorded</p>
           </div>
         </article>
       </.section_card>

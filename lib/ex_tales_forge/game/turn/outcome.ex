@@ -26,8 +26,7 @@ defmodule TalesForge.Game.Turn.Outcome do
   alias TalesForge.Game.OutcomeRecord
   alias TalesForge.Game.ProseCheck
   alias TalesForge.Game.Turn
-  alias TalesForge.Game.Turn.Premise
-  alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.{Board, Premise, Store}
   alias TalesForge.World, as: WorldAgents
   alias TalesForge.World.Extract
 
@@ -35,37 +34,65 @@ defmodule TalesForge.Game.Turn.Outcome do
   @spec persist(Turn.t()) :: Turn.t()
   def persist(%Turn{narration: {:ok, gm_result}} = turn) do
     %{board: booked, handler: handler, mechanical: mechanical} = turn.outcome
-    mismatches = prose_check(turn, gm_result.narrative, booked)
-    {board, repeats} = npc_memory(turn, booked, gm_result.narrative)
-
-    Gestures.log_repeats(gm_result.narrative, Map.get(turn.prompt.context, :recent_gestures),
-      session: turn.session.id,
-      turn: turn.number
-    )
+    {board, checks} = checked(turn, booked, gm_result.narrative)
+    log_gestures(turn, gm_result.narrative)
 
     result =
       Steps.time(:persist, fn ->
-        world_final = TurnProcessor.turn_patches(board.world, gm_result, turn.injected)
-
-        turn.adapters.store.(turn.session, world_final, turn.number, turn.history_action, %{
+        write(turn, board, %{
           handler: handler,
           mechanical: mechanical,
           gm_result: gm_result,
-          events:
-            board.events ++
-              Premise.events(turn.premise.findings, board.world) ++
-              record_events(turn, board) ++
-              List.wrap(mismatches) ++ List.wrap(repeats),
-          sim: board.sim,
-          founder: turn.opts[:founder]
+          events: turn_events(turn, board, checks)
         })
       end)
 
-    commit_agents(result, turn, board, gm_result)
+    commit_agents(result, turn, board)
     %{turn | result: result}
   end
 
   def persist(%Turn{} = turn), do: turn
+
+  # The prose check's mismatches and the NPC memory step's repeats, with the
+  # board after the memory step.
+  defp checked(turn, booked, narrative) do
+    mismatches = prose_check(turn, narrative, booked)
+    {board, repeats} = npc_memory(turn, booked, narrative)
+    {board, List.wrap(mismatches) ++ List.wrap(repeats)}
+  end
+
+  defp log_gestures(turn, narrative) do
+    Gestures.log_repeats(narrative, Map.get(turn.prompt.context, :recent_gestures),
+      session: turn.session.id,
+      turn: turn.number
+    )
+  end
+
+  # The events of the turn: the board's, the premise findings, the outcome
+  # record's and the prose and repeat checks.
+  defp turn_events(turn, board, checks) do
+    board.events ++
+      Premise.events(turn.premise.findings, board.world) ++
+      record_events(turn, board) ++ checks
+  end
+
+  # The store adapter's write: the world after the allow-listed GM patches.
+  defp write(%Turn{} = turn, board, ctx) do
+    turn.adapters.store.(%Store{
+      session: turn.session,
+      world: Board.turn_patches(board.world, ctx.gm_result, turn.injected),
+      number: turn.number,
+      raw_action: turn.history_action,
+      ctx:
+        Map.merge(ctx, %{
+          sim: board.sim,
+          cast: board.cast,
+          traders: Map.get(board, :traders, []),
+          founder: turn.opts[:founder],
+          intention: turn.intention
+        })
+    })
+  end
 
   defp prose_check(turn, narrative, board) do
     record = Map.get(board, :outcome)
@@ -123,19 +150,20 @@ defmodule TalesForge.Game.Turn.Outcome do
     end
   end
 
-  defp commit_agents({:ok, _}, %Turn{outcome: %{agents: agents}} = turn, board, gm_result)
+  defp commit_agents({:ok, _}, %Turn{outcome: %{agents: agents}} = turn, board)
        when agents != [] do
+    {:ok, gm_result} = turn.narration
     WorldAgents.commit(turn.session.id, [], turn.npcs.reactions)
 
-    Extract.run_async(
-      turn.session.id,
-      turn.number,
-      turn.history_action,
-      gm_result.narrative,
-      agents,
-      Tags.for_world(board.world)
-    )
+    Extract.run_async(%Extract.Job{
+      session_id: turn.session.id,
+      turn_number: turn.number,
+      raw_action: turn.history_action,
+      narrative: gm_result.narrative,
+      agents: agents,
+      tags: Tags.for_world(board.world)
+    })
   end
 
-  defp commit_agents(_result, _turn, _board, _gm_result), do: :ok
+  defp commit_agents(_result, _turn, _board), do: :ok
 end

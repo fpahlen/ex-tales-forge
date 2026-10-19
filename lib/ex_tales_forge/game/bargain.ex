@@ -29,6 +29,22 @@ defmodule TalesForge.Game.Bargain do
   @haggle ~r/\b(haggl\w*|barter\w*|bargain\w*|lower (?:the|your|his|her) price|better price|cheaper|discount|knock \w+ off|talk (?:him|her|them) down)\b/i
   @appraise ~r/\b(apprais\w*|assess (?:its|the) (?:worth|value)|judge (?:its|the) (?:worth|value)|what (?:is|it's) (?:it )?(?:really )?worth)\b/i
 
+  defmodule Deal do
+    @moduledoc """
+    What a haggle is over: a `:buy` or a `:sell` at `price` (the asking price
+    for a buy, the offer for a sale). `fair` is set by
+    `TalesForge.Game.Bargain.haggle/3`.
+    """
+    defstruct [:kind, :price, :fair]
+
+    @typedoc "A buy or a sale at a price."
+    @type t :: %__MODULE__{
+            kind: :buy | :sell,
+            price: non_neg_integer(),
+            fair: non_neg_integer() | nil
+          }
+  end
+
   @typedoc "The result of a haggle."
   @type result :: %{
           required(String.t()) => term()
@@ -65,8 +81,8 @@ defmodule TalesForge.Game.Bargain do
   def fair_price(:sell, offer), do: round(offer * (100 + @markup_percent) / 100)
 
   @doc """
-  Plays a haggle over `price` (the asking price for a buy, the offer for a
-  sale). Rolls appraisal first when `appraise` is true. Returns the
+  Plays a haggle over the deal's `price` (the asking price for a buy, the
+  offer for a sale). Rolls appraisal first when `appraise` is true. Returns the
   character (with the learning points of the rolls) and the result:
   `"price_copper"`, `"fair_copper"`, `"appraised"`, `"outcome"` and
   `"rolls"`.
@@ -75,50 +91,59 @@ defmodule TalesForge.Game.Bargain do
   "persuasion" => n}`, for tests).
 
       iex> char = %{"skills" => %{"persuasion" => 25}, "stats" => %{"CHA" => 10}}
-      iex> {_char, r} = TalesForge.Game.Bargain.haggle(char, :buy, 110, rolls: %{"persuasion" => 10})
+      iex> {_char, r} = TalesForge.Game.Bargain.haggle(char, %TalesForge.Game.Bargain.Deal{kind: :buy, price: 110}, rolls: %{"persuasion" => 10})
       iex> {r["outcome"], r["price_copper"]}
       {"success", 96}
-      iex> {_char, r} = TalesForge.Game.Bargain.haggle(char, :buy, 110, rolls: %{"persuasion" => 60})
+      iex> {_char, r} = TalesForge.Game.Bargain.haggle(char, %TalesForge.Game.Bargain.Deal{kind: :buy, price: 110}, rolls: %{"persuasion" => 60})
       iex> {r["outcome"], r["price_copper"]}
       {"failure", 110}
   """
-  @spec haggle(map(), :buy | :sell, non_neg_integer(), keyword()) :: {map(), result()}
-  def haggle(character, kind, price, opts \\ []) do
+  @spec haggle(map(), Deal.t(), keyword()) :: {map(), result()}
+  def haggle(character, %Deal{kind: kind, price: price} = deal, opts \\ []) do
     rolls = Keyword.get(opts, :rolls, %{})
     fair = fair_price(kind, price)
 
-    {appraised, appraisal} =
-      if Keyword.get(opts, :appraise, false),
-        do: roll(character, "appraisal", rolls, 0),
-        else: {character, nil}
-
-    known? =
-      appraisal != nil and appraisal.outcome in ["critical_success", "success", "partial_success"]
+    {appraised, appraisal} = appraise(character, rolls, Keyword.get(opts, :appraise, false))
+    known? = known_price?(appraisal)
 
     start = if known?, do: fair, else: price
     bonus = if known?, do: knowledge_bonus(appraised), else: 0
 
-    {haggled, persuasion} = roll(appraised, "persuasion", rolls, bonus)
-    moved = move(kind, start, percent(persuasion), fair, price)
+    {haggled, persuasion} =
+      Mechanics.perform_and_apply(appraised, "persuasion",
+        roll: rolls["persuasion"],
+        modifier: bonus
+      )
 
-    {haggled,
-     %{
-       "price_copper" => moved,
-       "asking_copper" => price,
-       "fair_copper" => fair,
-       "appraised" => known?,
-       "outcome" => persuasion.outcome,
-       "rolls" => Enum.reject([appraisal, persuasion], &is_nil/1) |> Enum.map(&roll_map/1)
-     }}
+    deal = %{deal | fair: fair}
+    {haggled, result(deal, move(deal, start, percent(persuasion)), {appraisal, persuasion})}
   end
+
+  defp result(%Deal{} = deal, moved, {appraisal, persuasion}) do
+    %{
+      "price_copper" => moved,
+      "asking_copper" => deal.price,
+      "fair_copper" => deal.fair,
+      "appraised" => known_price?(appraisal),
+      "outcome" => persuasion.outcome,
+      "rolls" => Enum.reject([appraisal, persuasion], &is_nil/1) |> Enum.map(&roll_map/1)
+    }
+  end
+
+  defp appraise(character, rolls, true),
+    do: Mechanics.perform_and_apply(character, "appraisal", roll: rolls["appraisal"], modifier: 0)
+
+  defp appraise(character, _rolls, false), do: {character, nil}
+
+  defp known_price?(nil), do: false
+
+  defp known_price?(appraisal),
+    do: appraisal.outcome in ["critical_success", "success", "partial_success"]
 
   # +10 to persuasion for a known price, +15 at appraisal 50 or higher.
   defp knowledge_bonus(character) do
     if (get_in(character, ["skills", "appraisal"]) || 0) >= 50, do: 15, else: 10
   end
-
-  defp roll(character, skill, rolls, modifier),
-    do: Mechanics.perform_and_apply(character, skill, rolls[skill], modifier)
 
   # 10 % plus 1 % for each 5 points under the skill, at most 20 %; a critical
   # success moves the full 20 % (better than expected); a partial success
@@ -133,14 +158,14 @@ defmodule TalesForge.Game.Bargain do
 
   # A failure keeps the asking price. The cap: never past fair -10 % (+10 %
   # for a sale).
-  defp move(_kind, _start, 0, _fair, price), do: price
+  defp move(%Deal{price: price}, _start, 0), do: price
 
-  defp move(:buy, start, percent, fair, price) do
+  defp move(%Deal{kind: :buy, fair: fair, price: price}, start, percent) do
     floor = round(fair * (100 - @cap_percent) / 100)
     start |> Kernel.*(100 - percent) |> Kernel./(100) |> round() |> max(floor) |> min(price)
   end
 
-  defp move(:sell, start, percent, fair, price) do
+  defp move(%Deal{kind: :sell, fair: fair, price: price}, start, percent) do
     ceiling = round(fair * (100 + @cap_percent) / 100)
     start |> Kernel.*(100 + percent) |> Kernel./(100) |> round() |> min(ceiling) |> max(price)
   end

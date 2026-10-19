@@ -144,12 +144,12 @@ defmodule TalesForge.IntentEval.MetricsTest do
       ]
     end
 
-    test "splits reads into act, best guess and ask with accuracy per band" do
+    test "splits reads into act, best guess and clarify with accuracy per band" do
       m = Metrics.evaluate(:jev, scored(band_pairs()))
       rows = Map.new(m.bands.rows, &{&1.band, &1})
 
       assert m.bands.opts == [act_min: 0.70, ask_below: 0.45, ask_below_raw: 0.45]
-      assert rows.ask.n == 1 and rows.ask.accuracy == 0.0
+      assert rows.clarify.n == 1 and rows.clarify.accuracy == 0.0
       assert rows.act.n == 1 and rows.act.accuracy == 1.0
       assert rows.best_guess.n == 1
       assert m.bands.played_accuracy == 1.0
@@ -159,7 +159,7 @@ defmodule TalesForge.IntentEval.MetricsTest do
       m = Metrics.evaluate(:jev, scored(band_pairs()), ask_below_raw: 0.0)
       rows = Map.new(m.bands.rows, &{&1.band, &1})
 
-      assert rows.ask.n == 0
+      assert rows.clarify.n == 0
       assert rows.act.n == 2 and rows.act.accuracy == 0.5
       assert m.bands.played_accuracy == 2 / 3
     end

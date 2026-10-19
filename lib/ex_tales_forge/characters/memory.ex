@@ -23,6 +23,7 @@ defmodule TalesForge.Characters.Memory do
   require Logger
 
   alias TalesForge.Characters
+  alias TalesForge.Characters.Moment
   alias TalesForge.Game.Progression
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, SessionEvent}
@@ -137,13 +138,13 @@ defmodule TalesForge.Characters.Memory do
   Scene end, called after the turn is saved. Does nothing when the flag is
   off or no scene ends. Never fails the turn: returns `:ok`.
   """
-  @spec on_turn(Ecto.UUID.t(), [map()], :off | :shadow | :on) :: :ok
-  def on_turn(_session_id, _events, :off), do: :ok
+  @spec on_turn(Moment.t()) :: :ok
+  def on_turn(%Moment{mode: :off}), do: :ok
 
-  def on_turn(session_id, events, _mode) do
+  def on_turn(%Moment{session_id: session_id, events: events, actor: actor}) do
     case scene_end(events) do
       nil -> :ok
-      location -> end_scene(session_id, location)
+      location -> end_scene(session_id, location, actor)
     end
   rescue
     e ->
@@ -152,19 +153,21 @@ defmodule TalesForge.Characters.Memory do
   end
 
   @doc """
-  Moves the working memory of the scene at `location` to short-term for the
-  player character and every character at that place: one row per shared
-  event there (not `time.passed`) that the character has no row for yet.
+  Moves the working memory of the scene at `location` to short-term for
+  `actor` (the character who acted this turn, wherever it is now) and every
+  character at that place: one row per shared event there (not
+  `time.passed`) that the character has no row for yet. The actor remembers
+  what it was aware of (`player_aware`); the others remember every event.
   Returns `:ok`.
   """
-  @spec end_scene(Ecto.UUID.t(), String.t()) :: :ok
-  def end_scene(session_id, location) do
+  @spec end_scene(Ecto.UUID.t(), String.t(), String.t() | nil) :: :ok
+  def end_scene(session_id, location, actor) do
     events = scene_events(session_id, location)
 
     session_id
     |> Characters.list_for_session()
-    |> Enum.filter(&(&1.controller != "gm" or &1.location_id == location))
-    |> Enum.each(&remember(&1, events))
+    |> Enum.filter(&(&1.slug == actor or &1.location_id == location))
+    |> Enum.each(&remember(&1, events, actor))
 
     :ok
   end
@@ -178,7 +181,7 @@ defmodule TalesForge.Characters.Memory do
     |> Repo.all()
   end
 
-  defp remember(character, events) do
+  defp remember(character, events, actor) do
     known =
       CharacterMemory
       |> where([m], m.character_id == ^character.id and not is_nil(m.session_event_id))
@@ -190,7 +193,7 @@ defmodule TalesForge.Characters.Memory do
 
     events
     |> Enum.reject(&MapSet.member?(known, &1.id))
-    |> Enum.filter(&(&1.player_aware or character.controller == "gm"))
+    |> Enum.filter(&(&1.player_aware or character.slug != actor))
     |> Enum.each(fn e -> {:ok, _} = Characters.add_memory(character, row(e, interests)) end)
   end
 
@@ -236,14 +239,16 @@ defmodule TalesForge.Characters.Memory do
   end
 
   @doc """
-  The recall of the present NPCs about the place, each other and the player
-  character: `[{slug, [memory]}]`, NPCs without recall left out.
+  The recall of the present NPCs about each other and `about` (the place
+  and the acting character): `[{slug, [memory]}]`, NPCs without recall left
+  out.
   """
-  @spec recall_for_scene(Ecto.UUID.t(), [String.t()], String.t() | nil) :: [{String.t(), list()}]
-  def recall_for_scene(session_id, present, location) do
+  @spec recall_for_scene(Ecto.UUID.t(), [String.t()], [String.t() | nil]) :: [
+          {String.t(), list()}
+        ]
+  def recall_for_scene(session_id, present, about) do
     chars = Characters.list_for_session(session_id)
-    pc = Enum.find(chars, &(&1.controller != "gm"))
-    ids = Enum.reject([location, pc && pc.slug | present], &is_nil/1)
+    ids = Enum.reject(about ++ present, &is_nil/1)
 
     for c <- chars, c.slug in present, (mems = recall(c, ids)) != [], do: {c.slug, mems}
   end

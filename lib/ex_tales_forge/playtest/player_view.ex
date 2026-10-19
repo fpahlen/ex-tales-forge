@@ -9,26 +9,30 @@ defmodule TalesForge.Playtest.PlayerView do
   persona responds to it rather than making the first move.
   """
 
+  alias TalesForge.Game.PlayPanel
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForgeWeb.PlayComponents
 
   @transcript_entries 12
 
-  def render(session_id, clarification, turn, turn_limit) do
+  @doc """
+  The persona's prompt for turn `turn` of `turn_limit` in the session, with
+  the open clarification card if there is one.
+  """
+  def render(session_id, clarification, {turn, turn_limit}) do
     session = session_id |> GameSessions.get_session!() |> Repo.preload([:turns, :scenes])
     world = session.world_state || %{}
     character = Map.get(world, "character", %{})
-    opening = GameSessions.opening_scene(session.id)
+    opening = TalesForge.Scenes.opening(session.id)
 
     [
       opening(opening),
       "Turn #{turn} of #{turn_limit}.",
       "Where: #{Map.get(world, "location_name", "Unknown")} · Time: #{Map.get(world, "world_clock", "—")}",
-      "Character: #{Map.get(character, "name", "—")} · #{PlayComponents.quick_stats(character)}",
+      "Character: #{Map.get(character, "name", "—")} · #{PlayPanel.quick_stats(character)}",
       "Inventory: #{inventory(character)}",
-      "Here: #{npcs(world)}",
+      "Here: #{npcs(world, TalesForge.Characters.cast(session.id))}",
       "Story since the opening (latest last):\n" <> transcript(session, opening),
       question(clarification)
     ]
@@ -52,8 +56,8 @@ defmodule TalesForge.Playtest.PlayerView do
     if quantity > 1, do: "#{name} ×#{quantity}", else: name
   end
 
-  defp npcs(world) do
-    case PlayComponents.present_npcs(world) do
+  defp npcs(world, cast) do
+    case PlayPanel.present_npcs(world, cast) do
       [] -> "nobody"
       npcs -> Enum.map_join(npcs, ", ", &"#{&1.name} (#{&1.role})")
     end

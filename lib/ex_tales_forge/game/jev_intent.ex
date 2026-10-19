@@ -28,8 +28,59 @@ defmodule TalesForge.Game.JevIntent do
   intent.eval` measures the same request against the labelled fixture.
   """
 
+  defmodule Choice do
+    @moduledoc """
+    What `TalesForge.Game.JevIntent.decode/3` read from a Jev reply, built
+    once and passed to each step that makes the extraction: the action and
+    its target (and a sale's item; for a buy that only asks, `ask`, and for
+    a kind of goods its item ids as `options`), the skill, the later action, the manner and split, the
+    player's words, the turn context, the confidence and the candidates
+    by label.
+    """
+
+    @enforce_keys [:action, :safety, :text, :context]
+    defstruct [
+      :action,
+      :safety,
+      :target,
+      :item,
+      :skill,
+      :later,
+      :later_target,
+      :manner,
+      :split,
+      :text,
+      :context,
+      :confidence,
+      :raw_confidence,
+      ask: false,
+      options: [],
+      candidates: %{}
+    ]
+
+    @type t :: %__MODULE__{
+            action: atom(),
+            safety: atom(),
+            target: String.t() | nil,
+            item: String.t() | nil,
+            skill: String.t() | nil,
+            later: atom() | nil,
+            later_target: String.t() | nil,
+            manner: atom() | nil,
+            split: 2 | 3 | nil,
+            text: String.t(),
+            context: map(),
+            confidence: float() | nil,
+            raw_confidence: float() | nil,
+            ask: boolean(),
+            options: [String.t()],
+            candidates: %{atom() => map()}
+          }
+  end
+
   alias TalesForge.Game.IntentCalibration
   alias TalesForge.Game.Inventory
+  alias TalesForge.Game.Offer
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, SingleAction}
   alias TalesForge.Game.WorldClock
@@ -61,6 +112,11 @@ defmodule TalesForge.Game.JevIntent do
     freeform: "A narrative action that fits no other type.",
     other: "Out-of-character talk, a meta request, or nothing actionable."
   }
+
+  # The main action only (not a later or a further action): asking a price is
+  # this turn's words. It plays as a buy that only asks (`asked/1`): the
+  # seller's offer, and nothing moves (docs/design-trade-offers.md).
+  @ask_price_label "Ask what an item or a kind of goods for sale here costs, without buying it yet."
 
   # Skills the game can roll, plus "no check". Literal atoms: the keys of
   # Mechanics.skill_stat_map/0 (a test pins the two lists equal).
@@ -188,7 +244,7 @@ defmodule TalesForge.Game.JevIntent do
     combat: [:npc],
     spend: [:npc],
     train: [:npc],
-    buy: [:item, :npc],
+    buy: [:item, :goods, :npc],
     sell: [:item, :npc],
     trade: [:item, :npc],
     pickup: [:item],
@@ -210,8 +266,9 @@ defmodule TalesForge.Game.JevIntent do
   """
   @type candidate :: %{
           optional(:name) => String.t(),
+          optional(:items) => [String.t()],
           label: atom(),
-          kind: :place | :npc | :npc_elsewhere | :fixture | :item,
+          kind: :place | :npc | :npc_elsewhere | :fixture | :item | :goods,
           id: String.t(),
           text: String.t()
         }
@@ -225,6 +282,8 @@ defmodule TalesForge.Game.JevIntent do
           later: atom() | nil,
           later_target: String.t() | nil,
           then: [atom()],
+          offer_answer: :accept | :decline | :other_offer | :other | nil,
+          offer_pick: non_neg_integer() | nil,
           manner: atom() | nil,
           safety: atom(),
           confidence: float() | nil,
@@ -248,6 +307,7 @@ defmodule TalesForge.Game.JevIntent do
        place_candidates(context) ++
        absent_npc_candidates(context) ++
        item_candidates(context) ++
+       goods_candidates(context) ++
        fixture_candidates(context))
     |> Enum.uniq_by(&{&1.kind, &1.id})
     |> Enum.take(@max_candidates)
@@ -333,8 +393,7 @@ defmodule TalesForge.Game.JevIntent do
 
     stock =
       context
-      |> Map.get("npc_stock", %{})
-      |> Enum.flat_map(fn {_npc, list} -> Inventory.normalize_stock(list) end)
+      |> for_sale()
       |> Enum.map(fn item ->
         %{kind: :item, id: item["id"], text: "#{item["name"] || item["id"]} (for sale)"}
       end)
@@ -348,6 +407,24 @@ defmodule TalesForge.Game.JevIntent do
       end)
 
     inv ++ stock ++ ground
+  end
+
+  # The kinds of goods for sale here with more than one item ("a meal: Bread
+  # and Cheese or Bowl of Stew"), for an ask or a buy that names no item.
+  defp goods_candidates(context) do
+    context
+    |> for_sale()
+    |> Offer.kinds()
+    |> Enum.map(fn {kind, items} ->
+      names = Enum.map_join(items, " or ", &(&1["name"] || &1["id"]))
+
+      %{
+        kind: :goods,
+        id: "goods:" <> kind,
+        items: Enum.map(items, & &1["id"]),
+        text: "#{kind}: #{names} (for sale)"
+      }
+    end)
   end
 
   defp fixture_candidates(context) do
@@ -367,7 +444,9 @@ defmodule TalesForge.Game.JevIntent do
 
   def questions(candidates, :v2) do
     base = [
-      action: {"What is the player character's main action this turn?", @v2_action_labels},
+      action:
+        {"What is the player character's main action this turn?",
+         Map.put(@v2_action_labels, :ask_price, @ask_price_label)},
       then:
         {"Does the character do a second, distinct action this turn, right after the main one?",
          @v2_then_labels},
@@ -391,7 +470,9 @@ defmodule TalesForge.Game.JevIntent do
 
   def questions(candidates, :v1) do
     base = [
-      action: {"What is the player character's main action this turn?", @action_labels},
+      action:
+        {"What is the player character's main action this turn?",
+         Map.put(@action_labels, :ask_price, @ask_price_label)},
       skill:
         {"Which skill, if any, does the main action roll? Most actions roll none. " <>
            "A social skill only when the character tries to change someone's mind or behaviour " <>
@@ -469,6 +550,68 @@ defmodule TalesForge.Game.JevIntent do
     |> Map.put(:none, "No specific target, or none of these.")
   end
 
+  @offer_answers %{
+    accept: "The player accepts the offer: yes, a deal, takes it or pays for it.",
+    decline: "The player turns the offer down: no, not now, too dear.",
+    other_offer:
+      "The player answers something else offered in the last narration (work, a favour, another deal), not this open offer.",
+    other: "Neither: the player says or does something else."
+  }
+
+  # Literal labels for an unclear buy's options (no atoms from input).
+  @option_labels ~w(o0 o1 o2)a
+
+  @doc """
+  The questions about the session's open trade offer
+  (`TalesForge.Game.Offer.to_world/1`), asked only while one is open: does
+  the player accept, decline or neither, and for an unclear buy which of
+  its options (only those) the player picks. None with no offer open.
+
+      iex> TalesForge.Game.JevIntent.offer_questions(nil)
+      []
+      iex> offer = %{"giver" => "innkeep", "giver_name" => "Brenna Holt", "price" => 2,
+      ...>   "item" => %{"id" => "ale_mug", "name" => "Ale", "quantity" => 1}}
+      iex> TalesForge.Game.JevIntent.offer_questions(offer) |> Keyword.keys()
+      [:offer_answer]
+  """
+  @spec offer_questions(map() | nil) :: keyword()
+  def offer_questions(%{} = stored) do
+    offer = Offer.from_world(stored)
+    text = Offer.text(offer)
+
+    answer = [
+      offer_answer:
+        {"Open offer: #{text}. Does the player's message accept it, decline it, or neither?",
+         @offer_answers}
+    ]
+
+    case offer.options do
+      [] ->
+        answer
+
+      options ->
+        answer ++
+          [
+            offer_pick:
+              {"Which of the offered options does the player pick?", option_criteria(options)}
+          ]
+    end
+  end
+
+  def offer_questions(_stored), do: []
+
+  defp option_criteria(options) do
+    @option_labels
+    |> Enum.zip(options)
+    |> Map.new(fn {label, %{"item" => item, "price" => price}} ->
+      {label, "#{item["name"] || item["id"]} (#{price}c)"}
+    end)
+    |> Map.put(:none, "None of these options.")
+  end
+
+  defp offer_answer(answer) when answer in [:accept, :decline, :other_offer, :other], do: answer
+  defp offer_answer(_answer), do: nil
+
   @doc """
   The deterministic `state` sent to Jev: the scene the player can see, plus
   their text. A plain map; JSON encodes its keys sorted, so it is stable.
@@ -482,11 +625,20 @@ defmodule TalesForge.Game.JevIntent do
       "elsewhere" => elsewhere_lines(context),
       "exits" => context |> Map.get("exits", []) |> List.wrap(),
       "inventory" => item_names(Map.get(context, "player_inventory", [])),
-      "for_sale" => stock_names(Map.get(context, "npc_stock", %{})),
+      "for_sale" => context |> for_sale() |> Enum.map(&(&1["name"] || &1["id"])),
       "last_narration" => last_narration(context),
       "player_text" => text |> to_string() |> String.trim() |> String.slice(0, @action_chars)
     }
+    |> put_open_offer(context["open_offer"])
   end
+
+  # The open offer, with its options, while one is open (only then: the
+  # state of every other read is unchanged), so Jev reads the reply against
+  # it: accept, decline or neither, and which option.
+  defp put_open_offer(state, %{} = stored),
+    do: Map.put(state, "open_offer", stored |> Offer.from_world() |> Offer.text())
+
+  defp put_open_offer(state, _stored), do: state
 
   defp present_lines(context) do
     context
@@ -509,10 +661,11 @@ defmodule TalesForge.Game.JevIntent do
     inventory |> Inventory.normalize_items() |> Enum.map(&(&1["name"] || &1["id"]))
   end
 
-  defp stock_names(stock) do
-    stock
+  # The stock for sale here: every present seller's, one list.
+  defp for_sale(context) do
+    context
+    |> Map.get("npc_stock", %{})
     |> Enum.flat_map(fn {_npc, list} -> Inventory.normalize_stock(list) end)
-    |> Enum.map(&(&1["name"] || &1["id"]))
   end
 
   defp last_narration(context) do
@@ -532,54 +685,114 @@ defmodule TalesForge.Game.JevIntent do
   @spec decode(map(), [candidate()], keyword()) :: reading()
   def decode(reply, candidates, opts \\ []) do
     text = opts |> Keyword.get(:text, "") |> to_string()
-    reply = if Map.has_key?(reply, :then), do: reply, else: lodging_booking(reply, text)
     context = Keyword.get(opts, :context, %{})
+
+    reply = facts(reply, text)
+
     by_label = Map.new(candidates, fn c -> {c.label, c} end)
 
-    action = reply[:action] || :other
-    safety = reply[:safety] || :benign
-    target = pick_target(reply, :target, action, by_label, context, text)
-    skill = decode_skill(action, skill_name(reply[:skill]), text)
-    later = later_type(reply[:later], action, safety)
-    later_target = if later, do: pick_target(reply, :later_target, later, by_label, context, text)
+    base = %Choice{
+      action: reply[:action] || :other,
+      safety: reply[:safety] || :benign,
+      ask: reply[:ask_price] == true,
+      text: text,
+      context: context,
+      candidates: by_label
+    }
 
-    raw_confidence = intent_confidence(reply, action)
-    confidence = IntentCalibration.apply(raw_confidence)
+    c = choose(base, reply)
     probs = get_in(reply, [:probabilities, :action]) || %{}
 
     %{
-      extraction:
-        build_extraction(
-          action,
-          target,
-          skill,
-          {later, later_target},
-          text,
-          context,
-          confidence,
-          {manner(reply[:manner]), split(reply[:split])}
-        ),
-      action: action,
-      target: target,
-      skill: skill,
-      later: later,
-      later_target: later_target,
-      then: this_turn(reply, action, safety),
-      manner: manner(reply[:manner]),
-      safety: safety,
-      confidence: confidence,
-      raw_confidence: raw_confidence,
+      extraction: build_extraction(c),
+      action: c.action,
+      target: c.target,
+      skill: c.skill,
+      later: c.later,
+      later_target: c.later_target,
+      then: this_turn(reply, c.action, c.safety),
+      manner: c.manner,
+      safety: c.safety,
+      confidence: c.confidence,
+      raw_confidence: c.raw_confidence,
       calibration: IntentCalibration.version(),
       probabilities: Map.get(reply, :probabilities, %{}),
       safety_confidence: get_in(reply, [:confidence, :safety]),
       benign_probability: get_in(reply, [:probabilities, :safety, :benign]),
       action_probabilities: probs,
-      top2: top2(probs, action),
-      target_ranking: target_ranking(reply, by_label),
-      usage: Map.get(reply, :usage, %{}),
-      cost: reply |> Map.get(:usage, %{}) |> Map.get(:cost, 0.0),
-      model: Map.get(reply, :model)
+      top2: top2(probs, c.action),
+      target_ranking: target_ranking(reply, by_label)
     }
+    |> Map.merge(spend(reply))
+    |> Map.merge(offer_reply(reply))
+  end
+
+  defp spend(reply) do
+    usage = Map.get(reply, :usage, %{})
+    %{usage: usage, cost: Map.get(usage, :cost, 0.0), model: Map.get(reply, :model)}
+  end
+
+  # The answer to the open offer's questions (`offer_questions/1`).
+  defp offer_reply(reply) do
+    %{
+      offer_answer: offer_answer(reply[:offer_answer]),
+      offer_pick: Enum.find_index(@option_labels, &(&1 == reply[:offer_pick]))
+    }
+  end
+
+  # The rest of the reply read against the candidates into the %Choice{}
+  # (action, safety, words and context already set), for the steps that
+  # make the extraction.
+  defp choose(%Choice{action: action, text: text} = c, reply) do
+    later = later_type(reply[:later], action, c.safety)
+    raw_confidence = intent_confidence(reply, action)
+
+    %{
+      c
+      | target: pick_target(c, action, answer(reply, :target)),
+        skill: decode_skill(action, skill_name(reply[:skill]), text),
+        later: later,
+        later_target: if(later, do: pick_target(c, later, answer(reply, :later_target))),
+        manner: manner(reply[:manner]),
+        split: split(reply[:split]),
+        confidence: IntentCalibration.apply(raw_confidence),
+        raw_confidence: raw_confidence
+    }
+    |> sale(reply)
+    |> goods()
+  end
+
+  # The reply's answer to a target `question`: its probabilities by label and
+  # its pick.
+  defp answer(reply, question),
+    do: {get_in(reply, [:probabilities, question]) || %{}, reply[question]}
+
+  # The reply with the game's facts applied before it is read: a room and
+  # then sleep is a booking (catalogue v1), an `ask_price` a buy that asks.
+  defp facts(reply, text) do
+    reply = if Map.has_key?(reply, :then), do: reply, else: lodging_booking(reply, text)
+    asked(reply)
+  end
+
+  # Jev's `ask_price` (a price question: "How much for an ale?", "Vad kostar
+  # ölen?") plays as a buy that only asks: the board makes the seller's offer
+  # from the target (an item or a kind of goods for sale here) and nothing
+  # moves. Gentry's retest of #476 (session 6d938a30, T1): read as talk, no
+  # offer opened, and the next "Yes." had nothing to accept.
+  defp asked(%{action: :ask_price} = reply),
+    do: Map.merge(reply, %{action: :buy, ask_price: true})
+
+  defp asked(reply), do: reply
+
+  # A buy aimed at a kind of goods ("a meal") is unclear: its options are the
+  # kind's items, and it names no target (`TalesForge.Game.Offer`).
+  defp goods(%Choice{target: target, candidates: by_label} = c) do
+    case Enum.find_value(by_label, fn {_l, cand} ->
+           cand.kind == :goods and cand.id == target and cand
+         end) do
+      %{items: items} -> %{c | target: nil, options: items}
+      nil -> c
+    end
   end
 
   # Post-processing (a fact about the game, fitted on nothing): "I pay for a
@@ -734,35 +947,38 @@ defmodule TalesForge.Game.JevIntent do
   # so a guess must not move the character. Gentry's session 0caf18f5 on
   # 2026-10-12: "I claim my reward" at the inn was read as speak to Henrik
   # Bale, who was in the square, and the character was walked there.
-  defp pick_target(reply, question, action, by_label, context, text) do
-    kinds = Map.get(@target_kinds, action, [])
-    probs = get_in(reply, [:probabilities, question]) || %{}
-
-    ranked =
-      probs
-      |> Enum.filter(fn {label, _p} ->
-        label == :none or Map.get(by_label, label, %{})[:kind] in kinds
-      end)
-      |> Enum.reject(fn {label, _p} ->
-        action == :speak and unnamed_elsewhere?(Map.get(by_label, label), text)
-      end)
-      |> Enum.reject(fn {label, _p} -> action == :move and label == :none end)
-      |> Enum.sort_by(fn {label, p} -> {-p, label} end)
-
-    case {ranked, map_size(probs)} do
+  defp pick_target(%Choice{candidates: by_label} = c, action, {probs, picked}) do
+    case {ranked(c, action, probs), map_size(probs)} do
       {_, 0} ->
-        cand = Map.get(by_label, reply[question])
-
-        if action == :speak and unnamed_elsewhere?(cand, text),
+        if action == :speak and unnamed_elsewhere?(Map.get(by_label, picked), c.text),
           do: nil,
-          else: resolve_target(candidate_id(by_label, reply[question]), action, context)
+          else: resolve_target(candidate_id(by_label, picked), action, c.context)
 
       {[{label, _p} | _], _} ->
-        resolve_target(candidate_id(by_label, label), action, context)
+        resolve_target(candidate_id(by_label, label), action, c.context)
 
       {[], _} ->
         nil
     end
+  end
+
+  # The labels `action` can be aimed at, most likely first.
+  defp ranked(%Choice{} = c, action, probs) do
+    probs
+    |> Enum.filter(fn {label, _p} -> aimable?(c, action, label) end)
+    |> Enum.sort_by(fn {label, p} -> {-p, label} end)
+  end
+
+  # A move needs a place; a speak goes to a person elsewhere only when the
+  # words name them.
+  defp aimable?(_c, :move, :none), do: false
+  defp aimable?(_c, _action, :none), do: true
+
+  defp aimable?(%Choice{candidates: by_label, text: text}, action, label) do
+    cand = Map.get(by_label, label, %{})
+
+    cand[:kind] in Map.get(@target_kinds, action, []) and
+      not (action == :speak and unnamed_elsewhere?(cand, text))
   end
 
   @doc """
@@ -848,44 +1064,51 @@ defmodule TalesForge.Game.JevIntent do
     |> Enum.map(fn {label, _p} -> label end)
   end
 
-  defp build_extraction(
-         action,
-         target,
-         skill,
-         {later, later_target},
-         text,
-         context,
-         confidence,
-         {manner, split}
-       ) do
+  defp build_extraction(%Choice{} = c) do
     primary = %SingleAction{
-      action_type: action,
-      target: target,
-      parameters:
-        action |> parameters(skill, text, context, target, manner) |> put_split(split, skill)
+      action_type: c.action,
+      target: c.target,
+      parameters: c |> parameters() |> put_split(c.split, c.skill)
     }
 
     deferred =
-      case later do
+      case c.later do
         nil -> []
-        type -> [%SingleAction{action_type: type, target: later_target, parameters: %{}}]
+        type -> [%SingleAction{action_type: type, target: c.later_target, parameters: %{}}]
       end
 
     %IntentExtraction{
-      overall_intent: summary(text),
+      overall_intent: summary(c.text),
       actions: [primary | deferred],
       primary_index: 0,
-      confidence: confidence || 1.0,
+      confidence: c.confidence || 1.0,
       needs_clarification: false
     }
   end
 
-  defp parameters(action, skill, text, context, target, manner) do
+  defp parameters(%Choice{} = c) do
     %{}
-    |> put_manner(manner)
-    |> put_skill(skill, action)
-    |> put_numbers(action, text, context, target)
+    |> put_manner(c.manner)
+    |> put_skill(c.skill, c.action)
+    |> put_numbers(c)
+    |> put_asked(c)
   end
+
+  # A buy that only asks, or one aimed at a kind of goods, names its item
+  # (the target) or its options and their seller, so the board needs none
+  # of the player's words to find them.
+  defp put_asked(params, %Choice{options: [first | _] = options, context: context}),
+    do:
+      Map.merge(params, %{"options" => options, "npc_id" => seller(context, first), "ask" => true})
+
+  defp put_asked(params, %Choice{ask: true, target: target, context: context}) do
+    case seller(context, target) do
+      nil -> Map.put(params, "ask", true)
+      npc_id -> Map.merge(params, %{"item_id" => target, "npc_id" => npc_id, "ask" => true})
+    end
+  end
+
+  defp put_asked(params, %Choice{}), do: params
 
   defp split(:two), do: 2
   defp split(:three), do: 3
@@ -908,36 +1131,71 @@ defmodule TalesForge.Game.JevIntent do
 
   defp put_skill(params, skill, _action), do: Map.put(params, "skill", skill)
 
-  defp put_numbers(params, :work, text, _context, _target),
-    do: Map.put(params, "ticks", WorldClock.parse_duration(text))
+  defp put_numbers(params, %Choice{action: action, text: text})
+       when action in [:work, :rest, :wait, :train],
+       do: Map.put(params, "ticks", WorldClock.parse_duration(text))
 
-  defp put_numbers(params, :rest, text, _context, _target),
-    do: Map.put(params, "ticks", WorldClock.parse_duration(text))
-
-  defp put_numbers(params, :wait, text, _context, _target),
-    do: Map.put(params, "ticks", WorldClock.parse_duration(text))
-
-  defp put_numbers(params, :train, text, _context, _target),
-    do: Map.put(params, "ticks", WorldClock.parse_duration(text))
-
-  defp put_numbers(params, :spend, text, _context, _target),
+  defp put_numbers(params, %Choice{action: :spend, text: text}),
     do: Map.put(params, "amount_copper", Inventory.parse_copper_hint(text))
 
-  defp put_numbers(params, :buy, _text, context, target) do
+  defp put_numbers(params, %Choice{action: :buy, context: context, target: target}) do
     case price_for(context, target) do
       nil -> params
       price -> Map.put(params, "price_copper", price)
     end
   end
 
-  defp put_numbers(params, _action, _text, _context, _target), do: params
+  defp put_numbers(params, %Choice{action: :sell, context: context} = c),
+    do: Map.merge(params, Inventory.sale(c.item, c.text, context["player_inventory"]))
+
+  defp put_numbers(params, %Choice{}), do: params
+
+  # A sale has one target: the buyer ("to Brenna") or the item ("sell a mug
+  # of ale"). Aimed at anything but a person, the buyer is the present person
+  # Jev ranks highest, or nobody, and the item is the target when it is
+  # carried; else put_numbers/2 takes the item the words name
+  # (Inventory.sale/3). Playtest v319 on 2026-10-18 (drift session
+  # 464229eb): a sale aimed at the person had no item, and a sale aimed at
+  # the item was sold to the item itself, for nothing.
+  defp sale(%Choice{action: :sell, target: target, candidates: by_label} = c, reply) do
+    if Enum.any?(by_label, fn {_l, cand} -> cand.kind == :npc and cand.id == target end) do
+      c
+    else
+      carried = c.context |> Map.get("player_inventory", []) |> Inventory.normalize_items()
+      item = if Enum.any?(carried, &(&1["id"] == target)), do: target
+      %{c | target: top_person(reply, by_label), item: item}
+    end
+  end
+
+  defp sale(%Choice{} = c, _reply), do: c
+
+  defp top_person(reply, by_label) do
+    reply
+    |> get_in([:probabilities, :target])
+    |> Kernel.||(%{})
+    |> Enum.filter(fn {label, _p} -> match?(%{kind: :npc}, Map.get(by_label, label)) end)
+    |> Enum.sort_by(fn {label, p} -> {-p, label} end)
+    |> case do
+      [{label, _p} | _] -> candidate_id(by_label, label)
+      [] -> nil
+    end
+  end
+
+  # The present seller whose stock has `item_id`.
+  defp seller(context, item_id) do
+    context
+    |> Map.get("npc_stock", %{})
+    |> Enum.sort()
+    |> Enum.find_value(fn {npc_id, list} ->
+      if Enum.any?(Inventory.normalize_stock(list), &(&1["id"] == item_id)), do: npc_id
+    end)
+  end
 
   defp price_for(_context, nil), do: nil
 
   defp price_for(context, item_id) do
     context
-    |> Map.get("npc_stock", %{})
-    |> Enum.flat_map(fn {_npc, list} -> Inventory.normalize_stock(list) end)
+    |> for_sale()
     |> Enum.find(&(&1["id"] == item_id))
     |> case do
       %{"price_copper" => price} when is_integer(price) -> price

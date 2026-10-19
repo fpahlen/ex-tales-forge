@@ -1,34 +1,22 @@
 defmodule TalesForge.Actions.NPC.ReactToTime do
-  @moduledoc false
+  @moduledoc """
+  Time passed for a present NPC: its concern waits `delta_ticks` longer
+  (`{:wait, delta}`), and it speaks up when the concern has waited long
+  enough (`:speak_up`). The turn applies both
+  (`TalesForge.Game.Turn.Intentions.apply_all/2`).
+  """
 
-  use Jido.Action,
-    name: "npc_react_to_time",
-    description: "Advance NPC concern and initiative when world time passes",
-    schema: []
+  alias TalesForge.Intention
+  alias TalesForge.NPCSignals.Turn
 
-  alias TalesForge.Actions.NPC.{AdjustConcern, EmitInitiative}
+  @doc "The Intentions of NPC `npc_id` when the time of `turn` passed."
+  @spec intentions(String.t(), Turn.t()) :: [Intention.t()]
+  def intentions(npc_id, %Turn{} = turn) do
+    tick = Turn.world_tick(turn)
 
-  @impl true
-  def run(_params, context) do
-    delta_ticks = signal_field(context, "delta_ticks", 1)
-
-    with {:ok, concern_state} <- AdjustConcern.run(%{delta_ticks: delta_ticks}, context),
-         context = update_in(context.state, &Map.merge(&1, concern_state)),
-         {:ok, emit_state} <- EmitInitiative.run(%{}, context) do
-      {:ok, Map.merge(concern_state, emit_state)}
-    end
-  end
-
-  defp signal_field(%{signal: signal}, key, default) do
-    signal.data
-    |> normalize_keys()
-    |> Map.get(key, default)
-  end
-
-  defp normalize_keys(map) when is_map(map) do
-    Map.new(map, fn
-      {k, v} when is_atom(k) -> {Atom.to_string(k), v}
-      {k, v} -> {k, v}
-    end)
+    [
+      Intention.system(npc_id, {:wait, Turn.tick_delta(turn)}, tick),
+      Intention.system(npc_id, :speak_up, tick)
+    ]
   end
 end

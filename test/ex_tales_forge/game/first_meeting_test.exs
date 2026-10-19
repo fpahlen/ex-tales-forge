@@ -3,7 +3,6 @@ defmodule TalesForge.Game.FirstMeetingTest do
 
   alias TalesForge.Game.FirstMeeting
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
@@ -53,8 +52,6 @@ defmodule TalesForge.Game.FirstMeetingTest do
         if previous,
           do: System.put_env("INN_WORLD", previous),
           else: System.delete_env("INN_WORLD")
-
-        for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       end)
 
       System.put_env("INN_WORLD", "on")
@@ -70,7 +67,7 @@ defmodule TalesForge.Game.FirstMeetingTest do
 
       marks =
         present
-        |> Enum.map(&{&1, NPC.get_instance(session.id, &1).runtime_state})
+        |> Enum.map(&{&1, NPC.get_person(session.id, &1).runtime_state})
         |> FirstMeeting.mark(@fixture["npc_memory"], @fixture["character"])
 
       for {id, want} <- @fixture["expect"], do: assert(to_string(marks[id]) == want)
@@ -93,7 +90,13 @@ defmodule TalesForge.Game.FirstMeetingTest do
     end
 
     test "after Mags has a memory of Ezzor, she has met him", %{session: session} do
-      :ok = NPC.record_memory(session.id, "drover", "Ezzor asked about the stolen salt.", 19)
+      :ok =
+        NPC.record_memory(%NPC.Note{
+          session_id: session.id,
+          npc_id: "drover",
+          summary: "Ezzor asked about the stolen salt.",
+          tick: 19
+        })
 
       gm = NPC.format_gm_sections(session.id, ["drover"], character: "Ezzor", first_meeting: true)
       assert gm =~ ~s("meeting": "has_met")

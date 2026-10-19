@@ -21,9 +21,11 @@ Also in this folder:
 - [Infrastructure assets](infrastructure.md)
 - [Environments and how changes reach production](environments.md)
 - [Coding standards](coding-standards.md): moduledocs, docs, specs + Dialyzer, Credo strict, ExDoc, tests with coverage, all enforced in CI
+- [Refactoring lessons](refactoring.md): the patterns from the 2026-10-17 refactoring (cycles, forwarders, structs instead of long parameter lists, the health gate, CI), each with its PR
 - [Module audit of ex-tales-forge (2026-10-07)](module-audit-2026-10-07.md): every module grouped as in use, framework, dead or unsure, with a ranked removal proposal
 - [Plan: remove Ash (plain Ecto)](plan-remove-ash.md): what goes, the admin forms on Ecto, the safe table drop, deps, rollout and rollback (done: #47 merged and deployed 2026-10-07)
 - [Plan: one Character entity for PCs and NPCs](plan-unify-character.md): today's two shapes side by side, the target `characters` table and agent, the controller (player or GM, AFK, companions), data migration, levers, what breaks, phased rollout (plan; waiting for OK)
+- [Plan: Tales Forge refactoring round 2026-10-17](plan-tf-refactor-2026-10-17.md): health targets and steps, including GameCharacter 10a–10f, the 10b split (10b-1, 10b-1.5 sheet promotion, 10b-2) and the `runtime["sheet"]` bridge condition
 - [Design sketch: world agents](design-world-agents.md): persons, locations and items as Elixir agents that hold facts for the GM, and the [living world](design-world-agents.md#living-world-design-to-try): factions with plans and clocks on world time (to try)
 - [Design: the Tin Valley world around the inn](design-tin-valley-world.md): new places and people for every player type (`INN_WORLD`), the Tinjacks antagonist on world time (`WORLD_ANTAGONIST`), flags and cost
 - [Design: playtest loop](design-playtest-loop.md): how persona bots play, get scored, and feed fixes and decisions (draft)
@@ -35,6 +37,7 @@ Also in this folder:
 - [Design: persistent world state at the core of the turn loop](design-stateful-world.md): an apply-consequences step between rules and prose, one process per world with entities as plain data, an event log plus snapshots, the GM gets a state snapshot; migration in small flagged PRs (design, no code)
 - [Design: player intent as one Jev call](design-jev-intent.md): one TypeSafe Jev call per turn for the typed intent and the safety label; labelled evaluation set and `mix intent.eval` first, thresholds and clarification bands, what goes away, secrets, playtest comparison, PR sequence (design, no code yet)
 - [Design: one rule for skills and the economy](design-skills-economy.md): a day rate by skill level through practice hours drives wages, hirelings, trainer fees, services and item prices as anchors, with bounded situational modifiers (0.5×-3×) for the price paid; practice hours as narrative bands; growth stays PR #100's LP model; the drift to fix and open questions (design, no code)
+- [Goal: a living town](goal-living-town.md): long-term technical goal, a 100-hour session in a town of 1,000 GameCharacters; a yardstick with gap questions for designs and PRs (not scheduled, no build cards)
 - [Discussion: when Workflow needs a bot, and how a client sets it up](https://github.com/whyse-ab/workflow/blob/main/docs/discussion-workflow-bots-and-client-setup.md): code, then LLM, then bot; hosting, Microsoft-only clients, and bots other than Grok Bot (open discussion)
 - [Personal account migration plan](personal-account-migration.md): move Tales Forge and Workflow off Fredrik's personal accounts (GitHub, Fly, billing, secrets)
 - [Call types: Elixir function, Jev, or LLM](call-types.md): which call type to use for each piece of work, and the target turn pipeline (draft)

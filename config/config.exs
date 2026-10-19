@@ -20,10 +20,6 @@ config :ex_tales_forge, :skill_split,
   triple: 150,
   min_uneven_part: 25
 
-config :ex_tales_forge, TalesForge.Jido,
-  max_tasks: 1000,
-  agent_pools: []
-
 # The code heat map (TalesForge.CodeHeat). Off by default; config/runtime.exs
 # turns it on from CODE_HEAT_MAP=on (playtest only, never production).
 config :ex_tales_forge, TalesForge.CodeHeat, enabled: false
@@ -110,7 +106,7 @@ config :ex_tales_forge, TalesForge.AppRole,
 # The Workflow app (whyse-ab/workflow). The product app sends work-log turn
 # events to it (TalesForge.WorkflowClient.Http) and redirects the old Workflow
 # paths to it for 30 days (TalesForgeWeb.WorkflowRedirectController).
-config :ex_tales_forge, TalesForge.WorkflowClient, base_url: "https://whyse-workflow.fly.dev"
+config :ex_tales_forge, :workflow_client, base_url: "https://whyse-workflow.fly.dev"
 
 # Admin costs page (/admin/costs). Edit cost figures HERE, in one place.
 # fixed_monthly: one entry per fixed cost. amount is a tagged union:

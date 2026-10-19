@@ -7,7 +7,6 @@ defmodule TalesForge.Playtest.RunnerTest do
 
   alias TalesForge.GameSessions
   alias TalesForge.GMReasoning
-  alias TalesForge.Jido
   alias TalesForge.Playtest.Runner
   alias TalesForge.Schemas.{AICall, GameSession, Scene, SessionEvent, Turn}
 
@@ -18,7 +17,6 @@ defmodule TalesForge.Playtest.RunnerTest do
       for pid <- Task.Supervisor.children(TalesForge.Playtest.Supervisor),
           do: Task.Supervisor.terminate_child(TalesForge.Playtest.Supervisor, pid)
 
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("XAI_API_KEY")
       System.delete_env("TIER1_HEURISTIC_THRESHOLD")
@@ -193,7 +191,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     {:ok, run_id} = Runner.start("lotta", "tin_valley", turn_limit: 1)
     assert {:ok, %{status: "finished"} = run} = await(run_id)
 
-    character = Repo.get!(GameSession, run.game_session_id).world_state["character"]
+    character = GameSessions.get_session!(run.game_session_id).world_state["character"]
     assert %{"name" => "Hilde Stonebrook", "race" => "dwarf", "class" => "druid"} = character
     assert character["stats"]["WIS"] == 15
 
@@ -219,7 +217,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     assert {:ok, %{status: "finished"} = run} = await(run_id)
 
     assert %{"name" => "Elara Voss"} =
-             Repo.get!(GameSession, run.game_session_id).world_state["character"]
+             GameSessions.get_session!(run.game_session_id).world_state["character"]
 
     assert_received {:persona_system, system}
     refute system =~ "You created this character"
@@ -227,7 +225,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     assert system == TalesForge.Playtest.Personas.system_prompt(lotta)
   end
 
-  test "the persona sees the story but no hidden events, GM notes or rolls" do
+  test "the persona sees the story but no hidden events, GM bookkeeping or rolls" do
     test_pid = self()
 
     stub_llm(fn
@@ -243,7 +241,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     {:ok, run_id} = Runner.start("paul", "tin_valley", turn_limit: 2)
     assert {:ok, %{status: "finished"} = run} = await(run_id)
 
-    assert [%{payload: %{"gm_notes" => "SECRET-GM-NOTE"}} | _] =
+    assert [%{payload: %{"gm_reply" => %{"context_summary" => "SECRET-GM-SUMMARY"}}} | _] =
              GMReasoning.list_for_session(run.game_session_id)
 
     assert Repo.exists?(from(e in SessionEvent, where: e.payload["text"] == "SECRET-EVENT"))
@@ -253,7 +251,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     assert second =~ "The lamp gutters as the innkeeper eyes you."
     assert second =~ "Character: Corvin Ashdown"
     refute second =~ "SECRET"
-    refute second =~ ~r/roll|difficulty|gm_notes/i
+    refute second =~ ~r/roll|difficulty|context_summary/i
   end
 
   test "the GM opens the scene before the persona's first move, and the persona sees it first" do
@@ -309,7 +307,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     # The scene job keeps failing, so the run ends (timeout or error) with no move.
     assert {:ok, %{status: status, turns_played: 0} = run} = result
     assert status in ["stopped", "failed"]
-    assert GameSessions.opening_scene(run.game_session_id) == nil
+    assert TalesForge.Scenes.opening(run.game_session_id) == nil
     refute_received :persona_called
   end
 
@@ -326,9 +324,13 @@ defmodule TalesForge.Playtest.RunnerTest do
   end
 
   defp kill_character do
-    session = Repo.one!(from(s in GameSession, order_by: [desc: s.inserted_at], limit: 1))
+    session =
+      from(s in GameSession, order_by: [desc: s.inserted_at], limit: 1)
+      |> Repo.one!()
+      |> TalesForge.Characters.put_sheet()
+
     world = put_in(session.world_state, ["character", "vitality"], "dead")
-    session |> GameSession.changeset(%{status: "dead", world_state: world}) |> Repo.update!()
+    session |> GameSession.changeset(%{status: "dead", world_state: world}) |> save_session!()
   end
 
   defp hide_secret_event do

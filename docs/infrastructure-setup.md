@@ -115,7 +115,7 @@ flowchart LR
 | `tales-forge-playtest-db` | Postgres for playtest | `d8d1116b5d1918`, primary, `flyio/postgres-flex:18.1` | see infrastructure.md | — | private | `pg_data`, 1 GB, encrypted | `fly postgres create` |
 | `fly-builder-crimson-raindrop-2162` | Fly remote builder (Fly creates it automatically) | — | — | — | — | — | — |
 
-Both app configs set: `primary_region = "arn"`, `release_command = "/app/bin/migrate"`, `internal_port = 4000`, `force_https = true`, `auto_stop_machines = "off"`, `min_machines_running = 1`, health check `GET /health` every 15 s. `[env]` sets `PHX_HOST`, `PORT=4000` and `ECTO_IPV6=true`. Playtest also sets `INN_WORLD=on`, `WORLD_ANTAGONIST=on` and `CODE_HEAT_MAP=on`.
+Both app configs set: `primary_region = "arn"`, `release_command = "/app/bin/migrate"`, `internal_port = 4000`, `force_https = true`, `auto_stop_machines = "off"`, `min_machines_running = 1`, health check `GET /health` every 15 s. `[env]` sets `PHX_HOST`, `PORT=4000` and `ECTO_IPV6=true`. Playtest also sets `INN_WORLD=on`, `WORLD_ANTAGONIST=on`, `CODE_HEAT_MAP=on`, `COMBAT_OPPOSED=on` and `CHARACTER_MEMORY=shadow`; production sets none of them.
 
 The `Dockerfile` builds a release with Elixir 1.18.4 and OTP 27.3.4.16 on Debian bookworm. It takes the build argument `GIT_SHA` and sets it as the env var `GIT_SHA`. Auto-Done and `/internal/version` use it. The start command is `/app/bin/server`.
 

@@ -1,5 +1,7 @@
 # ex-tales-forge — Agent Rules
 
+Read docs/principles.md first; the north star is ETC, Easy To Change.
+
 Rules for anyone, human or bot, who changes this repo. They summarise decisions
 recorded in `docs/` (`docs/decisions.md`, newest first) and the docs
 named in each section. Last checked against `main` and `docs/` on
@@ -7,8 +9,8 @@ named in each section. Last checked against `main` and `docs/` on
 
 ## Project
 
-Text-first AI RPG on the BEAM. Jido agents own the play-session runtime;
-LiveView is the UI; PostgreSQL holds sessions and turn history; an AI game
+Text-first AI RPG on the BEAM. One `World.Instance` process per active
+session runs its turns; LiveView is the UI; PostgreSQL holds sessions and turn history; an AI game
 master narrates.
 
 ex-tales-forge stands on its own. Nothing is synced from an earlier app: the
@@ -24,7 +26,7 @@ Skill growth (decision 2026-10-09): a failed or partial roll banks one improveme
 ## Stack
 
 - **UI:** Phoenix LiveView + Tailwind
-- **Runtime:** Jido 2.x agents + actions
+- **Runtime:** plain OTP: one `TalesForge.World.Instance` GenServer per active session (`World.Registry`, `World.Supervisor`, `World.TaskSupervisor`); no Jido (removed in refactor step 10f)
 - **Persistence:** plain Ecto + PostgreSQL (`GameSession`, `Turn`, `NpcInstance`, `Character`, `AICall`, …)
 - **Jobs:** Oban (queues `default` and `llm`; `ProcessScene`, `ProcessTurn`).
 - **Workflow (team tools):** a separate app, `whyse-ab/workflow` (https://whyse-workflow.fly.dev). This app sends work-log turns to it (`TalesForge.WorkflowClient.Http`, `WORKFLOW_API_TOKEN`) and serves `GET /internal/product/*` to it (`PRODUCT_APP_API_TOKEN`). The old Workflow paths redirect there for 30 days (`TalesForge.AppRole.workflow_paths/0`).
@@ -66,7 +68,7 @@ Use kebab-case names that describe the work (`feature/two-tier-llm`, `fix/oban-m
 
 ## Non-negotiables
 
-1. **Plain Ecto + Repo everywhere** (play loop, Jido, Oban, GameSessions, NPC logic, admin). Ash was removed on 2026-10-07 ([#47](https://github.com/whyse-ab/ex-tales-forge/pull/47)); revisit only if an in-app adventure editor needs it. Authored content lives in pack files, not database tables. Don't add a second data layer without a decision entry.
+1. **Plain Ecto + Repo everywhere** (play loop, Oban, GameSessions, NPC logic, admin). Ash was removed on 2026-10-07 ([#47](https://github.com/whyse-ab/ex-tales-forge/pull/47)); revisit only if an in-app adventure editor needs it. Authored content lives in pack files, not database tables. Don't add a second data layer without a decision entry.
 2. **Call-type rule** (decision 2026-10-07, `docs/call-types.md`): known structured input + structured output = Elixir function; unstructured input + structured output = Jev; prose output = LLM. Asking the LLM for structured output is a smell. Elixir is exact, free and instant, Jev is fast and cheap, the LLM is the slowest and most expensive: use the LLM last, with the smallest input possible.
 3. **One Character type** for player characters and NPCs: OCEAN, personality-filtered memory, a Maslow level and concerns; only the controller differs (`player`, `gm` or `bot`). `TalesForge.Characters` keeps a `characters` row per PC and NPC in step after every turn; the game still reads `world_state["character"]` and `npc_instances` until the Character plan's read switch (`docs/plan-unify-character.md`). Don't add a separate PC or NPC model.
 4. **Intent before the GM; the GM gets a typed struct plus a short quote.** The intent step runs first: one Jev call (`INTENT_JEV=on`, `TalesForge.IntentJev`), with the Elixir heuristic as the fallback. There is no intent LLM call (decision 2026-10-12). The GM gets the validated, typed `PlayerAction` plus a short, sanitised quote of the player's words (`overall_intent`, at most 500 characters), so it keeps the player's tone. This is intended (decisions 2026-10-07 "GM pipeline direction" and 2026-10-08). When Jev gives no quote, `overall_intent` is a typed summary of the message, sanitised the same way. The full raw message never goes to the GM.
@@ -183,7 +185,7 @@ Sources: `test/ex_tales_forge/game/prompt_prefix_test.exs`, `test/ex_tales_forge
 - **Static parts first.** xAI caches the longest identical prefix, so the shared narrator text and the rules come first and are byte-identical for the scene call and every GM turn of an adventure; session-stable content follows and does not change between turns; anything per turn (state, turn number, the action, NPC reactions, world facts, prices) comes last. The prefix test enforces this.
 - **Golden prompts stay byte-identical** unless a change is intended. The fixtures in `test/fixtures/prompts/` (one per adventure) only change on purpose: regenerate with `UPDATE_PROMPT_GOLDEN=1 mix test test/ex_tales_forge/game/prompt_golden_test.exs`, review the diff and say so in the PR.
 - The strict GM and scene reply schema has no `maxLength` or `maxItems` (they disable xAI's prompt cache); caps are applied in code when the reply is parsed.
-- The GM call streams (`stream: true`); the play page shows the narrative while it arrives (`TalesForge.LLM.Stream`). The GM reply has two variants by app role (`TalesForge.LLM.gm_variant/1`): production uses `lean` (no `gm_notes`, no `location_name` in schema and prompt), playtest and local use `full`. One prompt file serves both; `llm.ex` cuts the lean parts. `ai_calls` stores `ttft_ms` and `narration_variant`.
+- The GM call streams (`stream: true`); the play page shows the narrative while it arrives (`TalesForge.LLM.Stream`). The GM reply has two variants by app role (`TalesForge.LLM.gm_variant/1`): production uses `lean` (no `location_name` in schema and prompt), playtest and local use `full`. No variant has `gm_notes` (dropped 2026-10-18); playtest QA reads each turn's code-layer session events on the run page instead. One prompt file serves both; `llm.ex` cuts the lean parts. `ai_calls` stores `ttft_ms` and `narration_variant`.
 - Only the scene and GM calls share the session's `x-grok-conv-id`; persona, scorer, intent and fact-extraction calls use `<session>:<purpose>`.
 - Prompt files are content: a code change must not alter their text by accident.
 
@@ -238,7 +240,7 @@ Humans may need to understand the code one day, including code written by bots. 
 ```elixir
 # Good: with + tagged tuples
 with {:ok, session} <- Repo.insert(changeset),
-     :ok <- ensure_agent(session) do
+     :ok <- NPC.seed_session(session) do
   {:ok, session}
 end
 
@@ -400,8 +402,8 @@ Play always opens with a **scene** (GM exposition, not a turn). Player input is 
 
 ```
 lib/ex_tales_forge/
-  agents/       # PlayerSessionAgent, NPCAgent
-  actions/npc/  # Jido NPC signal handlers
+  world/        # World.Instance: the one process per active session
+  actions/npc/  # NPC signal handlers (turn events in, Intentions out)
   game/         # intent, mechanics, scene_processor, turn_processor
   workers/      # Oban ProcessScene, ProcessTurn
   schemas/      # Ecto runtime schemas

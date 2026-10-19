@@ -73,7 +73,8 @@ defmodule TalesForge.Game.PremiseCheck do
 
     * `:inventory` — the carried items (`%{"id", "name", "quantity"}`);
     * `:coins` — `%{"gold", "silver", "copper"}`;
-    * `:people` — known persons, `%{id: _, name: _, role: _}`;
+    * `:people` — known persons, `%{id: _, name: _, role: _}` (`people/1`;
+      `state/4` leaves it empty, the turn adds the cast);
     * `:fronts` — known fronts, `%{id: _, name: _, status: _}`;
     * `:combat_wins` — fights the character has won this session;
     * `:won_fights` — the player text and narration of each of those fights,
@@ -228,23 +229,26 @@ defmodule TalesForge.Game.PremiseCheck do
     after_turn = character(world_after)
 
     %{
-      # QA 2026-10-14 08:57: an item carried before and after the turn is
-      # listed once.
-      inventory:
-        (Inventory.normalize_items(before["inventory"] || []) ++
-           Inventory.normalize_items(after_turn["inventory"] || []))
-        |> Enum.uniq_by(&String.downcase(to_string(&1["name"] || &1["id"]))),
+      inventory: carried(before, after_turn),
       coins:
         Enum.max_by(
           [before["coins"] || %{}, after_turn["coins"] || %{}],
           &Inventory.coin_total_copper/1
         ),
       skills: after_turn["skills"] || before["skills"] || %{},
-      people: people(world_after || world_before || %{}),
+      people: [],
       fronts: Enum.map(fronts, &front/1),
       combat_wins: combat_wins,
       clock: clock(world_before || world_after)
     }
+  end
+
+  # QA 2026-10-14 08:57: an item carried before and after the turn is listed
+  # once.
+  defp carried(before, after_turn) do
+    (Inventory.normalize_items(before["inventory"] || []) ++
+       Inventory.normalize_items(after_turn["inventory"] || []))
+    |> Enum.uniq_by(&String.downcase(to_string(&1["name"] || &1["id"])))
   end
 
   defp clock(%{"world_tick" => tick}) when is_integer(tick) and tick >= 0,
@@ -255,15 +259,19 @@ defmodule TalesForge.Game.PremiseCheck do
   defp character(world) when is_map(world), do: Map.get(world, "character") || %{}
   defp character(_world), do: %{}
 
-  defp people(world) do
-    world
-    |> Map.get("npc_state", %{})
-    |> case do
-      npcs when is_map(npcs) -> Map.values(npcs)
-      _ -> []
-    end
-    |> Enum.filter(&is_map/1)
-    |> Enum.map(&%{id: &1["id"], name: &1["name"], role: &1["role"]})
+  @doc """
+  The known persons of a state (`:people`): the session's cast
+  (`TalesForge.Game.Cast`) as `%{id: _, name: _, role: _}`, by id.
+
+      iex> TalesForge.Game.PremiseCheck.people(%{"innkeep" =>
+      ...>   %TalesForge.GameCharacter{slug: "innkeep", name: "Brenna Holt", role: "innkeeper"}})
+      [%{id: "innkeep", name: "Brenna Holt", role: "innkeeper"}]
+  """
+  @spec people(TalesForge.Game.Cast.t()) :: [map()]
+  def people(cast) do
+    cast
+    |> TalesForge.Game.Cast.sorted()
+    |> Enum.map(&%{id: &1.slug, name: &1.name, role: &1.role})
   end
 
   defp front(front) do

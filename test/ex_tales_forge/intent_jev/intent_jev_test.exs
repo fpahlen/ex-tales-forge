@@ -10,7 +10,7 @@ defmodule TalesForge.IntentJevTest do
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
   alias TalesForge.GameSessions
   alias TalesForge.IntentJev
-  alias TalesForge.Jido
+  alias TalesForge.IntentJev.Read
   alias TalesForge.Repo
   alias TalesForge.Schemas.AICall
 
@@ -28,7 +28,6 @@ defmodule TalesForge.IntentJevTest do
     endpoints = Application.get_env(:jev, :endpoints)
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       Application.put_env(:jev, :endpoints, endpoints)
       Application.delete_env(:ex_tales_forge, :intent_jev)
       System.put_env("LLM_PROVIDER", "mock")
@@ -264,26 +263,24 @@ defmodule TalesForge.IntentJevTest do
       TalesForge.Game.Context.build_intent_context(session)
     end
 
-    test "below the ask threshold with readings that play out differently, one question" do
+    test "below the ask threshold with readings that play out differently: the NPC clarifies, nothing moves" do
       context = intent_context()
       {reading, candidates} = unsure_reading(context)
-      assert IntentClarification.band(reading, act_min: 0.7, ask_below: 0.45) == :ask
+      assert IntentClarification.band(reading, act_min: 0.7, ask_below: 0.45) == :clarify
 
-      assert {:ask, clarification, meta} =
-               IntentJev.decide(reading, candidates, context, "Brenna, the square", 12)
+      assert {:clarify, %PlayerAction{action: %SingleAction{action_type: :speak}} = action, _gm,
+              meta} =
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: "Brenna, the square",
+                 latency_ms: 12
+               })
 
-      assert clarification["source"] == "jev"
-      assert [%{"label" => "speak"}, %{"label" => "move"}] = clarification["options"]
-      assert length(clarification["option_actions"]) == 2
+      assert %{"words" => "Brenna, the square", "candidates" => [_, _]} = action.clarify
       assert meta["asked"] == true
-
-      # Clicking the second option plays its typed reading, no new call.
-      option = Enum.at(clarification["options"], 1)
-
-      assert {:act, %PlayerAction{action: %SingleAction{action_type: :move}}, _gm, opt_meta} =
-               IntentJev.resolve_option(clarification, option, context)
-
-      assert opt_meta["source"] == "clarification_option"
+      assert meta["source"] == "jev"
     end
 
     test "room and sleep (session 141e1b85 turn 5, wait 0.83 / spend 0.10) plays with no question" do
@@ -304,7 +301,13 @@ defmodule TalesForge.IntentJevTest do
       reading = JevIntent.decode(reply, candidates, text: text, context: context)
 
       assert {:act, %PlayerAction{action: %SingleAction{action_type: :spend}}, _gm, meta} =
-               IntentJev.decide(reading, candidates, context, text, 12)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: text,
+                 latency_ms: 12
+               })
 
       refute meta["asked"]
     end
@@ -314,7 +317,14 @@ defmodule TalesForge.IntentJevTest do
       {reading, candidates} = unsure_reading(context)
 
       assert {:act, %PlayerAction{}, _gm, meta} =
-               IntentJev.decide(reading, candidates, context, "x", 12, never_ask: true)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: "x",
+                 latency_ms: 12,
+                 opts: [never_ask: true]
+               })
 
       assert meta["band"] == "best_guess"
     end
@@ -343,7 +353,13 @@ defmodule TalesForge.IntentJevTest do
       {reading, candidates, npc} = combat_reading(context, "I attack")
 
       assert {:ask, clarification, meta} =
-               IntentJev.decide(reading, candidates, context, "I attack", 12)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: "I attack",
+                 latency_ms: 12
+               })
 
       assert clarification["source"] == "combat_target"
       assert clarification["question"] =~ "Whom do you attack?"
@@ -369,7 +385,13 @@ defmodule TalesForge.IntentJevTest do
       {reading, candidates, _npc} = combat_reading(context, text)
 
       assert {:act, %PlayerAction{action: %SingleAction{action_type: :combat}}, _gm, meta} =
-               IntentJev.decide(reading, candidates, context, text, 12)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: text,
+                 latency_ms: 12
+               })
 
       refute meta["asked"]
     end
@@ -379,7 +401,14 @@ defmodule TalesForge.IntentJevTest do
       {reading, candidates, _npc} = combat_reading(context, "I attack")
 
       assert {:act, %PlayerAction{}, _gm, _meta} =
-               IntentJev.decide(reading, candidates, context, "I attack", 12, never_ask: true)
+               IntentJev.decide(%Read{
+                 reading: reading,
+                 candidates: candidates,
+                 context: context,
+                 raw_action: "I attack",
+                 latency_ms: 12,
+                 opts: [never_ask: true]
+               })
     end
 
     test "Jev with no skill: the player's words name the check (QA 2026-10-14 21:15)" do
@@ -499,7 +528,13 @@ defmodule TalesForge.IntentJevTest do
     end
 
     test "when today's path asked, only the asks are compared" do
-      d = IntentJev.diff(pa(:speak, nil), :ask, %{source: :llm, action: nil, clarification: true})
+      d =
+        IntentJev.diff(pa(:speak, nil), :clarify, %{
+          source: :llm,
+          action: nil,
+          clarification: true
+        })
+
       assert d["asked"] == %{"jev" => true, "current" => true}
       refute Map.has_key?(d, "material")
     end

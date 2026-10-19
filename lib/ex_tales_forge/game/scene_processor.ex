@@ -7,12 +7,13 @@ defmodule TalesForge.Game.SceneProcessor do
 
   import Ecto.Query
 
+  alias TalesForge.Characters
   alias TalesForge.Game.Context
   alias TalesForge.Game.Mechanics
-  alias TalesForge.Game.Prompts
   alias TalesForge.Game.World
   alias TalesForge.LLM
   alias TalesForge.NPC
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, Scene}
@@ -39,7 +40,8 @@ defmodule TalesForge.Game.SceneProcessor do
   def run(session_id) do
     started = System.monotonic_time(:millisecond)
 
-    with %GameSession{} = session <- Repo.get(GameSession, session_id),
+    with %GameSession{} = stored <- Repo.get(GameSession, session_id),
+         session = Characters.put_sheet(stored),
          true <- needs_scene?(session.world_state),
          {:ok, payload} <- describe_scene(session) do
       elapsed = System.monotonic_time(:millisecond) - started
@@ -93,7 +95,7 @@ defmodule TalesForge.Game.SceneProcessor do
   defp generate_scene(%GameSession{} = session, location_id) do
     gm_context = Context.build_gm_context(session) |> put_world_facts(session)
 
-    case LLM.complete_scene(Prompts.scene_messages(gm_context), gm_context.intent_context,
+    case LLM.complete_scene(Assemble.scene_messages(gm_context), gm_context.intent_context,
            session_id: session.id
          ) do
       {:ok, %{location_name: location_name, narrative: narrative}} ->
@@ -117,7 +119,7 @@ defmodule TalesForge.Game.SceneProcessor do
   end
 
   defp finalize_scene(%GameSession{id: session_id}, %Scene{} = scene, llm_source) do
-    session = Repo.get!(GameSession, session_id)
+    session = GameSession |> Repo.get!(session_id) |> Characters.put_sheet()
 
     world_state =
       session.world_state

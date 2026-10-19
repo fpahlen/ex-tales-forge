@@ -1,32 +1,29 @@
 defmodule TalesForge.Game.BargainTest do
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Game.{ActionHandler, Inventory, TurnProcessor}
+  alias TalesForge.Game.{ActionHandler, Inventory}
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
   alias TalesForge.NPC
-  alias TalesForge.Repo
-  alias TalesForge.Schemas.{GameSession, NpcInstance}
 
   doctest TalesForge.Game.Bargain
 
   setup do
     {:ok, session} = GameSessions.create_session(%{name: "Bargain", adventure_id: "tin_valley"})
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
 
     set_runtime(session.id, %{
       "stock" => [%{"id" => "rope", "name" => "Rope", "price_copper" => 110, "quantity" => 3}]
     })
 
-    {:ok, session: Repo.get!(GameSession, session.id)}
+    {:ok, session: GameSessions.get_session!(session.id)}
   end
 
   defp set_runtime(session_id, changes) do
-    inst = NPC.get_instance(session_id, "innkeep")
+    inst = NPC.get_person(session_id, "innkeep")
 
-    inst
-    |> Ecto.Changeset.change(runtime_state: Map.merge(inst.runtime_state, changes))
-    |> Repo.update!()
+    NPC.put_state!(inst, Map.merge(inst.runtime_state, changes))
   end
 
   defp buy(session, text, opts) do
@@ -39,14 +36,14 @@ defmodule TalesForge.Game.BargainTest do
       }
     }
 
-    TurnProcessor.apply_board(
-      session,
-      session.world_state["character"],
-      ActionHandler.resolve(action),
-      action,
-      %MechanicalResolution{},
-      opts
-    )
+    Board.resolve(%Board{
+      session: session,
+      character: session.world_state["character"],
+      handler: ActionHandler.resolve(action),
+      player_action: action,
+      mechanical: %MechanicalResolution{},
+      opts: opts
+    })
   end
 
   defp copper(board), do: Inventory.coin_total_copper(board.world["character"]["coins"])
@@ -87,6 +84,6 @@ defmodule TalesForge.Game.BargainTest do
     board = buy(session, "I buy the rope", catalogue_v2: true)
     assert [%{"status" => "rejected", "code" => "npc_refused"}] = board.outcome["actions"]
     assert copper(board) == Inventory.coin_total_copper(session.world_state["character"]["coins"])
-    assert %NpcInstance{} = NPC.get_instance(session.id, "innkeep")
+    assert %NPC.Person{} = NPC.get_person(session.id, "innkeep")
   end
 end

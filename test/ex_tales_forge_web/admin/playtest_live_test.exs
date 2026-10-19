@@ -8,7 +8,6 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
 
   alias TalesForge.GameSessions
   alias TalesForge.NPC
-  alias TalesForge.Jido
   alias TalesForge.Repo
 
   alias TalesForge.Schemas.{
@@ -29,7 +28,6 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
       for pid <- Task.Supervisor.children(TalesForge.Playtest.Supervisor),
           do: Task.Supervisor.terminate_child(TalesForge.Playtest.Supervisor, pid)
 
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       Application.delete_env(:ex_tales_forge, :playtest_runner_enabled)
     end)
 
@@ -265,7 +263,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     title = TalesForgeWeb.TimeAgo.stockholm(recent.started_at)
     assert has_element?(view, ~s(#run-#{recent.id}-started[title="#{title}"]))
     assert html =~ TalesForgeWeb.TimeAgo.stockholm(recent.started_at, "%m-%d %H:%M")
-    refute html =~ "UTC"
+    refute shown(html) =~ "UTC"
 
     # The minute tick re-renders without reloading or reordering the rows.
     send(view.pid, :tick)
@@ -285,7 +283,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     assert has_element?(view, "#run-started", "2 hours ago")
     assert html =~ "(#{TalesForgeWeb.TimeAgo.stockholm(run.started_at)})"
     assert has_element?(view, "#score-scored-at", "a few seconds ago")
-    refute html =~ "UTC"
+    refute shown(html) =~ "UTC"
 
     send(view.pid, :tick)
     assert has_element?(view, "#run-started", "2 hours ago")
@@ -354,10 +352,10 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
   test "run detail shows turns side by side, costs by purpose, the persona line and the score", %{
     conn: conn
   } do
-    run = seed_run(score: true, reasoning: true)
+    run = seed_run(score: true, events: true)
 
     opening =
-      GameSessions.opening_scene(run.game_session_id) ||
+      TalesForge.Scenes.opening(run.game_session_id) ||
         Repo.insert!(%Scene{
           game_session_id: run.game_session_id,
           location_id: "valley_inn",
@@ -374,7 +372,16 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     assert html =~ "I ask the innkeeper about the orcs."
     assert html =~ "Brenna wipes the bar and lowers her voice."
     assert html =~ "insight · d100 7 vs 9 · success"
-    assert html =~ "Foreshadow the nest; Brenna is scared."
+
+    assert has_element?(
+             view,
+             "#turn-1-events li",
+             "player.travel: from valley_inn, to market_square"
+           )
+
+    assert has_element?(view, "#turn-1-events li", "(hidden) player.failed_notice")
+    refute html =~ "The well is dry."
+    refute html =~ "GM notes"
     assert html =~ "Game total"
     assert html =~ "$0.0150"
     assert html =~ "Persona (bot)"
@@ -410,7 +417,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     assert has_element?(view, "#run-game-per-turn", "$0.0150")
   end
 
-  test "run detail without score or reasoning, and scoring on demand", %{conn: conn} do
+  test "run detail without score or events, and scoring on demand", %{conn: conn} do
     run = seed_run()
 
     {:ok, _view, html} = live(conn, ~p"/admin/play/runs/#{run.id}")
@@ -512,20 +519,22 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
       }
     })
 
-    :ok = NPC.record_memory(session.id, "innkeep", "The stranger asked about the orcs.", tick)
-    {:ok, _} = NPC.bump_relationship(session.id, "innkeep", 0.05)
-
-    world =
-      Map.put(session.world_state, "npc_moods", %{
-        "innkeep" => %{
-          "emotion" => "wary",
-          "intensity" => 0.6,
-          "stance" => "cool",
-          "turn_number" => 1
-        }
+    :ok =
+      NPC.record_memory(%NPC.Note{
+        session_id: session.id,
+        npc_id: "innkeep",
+        summary: "The stranger asked about the orcs.",
+        tick: tick
       })
 
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    {:ok, _} = NPC.bump_relationship(session.id, "innkeep", 0.05)
+
+    reaction = %{"emotion" => "wary", "intensity" => 0.6, "stance" => "cool", "turn_number" => 1}
+
+    session.id
+    |> TalesForge.Characters.get_by_slug("innkeep")
+    |> Ecto.Changeset.change(runtime: %{"reaction" => reaction})
+    |> Repo.update!()
 
     {:ok, view, _html} = live(conn, ~p"/admin/play/runs/#{run.id}")
 
@@ -556,10 +565,6 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
 
     Repo.delete_all(
       from c in TalesForge.Schemas.Character, where: c.game_session_id == ^run.game_session_id
-    )
-
-    Repo.delete_all(
-      from n in TalesForge.Schemas.NpcInstance, where: n.game_session_id == ^run.game_session_id
     )
 
     session = Repo.get!(GameSession, run.game_session_id)
@@ -660,15 +665,22 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
       cost_source: "free"
     })
 
-    if opts[:reasoning] do
-      Repo.insert!(%SessionEvent{
-        game_session_id: session.id,
-        kind: "gm_reasoning",
-        actor: "gm",
-        player_aware: false,
-        tick: 1,
-        payload: %{"turn_number" => 1, "gm_notes" => "Foreshadow the nest; Brenna is scared."}
-      })
+    if opts[:events] do
+      for {kind, aware, payload} <- [
+            {"gm_reasoning", false, %{"turn_number" => 1, "gm_reply" => %{}}},
+            {"player.travel", true, %{"from" => "valley_inn", "to" => "market_square"}},
+            {"player.failed_notice", false, %{}},
+            {"world_fact", false, %{"text" => "The well is dry."}}
+          ] do
+        Repo.insert!(%SessionEvent{
+          game_session_id: session.id,
+          kind: kind,
+          actor: "player",
+          player_aware: aware,
+          tick: 1,
+          payload: payload
+        })
+      end
     end
 
     if opts[:score] do
@@ -689,5 +701,13 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     end
 
     run
+  end
+
+  # The page text and the hover titles, without the random LiveView session
+  # and CSRF tokens: a signed token can contain "UTC" by chance.
+  defp shown(html) do
+    doc = LazyHTML.from_document(html)
+    titles = doc |> LazyHTML.query("[title]") |> LazyHTML.attribute("title")
+    Enum.join([LazyHTML.text(doc) | titles], "\n")
   end
 end

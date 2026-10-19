@@ -18,10 +18,10 @@ defmodule TalesForge.Game.SceneChangeTest do
   doctest TalesForge.Game.Intent, only: [resolve_move_target: 2]
 
   alias TalesForge.Game.{ActionHandler, Context, Intent, Movement, Prompts, TurnProcessor}
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
-  alias TalesForge.Repo
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Schemas.GameSession
 
   @paul_t6 "Mistress Brenna, your bread and your blessing both warm a traveler more than any fire could. " <>
@@ -33,7 +33,6 @@ defmodule TalesForge.Game.SceneChangeTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.delete_env("XAI_API_KEY")
       System.put_env("LLM_PROVIDER", "mock")
     end)
@@ -45,7 +44,7 @@ defmodule TalesForge.Game.SceneChangeTest do
     {:ok, session} =
       GameSessions.create_session(%{name: "Scene", adventure_id: "tin_valley"})
 
-    Repo.get!(GameSession, session.id)
+    GameSessions.get_session!(session.id)
   end
 
   defp intent(session), do: Context.build_intent_context(session)
@@ -53,10 +52,10 @@ defmodule TalesForge.Game.SceneChangeTest do
   defp at(session, location_id) do
     world = put_in(session.world_state, ["character", "location_id"], location_id)
 
-    {:ok, session} =
+    session =
       session
       |> GameSession.changeset(%{world_state: Map.put(world, "location_id", location_id)})
-      |> Repo.update()
+      |> save_session!()
 
     {:ok, session} = TalesForge.NPC.refresh_session_world_state(session)
     session
@@ -220,7 +219,9 @@ defmodule TalesForge.Game.SceneChangeTest do
       end)
 
       action = heuristic(@paul_t6, intent(session))
-      assert {:ok, payload} = TurnProcessor.run(session.id, @paul_t6, PlayerAction.encode(action))
+
+      assert {:ok, payload} =
+               TurnProcessor.run(session.id, {@paul_t6, PlayerAction.encode(action)})
 
       # Recorded: location, name, who is present; a new scene is due.
       assert payload.world_state["location_id"] == "market_square"
@@ -237,10 +238,18 @@ defmodule TalesForge.Game.SceneChangeTest do
       assert move_turn =~ "Brenna Holt at Valley Inn"
 
       # Turn 7: Paul speaks to Osric. Brenna is not in the scene any more.
-      session = Repo.get!(GameSession, session.id)
+      session = GameSessions.get_session!(session.id)
       context = Context.build_gm_context(session)
       t7 = heuristic(@paul_t7, context.intent_context)
-      messages = Prompts.gm_messages(context, nil, t7, ActionHandler.resolve(t7), 7)
+
+      messages =
+        Assemble.gm_messages(context, %Prompts.GmTurn{
+          mechanical: nil,
+          player_action: t7,
+          handler: ActionHandler.resolve(t7),
+          turn_number: 7
+        })
+
       per_turn = List.last(messages).content
 
       assert per_turn =~ "Current location: Market Square (market_square)"
@@ -263,13 +272,13 @@ defmodule TalesForge.Game.SceneChangeTest do
       }
 
       world =
-        TurnProcessor.apply_board(
-          session,
-          session.world_state["character"],
-          ActionHandler.resolve(action),
-          action,
-          %TalesForge.Game.Schemas.MechanicalResolution{}
-        ).world
+        Board.resolve(%Board{
+          session: session,
+          character: session.world_state["character"],
+          handler: ActionHandler.resolve(action),
+          player_action: action,
+          mechanical: %TalesForge.Game.Schemas.MechanicalResolution{}
+        }).world
 
       assert world["location_id"] == "valley_inn"
       assert world["present_npcs"] == ["innkeep"]

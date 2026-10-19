@@ -8,13 +8,7 @@ defmodule TalesForge.Game.BrennaReworkTest do
 
   alias TalesForge.Game.{Pack, Prompts}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
-
-  setup do
-    on_exit(fn -> for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id) end)
-    :ok
-  end
 
   defp brenna do
     "tin_valley" |> Pack.load() |> Map.fetch!(:npcs) |> Enum.find(&(&1["id"] == "innkeep"))

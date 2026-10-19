@@ -6,18 +6,9 @@ defmodule TalesForge.Game.PackTest do
   alias TalesForge.Game.Pack
   alias TalesForge.Game.World
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.FrontInstance
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   defp create_tin_valley_session do
     GameSessions.create_session(%{name: "Tin Valley", adventure_id: "tin_valley"})
@@ -159,13 +150,13 @@ defmodule TalesForge.Game.PackTest do
       assert world["character"]["inventory"] == elara["inventory"]
       assert world["character"]["skills"] == elara["skills"]
 
-      npc_ids = Enum.map(session.npc_instances, & &1.npc_id) |> Enum.sort()
+      npc_ids = session.id |> NPC.list_people() |> Enum.map(& &1.npc_id)
       assert npc_ids == ["guild_steward", "innkeep", "prospector"]
       assert world["present_npcs"] == ["innkeep"]
 
-      brenna = NPC.get_instance(session.id, "innkeep")
-      osric = NPC.get_instance(session.id, "guild_steward")
-      caldern = NPC.get_instance(session.id, "prospector")
+      brenna = NPC.get_person(session.id, "innkeep")
+      osric = NPC.get_person(session.id, "guild_steward")
+      caldern = NPC.get_person(session.id, "prospector")
 
       assert get_in(brenna.runtime_state, ["current_concern", "focus"]) =~ "hills are restless"
       assert get_in(osric.runtime_state, ["current_concern", "focus"]) =~ "nest on the cut"
@@ -214,13 +205,13 @@ defmodule TalesForge.Game.PackTest do
       refute gm =~ "fee_copper"
       refute gm =~ ~s("skills")
 
-      assert NPC.get_instance(session.id, "prospector").runtime_state["location_id"] ==
+      assert NPC.get_person(session.id, "prospector").runtime_state["location_id"] ==
                "mine_workings"
 
-      refute NPC.get_instance(session.id, "miners_guild")
+      refute NPC.get_person(session.id, "miners_guild")
       refute Fronts.get_instance(session.id, "prospector")
-      refute NPC.get_instance(session.id, "marta_kellen")
-      refute NPC.get_instance(session.id, "worried_merchant")
+      refute NPC.get_person(session.id, "marta_kellen")
+      refute NPC.get_person(session.id, "worried_merchant")
 
       fronts = Fronts.list_all(session.id)
       by_id = Map.new(fronts, &{&1.front_id, &1})
@@ -238,7 +229,8 @@ defmodule TalesForge.Game.PackTest do
         |> Enum.find(&(&1["id"] == "ale_mug"))
 
       assert ale["price_copper"] == 2
-      assert ale["quantity"] == 99
+      assert ale["quantity"] == 72
+      assert brenna.runtime_state["coins"] == %{"gold" => 2}
     end
   end
 
@@ -251,8 +243,8 @@ defmodule TalesForge.Game.PackTest do
       assert square
       assert "kings_road" in (square["exits"] || World.location("crossroads_square")["exits"])
 
-      assert NPC.get_instance(session.id, "marta_kellen")
-      assert NPC.get_instance(session.id, "worried_merchant")
+      assert NPC.get_person(session.id, "marta_kellen")
+      assert NPC.get_person(session.id, "worried_merchant")
       assert Fronts.list_all(session.id) == []
     end
   end

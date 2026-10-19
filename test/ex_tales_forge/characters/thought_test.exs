@@ -2,16 +2,14 @@ defmodule TalesForge.Characters.ThoughtTest do
   use TalesForge.DataCase, async: false
 
   alias TalesForge.Characters
-  alias TalesForge.Characters.Thought
+  alias TalesForge.Characters.{Moment, Thought}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{AICall, Turn}
 
   doctest Thought
 
   setup do
-    on_exit(fn -> for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id) end)
     {:ok, session} = GameSessions.create_session(%{name: "Thought", adventure_id: "tin_valley"})
     chars = Characters.list_for_session(session.id)
     pc = Enum.find(chars, &(&1.controller != "gm"))
@@ -34,7 +32,7 @@ defmodule TalesForge.Characters.ThoughtTest do
   @rest [%{"kind" => "time.passed", "location_id" => "inn", "payload" => %{"delta_ticks" => 40}}]
 
   test "off makes no call", %{session: session} do
-    assert Thought.for_turn(session.id, @rest, %{}, 1, :off) == nil
+    assert Thought.for_turn(moment(session, @rest, %{}, 1, :off)) == nil
     refute Repo.exists?(AICall)
   end
 
@@ -43,7 +41,7 @@ defmodule TalesForge.Characters.ThoughtTest do
     pc: pc
   } do
     remember!(pc, "inn", 1.0)
-    thought = Thought.for_turn(session.id, @rest, %{"location_id" => "inn"}, 1, :shadow)
+    thought = Thought.for_turn(moment(session, @rest, %{"location_id" => "inn"}, 1, :shadow))
     assert thought["trigger"] == "sleep"
     refute Map.has_key?(thought, "about_name")
     assert String.length(thought["text"]) <= 220
@@ -59,7 +57,7 @@ defmodule TalesForge.Characters.ThoughtTest do
     remember!(pc, npc.slug, 1.0)
     world = %{"location_id" => "inn", "present_npcs" => [npc.slug]}
 
-    thought = Thought.for_turn(session.id, @rest, world, 1, :on)
+    thought = Thought.for_turn(moment(session, @rest, world, 1, :on))
     assert thought["trigger"] == "person"
     assert thought["about_name"] == npc.name
 
@@ -71,12 +69,12 @@ defmodule TalesForge.Characters.ThoughtTest do
       thought: thought
     })
 
-    assert Thought.for_turn(session.id, [], world, 2, :on) == nil
-    assert Thought.for_turn(session.id, @rest, world, 2, :on)["trigger"] == "sleep"
+    assert Thought.for_turn(moment(session, [], world, 2, :on)) == nil
+    assert Thought.for_turn(moment(session, @rest, world, 2, :on))["trigger"] == "sleep"
   end
 
   test "no memory, no thought", %{session: session} do
-    assert Thought.for_turn(session.id, @rest, %{}, 1, :on) == nil
+    assert Thought.for_turn(moment(session, @rest, %{}, 1, :on)) == nil
   end
 
   test "a long text is cut to 220 characters" do
@@ -112,4 +110,14 @@ defmodule TalesForge.Characters.ThoughtTest do
     System.put_env("CHARACTER_MEMORY", "shadow")
     refute "thought" in (load.() |> GameSessions.transcript() |> Enum.map(& &1.role))
   end
+
+  defp moment(session, events, world, turn_number, mode),
+    do: %Moment{
+      session_id: session.id,
+      actor: get_in(session.world_state, ["character", "id"]),
+      events: events,
+      world: world,
+      turn_number: turn_number,
+      mode: mode
+    }
 end

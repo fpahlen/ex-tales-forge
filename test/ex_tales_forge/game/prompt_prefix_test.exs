@@ -14,8 +14,8 @@ defmodule TalesForge.Game.PromptPrefixTest do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.LLM
+  alias TalesForge.Prompt.Assemble
 
   @per_turn_markers [
     "Validated player action (turn",
@@ -33,10 +33,6 @@ defmodule TalesForge.Game.PromptPrefixTest do
   ]
 
   setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     # Mock provider: the opening scene is written without an HTTP request.
     {:ok, a} = GameSessions.create_session(%{name: "Prefix A"})
     {:ok, b} = GameSessions.create_session(%{name: "Prefix B"})
@@ -46,7 +42,7 @@ defmodule TalesForge.Game.PromptPrefixTest do
   end
 
   test "scene and GM prompts share a byte-identical prefix: narrator + rules", %{a: a, b: b} do
-    scene_a = Prompts.scene_messages(Context.build_gm_context(a))
+    scene_a = Assemble.scene_messages(Context.build_gm_context(a))
     gm_a1 = gm_messages(a, 1, "look around the tavern")
     gm_b7 = gm_messages(b, 7, "ask Marta about the ledger")
 
@@ -181,7 +177,7 @@ defmodule TalesForge.Game.PromptPrefixTest do
       context = Context.build_gm_context(a)
 
       assert {:ok, _} =
-               LLM.complete_scene(Prompts.scene_messages(context), context.intent_context,
+               LLM.complete_scene(Assemble.scene_messages(context), context.intent_context,
                  session_id: a.id
                )
 
@@ -297,11 +293,13 @@ defmodule TalesForge.Game.PromptPrefixTest do
     |> Map.put(:npc_reactions, [@reaction])
     |> Map.put(:world_facts, @world_facts)
     |> Map.put(:price_lines, ["Purchase: Bowl of stew, 5 copper, paid (server)"])
-    |> Prompts.gm_messages(
-      %MechanicalResolution{skill: "insight", roll: 14, outcome: "success"},
-      player_action,
-      handler,
-      turn_number,
+    |> Assemble.gm_messages(
+      %Prompts.GmTurn{
+        mechanical: %MechanicalResolution{skill: "insight", roll: 14, outcome: "success"},
+        player_action: player_action,
+        handler: handler,
+        turn_number: turn_number
+      },
       flags: %{world_agents: true, npc_reactions: true}
     )
   end

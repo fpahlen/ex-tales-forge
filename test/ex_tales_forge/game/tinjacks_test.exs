@@ -12,10 +12,7 @@ defmodule TalesForge.Game.TinjacksTest do
   alias TalesForge.Game.{Events, Pack, WorldSim}
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.NPC
-  alias TalesForge.Repo
-  alias TalesForge.Schemas.GameSession
 
   @features ["inn_world", "antagonist"]
 
@@ -29,8 +26,6 @@ defmodule TalesForge.Game.TinjacksTest do
       for {key, value} <- previous do
         if value, do: System.put_env(key, value), else: System.delete_env(key)
       end
-
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
     end)
 
     # These tests read the world without the place tree (default on).
@@ -208,15 +203,15 @@ defmodule TalesForge.Game.TinjacksTest do
 
       mech = %MechanicalResolution{outcome: outcome, skill: skill}
 
-      Events.from_turn(
-        player_action,
-        %{handler: "skill_check"},
-        mech,
-        world,
-        world,
-        [front()],
-        people()
-      )
+      Events.from_turn(%Events.Turn{
+        player_action: player_action,
+        handler: %{handler: "skill_check"},
+        mechanical: mech,
+        world_before: world,
+        world_after: world,
+        fronts: [front()],
+        people: people()
+      })
     end
 
     defp kinds(events), do: Enum.map(events, & &1["kind"])
@@ -274,15 +269,15 @@ defmodule TalesForge.Game.TinjacksTest do
       mech = %MechanicalResolution{outcome: "none"}
 
       evs =
-        Events.from_turn(
-          action(:move, "old_adit"),
-          %{handler: "move"},
-          mech,
-          before,
-          after_move,
-          [front()],
-          []
-        )
+        Events.from_turn(%Events.Turn{
+          player_action: action(:move, "old_adit"),
+          handler: %{handler: "move"},
+          mechanical: mech,
+          world_before: before,
+          world_after: after_move,
+          fronts: [front()],
+          people: []
+        })
 
       assert "tinjacks.spotted" in kinds(evs)
     end
@@ -296,16 +291,16 @@ defmodule TalesForge.Game.TinjacksTest do
 
       assert session.world_state["features"] == @features
       assert Fronts.get_instance(session.id, "tinjacks")
-      assert NPC.get_instance(session.id, "rusk").runtime_state["location_id"] == "old_adit"
+      assert NPC.get_person(session.id, "rusk").runtime_state["location_id"] == "old_adit"
 
       assert {:ok, _} =
                GameSessions.submit_message(session.id, "I wait by the fire for two hours.")
 
-      world = Repo.get!(GameSession, session.id).world_state
+      world = GameSessions.get_session!(session.id).world_state
       assert world["location_id"] == "valley_inn"
       assert "rusk" in world["present_npcs"] and "cobb" in world["present_npcs"]
       assert Enum.any?(world["public_facts"], &(&1["id"] == "tinjacks_toll"))
-      assert NPC.get_instance(session.id, "rusk").runtime_state["location_id"] == "valley_inn"
+      assert NPC.get_person(session.id, "rusk").runtime_state["location_id"] == "valley_inn"
     end
 
     test "a player who is out when the toll comes due finds Rusk and Cobb at their side" do
@@ -320,12 +315,12 @@ defmodule TalesForge.Game.TinjacksTest do
           |> Map.merge(%{"location_id" => "smithy", "last_scene_location" => "smithy"})
           |> put_in(["character", "location_id"], "smithy")
       )
-      |> Repo.update!()
+      |> save_session!()
 
       assert {:ok, _} =
                GameSessions.submit_message(session.id, "I wait by the forge for two hours.")
 
-      world = Repo.get!(GameSession, session.id).world_state
+      world = GameSessions.get_session!(session.id).world_state
       assert world["location_id"] == "smithy"
       assert "rusk" in world["present_npcs"] and "cobb" in world["present_npcs"]
 
@@ -333,7 +328,7 @@ defmodule TalesForge.Game.TinjacksTest do
       assert "tinjacks_seek" in ids and "tinjacks_toll_taken" in ids
       refute "tinjacks_toll" in ids
 
-      memories = NPC.get_instance(session.id, "innkeep").runtime_state["memories"]
+      memories = NPC.get_person(session.id, "innkeep").runtime_state["memories"]
       assert Enum.any?(memories, &(&1["who"] == "rusk"))
     end
 
@@ -344,7 +339,7 @@ defmodule TalesForge.Game.TinjacksTest do
 
       refute Map.has_key?(session.world_state, "features")
       refute Fronts.get_instance(session.id, "tinjacks")
-      refute NPC.get_instance(session.id, "rusk")
+      refute NPC.get_person(session.id, "rusk")
     end
   end
 end

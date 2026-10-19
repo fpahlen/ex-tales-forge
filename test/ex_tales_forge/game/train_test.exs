@@ -8,9 +8,9 @@ defmodule TalesForge.Game.TrainTest do
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.Game.Train
   alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
 
@@ -22,10 +22,6 @@ defmodule TalesForge.Game.TrainTest do
   }
 
   setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, session} =
       GameSessions.create_session(%{name: "Trainers", adventure_id: "tin_valley"})
 
@@ -291,12 +287,14 @@ defmodule TalesForge.Game.TrainTest do
 
     {:ok, payload} =
       TurnProcessor.simulate!(
-        session,
-        player_action.overall_intent,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"},
-        improvement_rolls: rolls
+        %Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"},
+          opts: [improvement_rolls: rolls]
+        },
+        player_action.overall_intent
       )
 
     {reload(session.id), latest_turn(session.id), payload}

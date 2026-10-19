@@ -7,8 +7,8 @@ defmodule TalesForge.Game.VitalityTest do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 
@@ -21,14 +21,6 @@ defmodule TalesForge.Game.VitalityTest do
     "wound_max" => 3,
     "vitality" => "ok"
   }
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   test "no harm stamps ok vitality and wound_max from CON" do
     world = apply_to(%{"stats" => %{"CON" => 18}}, none())
@@ -143,7 +135,7 @@ defmodule TalesForge.Game.VitalityTest do
   end
 
   test "perform_and_apply does not apply vitality" do
-    {updated, _resolution} = Mechanics.perform_and_apply(@character, "melee_combat", 20)
+    {updated, _resolution} = Mechanics.perform_and_apply(@character, "melee_combat", roll: 20)
 
     assert updated["wounds"] == 0
     assert updated["vitality"] == "ok"
@@ -219,12 +211,14 @@ defmodule TalesForge.Game.VitalityTest do
 
     {:ok, payload} =
       TurnProcessor.simulate!(
-        session,
-        "I strike",
-        player_action,
-        handler,
-        fail("melee_combat", 1.0),
-        death_roll: 100
+        %Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: fail("melee_combat", 1.0),
+          opts: [death_roll: 100]
+        },
+        "I strike"
       )
 
     session = GameSessions.get_session!(session.id)

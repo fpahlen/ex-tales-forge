@@ -39,7 +39,7 @@ defmodule TalesForge.Game.TurnTest do
     }
 
     flags = Map.merge(@off, Keyword.get(opts, :flags, %{}))
-    Turn.new(session, 1, text, action, Keyword.merge(opts, flags: flags, role: :playtest))
+    Turn.new({session, 1}, {text, action}, Keyword.merge(opts, flags: flags, role: :playtest))
   end
 
   test "new/5 reads the flags and the role one time", %{session: session} do
@@ -74,9 +74,9 @@ defmodule TalesForge.Game.TurnTest do
     reaction = %{"name" => "Brenna Holt", "emotion" => "wary"}
 
     adapters = %Adapters{
-      npc: fn _id, world, _n, _raw, _mech, _findings ->
+      npc: fn _moment ->
         send(me, :npc)
-        {[reaction], world}
+        [reaction]
       end,
       gm: fn messages, _action, _handler, _n, opts ->
         send(me, {:gm, List.last(messages).content})
@@ -106,7 +106,7 @@ defmodule TalesForge.Game.TurnTest do
   test "a failed GM call is data; persist passes the turn through", %{session: session} do
     adapters = %Adapters{
       gm: fn _m, _a, _h, _n, _o -> {:error, :timeout} end,
-      store: fn _s, _w, _n, _r, _c -> flunk("the store must not run") end
+      store: fn _store -> flunk("the store must not run") end
     }
 
     result =
@@ -133,11 +133,14 @@ defmodule TalesForge.Game.TurnTest do
         end
       }
 
-      world = Map.put(session.world_state, "npc_moods", %{"innkeep" => %{"emotion" => "wary"}})
+      cast =
+        session.id
+        |> TalesForge.Characters.cast()
+        |> update_in(["innkeep"], &%{&1 | runtime: %{"reaction" => %{"emotion" => "wary"}}})
 
       t =
-        %{session | world_state: world}
-        |> turn("I study Brenna's face", flags: flags, adapters: adapters)
+        session
+        |> turn("I study Brenna's face", flags: flags, adapters: adapters, cast: cast)
         |> Turn.Mechanics.apply()
 
       t

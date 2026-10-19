@@ -2,8 +2,8 @@ defmodule TalesForgeWeb.PlayComponents do
   @moduledoc false
   use TalesForgeWeb, :html
 
-  alias TalesForge.Game.Inventory
   alias TalesForge.Game.Mechanics
+  alias TalesForge.Game.PlayPanel
 
   attr :session_id, :string, required: true
   attr :session_name, :string, required: true
@@ -31,6 +31,13 @@ defmodule TalesForgeWeb.PlayComponents do
           >
             Admin
           </.link>
+          <%!-- -my-2.5: the 44px tap area overlaps the header padding, so the bar keeps its height --%>
+          <TalesForgeWeb.AppComponents.env_badge
+            id="play-env-badge"
+            switch_path={~p"/"}
+            compact
+            class="-my-2.5 shrink-0"
+          />
         </div>
         <dl class="flex flex-wrap items-center gap-x-4 gap-y-0 text-xs sm:gap-x-6 sm:gap-y-1 sm:text-sm">
           <div class="flex items-baseline gap-2">
@@ -443,48 +450,23 @@ defmodule TalesForgeWeb.PlayComponents do
   end
 
   @doc """
-  The people of the Present panel: the present NPCs, then the minor foes
-  (#270) at the current location. Each person has a `wounds_label` when the
-  person has a wound or is down (QA 2026-10-14 08:57). A dead person is
-  never present (QA 2026-10-15 retest, session 9a1ff8c2: a dead Marta, kept
-  as a minor foe, stayed in the panel with an empty `present_npcs`).
+  The people of the Present panel: the present NPCs, then the other
+  characters of the session's cast at the current location, such as a minor
+  foe (#270). Each person has a `wounds_label` when the person has a wound
+  or is down (QA 2026-10-14 08:57). A dead person is never present (QA
+  2026-10-15 retest, session 9a1ff8c2: a dead Marta, kept as a minor foe,
+  stayed in the panel with an empty `present_npcs`).
 
-      iex> TalesForgeWeb.PlayComponents.present_npcs(%{"location_id" => "inn", "present_npcs" => [],
-      ...>   "npc_state" => %{"marta_kellen" => %{"name" => "Marta Kellen", "minor" => true,
-      ...>   "location_id" => "inn", "vitality" => "dead"}}})
+      iex> cast = %{"marta_kellen" => %TalesForge.GameCharacter{slug: "marta_kellen",
+      ...>   name: "Marta Kellen", minor: true, location_id: "inn", vitality: "dead"}}
+      iex> TalesForgeWeb.PlayComponents.present_npcs(%{"location_id" => "inn", "present_npcs" => []}, cast)
       []
+      iex> cast = put_in(cast["marta_kellen"].vitality, "down")
+      iex> [marta] = TalesForgeWeb.PlayComponents.present_npcs(%{"location_id" => "inn"}, cast)
+      iex> {marta.name, marta.wounds_label}
+      {"Marta Kellen", "down · 0/3 wounds"}
   """
-  def present_npcs(world_state) when is_map(world_state) do
-    npc_state = Map.get(world_state, "npc_state") || %{}
-
-    npc_ids =
-      world_state
-      |> Map.get("present_npcs", [])
-      |> List.wrap()
-      |> Enum.reject(&(get_in(npc_state, [&1, "vitality"]) == "dead"))
-
-    foe_ids =
-      npc_state
-      |> Enum.filter(fn {id, npc} ->
-        is_map(npc) and npc["minor"] == true and npc["vitality"] != "dead" and
-          id not in npc_ids and npc["location_id"] == world_state["location_id"]
-      end)
-      |> Enum.map(&elem(&1, 0))
-      |> Enum.sort()
-
-    Enum.map(npc_ids ++ foe_ids, fn npc_id ->
-      detail = Map.get(npc_state, npc_id) || %{}
-
-      %{
-        id: npc_id,
-        name: Map.get(detail, "name", npc_id),
-        role: Map.get(detail, "role", "present"),
-        concern_priority: Map.get(detail, "concern_priority", 0),
-        portrait_url: Map.get(detail, "portrait_url"),
-        wounds_label: wounds_label(detail)
-      }
-    end)
-  end
+  defdelegate present_npcs(world_state, cast), to: PlayPanel
 
   @doc """
   The last combat exchange text of the world (`combat_last`), or nil. The
@@ -512,31 +494,8 @@ defmodule TalesForgeWeb.PlayComponents do
 
   def last_exchange(_world_state), do: nil
 
-  defp wounds_label(%{"vitality" => "dead"}), do: "dead"
-
-  defp wounds_label(%{"wounds" => wounds} = detail) when is_integer(wounds) do
-    max = detail["wound_max"] || 3
-
-    case {detail["vitality"], wounds} do
-      {"down", _} -> "down · #{wounds}/#{max} wounds"
-      {_, 0} -> nil
-      _ -> "#{wounds}/#{max} wounds"
-    end
-  end
-
-  defp wounds_label(_detail), do: nil
-
-  def quick_stats(character) when is_map(character) do
-    wounds = Map.get(character, "wounds", 0)
-    wound_max = Map.get(character, "wound_max", 3)
-    coins = format_coins(Map.get(character, "coins", %{}))
-    wounds_part = "#{wounds}/#{wound_max} wounds · #{coins}"
-
-    case Map.get(character, "vitality", "ok") do
-      "ok" -> wounds_part
-      vitality -> "#{vitality} · #{wounds_part}"
-    end
-  end
+  @doc "See `TalesForge.Game.PlayPanel.quick_stats/1`."
+  defdelegate quick_stats(character), to: PlayPanel
 
   def entry_heading(%{role: "scene", location_name: name}), do: "You arrive at #{name}"
   def entry_heading(%{role: "gm"}), do: "Game Master"
@@ -602,17 +561,19 @@ defmodule TalesForgeWeb.PlayComponents do
     end
     |> Enum.filter(fn {_skill, level} -> is_integer(level) and level > 0 end)
     |> Enum.sort_by(fn {skill, _level} -> skill end)
-    |> Enum.map(fn {skill, level} ->
-      %{
-        skill: skill,
-        label: skill |> String.replace("_", " ") |> String.capitalize(),
-        raw: level,
-        effective: Mechanics.effective_level(character, skill)
-      }
-    end)
+    |> Enum.map(&skill_row(character, &1))
   end
 
   def skill_rows(_character), do: []
+
+  defp skill_row(character, {skill, level}) do
+    %{
+      skill: skill,
+      label: skill |> String.replace("_", " ") |> String.capitalize(),
+      raw: level,
+      effective: Mechanics.effective_level(character, skill)
+    }
+  end
 
   @doc """
   The coins as gold, silver and copper, converted up first (QA 2026-10-14
@@ -624,13 +585,7 @@ defmodule TalesForgeWeb.PlayComponents do
       iex> TalesForgeWeb.PlayComponents.format_coins(%{"gold" => 2, "silver" => 7})
       "2g 7s 0c"
   """
-  def format_coins(coins) when is_map(coins) do
-    normal = Inventory.normalize_coins(coins)
-
-    "#{Map.get(normal, "gold", 0)}g #{Map.get(normal, "silver", 0)}s #{Map.get(normal, "copper", 0)}c"
-  end
-
-  def format_coins(_), do: "—"
+  defdelegate format_coins(coins), to: PlayPanel
 
   defp wound_percent(character) do
     wounds = Map.get(character, "wounds", 0)

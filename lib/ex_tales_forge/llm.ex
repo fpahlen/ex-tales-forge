@@ -8,6 +8,7 @@ defmodule TalesForge.LLM do
   alias TalesForge.AICalls
   alias TalesForge.AppRole
   alias TalesForge.Config
+  alias TalesForge.LLM.{Endpoint, Request}
   alias TalesForge.LLM.Stream, as: SSE
 
   alias TalesForge.Game.Schemas.{
@@ -53,9 +54,6 @@ defmodule TalesForge.LLM do
   @scorer_max_tokens 800
   @scorer_temperature 0.2
 
-  # Output budget for gm_notes on top of the narration's TIER2_MAX_TOKENS.
-  @gm_notes_max_tokens 100
-
   # No maxLength / maxItems in the schema: with them xAI does not reuse the
   # prompt cache for the request at all (every GM call came back with
   # cached_tokens 128, measured 2026-10-07; the same request without them hit
@@ -80,9 +78,9 @@ defmodule TalesForge.LLM do
   would stop it from warming the cache for GM turn 1. The scene fills
   `narrative` + `location_name`; the GM leaves `location_name` out.
 
-  `variant` `:lean` (the production GM call) has no `location_name` and no
-  `gm_notes`. Its schema is different from the scene schema, so on production
-  the scene call does not warm the cache for the first GM turn after it.
+  `variant` `:lean` (the production GM call) has no `location_name`. Its
+  schema is different from the scene schema, so on production the scene call
+  does not warm the cache for the first GM turn after it.
   """
   @spec narration_schema(gm_variant()) :: map()
   def narration_schema(variant \\ :full) do
@@ -95,8 +93,8 @@ defmodule TalesForge.LLM do
 
   @typedoc """
   The GM reply variant. `:full` has every narration field (playtest and local).
-  `:lean` has no `gm_notes` and no `location_name` (production). The scene call
-  always uses `:full`, because the scene owns `location_name`.
+  `:lean` has no `location_name` (production). The scene call always uses
+  `:full`, because the scene owns `location_name`.
   """
   @type gm_variant :: :full | :lean
 
@@ -113,17 +111,17 @@ defmodule TalesForge.LLM do
   def gm_variant(:production), do: :lean
   def gm_variant(_role), do: :full
 
-  # The fields come from TalesForge.Prompt.Profile.narration_fields/1, for the
-  # GM call of the role that the variant stands for.
+  # The reply fields of the variant, in schema order: the lean reply
+  # (production) has no location_name.
   defp narration_properties(variant) do
-    ctx = %TalesForge.Prompt.Ctx{call: :gm, role: variant_role(variant)}
-    fields = TalesForge.Prompt.Profile.narration_fields(ctx)
-
+    fields = narration_fields(variant)
     Enum.filter(all_narration_properties(), fn {key, _} -> key in fields end)
   end
 
-  defp variant_role(:lean), do: :production
-  defp variant_role(:full), do: :playtest
+  defp narration_fields(:lean), do: ~w(narrative npc_memory_updates context_summary)
+
+  defp narration_fields(:full),
+    do: ~w(narrative location_name npc_memory_updates context_summary)
 
   defp all_narration_properties do
     [
@@ -141,8 +139,7 @@ defmodule TalesForge.LLM do
            }
          }
        }},
-      {"context_summary", %{"type" => ["string", "null"]}},
-      {"gm_notes", %{"type" => ["string", "null"]}}
+      {"context_summary", %{"type" => ["string", "null"]}}
     ]
   end
 
@@ -177,7 +174,7 @@ defmodule TalesForge.LLM do
   def llm_source("mock"), do: "mock"
   def llm_source(_), do: "api"
 
-  @doc "Opening/arrival scene. `messages` come from `Prompts.scene_messages/1`."
+  @doc "Opening/arrival scene. `messages` come from `TalesForge.Prompt.Assemble.scene_messages/1`."
   @spec complete_scene([map()], map(), call_opts()) ::
           result(%{location_name: String.t(), narrative: String.t()})
   def complete_scene(messages, intent_context, opts \\ [])
@@ -187,12 +184,20 @@ defmodule TalesForge.LLM do
     if mock?(model) do
       {:ok, mock_scene_response(intent_context)}
     else
-      complete_json(model, messages, narration_schema(), Config.tier2_temperature(),
-        tier: :scene,
-        max_tokens: Config.tier2_max_tokens(),
-        session_id: opts[:session_id],
-        structured_output: "narration",
-        validate: &valid_scene_reply?/1
+      complete_json(
+        %Request{
+          model: model,
+          messages: messages,
+          temperature: Config.tier2_temperature(),
+          opts: [
+            tier: :scene,
+            max_tokens: Config.tier2_max_tokens(),
+            session_id: opts[:session_id],
+            structured_output: "narration",
+            validate: &valid_scene_reply?/1
+          ]
+        },
+        narration_schema()
       )
       |> case do
         {:ok, %{"location_name" => location_name, "narrative" => narrative}}
@@ -217,14 +222,18 @@ defmodule TalesForge.LLM do
       {:ok, %{"action" => "I look around and listen.", "option_id" => nil}}
     else
       complete_json(
-        model,
-        simple_messages(system, user),
-        @persona_schema,
-        Config.tier2_temperature(),
-        tier: :persona,
-        max_tokens: @persona_max_tokens,
-        session_id: opts[:session_id],
-        turn_number: opts[:turn_number]
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: Config.tier2_temperature(),
+          opts: [
+            tier: :persona,
+            max_tokens: @persona_max_tokens,
+            session_id: opts[:session_id],
+            turn_number: opts[:turn_number]
+          ]
+        },
+        @persona_schema
       )
     end
   end
@@ -264,13 +273,17 @@ defmodule TalesForge.LLM do
       {:ok, mock_persona_interview()}
     else
       complete_json(
-        model,
-        simple_messages(system, user),
-        @persona_interview_schema,
-        Config.tier2_temperature(),
-        tier: :persona_interview,
-        max_tokens: @persona_interview_max_tokens,
-        session_id: opts[:session_id]
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: Config.tier2_temperature(),
+          opts: [
+            tier: :persona_interview,
+            max_tokens: @persona_interview_max_tokens,
+            session_id: opts[:session_id]
+          ]
+        },
+        @persona_interview_schema
       )
     end
   end
@@ -319,11 +332,19 @@ defmodule TalesForge.LLM do
     if mock?(model) do
       {:ok, %{"facts" => []}}
     else
-      complete_json(model, simple_messages(system, user), @fact_extract_schema, 0.0,
-        tier: :fact_extract,
-        max_tokens: @fact_extract_max_tokens,
-        session_id: opts[:session_id],
-        turn_number: opts[:turn_number]
+      complete_json(
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: 0.0,
+          opts: [
+            tier: :fact_extract,
+            max_tokens: @fact_extract_max_tokens,
+            session_id: opts[:session_id],
+            turn_number: opts[:turn_number]
+          ]
+        },
+        @fact_extract_schema
       )
     end
   end
@@ -336,10 +357,14 @@ defmodule TalesForge.LLM do
     if mock?(model) do
       {:ok, mock_scorecard(Keyword.get(opts, :criteria, 0))}
     else
-      complete_json(model, simple_messages(system, user), @scorer_schema, @scorer_temperature,
-        tier: :scorer,
-        max_tokens: @scorer_max_tokens,
-        session_id: opts[:session_id]
+      complete_json(
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: @scorer_temperature,
+          opts: [tier: :scorer, max_tokens: @scorer_max_tokens, session_id: opts[:session_id]]
+        },
+        @scorer_schema
       )
     end
   end
@@ -423,9 +448,14 @@ defmodule TalesForge.LLM do
 
       {:ok, mock_character_text()}
     else
-      complete_json(model, simple_messages(system, user), @character_text_schema, 0.0,
-        tier: :character_text,
-        max_tokens: @character_text_max_tokens
+      complete_json(
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: 0.0,
+          opts: [tier: :character_text, max_tokens: @character_text_max_tokens]
+        },
+        @character_text_schema
       )
     end
   end
@@ -477,11 +507,19 @@ defmodule TalesForge.LLM do
 
       {:ok, %{"thought" => "Something about this stays with me, warm and a little uneasy."}}
     else
-      complete_json(model, simple_messages(system, user), @thought_schema, 0.7,
-        tier: :thought,
-        max_tokens: @thought_max_tokens,
-        session_id: opts[:session_id],
-        turn_number: opts[:turn_number]
+      complete_json(
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: 0.7,
+          opts: [
+            tier: :thought,
+            max_tokens: @thought_max_tokens,
+            session_id: opts[:session_id],
+            turn_number: opts[:turn_number]
+          ]
+        },
+        @thought_schema
       )
     end
   end
@@ -519,15 +557,20 @@ defmodule TalesForge.LLM do
     if mock?(model) do
       {:ok, %{"title" => "", "matches" => []}}
     else
-      complete_json(model, simple_messages(system, user), @board_similar_schema, 0.0,
-        tier: :board_similar,
-        max_tokens: @board_similar_max_tokens
+      complete_json(
+        %Request{
+          model: model,
+          messages: simple_messages(system, user),
+          temperature: 0.0,
+          opts: [tier: :board_similar, max_tokens: @board_similar_max_tokens]
+        },
+        @board_similar_schema
       )
     end
   end
 
   @doc """
-  GM turn. `messages` come from `Prompts.gm_messages/5`. The reply is decoded
+  GM turn. `messages` come from `TalesForge.Prompt.Assemble.gm_messages/3`. The reply is decoded
   into a `GMStructuredResponse`.
 
   The call streams (`stream: true`). With `:on_text`, the function gets
@@ -553,21 +596,13 @@ defmodule TalesForge.LLM do
     if mock?(model) do
       {:ok, mock_turn_response(player_action, handler, turn_number)}
     else
-      complete_json(
-        model,
-        messages,
-        narration_schema(variant),
-        Config.tier2_temperature(),
-        tier: :tier2,
-        max_tokens: Config.tier2_max_tokens() + notes_budget(variant),
-        session_id: opts[:session_id],
-        turn_number: turn_number,
-        structured_output: "narration",
-        validate: &valid_gm_reply?/1,
-        stream: true,
-        on_text: opts[:on_text],
-        variant: variant
-      )
+      %Request{
+        model: model,
+        messages: messages,
+        temperature: Config.tier2_temperature(),
+        opts: gm_opts(variant, turn_number, opts)
+      }
+      |> complete_json(narration_schema(variant))
       |> case do
         {:ok, map} -> {:ok, GMStructuredResponse.decode(map)}
         error -> error
@@ -575,8 +610,19 @@ defmodule TalesForge.LLM do
     end
   end
 
-  defp notes_budget(:full), do: @gm_notes_max_tokens
-  defp notes_budget(:lean), do: 0
+  defp gm_opts(variant, turn_number, opts) do
+    [
+      tier: :tier2,
+      max_tokens: Config.tier2_max_tokens(),
+      session_id: opts[:session_id],
+      turn_number: turn_number,
+      structured_output: "narration",
+      validate: &valid_gm_reply?/1,
+      stream: true,
+      on_text: opts[:on_text],
+      variant: variant
+    ]
+  end
 
   defp valid_gm_reply?(%{"narrative" => narrative}) when is_binary(narrative),
     do: String.trim(narrative) != ""
@@ -625,15 +671,16 @@ defmodule TalesForge.LLM do
   # One retry on unparseable JSON or a reply that fails :validate. The retry
   # re-sends the identical messages with a short correction APPENDED, so the
   # cached prefix (system + rules + state) still matches.
-  defp complete_json(model, messages, schema, temperature, opts) do
-    {messages, opts} = prepare_schema(model, messages, schema, opts)
-    validate = Keyword.get(opts, :validate, fn _map -> true end)
+  defp complete_json(%Request{opts: opts} = req, schema) do
+    req = prepare_schema(req, schema)
 
-    case dispatch_json(model, messages, temperature, opts, validate) do
+    validate = Keyword.get(req.opts, :validate, fn _map -> true end)
+
+    case dispatch_json(req, validate) do
       {:error, reason} when reason in [:invalid_json, :invalid_reply] ->
         # The streamed text of the failed reply goes away; the retry streams anew.
         if is_function(opts[:on_text], 1), do: opts[:on_text].(:reset)
-        dispatch_json(model, retry_messages(messages), temperature, opts, validate)
+        dispatch_json(%{req | messages: retry_messages(req.messages)}, validate)
 
       result ->
         result
@@ -647,22 +694,22 @@ defmodule TalesForge.LLM do
   @spec retry_messages([map()]) :: [map()]
   def retry_messages(messages), do: messages ++ [%{role: "user", content: @retry_correction}]
 
-  defp prepare_schema(model, messages, schema, opts) do
-    case Keyword.get(opts, :structured_output) do
+  defp prepare_schema(%Request{} = req, schema) do
+    case Keyword.get(req.opts, :structured_output) do
       name when is_binary(name) ->
-        if xai_target?(model) do
+        if xai_target?(req.model) do
           format = %{
             type: "json_schema",
             json_schema: %{name: name, schema: schema, strict: true}
           }
 
-          {messages, Keyword.put(opts, :response_format, format)}
+          %{req | opts: Keyword.put(req.opts, :response_format, format)}
         else
-          {paste_schema(messages, schema), opts}
+          %{req | messages: paste_schema(req.messages, schema)}
         end
 
       _ ->
-        {paste_schema(messages, schema), opts}
+        %{req | messages: paste_schema(req.messages, schema)}
     end
   end
 
@@ -677,8 +724,8 @@ defmodule TalesForge.LLM do
     rest ++ [%{last | content: pasted}]
   end
 
-  defp dispatch_json(model, messages, temperature, opts, validate) do
-    with {:ok, raw} <- dispatch(model, messages, temperature, opts),
+  defp dispatch_json(%Request{} = req, validate) do
+    with {:ok, raw} <- dispatch(req),
          {:ok, map} <- parse_json(raw) do
       if validate.(map), do: {:ok, map}, else: {:error, :invalid_reply}
     end
@@ -686,29 +733,29 @@ defmodule TalesForge.LLM do
 
   defp xai_target?(model), do: String.starts_with?(model, "xai/") or provider() == "xai"
 
-  defp dispatch("mock", _messages, _temp, _opts), do: {:error, :mock_model}
+  defp dispatch(%Request{model: "mock"}), do: {:error, :mock_model}
 
-  defp dispatch(model, messages, temperature, opts) do
+  defp dispatch(%Request{opts: opts} = req) do
     case AICalls.check_spend_caps(opts[:session_id], purpose(Keyword.get(opts, :tier))) do
-      :ok -> request(model, messages, temperature, opts)
-      {:error, {kind, limit, spent}} -> spend_capped(model, opts, kind, limit, spent)
+      :ok -> request(req)
+      {:error, cap} -> spend_capped(req, cap)
     end
   end
 
-  defp spend_capped(model, opts, kind, limit, spent) do
+  defp spend_capped(%Request{model: model, opts: opts} = req, {kind, limit, spent}) do
     tier = Keyword.get(opts, :tier, :unknown)
 
     Logger.warning(
       "llm spend cap hit cap=#{kind} limit_usd=#{usd(limit)} spent_usd=#{usd(spent)} session=#{opts[:session_id]} tier=#{tier} model=#{model}"
     )
 
-    record_call(model, tier, opts, :capped, 0, %{started_at: DateTime.utc_now()})
+    record_call(req, :capped, %{latency_ms: 0, started_at: DateTime.utc_now()})
     {:error, {:spend_cap, kind}}
   end
 
   defp usd(micro_usd), do: :erlang.float_to_binary(micro_usd / 1_000_000, decimals: 4)
 
-  defp request(model, messages, temperature, opts) do
+  defp request(%Request{model: model, temperature: temperature, opts: opts} = req) do
     started_at = DateTime.utc_now()
     started = System.monotonic_time(:millisecond)
     provider = provider()
@@ -719,37 +766,11 @@ defmodule TalesForge.LLM do
       "llm call start tier=#{tier} provider=#{provider} model=#{model} temp=#{temperature} max_tokens=#{max_tokens}"
     )
 
-    result =
-      cond do
-        xai_target?(model) ->
-          call_openai_compatible(model, messages, temperature, xai_base(), Config.xai_api_key(),
-            max_tokens: max_tokens,
-            headers: [{"x-grok-conv-id", conv_id(opts)}],
-            response_format: Keyword.get(opts, :response_format),
-            stream: Keyword.get(opts, :stream, false),
-            on_text: opts[:on_text]
-          )
-
-        String.starts_with?(model, "gpt-") or provider == "openai" ->
-          call_openai_compatible(
-            model,
-            messages,
-            temperature,
-            openai_base(),
-            Config.openai_api_key(),
-            max_tokens: max_tokens
-          )
-
-        String.starts_with?(model, "ollama/") ->
-          call_ollama(model, messages, temperature)
-
-        true ->
-          {:error, {:unsupported_model, model}}
-      end
+    result = send_request(req, provider)
 
     elapsed = System.monotonic_time(:millisecond) - started
     conv = if xai_target?(model), do: conv_id(opts)
-    record_call(model, tier, opts, result, elapsed, %{started_at: started_at, conv_id: conv})
+    record_call(req, result, %{latency_ms: elapsed, started_at: started_at, conv_id: conv})
 
     case result do
       {:ok, content, usage} ->
@@ -764,7 +785,39 @@ defmodule TalesForge.LLM do
     end
   end
 
-  defp record_call(model, tier, opts, result, latency_ms, extra) do
+  # The provider call for the model: xAI, OpenAI or Ollama.
+  defp send_request(%Request{model: model, opts: opts} = req, provider) do
+    cond do
+      xai_target?(model) ->
+        call_openai_compatible(req, xai_endpoint(), xai_call_opts(opts))
+
+      String.starts_with?(model, "gpt-") or provider == "openai" ->
+        call_openai_compatible(req, openai_endpoint(), max_tokens: Keyword.get(opts, :max_tokens))
+
+      String.starts_with?(model, "ollama/") ->
+        call_ollama(model, req.messages, req.temperature)
+
+      true ->
+        {:error, {:unsupported_model, model}}
+    end
+  end
+
+  defp xai_endpoint, do: %Endpoint{base_url: xai_base(), api_key: Config.xai_api_key()}
+  defp openai_endpoint, do: %Endpoint{base_url: openai_base(), api_key: Config.openai_api_key()}
+
+  defp xai_call_opts(opts) do
+    [
+      max_tokens: Keyword.get(opts, :max_tokens),
+      headers: [{"x-grok-conv-id", conv_id(opts)}],
+      response_format: Keyword.get(opts, :response_format),
+      stream: Keyword.get(opts, :stream, false),
+      on_text: opts[:on_text]
+    ]
+  end
+
+  defp record_call(%Request{model: model, opts: opts}, result, extra) do
+    tier = Keyword.get(opts, :tier, :unknown)
+
     {status, usage} =
       case result do
         {:ok, _content, usage} -> {"ok", usage}
@@ -778,7 +831,7 @@ defmodule TalesForge.LLM do
       purpose: purpose(tier),
       model: model,
       status: status,
-      latency_ms: latency_ms,
+      latency_ms: extra.latency_ms,
       usage: usage,
       call_type: "llm",
       started_at: extra[:started_at],
@@ -823,37 +876,40 @@ defmodule TalesForge.LLM do
     end
   end
 
-  defp call_openai_compatible(model, messages, temperature, base_url, api_key, call_opts) do
-    if String.trim(api_key) == "" do
+  defp call_openai_compatible(%Request{} = req, %Endpoint{} = endpoint, call_opts) do
+    if String.trim(endpoint.api_key) == "" do
       {:error, :missing_api_key}
     else
       clean_model =
-        model |> String.replace_prefix("xai/", "") |> String.replace_prefix("openai/", "")
+        req.model |> String.replace_prefix("xai/", "") |> String.replace_prefix("openai/", "")
 
       body =
         %{
           model: clean_model,
-          temperature: temperature,
+          temperature: req.temperature,
           response_format: call_opts[:response_format] || %{type: "json_object"},
-          messages: messages
+          messages: req.messages
         }
         |> maybe_put_max_tokens(call_opts[:max_tokens])
 
       if call_opts[:stream] do
-        stream_openai_compatible(base_url, api_key, body, call_opts)
+        stream_openai_compatible(endpoint, body, call_opts)
       else
-        post_openai_compatible(base_url, api_key, body, call_opts)
+        post_openai_compatible(endpoint, body, call_opts)
       end
     end
   end
 
-  defp post_openai_compatible(base_url, api_key, body, call_opts) do
+  defp headers(%Endpoint{api_key: api_key}, call_opts) do
+    [{"authorization", "Bearer " <> api_key}, {"content-type", "application/json"}] ++
+      Keyword.get(call_opts, :headers, [])
+  end
+
+  defp post_openai_compatible(%Endpoint{} = endpoint, body, call_opts) do
     Req.post(
-      base_url <> "/chat/completions",
+      endpoint.base_url <> "/chat/completions",
       [
-        headers:
-          [{"authorization", "Bearer " <> api_key}, {"content-type", "application/json"}] ++
-            Keyword.get(call_opts, :headers, []),
+        headers: headers(endpoint, call_opts),
         json: body,
         receive_timeout: 120_000,
         retry: false
@@ -878,7 +934,7 @@ defmodule TalesForge.LLM do
   # stream: true. Req hands each chunk to collect_chunk/3; the state lives in
   # the response's private map. A reply that is not an event stream (an error,
   # or a test stub) is read as one JSON body.
-  defp stream_openai_compatible(base_url, api_key, body, call_opts) do
+  defp stream_openai_compatible(%Endpoint{} = endpoint, body, call_opts) do
     started = System.monotonic_time(:millisecond)
     on_text = call_opts[:on_text]
 
@@ -898,11 +954,9 @@ defmodule TalesForge.LLM do
     }
 
     Req.post(
-      base_url <> "/chat/completions",
+      endpoint.base_url <> "/chat/completions",
       [
-        headers:
-          [{"authorization", "Bearer " <> api_key}, {"content-type", "application/json"}] ++
-            Keyword.get(call_opts, :headers, []),
+        headers: headers(endpoint, call_opts),
         json: body,
         receive_timeout: 120_000,
         retry: false,

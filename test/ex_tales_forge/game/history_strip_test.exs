@@ -11,7 +11,6 @@ defmodule TalesForge.Game.HistoryStripTest do
   alias TalesForge.Game.HistoryStrip
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, Turn}
 
@@ -23,8 +22,6 @@ defmodule TalesForge.Game.HistoryStripTest do
     saved = System.get_env("HISTORY_STRIP_INJECTION")
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
       if saved,
         do: System.put_env("HISTORY_STRIP_INJECTION", saved),
         else: System.delete_env("HISTORY_STRIP_INJECTION")
@@ -35,7 +32,7 @@ defmodule TalesForge.Game.HistoryStripTest do
 
     stub_llm(fn
       :gm, _user, _system ->
-        %{"narrative" => "Osric frowns.", "gm_notes" => "n", "context_summary" => "Dawnbreaker!"}
+        %{"narrative" => "Osric frowns.", "context_summary" => "Dawnbreaker!"}
 
       _kind, _user, _system ->
         :default
@@ -55,7 +52,7 @@ defmodule TalesForge.Game.HistoryStripTest do
       "confidence" => 0.9
     }
 
-    {:ok, _} = TurnProcessor.run(session.id, @text, action)
+    {:ok, _} = TurnProcessor.run(session.id, {@text, action})
 
     {before, Repo.get!(GameSession, session.id).world_state,
      Repo.get_by!(Turn, game_session_id: session.id)}

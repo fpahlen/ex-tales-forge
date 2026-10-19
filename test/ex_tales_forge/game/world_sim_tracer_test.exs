@@ -6,13 +6,13 @@ defmodule TalesForge.Game.WorldSimTracerTest do
   alias TalesForge.Game.Context
   alias TalesForge.Game.Fronts.Moves
   alias TalesForge.Game.Intent
-  alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.WorldClock
   alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.WorldSim
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.{FrontInstance, SessionEvent}
 
@@ -20,10 +20,6 @@ defmodule TalesForge.Game.WorldSimTracerTest do
   @hiring "The Miners Guild is hiring steel in the square — retainers with new spears, paid in advance."
 
   setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
     {:ok, session} =
       GameSessions.create_session(%{name: "Tin Valley", adventure_id: "tin_valley"})
 
@@ -47,16 +43,16 @@ defmodule TalesForge.Game.WorldSimTracerTest do
     assert Enum.any?(nest.runtime_state["memories"], &(&1["what"] =~ "approached"))
     assert Enum.any?(nest.runtime_state["public_facts"], &(&1["id"] == "nest_standing_to_arms"))
 
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
-    scene = Prompts.build_scene_user(session)
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
+    scene = Assemble.build_scene_user(session)
     refute_leaked(prompt)
     refute_leaked(scene)
     refute prompt =~ @arms
     refute scene =~ @arms
 
     session = move(session, "orc_nest")
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
-    scene = Prompts.build_scene_user(session)
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
+    scene = Assemble.build_scene_user(session)
     assert prompt =~ @arms
     assert scene =~ @arms
     assert get_in(session.world_state, ["character", "wounds"]) == 1
@@ -92,7 +88,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
     guild = Fronts.get_instance(session.id, "miners_guild")
     assert get_in(guild.runtime_state, ["clocks", "clear_orcs", "value"]) == 3
 
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
     refute prompt =~ @hiring
 
     # market_square is still town (dawdle +1); mine_workings is not (clock holds).
@@ -108,8 +104,8 @@ defmodule TalesForge.Game.WorldSimTracerTest do
     guild = Fronts.get_instance(session.id, "miners_guild")
     assert get_in(guild.runtime_state, ["clocks", "clear_orcs", "value"]) == 8
 
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
-    scene = Prompts.build_scene_user(session)
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
+    scene = Assemble.build_scene_user(session)
     assert prompt =~ @hiring
     assert scene =~ @hiring
   end
@@ -128,12 +124,12 @@ defmodule TalesForge.Game.WorldSimTracerTest do
     assert get_in(guild.runtime_state, ["clocks", "clear_orcs", "value"]) == 8
     refute Enum.any?(guild.runtime_state["public_facts"] || [], &(&1["id"] == "hiring_steel"))
 
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
     refute prompt =~ @hiring
   end
 
   test "opening prompt names Osric want and has no hiring_steel", %{session: session} do
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
     assert prompt =~ "Osric Vane wants the nest"
     refute prompt =~ @hiring
   end
@@ -154,14 +150,20 @@ defmodule TalesForge.Game.WorldSimTracerTest do
     mechanical = %MechanicalResolution{outcome: "none"}
     character = Map.get(session.world_state, "character", %{})
 
-    pre = Context.format_gm_prompt(Context.build_gm_context(session))
+    pre = Assemble.format_gm_prompt(Context.build_gm_context(session))
     refute pre =~ @hiring
 
     %{world: world_board} =
-      TurnProcessor.apply_board(session, character, handler, player_action, mechanical)
+      Board.resolve(%Board{
+        session: session,
+        character: character,
+        handler: handler,
+        player_action: player_action,
+        mechanical: mechanical
+      })
 
     prompt =
-      Context.format_gm_prompt(Context.build_gm_context(%{session | world_state: world_board}))
+      Assemble.format_gm_prompt(Context.build_gm_context(%{session | world_state: world_board}))
 
     assert prompt =~ @hiring
 
@@ -189,11 +191,13 @@ defmodule TalesForge.Game.WorldSimTracerTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        "I buy a mug of ale",
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        "I buy a mug of ale"
       )
 
     session = reload(session.id)
@@ -201,7 +205,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
     assert get_in(guild.runtime_state, ["clocks", "clear_orcs", "value"]) == 1
     refute Enum.any?(guild.runtime_state["public_facts"] || [], &(&1["id"] == "hiring_steel"))
 
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
     refute prompt =~ @hiring
   end
 
@@ -218,8 +222,8 @@ defmodule TalesForge.Game.WorldSimTracerTest do
     refute Enum.any?(guild.runtime_state["public_facts"], &(&1["harm"] == "wound"))
     assert get_in(session.world_state, ["character", "wounds"]) == 0
 
-    prompt = Context.format_gm_prompt(Context.build_gm_context(session))
-    scene = Prompts.build_scene_user(session)
+    prompt = Assemble.format_gm_prompt(Context.build_gm_context(session))
+    scene = Assemble.build_scene_user(session)
     assert prompt =~ @hiring
     assert scene =~ @hiring
   end
@@ -282,7 +286,18 @@ defmodule TalesForge.Game.WorldSimTracerTest do
       })
 
     handler = ActionHandler.resolve(player_action)
-    {:ok, _} = TurnProcessor.simulate!(session, raw, player_action, handler, mechanical)
+
+    {:ok, _} =
+      TurnProcessor.simulate!(
+        %Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: mechanical
+        },
+        raw
+      )
+
     reload(session.id)
   end
 
@@ -293,11 +308,13 @@ defmodule TalesForge.Game.WorldSimTracerTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        raw,
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        raw
       )
 
     reload(session.id)
@@ -314,11 +331,13 @@ defmodule TalesForge.Game.WorldSimTracerTest do
 
     {:ok, _} =
       TurnProcessor.simulate!(
-        session,
-        "look around",
-        player_action,
-        handler,
-        %MechanicalResolution{outcome: "none"}
+        %Board{
+          session: session,
+          player_action: player_action,
+          handler: handler,
+          mechanical: %MechanicalResolution{outcome: "none"}
+        },
+        "look around"
       )
 
     reload(session.id)
@@ -327,7 +346,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
   defp reload(id) do
     id
     |> GameSessions.get_session!()
-    |> Repo.preload([:front_instances, :npc_instances])
+    |> Repo.preload([:front_instances])
   end
 
   defp refute_leaked(text) do

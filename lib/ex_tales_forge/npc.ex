@@ -1,39 +1,47 @@
 defmodule TalesForge.NPC do
   @moduledoc """
-  Per-session NPC runtime: definitions, NpcInstance persistence, memories, presence.
+  Per-session NPC runtime: definitions, state, memories, presence.
 
-  Core runtime module: Ecto (Schemas.NpcInstance + Repo) for live state;
-  definitions come from the pack files in `priv/npcs` (or the pack's own NPCs).
+  An NPC's live state is its `characters` row (refactor step 10f PR 5),
+  read and written as a `TalesForge.NPC.Person` through
+  `TalesForge.NPC.Rows`; definitions come from the pack files in
+  `priv/npcs` (or the pack's own NPCs). Every write runs in the caller's
+  transaction, so the turn's NPC updates commit with the turn.
   """
-
-  import Ecto.Query
 
   alias TalesForge.Characters.{Defaults, Levers}
   alias TalesForge.Game.Features
   alias TalesForge.Game.FirstMeeting
   alias TalesForge.Game.Pack
   alias TalesForge.Game.WorldClock
+  alias TalesForge.GameCharacter
+  alias TalesForge.NPC.{Person, Rows, Seed}
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{GameSession, NpcInstance}
+  alias TalesForge.Schemas.{Character, GameSession}
 
-  @memory_limit 20
+  defmodule Note do
+    @moduledoc """
+    A memory for `TalesForge.NPC.record_memory/1`: the session, the NPC, the
+    summary and the world tick.
+    """
+    defstruct [:session_id, :npc_id, :summary, :tick]
+
+    @typedoc "A memory to record for one NPC."
+    @type t :: %__MODULE__{
+            session_id: String.t(),
+            npc_id: String.t(),
+            summary: String.t(),
+            tick: integer() | nil
+          }
+  end
+
   @memory_context_limit 5
 
   def refresh_session_world_state(%GameSession{} = session) do
     location_id = Map.get(session.world_state, "location_id", "weary_pilgrim")
 
     world_state =
-      session.world_state
-      |> Map.put("present_npcs", sync_present_npcs(session.id, location_id))
-      |> Map.put(
-        "npc_state",
-        # QA 2026-10-14 08:57 (e): keep the NPC wounds and the minor foes of
-        # the fights (#270) when the scene changes.
-        TalesForge.Game.Combat.carry(
-          Map.get(session.world_state, "npc_state"),
-          refresh_world_npc_state(session.id)
-        )
-      )
+      Map.put(session.world_state, "present_npcs", sync_present_npcs(session.id, location_id))
 
     session
     |> GameSession.changeset(%{world_state: world_state})
@@ -47,13 +55,13 @@ defmodule TalesForge.NPC do
   @spec notice_profiles(String.t(), [String.t()]) :: [map()]
   def notice_profiles(session_id, present_npc_ids) do
     session_id
-    |> list_instances()
+    |> list_people()
     |> Enum.filter(&(&1.npc_id in present_npc_ids))
     |> Enum.map(&prompt_npc_context/1)
   end
 
   @doc """
-  Seeds the session's NPC instances from the pack (tin_valley) or the
+  Seeds the session's NPCs (their character rows) from the pack (tin_valley) or the
   `priv/npcs` files. Definitions with a `derive` block get their defaults from
   `TalesForge.Characters.Defaults` (skills on the PC scale, stats, OCEAN), seeded
   per session and NPC; the authored keys stay as overrides.
@@ -78,7 +86,7 @@ defmodule TalesForge.NPC do
       if npc_id do
         npc_id = to_string(npc_id)
         definition = Defaults.apply(definition, rules, Defaults.seed(session_id, npc_id))
-        insert_instance!(session_id, npc_id, definition, world_tick)
+        insert_row!(%{session_id: session_id, world_tick: world_tick}, npc_id, definition)
       end
     end)
 
@@ -103,24 +111,22 @@ defmodule TalesForge.NPC do
 
   defp validate_derive!(_definition, _rules, _source), do: :ok
 
-  def list_instances(session_id) do
-    NpcInstance
-    |> where([n], n.game_session_id == ^session_id)
-    |> Repo.all()
-  end
+  @doc "The session's NPCs (`TalesForge.NPC.Rows.list/1`)."
+  @spec list_people(Ecto.UUID.t()) :: [Person.t()]
+  def list_people(session_id), do: Rows.list(session_id)
 
   @doc """
-  The combat fighter of one NPC instance (`TalesForge.Game.Combat`): the
-  stats, skills, OCEAN, Maslow level and concerns of its definition (with
-  the `Characters.Defaults` already applied) and its current concern.
-  Returns nil when the session has no instance with that id.
+  The combat fighter of one NPC (`TalesForge.Game.Combat`): the stats,
+  OCEAN, Maslow level and concerns of its definition (with the
+  `Characters.Defaults` already applied), the skills of its row and its
+  current concern. Returns nil when the session has no NPC with that id.
   """
   @spec combat_profile(String.t(), String.t()) :: map() | nil
   def combat_profile(session_id, npc_id) do
-    case get_instance(session_id, npc_id) do
-      %NpcInstance{} = inst ->
-        definition = inst.personality || %{}
-        runtime = inst.runtime_state || %{}
+    case get_person(session_id, npc_id) do
+      %Person{} = inst ->
+        definition = inst.personality
+        runtime = inst.runtime_state
 
         %{
           "id" => inst.npc_id,
@@ -140,44 +146,63 @@ defmodule TalesForge.NPC do
     end
   end
 
-  def get_instance(session_id, npc_id) do
-    Repo.get_by(NpcInstance, game_session_id: session_id, npc_id: npc_id)
-  end
+  @doc "One NPC of the session (`TalesForge.NPC.Rows.get/2`), or nil."
+  @spec get_person(Ecto.UUID.t(), String.t()) :: Person.t() | nil
+  def get_person(session_id, npc_id), do: Rows.get(session_id, npc_id)
+
+  @doc """
+  Saves `runtime_state` as the NPC's whole state onto its row
+  (`TalesForge.NPC.Rows.update!/2`) and returns the NPC as saved.
+  """
+  @spec put_state!(Person.t(), map()) :: Person.t()
+  def put_state!(%Person{} = inst, runtime_state), do: Rows.update!(inst, runtime_state)
 
   def sim_people(session_id) when is_binary(session_id) do
-    Enum.map(list_instances(session_id), &to_sim/1)
+    Enum.map(list_people(session_id), &to_sim/1)
   end
 
+  @doc """
+  The world-sim tick's people (`sim.people`) saved onto their rows, as
+  steps of `multi`; each row is read in the step, so it sees the steps
+  before it.
+  """
   def persist_tick_multi(multi, session_id, sim) when is_map(sim) do
     Enum.reduce(Map.get(sim, :people, []), multi, fn person, acc ->
-      inst = get_instance(session_id, npc_id(person))
+      id = npc_id(person)
 
-      if inst do
-        cs = NpcInstance.changeset(inst, %{runtime_state: runtime(person)})
-        Ecto.Multi.update(acc, {:npc, inst.npc_id}, cs)
-      else
-        acc
-      end
+      Ecto.Multi.run(acc, {:npc, id}, fn _repo, _changes ->
+        persist_tick(get_person(session_id, id), runtime(person))
+      end)
     end)
   end
 
-  def record_memory(session_id, npc_id, summary, world_tick)
+  defp persist_tick(%Person{} = inst, runtime),
+    do: inst |> Rows.changeset(runtime) |> Repo.update()
+
+  defp persist_tick(nil, _runtime), do: {:ok, nil}
+
+  def record_memory(%Note{
+        session_id: session_id,
+        npc_id: npc_id,
+        summary: summary,
+        tick: world_tick
+      })
       when is_binary(session_id) and is_binary(npc_id) and is_binary(summary) do
     trimmed = String.trim(summary)
 
     if trimmed == "" do
       :ok
     else
-      case get_instance(session_id, npc_id) do
-        %NpcInstance{} = inst -> persist_memory(inst, trimmed, world_tick)
+      case get_person(session_id, npc_id) do
+        %Person{} = inst -> persist_memory(inst, trimmed, world_tick)
         nil -> :ok
       end
     end
   end
 
   def bump_relationship(session_id, npc_id, delta) when is_number(delta) do
-    case get_instance(session_id, npc_id) do
-      %NpcInstance{} = inst ->
+    case get_person(session_id, npc_id) do
+      %Person{} = inst ->
         score = Map.get(inst.runtime_state, "relationship_score", 0.0) + delta
         runtime = Map.put(inst.runtime_state, "relationship_score", score)
         inst |> update_runtime!(runtime)
@@ -189,56 +214,41 @@ defmodule TalesForge.NPC do
   end
 
   def adjust_concern(session_id, npc_id, delta_ticks) when is_integer(delta_ticks) do
-    case get_instance(session_id, npc_id) do
-      %NpcInstance{} = inst ->
-        case Map.get(inst.runtime_state, "current_concern") do
-          %{} = concern ->
-            waiting = Map.get(inst.runtime_state, "concern_wait_ticks", 0) + delta_ticks
-            old_priority = Map.get(concern, "priority", 0)
+    case get_person(session_id, npc_id) do
+      %Person{runtime_state: %{"current_concern" => %{} = concern}} = inst ->
+        wait_on_concern(inst, concern, delta_ticks)
 
-            initiative_ready? =
-              waiting >= 4 and old_priority >= 8 and not initiative_emitted?(inst)
-
-            {waiting, concern} = maybe_escalate_concern(waiting, concern)
-            priority = Map.get(concern, "priority", 0)
-
-            runtime =
-              inst.runtime_state
-              |> Map.put("current_concern", concern)
-              |> Map.put("concern_wait_ticks", waiting)
-              |> maybe_reset_initiative_emitted(old_priority, priority)
-
-            update_runtime!(inst, runtime)
-
-            {:ok,
-             %{
-               concern_priority: priority,
-               concern_wait_ticks: waiting,
-               initiative_pending: initiative_ready? and not initiative_emitted?(inst)
-             }}
-
-          _ ->
-            :ok
-        end
-
-      nil ->
+      _ ->
         :ok
     end
   end
 
-  def evaluate_initiative(session_id, npc_id) do
-    inst = get_instance(session_id, npc_id)
-    priority = concern_priority(inst)
-    waiting = concern_wait_ticks(inst)
-    emitted? = initiative_emitted?(inst)
+  # The concern waits `delta_ticks` longer, and escalates when it has waited
+  # long enough.
+  defp wait_on_concern(%Person{runtime_state: runtime} = inst, concern, delta_ticks) do
+    waited = Map.get(runtime, "concern_wait_ticks", 0) + delta_ticks
+    old_priority = Map.get(concern, "priority", 0)
+    initiative_ready? = waited >= 4 and old_priority >= 8 and not initiative_emitted?(inst)
+    {waiting, concern} = maybe_escalate_concern(waited, concern)
+    priority = Map.get(concern, "priority", 0)
 
-    %{
-      initiative_pending: waiting >= 4 and priority >= 8 and not emitted?,
-      concern_priority: priority
-    }
+    runtime =
+      runtime
+      |> Map.put("current_concern", concern)
+      |> Map.put("concern_wait_ticks", waiting)
+      |> maybe_reset_initiative_emitted(old_priority, priority)
+
+    update_runtime!(inst, runtime)
+
+    {:ok,
+     %{
+       concern_priority: priority,
+       concern_wait_ticks: waiting,
+       initiative_pending: initiative_ready?
+     }}
   end
 
-  def initiative_text(%NpcInstance{npc_id: "worried_merchant"} = inst) do
+  def initiative_text(%Person{npc_id: "worried_merchant"} = inst) do
     focus =
       inst.runtime_state
       |> Map.get("current_concern", %{})
@@ -256,7 +266,7 @@ defmodule TalesForge.NPC do
     end
   end
 
-  def initiative_text(%NpcInstance{npc_id: "marta_kellen"} = inst) do
+  def initiative_text(%Person{npc_id: "marta_kellen"} = inst) do
     focus =
       inst.runtime_state
       |> Map.get("current_concern", %{})
@@ -274,12 +284,12 @@ defmodule TalesForge.NPC do
     end
   end
 
-  def initiative_text(%NpcInstance{} = inst) do
-    name = Map.get(inst.personality || %{}, "name", inst.npc_id)
+  def initiative_text(%Person{} = inst) do
+    name = Map.get(inst.personality, "name", inst.npc_id)
     "#{name} speaks up, as if a worry has been pressing on them for some time."
   end
 
-  def mark_initiative_emitted(%NpcInstance{} = inst, world_tick) do
+  def mark_initiative_emitted(%Person{} = inst, world_tick) do
     runtime =
       inst.runtime_state
       |> Map.put("initiative_emitted", true)
@@ -289,7 +299,7 @@ defmodule TalesForge.NPC do
     :ok
   end
 
-  def concern_priority(%NpcInstance{} = inst) do
+  def concern_priority(%Person{} = inst) do
     case Map.get(inst.runtime_state, "current_concern") do
       %{} = concern -> Map.get(concern, "priority", 0)
       _ -> 0
@@ -297,31 +307,6 @@ defmodule TalesForge.NPC do
   end
 
   def concern_priority(nil), do: 0
-
-  def build_agent_state(session_id, npc_id) do
-    case get_instance(session_id, npc_id) do
-      %NpcInstance{} = inst ->
-        %{initiative_pending: pending?, concern_priority: priority} =
-          evaluate_initiative(session_id, npc_id)
-
-        %{
-          session_id: session_id,
-          npc_id: npc_id,
-          location_id: Map.get(inst.runtime_state, "location_id"),
-          mood: Map.get(inst.runtime_state, "mood", "neutral"),
-          relationship_score: Map.get(inst.runtime_state, "relationship_score", 0.0),
-          concern_priority: priority,
-          concern_wait_ticks: concern_wait_ticks(inst),
-          initiative_pending: pending?,
-          initiative_emitted: initiative_emitted?(inst),
-          last_initiative_tick: Map.get(inst.runtime_state, "initiative_emitted_at_tick"),
-          last_interaction_tick: Map.get(inst.runtime_state, "last_interaction_tick")
-        }
-
-      nil ->
-        %{session_id: session_id, npc_id: npc_id}
-    end
-  end
 
   def apply_gm_updates(session_id, gm_result, world_tick) do
     gm_result.npc_memory_updates
@@ -335,7 +320,7 @@ defmodule TalesForge.NPC do
 
   def sync_present_npcs(session_id, location_id) do
     session_id
-    |> list_instances()
+    |> list_people()
     |> Enum.filter(fn inst ->
       Map.get(inst.runtime_state, "location_id") == location_id
     end)
@@ -343,42 +328,81 @@ defmodule TalesForge.NPC do
     |> Enum.sort()
   end
 
-  def stock_map(session_id, npc_ids) when is_list(npc_ids) do
+  @doc """
+  The NPCs `npc_ids` of the session as traders (refactor plan step 10d):
+  GameCharacters whose inventory is their stock, every item with a
+  `price_copper`, and whose coins are their purse. A definition's `"buys"`,
+  `"lends"` and `"serves"` say how the trader trades
+  (`TalesForge.Game.Trade`). An id that is not an NPC of the session is
+  left out.
+  """
+  @spec traders(Ecto.UUID.t(), [String.t()]) :: %{String.t() => GameCharacter.t()}
+  def traders(session_id, npc_ids) when is_list(npc_ids) do
     Enum.reduce(npc_ids, %{}, fn npc_id, acc ->
-      case get_instance(session_id, npc_id) do
-        %NpcInstance{} = inst ->
-          stock = Map.get(inst.runtime_state, "stock", definition_stock(inst))
-          Map.put(acc, npc_id, stock)
-
-        nil ->
-          acc
+      case get_person(session_id, npc_id) do
+        %Person{} = inst -> Map.put(acc, npc_id, trader(inst))
+        nil -> acc
       end
     end)
   end
 
-  def persist_stock_updates(_session_id, updates) when map_size(updates) == 0, do: :ok
+  defp trader(%Person{npc_id: npc_id, personality: definition} = inst) do
+    %GameCharacter{
+      slug: npc_id,
+      name: definition["name"] || npc_id,
+      coins: Map.get(inst.runtime_state, "coins") || %{},
+      inventory:
+        inst.runtime_state
+        |> Map.get("stock", definition_stock(inst))
+        |> TalesForge.Game.Inventory.normalize_stock(),
+      runtime: Map.take(definition, ["buys", "lends", "serves"])
+    }
+  end
 
-  def persist_stock_updates(session_id, updates) when is_map(updates) do
-    Enum.each(updates, fn {npc_id, stock} ->
-      case get_instance(session_id, npc_id) do
-        %NpcInstance{} = inst ->
-          update_runtime!(inst, Map.put(inst.runtime_state, "stock", stock))
-
-        nil ->
-          :ok
+  @doc """
+  Saves the inventory and the coins of each trader (`traders/2`) as its
+  NPC's stock and coins (the `inventory` and `coins` of its row).
+  """
+  @spec put_inventories(Ecto.UUID.t(), [GameCharacter.t()]) :: :ok
+  def put_inventories(session_id, traders) when is_list(traders) do
+    Enum.each(traders, fn %GameCharacter{slug: npc_id} = trader ->
+      case get_person(session_id, npc_id) do
+        %Person{} = inst -> Rows.put_goods!(inst, trader)
+        nil -> :ok
       end
     end)
-
-    :ok
   end
 
-  def refresh_world_npc_state(session_id) do
-    session_id
-    |> list_instances()
-    |> Enum.into(%{}, fn inst ->
-      {inst.npc_id, display_npc(inst)}
-    end)
+  @doc """
+  The NPC `inst` as a member of the session's cast
+  (`TalesForge.Game.Cast`, `TalesForge.Characters.cast/1`): `row` (its
+  character row as a `GameCharacter`) with the name, role and portrait of
+  its definition, its place and mood (`"neutral"` when unset) and its
+  current concern.
+  """
+  @spec cast_member(Person.t(), GameCharacter.t() | nil) :: GameCharacter.t()
+  def cast_member(%Person{} = inst, row) do
+    definition = inst.personality
+    runtime = inst.runtime_state
+    member = row || %GameCharacter{}
+
+    %GameCharacter{
+      member
+      | slug: inst.npc_id,
+        name: Map.get(definition, "name", inst.npc_id),
+        role: Map.get(definition, "role", "present"),
+        location_id: Map.get(runtime, "location_id"),
+        mood: Map.get(runtime, "mood", "neutral"),
+        runtime:
+          member.runtime
+          |> Map.take(["reaction"])
+          |> Map.merge(Map.take(runtime, ["current_concern"])),
+        extra: portrait(definition["portrait_url"])
+    }
   end
+
+  defp portrait(nil), do: %{}
+  defp portrait(url), do: %{"portrait_url" => url}
 
   @doc """
   The GM prompt sections for the present NPCs. With the option
@@ -390,7 +414,7 @@ defmodule TalesForge.NPC do
   def format_gm_sections(session_id, present_npc_ids, opts \\ []) do
     present =
       session_id
-      |> list_instances()
+      |> list_people()
       |> Enum.filter(&(&1.npc_id in present_npc_ids))
 
     meeting =
@@ -407,45 +431,47 @@ defmodule TalesForge.NPC do
           else: context
       end)
 
-    npc_json = Jason.encode!(contexts, pretty: true)
-
-    memory_lines =
-      present
-      |> Enum.flat_map(fn inst ->
-        inst
-        |> recent_memories()
-        |> Enum.map(fn mem ->
-          text = Map.get(mem, "what") || Map.get(mem, "summary", "")
-          "- #{inst.npc_id}: #{text}"
-        end)
-      end)
-
-    memory_block =
-      if memory_lines == [],
-        do: "(none)",
-        else: Enum.join(memory_lines, "\n")
-
-    rule =
-      if opts[:first_meeting],
-        do:
-          contexts
-          |> Enum.map(&{&1["name"], meeting[&1["id"]], Map.has_key?(&1, "hooks")})
-          |> FirstMeeting.rule()
-
     """
     ## Present NPCs (merged definition + runtime)
-    #{npc_json}
+    #{Jason.encode!(contexts, pretty: true)}
 
     ## NPC Memories (recent)
-    #{memory_block}
-    """ <> if(rule, do: "\n" <> rule <> "\n", else: "")
+    #{memory_block(present)}
+    """ <> meeting_rule(opts[:first_meeting], contexts, meeting)
   end
 
-  defp to_sim(%NpcInstance{} = inst) do
+  defp memory_block(present) do
+    case Enum.flat_map(present, &memory_lines/1) do
+      [] -> "(none)"
+      lines -> Enum.join(lines, "\n")
+    end
+  end
+
+  defp memory_lines(%Person{npc_id: npc_id} = inst) do
+    inst
+    |> recent_memories()
+    |> Enum.map(&"- #{npc_id}: #{Map.get(&1, "what") || Map.get(&1, "summary", "")}")
+  end
+
+  # The GM's first-meeting rule (flag NPC_FIRST_MEETING), as its own block.
+  defp meeting_rule(first_meeting, _contexts, _meeting) when first_meeting in [nil, false],
+    do: ""
+
+  defp meeting_rule(_first_meeting, contexts, meeting) do
+    contexts
+    |> Enum.map(&{&1["name"], meeting[&1["id"]], Map.has_key?(&1, "hooks")})
+    |> FirstMeeting.rule()
+    |> case do
+      nil -> ""
+      rule -> "\n" <> rule <> "\n"
+    end
+  end
+
+  defp to_sim(%Person{} = inst) do
     %{
       npc_id: inst.npc_id,
-      definition: inst.personality || %{},
-      runtime_state: inst.runtime_state || %{}
+      definition: inst.personality,
+      runtime_state: inst.runtime_state
     }
   end
 
@@ -455,7 +481,10 @@ defmodule TalesForge.NPC do
   defp runtime(%{runtime_state: state}), do: state
   defp runtime(%{"runtime_state" => state}), do: state
 
-  defp insert_instance!(session_id, npc_id, definition, world_tick) do
+  # `seed` has the session id and the world tick the session starts at. The
+  # player character's relationship is set when its row is written
+  # (`Characters.seed_session/2`).
+  defp insert_row!(%{session_id: session_id, world_tick: world_tick}, npc_id, definition) do
     location_id = Map.get(definition, "default_location_id", "weary_pilgrim")
 
     runtime =
@@ -471,18 +500,14 @@ defmodule TalesForge.NPC do
       }
       |> maybe_seed_concern_tick(definition, world_tick)
 
-    %NpcInstance{}
-    |> NpcInstance.changeset(%{
-      game_session_id: session_id,
-      npc_id: npc_id,
-      personality: definition,
-      runtime_state: runtime,
-      disposition: 0.0
-    })
-    |> Repo.insert!(
-      on_conflict: :nothing,
-      conflict_target: [:game_session_id, :npc_id]
-    )
+    attrs =
+      %Person{npc_id: npc_id, personality: definition, runtime_state: runtime}
+      |> Seed.attrs(world_tick)
+      |> Map.put(:game_session_id, session_id)
+
+    %Character{}
+    |> Character.changeset(attrs)
+    |> Repo.insert!(on_conflict: :nothing, conflict_target: [:game_session_id, :slug])
   end
 
   defp maybe_seed_concern_tick(runtime, definition, world_tick) do
@@ -498,12 +523,18 @@ defmodule TalesForge.NPC do
   defp append_memory(session_id, update, world_tick) when is_map(update) do
     npc_id = Map.get(update, "npc_id") || Map.get(update, :npc_id)
     summary = Map.get(update, "summary") || Map.get(update, :summary)
-    record_memory(session_id, npc_id, summary || "", world_tick)
+
+    record_memory(%Note{
+      session_id: session_id,
+      npc_id: npc_id,
+      summary: summary || "",
+      tick: world_tick
+    })
   end
 
   defp append_memory(_session_id, _update, _world_tick), do: :ok
 
-  defp persist_memory(%NpcInstance{} = inst, summary, world_tick) do
+  defp persist_memory(%Person{} = inst, summary, world_tick) do
     entry = %{
       "summary" => String.trim(summary),
       "tick" => world_tick,
@@ -514,37 +545,18 @@ defmodule TalesForge.NPC do
       inst.runtime_state
       |> Map.get("memories", [])
       |> Kernel.++([entry])
-      |> Enum.take(-@memory_limit)
+      |> Enum.take(-Rows.memory_limit())
 
     inst
     |> update_runtime!(Map.put(inst.runtime_state, "memories", memories))
-
-    :ok
+    |> Rows.add_memory!(entry)
   end
 
-  defp update_runtime!(%NpcInstance{} = inst, runtime_state) do
-    inst
-    |> NpcInstance.changeset(%{runtime_state: runtime_state})
-    |> Repo.update!()
-  end
+  defp update_runtime!(%Person{} = inst, runtime_state), do: Rows.update!(inst, runtime_state)
 
-  defp display_npc(%NpcInstance{} = inst) do
-    definition = inst.personality || %{}
-
-    %{
-      "id" => inst.npc_id,
-      "name" => Map.get(definition, "name", inst.npc_id),
-      "role" => Map.get(definition, "role", "present"),
-      "disposition" => Map.get(inst.runtime_state, "mood", "neutral"),
-      "concern_priority" => concern_priority(inst),
-      "portrait_url" => Map.get(definition, "portrait_url"),
-      "location_id" => Map.get(inst.runtime_state, "location_id")
-    }
-  end
-
-  defp prompt_npc_context(%NpcInstance{} = inst) do
-    definition = inst.personality || %{}
-    runtime = inst.runtime_state || %{}
+  defp prompt_npc_context(%Person{} = inst) do
+    definition = inst.personality
+    runtime = inst.runtime_state
     concern = runtime["current_concern"] || %{}
     motivations = definition["motivations"] || %{}
 
@@ -583,8 +595,8 @@ defmodule TalesForge.NPC do
     |> Enum.map(&Map.take(&1, ["who", "tick", "what", "felt", "summary"]))
   end
 
-  defp recent_memories(%NpcInstance{} = inst) do
-    visible_memories(Map.get(inst.runtime_state || %{}, "memories", []))
+  defp recent_memories(%Person{} = inst) do
+    visible_memories(Map.get(inst.runtime_state, "memories", []))
   end
 
   defp seed_stock(definition) do
@@ -593,7 +605,7 @@ defmodule TalesForge.NPC do
     |> TalesForge.Game.Inventory.normalize_stock()
   end
 
-  defp definition_stock(%NpcInstance{} = inst) do
+  defp definition_stock(%Person{} = inst) do
     inst.personality
     |> Map.get("stock", [])
     |> TalesForge.Game.Inventory.normalize_stock()
@@ -613,15 +625,8 @@ defmodule TalesForge.NPC do
 
   defp maybe_escalate_concern(waiting, concern), do: {waiting, concern}
 
-  defp concern_wait_ticks(%NpcInstance{} = inst),
-    do: Map.get(inst.runtime_state, "concern_wait_ticks", 0)
-
-  defp concern_wait_ticks(nil), do: 0
-
-  defp initiative_emitted?(%NpcInstance{} = inst),
+  defp initiative_emitted?(%Person{} = inst),
     do: Map.get(inst.runtime_state, "initiative_emitted", false)
-
-  defp initiative_emitted?(nil), do: false
 
   defp maybe_reset_initiative_emitted(runtime, old_priority, new_priority)
        when new_priority > old_priority do

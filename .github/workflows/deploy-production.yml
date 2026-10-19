@@ -194,10 +194,13 @@ jobs:
       - name: flyctl deploy
         if: steps.guard.outputs.deploy == 'true'
         # GIT_SHA: the commit goes into the image (Dockerfile), so the app knows it.
-        run: flyctl deploy --remote-only -a tales-forge --ha=false --depot="${FLY_USE_DEPOT:-false}" --build-arg GIT_SHA="$SHA"
+        # The script redeploys the same image once when the release machine
+        # or the bluegreen green machine never starts.
+        run: .github/scripts/fly_deploy.sh
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_USE_DEPOT: ${{ vars.FLY_USE_DEPOT }}
+          APP: tales-forge
           SHA: ${{ inputs.sha }}
 
       # The admin lane diffs against this tag (playtest.yml).

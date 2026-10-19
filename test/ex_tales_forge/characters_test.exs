@@ -4,17 +4,8 @@ defmodule TalesForge.CharactersTest do
   alias TalesForge.Characters
   alias TalesForge.Game.Pack
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, GameSession, SessionEvent}
-
-  setup do
-    on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-    end)
-
-    :ok
-  end
 
   defp create(attrs) do
     {:ok, session} = GameSessions.create_session(Map.merge(%{name: "Characters"}, attrs))
@@ -58,7 +49,13 @@ defmodule TalesForge.CharactersTest do
       assert steward.runtime["resources"] == %{"coin" => 12}
 
       innkeep = Characters.get_by_slug(session.id, "innkeep")
-      assert [%{id: "ale_mug", price_copper: 2}] = innkeep.inventory
+
+      assert [
+               %{id: "ale_mug", price_copper: 2},
+               %{id: "stew_bowl", price_copper: 5},
+               %{id: "bread_cheese", price_copper: 2}
+             ] = innkeep.inventory
+
       # Derived defaults: skills on the PC scale, authored OCEAN kept, stats within ±1 of 10.
       assert innkeep.skills == %{"persuasion" => 40, "insight" => 40, "etiquette" => 20}
       assert innkeep.ocean.conscientiousness == 7
@@ -74,10 +71,10 @@ defmodule TalesForge.CharactersTest do
         Map.take(Map.from_struct(c.stats), ~w(str dex con int wis cha)a)
       end
 
-      inst = TalesForge.NPC.get_instance(a.id, "prospector")
+      inst = TalesForge.NPC.get_person(a.id, "prospector")
 
       assert inst.personality["stats"] ==
-               TalesForge.NPC.get_instance(a.id, "prospector").personality["stats"]
+               TalesForge.NPC.get_person(a.id, "prospector").personality["stats"]
 
       for slug <- ~w(innkeep guild_steward prospector) do
         assert Enum.all?(Map.values(stats.(a, slug)), &(&1 in 9..11))

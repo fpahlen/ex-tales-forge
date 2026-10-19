@@ -18,10 +18,7 @@ defmodule Mix.Tasks.Intent.Eval do
   source the key came from; the key itself is never printed.
 
   The task starts the app for its config, Repo (calls are recorded in
-  `ai_calls`) and HTTP clients, but with
-  `config :ex_tales_forge, :npc_recovery_on_boot, false`, so the boot NPC sync
-  (`TalesForge.NPCRecovery`) does not touch the active sessions in the local
-  database.
+  `ai_calls`) and HTTP clients.
 
   ## Options
 
@@ -86,8 +83,24 @@ defmodule Mix.Tasks.Intent.Eval do
   @impl Mix.Task
   @spec run([String.t()]) :: :ok
   def run(argv) do
-    {opts, _rest, _invalid} = OptionParser.parse(argv, switches: @switches)
-    split = Keyword.get(opts, :split, "tune")
+    opts =
+      argv
+      |> OptionParser.parse(switches: @switches)
+      |> elem(0)
+      |> Keyword.put_new(:split, "tune")
+
+    split = opts[:split]
+    check_split!(opts)
+    Mix.Task.run("app.start")
+
+    {key, source} = api_key(opts)
+    Mix.shell().info("Jev key: #{source}")
+
+    print_and_save(opts, IntentEval.run(build_opts(opts, split, key)))
+  end
+
+  defp check_split!(opts) do
+    split = opts[:split]
 
     if split == "holdout" and not Keyword.get(opts, :i_mean_it, false) do
       Mix.raise(
@@ -98,29 +111,15 @@ defmodule Mix.Tasks.Intent.Eval do
     if opts[:fit_calibration] && (split != "tune" or is_nil(opts[:calibration_version])) do
       Mix.raise("--fit-calibration needs the tune split and --calibration-version.")
     end
+  end
 
-    start_app()
-
-    {key, source} = api_key(opts)
-    Mix.shell().info("Jev key: #{source}")
-
-    run_opts = build_opts(opts, split, key)
-    {report, results} = IntentEval.run(run_opts)
-
-    maybe_banner(split)
+  defp print_and_save(opts, {report, results}) do
+    maybe_banner(opts[:split])
     Mix.shell().info(report)
     maybe_write(opts[:out], report)
     maybe_dump(opts[:dump], results)
     maybe_fit(opts[:fit_calibration], opts[:calibration_version], results)
     summarise_cost(results)
-  end
-
-  # Loads runtime config, turns off the boot NPC sync, then starts the app.
-  # `app.start` does not re-run `app.config`, so the flag holds.
-  defp start_app do
-    Mix.Task.run("app.config")
-    Application.put_env(:ex_tales_forge, :npc_recovery_on_boot, false)
-    Mix.Task.run("app.start")
   end
 
   @doc """

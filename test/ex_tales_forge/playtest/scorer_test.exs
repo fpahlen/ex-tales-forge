@@ -4,7 +4,6 @@ defmodule TalesForge.Playtest.ScorerTest do
   import ExUnit.CaptureLog
   import TalesForge.PlaytestHelpers
 
-  alias TalesForge.Jido
   alias TalesForge.Playtest.{Reports, Runner, Scorer}
   alias TalesForge.Schemas.{AICall, PlaytestScore}
 
@@ -17,7 +16,6 @@ defmodule TalesForge.Playtest.ScorerTest do
       for pid <- Task.Supervisor.children(TalesForge.Playtest.Supervisor),
           do: Task.Supervisor.terminate_child(TalesForge.Playtest.Supervisor, pid)
 
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("XAI_API_KEY")
       Application.delete_env(:ex_tales_forge, :playtest_runner_enabled)
@@ -82,7 +80,9 @@ defmodule TalesForge.Playtest.ScorerTest do
     assert prompt =~ "[Scene] Rain drums on the inn's shutters."
     assert prompt =~ "T1 [Player] Evening! Are you not aware of the new regulations?"
     assert prompt =~ "T1 [GM] The lamp gutters as the innkeeper eyes you."
-    assert prompt =~ "T1 (GM notes) SECRET-GM-NOTE"
+    # The turn's code-layer session events, hidden from the player.
+    assert prompt =~ ~r/^T1 \(events\) time\.passed/m
+    refute prompt =~ "GM notes"
     assert prompt =~ "stopped by turn_limit"
 
     assert {:ok, _again} = Scorer.score(run_id)

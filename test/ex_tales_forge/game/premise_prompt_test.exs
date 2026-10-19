@@ -10,7 +10,6 @@ defmodule TalesForge.Game.PremisePromptTest do
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
 
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Schemas.SessionEvent
 
   @claim "as I did yesterday when I bought the enchanted armor, I put it on"
@@ -20,8 +19,6 @@ defmodule TalesForge.Game.PremisePromptTest do
     mode = Application.get_env(:ex_tales_forge, :intent_jev)
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
       if mode,
         do: Application.put_env(:ex_tales_forge, :intent_jev, mode),
         else: Application.delete_env(:ex_tales_forge, :intent_jev)
@@ -36,7 +33,7 @@ defmodule TalesForge.Game.PremisePromptTest do
     stub_llm(fn
       :gm, user, _system ->
         send(test_pid, {:gm_prompt, user})
-        %{"narrative" => "Brenna looks at you.", "gm_notes" => "n"}
+        %{"narrative" => "Brenna looks at you."}
 
       _kind, _user, _system ->
         :default

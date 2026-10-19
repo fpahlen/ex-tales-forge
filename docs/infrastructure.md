@@ -1,6 +1,6 @@
 ---
 title: Infrastructure assets
-updated: 2026-10-08
+updated: 2026-10-18
 ---
 
 # Infrastructure assets
@@ -47,6 +47,12 @@ Everything Tales Forge runs on, in one place. "Login held by" says who can get i
 |---|---|---|
 | Netlify site for tales-forge.ai | Old React app | When the Elixir rewrite replaces it |
 | Supabase project | Old app's database and auth | Same time, after any data worth keeping is exported |
+
+## Deploys
+
+Playtest (`playtest.yml`) and production (`deploy-production.yml`) both deploy through `.github/scripts/fly_deploy.sh`: `flyctl deploy --ha=false --wait-timeout 2m`. When Fly never starts a machine of the deploy (the release_command machine, or production's bluegreen green machine, stays in `created`), the script deploys the same pushed image once more (`flyctl deploy --image …`, no rebuild). A build failure, a long migration, a green machine that started but failed its health check, and any other error are not retried. CI runs shellcheck and `.github/scripts/fly_deploy_test.sh` (a fake flyctl, no Fly access) on every PR.
+
+The GitHub environment `production` (repo Settings → Environments) requires `fpahlen` as reviewer, with `can_admins_bypass` false, so every production deploy waits for that approval. Bots must never approve production deployments: only Fredrik clicks Approve.
 
 ## GitHub sign-in for the admin
 

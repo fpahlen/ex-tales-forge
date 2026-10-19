@@ -19,7 +19,6 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{AICall, GameSession, SessionEvent}
 
@@ -30,8 +29,6 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
     saved = Map.new(@env, &{&1, System.get_env(&1)})
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
       Enum.each(saved, fn
         {key, nil} -> System.delete_env(key)
         {key, value} -> System.put_env(key, value)
@@ -46,7 +43,7 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
     stub_llm(fn
       :gm, user, _system ->
         send(test_pid, {:gm_prompt, user})
-        %{"narrative" => "The table waits.", "gm_notes" => "n"}
+        %{"narrative" => "The table waits."}
 
       _kind, _user, _system ->
         :default
@@ -63,7 +60,7 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
 
   defp session(adventure_id, start, location_id \\ nil) do
     {:ok, session} = GameSessions.create_session(%{name: "Replay", adventure_id: adventure_id})
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
     put_location = &if(location_id, do: Map.put(&1, "location_id", location_id), else: &1)
 
     character =
@@ -73,12 +70,12 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
       |> put_location.()
 
     world = session.world_state |> Map.put("character", character) |> put_location.()
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session |> GameSession.changeset(%{world_state: world}) |> save_session!()
   end
 
   defp play(session_id, step) do
     before = outcome_events(session_id)
-    assert {:ok, _payload} = TurnProcessor.run(session_id, step["text"], step["player_action"])
+    assert {:ok, _payload} = TurnProcessor.run(session_id, {step["text"], step["player_action"]})
     assert_received {:gm_prompt, prompt}
     [record] = outcome_events(session_id) -- before
     {record, prompt}
@@ -92,7 +89,7 @@ defmodule TalesForge.Game.PremiseFirstReplayTest do
   end
 
   defp books(session_id) do
-    character = Repo.get!(GameSession, session_id).world_state["character"]
+    character = GameSessions.get_session!(session_id).world_state["character"]
 
     {Inventory.coin_total_copper(character["coins"]),
      character["inventory"] |> Enum.map(&{&1["id"], &1["quantity"]}) |> Enum.sort()}

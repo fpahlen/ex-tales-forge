@@ -19,11 +19,16 @@ defmodule TalesForge.Game.TargetCheck do
   sees only the living, and the turn rolled persuasion). The social skill
   comes from the action or from the verb in the text, so the intent
   classifier and the fallback reading get the same result.
+
+  The people are the session's GM characters (`TalesForge.Game.Cast`), so
+  the check takes the scene as `{world, cast}`.
   """
 
+  alias TalesForge.Game.Cast
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Schemas.SingleAction
   alias TalesForge.Game.World
+  alias TalesForge.GameCharacter
 
   @person_actions ~w(speak combat give trade buy sell train spend)a
   @social_skills ~w(persuasion deception intimidation)
@@ -35,35 +40,35 @@ defmodule TalesForge.Game.TargetCheck do
   @doc """
   The reason the action is blocked, or nil.
 
-      iex> world = %{"present_npcs" => ["marta_kellen"], "npc_state" => %{"marta_kellen" =>
-      ...>   %{"name" => "Marta Kellen", "vitality" => "dead", "location_id" => "weary_pilgrim"}}}
+      iex> world = %{"present_npcs" => ["marta_kellen"]}
+      iex> cast = %{"marta_kellen" => %TalesForge.GameCharacter{slug: "marta_kellen",
+      ...>   name: "Marta Kellen", vitality: "dead", location_id: "weary_pilgrim"}}
       iex> action = %TalesForge.Game.Schemas.SingleAction{action_type: :speak, target: "marta_kellen"}
-      iex> TalesForge.Game.TargetCheck.reason(world, action)
+      iex> TalesForge.Game.TargetCheck.reason({world, cast}, action)
       "Marta Kellen is dead. The dead do not talk, fight, trade or listen."
-      iex> TalesForge.Game.TargetCheck.reason(world, %{action | action_type: :observe})
+      iex> TalesForge.Game.TargetCheck.reason({world, cast}, %{action | action_type: :observe})
       nil
   """
-  @spec reason(map(), SingleAction.t(), String.t() | nil) :: String.t() | nil
-  def reason(world, action, text \\ nil)
+  @spec reason({map(), Cast.t()}, SingleAction.t(), String.t() | nil) :: String.t() | nil
+  def reason(scene, action, text \\ nil)
 
-  def reason(world, %SingleAction{} = action, text) when is_map(world) do
-    state = npc_state(world)
+  def reason({world, cast}, %SingleAction{} = action, text) when is_map(world) do
     skill = social_skill(action, text)
 
-    case find_target(state, action.target, text) do
+    case find_target(cast, action.target, text) do
       nil -> nil
-      target -> target_reason(world, action, skill, target, state[target])
+      target -> target_reason(world, {action, skill}, {target, cast[target]})
     end
   end
 
-  def reason(_world, _action, _text), do: nil
+  def reason(_scene, _action, _text), do: nil
 
-  defp target_reason(world, action, skill, target, npc) do
+  defp target_reason(world, {action, skill}, {target, npc}) do
     cond do
-      not is_map(npc) ->
+      not is_struct(npc, GameCharacter) ->
         nil
 
-      npc["vitality"] == "dead" and
+      npc.vitality == "dead" and
           (action.action_type in @person_actions or skill in @social_skills) ->
         "#{name(npc, target)} is dead. The dead do not talk, fight, trade or listen."
 
@@ -73,13 +78,6 @@ defmodule TalesForge.Game.TargetCheck do
 
       true ->
         nil
-    end
-  end
-
-  defp npc_state(world) do
-    case world["npc_state"] do
-      %{} = state -> state
-      _ -> %{}
     end
   end
 
@@ -111,7 +109,7 @@ defmodule TalesForge.Game.TargetCheck do
     end
   end
 
-  defp dead?(npc), do: is_map(npc) and npc["vitality"] == "dead"
+  defp dead?(npc), do: match?(%GameCharacter{vitality: "dead"}, npc)
 
   # The id of the first person (by id) whose full name or a name word of
   # four letters or more is a word of `text`.
@@ -119,10 +117,10 @@ defmodule TalesForge.Game.TargetCheck do
     words = words(text)
 
     state
-    |> Enum.filter(fn {_id, npc} -> is_map(npc) and keep?.(npc) end)
+    |> Enum.filter(fn {_id, npc} -> keep?.(npc) end)
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.find_value(fn {id, npc} ->
-      names = words("#{npc["name"]} #{String.replace(id, "_", " ")}")
+      names = words("#{npc.name} #{String.replace(id, "_", " ")}")
       if Enum.any?(names, &(String.length(&1) >= 4 and &1 in words)), do: id
     end)
   end
@@ -131,10 +129,10 @@ defmodule TalesForge.Game.TargetCheck do
     text |> String.downcase() |> String.split(~r/[^\p{L}\p{N}]+/u, trim: true)
   end
 
-  defp name(npc, id), do: npc["name"] || id
+  defp name(npc, id), do: npc.name || id
 
   defp place(world, npc) do
-    id = npc["location_id"]
+    id = npc.location_id
     if is_binary(id), do: World.runtime_location(world, id)["name"] || id, else: "another place"
   end
 end

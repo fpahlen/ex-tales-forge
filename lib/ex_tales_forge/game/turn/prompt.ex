@@ -1,7 +1,7 @@
 defmodule TalesForge.Game.Turn.Prompt do
   @moduledoc """
   Stage 5 of a turn: the GM context and the GM messages
-  (`TalesForge.Game.Prompts.gm_messages/6`, built by `TalesForge.Prompt`).
+  (`TalesForge.Prompt.Assemble.gm_messages/3`, built by `TalesForge.Prompt`).
   Writes `prompt`: `context` and `messages`.
   """
 
@@ -12,6 +12,7 @@ defmodule TalesForge.Game.Turn.Prompt do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.Turn
+  alias TalesForge.Prompt.Assemble
 
   @doc "Writes `prompt`."
   @spec build(Turn.t()) :: Turn.t()
@@ -19,31 +20,44 @@ defmodule TalesForge.Game.Turn.Prompt do
     Steps.time(:prompt, fn ->
       context =
         %{session | world_state: outcome.board.world}
-        |> Context.build_gm_context()
-        |> Map.put(:npc_reactions, turn.npcs.reactions)
-        |> Map.put(:world_facts, outcome.agents)
-        |> Map.put(:price_lines, outcome.price_lines)
-        |> Map.put(:moved_from, moved_from(session.world_state, outcome.board.world))
-        |> Map.put(:premise_findings, turn.premise.findings)
-        |> Map.put(:outcome_record, Map.get(outcome.board, :outcome))
-        |> Map.put(:rest_growth, rest_growth(outcome))
-        |> Map.put(:noticed, turn.notice)
-        |> Map.put(:combat, Map.get(outcome, :combat))
+        |> Context.build_gm_context(outcome.board.cast)
+        |> Map.merge(turn_context(turn))
         |> put_player_request(turn.opts[:gm_note])
+        |> put_clarify(turn.intent.clarify)
 
       messages =
-        Prompts.gm_messages(
-          context,
-          outcome.mechanical,
-          gm_action(Map.get(outcome, :played) || turn.intent, turn.opts[:gm_quote]),
-          outcome.handler,
-          turn.number,
-          flags: turn.flags,
-          role: turn.role
-        )
+        Assemble.gm_messages(context, gm_turn(turn), flags: turn.flags, role: turn.role)
 
       %{turn | prompt: %{context: context, messages: messages}}
     end)
+  end
+
+  # What this turn adds to the GM context: the NPC reactions, the world facts,
+  # the prices, the move, the premise findings, the outcome record, the rest
+  # growth, what the character noticed and the combat exchange.
+  defp turn_context(%Turn{outcome: outcome, session: session} = turn) do
+    %{
+      npc_reactions: turn.npcs.reactions,
+      world_facts: outcome.agents,
+      price_lines: outcome.price_lines,
+      moved_from: moved_from(session.world_state, outcome.board.world),
+      premise_findings: turn.premise.findings,
+      outcome_record: Map.get(outcome.board, :outcome),
+      rest_growth: rest_growth(outcome),
+      noticed: turn.notice,
+      combat: Map.get(outcome, :combat)
+    }
+  end
+
+  # What the turn adds to the GM prompt: the resolution, the action the GM
+  # plays (with the player's quote), the handler and the turn number.
+  defp gm_turn(%Turn{outcome: outcome} = turn) do
+    %Prompts.GmTurn{
+      mechanical: outcome.mechanical,
+      player_action: gm_action(Map.get(outcome, :played) || turn.intent, turn.opts[:gm_quote]),
+      handler: outcome.handler,
+      turn_number: turn.number
+    }
   end
 
   # The location the character left this turn, or nil (the scene block in
@@ -82,6 +96,10 @@ defmodule TalesForge.Game.Turn.Prompt do
 
   defp put_player_request(context, note) when is_binary(note),
     do: Map.put(context, :player_request, note)
+
+  # An unclear turn: the question the GM voices (`TalesForge.Game.Clarify`).
+  defp put_clarify(context, %{} = clarify), do: Map.put(context, :clarify, clarify)
+  defp put_clarify(context, _none), do: context
 
   # INTENT_JEV=on: the GM's quote replaces overall_intent in the prompt only.
   defp gm_action(player_action, quote) when is_binary(quote) and quote != "",

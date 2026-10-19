@@ -1,15 +1,17 @@
 defmodule TalesForge.Admin do
   @moduledoc """
-  Admin context for sessions, NPC instances, turns, and NPC definition files.
+  Admin context for sessions, their NPCs, turns, and NPC definition files.
   """
 
   import Ecto.Query
 
   require Logger
 
+  alias TalesForge.Characters
   alias TalesForge.NPC
+  alias TalesForge.NPC.Person
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{GameSession, NpcInstance, Scene, Turn}
+  alias TalesForge.Schemas.{Character, GameSession, Scene, Turn}
 
   @doc "Row counts for the admin dashboard."
   def stats do
@@ -20,7 +22,10 @@ defmodule TalesForge.Admin do
         |> where([s], s.status == "active")
         |> Repo.aggregate(:count, :id),
       turns: Repo.aggregate(Turn, :count, :id),
-      npc_instances: Repo.aggregate(NpcInstance, :count, :id),
+      npcs:
+        Character
+        |> where([c], c.controller == "gm" and fragment("?->>'source' = 'pack'", c.origin))
+        |> Repo.aggregate(:count, :id),
       scenes: Repo.aggregate(Scene, :count, :id)
     }
   end
@@ -31,6 +36,7 @@ defmodule TalesForge.Admin do
       GameSession
       |> order_by([s], desc: s.inserted_at)
       |> Repo.all()
+      |> Characters.put_sheets()
 
     counts = turn_counts(Enum.map(sessions, & &1.id))
 
@@ -49,6 +55,7 @@ defmodule TalesForge.Admin do
 
     GameSession
     |> Repo.get!(id)
+    |> Characters.put_sheet()
     |> Repo.preload(preloads)
   end
 
@@ -63,19 +70,30 @@ defmodule TalesForge.Admin do
     |> Repo.update()
   end
 
+  @doc """
+  Saves an edited world state. Its `"character"` is the player character's
+  sheet, so the session and the characters rows are written in one
+  transaction (`TalesForge.Characters.save_session/1`). The row is the only
+  copy of the sheet, so an edit without `"character"` keeps the current one.
+  """
   def update_session_world_state(session, json_string)
       when is_binary(json_string) do
-    id = Map.get(session, :id)
-    ecto_session = Repo.get!(GameSession, id)
+    with {:ok, world_state} <- decode_json_map(json_string) do
+      current = get_session!(Map.get(session, :id))
 
-    with {:ok, world_state} <- decode_json_map(json_string),
-         {:ok, updated} <- update_session(ecto_session, %{world_state: world_state}) do
-      {:ok, updated}
+      current
+      |> GameSession.changeset(%{world_state: keep_character(world_state, current.world_state)})
+      |> Characters.save_session()
     end
   end
 
+  defp keep_character(edited, %{"character" => %{} = sheet}),
+    do: Map.put_new(edited, "character", sheet)
+
+  defp keep_character(edited, _current), do: edited
+
   @doc """
-  Deletes the session. The foreign keys cascade: turns, scenes, NPC instances,
+  Deletes the session. The foreign keys cascade: turns, scenes, characters,
   session events, front instances and playtest runs go with it; AI call rows
   keep their data with `game_session_id` set to NULL.
   """
@@ -92,14 +110,20 @@ defmodule TalesForge.Admin do
     :ok
   end
 
+  @doc """
+  Deletes the session's pack NPCs (their character rows and memories) and
+  seeds them again from the pack files. Each NPC's relationship to the
+  player character is keyed again by the next turn.
+  """
   def reset_session_npcs(session) do
     id = Map.get(session, :id)
+    slugs = NPC.Rows.slugs(id)
 
-    from(n in NpcInstance, where: n.game_session_id == ^id)
+    from(c in Character, where: c.game_session_id == ^id and c.slug in ^slugs)
     |> Repo.delete_all()
 
     # For seed/refresh we need the Ecto struct or world_state; fetch fresh
-    ecto_session = Repo.get!(GameSession, id)
+    ecto_session = get_session!(id)
     :ok = NPC.seed_session(ecto_session)
 
     case NPC.refresh_session_world_state(ecto_session) do
@@ -108,52 +132,29 @@ defmodule TalesForge.Admin do
     end
   end
 
-  def list_npc_instances(session_id) do
-    NpcInstance
-    |> where([n], n.game_session_id == ^session_id)
-    |> order_by([n], asc: n.npc_id)
-    |> Repo.all()
-  end
-
-  def get_npc_instance!(session_id, npc_id) do
-    NpcInstance
-    |> where([n], n.game_session_id == ^session_id and n.npc_id == ^npc_id)
-    |> Repo.one!()
-  end
+  @doc "The session's pack NPCs (`TalesForge.NPC.Person`), by slug."
+  def list_npcs(session_id), do: NPC.list_people(session_id)
 
   @doc """
-  The NPC instance for the `npc_id` slug in that session, or `nil` when the
-  session has no such NPC. Same lookup as `get_npc_instance!/2`.
+  The NPC for the `npc_id` slug in that session, or `nil` when the session
+  has no such NPC.
   """
-  def get_npc_instance(session_id, npc_id) do
-    NpcInstance
-    |> where([n], n.game_session_id == ^session_id and n.npc_id == ^npc_id)
-    |> Repo.one()
-  end
+  def get_npc(session_id, npc_id), do: NPC.get_person(session_id, npc_id)
 
-  @doc "A changeset for the admin NPC form (personality, runtime state, disposition)."
-  def change_npc_instance(%NpcInstance{} = instance, attrs \\ %{}) do
-    NpcInstance.admin_changeset(instance, attrs)
-  end
-
-  @doc "Saves the admin NPC form; only personality, runtime state and disposition change."
-  def save_npc_instance(%NpcInstance{} = instance, attrs) do
-    instance
-    |> NpcInstance.admin_changeset(attrs)
-    |> Repo.update()
-  end
-
-  def update_npc_instance(%NpcInstance{} = instance, attrs) do
-    instance
-    |> NpcInstance.changeset(attrs)
-    |> Repo.update()
-  end
-
-  def update_npc_runtime_state(%NpcInstance{} = instance, json_string)
-      when is_binary(json_string) do
-    with {:ok, runtime_state} <- decode_json_map(json_string),
-         {:ok, instance} <- update_npc_instance(instance, %{runtime_state: runtime_state}) do
-      {:ok, instance}
+  @doc """
+  Saves `json_string` (a JSON object) as the NPC's runtime state: its place,
+  mood, stock and relationship go to their columns, the rest to `runtime`
+  (`TalesForge.NPC.Person.attrs/3`).
+  """
+  def update_npc_runtime_state(%Person{} = npc, json_string) when is_binary(json_string) do
+    with {:ok, runtime_state} <- decode_json_map(json_string) do
+      npc
+      |> NPC.Rows.changeset(runtime_state)
+      |> Repo.update()
+      |> case do
+        {:ok, row} -> {:ok, Person.from_row(row)}
+        {:error, changeset} -> {:error, "Invalid runtime state: #{inspect(changeset.errors)}"}
+      end
     end
   end
 

@@ -48,7 +48,7 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
   test "every admin LiveView with params renders the breadcrumbs", %{conn: conn} do
     conn = log_in_admin(conn)
     {:ok, session} = TalesForge.GameSessions.create_session(%{name: "Crumbs"})
-    [npc | _] = TalesForge.Admin.list_npc_instances(session.id)
+    [npc | _] = TalesForge.Admin.list_npcs(session.id)
     [definition | _] = TalesForge.Admin.list_npc_definitions()
 
     run =

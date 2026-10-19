@@ -19,7 +19,6 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
 
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent}
 
@@ -31,8 +30,6 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
     saved = Map.new(@env, &{&1, System.get_env(&1)})
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
       Enum.each(saved, fn
         {key, nil} -> System.delete_env(key)
         {key, value} -> System.put_env(key, value)
@@ -47,7 +44,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
     stub_llm(fn
       :gm, user, _system ->
         send(test_pid, {:gm_prompt, user})
-        %{"narrative" => "The table waits.", "gm_notes" => "n"}
+        %{"narrative" => "The table waits."}
 
       _kind, _user, _system ->
         :default
@@ -61,7 +58,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
 
   defp session(adventure_id, start, location_id \\ nil) do
     {:ok, session} = GameSessions.create_session(%{name: "Replay", adventure_id: adventure_id})
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
 
     character =
       session.world_state["character"]
@@ -74,12 +71,12 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
       |> Map.put("character", character)
       |> then(&if(location_id, do: Map.put(&1, "location_id", location_id), else: &1))
 
-    session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session |> GameSession.changeset(%{world_state: world}) |> save_session!()
   end
 
   defp play(session_id, step) do
     before = outcome_events(session_id)
-    assert {:ok, _payload} = TurnProcessor.run(session_id, step["text"], step["player_action"])
+    assert {:ok, _payload} = TurnProcessor.run(session_id, {step["text"], step["player_action"]})
     assert_received {:gm_prompt, prompt}
 
     [record] = outcome_events(session_id) -- before
@@ -94,7 +91,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
   end
 
   defp books(session_id) do
-    character = Repo.get!(GameSession, session_id).world_state["character"]
+    character = GameSessions.get_session!(session_id).world_state["character"]
 
     {TalesForge.Game.Inventory.coin_total_copper(character["coins"]),
      character["inventory"] |> Enum.map(&{&1["id"], &1["quantity"]}) |> Enum.sort()}
@@ -167,7 +164,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
       {_record, prompt} = play(session.id, step)
 
       assert prompt =~
-               "Rejected: sell (smith). Reason: Cannot sell 'enchanted_armor' — not in inventory."
+               "Rejected: sell (smith). Reason: Hilde Brask does not buy 'enchanted_armor'."
 
       assert prompt =~ "Coins: no change (500 copper in total)."
     end
@@ -180,7 +177,7 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
       step = Enum.find(fixture["cases"], &(&1["id"] == "h-fp14-sell"))
       session = session(fixture["adventure_id"], fixture["start"])
 
-      assert {:ok, _} = TurnProcessor.run(session.id, step["text"], step["player_action"])
+      assert {:ok, _} = TurnProcessor.run(session.id, {step["text"], step["player_action"]})
       assert_received {:gm_prompt, prompt}
       refute prompt =~ @heading
 

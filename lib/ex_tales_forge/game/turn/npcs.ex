@@ -1,8 +1,9 @@
 defmodule TalesForge.Game.Turn.Npcs do
   @moduledoc """
   Stage 4 of a turn: the NPC reactions (prototype, `NPC_REACTIONS=on` or
-  `WORLD_AGENTS=on`), before the GM call. Moods carry over in
-  `world_state["npc_moods"]`; this turn's reactions go to the per-turn prompt.
+  `WORLD_AGENTS=on`), before the GM call. Each reaction is a `{:feel, mood}`
+  Intention that this stage applies, so the moods carry over on the NPCs'
+  characters in the turn's cast (`runtime["reaction"]`); this turn's reactions go to the per-turn prompt.
   The reactions come from the `npc` adapter (the Jev call and its 600 ms
   timeout).
 
@@ -14,7 +15,7 @@ defmodule TalesForge.Game.Turn.Npcs do
   alias TalesForge.AICalls.Steps
   alias TalesForge.Game.NpcReactions
   alias TalesForge.Game.Turn
-  alias TalesForge.Game.Turn.Premise
+  alias TalesForge.Game.Turn.{Intentions, Premise}
 
   @doc "Writes `npcs.reactions` and `premise.findings`."
   @spec react(Turn.t()) :: Turn.t()
@@ -38,17 +39,19 @@ defmodule TalesForge.Game.Turn.Npcs do
   defp reactions(turn, board, findings) do
     if enabled?(turn) do
       Steps.time(:npc_reactions, fn ->
-        {reactions, world} =
-          turn.adapters.npc.(
-            turn.session.id,
-            board.world,
-            turn.number,
-            turn.raw_action,
-            turn.outcome.mechanical,
-            findings
-          )
+        reactions =
+          turn.adapters.npc.(%NpcReactions.Moment{
+            session_id: turn.session.id,
+            world: board.world,
+            cast: board.cast,
+            turn_number: turn.number,
+            raw_action: turn.raw_action,
+            mechanical: turn.outcome.mechanical,
+            findings: findings
+          })
 
-        {reactions, %{board | world: world}}
+        cast = Intentions.feel(board.cast, NpcReactions.intentions(reactions))
+        {reactions, Map.put(board, :cast, cast)}
       end)
     else
       {[], board}

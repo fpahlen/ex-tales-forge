@@ -66,8 +66,8 @@ defmodule TalesForge.Game.QaEad76238Test do
       deferred_actions: deferred
     }
 
-    session
-    |> Turn.new(n, t["player_action"], pa, flags: @flags, role: :playtest)
+    {session, n}
+    |> Turn.new({t["player_action"], pa}, flags: @flags, role: :playtest)
     |> Turn.Mechanics.apply()
   end
 

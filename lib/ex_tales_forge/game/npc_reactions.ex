@@ -15,7 +15,7 @@ defmodule TalesForge.Game.NpcReactions do
     checks the NPC cannot see (insight, history, arcana, tracking, survival,
     tactics) are left out, so a failed read never makes her warier.
 
-  Never gm_notes, secrets, hidden events or memories marked secret.
+  Never the GM's raw reply, secrets, hidden events or memories marked secret.
 
   Output per NPC, a typed reaction: `emotion` (fixed labels), `intensity`
   0.0–1.0, `stance` (hostile, cool, neutral, warm, friendly) and `confidence`
@@ -23,8 +23,9 @@ defmodule TalesForge.Game.NpcReactions do
   means no reaction for that NPC; the turn goes on.
 
   The reactions go to the GM as one short line per NPC in the per-turn section
-  (`prompt_section/1`); the mood carries over in the session's
-  `world_state["npc_moods"]`. Each call is an `ai_calls` row with
+  (`prompt_section/1`); the mood carries over on the NPC's character
+  (`runtime["reaction"]`, `TalesForge.Game.Cast.reactions/1`), applied by
+  the turn as `{:feel, mood}` Intentions (`intentions/1`). Each call is an `ai_calls` row with
   call_type `jev`, purpose `npc_reaction`.
   """
 
@@ -34,9 +35,37 @@ defmodule TalesForge.Game.NpcReactions do
 
   alias TalesForge.AICalls
   alias TalesForge.Config
+  alias TalesForge.Game.Cast
+  alias TalesForge.Intention
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Scene, Turn}
+
+  defmodule Moment do
+    @moduledoc """
+    The moment the NPCs react to (`TalesForge.Game.NpcReactions.react/1`):
+    the session, the world, the session's cast (`TalesForge.Game.Cast`),
+    the turn number, the player's words, the mechanical outcome and the
+    premise findings. `react/1` adds the moods
+    before it, the scene the NPCs saw and heard, and the call timeout.
+    """
+
+    @enforce_keys [:session_id, :world, :turn_number, :raw_action, :mechanical]
+    defstruct @enforce_keys ++ [cast: %{}, findings: [], moods: %{}, scene: nil, timeout: nil]
+
+    @type t :: %__MODULE__{
+            session_id: String.t(),
+            world: map(),
+            cast: TalesForge.Game.Cast.t(),
+            turn_number: integer(),
+            raw_action: String.t(),
+            mechanical: struct() | nil,
+            findings: [map()] | nil,
+            moods: map(),
+            scene: map() | nil,
+            timeout: non_neg_integer() | nil
+          }
+  end
 
   @model "jev-1.13.0"
   @purpose "npc_reaction"
@@ -97,54 +126,73 @@ defmodule TalesForge.Game.NpcReactions do
   end
 
   @doc """
-  Reactions of the NPCs present in `world` this turn, and `world` with their
-  moods carried over in `"npc_moods"`. Returns `{reactions, world}`;
-  `{[], world}` when off, nobody is present, or every call failed.
+  Reactions of the NPCs present in the world of `moment` this turn; `[]`
+  when off, nobody is present, or every call failed. Writes nothing: the
+  turn applies the moods as Intentions (`intentions/1`).
   """
-  @spec react(String.t(), map(), integer(), String.t(), struct() | nil, [map()]) ::
-          {[reaction()], map()}
-  def react(session_id, world, turn_number, raw_action, mechanical, findings \\ []) do
-    # A dead person does not react (QA 2026-10-15, session 99817343).
-    state = world["npc_state"] || %{}
-
-    present =
-      world["present_npcs"]
-      |> List.wrap()
-      |> Enum.reject(&TalesForge.Game.Context.dead?(state, &1))
-
-    npcs =
-      if enabled?() and present != [] do
-        session_id
-        |> NPC.list_instances()
-        |> Enum.filter(&(&1.npc_id in present))
-        |> Enum.take(@max_npcs)
-      else
-        []
-      end
-
-    if npcs == [] do
-      {[], world}
-    else
-      moods = world["npc_moods"] || %{}
-
-      scene =
-        session_id
-        |> situation(raw_action, visible_outcome(mechanical, world))
-        |> Map.put(:findings, findings_text(findings))
-
-      reactions = run_all(npcs, moods, scene, session_id, turn_number)
-      {reactions, put_moods(world, moods, reactions, turn_number)}
+  @spec react(Moment.t()) :: [reaction()]
+  def react(%Moment{} = moment) do
+    case reacting(moment) do
+      [] -> []
+      npcs -> run_all(npcs, seen(moment))
     end
   end
 
-  defp run_all(npcs, moods, scene, session_id, turn_number) do
-    timeout = Config.npc_reactions_timeout_ms()
+  @doc """
+  Each reaction as a `{:feel, mood}` Intention of its NPC: the mood that
+  carries over on the NPC's character (`runtime["reaction"]`).
+
+      iex> [i] = TalesForge.Game.NpcReactions.intentions([%{"npc_id" => "innkeep", "emotion" => "wary", "intensity" => 0.5, "stance" => "cool", "confidence" => 0.7, "turn_number" => 3, "name" => "Brenna"}])
+      iex> {i.character_id, i.by, i.action}
+      {"innkeep", :system, {:feel, %{"emotion" => "wary", "intensity" => 0.5, "stance" => "cool", "confidence" => 0.7, "turn_number" => 3}}}
+  """
+  @spec intentions([reaction()]) :: [Intention.t()]
+  def intentions(reactions) do
+    for r <- reactions do
+      mood = Map.take(r, ~w(emotion intensity stance confidence turn_number))
+      Intention.system(r["npc_id"], {:feel, mood}, nil)
+    end
+  end
+
+  # The NPCs that react: present and alive, at most #{@max_npcs};
+  # none when off.
+  defp reacting(%Moment{session_id: session_id, world: world, cast: cast}) do
+    # A dead person does not react (QA 2026-10-15, session 99817343).
+    present =
+      world["present_npcs"]
+      |> List.wrap()
+      |> Enum.reject(&Cast.dead?(cast, &1))
+
+    if enabled?() and present != [] do
+      session_id
+      |> NPC.list_people()
+      |> Enum.filter(&(&1.npc_id in present))
+      |> Enum.take(@max_npcs)
+    else
+      []
+    end
+  end
+
+  # `moment` with the moods before it, the scene the NPCs saw and heard,
+  # and the call timeout.
+  defp seen(%Moment{session_id: session_id, world: world} = moment) do
+    %{
+      moment
+      | moods: Cast.reactions(moment.cast),
+        scene:
+          session_id
+          |> situation(moment.raw_action, visible_outcome(moment.mechanical, world))
+          |> Map.put(:findings, findings_text(moment.findings)),
+        timeout: Config.npc_reactions_timeout_ms()
+    }
+  end
+
+  defp run_all(npcs, %Moment{session_id: session_id, turn_number: turn_number} = moment) do
+    timeout = moment.timeout
 
     npcs
     |> Task.async_stream(
-      fn inst ->
-        call_one(inst, Map.get(moods, inst.npc_id), scene, session_id, turn_number, timeout)
-      end,
+      &call_one(&1, moment),
       max_concurrency: length(npcs),
       timeout: timeout + 500,
       on_timeout: :kill_task,
@@ -167,30 +215,32 @@ defmodule TalesForge.Game.NpcReactions do
 
       {{:exit, reason}, inst} ->
         Logger.warning("npc reaction timed out npc=#{inst.npc_id} reason=#{inspect(reason)}")
-        record(session_id, turn_number, "error", timeout + 500, %{})
+        record({session_id, turn_number}, {"error", timeout + 500}, %{})
         []
     end)
   end
 
-  defp call_one(inst, mood, scene, session_id, turn_number, timeout) do
+  defp call_one(inst, %Moment{session_id: session_id, turn_number: turn_number} = moment) do
     started = System.monotonic_time(:millisecond)
 
     result =
-      Jev.HTTP.post(state(inst, mood, scene), questions(inst),
+      Jev.HTTP.post(
+        state(inst, Map.get(moment.moods, inst.npc_id), moment.scene),
+        questions(inst),
         model: @model,
         max_retries: 0,
-        receive_timeout: timeout
+        receive_timeout: moment.timeout
       )
 
     elapsed = System.monotonic_time(:millisecond) - started
 
     case result do
       {:ok, reply} ->
-        record(session_id, turn_number, "ok", elapsed, reply)
+        record({session_id, turn_number}, {"ok", elapsed}, reply)
         {:ok, reaction(inst, reply, turn_number)}
 
       {:error, reason} ->
-        record(session_id, turn_number, "error", elapsed, %{})
+        record({session_id, turn_number}, {"error", elapsed}, %{})
         {:error, reason}
     end
   rescue
@@ -216,7 +266,7 @@ defmodule TalesForge.Game.NpcReactions do
   @doc false
   @spec state(struct(), map() | nil, map()) :: String.t()
   def state(inst, mood, scene) do
-    definition = inst.personality || %{}
+    definition = inst.personality
     traits = get_in(definition, ["motivations", "personality_traits"]) || %{}
 
     ocean =
@@ -341,22 +391,9 @@ defmodule TalesForge.Game.NpcReactions do
     }
   end
 
-  defp put_moods(world, _moods, [], _turn_number), do: world
-
-  defp put_moods(world, moods, reactions, _turn_number) do
-    updated =
-      Enum.reduce(reactions, moods, fn r, acc ->
-        Map.put(
-          acc,
-          r["npc_id"],
-          Map.take(r, ~w(emotion intensity stance confidence turn_number))
-        )
-      end)
-
-    Map.put(world, "npc_moods", updated)
-  end
-
-  defp record(session_id, turn_number, status, latency_ms, reply) do
+  # The Jev call of turn `{session_id, turn_number}` as an AI call row, with
+  # its `{status, latency_ms}`.
+  defp record({session_id, turn_number}, {status, latency_ms}, reply) do
     usage = Map.get(reply, :usage) || %{}
     input = usage[:input_tokens] || 0
 
@@ -379,7 +416,7 @@ defmodule TalesForge.Game.NpcReactions do
     })
   end
 
-  defp name(inst), do: get_in(inst.personality || %{}, ["name"]) || inst.npc_id
+  defp name(inst), do: get_in(inst.personality, ["name"]) || inst.npc_id
 
   defp label(nil), do: nil
   defp label(atom) when is_atom(atom), do: Atom.to_string(atom)

@@ -5,8 +5,8 @@ defmodule TalesForge.Playtest.JevScorer do
   One Jev call asks `persona_session_affect` plus `persona_turn_affect_N` for
   each turn, with five persona-grounded levels from
   `TalesForge.Playtest.AffectLevels`. State is player-visible text only:
-  opening scene and per-turn player action + GM narration — never gm_notes,
-  gm_reasoning, or player_aware=false events.
+  opening scene and per-turn player action + GM narration — never the
+  gm_reasoning event or other player_aware=false events.
 
   Primary auto-score when a TypeSafe key is configured (see `configured?/0`;
   `config/runtime.exs` maps `TYPESAFE_API_KEY` to `config :jev, :api_key`).
@@ -18,9 +18,10 @@ defmodule TalesForge.Playtest.JevScorer do
   require Logger
 
   alias TalesForge.AICalls
-  alias TalesForge.GameSessions
-  alias TalesForge.Playtest.{AffectLevels, Personas, Reports, Runner}
+  alias TalesForge.Config
+  alias TalesForge.Playtest.{AffectLevels, Personas, Reports}
   alias TalesForge.Repo
+  alias TalesForge.Scenes
   alias TalesForge.Schemas.PlaytestScore
 
   @model "jev-1.13.0"
@@ -57,7 +58,7 @@ defmodule TalesForge.Playtest.JevScorer do
   end
 
   defp do_score(run_id) do
-    with :ok <- if(Runner.enabled?(), do: :ok, else: {:error, :disabled}),
+    with :ok <- if(Config.playtest_runner?(), do: :ok, else: {:error, :disabled}),
          :ok <- if(configured?(), do: :ok, else: {:error, :jev_not_configured}),
          {:ok, run} <- Reports.get_run(run_id),
          :ok <-
@@ -80,7 +81,7 @@ defmodule TalesForge.Playtest.JevScorer do
 
   @doc false
   def build_state(run) do
-    opening = GameSessions.opening_scene(run.game_session_id)
+    opening = Scenes.opening(run.game_session_id)
     turns = Reports.turn_records(run.game_session_id)
 
     opening_block =

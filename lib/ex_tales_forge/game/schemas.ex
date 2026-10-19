@@ -143,14 +143,12 @@ defmodule TalesForge.Game.Schemas do
         confidence: number(Map.get(map, "confidence"), 1.0),
         needs_clarification: Map.get(map, "needs_clarification") == true,
         clarification_question: Map.get(map, "clarification_question"),
-        clarification_options:
-          map
-          |> Map.get("clarification_options")
-          |> list()
-          |> Enum.filter(&is_map/1)
-          |> Enum.map(&ClarificationOption.decode/1)
+        clarification_options: map |> Map.get("clarification_options") |> options()
       }
     end
+
+    defp options(value),
+      do: value |> list() |> Enum.filter(&is_map/1) |> Enum.map(&ClarificationOption.decode/1)
 
     defp list(value) when is_list(value), do: value
     defp list(_null_or_other), do: []
@@ -185,10 +183,24 @@ defmodule TalesForge.Game.Schemas do
   defmodule PlayerAction do
     @moduledoc """
     The validated player action for a turn: overall intent, the primary `SingleAction`, confidence and any deferred actions.
+    While a trade offer is open (`TalesForge.Game.Offer`), also the player's answer to it, as Jev read it:
+    `offer_answer` (`:accept`, `:decline` or `:other`) and `offer_pick` (the index of the option picked).
+    When the intent is unclear (`TalesForge.Game.Clarify`), `clarify` holds the question the GM voices
+    in character (`"words"`, `"candidates"`, `"npc_id"`, `"npc"`), and nothing moves.
     """
     @type t :: %__MODULE__{}
 
-    defstruct [:overall_intent, :action, confidence: 1.0, deferred_actions: []]
+    @offer_answers %{"accept" => :accept, "decline" => :decline, "other" => :other}
+
+    defstruct [
+      :overall_intent,
+      :action,
+      confidence: 1.0,
+      deferred_actions: [],
+      offer_answer: nil,
+      offer_pick: nil,
+      clarify: nil
+    ]
 
     # JSON null counts as missing (see `SingleAction.decode/1`).
     def decode(map) when is_map(map) do
@@ -196,13 +208,23 @@ defmodule TalesForge.Game.Schemas do
         overall_intent: Map.get(map, "overall_intent") || "",
         action: map |> Map.get("action") |> SingleAction.decode(),
         confidence: Map.get(map, "confidence") || 1.0,
-        deferred_actions:
-          case Map.get(map, "deferred_actions") do
-            actions when is_list(actions) -> Enum.map(actions, &SingleAction.decode/1)
-            _null_or_other -> []
-          end
+        deferred_actions: map |> Map.get("deferred_actions") |> decode_actions(),
+        offer_answer: Map.get(@offer_answers, Map.get(map, "offer_answer")),
+        offer_pick: decode_pick(map["offer_pick"]),
+        clarify: decode_clarify(map["clarify"])
       }
     end
+
+    defp decode_actions(actions) when is_list(actions),
+      do: Enum.map(actions, &SingleAction.decode/1)
+
+    defp decode_actions(_null_or_other), do: []
+
+    defp decode_pick(pick) when is_integer(pick), do: pick
+    defp decode_pick(_pick), do: nil
+
+    defp decode_clarify(%{} = clarify), do: clarify
+    defp decode_clarify(_clarify), do: nil
 
     def encode(%__MODULE__{} = player_action) do
       %{
@@ -211,7 +233,21 @@ defmodule TalesForge.Game.Schemas do
         "confidence" => player_action.confidence,
         "deferred_actions" => Enum.map(player_action.deferred_actions, &SingleAction.encode/1)
       }
+      |> put_answer(player_action)
+      |> put_clarify(player_action.clarify)
     end
+
+    # The question of an unclear turn, only when there is one.
+    defp put_clarify(map, nil), do: map
+    defp put_clarify(map, %{} = clarify), do: Map.put(map, "clarify", clarify)
+
+    # The answer to an open offer, only when there is one (the GM prompt
+    # and the job args are unchanged without).
+    defp put_answer(map, %__MODULE__{offer_answer: nil, offer_pick: nil}), do: map
+
+    defp put_answer(map, %__MODULE__{offer_answer: answer, offer_pick: pick}),
+      do:
+        Map.merge(map, %{"offer_answer" => answer && Atom.to_string(answer), "offer_pick" => pick})
   end
 
   defmodule MechanicalResolution do
@@ -269,21 +305,19 @@ defmodule TalesForge.Game.Schemas do
 
   defmodule GMStructuredResponse do
     @moduledoc """
-    A decoded GM reply: the narrative plus bookkeeping (NPC memory updates, context summary, GM notes), capped when parsed.
+    A decoded GM reply: the narrative plus bookkeeping (NPC memory updates, context summary), capped when parsed.
     """
 
     # Hard caps on the GM's bookkeeping, enforced here rather than with
     # maxLength / maxItems in the narration schema (those turn off xAI prompt
     # caching; see TalesForge.LLM.narration_schema/0). gm_system.txt asks for
     # less, so the caps only bite on a runaway reply.
-    @gm_notes_max_chars 240
     @context_summary_max_chars 300
     @npc_memory_max_items 3
     @npc_memory_max_chars 160
 
     def caps,
       do: %{
-        gm_notes: @gm_notes_max_chars,
         context_summary: @context_summary_max_chars,
         npc_memory_items: @npc_memory_max_items,
         npc_memory_summary: @npc_memory_max_chars
@@ -296,7 +330,6 @@ defmodule TalesForge.Game.Schemas do
       mechanical_resolution: %MechanicalResolution{},
       npc_memory_updates: [],
       context_summary: nil,
-      gm_notes: nil,
       raw: %{}
     ]
 
@@ -309,13 +342,9 @@ defmodule TalesForge.Game.Schemas do
           |> MechanicalResolution.decode(),
         npc_memory_updates: memories(Map.get(map, "npc_memory_updates")),
         context_summary: cap(Map.get(map, "context_summary"), @context_summary_max_chars),
-        gm_notes: map |> Map.get("gm_notes") |> notes() |> cap(@gm_notes_max_chars),
         raw: map
       }
     end
-
-    defp notes(notes) when is_binary(notes) and notes != "", do: notes
-    defp notes(_notes), do: nil
 
     defp memories(list) when is_list(list) do
       list

@@ -1,5 +1,7 @@
 # CI for Tales Forge: format, Credo, tests with coverage, docs and Dialyzer on
-# every PR and on every push to main (ex-tales-forge docs/coding-standards.md).
+# every PR, on every push to main and when dispatched (the health-history
+# branch; ex-tales-forge docs/coding-standards.md). A change to docs/ only
+# skips the code checks (the changes job below).
 # Test and Dialyzer are the required checks on main.
 #
 # Credo strict runs on all of lib/, admin files included (2026-10-11). The
@@ -22,8 +24,18 @@ name: CI
 
 on:
   pull_request:
+    # The rolling "Code health history" PR changes only these two files.
+    # GitHub makes a human approve every pull_request run on a PR that
+    # github-actions[bot] opened (changelog 2026-06-11), so that PR gets its
+    # Test and Dialyzer from a workflow_dispatch run instead, which
+    # .github/workflows/health-snapshot.yml starts after each push. A PR
+    # that also changes anything else still runs here.
+    paths-ignore:
+      - docs/health/history.csv
+      - docs/health/trend.svg
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -40,8 +52,44 @@ env:
   OTP_VERSION: "27.3.4.16"
 
 jobs:
+  # Whether the change touches anything outside docs/. A PR, or a dispatched
+  # run on the health-history branch, that changes only docs/** skips the
+  # tests, the health ratchet, Credo and Dialyzer: no code changed. Test still
+  # compiles, builds the docs and checks their links (the extras in mix.exs
+  # live in docs/), and Test and Dialyzer still report (a job skipped by its
+  # `if` counts as passed), so such a PR stays mergeable. Pushes to main
+  # always run in full: this job is skipped there. If it is skipped or fails,
+  # `code` is empty and everything runs.
+  changes:
+    name: Changed files
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      - name: Files outside docs/
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.pull_request.base.sha || 'main' }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # Three dots: the changes since the merge base. The compare API
+          # lists at most 300 files; a change that big counts as code.
+          compare=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE...$HEAD")
+          count=$(jq '.files | length' <<< "$compare")
+          outside=$(jq -r '.files[] | .filename, (.previous_filename // empty)' <<< "$compare" | grep -v '^docs/' || true)
+          if [ -n "$outside" ] || [ "$count" -ge 300 ]; then code=true; else code=false; fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Changed files: $count. Outside docs/: ${outside:-none}. Code checks run: $code." >> "$GITHUB_STEP_SUMMARY"
+
   test:
     name: Test
+    needs: changes
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -63,6 +111,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The deploy script of playtest.yml and deploy-production.yml and its
+      # test (a fake flyctl on PATH, no Fly access). Runs on every PR,
+      # docs-only included: a few seconds, before the BEAM setup. shellcheck
+      # is preinstalled on ubuntu runners. The test exits 1 if any case fails.
+      - name: Deploy script (shellcheck and fake-flyctl test)
+        run: |
+          shellcheck --version | sed -n 2p
+          shellcheck .github/scripts/fly_deploy.sh .github/scripts/fly_deploy_test.sh
+          .github/scripts/fly_deploy_test.sh
+
       - uses: erlef/setup-beam@v1
         id: beam
         with:
@@ -83,31 +141,55 @@ jobs:
         run: mix deps.get
 
       - name: Check for unused deps in mix.lock
+        if: needs.changes.outputs.code != 'false'
         run: mix deps.unlock --check-unused
 
       - name: Compile (warnings as errors)
         run: mix compile --warnings-as-errors
 
       - name: Check formatting
+        if: needs.changes.outputs.code != 'false'
         run: mix format --check-formatted
 
       # Game and shared code must never depend on admin code: admin-only merges
       # reach production without Gentry or the playtest batch. Reads the lists in
       # .github/deploy-lanes.txt and the `mix xref graph` dependencies.
       - name: Admin boundary (game code never depends on admin code)
+        if: needs.changes.outputs.code != 'false'
         run: mix deploy.check_boundaries
 
 
       - name: Credo
+        if: needs.changes.outputs.code != 'false'
         run: mix credo --strict
+
+      # Code health ratchet (docs/health/README.md): no worse than the base
+      # commit, measured in a worktree with its own `mix health.check`. No
+      # new or bigger xref cycles, no new lib/ex_tales_forge ->
+      # lib/ex_tales_forge_web or LiveView -> LiveView references, no new
+      # function over the Credo limits or with 4+ parameters, no score above
+      # its ceiling. The base is the merge's first parent: a PR's merge ref
+      # and a push to main are merges with main on that side. A dispatched
+      # run (the health-history branch) is not a merge: its base is the
+      # merge base with main, so commits on main since are not counted.
+      - name: Code health ratchet
+        if: needs.changes.outputs.code != 'false'
+        run: |
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            git fetch --quiet --unshallow origin main && base=$(git merge-base HEAD FETCH_HEAD)
+          else
+            git fetch --depth=2 origin "$GITHUB_SHA" && base="$GITHUB_SHA^1"
+          fi
+          mix health.check --base "$base"
 
       # Coverage: `mix test --cover` fails below the threshold in mix.exs
       # (test_coverage). The HTML report is uploaded as an artifact.
       - name: Test (with coverage)
+        if: needs.changes.outputs.code != 'false'
         run: mix test --cover --warnings-as-errors
 
       - name: Upload coverage report
-        if: always()
+        if: always() && needs.changes.outputs.code != 'false'
         uses: actions/upload-artifact@v7
         with:
           name: coverage
@@ -136,6 +218,8 @@ jobs:
   # .dialyzer_ignore.exs.
   dialyzer:
     name: Dialyzer
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -196,6 +280,8 @@ jobs:
   # does not fail on warnings.
   dep_warnings:
     name: Dependency warnings
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     continue-on-error: true
@@ -229,3 +315,42 @@ jobs:
 
       - name: Report dependency warnings
         run: elixir .github/scripts/dep_warnings.exs deps-compile.log .github/dep-warnings-known.txt
+
+  # A workflow_dispatch run's own checks are not counted on a pull request
+  # (GitHub counts only checks of push / pull_request-like runs), and check
+  # runs made through the Checks API from a job join that same run. The
+  # dispatched run on the health-history branch (see the pull_request
+  # paths-ignore above) therefore sets commit statuses named Test and
+  # Dialyzer on the branch head, with the outcome of its own jobs, so the
+  # rolling PR gets its required checks with no approval. Only on
+  # workflow_dispatch; a failed or cancelled job reports failure.
+  report_dispatch:
+    name: Report dispatched checks
+    if: always() && github.event_name == 'workflow_dispatch'
+    needs: [changes, test, dialyzer]
+    runs-on: ubuntu-24.04
+    permissions:
+      statuses: write
+    steps:
+      - name: Set the Test and Dialyzer statuses on the branch head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGES: ${{ needs.changes.result }}
+          TEST: ${{ needs.test.result }}
+          DIALYZER: ${{ needs.dialyzer.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          for pair in "Test:$TEST" "Dialyzer:$DIALYZER"; do
+            name=${pair%%:*}
+            result=${pair#*:}
+            # Dialyzer is skipped on purpose when only docs/ changed (the
+            # changes job succeeded and said so).
+            if [ "$result" = success ] || { [ "$result" = skipped ] && [ "$CHANGES" = success ]; }; then
+              state=success
+            else
+              state=failure
+            fi
+            gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+              -f context="$name" -f state="$state" -f target_url="$RUN_URL" \
+              -f description="Dispatched CI run: $name $result"
+          done

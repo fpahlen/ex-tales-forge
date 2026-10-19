@@ -695,7 +695,6 @@ Output:
 - Keep the other fields short; they are bookkeeping, never shown to the player:
 - npc_memory_updates: only promises, slights, and notable facts an NPC would remember. At most 3, one short sentence each. Empty if nothing notable happened.
 - context_summary: replaces the situation lines the next turn sees. At most 3 short bullets (where, open threads, tone), under 250 characters. null keeps the current lines.
-- gm_notes: 1-2 terse sentences, under 200 characters, on how you read the intent and the outcome and what you are withholding or planning. Do not repeat the narrative.
 
 --- user ---
 ## Session (fixed for this session)
@@ -811,9 +810,21 @@ Valid skills: arcana, climbing, deception, dodge, etiquette, history, insight, i
     "stock": [
       {
         "id": "ale_mug",
-        "name": "Mug of Ale",
+        "name": "Ale",
         "price_copper": 2,
-        "quantity": 99
+        "quantity": 72
+      },
+      {
+        "id": "stew_bowl",
+        "name": "Bowl of Stew",
+        "price_copper": 5,
+        "quantity": 20
+      },
+      {
+        "id": "bread_cheese",
+        "name": "Bread and Cheese",
+        "price_copper": 2,
+        "quantity": 12
       }
     ]
   }

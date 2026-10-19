@@ -10,14 +10,15 @@ defmodule TalesForge.GMReasoningTest do
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction}
   alias TalesForge.GameSessions
   alias TalesForge.GMReasoning
-  alias TalesForge.Jido
+  alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
 
-  @notes "Read it as a cautious look; failed roll, so Marta stays guarded. Withholding the smuggler's mark."
+  # A key the schema does not ask for: it stays in the raw reply only.
+  @aside "Withholding the smuggler's mark."
 
   @gm_reply %{
-    "gm_notes" => @notes,
+    "aside" => @aside,
     "narrative" => "Smoke curls under the low beams. Marta watches you over a chipped mug.",
     "npc_memory_updates" => [],
     "mechanical_resolution" => %{"outcome" => "success"},
@@ -26,7 +27,6 @@ defmodule TalesForge.GMReasoningTest do
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("XAI_API_KEY")
     end)
@@ -34,17 +34,17 @@ defmodule TalesForge.GMReasoningTest do
     :ok
   end
 
-  test "a GM turn stores its notes and raw reply as a hidden event", %{conn: conn} do
+  test "a GM turn stores its raw reply as a hidden event", %{conn: conn} do
     {session, player_action} = session_with_action()
     stub_gm(@gm_reply)
 
-    assert {:ok, %{turn_count: 1}} = TurnProcessor.run(session.id, "look around", player_action)
+    assert {:ok, %{turn_count: 1}} = TurnProcessor.run(session.id, {"look around", player_action})
 
     turn = Repo.get_by!(Turn, game_session_id: session.id, turn_number: 1)
     assert [event] = GMReasoning.list_for_session(session.id)
     assert %SessionEvent{kind: "gm_reasoning", actor: "gm", player_aware: false} = event
-    assert event.payload["gm_notes"] == @notes
     assert event.payload["gm_reply"] == @gm_reply
+    refute Map.has_key?(event.payload, "gm_notes")
     assert event.payload["turn_id"] == turn.id
     assert event.payload["turn_number"] == 1
     refute Map.has_key?(event.payload, "what") or Map.has_key?(event.payload, "text")
@@ -52,7 +52,7 @@ defmodule TalesForge.GMReasoningTest do
 
     session = GameSessions.get_session!(session.id)
     refute turn.narrative =~ "smuggler"
-    refute Context.format_gm_prompt(Context.build_gm_context(session)) =~ "smuggler"
+    refute Assemble.format_gm_prompt(Context.build_gm_context(session)) =~ "smuggler"
 
     refute Enum.any?(
              Perception.visible_world(session)["player_aware_events"],
@@ -65,7 +65,7 @@ defmodule TalesForge.GMReasoningTest do
     refute html =~ "smuggler"
   end
 
-  test "missing gm_notes and the mock GM still store the raw reply, in turn order" do
+  test "the mock GM stores the raw reply too, in turn order" do
     {:ok, session} = GameSessions.create_session(%{name: "Mock Reasoning"})
 
     assert {:ok, _} = GameSessions.submit_message(session.id, "look around the tavern")
@@ -73,10 +73,7 @@ defmodule TalesForge.GMReasoningTest do
 
     assert [first, second] = GMReasoning.list_for_session(session.id)
     assert {first.payload["turn_number"], second.payload["turn_number"]} == {1, 2}
-    assert first.payload["gm_notes"] == nil
     assert first.payload["gm_reply"]["narrative"] =~ "Mock GM"
-
-    assert GMStructuredResponse.decode(%{"narrative" => "x", "gm_notes" => ""}).gm_notes == nil
   end
 
   test "the turn completes when the reasoning insert fails" do
@@ -106,12 +103,15 @@ defmodule TalesForge.GMReasoningTest do
 
           try do
             turn = %Turn{id: Ecto.UUID.generate(), turn_number: 1}
-            gm = GMStructuredResponse.decode(%{"narrative" => "n", "gm_notes" => "why"})
+            gm = GMStructuredResponse.decode(%{"narrative" => "n"})
 
             {:ok, changes} =
               Ecto.Multi.new()
               |> Ecto.Multi.put(:turn, turn)
-              |> GMReasoning.multi_insert(Ecto.UUID.generate(), 1, gm)
+              |> GMReasoning.multi_insert(
+                %GMReasoning.At{session_id: Ecto.UUID.generate(), tick: 1},
+                gm
+              )
               |> Ecto.Multi.insert(:after, %SessionEvent{
                 game_session_id: session.id,
                 kind: "after",
@@ -138,7 +138,7 @@ defmodule TalesForge.GMReasoningTest do
       kind: "gm_reasoning",
       player_aware: false,
       tick: 1,
-      payload: %{"gm_notes" => "hidden"}
+      payload: %{"gm_reply" => %{"narrative" => "hidden"}}
     })
 
     handler = "perception-sql-#{inspect(self())}"

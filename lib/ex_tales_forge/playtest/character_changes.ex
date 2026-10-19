@@ -9,20 +9,21 @@ defmodule TalesForge.Playtest.CharacterChanges do
   There are no per-turn snapshots of characters today, so the changes are
   derived from the state that is stored (every read goes through this module):
 
-    * **NPC start**: the authored definition copied into
-      `npc_instances.personality` (mood, home location, current concern) and
+    * **NPC start**: the authored definition copied into the NPC's row,
+      `characters.definition` (mood, home location, current concern), and
       the seed defaults of `TalesForge.NPC` (relationship 0.0, no memories).
-    * **NPC end**: `npc_instances.runtime_state` (mood, location,
-      `relationship_score`, current concern, the newest 20 memories) and the
-      latest Jev reaction per NPC in `game_sessions.world_state["npc_moods"]`.
-    * **Memories**: `npc_instances.runtime_state["memories"]` joined with
-      `character_memories` (every memory mirrored by `TalesForge.Characters`),
+    * **NPC end**: the NPC's row as `TalesForge.NPC.Rows` reads it (mood,
+      location, relationship score, current concern, the newest 20
+      memories) and its latest Jev reaction, `characters.runtime["reaction"]`.
+    * **Memories**: the row's memory list joined with `character_memories`
+      (every NPC memory gets a row when it is recorded),
       placed on a turn by world tick (the `gm_reasoning` session event of each
       turn records its tick), else by timestamp. Who wrote a memory is told
       from its text and from the GM's `npc_memory_updates` in the same
       `gm_reasoning` event.
     * **Player character**: the sheet copied into `characters.definition` at
-      creation (start) and `world_state["character"]` (end); travel from
+      creation (start) and the character's row (end,
+      `TalesForge.Characters.player_sheets/1`); travel from
       `player.travel` session events; learning points and improvement rolls
       from each turn's `mechanical_resolution`.
     * **Levers**: OCEAN, Maslow level and concerns from the `characters` rows.
@@ -43,6 +44,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   import Ecto.Query
 
+  alias TalesForge.Characters
   alias TalesForge.Game.Pack
 
   alias TalesForge.Playtest.CharacterChanges.{
@@ -61,7 +63,6 @@ defmodule TalesForge.Playtest.CharacterChanges do
     AICall,
     CharacterMemory,
     GameSession,
-    NpcInstance,
     PlaytestRun,
     SessionEvent,
     Turn
@@ -103,6 +104,14 @@ defmodule TalesForge.Playtest.CharacterChanges do
           reaction_calls: [map()]
         }
 
+  defmodule Build do
+    @moduledoc false
+    # What build/1 reads once per run: the sources, the turn index, the NPC
+    # moods, whether reactions were tracked, the character rows by slug and
+    # the GM's memory updates.
+    defstruct [:src, :turns, :moods, :tracked?, :rows, :gm_updates]
+  end
+
   @not_yet "not tracked yet"
   @lever_note "Set once when the character is written; nothing updates it during play yet."
   @ocean_note "Memories are stored as written: no OCEAN filter keeps or drops memories yet, " <>
@@ -129,60 +138,63 @@ defmodule TalesForge.Playtest.CharacterChanges do
   def for_sessions(session_ids) when is_list(session_ids) do
     ids = Enum.uniq(session_ids)
     worlds = load_worlds(ids)
-    npcs = ids |> load_npcs() |> Enum.group_by(& &1.session_id)
-    characters = ids |> load_characters() |> Enum.group_by(& &1.session_id)
-    memories = ids |> load_memories() |> Enum.group_by(& &1.session_id)
-    gm_turns = ids |> load_gm_turns() |> Enum.group_by(& &1.session_id)
-    travel = ids |> load_travel() |> Enum.group_by(& &1.session_id)
-    turns = ids |> load_turns() |> Enum.group_by(& &1.session_id)
-    calls = ids |> load_reaction_calls() |> Enum.group_by(& &1.session_id)
+
+    loaded =
+      Map.new(loaders(), fn {key, load} ->
+        {key, ids |> load.() |> Enum.group_by(& &1.session_id)}
+      end)
 
     Map.new(ids, fn id ->
-      {id,
-       build(%{
-         session_id: id,
-         world: Map.get(worlds, id, %{}),
-         npcs: Map.get(npcs, id, []),
-         characters: Map.get(characters, id, []),
-         memories: Map.get(memories, id, []),
-         gm_turns: Map.get(gm_turns, id, []),
-         travel: Map.get(travel, id, []),
-         turns: Map.get(turns, id, []),
-         reaction_calls: Map.get(calls, id, [])
-       })}
+      src = Map.new(loaded, fn {key, by_session} -> {key, Map.get(by_session, id, [])} end)
+      {id, build(Map.merge(src, %{session_id: id, world: Map.get(worlds, id, %{})}))}
     end)
   end
 
+  # The rows `build/1` reads besides the world, each by session.
+  defp loaders do
+    [
+      npcs: &load_npcs/1,
+      characters: &load_characters/1,
+      memories: &load_memories/1,
+      gm_turns: &load_gm_turns/1,
+      travel: &load_travel/1,
+      turns: &load_turns/1,
+      reaction_calls: &load_reaction_calls/1
+    ]
+  end
+
+  # The world keys `build/1` reads, with the player character from its row
+  # (`TalesForge.Characters.put_world_sheet/2`).
   defp load_worlds(ids) do
+    sheets = Characters.player_sheets(ids)
+
     from(g in GameSession,
       where: g.id in ^ids,
       select:
         {g.id,
          %{
-           "npc_moods" => fragment("?->'npc_moods'", g.world_state),
            "character" => fragment("?->'character'", g.world_state),
            "location_id" => fragment("?->>'location_id'", g.world_state)
          }}
     )
     |> Repo.all()
-    |> Map.new()
+    |> Map.new(fn {id, world} -> {id, Characters.put_world_sheet(world, sheets[id])} end)
   end
 
   defp load_npcs(ids) do
-    from(n in NpcInstance,
-      where: n.game_session_id in ^ids,
-      order_by: n.npc_id,
-      select: %{
-        session_id: n.game_session_id,
-        npc_id: n.npc_id,
-        name: fragment("?->>'name'", n.personality),
-        default_location_id: fragment("?->>'default_location_id'", n.personality),
-        start_mood: fragment("?->'motivations'->>'mood'", n.personality),
-        start_concern: fragment("?->'motivations'->'current_concern'", n.personality),
-        runtime: n.runtime_state
+    ids
+    |> TalesForge.NPC.Rows.list_many()
+    |> Enum.map(fn %{personality: definition} = npc ->
+      %{
+        session_id: npc.row.game_session_id,
+        npc_id: npc.npc_id,
+        name: definition["name"],
+        default_location_id: definition["default_location_id"],
+        start_mood: get_in(definition, ["motivations", "mood"]),
+        start_concern: get_in(definition, ["motivations", "current_concern"]),
+        runtime: npc.runtime_state
       }
-    )
-    |> Repo.all()
+    end)
   end
 
   defp load_characters(ids) do
@@ -196,6 +208,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
         maslow_level: c.maslow_level,
         concerns: c.concerns,
         ocean: c.ocean,
+        reaction: fragment("?->'reaction'", c.runtime),
         definition: fragment("CASE WHEN ? <> 'gm' THEN ? END", c.controller, c.definition)
       }
     )
@@ -287,6 +300,11 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   # --- building ---------------------------------------------------------------
 
+  # The latest Jev reaction of each character row that has one.
+  defp moods(rows) do
+    for %{slug: slug} = row <- rows, is_map(row[:reaction]), into: %{}, do: {slug, row.reaction}
+  end
+
   @doc """
   Builds a run's character changes from its loaded state (`sources()`). Pure:
   `for_sessions/1` loads the state and calls this; tests can call it with
@@ -294,37 +312,43 @@ defmodule TalesForge.Playtest.CharacterChanges do
   """
   @spec build(sources()) :: t()
   def build(%{session_id: session_id} = src) do
-    turns = turn_index(src.turns, src.gm_turns)
-    moods = src.world["npc_moods"] || %{}
-    tracked? = moods != %{} or src.reaction_calls != []
-    rows = Map.new(src.characters, &{&1.slug, &1})
-    gm_updates = gm_update_set(src.gm_turns)
-    stored = Enum.group_by(src.memories, & &1.slug)
-    pc = build_pc(src, rows, turns)
+    moods = moods(src.characters)
 
-    npcs =
-      Enum.map(src.npcs, fn npc ->
-        memories =
-          npc.runtime
-          |> runtime_memories()
-          |> merge_memories(Map.get(stored, npc.npc_id, []))
-          |> Enum.map(&to_memory(&1, npc.npc_id, gm_updates, turns))
-          # Stable: within a turn, the order they were written in.
-          |> Enum.sort_by(&(&1.turn_number || :unknown))
+    ctx = %Build{
+      src: src,
+      turns: turn_index(src.turns, src.gm_turns),
+      moods: moods,
+      tracked?: moods != %{} or src.reaction_calls != [],
+      rows: Map.new(src.characters, &{&1.slug, &1}),
+      gm_updates: gm_update_set(src.gm_turns)
+    }
 
-        build_npc(npc, Map.get(rows, npc.npc_id), Map.get(moods, npc.npc_id), tracked?, memories)
-      end)
-      |> Enum.sort_by(&{not &1.changed?, -length(&1.memories_added), &1.name})
-
-    characters = List.wrap(pc) ++ npcs
+    characters = List.wrap(build_pc(src, ctx.rows, ctx.turns)) ++ build_npcs(ctx)
 
     %__MODULE__{
       session_id: session_id,
       characters: characters,
-      timeline: timeline(characters, src, moods, turns),
-      reactions_tracked?: tracked?,
-      notes: notes(src, tracked?, turns)
+      timeline: timeline(characters, ctx),
+      reactions_tracked?: ctx.tracked?,
+      notes: notes(src, ctx.tracked?, ctx.turns)
     }
+  end
+
+  defp build_npcs(%Build{src: src} = ctx) do
+    stored = Enum.group_by(src.memories, & &1.slug)
+
+    src.npcs
+    |> Enum.map(&build_npc(&1, npc_memories(&1, Map.get(stored, &1.npc_id, []), ctx), ctx))
+    |> Enum.sort_by(&{not &1.changed?, -length(&1.memories_added), &1.name})
+  end
+
+  defp npc_memories(npc, stored, ctx) do
+    npc.runtime
+    |> runtime_memories()
+    |> merge_memories(stored)
+    |> Enum.map(&to_memory(&1, npc.npc_id, ctx))
+    # Stable: within a turn, the order they were written in.
+    |> Enum.sort_by(&(&1.turn_number || :unknown))
   end
 
   # Turns with their world tick (from the turn's gm_reasoning event, nil when
@@ -369,34 +393,42 @@ defmodule TalesForge.Playtest.CharacterChanges do
   # Runtime memories (the newest 20, in the order written) plus mirrored rows
   # not among them, deduped on tick + text like the mirror itself.
   defp merge_memories(runtime, stored) do
-    mirrored = Map.new(stored, &{{&1.tick, &1.text}, &1})
+    from_runtime = with_rows(runtime, stored)
+    seen = MapSet.new(from_runtime, &key/1)
 
-    from_runtime =
-      Enum.map(runtime, fn m ->
-        case Map.get(mirrored, {m.tick, m.text}) do
-          nil -> m
-          row -> %{m | inserted_at: row.inserted_at, felt: m.felt || row.felt}
-        end
-      end)
-
-    seen = MapSet.new(from_runtime, &{&1.tick, &1.text})
-
-    only_stored =
-      for row <- stored,
-          not MapSet.member?(seen, {row.tick, row.text}),
-          do: %{
-            tick: row.tick,
-            text: row.text,
-            felt: row.felt,
-            at: nil,
-            world?: is_binary(row.felt),
-            inserted_at: row.inserted_at
-          }
-
-    Enum.uniq_by(only_stored ++ from_runtime, &{&1.tick, &1.text})
+    stored
+    |> Enum.reject(&MapSet.member?(seen, key(&1)))
+    |> Enum.map(&stored_memory/1)
+    |> Kernel.++(from_runtime)
+    |> Enum.uniq_by(&key/1)
   end
 
-  defp to_memory(m, npc_id, gm_updates, turns) do
+  defp key(memory), do: {memory.tick, memory.text}
+
+  # Each runtime memory with the time (and felt, if it has none) of its row.
+  defp with_rows(runtime, stored) do
+    rows = Map.new(stored, &{key(&1), &1})
+    Enum.map(runtime, &with_row(&1, rows[key(&1)]))
+  end
+
+  defp with_row(memory, nil), do: memory
+
+  defp with_row(memory, row),
+    do: %{memory | inserted_at: row.inserted_at, felt: memory.felt || row.felt}
+
+  # A memory row that is no longer in the runtime list.
+  defp stored_memory(row) do
+    %{
+      tick: row.tick,
+      text: row.text,
+      felt: row.felt,
+      at: nil,
+      world?: is_binary(row.felt),
+      inserted_at: row.inserted_at
+    }
+  end
+
+  defp to_memory(m, npc_id, %Build{gm_updates: gm_updates, turns: turns}) do
     %Memory{
       turn_number: turn_for(m, turns),
       tick: m.tick,
@@ -446,52 +478,59 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   # --- NPCs -------------------------------------------------------------------
 
-  defp build_npc(npc, row, reaction, tracked?, memories) do
-    runtime = npc.runtime || %{}
-    name = npc.name || (row && row.name) || npc.npc_id
-
-    fields =
-      [
-        field(:location, "Location", "npc_instances (home in the definition → runtime)",
-          start: npc.default_location_id,
-          end: runtime["location_id"]
-        ),
-        field(:mood, "Mood", "npc_instances (definition mood → runtime mood)",
-          start: npc.start_mood || "neutral",
-          end: runtime["mood"]
-        ),
-        stance_field(reaction, tracked?),
-        feeling_field(reaction, tracked?),
-        relationship_field(runtime),
-        concern_field(npc.start_concern, runtime["current_concern"]),
-        memories_field(memories)
-      ]
-      |> Enum.reject(&is_nil/1)
-
-    not_tracked =
-      [
-        %Field{
-          key: :toward_npcs,
-          label: "Feelings toward other NPCs",
-          status: :not_tracked,
-          source: "none",
-          note:
-            "Feelings point only at the player character (one relationship score, one Jev stance)."
-        }
-      ] ++ lever_rows(row)
-
-    changed? = Enum.any?(fields, &(&1.status == :changed)) or memories != []
+  defp build_npc(npc, memories, %Build{} = ctx) do
+    row = Map.get(ctx.rows, npc.npc_id)
+    fields = npc_fields(npc, memories, ctx)
 
     %Character{
       slug: npc.npc_id,
-      name: name,
+      name: npc.name || (row && row.name) || npc.npc_id,
       kind: :npc,
       controller: "gm",
       fields: fields,
-      not_tracked: not_tracked,
+      not_tracked: npc_not_tracked(row),
       memories_added: memories,
-      changed?: changed?
+      changed?: Enum.any?(fields, &(&1.status == :changed)) or memories != []
     }
+  end
+
+  defp npc_fields(npc, memories, %Build{tracked?: tracked?} = ctx) do
+    runtime = npc.runtime || %{}
+    reaction = Map.get(ctx.moods, npc.npc_id)
+
+    [
+      field(:location,
+        label: "Location",
+        source: "characters (home in the definition → location_id)",
+        start: npc.default_location_id,
+        end: runtime["location_id"]
+      ),
+      field(:mood,
+        label: "Mood",
+        source: "characters (definition mood → mood)",
+        start: npc.start_mood || "neutral",
+        end: runtime["mood"]
+      ),
+      stance_field(reaction, tracked?),
+      feeling_field(reaction, tracked?),
+      relationship_field(runtime),
+      concern_field(npc.start_concern, runtime["current_concern"]),
+      memories_field(memories)
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp npc_not_tracked(row) do
+    [
+      %Field{
+        key: :toward_npcs,
+        label: "Feelings toward other NPCs",
+        status: :not_tracked,
+        source: "none",
+        note:
+          "Feelings point only at the player character (one relationship score, one Jev stance)."
+      }
+    ] ++ lever_rows(row)
   end
 
   defp stance_field(_reaction, false),
@@ -499,7 +538,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
       key: :stance,
       label: "Stance toward the player character",
       status: :not_tracked,
-      source: "world_state npc_moods (Jev reactions)",
+      source: "characters runtime reaction (Jev reactions)",
       note: "No Jev NPC reactions in this run (NPC_REACTIONS off)."
     }
 
@@ -512,7 +551,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
       start_value: "neutral (no reaction yet)",
       end_value: if(stance, do: "#{stance} (turn #{reaction["turn_number"]})", else: "neutral"),
       status: if(stance && stance != "neutral", do: :changed, else: :unchanged),
-      source: "world_state npc_moods (latest Jev reaction)",
+      source: "characters runtime reaction (latest Jev reaction)",
       note: if(is_nil(stance), do: "No reaction read: never on stage on a turn.")
     }
   end
@@ -527,7 +566,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
       start_value: "none",
       end_value: reaction_text(reaction),
       status: :changed,
-      source: "world_state npc_moods (latest Jev reaction)",
+      source: "characters runtime reaction (latest Jev reaction)",
       note: "Only the latest reaction is kept; earlier ones are not stored."
     }
 
@@ -541,7 +580,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
         start_value: "0.00",
         end_value: fmt_number(score),
         status: if(abs(score) > 1.0e-9, do: :changed, else: :unchanged),
-        source: "npc_instances runtime relationship_score (NPC agent, when spoken to)"
+        source: "characters relationships (NPC agent, when spoken to)"
       }
     end
   end
@@ -550,7 +589,9 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   defp concern_field(start, current),
     do:
-      field(:concern, "Current concern", "npc_instances (definition → runtime current_concern)",
+      field(:concern,
+        label: "Current concern",
+        source: "characters (definition → runtime current_concern)",
         start: concern_text(start),
         end: concern_text(current)
       )
@@ -562,7 +603,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
       start_value: "0",
       end_value: "#{length(memories)}",
       status: if(memories == [], do: :unchanged, else: :changed),
-      source: "npc_instances runtime memories + character_memories",
+      source: "characters runtime memories + character_memories",
       note: "NPCs start a session with no memories."
     }
 
@@ -648,7 +689,9 @@ defmodule TalesForge.Playtest.CharacterChanges do
         [] -> end_location
       end
 
-    field(:location, "Location", "player.travel session events, world_state location_id",
+    field(:location,
+      label: "Location",
+      source: "player.travel session events, world_state location_id",
       start: start,
       end: end_location
     )
@@ -656,21 +699,27 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   defp condition_field(start, sheet),
     do:
-      field(:condition, "Wounds and vitality", "characters.definition → world_state character",
+      field(:condition,
+        label: "Wounds and vitality",
+        source: "characters.definition → world_state character",
         start: condition_text(start),
         end: condition_text(sheet)
       )
 
   defp coins_field(start, sheet),
     do:
-      field(:coins, "Coins", "characters.definition → world_state character",
+      field(:coins,
+        label: "Coins",
+        source: "characters.definition → world_state character",
         start: coins_text(start["coins"]),
         end: coins_text(sheet["coins"])
       )
 
   defp lp_field(start, sheet),
     do:
-      field(:learning_points, "Learning points", "characters.definition → world_state character",
+      field(:learning_points,
+        label: "Learning points",
+        source: "characters.definition → world_state character",
         start: lp_text(start["learning_points"]),
         end: lp_text(sheet["learning_points"])
       )
@@ -746,7 +795,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   # --- timeline ---------------------------------------------------------------
 
-  defp timeline(characters, src, moods, turns) do
+  defp timeline(characters, %Build{src: src, moods: moods, turns: turns}) do
     pc = Enum.find(characters, &(&1.kind == :pc))
     names = Map.new(characters, &{&1.slug, &1.name})
 
@@ -763,18 +812,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
     pc_changes = if pc, do: pc_changes(pc, src.travel, turns), else: []
 
-    reaction_changes =
-      for {npc_id, %{"turn_number" => n} = r} <- moods, is_integer(n) do
-        name = Map.get(names, npc_id, npc_id)
-
-        {n,
-         %Change{
-           slug: npc_id,
-           name: name,
-           kind: :reaction,
-           text: "latest kept reaction: #{reaction_text(r)}"
-         }}
-      end
+    reaction_changes = reaction_changes(moods, names)
 
     call_changes =
       src.reaction_calls
@@ -789,6 +827,18 @@ defmodule TalesForge.Playtest.CharacterChanges do
       %TurnEntry{turn_number: n, turn_id: Map.get(ids, n), changes: changes}
     end)
     |> Enum.sort_by(&(&1.turn_number || :unknown))
+  end
+
+  defp reaction_changes(moods, names) do
+    for {npc_id, %{"turn_number" => n} = r} <- moods, is_integer(n) do
+      {n,
+       %Change{
+         slug: npc_id,
+         name: Map.get(names, npc_id, npc_id),
+         kind: :reaction,
+         text: "latest kept reaction: #{reaction_text(r)}"
+       }}
+    end
   end
 
   defp pc_changes(pc, travel, turns) do
@@ -855,15 +905,15 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
     [
       tracked? &&
-        "Jev NPC reactions: only each NPC's latest reaction is kept (world_state npc_moods); " <>
+        "Jev NPC reactions: only each NPC's latest reaction is kept (characters runtime reaction); " <>
           "earlier ones are not stored, and ai_calls rows show that a reaction was read, not what it was.",
-      "NPC mood, relationship score, location and current concern: npc_instances keeps only " <>
+      "NPC mood, relationship score, location and current concern: the NPC's row keeps only " <>
         "the current value, so the start comes from the authored definition and the steps in between " <>
         "cannot be told.",
       "Player character wounds, coins and learning points: start and end only; turn records keep " <>
         "the roll, LP awarded and improvement rolls, not the sheet.",
-      "NPC memories: the newest 20 per NPC (npc_instances) joined with every memory mirrored into " <>
-        "character_memories; a memory that fell out of the newest 20 before the next mirror is lost.",
+      "NPC memories: the newest 20 per NPC (its row) joined with every memory row in " <>
+        "character_memories.",
       missing_ticks > 0 &&
         "#{missing_ticks} turn(s) have no gm_reasoning event, so their memories are placed by timestamp.",
       src.characters == [] &&
@@ -888,7 +938,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
     relationship? = Enum.any?(npcs, &field_changed?(&1, :relationship))
 
     %RunMetrics{
-      memories_added: changes.characters |> Enum.map(&length(&1.memories_added)) |> Enum.sum(),
+      memories_added: memories_added(changes.characters),
       npcs_changed: Enum.count(npcs, & &1.changed?),
       npcs_attitude_changed: length(attitude),
       stance_changed?: stance?,
@@ -897,6 +947,9 @@ defmodule TalesForge.Playtest.CharacterChanges do
       reactions_tracked?: changes.reactions_tracked?
     }
   end
+
+  defp memories_added(characters),
+    do: characters |> Enum.map(&length(&1.memories_added)) |> Enum.sum()
 
   defp attitude_changed?(npc),
     do: field_changed?(npc, :stance) or field_changed?(npc, :relationship)
@@ -1024,17 +1077,18 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   # --- formatting -------------------------------------------------------------
 
-  defp field(key, label, source, values) do
+  # A start-versus-end row; `values` has the label, source, start and end.
+  defp field(key, values) do
     start = Keyword.fetch!(values, :start)
     finish = Keyword.fetch!(values, :end)
 
     %Field{
       key: key,
-      label: label,
+      label: Keyword.fetch!(values, :label),
       start_value: start,
       end_value: finish,
       status: if(start == finish, do: :unchanged, else: :changed),
-      source: source,
+      source: Keyword.fetch!(values, :source),
       note: if(is_nil(start) and is_nil(finish), do: @not_yet)
     }
   end

@@ -269,7 +269,7 @@ defmodule TalesForge.Game.PremiseCheckTest do
              } = PremiseCheck.event(findings, 7, "market_square")
     end
 
-    test "state/4 reads the character before and after the turn, the people and the fronts" do
+    test "state/4 reads the character before and after the turn and the fronts; people/1 the cast" do
       before = %{
         "character" => %{
           "inventory" => [%{"id" => "rope", "name" => "rope"}],
@@ -283,9 +283,10 @@ defmodule TalesForge.Game.PremiseCheckTest do
           "inventory" => [%{"id" => "iron_key", "name" => "iron key"}],
           "coins" => %{"silver" => 1},
           "skills" => %{"stealth" => 1}
-        },
-        "npc_state" => %{"cobb" => %{"id" => "cobb", "name" => "Cobb", "role" => "brute"}}
+        }
       }
+
+      cast = %{"cobb" => %TalesForge.GameCharacter{slug: "cobb", name: "Cobb", role: "brute"}}
 
       fronts = [%{front_id: "orc_nest", status: "live", definition: %{"name" => "Orc nest"}}]
       state = PremiseCheck.state(before, after_turn, fronts, 2)
@@ -293,7 +294,8 @@ defmodule TalesForge.Game.PremiseCheckTest do
       assert Enum.map(state.inventory, & &1["id"]) == ["rope", "iron_key"]
       assert state.coins == %{"silver" => 5}
       assert state.skills == %{"stealth" => 1}
-      assert state.people == [%{id: "cobb", name: "Cobb", role: "brute"}]
+      assert state.people == []
+      assert PremiseCheck.people(cast) == [%{id: "cobb", name: "Cobb", role: "brute"}]
       assert state.fronts == [%{id: "orc_nest", name: "Orc nest", status: "live"}]
       assert state.combat_wins == 2
       refute Map.has_key?(state, :won_fights)

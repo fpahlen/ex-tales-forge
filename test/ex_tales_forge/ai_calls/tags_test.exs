@@ -6,13 +6,11 @@ defmodule TalesForge.AICalls.TagsTest do
   alias TalesForge.AICalls
   alias TalesForge.AICalls.{Steps, Tags}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.LLM
   alias TalesForge.Schemas.{AICall, GameSession}
 
   setup do
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
       System.put_env("LLM_PROVIDER", "mock")
       System.delete_env("XAI_API_KEY")
     end)

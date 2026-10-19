@@ -7,7 +7,7 @@ defmodule TalesForge.Game.TurnApplyTest do
 
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction, SingleAction}
   alias TalesForge.Game.Turn
-  alias TalesForge.Game.Turn.Adapters
+  alias TalesForge.Game.Turn.{Adapters, Store}
   alias TalesForge.GameSessions
 
   alias TalesForge.Game.WorldClock
@@ -21,14 +21,14 @@ defmodule TalesForge.Game.TurnApplyTest do
     me = self()
 
     adapters = %Adapters{
-      npc: fn _id, world, _n, _raw, _mech, _findings -> {[], world} end,
+      npc: fn _moment -> [] end,
       gm: fn messages, _a, _h, _n, _o ->
         send(me, {:gm_prompt, messages |> Enum.map_join("\n", &to_string(&1.content))})
 
         {:ok, %GMStructuredResponse{narrative: "The night passes."}}
       end,
       stream: fn _id, _chunk -> :ok end,
-      store: fn _s, world, _n, _raw, ctx ->
+      store: fn %Store{world: world, ctx: ctx} ->
         send(me, {:stored, world, ctx.handler})
         {:ok, %{}}
       end
@@ -36,8 +36,8 @@ defmodule TalesForge.Game.TurnApplyTest do
 
     player_action = %PlayerAction{overall_intent: text, action: action}
 
-    session
-    |> Turn.new(1, text, player_action, adapters: adapters, flags: flags, role: :playtest)
+    {session, 1}
+    |> Turn.new({text, player_action}, adapters: adapters, flags: flags, role: :playtest)
     |> Turn.Premise.check()
     |> Turn.Mechanics.apply()
     |> Turn.Npcs.react()
@@ -139,12 +139,14 @@ defmodule TalesForge.Game.TurnApplyTest do
     assert copper(world["character"]["coins"]) == copper(s.world_state["character"]["coins"]) - 20
   end
 
-  test "an ale with no amount costs the ale price" do
+  # #470 retest (session 8a9dbde9): an ale is bought from the stock, so
+  # the seller is paid; a payment with no amount and no seller moves nothing.
+  test "an ale paid with no amount is no payment: nothing moves" do
     s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
 
     {world, _handler} = play(s, "I pay for an ale", @spend, @on)
 
-    assert copper(world["character"]["coins"]) == copper(s.world_state["character"]["coins"]) - 2
+    assert world["character"]["coins"] == s.world_state["character"]["coins"]
   end
 
   describe "move" do
@@ -202,14 +204,16 @@ defmodule TalesForge.Game.TurnApplyTest do
                copper(s.world_state["character"]["coins"]) - 2
     end
 
-    test "turn 6: 'I order a meal' read as a purchase from Marta costs 5c" do
+    # #470 retest (session 8a9dbde9): Marta has no meal in stock, so
+    # nothing moves and the GM is told.
+    test "turn 6: 'I order a meal' from Marta, who sells none: nothing moves" do
       s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
       buy = %SingleAction{action_type: :buy, target: "marta_kellen", parameters: %{}}
 
       {world, _handler} = play(s, "I order a meal.", buy, @on)
 
-      assert copper(world["character"]["coins"]) ==
-               copper(s.world_state["character"]["coins"]) - 5
+      assert world["character"]["coins"] == s.world_state["character"]["coins"]
+      assert gm_prompt() =~ "The server refused this trade"
     end
 
     test "turn 8: a room payment to Marta at the inn costs the room and 8 hours" do
@@ -293,16 +297,14 @@ defmodule TalesForge.Game.TurnApplyTest do
       assert gm_prompt() =~ "Coins: -2 copper"
     end
 
-    test "141e1b85 turn 4: 'I buy a meal' (Jev: no target) costs 5c, and the GM gets it" do
+    test "141e1b85 turn 4: 'I buy a meal' (Jev: no target) with no meal for sale moves nothing" do
       s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
       buy = %SingleAction{action_type: :buy, target: nil, parameters: %{}}
 
       {world, _handler} = play(s, "I buy a meal", buy, @on)
 
-      assert copper(world["character"]["coins"]) ==
-               copper(s.world_state["character"]["coins"]) - 5
-
-      assert gm_prompt() =~ "Coins: -5 copper"
+      assert world["character"]["coins"] == s.world_state["character"]["coins"]
+      assert gm_prompt() =~ "The server refused this trade"
     end
 
     test "141e1b85 turn 5: room and sleep give the GM the clock after the sleep" do

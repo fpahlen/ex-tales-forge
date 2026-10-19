@@ -19,7 +19,7 @@ defmodule TalesForge.Playtest.Runner do
   import Ecto.Query
 
   alias TalesForge.AICalls
-  alias TalesForge.AppRole
+  alias TalesForge.Config
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.GameSessions
   alias TalesForge.LLM
@@ -45,6 +45,20 @@ defmodule TalesForge.Playtest.Runner do
   @job_attempts 3
   @max_clarifications 2
   @poll_ms 5_000
+
+  defmodule Wait do
+    @moduledoc false
+    # One wait for a job's event: the `kind` (`:scene` or `{:turn, before}`),
+    # the monotonic `deadline` and the job failures seen so far.
+    defstruct [:kind, :deadline, failures: 0]
+  end
+
+  defmodule Message do
+    @moduledoc false
+    # What the persona sends: the text, the submit options and how many
+    # clarifications this move has had.
+    defstruct [:text, opts: [], clarifications: 0]
+  end
 
   @stops %{
     ended: {"finished", "ended"},
@@ -133,22 +147,11 @@ defmodule TalesForge.Playtest.Runner do
     end
   end
 
-  @doc """
-  True when persona runs may start here: `PLAYTEST_RUNNER_ENABLED` is "true"
-  and this is not the production app (playtest runs live only on playtest;
-  `TalesForge.AppRole`). Series and scoring use the same gate.
-  """
-  @spec enabled?() :: boolean()
-  def enabled? do
-    Application.get_env(:ex_tales_forge, :playtest_runner_enabled, false) == true and
-      AppRole.here?(:playtest_runs)
-  end
-
   def modules do
     Application.app_dir(:ex_tales_forge, "priv/adventures") |> File.ls!() |> Enum.sort()
   end
 
-  defp check_enabled, do: if(enabled?(), do: :ok, else: {:error, :disabled})
+  defp check_enabled, do: if(Config.playtest_runner?(), do: :ok, else: {:error, :disabled})
 
   defp check_module(module),
     do: if(module in modules(), do: :ok, else: {:error, :unknown_module})
@@ -174,7 +177,7 @@ defmodule TalesForge.Playtest.Runner do
            }
            |> put_character(character)
            |> GameSessions.create_session(),
-         {:ok, run} <- insert_run(session, persona, module, opts),
+         {:ok, run} <- insert_run(session, run_attrs(persona, module, opts)),
          play_opts = Keyword.put(opts, :character_description, description),
          {:ok, _pid} <-
            Task.Supervisor.start_child(@supervisor, fn -> play(run, persona, play_opts) end) do
@@ -203,20 +206,27 @@ defmodule TalesForge.Playtest.Runner do
     |> Repo.update_all(set: [status: "failed", stop_reason: "error", finished_at: now()])
   end
 
-  defp insert_run(session, persona, module, opts) do
-    %PlaytestRun{}
-    |> PlaytestRun.changeset(%{
-      game_session_id: session.id,
+  defp run_attrs(persona, module, opts) do
+    %{
       persona: persona.id,
       module: module,
-      build: build(),
-      git_sha: RunMeta.git_sha(),
-      flags: RunMeta.flags(persona.id, session.world_state),
       turn_limit: Keyword.get(opts, :turn_limit, @default_turn_limit),
-      status: "running",
-      started_at: now(),
       notes: opts[:notes]
-    })
+    }
+  end
+
+  defp insert_run(session, attrs) do
+    %PlaytestRun{}
+    |> PlaytestRun.changeset(
+      Map.merge(attrs, %{
+        game_session_id: session.id,
+        build: build(),
+        git_sha: RunMeta.git_sha(),
+        flags: RunMeta.flags(attrs.persona, session.world_state),
+        status: "running",
+        started_at: now()
+      })
+    )
     |> Repo.insert()
   end
 
@@ -283,7 +293,7 @@ defmodule TalesForge.Playtest.Runner do
   defp play_turn(state) do
     with :ok <- gm_opened(state),
          {:ok, action} <- persona_move(state, nil) do
-      submit(state, action, [], 0)
+      submit(state, %Message{text: action})
     end
   end
 
@@ -291,12 +301,12 @@ defmodule TalesForge.Playtest.Runner do
   # already waited for the opening scene job, so this is a guard: never let
   # the persona make the first move into a session without an opening.
   defp gm_opened(state) do
-    if GameSessions.opening_scene(state.run.game_session_id),
+    if TalesForge.Scenes.opening(state.run.game_session_id),
       do: :ok,
       else: {:error, :no_opening_scene}
   end
 
-  defp submit(state, text, opts, clarifications) do
+  defp submit(state, %Message{text: text, opts: opts, clarifications: clarifications} = message) do
     turns_before = turn_count(state)
 
     case timed(state, fn -> GameSessions.submit_message(state.run.game_session_id, text, opts) end) do
@@ -309,7 +319,7 @@ defmodule TalesForge.Playtest.Runner do
         clarify(state, clarification, clarifications + 1)
 
       {:error, :needs_scene} ->
-        with :ok <- ready_scene(state), do: submit(state, text, opts, clarifications)
+        with :ok <- ready_scene(state), do: submit(state, message)
 
       {:error, :dead} ->
         :dead
@@ -326,8 +336,15 @@ defmodule TalesForge.Playtest.Runner do
 
       case Enum.find(options, &(&1["id"] == option_id)) || forced_option(options, count, action) do
         # The option label goes in as the player's text, as a typed answer would.
-        %{"id" => id, "label" => label} -> submit(state, label, [{:option_id, id} | base], count)
-        nil -> submit(state, action, base, count)
+        %{"id" => id, "label" => label} ->
+          submit(state, %Message{
+            text: label,
+            opts: [{:option_id, id} | base],
+            clarifications: count
+          })
+
+        nil ->
+          submit(state, %Message{text: action, opts: base, clarifications: count})
       end
     end
   end
@@ -358,8 +375,7 @@ defmodule TalesForge.Playtest.Runner do
       PlayerView.render(
         state.run.game_session_id,
         clarification,
-        state.turns_played + 1,
-        state.run.turn_limit
+        {state.turns_played + 1, state.run.turn_limit}
       )
 
     case LLM.complete_persona(state.system, user,
@@ -394,36 +410,43 @@ defmodule TalesForge.Playtest.Runner do
   @doc false
   def await_event(state, kind) do
     deadline = System.monotonic_time(:millisecond) + state.timeout_ms
-    await_event(state, kind, deadline, 0)
+    wait_for(state, %Wait{kind: kind, deadline: deadline})
   end
 
-  defp await_event(state, kind, deadline, failures) do
-    remaining = deadline - System.monotonic_time(:millisecond)
+  defp wait_for(state, %Wait{} = wait) do
+    remaining = wait.deadline - System.monotonic_time(:millisecond)
 
+    # on_message/3 takes any message, as the old catch-all clause did.
     receive do
-      {:scene_completed, _payload} when kind == :scene ->
-        :ok
-
-      {:turn_completed, payload} when is_tuple(kind) ->
-        if fresh_turn?(state, kind, payload),
-          do: {:completed, payload},
-          else: await_event(state, kind, deadline, failures)
-
-      {:scene_failed, reason} when kind == :scene ->
-        failed(state, kind, deadline, failures, reason)
-
-      {:turn_failed, reason} when is_tuple(kind) ->
-        failed(state, kind, deadline, failures, reason)
-
-      _other ->
-        await_event(state, kind, deadline, failures)
+      message -> on_message(state, wait, message)
     after
-      max(min(remaining, @poll_ms), 0) ->
-        cond do
-          result = settled(state, kind) -> result
-          remaining <= @poll_ms -> :timeout
-          true -> await_event(state, kind, deadline, failures)
-        end
+      max(min(remaining, @poll_ms), 0) -> poll(state, wait, remaining)
+    end
+  end
+
+  defp on_message(_state, %Wait{kind: :scene}, {:scene_completed, _payload}), do: :ok
+
+  defp on_message(state, %Wait{kind: kind} = wait, {:turn_completed, payload})
+       when is_tuple(kind) do
+    if fresh_turn?(state, kind, payload),
+      do: {:completed, payload},
+      else: wait_for(state, wait)
+  end
+
+  defp on_message(state, %Wait{kind: :scene} = wait, {:scene_failed, reason}),
+    do: failed(state, wait, reason)
+
+  defp on_message(state, %Wait{kind: kind} = wait, {:turn_failed, reason}) when is_tuple(kind),
+    do: failed(state, wait, reason)
+
+  defp on_message(state, wait, _other), do: wait_for(state, wait)
+
+  # No event within the poll interval: the database may have settled it.
+  defp poll(state, %Wait{} = wait, remaining) do
+    cond do
+      result = settled(state, wait.kind) -> result
+      remaining <= @poll_ms -> :timeout
+      true -> wait_for(state, wait)
     end
   end
 
@@ -432,13 +455,13 @@ defmodule TalesForge.Playtest.Runner do
 
   defp fresh_turn?(state, {:turn, turns_before}, _payload), do: turn_count(state) > turns_before
 
-  defp failed(_state, _kind, _deadline, _failures, {:spend_cap, _cap}), do: :spend_cap
+  defp failed(_state, _wait, {:spend_cap, _cap}), do: :spend_cap
 
-  defp failed(_state, _kind, _deadline, failures, reason) when failures + 1 >= @job_attempts,
+  defp failed(_state, %Wait{failures: failures}, reason) when failures + 1 >= @job_attempts,
     do: {:error, reason}
 
-  defp failed(state, kind, deadline, failures, _reason),
-    do: await_event(state, kind, deadline, failures + 1)
+  defp failed(state, %Wait{} = wait, _reason),
+    do: wait_for(state, %{wait | failures: wait.failures + 1})
 
   defp settled(state, :scene) do
     session = GameSessions.get_session!(state.run.game_session_id)

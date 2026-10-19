@@ -21,11 +21,27 @@
   "stock": [
     {
       "id": "ale_mug",
-      "name": "Mug of Ale",
+      "name": "Ale",
       "price_copper": 2,
-      "quantity": 99
+      "quantity": 72
+    },
+    {
+      "id": "stew_bowl",
+      "name": "Bowl of Stew",
+      "price_copper": 5,
+      "quantity": 20
+    },
+    {
+      "id": "bread_cheese",
+      "name": "Bread and Cheese",
+      "price_copper": 2,
+      "quantity": 12
     }
   ],
+  "serves": ["ale_mug", "stew_bowl", "bread_cheese"],
+  "lends": ["mug"],
+  "buys": [],
+  "coins": {"gold": 2},
   "maslow": "belonging",
   "concerns": [
     {

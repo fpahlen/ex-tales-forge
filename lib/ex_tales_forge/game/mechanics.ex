@@ -18,7 +18,26 @@ defmodule TalesForge.Game.Mechanics do
   Vitality (wounds, down, death rolls) is here too.
   """
 
+  defmodule Roll do
+    @moduledoc false
+    # One d100 check: the normalized skill, the effective level and an
+    # injected roll (tests, replays) or nil.
+    @enforce_keys [:skill, :effective]
+    defstruct [:skill, :effective, :injected]
+  end
+
+  defmodule Harm do
+    @moduledoc """
+    The harm step of a turn (`TalesForge.Game.Mechanics.apply_character_vitality/3`):
+    the mechanical resolution (its LP go on a fatal death roll) and an
+    injected death roll (1..100) or nil.
+    """
+    defstruct [:mechanical, :death_roll]
+    @type t :: %__MODULE__{}
+  end
+
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction}
+  alias TalesForge.GameCharacter
 
   @skill_stat %{
     "melee_combat" => "STR",
@@ -230,7 +249,7 @@ defmodule TalesForge.Game.Mechanics do
       {character, no_check_resolution()}
     else
       modifier = (handler.state_hints || %{})["roll_modifier"] || 0
-      perform_and_apply(character, skill, nil, modifier)
+      perform_and_apply(character, skill, modifier: modifier)
     end
   end
 
@@ -263,28 +282,33 @@ defmodule TalesForge.Game.Mechanics do
   end
 
   @doc """
-  Rolls 1d100 for `skill` (inject `injected_roll` in tests), adds the LP it
-  earns and counts a failure. LP are only earned here; spending them is
-  `TalesForge.Game.Progression`.
+  Rolls 1d100 for `skill`, adds the LP it earns and counts a failure. LP are
+  only earned here; spending them is `TalesForge.Game.Progression`.
+
+  `opts`: `:roll` injects the roll (1..100, or a list for a re-roll at 100)
+  in tests and replays; `:modifier` is the manner adverb's roll modifier
+  (Catalogue v2, default 0).
   """
-  @spec perform_and_apply(map(), String.t() | nil, 1..100 | [1..100] | nil, integer()) ::
+  @spec perform_and_apply(map(), String.t() | nil, keyword()) ::
           {map(), MechanicalResolution.t()}
-  def perform_and_apply(character, skill, injected_roll \\ nil, modifier \\ 0) do
+  def perform_and_apply(character, skill, opts \\ []) do
     normalized = normalize_skill_name(skill) || "insight"
     # Catalogue v2: the manner adverb's roll modifier (PROVISIONAL table).
-    effective = max(0, effective_skill_level(character, normalized) + modifier)
-    roll_at(character, normalized, effective, injected_roll)
+    effective =
+      max(0, effective_skill_level(character, normalized) + Keyword.get(opts, :modifier, 0))
+
+    roll_at(character, %Roll{skill: normalized, effective: effective, injected: opts[:roll]})
   end
 
   @doc """
-  Rolls one part of a skill split at the part `level`. The rules are the
-  rules of `perform_and_apply/4`. Inject `injected_roll` in tests.
+  Rolls one part of a skill split, `{skill, level}`, at the part level. The
+  rules are the rules of `perform_and_apply/3`. Inject `roll` in tests.
   """
-  @spec perform_part(map(), String.t(), non_neg_integer(), 1..100 | [1..100] | nil) ::
+  @spec perform_part(map(), {String.t(), non_neg_integer()}, 1..100 | [1..100] | nil) ::
           {map(), MechanicalResolution.t()}
-  def perform_part(character, skill, level, injected_roll \\ nil) when is_integer(level) do
+  def perform_part(character, {skill, level}, roll \\ nil) when is_integer(level) do
     normalized = normalize_skill_name(skill) || "insight"
-    roll_at(character, normalized, max(0, level), injected_roll)
+    roll_at(character, %Roll{skill: normalized, effective: max(0, level), injected: roll})
   end
 
   @doc """
@@ -383,20 +407,10 @@ defmodule TalesForge.Game.Mechanics do
     for i <- 1..count, do: if(i <= extra, do: base + 1, else: base)
   end
 
-  defp roll_at(character, normalized, effective, injected_roll) do
+  defp roll_at(character, %Roll{skill: normalized, effective: effective, injected: injected}) do
     raw_level = character |> get_in(["skills", normalized]) |> to_int(0)
-    {roll, outcome} = roll_outcome(effective, injected_roll)
-    lp = growth_lp(outcome)
-
-    learning_points =
-      character
-      |> Map.get("learning_points", %{})
-      |> add_lp(normalized, lp)
-
-    updated =
-      character
-      |> Map.put("learning_points", learning_points)
-      |> maybe_count_failure(normalized, outcome)
+    {roll, outcome} = roll_outcome(effective, injected)
+    {updated, lp} = award(character, normalized, outcome)
 
     resolution = %MechanicalResolution{
       skill: normalized,
@@ -410,6 +424,23 @@ defmodule TalesForge.Game.Mechanics do
     }
 
     {updated, resolution}
+  end
+
+  # The LP the outcome earns, and the failure count.
+  defp award(character, skill, outcome) do
+    lp = growth_lp(outcome)
+
+    learning_points =
+      character
+      |> Map.get("learning_points", %{})
+      |> add_lp(skill, lp)
+
+    updated =
+      character
+      |> Map.put("learning_points", learning_points)
+      |> maybe_count_failure(skill, outcome)
+
+    {updated, lp}
   end
 
   # At skill 100 or above, a roll of 100 rolls again. A failure on the second
@@ -462,12 +493,38 @@ defmodule TalesForge.Game.Mechanics do
   defp lp_note(_outcome), do: "Success: nothing to learn."
 
   @doc """
-  Wound cap from CON. Minimum 1 (CON 3).
+  Wound cap from CON. Minimum 1 (CON 3). A minor foe has 1.
   """
-  @spec wound_max(map()) :: pos_integer()
+  @spec wound_max(GameCharacter.t() | map()) :: pos_integer()
+  def wound_max(%GameCharacter{minor: true}), do: 1
+  def wound_max(%GameCharacter{stats: stats}), do: wound_max(%{"stats" => stats})
+
   def wound_max(character) when is_map(character) do
     con = character |> get_in(["stats", "CON"]) |> to_int(10)
     max(1, 3 + div(con - 10, 2))
+  end
+
+  @doc """
+  One wound on any character, player or NPC (refactor step 10c): below
+  the cap it adds a wound (`"hurt"`, or `"down"` at the cap); at the cap it
+  makes the death roll of `combat.md`, a d100 (`death_roll`, else random)
+  greater than CON × 2.5 kills. A dead character stays as it is. Wounds
+  below 0 count as 0.
+  """
+  @spec wound(GameCharacter.t(), 1..100 | nil) :: GameCharacter.t()
+  def wound(%GameCharacter{vitality: "dead"} = character, _death_roll), do: character
+
+  def wound(%GameCharacter{} = character, death_roll) do
+    cap = wound_max(character)
+    wounds = character.wounds |> to_int(0) |> max(0)
+
+    if wounds >= cap do
+      vitality = if fatal_death_roll?(character, death_roll), do: "dead", else: "down"
+      GameCharacter.put(character, wounds: cap, wound_max: cap, vitality: vitality)
+    else
+      vitality = if wounds + 1 >= cap, do: "down", else: "hurt"
+      GameCharacter.put(character, wounds: wounds + 1, wound_max: cap, vitality: vitality)
+    end
   end
 
   @doc ~S(The character's vitality: "ok", "hurt", "down" when wounds reach the cap, or "dead".)
@@ -495,26 +552,35 @@ defmodule TalesForge.Game.Mechanics do
   Inject `opts[:death_roll]` (1..100) in tests.
 
   With `opts[:opposed]` true (`COMBAT_OPPOSED=on`), the exchange in
-  `opts[:combat]` (`TalesForge.Game.Combat.exchange/4`) replaces the failed
+  `opts[:combat]` (`TalesForge.Game.Combat.exchange/3`) replaces the failed
   combat roll: the character takes a wound only from a counterattack hit.
   """
   @spec apply_vitality(map(), MechanicalResolution.t() | nil, keyword()) :: map()
   def apply_vitality(world, mechanical, opts \\ []) when is_map(world) do
-    character = Map.get(world, "character", %{})
+    character = world |> Map.get("character", %{}) |> GameCharacter.from_sheet()
     facts = Map.get(world, "public_facts", [])
-    put_in(world, ["character"], apply_character_vitality(character, mechanical, facts, opts))
+    hits = harm_count(mechanical, facts, opts)
+    harm = %Harm{mechanical: mechanical, death_roll: opts[:death_roll]}
+    vital = apply_character_vitality(character, harm, hits)
+    put_in(world, ["character"], GameCharacter.to_sheet(vital))
   end
 
-  defp apply_character_vitality(character, mechanical, facts, opts) do
-    hits = harm_count(mechanical, facts, opts)
-    character = stamp_wound_max(character)
+  @doc """
+  The vitality step for any character: `hits` wounds (`wound/2`; the turn's
+  LP go on a fatal death roll), or, without a hit, the wound cap and
+  vitality stamped from the wounds.
+  """
+  @spec apply_character_vitality(GameCharacter.t(), Harm.t(), non_neg_integer()) ::
+          GameCharacter.t()
+  def apply_character_vitality(%GameCharacter{} = character, %Harm{} = harm, hits) do
+    character = GameCharacter.put(character, wound_max: wound_max(character))
 
     cond do
-      Map.get(character, "vitality") == "dead" ->
-        Map.put(character, "vitality", "dead")
+      character.vitality == "dead" ->
+        GameCharacter.put(character, vitality: "dead")
 
       hits > 0 ->
-        Enum.reduce(1..hits, character, &harm_once(&1, &2, mechanical, opts))
+        Enum.reduce(1..hits, character, fn _hit, acc -> harm_once(acc, harm) end)
 
       true ->
         stamp_vitality(character)
@@ -534,51 +600,29 @@ defmodule TalesForge.Game.Mechanics do
     if hits == 0 and wound_fact?(facts), do: 1, else: hits
   end
 
-  defp harm_once(_hit, %{"vitality" => "dead"} = character, _mechanical, _opts), do: character
-  defp harm_once(_hit, character, mechanical, opts), do: apply_harm(character, mechanical, opts)
+  defp harm_once(%GameCharacter{vitality: "dead"} = character, _harm), do: character
 
-  defp apply_harm(character, mechanical, opts) do
-    cap = wound_max(character)
-    wounds = character |> Map.get("wounds", 0) |> to_int(0) |> max(0)
-
-    if wounds >= cap do
-      resolve_death_roll(character, mechanical, cap, opts)
-    else
-      new_wounds = wounds + 1
-
-      character
-      |> Map.put("wounds", new_wounds)
-      |> Map.put("wound_max", cap)
-      |> Map.put("vitality", if(new_wounds >= cap, do: "down", else: "hurt"))
+  defp harm_once(%GameCharacter{} = character, %Harm{} = harm) do
+    case wound(character, harm.death_roll) do
+      %GameCharacter{vitality: "dead"} = dead -> strip_turn_lp(dead, harm.mechanical)
+      wounded -> wounded
     end
   end
 
-  defp resolve_death_roll(character, mechanical, cap, opts) do
-    character =
-      character
-      |> Map.put("wounds", cap)
-      |> Map.put("wound_max", cap)
-
-    if fatal_death_roll?(character, opts) do
-      character
-      |> Map.put("vitality", "dead")
-      |> strip_turn_lp(mechanical)
-    else
-      Map.put(character, "vitality", "down")
-    end
-  end
-
-  defp fatal_death_roll?(character, opts) do
-    con = character |> get_in(["stats", "CON"]) |> to_int(10)
-    roll = opts[:death_roll] || :rand.uniform(100)
+  defp fatal_death_roll?(%GameCharacter{stats: stats}, death_roll) do
+    con = %{"stats" => stats} |> get_in(["stats", "CON"]) |> to_int(10)
+    roll = death_roll || :rand.uniform(100)
     roll > con * 2.5
   end
 
-  defp strip_turn_lp(character, %MechanicalResolution{skill: skill, lp_awarded: lp})
+  defp strip_turn_lp(%GameCharacter{} = character, %MechanicalResolution{
+         skill: skill,
+         lp_awarded: lp
+       })
        when is_binary(skill) and is_number(lp) and lp > 0 do
-    lp_map = Map.get(character, "learning_points", %{})
+    lp_map = character.learning_points
     remaining = Float.round(max(to_float(Map.get(lp_map, skill, 0)) - lp, 0.0), 1)
-    Map.put(character, "learning_points", Map.put(lp_map, skill, remaining))
+    GameCharacter.put(character, learning_points: Map.put(lp_map, skill, remaining))
   end
 
   defp strip_turn_lp(character, _), do: character
@@ -604,16 +648,11 @@ defmodule TalesForge.Game.Mechanics do
     end)
   end
 
-  defp stamp_wound_max(character), do: Map.put(character, "wound_max", wound_max(character))
-
-  defp stamp_vitality(character) do
+  defp stamp_vitality(%GameCharacter{} = character) do
     cap = wound_max(character)
-    wounds = character |> Map.get("wounds", 0) |> to_int(0) |> max(0) |> min(cap)
-
-    character
-    |> Map.put("wounds", wounds)
-    |> Map.put("wound_max", cap)
-    |> Map.put("vitality", vitality(Map.put(character, "wounds", wounds)))
+    wounds = character.wounds |> to_int(0) |> max(0) |> min(cap)
+    vitality = vitality(%{"stats" => character.stats, "wounds" => wounds})
+    GameCharacter.put(character, wounds: wounds, wound_max: cap, vitality: vitality)
   end
 
   defp no_check_resolution do

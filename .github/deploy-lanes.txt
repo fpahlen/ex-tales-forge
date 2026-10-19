@@ -24,6 +24,13 @@
 #   normal  Anything else (game, shared, CI, docs, unknown files; a mixed merge):
 #           playtest first; a founder's Approve ships it to production.
 #
+# Merging (docs/design-auto-merge.md): a pull request on [founder] below always
+# waits for a founder to review and merge it. Without one, a docs-only or
+# health-history PR whose checks all passed is merged by the bot
+# (security-lane.yml, "auto" lane; TalesForge.DeployLanes.Auto). [founder] says
+# nothing about deploy lanes, and `mix deploy.check_boundaries` does not require
+# its patterns to match a file (they guard against future files too).
+#
 # Format: one pattern per line under a [section]; `#` starts a comment.
 #   path/to/file.ex   exactly that file
 #   path/to/dir/      everything under that directory
@@ -94,7 +101,6 @@ lib/ex_tales_forge/world.ex
 lib/ex_tales_forge/world/
 lib/ex_tales_forge/npc*.ex
 lib/ex_tales_forge/actions/
-lib/ex_tales_forge/agents/
 lib/ex_tales_forge/intent_jev.ex
 lib/ex_tales_forge/gm_reasoning.ex
 lib/ex_tales_forge/fronts.ex
@@ -118,3 +124,23 @@ lib/ex_tales_forge_web/components/play_components.ex
 lib/ex_tales_forge_web/router.ex
 lib/ex_tales_forge/application.ex
 lib/ex_tales_forge_web/controllers/costs_peer_controller.ex
+
+[founder]
+# Always a founder's review before merging, whatever the label or title says.
+# Migrations, seeds and data, packs, NPCs, prompts and surveys (user-visible).
+priv/
+# SQL anywhere.
+**.sql
+# New or bumped deps (the security lane has its own rules for mix.lock).
+mix.exs
+mix.lock
+# Deploy and runtime config.
+fly*.toml
+Dockerfile
+.dockerignore
+rel/
+config/
+# CI, the merge lanes and this file.
+.github/
+# Decisions are founder calls.
+docs/decisions.md

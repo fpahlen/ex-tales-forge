@@ -4,18 +4,18 @@ defmodule TalesForge.WorkflowClient.Http do
   to `POST /internal/workflow/work-log/turns`
   (`TalesForgeWeb.WorkflowWorkLogController`).
 
-  - Base URL: config `:ex_tales_forge, TalesForge.WorkflowClient, base_url:`.
+  - Base URL: config `:ex_tales_forge, :workflow_client, base_url:`.
   - Token: the secret `WORKFLOW_API_TOKEN` as a bearer token (config
     `:ex_tales_forge, :workflow_api, token:`).
   - 5 s timeout and no retries in the request. The Oban job retries.
   """
 
-  @behaviour TalesForge.WorkflowClient
+  @behaviour TalesForge.WorkflowClient.Adapter
 
   @path "/internal/workflow/work-log/turns"
   @timeout_ms 5_000
 
-  @impl TalesForge.WorkflowClient
+  @impl TalesForge.WorkflowClient.Adapter
   def push_turn(event) do
     with {:url, url} when is_binary(url) <- {:url, base_url()},
          {:token, token} when is_binary(token) <- {:token, token()} do
@@ -45,7 +45,7 @@ defmodule TalesForge.WorkflowClient.Http do
   end
 
   defp base_url,
-    do: Application.get_env(:ex_tales_forge, TalesForge.WorkflowClient, [])[:base_url]
+    do: Application.get_env(:ex_tales_forge, :workflow_client, [])[:base_url]
 
   defp token do
     case Application.get_env(:ex_tales_forge, :workflow_api, [])[:token] do

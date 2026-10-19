@@ -25,11 +25,10 @@ defmodule TalesForge.Game.TurnHangTest do
   alias TalesForge.Game.{Context, Intent, TurnProcessor}
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Playtest.Runner
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{AICall, GameSession, PlaytestRun, Turn}
+  alias TalesForge.Schemas.{AICall, PlaytestRun, Turn}
   alias TalesForge.Workers.ProcessTurn
 
   doctest TalesForge.Game.Schemas.SingleAction
@@ -98,8 +97,6 @@ defmodule TalesForge.Game.TurnHangTest do
       for pid <- Task.Supervisor.children(TalesForge.Playtest.Supervisor),
           do: Task.Supervisor.terminate_child(TalesForge.Playtest.Supervisor, pid)
 
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
       Enum.each(saved, fn
         {key, nil} -> System.delete_env(key)
         {key, value} -> System.put_env(key, value)
@@ -120,7 +117,7 @@ defmodule TalesForge.Game.TurnHangTest do
     {:ok, session} =
       GameSessions.create_session(%{name: "Hang", adventure_id: "tin_valley"})
 
-    Repo.get!(GameSession, session.id)
+    GameSessions.get_session!(session.id)
   end
 
   defp turn_count(session_id),
@@ -151,7 +148,7 @@ defmodule TalesForge.Game.TurnHangTest do
       session = session()
       {_label, raw_action, player_action} = List.last(@hung_jobs)
 
-      assert {:ok, payload} = TurnProcessor.run(session.id, raw_action, player_action)
+      assert {:ok, payload} = TurnProcessor.run(session.id, {raw_action, player_action})
       assert payload.world_state["location_id"] == "market_square"
     end
   end
@@ -230,7 +227,7 @@ defmodule TalesForge.Game.TurnHangTest do
       assert {:ok, %{status: "finished", stop_reason: "turn_limit", turns_played: 1} = run} =
                await(run_id)
 
-      session = Repo.get!(GameSession, run.game_session_id)
+      session = GameSessions.get_session!(run.game_session_id)
       assert session.world_state["location_id"] == "market_square"
     end
   end
@@ -240,11 +237,7 @@ defmodule TalesForge.Game.TurnHangTest do
       session = session()
 
       # A world_state the rules step cannot read: any crash inside the turn.
-      session
-      |> GameSession.changeset(%{
-        world_state: Map.put(session.world_state, "character", "corrupt")
-      })
-      |> Repo.update!()
+      put_stored_world!(session.id, "character", "corrupt")
 
       %{session: session}
     end

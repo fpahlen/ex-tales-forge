@@ -15,7 +15,6 @@ defmodule TalesForge.AdminAuth.GitHub do
   require Logger
 
   alias Assent.Strategy.Github, as: Strategy
-  alias TalesForge.AdminAuth
   alias TalesForge.AdminAuth.MembershipCache
 
   @callback_path "/admin/auth/github/callback"
@@ -43,9 +42,13 @@ defmodule TalesForge.AdminAuth.GitHub do
     end
   end
 
-  @doc "Starts the flow: `{:ok, %{url: url, state: state}}`; keep `state` in the session."
-  def authorize_url do
-    case Strategy.authorize_url(assent_config()) do
+  @doc """
+  Starts the flow: `{:ok, %{url: url, state: state}}`; keep `state` in the
+  session. `redirect_uri` is the absolute URL of `callback_path/0`, which the
+  web layer builds from its endpoint.
+  """
+  def authorize_url(redirect_uri) do
+    case Strategy.authorize_url(assent_config(redirect_uri)) do
       {:ok, %{url: url, session_params: %{state: state}}} -> {:ok, %{url: url, state: state}}
       {:error, error} -> {:error, error}
     end
@@ -55,9 +58,10 @@ defmodule TalesForge.AdminAuth.GitHub do
   Handles the callback. Returns `{:ok, %{login: login, email: email}}` for an
   allowed user, `{:error, {:not_allowed, login}}` for a valid GitHub user who
   isn't allowed, or `{:error, reason}` (bad/missing state, GitHub errors, ...).
+  `redirect_uri` is the same URL as for `authorize_url/1`.
   """
-  def callback(params, state) when is_binary(state) and state != "" do
-    config = Keyword.put(assent_config(), :session_params, %{state: state})
+  def callback(params, state, redirect_uri) when is_binary(state) and state != "" do
+    config = Keyword.put(assent_config(redirect_uri), :session_params, %{state: state})
 
     with {:ok, %{user: user, token: token}} <- Strategy.callback(config, params),
          login when is_binary(login) <- user["preferred_username"] || {:error, :no_login},
@@ -66,14 +70,15 @@ defmodule TalesForge.AdminAuth.GitHub do
     end
   end
 
-  def callback(_params, _state), do: {:error, :missing_state}
+  def callback(_params, _state, _redirect_uri), do: {:error, :missing_state}
 
   # Team membership is the only gate. The email (primary verified one first) is
   # just the display identity, e.g. on decision comments.
   defp authorize(login, emails) do
     if team_member?(login, fresh: true) do
       email = List.first(emails) || "#{login}@users.noreply.github.com"
-      {:ok, %{login: login, email: AdminAuth.normalize(email)}}
+      # `TalesForge.AdminAuth.put_github_session/2` normalizes it.
+      {:ok, %{login: login, email: email}}
     else
       {:error, {:not_allowed, login}}
     end
@@ -178,13 +183,13 @@ defmodule TalesForge.AdminAuth.GitHub do
     )
   end
 
-  defp assent_config do
+  defp assent_config(redirect_uri) do
     oauth = Application.get_env(:ex_tales_forge, :github_oauth, [])
 
     [
       client_id: oauth[:client_id],
       client_secret: oauth[:client_secret],
-      redirect_uri: TalesForgeWeb.Endpoint.url() <> @callback_path,
+      redirect_uri: redirect_uri,
       authorization_params: [scope: @scope],
       http_adapter:
         {Assent.HTTPAdapter.Req, [retry: false, receive_timeout: 10_000] ++ req_options()}

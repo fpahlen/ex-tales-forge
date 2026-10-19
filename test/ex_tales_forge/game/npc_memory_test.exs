@@ -11,7 +11,6 @@ defmodule TalesForge.Game.NpcMemoryTest do
 
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent}
 
@@ -23,8 +22,6 @@ defmodule TalesForge.Game.NpcMemoryTest do
     saved = Map.new(@env, &{&1, System.get_env(&1)})
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
       Enum.each(saved, fn
         {key, nil} -> System.delete_env(key)
         {key, value} -> System.put_env(key, value)
@@ -42,8 +39,7 @@ defmodule TalesForge.Game.NpcMemoryTest do
         send(test_pid, {:gm_prompt, user})
 
         %{
-          "narrative" => ~s(Brenna Holt sets down a mug. "We close at midnight, traveller."),
-          "gm_notes" => "n"
+          "narrative" => ~s(Brenna Holt sets down a mug. "We close at midnight, traveller.")
         }
 
       _kind, _user, _system ->
@@ -61,7 +57,7 @@ defmodule TalesForge.Game.NpcMemoryTest do
       "confidence" => 0.9
     }
 
-    {:ok, _} = TurnProcessor.run(session_id, "Ask Brenna, turn #{n}.", action)
+    {:ok, _} = TurnProcessor.run(session_id, {"Ask Brenna, turn #{n}.", action})
     assert_received {:gm_prompt, prompt}
     prompt
   end

@@ -8,7 +8,7 @@ defmodule TalesForge.World.Agent do
 
   The agent never touches the database. It starts from the pack definition
   plus the session's stored facts (`world_fact` session events) and mood
-  (`world_state["npc_moods"]`), and `TalesForge.World.commit/3` adds facts
+  (the gut reaction on its character, `TalesForge.Game.Cast.reactions/1`), and `TalesForge.World.commit/3` adds facts
   only after they are persisted, so a restarted agent rehydrates the same state.
   """
   use GenServer, restart: :transient

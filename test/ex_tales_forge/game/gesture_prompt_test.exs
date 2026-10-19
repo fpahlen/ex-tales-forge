@@ -9,7 +9,6 @@ defmodule TalesForge.Game.GesturePromptTest do
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
 
   alias TalesForge.GameSessions
-  alias TalesForge.Jido
 
   @narrative "Brenna wipes her hands on her apron and leans an elbow on the bar."
 
@@ -17,8 +16,6 @@ defmodule TalesForge.Game.GesturePromptTest do
     mode = Application.get_env(:ex_tales_forge, :intent_jev)
 
     on_exit(fn ->
-      for {id, _pid} <- Jido.list_agents(), do: Jido.stop_agent(id)
-
       if mode,
         do: Application.put_env(:ex_tales_forge, :intent_jev, mode),
         else: Application.delete_env(:ex_tales_forge, :intent_jev)
@@ -33,7 +30,7 @@ defmodule TalesForge.Game.GesturePromptTest do
     stub_llm(fn
       :gm, user, system ->
         send(test_pid, {:gm_prompt, system, user})
-        %{"narrative" => @narrative, "gm_notes" => "n"}
+        %{"narrative" => @narrative}
 
       _kind, _user, _system ->
         :default

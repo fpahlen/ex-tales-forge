@@ -7,7 +7,7 @@ defmodule TalesForge.PlaytestHelpers do
 
   @gm_reply %{
     "narrative" => "The lamp gutters as the innkeeper eyes you.",
-    "gm_notes" => "SECRET-GM-NOTE"
+    "context_summary" => "SECRET-GM-SUMMARY"
   }
 
   @doc """
@@ -54,7 +54,8 @@ defmodule TalesForge.PlaytestHelpers do
   end
 
   # Answers every LLM call like xAI would, 2000 micro-USD each. `reply.(kind, user)`
-  # (or `reply.(kind, user, system)`) returns the JSON for that call, or :default.
+  # (or `reply.(kind, user, system)`) returns the JSON for that call, or :default,
+  # or `{:transport_error, reason}` for a dropped connection.
   def stub_llm(reply) do
     Req.Test.stub(TalesForge.LLM, fn conn ->
       {:ok, body, conn} = Plug.Conn.read_body(conn)
@@ -69,27 +70,29 @@ defmodule TalesForge.PlaytestHelpers do
 
       kind = kind(system, user, request)
 
-      content =
-        case if(is_function(reply, 3), do: reply.(kind, user, system), else: reply.(kind, user)) do
-          :default -> Jason.encode!(default_reply(kind))
-          {:raw, text} -> text
-          map -> Jason.encode!(map)
-        end
-
-      Req.Test.json(conn, %{
-        "choices" => [
-          %{"message" => %{"role" => "assistant", "content" => content}}
-        ],
-        "usage" => %{
-          "prompt_tokens" => 2000,
-          "completion_tokens" => 100,
-          "cost_in_usd_ticks" => 20_000_000
-        }
-      })
+      case if(is_function(reply, 3), do: reply.(kind, user, system), else: reply.(kind, user)) do
+        {:transport_error, reason} -> Req.Test.transport_error(conn, reason)
+        :default -> reply_json(conn, Jason.encode!(default_reply(kind)))
+        {:raw, text} -> reply_json(conn, text)
+        map -> reply_json(conn, Jason.encode!(map))
+      end
     end)
 
     System.put_env("LLM_PROVIDER", "xai")
     System.put_env("XAI_API_KEY", "test-key")
+  end
+
+  defp reply_json(conn, content) do
+    Req.Test.json(conn, %{
+      "choices" => [
+        %{"message" => %{"role" => "assistant", "content" => content}}
+      ],
+      "usage" => %{
+        "prompt_tokens" => 2000,
+        "completion_tokens" => 100,
+        "cost_in_usd_ticks" => 20_000_000
+      }
+    })
   end
 
   defp kind(system, user, request) do

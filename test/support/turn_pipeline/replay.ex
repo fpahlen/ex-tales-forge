@@ -40,7 +40,7 @@ defmodule TalesForge.TurnPipeline.Replay do
   alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{GameSession, NpcInstance, SessionEvent, Turn}
+  alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
 
   import Ecto.Query
 
@@ -115,7 +115,7 @@ defmodule TalesForge.TurnPipeline.Replay do
   defp session(context) do
     adventure = Map.fetch!(@worlds, context["world"])
     {:ok, session} = GameSessions.create_session(%{name: "Replay", adventure_id: adventure})
-    session = Repo.get!(GameSession, session.id)
+    session = GameSessions.get_session!(session.id)
     location = context["location_id"]
 
     character =
@@ -134,7 +134,11 @@ defmodule TalesForge.TurnPipeline.Replay do
       |> Map.put("world_tick", tick)
       |> Map.put("world_clock", WorldClock.format(tick))
 
-    session = session |> GameSession.changeset(%{world_state: world}) |> Repo.update!()
+    session =
+      session
+      |> GameSession.changeset(%{world_state: world})
+      |> TalesForge.DataCase.save_session!()
+
     put_stock(session.id, context["stock"] || %{})
     session
   end
@@ -144,11 +148,9 @@ defmodule TalesForge.TurnPipeline.Replay do
 
   defp put_stock(session_id, stock) do
     Enum.each(stock, fn {npc_id, items} ->
-      case NPC.get_instance(session_id, npc_id) do
-        %NpcInstance{} = inst ->
-          inst
-          |> Ecto.Changeset.change(runtime_state: Map.put(inst.runtime_state, "stock", items))
-          |> Repo.update!()
+      case NPC.get_person(session_id, npc_id) do
+        %NPC.Person{} = inst ->
+          NPC.put_state!(inst, Map.put(inst.runtime_state, "stock", items))
 
         nil ->
           :ok
@@ -165,13 +167,13 @@ defmodule TalesForge.TurnPipeline.Replay do
       [] ->
         prose = turn["gm_mock_prose"] || @default_prose
         stub_gm(prose)
-        before = Repo.get!(GameSession, session_id).world_state
+        before = GameSessions.get_session!(session_id).world_state
         events_before = events(session_id)
         action = player_action(turn["text"], expect, context)
-        {:ok, _payload} = TurnProcessor.run(session_id, turn["text"], action)
+        {:ok, _payload} = TurnProcessor.run(session_id, {turn["text"], action})
         assert_received {:replay_gm_prompt, prompt}
         npc_inputs = npc_inputs([])
-        after_turn = Repo.get!(GameSession, session_id).world_state
+        after_turn = GameSessions.get_session!(session_id).world_state
         new_events = events(session_id) -- events_before
 
         check(expect, %{
@@ -228,7 +230,7 @@ defmodule TalesForge.TurnPipeline.Replay do
     stub_llm(fn
       :gm, user, _system ->
         send(test_pid, {:replay_gm_prompt, user})
-        %{"narrative" => prose, "gm_notes" => "n"}
+        %{"narrative" => prose}
 
       _kind, _user, _system ->
         :default

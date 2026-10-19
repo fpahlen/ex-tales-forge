@@ -54,36 +54,56 @@ defmodule TalesForge.Game.PlayerQuote do
   @spec labels() :: [String.t()]
   def labels, do: @labels
 
-  @doc """
-  Decides the GM's quote for `action`, read from the player's `raw_action`,
-  given the `safety` read (nil when there was none; `no_read_reason` then
-  names why, e.g. `"jev_timeout"`).
-  """
-  @spec decide(PlayerAction.t(), String.t(), safety() | nil, float(), String.t()) :: decision()
-  def decide(%PlayerAction{} = action, raw_action, safety, threshold, no_read_reason \\ "no_read") do
-    own_words = own_words(raw_action)
-    label = safety && safety.label && Atom.to_string(safety.label)
-    confidence = safety && safety.confidence
+  @enforce_keys [:raw_action, :threshold]
+  defstruct [:raw_action, :safety, :threshold, no_read_reason: "no_read"]
 
-    {used, reason} =
-      cond do
-        is_nil(safety) -> {"summary", no_read_reason}
-        label != "benign" -> {"summary", "label_#{label}"}
-        not is_number(confidence) or confidence < threshold -> {"summary", "low_confidence"}
-        is_nil(own_words) -> {"summary", "empty_text"}
-        true -> {"quote", "benign"}
-      end
+  @typedoc """
+  What the quote is decided from: the player's `raw_action`, the `safety`
+  read (nil when there was none; `no_read_reason` then names why, e.g.
+  `"jev_timeout"`) and the benign confidence `threshold`.
+  """
+  @type t :: %__MODULE__{
+          raw_action: String.t(),
+          safety: safety() | nil,
+          threshold: float(),
+          no_read_reason: String.t()
+        }
+
+  @doc """
+  Decides the GM's quote for `action`, read from the player's words in `read`.
+
+      iex> alias TalesForge.Game.{PlayerQuote, Schemas.PlayerAction, Schemas.SingleAction}
+      iex> action = %PlayerAction{overall_intent: "x", action: %SingleAction{action_type: :speak, target: "innkeep"}}
+      iex> PlayerQuote.decide(action, %PlayerQuote{raw_action: "Hello", threshold: 0.9}).quote
+      "speak (target: innkeep)"
+  """
+  @spec decide(PlayerAction.t(), t()) :: decision()
+  def decide(%PlayerAction{} = action, %__MODULE__{safety: safety} = read) do
+    own_words = own_words(read.raw_action)
+    {used, reason} = used(read, own_words)
 
     %{
       quote: if(used == "quote", do: own_words, else: summary(action)),
       used: used,
       reason: reason,
-      label: label,
-      confidence: confidence,
-      benign_probability: safety && safety.benign_probability,
-      threshold: threshold
+      label: label(safety),
+      confidence: safety[:confidence],
+      benign_probability: safety[:benign_probability],
+      threshold: read.threshold
     }
   end
+
+  defp used(%__MODULE__{safety: nil, no_read_reason: reason}, _own_words), do: {"summary", reason}
+
+  defp used(%__MODULE__{safety: %{label: :benign, confidence: c}, threshold: t}, own_words)
+       when is_number(c) and c >= t,
+       do: if(is_nil(own_words), do: {"summary", "empty_text"}, else: {"quote", "benign"})
+
+  defp used(%__MODULE__{safety: %{label: :benign}}, _own_words), do: {"summary", "low_confidence"}
+  defp used(%__MODULE__{safety: safety}, _own_words), do: {"summary", "label_#{label(safety)}"}
+
+  defp label(%{label: label}) when is_atom(label) and not is_nil(label), do: Atom.to_string(label)
+  defp label(_safety), do: nil
 
   @doc "True when the safety read says the message asks for real-world harm, so the GM declines it in character."
   @spec decline?(safety() | nil) :: boolean()

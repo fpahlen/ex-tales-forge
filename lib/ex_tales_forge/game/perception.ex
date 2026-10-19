@@ -14,7 +14,7 @@ defmodule TalesForge.Game.Perception do
   def visible_world(%GameSession{} = session) do
     world = session.world_state || %{}
     fronts = Fronts.list_all(session.id)
-    people = NPC.list_instances(session.id)
+    people = NPC.list_people(session.id)
     events = list_event_maps(session.id)
     visible_world(world, fronts ++ people, events)
   end

@@ -7,6 +7,7 @@ defmodule TalesForge.LLMConvIdTest do
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameSessions
   alias TalesForge.LLM
+  alias TalesForge.Prompt.Assemble
 
   @reply %{
     "choices" => [
@@ -50,7 +51,7 @@ defmodule TalesForge.LLMConvIdTest do
       |> Intent.validate_player_action(context)
       |> PlayerAction.encode()
 
-    assert {:ok, _} = TurnProcessor.run(session.id, "look around the tavern", player_action)
+    assert {:ok, _} = TurnProcessor.run(session.id, {"look around the tavern", player_action})
 
     session_id = session.id
     assert_received {:conv_id, [^session_id]}
@@ -82,7 +83,7 @@ defmodule TalesForge.LLMConvIdTest do
 
     assert {:ok, _} =
              LLM.complete_scene(
-               TalesForge.Game.Prompts.scene_messages(context),
+               Assemble.scene_messages(context),
                context.intent_context,
                session_id: session_id
              )

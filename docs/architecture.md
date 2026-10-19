@@ -24,7 +24,7 @@ The big calls are written down so we do not reopen them by accident.
 
 We noticed something while we were building the game: the AI was more consistent if we cleaned up what the player said *before* the storyteller saw it.
 
-Tales Forge is a text-first, instanced RPG on the BEAM. Phoenix LiveView for the table, Jido for the hot session and present NPCs, Ecto + PostgreSQL for the save, Oban for LLM work (and later simulation). Authored content is pack files under `priv/`. Persistence is 100% Ecto.
+Tales Forge is a text-first, instanced RPG on the BEAM. Phoenix LiveView for the table, one `World.Instance` process per active session that runs its turns, Ecto + PostgreSQL for the save, Oban for LLM work (and later simulation). Authored content is pack files under `priv/`. Persistence is 100% Ecto.
 
 Today the loop is a two-tier turn against a static location graph. NPCs have personality, OCEAN traits, and a `current_concern` that can escalate into a line of dialogue. That is a person with a worry — not an adventure. **Crossroads Ledger** is a missing-ledger hook. Nobody is looking for the ledger off-screen. No guild is hiring steel. No nest is preparing. The table waits. The world does not run.
 
@@ -48,25 +48,32 @@ The OTP root in `lib/ex_tales_forge/application.ex` is a **flat** `:one_for_one`
 TalesForge.Supervisor
   ├── TalesForgeWeb.Telemetry
   ├── TalesForge.Repo
-  ├── Oban                         # queues: default:10, llm:5
-  ├── TalesForge.Jido              # global Jido runtime (max_tasks: 1000 = Task.Supervisor max_children, not agent cap)
-  ├── TalesForge.NPCRecovery       # re-syncs present NPC agents on boot
+  ├── TalesForge.World.Registry        # Registry (unique): {:instance, session_id} → World.Instance
+  ├── TalesForge.World.Supervisor      # DynamicSupervisor: one World.Instance per active session, started lazily
+  ├── TalesForge.World.TaskSupervisor  # Task.Supervisor: the running turn's Task
+  ├── Oban                             # queues: default:10, llm:5
   ├── DNSCluster
   ├── Phoenix.PubSub
-  └── TalesForgeWeb.Endpoint
+  ├── TalesForge.Presence, TalesForge.Online.Peer
+  ├── Task.Supervisors                 # Playtest, Playtest series, IntentJev runs
+  ├── AdminAuth.MembershipCache, Survey.Cache
+  ├── TalesForgeWeb.Endpoint
+  └── TalesForge.CodeHeat.Sampler      # playtest only
 ```
 
-There is **no session supervisor**. `PlayerSessionAgent` (`lib/ex_tales_forge/agents/player_session_agent.ex`) is a thin Jido agent (`session_id`, `turn_count`, `entries`) started by `GameSessions.ensure_agent/1` with id `session-{id}`. NPC agents live under the same global Jido runtime, keyed `npc-{session_id}-{npc_id}`, started/stopped by `TalesForge.NPCRegistry` to match `world_state["present_npcs"]`.
+The three `World.*` children start before Oban, so they stop after it: a turn job still running in its shutdown grace period keeps its `World.Instance` and Task.
+
+The only long-lived process per session is `TalesForge.World.Instance` (`lib/ex_tales_forge/world/instance.ex`, [design](https://github.com/whyse-ab/ex-tales-forge/blob/main/docs/design-gc-10f-one-process.md)). `Workers.ProcessTurn` asks it to run the turn; it runs one turn at a time in a Task and stops after 15 minutes idle. Its state is a cache rebuilt from Postgres. NPCs have no process of their own (refactor step 10f PR 2 retired the NPC agents, `NPCRegistry` and `NPCRecovery`): what a turn means for them comes in as Intentions applied in the turn's transaction. 10f PR 3 retired `PlayerSessionAgent` (nothing read it) and removed the `jido` dependency.
 
 One `GameSession` (`lib/ex_tales_forge/schemas/game_session.ex`) is one instance. Mutable world is a JSON map (`world_state`) plus related rows:
 
 | Table / schema | Role |
 |----------------|------|
-| `game_sessions` | Instance: `name`, `status`, `world_state`, unused `world_clock` UTC column |
+| `game_sessions` | Instance: `name`, `status`, `world_state` (stored without `"character"`: `TalesForge.Schemas.WorldState`), unused `world_clock` UTC column |
 | `turns` | Auditable history: `player_action`, `narrative`, `mechanical_resolution` |
 | `scenes` | Per `(session, location_id)` exposition + optional `image_url` |
-| `npc_instances` | Per-session NPC: `personality` (authored copy) + `runtime_state` |
-| `characters` | One row per character, player or NPC (`controller` `player` \| `gm` \| `bot`), with OCEAN, Maslow level and concerns. Written at session create, kept in step after every turn (`TalesForge.Characters.mirror/1`, a double-write next to `npc_instances` and `world_state`), and backfilled for older sessions with `TalesForge.Characters.backfill/0`; **nothing reads it yet** (phase 1 of the Character plan in `docs/`) |
+| `npc_instances` | Per-session NPC (`personality` + `runtime_state`) until 10f PR 5; no longer read or written, kept until Fredrik OKs the drop. An NPC's state is its `characters` row |
+| `characters` | One row per character, player or NPC (`controller` `player` \| `gm` \| `bot`), with OCEAN, Maslow level and concerns. Written at session create and in each turn's Multi (`TalesForge.Characters.write_multi/2`), and backfilled for older sessions with `TalesForge.Characters.backfill/0`. The player character's row is its only stored copy (refactor step 10b-2): a loaded session gets `world_state["character"]` from it (`TalesForge.Characters.put_sheet/1`). A pack NPC's row is its only store (10f PR 5): `TalesForge.NPC` reads and writes it through `TalesForge.NPC.Rows` as a `TalesForge.NPC.Person` (place, mood, stock in `inventory`, relationship, and `runtime` with the memories, concern wait and initiative flags), in the caller's transaction, and gives each memory its `character_memories` row when it is recorded. The GM characters' rows, read as the session's cast (`TalesForge.Characters.cast/1`, `TalesForge.Game.Cast`), hold the NPCs' wounds and vitality, their gut reaction (`runtime["reaction"]`) and the minor foes (10f PR 4). `lifetime` (`persistent` by default, `scene` for a minor foe) says when a row goes: `TalesForge.Characters.end_scene_multi/2` removes the `scene` rows of a place when the player leaves it or takes a long rest there, and nothing else reads the column |
 | `character_memories` | One character's own view (felt, salience, secret) of an event in `session_events`. Mirrored from each NPC's `runtime_state["memories"]` (matched on tick + text, never duplicated); nothing reads it yet |
 
 NPC skills, stats and OCEAN defaults come from `TalesForge.Characters.Defaults`: pure Elixir from race, class, standing, occupation and seniority. The global labels are in `priv/characters/defaults.json`, and each pack can add its own in `character_defaults.json`. An NPC file's `derive` block holds the inputs, and its authored keys are overrides. NPC skills are on the PC scale (journeyman 8, master 12) and are used only by `Train`. The GM prompt never shows them.
@@ -75,35 +82,40 @@ Player character creation lives in `TalesForge.CharacterCreation`, which is pure
 
 The creation screen is `TalesForgeWeb.CreateCharacterLive` at `/new/:adventure`. It runs in three steps: race and class, then the point buy (live points left, race bonus picks, per-stat totals with the race modifier), then the name and a summary. Rule errors from `CharacterCreation.validate/1` show inline, and the Name step stays closed while stats or picks break a rule. "Begin adventure" calls `finalize/1` and `create_session(%{character: ...})`, then opens `/play/:id`. No AI call is made, so the first character is free. The draft lives in the LiveView process and a reload starts over. The later sections (background, standing, origin, occupation, personality, AI assist) show only as "coming later". The route sits behind the default sign-in like every page: the `:browser` pipeline and the `:play` live_session (`AdminLive.Hooks :require_team_member`), next to `/` and `/play/:id`, so the home page's "Create a character" link navigates without a reload. No public route. Player pages are light-only, but the creation page opts into the dark palette with the `.paper-themed` class (`assets/css/app.css`).
 
-`world_state` today (seeded by `TalesForge.Game.World.default_world_state/0`) holds `adventure_id`, `location_id` / `location_name`, `present_npcs`, `world_tick` / `world_clock` label, `last_scene_location`, `situation_lines`, `character`, `npc_state` (display snapshot), and `locations`. Time is discrete: `TalesForge.Game.WorldClock.advance/2` adds **+1 tick per player turn** (1 tick ≈ 15 in-game minutes; 4 ≈ 1 hour; 96 ≈ 1 day). There is **no wall-clock while idle**. Off-screen actors currently do almost nothing.
+`world_state` today (seeded by `TalesForge.Game.World.default_world_state/0`) holds `adventure_id`, `location_id` / `location_name`, `present_npcs`, `world_tick` / `world_clock` label, `last_scene_location`, `situation_lines`, `character`, and `locations`. The `npc_state` and `npc_moods` copies are gone (10f PR 4): an older stored world that still holds them is read without them and saved without them (`TalesForge.Schemas.WorldState`). Time is discrete: `TalesForge.Game.WorldClock.advance/2` adds **+1 tick per player turn** (1 tick ≈ 15 in-game minutes; 4 ≈ 1 hour; 96 ≈ 1 day). There is **no wall-clock while idle**. Off-screen actors currently do almost nothing.
 
 Play pipeline (`AGENTS.md` + `GameSessions` + workers):
 
 ```
 create_session
   → NPC.seed_session (pack npcs/ for tin_valley, else all priv/npcs/*.json)
-  → NPCRegistry.sync (agents only for present_npcs)
   → ProcessScene (Oban :llm) until last_scene_location == location_id
 submit_message
   → require scene ready
   → Tier 1 Intent (heuristic if confidence ≥ 0.85, else LLM; raw text never reaches Tier 2)
   → ProcessTurn (Oban :llm)
+     → World.Instance.run_turn (one turn at a time per session, in a Task; the commit holds an advisory lock on the session)
        LLM.complete_turn (table GM JSON)
        Mechanics.apply_server_mechanics (server 1d20 + LP)
-       Inventory.apply_server_inventory
+       Inventory.apply_transaction (pure; a trade between the character and an NPC trader, both GameCharacters; Turn.Board loads the traders with NPC.traders/2 and saves them with NPC.put_inventories/2)
        WorldClock.advance(+1)
        NPC.apply_gm_updates (npc_memory_updates)
-       persist GameSession + Turn
-       NPCRegistry.sync
-       NPCSignals.emit_turn_signals
+       NpcReactions → {:feel, mood} Intentions → Turn.Intentions.feel (the cast's runtime["reaction"])
+       persist GameSession + Turn, and in the same transaction
+         Characters.write_multi (the cast to the rows) and end_scene_multi (scene rows go)
+         NPCSignals.intentions → Turn.Intentions.apply_all (present NPCs only)
        PubSub {:turn_completed, payload}
+     → World.Instance, once the turn has committed:
+       PubSub {:npc_initiative, payload} for any NPC that spoke up (payload.npc_initiatives)
 ```
 
 NPC agency today is **present-only**:
 
-- `world.time.passed` → `ReactToTime` → `AdjustConcern` (priority +1 every 4 wait ticks) → `EmitInitiative` if priority ≥ 8 and wait ≥ 4.
-- `player.talked_to` → memory + relationship +0.05.
-- `conversation.message` → overheard memory for non-target present NPCs.
+Each turn gives every present NPC `TalesForge.Intention`s (`by: :system`), which the turn applies in its transaction (`Turn.Intentions`); nothing that makes an Intention writes state:
+
+- `ReactToTime` → `{:wait, delta}` (`NPC.adjust_concern`: priority +1 every 4 wait ticks) then `:speak_up` (`NPCInitiative.speak_up`) if priority ≥ 8 and wait ≥ 4.
+- `OnPlayerTalked` (the speak target) → `{:remember, _}` + `{:warm, 0.05}`.
+- `OnOverheard` → overheard memory for non-target present NPCs.
 - Memories: last 20 on the instance; last 5 concatenated into the table GM prompt via `NPC.format_gm_sections/2`. **Only present NPCs.** Distant facts rot out of the prompt.
 
 Marta (`priv/npcs/marta_kellen.json`) has `agency_tier: "normal"`, OCEAN, and `current_concern: {focus: "missing ledger", priority: 8}`. After four ticks of worry she speaks about the ledger (`NPC.initiative_text/1`). That is a person with a concern — not a plan with scouts, coin, and a portent.
@@ -114,10 +126,10 @@ Marta (`priv/npcs/marta_kellen.json`) has `agency_tier: "normal"`, OCEAN, and `c
 
 The other holes we have to close:
 
-1. **Omniscient GM prompt.** `Context.format_gm_prompt/1` concatenates pack rules, formatted intent (including `situation_lines` and recent-turn **player** text slices), and `NPC.format_gm_sections/2`. It does **not** dump raw `world_state`. The leak today is `NPC.merged_npc_context/1` putting the full `runtime_state` (memories, concern wait-ticks, initiative flags) into the present-NPC JSON. Front clocks would be a second leak if injected the same way. `context_summary` → `situation_lines` can persist invented hidden facts across later turns.
+1. **Omniscient GM prompt.** `Assemble.format_gm_prompt/1` concatenates pack rules, formatted intent (including `situation_lines` and recent-turn **player** text slices), and `NPC.format_gm_sections/2`. It does **not** dump raw `world_state`. The leak today is `NPC.merged_npc_context/1` putting the full `runtime_state` (memories, concern wait-ticks, initiative flags) into the present-NPC JSON. Front clocks would be a second leak if injected the same way. `context_summary` → `situation_lines` can persist invented hidden facts across later turns.
 2. **GM invents mechanics.** `Mechanics` rolls 1d20 and awards LP, but social outcomes are unbounded: a nat-1 intimidation can be narrated as "he tells you everything" because `gm_system.txt` does not constrain by relative power, personality, or beliefs. (`overlay_deltas` were decoded and never applied; removed from the GM schema in Oct 2026.)
 3. **Memories are not retrieved.** Last-5 of present NPCs is not "last year's slight." If the fact never reaches the prompt, the sim does not matter.
-4. **OTP is global, not a session crash domain.** An NPC agent crash is isolated by Jido, but there is no session-shaped supervisor for WorldSim / fronts / extras. Geography is not (and must not become) a supervision tree.
+4. **OTP is global, not a session crash domain.** `World.Instance` isolates one session's turns, but there is no session-shaped supervisor for WorldSim / fronts / extras. Geography is not (and must not become) a supervision tree.
 
 ### Adjacent work (not this design)
 
@@ -212,10 +224,9 @@ Marta remains a **person with a concern**, not a front. The thing under the mine
 2. `tin_valley` materializes from its pack (`Pack.materialize/1`); every other id uses `World.default_world_state/0` (`adventure_id: "crossroads_ledger"`, start `weary_pilgrim`, tick 36 = "Day 1 · late afternoon"). (Until 2026-10-07 an Ash `Authoring.Adventure` row could overlay this; that path is gone.)
 3. `Context.build_intent_context/1` falls back to `present_npcs: ["marta_kellen"]` when the list is empty on Crossroads.
 4. Inserts `GameSession`. Default `name` is `"Crossroads Hamlet"` (`create_session/1` Map.merge) unless attrs pass `name`.
-5. `NPC.seed_session/1` inserts an `NpcInstance` for the pack's `npcs/` on tin_valley, else for **every** `priv/npcs/*.json` (Marta **and** Henrik).
+5. `NPC.seed_session/1` inserts a `characters` row (controller `gm`, origin `pack`) for the pack's `npcs/` on tin_valley, else for **every** `priv/npcs/*.json` (Marta **and** Henrik).
 6. `present_npcs` is whoever shares the player's location (`NPC.sync_present_npcs/2`).
-7. Starts `PlayerSessionAgent`; `NPCRegistry.sync/1` starts agents only for present NPCs.
-8. `ensure_scene/1` enqueues `TalesForge.Workers.ProcessScene` if `last_scene_location != location_id`.
+7. `ensure_scene/1` enqueues `TalesForge.Workers.ProcessScene` if `last_scene_location != location_id`.
 
 `HomeLive` lists one "New game" card per adventure (Tin Valley, Crossroads Hamlet). Each card links to the creation screen (`/new/:adventure`) and keeps the quick start as Elara (`create_session(%{name: ..., adventure_id: ...})`, no character).
 
@@ -228,7 +239,7 @@ Player input is blocked in `PlayLive` while `scene_loading` or `thinking` (`inpu
 | Tier | Where | Model / temp | Input | Output |
 |------|-------|--------------|-------|--------|
 | 1 Intent | `GameSessions.resolve_and_enqueue/3` **before** Oban | `INTENT_JEV=on`: one Jev call (`IntentJev.resolve/3`); the heuristic on a Jev error or timeout. No LLM call | Raw player text + intent context | `PlayerAction` JSON |
-| 2 Table GM | `TurnProcessor.run/3` inside `ProcessTurn` | `LLM.complete_turn` temp 0.7, 700 tokens | Validated `PlayerAction` + handler + rules + present NPCs | `GMStructuredResponse` (narrative first; capped npc_memory_updates, context_summary, gm_notes) |
+| 2 Table GM | `TurnProcessor.run/3` inside `ProcessTurn` | `LLM.complete_turn` temp 0.7, 700 tokens | Validated `PlayerAction` + handler + rules + present NPCs | `GMStructuredResponse` (narrative first; capped npc_memory_updates, context_summary) |
 | Scene | `SceneProcessor` / `ProcessScene` | Same model as Tier 2 | Location + GM context | `{location_name, narrative}` |
 
 Raw player text never reaches Tier 2 (`Intent.sanitize_summary/1` strips instruction-injection phrases; `gm_system.txt` restates this). `TalesForge.LLM` is the only LLM client. Config lives in `TalesForge.Config`. Target: full turn < 3s (`mix e2e.smoke`).
@@ -246,18 +257,18 @@ The hole: there is no `outcome_bounds` structure. Social skills (intimidation, p
 ```mermaid
 flowchart LR
   TP[TurnProcessor] --> Persist
-  Persist --> Sync[NPCRegistry.sync]
-  Sync --> Sig[NPCSignals]
-  Sig -->|"world.time.passed"| RT[ReactToTime]
-  Sig -->|"player.talked_to"| Talk[OnPlayerTalked]
-  Sig -->|"conversation.message"| Over[OnOverheard]
-  RT --> Adj[AdjustConcern]
-  Adj --> Emit[EmitInitiative]
-  Emit --> PS[PubSub npc_initiative]
+  Persist --> Sig[NPCSignals.intentions]
+  Sig -->|"time passed"| RT[ReactToTime]
+  Sig -->|"spoken to"| Talk[OnPlayerTalked]
+  Sig -->|"overheard"| Over[OnOverheard]
+  RT --> Apply[Turn.Intentions.apply_all]
+  Talk --> Apply
+  Over --> Apply
+  Apply -->|"after commit"| PS[PubSub npc_initiative]
   PS --> LV[PlayLive narrative log]
 ```
 
-The shape is right (signals, rule-based concern, persist then notify). The scope is wrong: present people only, no resources, no hidden events.
+The shape is right (Intentions, rule-based concern, persist then notify). The scope is wrong: present people only, no resources, no hidden events.
 
 ### Pack vs runtime (keep the split)
 
@@ -342,7 +353,7 @@ end
 
 **PR-2 acceptance (both paths, no WorldSim yet):**
 
-- **tin_valley:** `location_id` and `character.location_id` are `valley_inn`; `location_name` is the pack inn name; Elara stats/inventory match `World.default_world_state()["character"]` except `location_id`; `locations["valley_inn"]["exits"]` includes `market_square`; two live `FrontInstance` rows + one dormant; `NpcInstance` ids are innkeep/guild_steward only (no `marta_kellen`, no `worried_merchant`). `Pack.load("tin_valley")` raises if an exit target is missing.
+- **tin_valley:** `location_id` and `character.location_id` are `valley_inn`; `location_name` is the pack inn name; Elara stats/inventory match `World.default_world_state()["character"]` except `location_id`; `locations["valley_inn"]["exits"]` includes `market_square`; two live `FrontInstance` rows + one dormant; NPC rows are innkeep/guild_steward/prospector only (no `marta_kellen`, no `worried_merchant`). `Pack.load("tin_valley")` raises if an exit target is missing.
 - **crossroads_ledger:** `GameSessions.create_session(%{})` and HomeLive still work; `kings_road` dangling exit does **not** raise; Marta **and** Henrik instances exist; zero fronts; `mix e2e.smoke` scenario still valid (`npc_hardening_test` still sees Henrik at the square).
 - `Pack.load("crossroads_ledger")` is **not** required to succeed in PR-2; do not invoke it from `create_session`.
 
@@ -432,7 +443,7 @@ The persisted `session_events` row uses the table `binary_id` primary key as the
 
 | Layer | Module | Reads pack keys | Writes |
 |-------|--------|-----------------|--------|
-| **Triggers** | `TalesForge.Game.Events.from_turn/5` | Location/front `triggers[]`: `on`, `location_id`, `player_in`, `unless_skill`, `min_outcome`, `event`, `player_aware_on_notice` | `[event]` maps |
+| **Triggers** | `TalesForge.Game.Events.from_turn/1` | Location/front `triggers[]`: `on`, `location_id`, `player_in`, `unless_skill`, `min_outcome`, `event`, `player_aware_on_notice` | `[event]` maps |
 | **Rules** | `TalesForge.Game.Fronts.Rules.match/2` | Front `rules[]`: `on_event`, `move` or `public_fact` / clock deltas | palette moves or fact writes |
 
 `Events.from_turn(player_action, handler, mechanical, world_before, world_after)` (pure, no Repo) derives:
@@ -443,7 +454,7 @@ The persisted `session_events` row uses the table `binary_id` primary key as the
 - `player.dawdled` when `time.passed` and current location is in a trigger's `player_in` list (guild).
 - `front.weakened` / `front.cleared` from front status transitions (not required for Proofs 1–2).
 
-Hidden events (`player_aware: false`) **must not** appear in `Context.format_gm_prompt/1` or `Prompts.build_scene_user/1`. They **must** appear in WorldSim's input and as `session_events` rows.
+Hidden events (`player_aware: false`) **must not** appear in `Assemble.format_gm_prompt/1` or `Assemble.build_scene_user/1`. They **must** appear in WorldSim's input and as `session_events` rows.
 
 #### Tracer notice-check (live move path)
 
@@ -675,7 +686,7 @@ If output contains a new `front_id` → drop. If a `hire` step is legal, extras 
 Single module `TalesForge.Game.Perception`. **Context and SceneProcessor both call this — no second implementation.** If we write it twice we will leak.
 
 ```elixir
-# Session entry used by Context.format_gm_prompt/1 and SceneProcessor.generate_scene/2.
+# Session entry used by Assemble.format_gm_prompt/1 and SceneProcessor.generate_scene/2.
 def visible_world(%GameSession{} = session) :: map()
 
 # Pure core for tests (no Repo). Session entry loads fronts + player-aware events then calls this.
@@ -717,7 +728,7 @@ PR-3 changes `NPC.format_gm_sections/2` / `merged_npc_context/1`. **Do not** del
 
 **Never** in the prompt: `concern_wait_ticks`, `concern.priority`, `initiative_pending`, `initiative_emitted`, `initiative_emitted_at_tick`, full `runtime_state`, front clocks, `resources`.
 
-Crossroads prompt-fixture tests **land in PR-3** (not PR-4): after `create_session` Crossroads, `Context.format_gm_prompt/1` still contains Marta, her concern **focus** (`missing ledger`), and ale stock; it does not contain `concern_wait_ticks` or `initiative_emitted`.
+Crossroads prompt-fixture tests **land in PR-3** (not PR-4): after `create_session` Crossroads, `Assemble.format_gm_prompt/1` still contains Marta, her concern **focus** (`missing ledger`), and ale stock; it does not contain `concern_wait_ticks` or `initiative_emitted`.
 
 PR-4 thickens prompt **files** (`gm_system.txt` / `scene_system.txt`) and memory **shape**. PR-3 Perception is: filter `public_facts` by location, hide `player_aware: false` events, NPC allow-list.
 
@@ -738,7 +749,7 @@ Replace the string-only memory in `NPC.persist_memory/3`:
 }
 ```
 
-- NPC memories stay on `NpcInstance.runtime_state["memories"]` (hot list).
+- NPC memories stay on the NPC's row, `characters.runtime["memories"]` (hot list, newest 20), each also a `character_memories` row.
 - Front memories stay on `FrontInstance.runtime_state["memories"]`.
 - Tracer: append this shape; keep a higher cap (e.g. 100) so a short playtest cannot drop the approach memory. **PR-3 test:** after a miss, the nest `FrontInstance` still has a memory with `what` matching the approach; that memory is **not** in the `orc_approach` GM/scene prompt (it is not a `public_fact` there).
 - PR-8: retrieval function `Memories.retrieve(session_id, query)` used by both table GM and chronicler. Query keys: current location, live front ids, player action tags, `felt` debts. Recency is a score, not the only sort. If last year's slight never ranks in, the sim does not matter — tests should plant a tick-old debt and assert it appears in the GM prompt when the player re-enters that social graph.
@@ -769,7 +780,7 @@ Authored in the pack (`portents/they_dig_too_deep.md` + trigger in the guild fro
 
 ### Today (keep working until PR-5)
 
-Global Jido + `NPCRegistry` prefix scan. Fine for the tracer. `NPCRecovery` already re-hydrates present NPC agents after boot from `GameSession` rows with `status == "active"`.
+One `World.Instance` per active session that runs its turns (refactor step 10f), and no other per-session process. NPCs have no process: the NPC agents, `NPCRegistry` and `NPCRecovery` were retired in 10f PR 2, and `PlayerSessionAgent` and the `jido` dependency in 10f PR 3, so nothing is restarted at boot. The target below predates 10f; [design-gc-10f-one-process.md](https://github.com/whyse-ab/ex-tales-forge/blob/main/docs/design-gc-10f-one-process.md) replaces its per-entity agents with one process per world.
 
 ### Target (failure domains)
 
@@ -778,14 +789,12 @@ flowchart TB
   App[TalesForge.Supervisor]
   App --> Repo
   App --> Oban
-  App --> Jido
   App --> PubSub
   App --> Endpoint
   App --> SR[SessionRegistry]
   App --> SSSup[SessionSupervisor - DynamicSupervisor]
 
   SSSup --> S1[SessionDomain session_id]
-  S1 --> PSA[PlayerSessionAgent]
   S1 --> WSim[WorldSim GenServer]
   S1 --> NPCSup[NPC DynamicSupervisor]
   S1 --> FrontSup[Front DynamicSupervisor]
@@ -799,12 +808,11 @@ flowchart TB
 | Process | Crash domain meaning | Restarts from |
 |---------|----------------------|---------------|
 | `SessionDomain` | One instance's in-memory agents. Crash ≠ other players. | Ecto (`GameSession`, `FrontInstance`, `NpcInstance`) |
-| `PlayerSessionAgent` | Hot UI-adjacent session state (already exists) | `GameSessions.ensure_agent/1` |
 | `WorldSim` | Due dates + which clocks tick this player-turn | `FrontInstance` rows + `session_events` |
 | `NPCAgent` | Present people **and** session extras currently "on stage" | `NpcInstance` via existing `NPC.build_agent_state/2` |
 | `FrontAgent` (optional) | Live front while its clocks are live | `FrontInstance`. **Not** parent of rooms or soldiers |
 
-**Lookup:** extend the `NPCRegistry` pattern (`agent_id/2`, `sync/1`, `whereis` via Jido) with:
+**Lookup:** a `Registry` with `{:via, Registry, ...}` names, as `World.Registry` does for `World.Instance` (the Jido `NPCRegistry` pattern is gone), with:
 
 - `TalesForge.FrontRegistry.agent_id(session_id, front_id)` → `front-{session_id}-{front_id}`
 - `TalesForge.SessionRegistry` → `{:via, Registry, {TalesForge.SessionRegistry, session_id}}` for the session domain.
@@ -814,19 +822,19 @@ flowchart TB
 - Supervise `weary_pilgrim` under `crossroads_hamlet` under `region`.
 - Make `orc_nest` the OTP parent of `orc_approach` or of extras. Extras are NPC agents. Places are data. Signals go over PubSub topics such as `session:{id}:location:weary_pilgrim` (optional; today `game_session:{id}` is enough).
 
-**Occupied `LocationAgent`:** deferred. Presence is `NpcInstance.runtime_state["location_id"]` vs player location, already used by `sync_present_npcs/2`.
+**Occupied `LocationAgent`:** deferred. Presence is the NPC row's `location_id` vs player location, already used by `sync_present_npcs/2`.
 
 ### Scale
 
 | Quantity | Estimate |
 |----------|----------|
 | Concurrent instanced players (design target) | 1_000 |
-| Processes per session (typical) | ~8–15 (session domain, player agent, WorldSim, 3–8 NPCs, 2–3 fronts) |
+| Processes per session (typical) | ~8–15 (session domain, WorldSim, 3–8 NPCs, 2–3 fronts) |
 | Worst case | ~30 (extras + more present NPCs) → 10k–30k processes cluster-wide |
 | BEAM comfort | Fine |
 | Real limiter | LLM: Oban `:llm` concurrency is **5** today (`config/config.exs`). Table GM must keep that budget. Chronicler goes on a new `:sim` queue (concurrency 2–5) so it cannot starve turns. Cap one job per session per turn, often zero |
 
-`config :ex_tales_forge, TalesForge.Jido, max_tasks: 1000` is **`Task.Supervisor` `max_children`** (`deps/jido/lib/jido.ex` `init/1`), not an agent cap. The agent `DynamicSupervisor` has no `max_children`. Do not quote `max_tasks` as proof that 10k–30k session processes fit. 1000 concurrent Jido *tasks* could matter if actions fan out; NPC signals today are `AgentServer.cast`. The real limiter remains Oban `:llm` concurrency **5**. Confirm task vs agent semantics before any production scale claim. Not a tracer blocker.
+The real limiter is Oban `:llm` concurrency **5**, not process count.
 
 Session DynamicSupervisor should use `:one_for_one`. WorldSim crash: log, restart, reload from Ecto; do not replay the in-flight turn.
 
@@ -985,12 +993,12 @@ end
 
 Prefer **one Multi** so a failed tick cannot leave a Turn row without front patches. `apply_location_updates/1` inside `apply_world_updates/5` must use `World.runtime_location/2`.
 
-Do not tick fronts *before* the table GM: this turn's GM is pre-move on purpose. **Leak tests must not use that call.** They build `Context.format_gm_prompt/1` and `Prompts.build_scene_user/1` from the **persisted** session after the Multi:
+Do not tick fronts *before* the table GM: this turn's GM is pre-move on purpose. **Leak tests must not use that call.** They build `Assemble.format_gm_prompt/1` and `Assemble.build_scene_user/1` from the **persisted** session after the Multi:
 
 - At `orc_approach` after a miss: scene/GM prompt must **not** contain prepared/alert/scout; `session_events` **must** contain `player.failed_notice` with `player_aware: false`.
 - At `orc_nest` after the next move: scene/GM prompt **must** contain the authored prepared sentence; raw keys `clocks.alert` / `resources.coin` never appear.
 
-### `Context.format_gm_prompt/1`
+### `Assemble.format_gm_prompt/1`
 
 Add a "Perceived world" section (a level-2 heading in the prompt) from `Perception.visible_world/1`. NPC JSON uses the allow-list. Pass `mechanical_resolution` into the GM user prompt only as **outcome bounds** once PR-9 exists; today the GM still guesses tone before the server roll (`TurnProcessor` calls LLM *then* `apply_mechanics`). That ordering is a smell. **Do not silently invert this in the tracer.** PR-9: **roll first, then GM**. That is a behavior change and needs its own PR so Crossroads playtests stay comparable until then.
 
@@ -1258,7 +1266,7 @@ Playable via `GameSessions.create_session(%{name: "Tin Valley", adventure_id: "t
 1. Player travels `valley_inn → market_square → orc_approach` with a **plain move** (no skill). Live text that Intent will accept: `"I go to the market square"` then `"go to the orc approach"` (`Intent.exit_mentioned_in_action?/3` matches `orc_approach`, `"orc approach"`, or the full location name `"Cut above the nest"` — not the substring `"the cut"`).
 2. `Events.from_turn` emits `player.failed_notice`, `player_aware: false` (outcome `"none"` is not success).
 3. Nest rule applies `raise_alert` → `clocks.alert = "prepared"` + approach memory on the **front** + `public_facts` row visible **only** at `orc_nest`.
-4. Travel-turn table GM is pre-move (vacuously clean). The **leak surface** is `ProcessScene` / `Context.format_gm_prompt` on the **persisted** session at `orc_approach`: must **not** contain prepared/alert/scout. `session_events` **must** contain the hidden row.
+4. Travel-turn table GM is pre-move (vacuously clean). The **leak surface** is `ProcessScene` / `Assemble.format_gm_prompt` on the **persisted** session at `orc_approach`: must **not** contain prepared/alert/scout. `session_events` **must** contain the hidden row.
 5. Player moves `orc_approach → orc_nest`. Scene (and next GM context) **must** include the authored sentence `"The camp is standing to arms — sentries doubled, fires banked, blades out."` Nest is not surprised. Raw `clocks.alert` / `resources.coin` never appear as keys in the prompt.
 
 Noticed-scouts is a **test injection** (move + stealth/insight + outcome success), not a live `"I sneak there"` path.
@@ -1443,8 +1451,8 @@ Not open: instancing, turn ticks, no invented major fronts, Ecto runtime, table 
 - `lib/ex_tales_forge_web/live/home_live.ex` — hardcodes Crossroads `create_session`.
 - `lib/ex_tales_forge_web/live/play_live.ex` — `maybe_start_scene_after_travel/3` enqueues scene after `turn_completed`.
 - `lib/ex_tales_forge/game/mechanics.ex` — 1d20 + LP; social unbounded.
-- `lib/ex_tales_forge/npc.ex`, `npc_registry.ex`, `npc_signals.ex`, `npc_recovery.ex` — present-NPC agency.
-- `lib/ex_tales_forge/agents/npc_agent.ex`, `player_session_agent.ex`.
+- `lib/ex_tales_forge/npc.ex`, `npc_signals.ex` — present-NPC agency.
+- `lib/ex_tales_forge/world/instance.ex` — the one process per active session.
 - `lib/ex_tales_forge/schemas/*` — `GameSession`, `Turn`, `NpcInstance`, `Scene`.
 - `priv/adventures/crossroads_ledger/` — hook without an opposing plan.
 - `priv/npcs/marta_kellen.json` — `current_concern`, OCEAN, `agency_tier` (person, not a front).

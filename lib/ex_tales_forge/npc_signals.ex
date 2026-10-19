@@ -1,118 +1,43 @@
 defmodule TalesForge.NPCSignals do
   @moduledoc """
-  Emits Jido signals to present NPC agents after turn processing.
+  What a finished turn means for the present NPCs, as Intentions
+  (`TalesForge.Intention`, `by: :system`) for the turn to apply
+  (`TalesForge.Game.Turn.Intentions.apply_all/2`), in this order:
+
+    1. time passed, for every present NPC (`Actions.NPC.ReactToTime`);
+    2. the player spoke to a present NPC (`Actions.NPC.OnPlayerTalked`);
+    3. the other present NPCs overheard it (`Actions.NPC.OnOverheard`),
+       unless the turn was quiet (wait, train) or had no words.
+
+  Before refactor step 10e these were Jido signals to the NPC agents, which
+  wrote after the commit; a missing agent dropped its signal.
   """
 
-  require Logger
+  alias TalesForge.Actions.NPC.{OnOverheard, OnPlayerTalked, ReactToTime}
+  alias TalesForge.Intention
+  alias TalesForge.NPCSignals.Turn
 
-  alias Jido.AgentServer
-  alias Jido.Signal
-  alias TalesForge.Game.ActionHandler
-  alias TalesForge.NPCRegistry
+  @doc "The present NPCs' Intentions after `turn`: time passed, talked to, overheard."
+  @spec intentions(Turn.t()) :: [Intention.t()]
+  def intentions(%Turn{handler: handler} = turn) do
+    present = Map.get(turn.world_state, "present_npcs", [])
+    target = if speak_to_npc?(handler), do: handler.target
 
-  def emit_turn_signals(session_id, world_state, handler, raw_action, world_before \\ nil) do
-    present_npcs = Map.get(world_state, "present_npcs", [])
-    world_tick = Map.get(world_state, "world_tick", 0)
-
-    delta =
-      case world_before do
-        %{"world_tick" => before} when is_integer(before) -> world_tick - before
-        _ -> ActionHandler.tick_delta(handler)
-      end
-
-    emit_time_passed(session_id, world_tick, delta, present_npcs)
-
-    if speak_to_npc?(handler) do
-      emit_player_talked(session_id, handler.target, raw_action, world_tick)
-    end
-
-    unless quiet?(handler) do
-      emit_overhear(session_id, world_tick, present_npcs, handler, raw_action)
-    end
-
-    :ok
+    Enum.flat_map(present, &ReactToTime.intentions(&1, turn)) ++
+      talked(target in present && target, turn) ++ overheard(present, target, turn)
   end
 
-  def emit_time_passed(session_id, world_tick, delta_ticks, present_npc_ids) do
-    payload = %{
-      "session_id" => session_id,
-      "world_tick" => world_tick,
-      "delta_ticks" => delta_ticks
-    }
+  # Only a present NPC hears it, as only present NPCs had agents before.
+  defp talked(false, _turn), do: []
+  defp talked(npc_id, turn), do: OnPlayerTalked.intentions(npc_id, turn)
 
-    Enum.each(present_npc_ids, fn npc_id ->
-      deliver(session_id, npc_id, "world.time.passed", payload)
-    end)
-  end
-
-  def emit_player_talked(session_id, npc_id, player_text, world_tick) do
-    payload = %{
-      "session_id" => session_id,
-      "npc_id" => npc_id,
-      "player_text" => player_text,
-      "world_tick" => world_tick
-    }
-
-    deliver(session_id, npc_id, "player.talked_to", payload)
-  end
-
-  defp deliver(session_id, npc_id, type, payload) do
-    aid = NPCRegistry.agent_id(session_id, npc_id)
-    signal = Signal.new!(type, payload, source: "/game/turn_processor")
-
-    case TalesForge.Jido.whereis(aid) do
-      nil ->
-        :ok
-
-      pid ->
-        call_agent(pid, signal, session_id, npc_id, type)
-    end
-  end
-
-  @doc false
-  def call_agent(pid, signal, session_id, npc_id, type) do
-    case AgentServer.call(pid, signal) do
-      {:ok, _} ->
-        :ok
-
-      {:error, reason} ->
-        log_undelivered(session_id, npc_id, type, reason)
-    end
-  catch
-    :exit, {:noproc, _} = reason ->
-      log_undelivered(session_id, npc_id, type, reason)
-
-    :exit, :noproc = reason ->
-      log_undelivered(session_id, npc_id, type, reason)
-  end
-
-  defp log_undelivered(session_id, npc_id, type, reason) do
-    Logger.debug(
-      "npc signal undelivered session=#{session_id} npc=#{npc_id} type=#{type} reason=#{inspect(reason)}"
-    )
-  end
-
-  defp emit_overhear(session_id, world_tick, present_npcs, handler, raw_action) do
-    trimmed = String.trim(raw_action || "")
-
-    if trimmed != "" do
-      speak_target = if speak_to_npc?(handler), do: handler.target, else: nil
-
-      present_npcs
-      |> Enum.reject(&(&1 == speak_target))
-      |> Enum.each(fn npc_id ->
-        deliver(
-          session_id,
-          npc_id,
-          "conversation.message",
-          %{
-            "session_id" => session_id,
-            "speaker" => "player",
-            "message" => trimmed,
-            "world_tick" => world_tick
-          }
-        )
-      end)
+  defp overheard(present, target, %Turn{handler: handler} = turn) do
+    if quiet?(handler) or String.trim(turn.raw_action || "") == "" do
+      []
+    else
+      present
+      |> Enum.reject(&(&1 == target))
+      |> Enum.flat_map(&OnOverheard.intentions(&1, turn))
     end
   end
 

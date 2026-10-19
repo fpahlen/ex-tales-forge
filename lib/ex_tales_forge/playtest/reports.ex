@@ -1,20 +1,25 @@
 defmodule TalesForge.Playtest.Reports do
   @moduledoc """
-  Read side of playtest runs: the runs list, per-turn records with the hidden
-  GM notes, cost per AI purpose and the latest scorecard. Admin and judge only;
-  never shown to players.
+  Read side of playtest runs: the runs list, per-turn records with the turn's
+  code-layer session events, cost per AI purpose and the latest scorecard.
+  Admin and judge only; never shown to players.
   """
 
   import Ecto.Query
 
   alias TalesForge.AICalls
   alias TalesForge.AICalls.Metrics
+  alias TalesForge.Game.OutcomeRecord
   alias TalesForge.GMReasoning
   alias TalesForge.Playtest.JevHeadline
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{AICall, PlaytestRun, PlaytestScore, Turn}
+  alias TalesForge.Schemas.{AICall, PlaytestRun, PlaytestScore, SessionEvent, Turn}
 
   @runs_shown 100
+
+  # Session events that are not the code layer's record of a turn: the GM's
+  # raw reply and the facts extracted from the narration.
+  @not_turn_events ~w(gm_reasoning world_fact)
 
   def list_runs do
     runs =
@@ -77,32 +82,110 @@ defmodule TalesForge.Playtest.Reports do
     end)
   end
 
-  @doc "Turns in order, each with its server roll and hidden GM notes (nil when missing)."
+  @doc """
+  Turns in order, each with its server roll and `events`: one line per
+  session event the code layer wrote for the turn (`event_line/1`), in the
+  order written. The GM's raw reply and the extracted world facts are left out.
+  """
   def turn_records(session_id) do
-    notes =
-      session_id
-      |> GMReasoning.list_for_session()
-      |> Map.new(&{&1.payload["turn_number"], &1.payload["gm_notes"]})
+    turns =
+      Turn
+      |> where([t], t.game_session_id == ^session_id)
+      |> order_by(:turn_number)
+      |> Repo.all()
 
-    Turn
-    |> where([t], t.game_session_id == ^session_id)
-    |> order_by(:turn_number)
-    |> Repo.all()
-    |> Enum.map(fn turn ->
+    events = turn_events(session_id, turns)
+
+    Enum.map(turns, fn turn ->
       %{
         id: turn.id,
         turn_number: turn.turn_number,
         player_action: turn.player_action,
         narrative: turn.narrative,
         roll: roll_text(turn.mechanical_resolution || %{}),
-        gm_notes: Map.get(notes, turn.turn_number)
+        events: Map.get(events, turn.turn_number, [])
       }
     end)
   end
 
+  @doc """
+  One short line for a session event of a turn: the kind, then the payload's
+  plain values. A `turn.outcome` record reads as in the GM prompt
+  (`TalesForge.Game.OutcomeRecord.prompt_lines/1`). A hidden event
+  (`player_aware: false`) is marked.
+
+      iex> TalesForge.Playtest.Reports.event_line(%{kind: "player.travel", player_aware: true,
+      ...>   payload: %{"from" => "valley_inn", "to" => "market_square"}})
+      "player.travel: from valley_inn, to market_square"
+      iex> TalesForge.Playtest.Reports.event_line(%{kind: "turn.prose_mismatch", player_aware: false,
+      ...>   payload: %{"count" => 1, "mismatches" => [%{"kind" => "coins", "detail" => "paid 5"}]}})
+      "(hidden) turn.prose_mismatch: count 1, mismatches paid 5 coins"
+  """
+  @spec event_line(%{kind: String.t(), player_aware: boolean(), payload: map()}) :: String.t()
+  def event_line(%{player_aware: false} = event),
+    do: "(hidden) " <> event_line(%{event | player_aware: true})
+
+  def event_line(%{kind: "turn.outcome", payload: record}),
+    do: "turn.outcome: " <> Enum.join(OutcomeRecord.prompt_lines(record), " ")
+
+  def event_line(%{kind: kind, payload: payload}) do
+    case payload |> Enum.sort() |> Enum.flat_map(&detail/1) do
+      [] -> kind
+      details -> kind <> ": " <> Enum.join(details, ", ")
+    end
+  end
+
+  defp detail({_key, value}) when value in [nil, "", []], do: []
+
+  defp detail({key, items}) when is_list(items),
+    do: ["#{key} #{Enum.map_join(items, "; ", &plain/1)}"]
+
+  defp detail({key, value}), do: if(plain?(value), do: ["#{key} #{value}"], else: [])
+
+  defp plain(%{} = item) do
+    item |> Enum.sort() |> Enum.map(&elem(&1, 1)) |> Enum.filter(&plain?/1) |> Enum.join(" ")
+  end
+
+  defp plain(value), do: if(plain?(value), do: to_string(value), else: "")
+
+  defp plain?(value), do: is_binary(value) or is_number(value) or is_boolean(value)
+
+  # The session's code-layer events by turn number.
+  defp turn_events(_session_id, []), do: %{}
+
+  defp turn_events(session_id, turns) do
+    ticks =
+      session_id
+      |> GMReasoning.list_for_session()
+      |> Map.new(&{&1.payload["turn_number"], &1.tick})
+
+    placed = Enum.map(turns, &Map.put(&1, :tick, Map.get(ticks, &1.turn_number)))
+
+    SessionEvent
+    |> where([e], e.game_session_id == ^session_id and e.kind not in ^@not_turn_events)
+    |> order_by([e], asc: e.inserted_at, asc: e.tick)
+    |> Repo.all()
+    |> Enum.group_by(&turn_for(&1, placed), &event_line/1)
+  end
+
+  # A turn's events are written in its transaction at its world tick (the
+  # tick its gm_reasoning event records): of the turns at the event's tick,
+  # else of all turns, the last one written by the time the event was.
+  defp turn_for(event, turns) do
+    at_tick = Enum.filter(turns, &(&1.tick == event.tick))
+
+    if(at_tick == [], do: turns, else: at_tick)
+    |> Enum.filter(&(DateTime.compare(&1.inserted_at, event.inserted_at) != :gt))
+    |> List.last()
+    |> case do
+      nil -> nil
+      turn -> turn.turn_number
+    end
+  end
+
   @doc "The GM's opening narration the player (or persona) saw before turn 1, or nil."
   def opening(session_id) do
-    case TalesForge.GameSessions.opening_scene(session_id) do
+    case TalesForge.Scenes.opening(session_id) do
       nil -> nil
       scene -> %{location_name: scene.location_name, narrative: scene.narrative}
     end
