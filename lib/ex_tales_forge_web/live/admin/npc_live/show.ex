@@ -14,6 +14,9 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
 
   alias TalesForge.Admin
 
+  @stale "Not saved: this NPC changed after the page loaded (a turn was played). " <>
+           "The page now shows the current state; make your edit again."
+
   @impl true
   def mount(%{"id" => session_id, "npc_id" => npc_id}, _session, socket) do
     session = Admin.get_session!(session_id)
@@ -27,39 +30,31 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
          |> push_navigate(to: ~p"/admin/play/sessions/#{session.id}/npcs")}
 
       npc ->
-        {:ok, assign_npc(socket, session, npc)}
+        {:ok, socket |> assign(:session, session) |> assign_npc(npc)}
     end
   end
 
-  defp assign_npc(socket, session, npc) do
-    socket
-    |> assign(:page_title, npc.npc_id)
-    |> assign(:session, session)
-    |> assign(:npc, npc)
-    |> assign(:runtime_json, Admin.encode_json(npc.runtime_state))
-    |> assign(:personality_json, Admin.encode_json(npc.personality))
-  end
-
-  @impl true
-  def handle_event("save_runtime", %{"runtime_json" => json}, socket) do
-    %{session: session, npc: npc} = socket.assigns
-    {:noreply, saved(socket, session, Admin.update_npc_runtime_state(npc, json))}
-  end
-
-  defp saved(socket, session, {:ok, npc}),
-    do: socket |> assign_npc(session, npc) |> put_flash(:info, "Runtime state saved.")
-
-  defp saved(socket, session, {:error, :stale}) do
-    socket
-    |> assign_npc(session, Admin.get_npc(session.id, socket.assigns.npc.npc_id))
-    |> put_flash(
-      :error,
-      "Not saved: this NPC changed after the page loaded (a turn was played). " <>
-        "The page now shows the current state; make your edit again."
+  defp assign_npc(socket, npc) do
+    assign(socket,
+      page_title: npc.npc_id,
+      npc: npc,
+      runtime_json: Admin.encode_json(npc.runtime_state),
+      personality_json: Admin.encode_json(npc.personality)
     )
   end
 
-  defp saved(socket, _session, {:error, reason}), do: put_flash(socket, :error, reason)
+  @impl true
+  def handle_event("save_runtime", %{"runtime_json" => json}, socket),
+    do: {:noreply, saved(socket, Admin.update_npc_runtime_state(socket.assigns.npc, json))}
+
+  defp saved(socket, {:ok, npc}),
+    do: socket |> assign_npc(npc) |> put_flash(:info, "Runtime state saved.")
+
+  # A stale copy: show the row as it is now.
+  defp saved(%{assigns: %{session: session, npc: npc}} = socket, {:error, :stale}),
+    do: socket |> assign_npc(Admin.get_npc(session.id, npc.npc_id)) |> put_flash(:error, @stale)
+
+  defp saved(socket, {:error, reason}), do: put_flash(socket, :error, reason)
 
   @impl true
   def render(assigns) do

@@ -15,7 +15,7 @@ defmodule TalesForge.NPC do
   alias TalesForge.Game.Pack
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameCharacter
-  alias TalesForge.NPC.{Person, Rows, Seed}
+  alias TalesForge.NPC.{Memories, Person, Rows, Seed}
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession}
 
@@ -587,11 +587,10 @@ defmodule TalesForge.NPC do
       inst.runtime_state
       |> Map.get("memories", [])
       |> Kernel.++([entry])
-      |> Enum.take(-Rows.memory_limit())
+      |> Enum.take(-Memories.limit())
 
-    inst
-    |> Rows.update!(Map.put(inst.runtime_state, "memories", memories))
-    |> Rows.add_memory!(entry)
+    %Person{row: row} = Rows.update!(inst, Map.put(inst.runtime_state, "memories", memories))
+    Memories.add!(row, entry)
   end
 
   defp prompt_npc_context(%Person{} = inst) do

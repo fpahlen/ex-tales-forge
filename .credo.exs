@@ -116,6 +116,7 @@
                  "lib/ex_tales_forge/dep_warnings.ex",
                  "lib/ex_tales_forge/npc.ex",
                  "lib/ex_tales_forge/npc/rows.ex",
+                 "lib/ex_tales_forge/npc/memories.ex",
                  "lib/ex_tales_forge/admin.ex"
                ]
              }

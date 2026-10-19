@@ -38,6 +38,7 @@ defmodule TalesForge.CodingStandardsTest do
     Mix.Tasks.Deploy.CheckBoundaries,
     TalesForge.NPC,
     TalesForge.NPC.Rows,
+    TalesForge.NPC.Memories,
     TalesForge.Admin
   ]
 
