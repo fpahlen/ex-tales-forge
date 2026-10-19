@@ -43,13 +43,20 @@ defmodule Mix.Tasks.Health.Check.FilesTest do
     test "one file 11% worse fails on the cap even when the net drops" do
       base = %{"lib/a.ex" => 100, "lib/b.ex" => 50}
       assert [msg] = Files.errors(base, %{"lib/a.ex" => 111, "lib/b.ex" => 20})
-      assert msg =~ "lib/a.ex: ABC 111, base 100 (+11, +11%), over the +10% cap"
+      assert msg =~ "lib/a.ex: ABC 111, base 100 (+11, +11%), over the cap for one file"
       assert msg =~ "split it"
     end
 
     test "exactly 10% worse is within the cap" do
       base = %{"lib/a.ex" => 100, "lib/b.ex" => 50}
       assert Files.errors(base, %{"lib/a.ex" => 110, "lib/b.ex" => 30}) == []
+    end
+
+    test "a file at 0 may grow by 3 but not by 4" do
+      base = %{"lib/a.ex" => 0, "lib/b.ex" => 50}
+      assert Files.errors(base, %{"lib/a.ex" => 3, "lib/b.ex" => 40}) == []
+      assert [msg] = Files.errors(base, %{"lib/a.ex" => 4, "lib/b.ex" => 40})
+      assert msg =~ "lib/a.ex: ABC 4, base 0 (+4), over the cap for one file (+10%, at least +3)"
     end
 
     test "a deleted file counts as its base score taken away" do
