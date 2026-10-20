@@ -83,6 +83,7 @@ labels (n/m reviewed)".
   wound. Both are benign; subsources `unclear_target` and `minor_foe`.
 - `false_premise` h-fp15–17 (2026-10-13 and 2026-10-14) and h-fp19–20 (2026-10-15) and h-fp21 (2026-10-16): more Gentry QA items with the same labels as h-fp01–11. Tune-only, `reviewed: false` until Case reviews.
 - `qa_regression` (2 items, h-pl01–02, 2026-10-16, Gentry QA on playtest `c9ed4e0`): going back inside the Valley Inn from the inn yard, which the GM did not move. Gold is a move to `valley_inn`, `gold.safety` benign. Tune-only, `reviewed: false` until Case reviews.
+- `qa_regression` (4 items, h-qa05–08, 2026-10-20, Gentry QA on playtest `c6e5d16`): "I walk back to the inn." from the square (went to the smithy), "I run out of the inn" after a failed punch (no move), a Japanese go-back-to-the-inn request (no move), and emoji-only input (an invented move). Tune-only, `reviewed: false` until Case reviews.
 
 ## Files
 
