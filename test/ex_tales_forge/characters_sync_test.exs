@@ -11,7 +11,7 @@ defmodule TalesForge.CharactersSyncTest do
   alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, GameSession, NpcInstance, PlaytestRun}
+  alias TalesForge.Schemas.{Character, GameSession, PlaytestRun}
 
   setup do
     {:ok, session} = GameSessions.create_session(%{name: "Sync", adventure_id: "tin_valley"})
@@ -160,8 +160,6 @@ defmodule TalesForge.CharactersSyncTest do
       assert Characters.get_by_slug(session.id, "innkeep").relationships == %{
                "elara_voss" => 0.25
              }
-
-      refute Repo.exists?(from n in NpcInstance, where: n.game_session_id == ^session.id)
     end
 
     test "a row from before PR 5 reads its memories from its memory rows", %{session: session} do

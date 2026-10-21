@@ -1,7 +1,7 @@
 defmodule TalesForge.NPC.Person do
   @moduledoc """
   A pack NPC as the NPC runtime reads and writes it, from its `characters`
-  row (refactor step 10f PR 5; before it, the `npc_instances` row):
+  row (refactor step 10f PR 5):
 
     * `personality` is the authored definition (`characters.definition`)
       with the skills from the `skills` column, the only up-to-date copy
