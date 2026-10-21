@@ -369,7 +369,7 @@ defmodule TalesForge.Game.Context do
       "Present: #{present_names(intent)}.",
       elsewhere_line(world, intent),
       NarratedArrival.line(world, Map.get(context, :moved_from), here),
-      Arrivals.line(Map.get(context, :arrived), intent["npc_details"]),
+      Arrivals.line(Map.get(context, :arrived), intent),
       "Narrate from this place. Only the people present can speak or act here; anyone else is elsewhere."
     ]
     |> Enum.reject(&is_nil/1)
