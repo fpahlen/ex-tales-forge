@@ -72,7 +72,6 @@ One `GameSession` (`lib/ex_tales_forge/schemas/game_session.ex`) is one instance
 | `game_sessions` | Instance: `name`, `status`, `world_state` (stored without `"character"`: `TalesForge.Schemas.WorldState`), unused `world_clock` UTC column |
 | `turns` | Auditable history: `player_action`, `narrative`, `mechanical_resolution` |
 | `scenes` | Per `(session, location_id)` exposition + optional `image_url` |
-| `npc_instances` | Per-session NPC (`personality` + `runtime_state`) until 10f PR 5; no longer read or written and has no schema module, kept until Fredrik OKs the drop. An NPC's state is its `characters` row |
 | `characters` | One row per character, player or NPC (`controller` `player` \| `gm` \| `bot`), with OCEAN, Maslow level and concerns. Written at session create and in each turn's Multi (`TalesForge.Characters.write_multi/2`), and backfilled for older sessions with `TalesForge.Characters.backfill/0`. The player character's row is its only stored copy (refactor step 10b-2): a loaded session gets `world_state["character"]` from it (`TalesForge.Characters.put_sheet/1`). A pack NPC's row is its only store (10f PR 5): `TalesForge.GameCharacter.Roster` reads and writes it through `TalesForge.GameCharacter.Rows` as a `TalesForge.GameCharacter.Person` (place, mood, stock in `inventory`, relationship, and `runtime` with the memories, concern wait and initiative flags), in the caller's transaction, and gives each memory its `character_memories` row when it is recorded. The GM characters' rows, read as the session's cast (`TalesForge.Characters.cast/1`, `TalesForge.Game.Cast`), hold the NPCs' wounds and vitality, their gut reaction (`runtime["reaction"]`) and the minor foes (10f PR 4). `lifetime` (`persistent` by default, `scene` for a minor foe) says when a row goes: `TalesForge.Characters.end_scene_multi/2` removes the `scene` rows of a place when the player leaves it or takes a long rest there, and nothing else reads the column |
 | `character_memories` | One character's own view (felt, salience, secret) of an event in `session_events`. Mirrored from each NPC's `runtime_state["memories"]` (matched on tick + text, never duplicated); nothing reads it yet |
 
@@ -1237,7 +1236,7 @@ def changeset(event, attrs) do
 end
 ```
 
-Migrations: `references(:game_sessions, type: :binary_id, on_delete: :delete_all)` on both FKs (same as `turns` / `npc_instances` / `scenes`). Indexes: unique `[game_session_id, front_id]`; `[game_session_id, tick]` on events; `[game_session_id, kind]`; `[game_session_id, player_aware]`.
+Migrations: `references(:game_sessions, type: :binary_id, on_delete: :delete_all)` on both FKs (same as `turns` / `scenes`). Indexes: unique `[game_session_id, front_id]`; `[game_session_id, tick]` on events; `[game_session_id, kind]`; `[game_session_id, player_aware]`.
 
 `GameSession` gains `has_many :front_instances` and `has_many :session_events`. `TurnProcessor.persist_turn_multi/8` **inserts** event rows in the same Multi as the turn. Tracer test "a `player.failed_notice` row exists **and** is absent from the GM prompt" requires those inserts.
 
