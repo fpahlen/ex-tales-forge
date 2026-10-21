@@ -237,8 +237,9 @@ defmodule TalesForge.Game.Turn.Mechanics do
   end
 
   # TURN_APPLY_OUTCOMES=on: a purchase of a service is a payment, a payment
-  # gets its amount, a move goes to the place that the text names, and a move
-  # to an unknown place is rejected (TalesForge.Game.TurnApply).
+  # gets its amount, and a talk that sets out for an unknown place keeps the
+  # character here (TalesForge.Game.TurnApply). Moves are settled by the intent
+  # step (TalesForge.Locations.Destination).
   # Takes the {handler, action} pair of premise_block/3. Returns {action, handler}.
   defp apply_outcomes({handler, played}, _scene, false), do: {played, handler}
 
@@ -248,8 +249,6 @@ defmodule TalesForge.Game.Turn.Mechanics do
 
     moved =
       priced
-      |> TurnApply.named_move(scene, played.overall_intent)
-      |> TurnApply.unknown_move(world)
       |> TurnApply.deferred_move(scene, played.overall_intent)
       |> TurnApply.wait_until(world, played.overall_intent)
       |> TurnApply.service_prices(world, played.overall_intent)
