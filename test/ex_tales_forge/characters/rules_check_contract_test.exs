@@ -7,8 +7,7 @@ defmodule TalesForge.Characters.RulesCheckContractTest do
   """
   use ExUnit.Case, async: true
 
-  alias TalesForge.CharacterCreation, as: CC
-  alias TalesForge.Characters.Defaults
+  alias TalesForge.Characters.{Defaults, RulesCheck}
 
   @labels Defaults.rules()
   @creation Path.join([:code.priv_dir(:ex_tales_forge), "characters", "creation.json"])
@@ -25,7 +24,7 @@ defmodule TalesForge.Characters.RulesCheckContractTest do
 
   defp extend(pack), do: Defaults.extend_rules!(@labels, pack, "p")
   defp occupation(changes), do: extend(%{"occupations" => %{"x" => Map.merge(@occ, changes)}})
-  defp creation(path, value), do: CC.check_rules!(@labels, put_in(@creation, path, value))
+  defp creation(path, value), do: RulesCheck.creation!(@labels, put_in(@creation, path, value))
 
   describe "label tables (Defaults)" do
     test "the shipped base and pack rules pass" do
@@ -102,8 +101,8 @@ defmodule TalesForge.Characters.RulesCheckContractTest do
 
   describe "creation.json against the labels (CharacterCreation)" do
     test "the shipped creation.json passes, also against the Tin Valley labels" do
-      assert CC.check_rules!(@labels, @creation) == :ok
-      assert CC.check_rules!(Defaults.rules("tin_valley"), @creation) == :ok
+      assert RulesCheck.creation!(@labels, @creation) == :ok
+      assert RulesCheck.creation!(Defaults.rules("tin_valley"), @creation) == :ok
     end
 
     test "race choices must name a known race and known stats (values and replaces keys)" do
@@ -146,7 +145,7 @@ defmodule TalesForge.Characters.RulesCheckContractTest do
 
       # "prospector" is a Tin Valley occupation, not in choices.
       assert_raise ArgumentError, "creation.json: bad class default none => prospector", fn ->
-        CC.check_rules!(
+        RulesCheck.creation!(
           Defaults.rules("tin_valley"),
           put_in(@creation, ["occupation", "class_defaults", "none"], "prospector")
         )
@@ -168,7 +167,7 @@ defmodule TalesForge.Characters.RulesCheckContractTest do
         )
 
       assert_raise ArgumentError, ~s(creation.json: no default occupation for ["bard"]), fn ->
-        CC.check_rules!(labels, @creation)
+        RulesCheck.creation!(labels, @creation)
       end
     end
 

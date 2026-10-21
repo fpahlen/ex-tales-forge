@@ -55,6 +55,7 @@ defmodule TalesForge.CharacterCreation do
   alias TalesForge.CharacterCreation.Draft
   alias TalesForge.CharacterCreation.Spread
   alias TalesForge.Characters.Defaults
+  alias TalesForge.Characters.RulesCheck
   alias TalesForge.Game.Mechanics
 
   @stats ~w(STR DEX CON INT WIS CHA)
@@ -74,7 +75,7 @@ defmodule TalesForge.CharacterCreation do
   def rules(adventure_id) when is_binary(adventure_id) do
     labels = Defaults.rules(adventure_id)
     creation = creation_path() |> File.read!() |> Jason.decode!()
-    validate_rules!(labels, creation)
+    RulesCheck.creation!(labels, creation)
     %{"labels" => labels, "creation" => creation}
   end
 
@@ -843,53 +844,6 @@ defmodule TalesForge.CharacterCreation do
 
   defp signed(n) when n >= 0, do: "+#{n}"
   defp signed(n), do: "#{n}"
-
-  @doc false
-  # Test seam for the creation.json checks; goes when they move to RulesCheck.
-  @spec check_rules!(map(), map()) :: :ok
-  def check_rules!(labels, creation), do: validate_rules!(labels, creation)
-
-  defp validate_rules!(labels, creation) do
-    for {race, choice} <- creation["race_choices"] do
-      unless Map.has_key?(labels["races"], race),
-        do: raise(ArgumentError, "creation.json: race_choices for unknown race #{inspect(race)}")
-
-      bad = Enum.reject(choice["from"] ++ Map.keys(choice["replaces"]), &(&1 in @stats))
-
-      unless bad == [],
-        do: raise(ArgumentError, "creation.json: unknown stats #{inspect(bad)} for #{race}")
-    end
-
-    known = Mechanics.skill_stat_map()
-    occupation = creation["occupation"]
-
-    for id <- occupation["choices"] ++ Map.values(occupation["class_defaults"]) do
-      unless Map.has_key?(labels["occupations"], id),
-        do: raise(ArgumentError, "creation.json: unknown occupation #{inspect(id)}")
-    end
-
-    for {class, id} <- occupation["class_defaults"] do
-      unless Map.has_key?(labels["classes"], class) and id in occupation["choices"],
-        do: raise(ArgumentError, "creation.json: bad class default #{class} => #{id}")
-    end
-
-    missing = Map.keys(labels["classes"]) -- Map.keys(occupation["class_defaults"])
-
-    unless missing == [],
-      do: raise(ArgumentError, "creation.json: no default occupation for #{inspect(missing)}")
-
-    for {race, bonus} <- creation["skills"]["race_bonuses"] do
-      unless Map.has_key?(labels["races"], race),
-        do: raise(ArgumentError, "creation.json: skill bonus for unknown race #{inspect(race)}")
-
-      bad = bonus |> Map.get("fixed", %{}) |> Map.keys() |> Enum.reject(&Map.has_key?(known, &1))
-
-      unless bad == [],
-        do: raise(ArgumentError, "creation.json: unknown skills #{inspect(bad)} for #{race}")
-    end
-
-    :ok
-  end
 
   # Resolved at runtime: in a release priv is not at its build path.
   defp creation_path,
