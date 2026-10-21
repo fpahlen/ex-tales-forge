@@ -1,13 +1,14 @@
 defmodule TalesForge.CharacterCreation.PackClassesTest do
   @moduledoc """
   A pack may add a class when it also gives the class a default past
-  occupation (`class_defaults` in its `character_defaults.json`).
+  occupation (`class_defaults` in its `character_defaults.json`), and may
+  override a base class's default.
   """
   # Writes a pack into priv/adventures for the test, so not async.
   use ExUnit.Case, async: false
 
   alias TalesForge.CharacterCreation, as: CC
-  alias TalesForge.Characters.Defaults
+  alias TalesForge.Characters.{Defaults, PackRules}
 
   @fixtures "test/support/fixtures/packs"
 
@@ -41,9 +42,32 @@ defmodule TalesForge.CharacterCreation.PackClassesTest do
     end
   end
 
-  test "a pack may not set the default of a base class" do
-    assert_raise ArgumentError, ~s(p: cannot redefine base class_defaults ["ranger"]), fn ->
-      Defaults.extend_rules!(Defaults.rules(), %{"class_defaults" => %{"ranger" => "guard"}}, "p")
+  test "a pack may override a base class's default; the pack's default wins" do
+    id = install("ranger_guard_default")
+
+    assert %{occupation: "guard"} = Enum.find(CC.options(id).classes, &(&1.id == "ranger"))
+    assert %{occupation: "hunter"} = Enum.find(CC.options(id).classes, &(&1.id == "druid"))
+
+    {:ok, draft} = CC.choose_class(CC.new(id, seed_key: "ranger-1"), "ranger")
+    assert draft.occupation == "guard"
+  end
+
+  test "a pack default must still be an offered occupation" do
+    assert_raise ArgumentError, "creation.json: bad class default ranger => prospector", fn ->
+      labels =
+        Defaults.extend_rules!(
+          Defaults.rules("tin_valley"),
+          %{"class_defaults" => %{"ranger" => "prospector"}},
+          "p"
+        )
+
+      creation = Path.join([:code.priv_dir(:ex_tales_forge), "characters", "creation.json"])
+
+      creation
+      |> File.read!()
+      |> Jason.decode!()
+      |> PackRules.with_class_defaults(labels)
+      |> then(&TalesForge.Characters.RulesCheck.creation!(labels, &1))
     end
   end
 

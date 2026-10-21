@@ -2,7 +2,7 @@ defmodule TalesForge.Characters.PackRules do
   @moduledoc """
   How a pack's `character_defaults.json` extends the base character rules:
   new labels only, more concern focuses, and `class_defaults`, the default
-  past occupation of each class the pack adds.
+  past occupation of a class (one it adds, or a base class it overrides).
   """
 
   @tables ~w(seniority races classes standings occupations)
@@ -10,13 +10,10 @@ defmodule TalesForge.Characters.PackRules do
   @doc """
   `base` extended by one pack's `character_defaults.json` (`source` names it
   in errors). Raises `ArgumentError` on an unknown key or a redefined base
-  label or class default.
+  label. A pack's `class_defaults` may also override a base class's default.
   """
   @spec extend!(map(), map(), String.t()) :: map()
-  def extend!(base, pack, source) do
-    no_clash!(base["classes"], {"class_defaults", Map.get(pack, "class_defaults", %{})}, source)
-    Enum.reduce(pack, base, &extend_key!(&2, &1, source))
-  end
+  def extend!(base, pack, source), do: Enum.reduce(pack, base, &extend_key!(&2, &1, source))
 
   defp extend_key!(acc, {"_doc", _extra}, _source), do: acc
 
@@ -43,7 +40,7 @@ defmodule TalesForge.Characters.PackRules do
 
   @doc """
   `creation` (creation.json) with the pack's `class_defaults` from `labels`
-  added to `occupation.class_defaults`.
+  added to `occupation.class_defaults`; the pack's default wins.
   """
   @spec with_class_defaults(map(), map()) :: map()
   def with_class_defaults(creation, %{"class_defaults" => defaults}),

@@ -42,9 +42,9 @@ defmodule TalesForge.Characters.Defaults do
   @doc """
   The rules for an adventure: the global base extended by the pack's
   `character_defaults.json`, if any. A pack may add `class_defaults`: the
-  default past occupation of each class it adds. Raises `ArgumentError` if a pack redefines
-  a base label or a table refers to an unknown skill, stat, trait, Maslow level
-  or concern focus.
+  default past occupation of a class it adds or of a base class (the pack's
+  wins). Raises `ArgumentError` if a pack redefines a base label or a table
+  refers to an unknown skill, stat, trait, Maslow level or concern focus.
   """
   @spec rules(String.t() | nil) :: rules()
   def rules(adventure_id \\ nil) do
