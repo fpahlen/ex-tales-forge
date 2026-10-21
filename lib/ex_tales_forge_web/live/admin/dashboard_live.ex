@@ -3,7 +3,7 @@ defmodule TalesForgeWeb.AdminLive.DashboardLive do
   The admin home (`/admin`): one card per section of the admin area
   (`TalesForgeWeb.AdminSections`: Founders, Play and test, Operate, Develop,
   Docs), each with a one-line summary and links to its pages, then the
-  collapsed Archive and the game database at a glance.
+  game database at a glance.
   """
 
   use TalesForgeWeb, :live_view
@@ -22,8 +22,7 @@ defmodule TalesForgeWeb.AdminLive.DashboardLive do
      socket
      |> assign(:page_title, "Admin")
      |> assign(:role, AppRole.role())
-     |> assign(:sections, Enum.reject(sections, &(&1.id == :archive)))
-     |> assign(:archive, Enum.find(sections, &(&1.id == :archive)))
+     |> assign(:sections, sections)
      |> assign(:stats, Admin.stats())}
   end
 
@@ -69,19 +68,6 @@ defmodule TalesForgeWeb.AdminLive.DashboardLive do
           <.section_links items={section.items} role={@role} />
         </section>
       </div>
-
-      <details
-        id="section-archive"
-        class="rounded-lg border border-[var(--paper-rule)] bg-[var(--paper-panel)] p-4"
-      >
-        <summary class="min-h-11 cursor-pointer font-serif text-lg font-semibold text-[var(--paper-ink)]">
-          {@archive.title}
-          <span class="font-sans text-sm font-normal text-[var(--paper-muted)]">
-            {@archive.line}
-          </span>
-        </summary>
-        <.section_links items={@archive.items} role={@role} />
-      </details>
 
       <section id="at-a-glance" aria-labelledby="at-a-glance-title" class="space-y-2">
         <h3 id="at-a-glance-title" class="play-label text-[var(--paper-muted)]">

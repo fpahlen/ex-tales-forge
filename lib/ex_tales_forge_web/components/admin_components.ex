@@ -11,8 +11,8 @@ defmodule TalesForgeWeb.AdminComponents do
 
   @doc """
   The admin nav, grouped by purpose (`TalesForgeWeb.AdminSections`): Admin
-  home, then Founders, Play and test, Operate, Develop and Docs, a collapsed
-  Archive, and Player home and Sign out.
+  home, then Founders, Play and test, Operate, Develop and Docs, and Player
+  home and Sign out.
 
   Phones and tablets (below `lg`) get one "Menu" row that names the current
   page and opens the groups (a `<details>`, no JavaScript); from `lg` up it is
@@ -28,10 +28,8 @@ defmodule TalesForgeWeb.AdminComponents do
     assigns =
       assigns
       |> assign(:role, AppRole.role())
-      |> assign(:groups, Enum.reject(AdminSections.sections(), &(&1.id == :archive)))
-      |> assign(:archive, Enum.find(AdminSections.sections(), &(&1.id == :archive)))
+      |> assign(:groups, AdminSections.sections())
       |> assign(:current, current_label(section, assigns.active))
-      |> assign(:in_archive, match?(%{id: :archive}, section))
 
     ~H"""
     <style>
@@ -64,21 +62,6 @@ defmodule TalesForgeWeb.AdminComponents do
               </li>
             </ul>
           </div>
-          <details
-            id="admin-nav-archive"
-            data-group="archive"
-            open={@in_archive}
-            class="border-t border-[var(--paper-rule)] pt-2"
-          >
-            <summary class="play-label min-h-11 cursor-pointer px-2.5 py-2 text-[var(--paper-muted)] lg:px-3">
-              Archive
-            </summary>
-            <ul class="grid grid-cols-2 gap-0.5 lg:block">
-              <li :for={item <- @archive.items}>
-                <.section_link item={item} role={@role} active={@active} />
-              </li>
-            </ul>
-          </details>
           <div class="grid grid-cols-2 gap-0.5 border-t border-[var(--paper-rule)] pt-2 lg:block">
             <.nav_link href={~p"/"} label="← Player home" active={false} />
             <.link
