@@ -222,7 +222,7 @@ defmodule TalesForge.Game.PremiseCheckTest do
         |> Enum.map(& &1["id"])
 
       assert flagged ==
-               ~w(h-fa01 h-fp01 h-fp02 h-fp04 h-fp06 h-fp07 h-fp08 h-fp09 h-fp10 h-fp11 h-fp12 h-fp13 h-fp14 h-fp17)
+               ~w(h-fa01 h-fp01 h-fp02 h-fp04 h-fp06 h-fp07 h-fp08 h-fp09 h-fp10 h-fp11 h-fp12 h-fp13 h-fp14 h-fp17 h-qa10)
     end
   end
 
