@@ -1,5 +1,6 @@
 defmodule TalesForge.Game.PeopleAgencyTest do
   use TalesForge.DataCase, async: false
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
@@ -12,7 +13,6 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.WorldSim
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.SessionEvent
@@ -59,7 +59,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     assert %SessionEvent{player_aware: true, actor: "guild_steward", location_id: "market_square"} =
              slight
 
-    osric = NPC.get_person(session.id, "guild_steward")
+    osric = Rows.get(session.id, "guild_steward")
     assert get_in(osric.runtime_state, ["resources", "coin"]) == 7
 
     assert Enum.any?(osric.runtime_state["memories"], fn mem ->
@@ -93,8 +93,8 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     refute_plan_leak(prompt)
     refute_plan_leak(scene)
 
-    brenna = NPC.get_person(session.id, "innkeep")
-    caldern = NPC.get_person(session.id, "prospector")
+    brenna = Rows.get(session.id, "innkeep")
+    caldern = Rows.get(session.id, "prospector")
 
     refute Enum.any?(
              brenna.runtime_state["public_facts"] || [],
@@ -114,7 +114,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
     set_npc_coin!(session.id, "guild_steward", 0)
     session = session |> move("market_square") |> interact("guild post")
 
-    osric = NPC.get_person(session.id, "guild_steward")
+    osric = Rows.get(session.id, "guild_steward")
     assert get_in(osric.runtime_state, ["resources", "coin"]) == 0
 
     refute Enum.any?(
@@ -345,16 +345,16 @@ defmodule TalesForge.Game.PeopleAgencyTest do
 
   defp npc_coin(session_id, npc_id) do
     session_id
-    |> NPC.get_person(npc_id)
+    |> Rows.get(npc_id)
     |> Map.get(:runtime_state, %{})
     |> get_in(["resources", "coin"])
   end
 
   defp set_npc_coin!(session_id, npc_id, coin) do
-    inst = NPC.get_person(session_id, npc_id)
+    inst = Rows.get(session_id, npc_id)
     runtime = put_in(inst.runtime_state, ["resources", "coin"], coin)
 
-    NPC.put_state!(inst, runtime)
+    Rows.update!(inst, runtime)
   end
 
   defp refute_plan_leak(text) do

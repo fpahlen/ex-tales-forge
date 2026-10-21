@@ -3,6 +3,7 @@ defmodule TalesForge.CharactersSyncTest do
 
   import Ecto.Query
   import ExUnit.CaptureLog
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Characters
   alias TalesForge.Game.Turn.Board
@@ -176,7 +177,7 @@ defmodule TalesForge.CharactersSyncTest do
       {:ok, _} = Characters.add_memory(innkeep, %{kind: "memory", text: "Long", about: ["x"]})
 
       assert [%{"summary" => "First", "tick" => 11}, %{"summary" => "Second", "tick" => 12}] =
-               NPC.get_person(session.id, "innkeep").runtime_state["memories"]
+               Rows.get(session.id, "innkeep").runtime_state["memories"]
 
       :ok =
         NPC.record_memory(%NPC.Note{
@@ -217,8 +218,8 @@ defmodule TalesForge.CharactersSyncTest do
                Ecto.Multi.new()
                |> Ecto.Multi.put(:session, session)
                |> Ecto.Multi.run(:gm, fn _repo, _ ->
-                 inst = NPC.get_person(session.id, "innkeep")
-                 {:ok, NPC.put_state!(inst, Map.put(inst.runtime_state, "mood", "tired"))}
+                 inst = Rows.get(session.id, "innkeep")
+                 {:ok, Rows.update!(inst, Map.put(inst.runtime_state, "mood", "tired"))}
                end)
                |> Characters.write_multi(cast)
                |> Repo.transaction()

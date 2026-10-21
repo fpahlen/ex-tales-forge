@@ -6,8 +6,8 @@ defmodule TalesForge.Canon.SessionSnapshot do
   `from_session/1` reads the database. `TalesForge.Canon.Diff` uses the
   struct and does no reads.
   """
+  alias TalesForge.NPC.Rows
 
-  alias TalesForge.NPC
   alias TalesForge.Schemas.GameSession
   alias TalesForge.World
 
@@ -31,7 +31,7 @@ defmodule TalesForge.Canon.SessionSnapshot do
   @spec from_session(GameSession.t()) :: t()
   def from_session(%GameSession{} = session) do
     world = session.world_state || %{}
-    instances = NPC.list_people(session.id)
+    instances = Rows.list(session.id)
 
     names =
       Map.new(instances, fn inst ->

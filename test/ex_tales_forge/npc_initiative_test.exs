@@ -4,6 +4,7 @@ defmodule TalesForge.NPCInitiativeTest do
   # (TalesForge.Game.Turn.Intentions.apply_all/2). Before 10e these were
   # Jido signals to the NPC agents.
   use TalesForge.DataCase, async: false
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Game.Turn.Intentions
   alias TalesForge.GameSessions
@@ -31,7 +32,7 @@ defmodule TalesForge.NPCInitiativeTest do
     do: Intentions.apply_all(session.id, NPCSignals.intentions(turn))
 
   defp memories(session, npc_id),
-    do: NPC.get_person(session.id, npc_id).runtime_state |> Map.get("memories", [])
+    do: Rows.get(session.id, npc_id).runtime_state |> Map.get("memories", [])
 
   defp speak(target), do: %{handler: "speak", target: target, skill: "persuasion", notes: "test"}
   defp freeform, do: %{handler: "freeform", target: nil, skill: nil, notes: "test"}
@@ -74,7 +75,7 @@ defmodule TalesForge.NPCInitiativeTest do
     assert memory["summary"] == "Player spoke to me: Marta, tell me about the ledger"
     assert memory["tick"] == Map.get(session.world_state, "world_tick")
 
-    assert NPC.get_person(session.id, "marta_kellen").runtime_state["relationship_score"] ==
+    assert Rows.get(session.id, "marta_kellen").runtime_state["relationship_score"] ==
              0.05
   end
 
@@ -101,13 +102,13 @@ defmodule TalesForge.NPCInitiativeTest do
     {:ok, session} = GameSessions.create_session(%{name: "NPC Time"})
     for _ <- 1..4, do: play(session, turn(session, freeform(), "", 1))
 
-    concern = NPC.get_person(session.id, "marta_kellen").runtime_state["current_concern"]
+    concern = Rows.get(session.id, "marta_kellen").runtime_state["current_concern"]
     assert concern["priority"] >= 9
 
     {:ok, other} = GameSessions.create_session(%{name: "NPC Wait Concern"})
     play(other, turn(other, freeform(), "", 288))
 
-    assert get_in(NPC.get_person(other.id, "marta_kellen").runtime_state, [
+    assert get_in(Rows.get(other.id, "marta_kellen").runtime_state, [
              "current_concern",
              "priority"
            ]) == 10
@@ -117,12 +118,12 @@ defmodule TalesForge.NPCInitiativeTest do
     {:ok, session} =
       GameSessions.create_session(%{name: "Tin Valley Wait", adventure_id: "tin_valley"})
 
-    before = NPC.get_person(session.id, "innkeep")
+    before = Rows.get(session.id, "innkeep")
     assert get_in(before.runtime_state, ["current_concern", "focus"]) =~ "hills are restless"
 
     play(session, turn(session, freeform(), "", 288))
 
-    assert get_in(NPC.get_person(session.id, "innkeep").runtime_state, [
+    assert get_in(Rows.get(session.id, "innkeep").runtime_state, [
              "current_concern",
              "priority"
            ]) >
@@ -138,7 +139,7 @@ defmodule TalesForge.NPCInitiativeTest do
     assert [payload] = Enum.filter(payloads, &(&1.npc_id == "marta_kellen"))
     assert payload.npc_name == "Marta Kellen"
     assert payload.text =~ "ledger"
-    assert NPC.get_person(session.id, "marta_kellen").runtime_state["initiative_emitted"]
+    assert Rows.get(session.id, "marta_kellen").runtime_state["initiative_emitted"]
 
     :ok = NPCInitiative.broadcast(session.id, payload)
     assert_receive {:npc_initiative, ^payload}
@@ -155,8 +156,8 @@ defmodule TalesForge.NPCInitiativeTest do
     payloads =
       Enum.flat_map([288, 1, 1, 1, 1, 1], &play(session, turn(session, freeform(), "", &1)))
 
-    assert NPC.get_person(session.id, "innkeep").runtime_state["initiative_emitted"]
-    assert NPC.initiative_text(NPC.get_person(session.id, "innkeep")) == nil
+    assert Rows.get(session.id, "innkeep").runtime_state["initiative_emitted"]
+    assert NPC.initiative_text(Rows.get(session.id, "innkeep")) == nil
     refute Enum.any?(payloads, &(&1.npc_id == "innkeep"))
     refute Enum.any?(payloads, &(&1.text =~ "as if a worry has been pressing"))
   end
@@ -185,7 +186,7 @@ defmodule TalesForge.NPCInitiativeTest do
     SessionPubSub.subscribe(session.id)
 
     priority = fn ->
-      get_in(NPC.get_person(session.id, "marta_kellen").runtime_state, [
+      get_in(Rows.get(session.id, "marta_kellen").runtime_state, [
         "current_concern",
         "priority"
       ])
@@ -223,9 +224,9 @@ defmodule TalesForge.NPCInitiativeTest do
   test "concern priority surfaces in the session's cast" do
     assert {:ok, session} = GameSessions.create_session(%{name: "NPC Concern UI"})
 
-    inst = NPC.get_person(session.id, "marta_kellen")
+    inst = Rows.get(session.id, "marta_kellen")
 
-    NPC.put_state!(
+    Rows.update!(
       inst,
       inst.runtime_state
       |> Map.put("concern_wait_ticks", 4)

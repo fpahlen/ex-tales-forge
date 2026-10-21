@@ -48,9 +48,10 @@ defmodule TalesForge.World do
           }
   end
 
+  alias TalesForge.NPC.Rows
+
   alias TalesForge.Config
   alias TalesForge.Game.World, as: GameWorld
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.SessionEvent
   alias TalesForge.World.{Agent, AgentSpec, Budget}
@@ -209,7 +210,7 @@ defmodule TalesForge.World do
 
   defp person_names(session_id) do
     session_id
-    |> NPC.list_people()
+    |> Rows.list()
     |> Map.new(&{&1.npc_id, get_in(&1.personality, ["name"]) || &1.npc_id})
   end
 

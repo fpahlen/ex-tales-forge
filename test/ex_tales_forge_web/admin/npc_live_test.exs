@@ -2,13 +2,13 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
   use TalesForgeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
+  alias TalesForge.NPC.Rows
 
-  alias TalesForge.Admin
   alias TalesForge.GameSessions
 
   setup %{conn: conn} do
     {:ok, session} = GameSessions.create_session(%{name: "NPC Live Test"})
-    [npc | _] = Admin.list_npcs(session.id)
+    [npc | _] = Rows.list(session.id)
 
     {:ok, conn: log_in_admin(conn), session: session, npc: npc}
   end
@@ -32,7 +32,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
     |> render_submit()
 
     assert render(view) =~ "Runtime state saved."
-    assert Admin.get_npc(session.id, npc.npc_id).runtime_state["mood"] == "wary"
+    assert Rows.get(session.id, npc.npc_id).runtime_state["mood"] == "wary"
   end
 
   test "the page names its session", %{conn: conn, session: session, npc: npc} do
@@ -55,7 +55,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
       |> render_submit()
 
     assert html =~ "Not saved"
-    current = Admin.get_npc(session.id, npc.npc_id)
+    current = Rows.get(session.id, npc.npc_id)
     assert current.runtime_state["mood"] == npc.runtime_state["mood"]
     assert view |> element("textarea#runtime_json") |> render() =~ ~r/relationship_score\S*: 0\.3/
 
@@ -63,13 +63,13 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
     |> form("form[phx-submit=save_runtime]", %{runtime_json: ~s({"mood": "wary"})})
     |> render_submit()
 
-    assert Admin.get_npc(session.id, npc.npc_id).runtime_state["mood"] == "wary"
+    assert Rows.get(session.id, npc.npc_id).runtime_state["mood"] == "wary"
   end
 
   test "an NPC from another session redirects instead of crashing", %{conn: conn, npc: npc} do
     {:ok, other} = GameSessions.create_session(%{name: "Other session"})
     # Make sure the other session really has no NPC with this slug.
-    for n <- Admin.list_npcs(other.id), n.npc_id == npc.npc_id do
+    for n <- Rows.list(other.id), n.npc_id == npc.npc_id do
       TalesForge.Repo.delete!(n.row)
     end
 

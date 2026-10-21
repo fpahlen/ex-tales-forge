@@ -32,12 +32,12 @@ defmodule TalesForge.Game.NpcReactions do
   require Logger
 
   import Ecto.Query
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.AICalls
   alias TalesForge.Config
   alias TalesForge.Game.Cast
   alias TalesForge.Intention
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Scene, Turn}
 
@@ -165,7 +165,7 @@ defmodule TalesForge.Game.NpcReactions do
 
     if enabled?() and present != [] do
       session_id
-      |> NPC.list_people()
+      |> Rows.list()
       |> Enum.filter(&(&1.npc_id in present))
       |> Enum.take(@max_npcs)
     else

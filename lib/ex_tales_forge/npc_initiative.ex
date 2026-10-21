@@ -7,6 +7,7 @@ defmodule TalesForge.NPCInitiative do
   `TalesForge.World.Instance` broadcasts it to the play page with
   `broadcast/2` once the turn has committed.
   """
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.NPC
   alias TalesForge.NPC.Person
@@ -29,7 +30,7 @@ defmodule TalesForge.NPCInitiative do
   """
   @spec speak_up(Ecto.UUID.t(), String.t(), integer() | nil) :: {:ok, payload()} | :none
   def speak_up(session_id, npc_id, world_tick) when is_binary(session_id) and is_binary(npc_id) do
-    case NPC.get_person(session_id, npc_id) do
+    case Rows.get(session_id, npc_id) do
       %Person{} = inst ->
         if Map.get(inst.runtime_state, "initiative_emitted", false) do
           :none

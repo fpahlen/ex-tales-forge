@@ -5,10 +5,10 @@ defmodule TalesForge.Game.InnWorldTest do
   created with the flag on.
   """
   use TalesForge.DataCase, async: false
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.GameSessions
   alias TalesForge.Game.{Features, Pack}
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 
@@ -127,7 +127,7 @@ defmodule TalesForge.Game.InnWorldTest do
       assert session.world_state["features"] == ["inn_world"]
       assert Map.has_key?(session.world_state["locations"], "inn_yard")
 
-      npc_ids = session.id |> NPC.list_people() |> Enum.map(& &1.npc_id) |> Enum.sort()
+      npc_ids = session.id |> Rows.list() |> Enum.map(& &1.npc_id) |> Enum.sort()
       assert npc_ids == Enum.sort(~w(guild_steward innkeep prospector) ++ @new_people)
     end
 
@@ -136,7 +136,7 @@ defmodule TalesForge.Game.InnWorldTest do
 
       refute Map.has_key?(session.world_state, "features")
       assert map_size(session.world_state["locations"]) == 5
-      assert length(NPC.list_people(session.id)) == 3
+      assert length(Rows.list(session.id)) == 3
     end
 
     test "walking into the yard finds Tam and Mags there, and Brenna stays at the inn" do
