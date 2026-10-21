@@ -52,7 +52,7 @@ defmodule TalesForge.CharacterCreation do
   rebalances.
   """
 
-  alias TalesForge.CharacterCreation.Draft
+  alias TalesForge.CharacterCreation.{Checks, Context, Draft}
   alias TalesForge.CharacterCreation.Options
   alias TalesForge.CharacterCreation.Spread
   alias TalesForge.Characters.{Defaults, PackRules, RulesCheck}
@@ -467,33 +467,23 @@ defmodule TalesForge.CharacterCreation do
   """
   @spec validate(Draft.t()) :: :ok | {:error, [error()]}
   def validate(%Draft{} = draft) do
-    rules = rules(draft.adventure_id)
-    %{"budget" => budget, "min" => lo, "max" => hi} = rules["creation"]["point_buy"]
-    spent = points_spent(draft)
-    modifiers = race_modifiers(draft, rules)
-
-    errors =
-      [
-        draft.name == "" && {:name, "type a name"},
-        (draft.model in ["point_buy", "from_text"] and spent > budget) &&
-          {:stats, "#{budget} points at most; #{spent} spent"},
-        (draft.model == "stat_roll" and draft.base_stats != draft.rolled_stats) &&
-          {:stats, "the stats must be the rolled stats"},
-        race_picks_error(draft, rules),
-        (draft.model == "from_text" and not draft.approved) &&
-          {:approval, "approve the AI draft before play"}
-      ] ++
-        Enum.map(final_stats(draft, rules), fn {stat, value} ->
-          (value < lo or value > hi) &&
-            {:stats,
-             "#{stat} would be #{value} after the #{draft.race} modifier " <>
-               "(#{signed(Map.get(modifiers, stat, 0))}); it must be #{lo}–#{hi}"}
-        end) ++ skill_errors(draft, rules)
-
-    case Enum.filter(errors, & &1) do
+    case draft |> context() |> Checks.errors() do
       [] -> :ok
       errors -> {:error, errors}
     end
+  end
+
+  defp context(draft) do
+    rules = rules(draft.adventure_id)
+
+    %Context{
+      draft: draft,
+      rules: rules,
+      points_spent: points_spent(draft),
+      modifiers: race_modifiers(draft, rules),
+      final_stats: final_stats(draft, rules),
+      skill_errors: skill_errors(draft, rules)
+    }
   end
 
   @doc """
@@ -650,16 +640,6 @@ defmodule TalesForge.CharacterCreation do
     Map.new(@stats, &{&1, Map.get(draft.base_stats, &1, 0) + Map.get(modifiers, &1, 0)})
   end
 
-  defp race_picks_error(draft, rules) do
-    case Options.race_choice(rules["creation"], draft.race) do
-      %{"count" => count} when length(draft.race_picks) != count ->
-        {:race_picks, "choose #{count} stats for the #{draft.race} bonus"}
-
-      _ ->
-        false
-    end
-  end
-
   # --- skills -----------------------------------------------------------------------
 
   # Free levels before the caps, in priority order (class package, then race).
@@ -770,9 +750,6 @@ defmodule TalesForge.CharacterCreation do
   end
 
   defp label(skill), do: skill |> String.replace("_", " ") |> String.capitalize()
-
-  defp signed(n) when n >= 0, do: "+#{n}"
-  defp signed(n), do: "#{n}"
 
   # Resolved at runtime: in a release priv is not at its build path.
   defp creation_path,
