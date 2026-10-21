@@ -24,6 +24,7 @@ defmodule TalesForgeWeb.CreateCharacterLive do
   alias TalesForge.CharacterCreation.FromText
   alias TalesForge.CharacterDrafts
   alias TalesForge.GameSessions
+  alias TalesForgeWeb.CreateCharacterLive.Raise
 
   @adventures %{"tin_valley" => "Tin Valley", "crossroads_ledger" => "Crossroads Hamlet"}
   @steps [{"origin", "Race & class"}, {"stats", "Stats"}, {"skills", "Skills"}, {"name", "Name"}]
@@ -756,7 +757,14 @@ defmodule TalesForgeWeb.CreateCharacterLive do
               phx-click="skill"
               phx-value-skill={skill}
               phx-value-delta="1"
-              disabled={not can_raise?(Map.get(@levels, skill, 0), @left, @signatures, @rules)}
+              disabled={
+                not Raise.allowed?(%Raise{
+                  level: Map.get(@levels, skill, 0),
+                  left: @left,
+                  signatures: @signatures,
+                  rules: @rules
+                })
+              }
               aria-label={"Raise #{label(skill)}"}
               class="size-9 rounded border border-[var(--paper-rule)] text-lg text-[var(--paper-ink)] disabled:opacity-30"
             >
@@ -773,16 +781,6 @@ defmodule TalesForgeWeb.CreateCharacterLive do
       <.step_nav back="stats" next="name" next_disabled={@errors != []} />
     </section>
     """
-  end
-
-  # One more level is affordable, under the signature cap, and a new signature
-  # skill only while there is room for one.
-  defp can_raise?(level, left, signatures, rules) do
-    costs = rules["level_costs"]
-    price = Enum.at(costs, level, List.last(costs))
-
-    level < rules["signature_cap"] and price <= left and
-      (level != rules["cap"] or signatures < rules["signature_max"])
   end
 
   defp free_text(0), do: "—"

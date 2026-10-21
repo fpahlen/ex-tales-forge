@@ -53,6 +53,7 @@ defmodule TalesForge.CharacterCreation do
   """
 
   alias TalesForge.CharacterCreation.Draft
+  alias TalesForge.CharacterCreation.Spread
   alias TalesForge.Characters.Defaults
   alias TalesForge.Game.Mechanics
 
@@ -765,15 +766,7 @@ defmodule TalesForge.CharacterCreation do
   # Levels rise in steps of `level_step` (5 on the d100 scale). Each level
   # costs the `level_costs` entry of its step, so one step of 5 levels costs
   # 5 times that entry: the d20 price, scaled with the budget.
-  defp cost(sk, from, to) when to > from do
-    step = Map.get(sk, "level_step", 1)
-    costs = sk["level_costs"]
-    last = List.last(costs)
-
-    Enum.sum(for l <- (from + 1)..to//1, do: Enum.at(costs, div(l - 1, step), last))
-  end
-
-  defp cost(_sk, _from, _to), do: 0
+  defp cost(sk, from, to), do: Spread.cost(sk, from, to)
 
   defp skill_levels(draft, rules) do
     {free, _refund} = free_levels(rules, draft)
@@ -830,9 +823,15 @@ defmodule TalesForge.CharacterCreation do
     {first, rest} = Enum.split(fillers, max(sk["min_skills"] + 1 - length(leading), 0))
     candidates = leading ++ first
 
-    candidates
-    |> Map.new(&{&1, Map.get(free, &1, 0)})
-    |> raise_lowest(candidates, rest, skill_budget(draft, rules), sk)
+    %Spread{
+      candidates: candidates,
+      rest: rest,
+      left: skill_budget(draft, rules),
+      sk: sk
+    }
+    |> Spread.start(free)
+    |> Spread.raise_lowest()
+    |> Map.fetch!(:levels)
     |> Map.reject(fn {skill, level} -> level <= Map.get(free, skill, 0) end)
   end
 
@@ -841,36 +840,6 @@ defmodule TalesForge.CharacterCreation do
     |> Enum.sort_by(fn {skill, stat} -> {-Map.get(stats, stat, 10), skill} end)
     |> Enum.map(&elem(&1, 0))
     |> Enum.reject(&(&1 in leading))
-  end
-
-  defp raise_lowest(levels, candidates, rest, left, sk) do
-    step = Map.get(sk, "level_step", 1)
-
-    next =
-      candidates
-      |> Enum.filter(
-        &(levels[&1] < sk["cap"] and cost(sk, levels[&1], levels[&1] + step) <= left)
-      )
-      |> Enum.min_by(&levels[&1], fn -> nil end)
-
-    case {next, rest} do
-      {nil, [filler | rest]} when left > 0 ->
-        levels |> Map.put(filler, 0) |> raise_lowest(candidates ++ [filler], rest, left, sk)
-
-      {nil, _rest} ->
-        levels
-
-      {skill, _rest} ->
-        price = cost(sk, levels[skill], levels[skill] + step)
-
-        raise_lowest(
-          Map.update!(levels, skill, &(&1 + step)),
-          candidates,
-          rest,
-          left - price,
-          sk
-        )
-    end
   end
 
   defp label(skill), do: skill |> String.replace("_", " ") |> String.capitalize()
