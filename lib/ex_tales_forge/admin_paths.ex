@@ -26,8 +26,7 @@ defmodule TalesForge.AdminPaths do
     {"decisions", ["founders", "decisions"]},
     {"costs", ["operate", "costs"]},
     {"oban", ["operate", "telemetry"]},
-    {"telemetry", ["operate", "telemetry"]},
-    {"npc-definitions", ["archive", "npc-definitions"]}
+    {"telemetry", ["operate", "telemetry"]}
   ]
 
   @doc """
@@ -45,8 +44,7 @@ defmodule TalesForge.AdminPaths do
     {"founders", "section-founders"},
     {"play", "section-play"},
     {"operate", "section-operate"},
-    {"develop", "section-develop"},
-    {"archive", "section-archive"}
+    {"develop", "section-develop"}
   ]
 
   @doc """

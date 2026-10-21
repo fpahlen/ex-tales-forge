@@ -10,7 +10,6 @@ defmodule TalesForgeWeb.AdminSections do
   - **Operate**: costs and Jev intent latency, telemetry, health, logs.
   - **Develop**: code docs, architecture, the call types.
   - **Docs**: the shared docs (rules, world, design notes).
-  - **Archive** (collapsed): old pages that still work but are rarely needed.
 
   Each item is a page or a place on a page. `nav: true` items are also in the
   nav; the home lists them all. An item with an `area` lives on one app only
@@ -22,7 +21,7 @@ defmodule TalesForgeWeb.AdminSections do
   alias TalesForge.AppRole
 
   @typedoc "A section's id."
-  @type id :: :founders | :play | :operate | :develop | :docs | :archive
+  @type id :: :founders | :play | :operate | :develop | :docs
 
   @typedoc """
   One link. `key` is the `active` name a page passes to `Layouts.admin`
@@ -241,20 +240,6 @@ defmodule TalesForgeWeb.AdminSections do
           kind: :live
         }
       ]
-    },
-    %{
-      id: :archive,
-      title: "Archive",
-      line: "Old pages that still work but are rarely needed.",
-      items: [
-        %{
-          label: "NPC definitions (base pack)",
-          path: "/admin/archive/npc-definitions",
-          kind: :live,
-          key: "npc_definitions",
-          nav: true
-        }
-      ]
     }
   ]
 
@@ -275,10 +260,10 @@ defmodule TalesForgeWeb.AdminSections do
             end)
 
   @doc """
-  Every section, in order (Archive last).
+  Every section, in order.
 
       iex> TalesForgeWeb.AdminSections.sections() |> Enum.map(& &1.title)
-      ["Founders", "Play and test", "Operate", "Develop", "Docs", "Archive"]
+      ["Founders", "Play and test", "Operate", "Develop", "Docs"]
   """
   @spec sections() :: [section()]
   def sections, do: @sections

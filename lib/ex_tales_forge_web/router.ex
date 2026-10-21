@@ -82,7 +82,7 @@ defmodule TalesForgeWeb.Router do
 
   # The admin area, grouped by purpose (decision 2026-10-10; the nav and the
   # home's cards come from TalesForgeWeb.AdminSections): Founders, Play and
-  # test, Operate, Develop, Docs and a collapsed Archive.
+  # test, Operate, Develop and Docs.
   scope "/admin", TalesForgeWeb.AdminLive do
     pipe_through :browser
 
@@ -100,9 +100,6 @@ defmodule TalesForgeWeb.Router do
       # Operate
       live "/operate/costs", CostsLive, :index
       live "/operate/code-heat", CodeHeatLive, :index
-      # Archive
-      live "/archive/npc-definitions", NpcDefinitionLive.Index, :index
-      live "/archive/npc-definitions/:id", NpcDefinitionLive.Show, :show
     end
 
     # Pages that live on one app only (TalesForge.AppRole): playtest runs on

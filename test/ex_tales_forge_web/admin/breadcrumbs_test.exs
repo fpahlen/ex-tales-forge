@@ -49,7 +49,6 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
     conn = log_in_admin(conn)
     {:ok, session} = TalesForge.GameSessions.create_session(%{name: "Crumbs"})
     [npc | _] = TalesForge.Admin.list_npcs(session.id)
-    [definition | _] = TalesForge.Admin.list_npc_definitions()
 
     run =
       TalesForge.Repo.insert!(%TalesForge.Schemas.PlaytestRun{
@@ -69,7 +68,6 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
       "/admin/play/sessions/:id/npcs/:npc_id" =>
         "/admin/play/sessions/#{session.id}/npcs/#{npc.npc_id}",
       "/admin/play/sessions/:id/turns" => "/admin/play/sessions/#{session.id}/turns",
-      "/admin/archive/npc-definitions/:id" => "/admin/archive/npc-definitions/#{definition.id}",
       "/admin/play/runs/:id" => "/admin/play/runs/#{run.id}",
       "/admin/founders/surveys/:id" => "/admin/founders/surveys/founder-survey-3",
       "/admin/founders/surveys/:id/results" => "/admin/founders/surveys/founder-survey-3/results"
