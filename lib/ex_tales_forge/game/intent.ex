@@ -22,6 +22,7 @@ defmodule TalesForge.Game.Intent do
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.Game.WorldClock
+  alias TalesForge.Locations.Exits
 
   @no_skill_types ~w(move wait train pickup drop buy sell trade spend)a
   # Scene-change fix, 2026-10-07: more ways to say "I go
@@ -122,13 +123,12 @@ defmodule TalesForge.Game.Intent do
   """
   @spec validate_player_action(IntentExtraction.t(), map()) :: PlayerAction.t()
   def validate_player_action(%IntentExtraction{} = extraction, context) do
-    primary = extraction |> primary_action() |> normalize_move(context)
+    primary =
+      extraction
+      |> primary_action()
+      |> normalize_move(Map.put(context, "overall_intent", extraction.overall_intent))
 
-    deferred =
-      extraction.actions
-      |> Enum.with_index()
-      |> Enum.reject(fn {_action, idx} -> idx == extraction.primary_index end)
-      |> Enum.map(fn {action, _idx} -> action end)
+    deferred = List.delete_at(extraction.actions, extraction.primary_index)
 
     %PlayerAction{
       overall_intent: sanitize_summary(extraction.overall_intent),
@@ -216,14 +216,10 @@ defmodule TalesForge.Game.Intent do
 
   defp normalize_move(action, _context), do: action
 
-  # A move to no place stops being a move. With a grid (`"spots"` in the
-  # context, LOCATION_GRID) it becomes a walk inside the room to its target
-  # (`TalesForge.Game.Turn.Walk`); the target words stay in `"walk_to"`.
-  defp not_a_place(action, %{"spots" => _spots}) do
-    params = Map.put(action.parameters || %{}, "walk_to", action.target)
-    %SingleAction{action | action_type: :other, target: nil, parameters: params}
-  end
-
+  # A move to no place stops being a move; with a grid (`"spots"`,
+  # LOCATION_GRID) it leaves through the door or walks in the room
+  # (`TalesForge.Locations.Exits.no_place/2`).
+  defp not_a_place(action, %{"spots" => _spots} = context), do: Exits.no_place(action, context)
   defp not_a_place(action, _context), do: %SingleAction{action | action_type: :other, target: nil}
 
   defp movement_world(context) do
