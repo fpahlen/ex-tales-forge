@@ -44,6 +44,10 @@ kill_timeout = "30s"
   # action instead of playing it as an everyday action. Gentry QA 2026-10-21,
   # session b01271a7 turn 10. Production stays off (fly.toml).
   TURN_PREMISE_FIRST = "on"
+  # Locations step 1 (docs/design-locations.md): the GM prompt says what the
+  # character sees on its place's grid (Valley Inn ground floor). Playtest
+  # only: production stays off (fly.toml).
+  LOCATION_GRID = "on"
   # Character memory in shadow mode (board card fc3c9371): scene-end rows are
   # written, the recall is built, the GM prompt stays the same. Production
   # stays off (fly.toml).

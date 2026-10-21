@@ -60,6 +60,7 @@ defmodule TalesForge.Prompt.Profile do
       Sections.CharacterMemory,
       Sections.Gestures,
       Sections.SceneNow,
+      Sections.Surroundings,
       Sections.OutcomeRecord,
       Sections.NoticedDetails,
       Sections.Premise,
@@ -87,5 +88,6 @@ defmodule TalesForge.Prompt.Profile do
   defp include?(Sections.NoticedDetails, ctx), do: Ctx.flag?(ctx, :skill_detail_level)
   defp include?(Sections.SkillSplit, ctx), do: Ctx.flag?(ctx, :skill_split)
   defp include?(Sections.Combat, ctx), do: Ctx.flag?(ctx, :combat_opposed)
+  defp include?(Sections.Surroundings, ctx), do: Ctx.flag?(ctx, :location_grid)
   defp include?(_section, _ctx), do: true
 end

@@ -12,6 +12,7 @@ defmodule TalesForge.Game.Turn.Prompt do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.Turn
+  alias TalesForge.Locations
   alias TalesForge.Prompt.Assemble
 
   @doc "Writes `prompt`."
@@ -45,7 +46,9 @@ defmodule TalesForge.Game.Turn.Prompt do
       outcome_record: Map.get(outcome.board, :outcome),
       rest_growth: rest_growth(outcome),
       noticed: turn.notice,
-      combat: Map.get(outcome, :combat)
+      combat: Map.get(outcome, :combat),
+      surroundings:
+        Turn.flag?(turn, :location_grid) && Locations.Prompt.surroundings(outcome.board.world)
     }
   end
 
