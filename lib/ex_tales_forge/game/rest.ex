@@ -49,17 +49,18 @@ defmodule TalesForge.Game.Rest do
   def rest_place?(world, location_id) when is_map(world) and is_binary(location_id) do
     location = get_in(world, ["locations", location_id]) || World.location(location_id) || %{}
 
-    names =
-      [location_id, location["name"] | List.wrap(location["aliases"])]
-      |> Enum.filter(&is_binary/1)
-      |> Enum.map(&String.replace(&1, "_", " "))
-
-    Enum.any?(names, &Regex.match?(@lodging_word, &1)) or
+    lodging_name?([location_id, location["name"] | List.wrap(location["aliases"])]) or
       Regex.match?(@blurb_lodging, to_string(location["blurb"] || "")) or
       location |> Map.get("fixtures", []) |> List.wrap() |> Enum.any?(&bed_fixture?/1)
   end
 
   def rest_place?(_world, _location_id), do: false
+
+  defp lodging_name?(names) do
+    names
+    |> Enum.filter(&is_binary/1)
+    |> Enum.any?(&Regex.match?(@lodging_word, String.replace(&1, "_", " ")))
+  end
 
   @doc """
   True when `text` asks to sleep without a number of hours or days.

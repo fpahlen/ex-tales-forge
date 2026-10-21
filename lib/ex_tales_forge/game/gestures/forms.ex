@@ -18,20 +18,23 @@ defmodule TalesForge.Game.Gestures.Forms do
   """
   @spec verb(String.t()) :: [String.t()]
   def verb(base) when is_binary(base) do
+    {third, stem} = stems(base)
+    [base, third, stem <> "ing", stem <> "ed"]
+  end
+
+  defp stems(base) do
     cond do
       String.ends_with?(base, "e") ->
-        stem = String.slice(base, 0..-2//1)
-        [base, base <> "s", stem <> "ing", base <> "d"]
+        {base <> "s", String.slice(base, 0..-2//1)}
 
       String.ends_with?(base, ~w(sh ch ss x)) ->
-        [base, base <> "es", base <> "ing", base <> "ed"]
+        {base <> "es", base}
 
       Regex.match?(~r/^[^aeiou]*[aeiou][bdgmnpt]$/, base) ->
-        last = String.last(base)
-        [base, base <> "s", base <> last <> "ing", base <> last <> "ed"]
+        {base <> "s", base <> String.last(base)}
 
       true ->
-        [base, base <> "s", base <> "ing", base <> "ed"]
+        {base <> "s", base}
     end
   end
 end

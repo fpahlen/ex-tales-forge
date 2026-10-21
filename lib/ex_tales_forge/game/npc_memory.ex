@@ -46,21 +46,24 @@ defmodule TalesForge.Game.NpcMemory do
   def lines(prose, npcs) when is_binary(prose) and npcs != [] do
     @quote_re
     |> Regex.scan(prose, return: :index)
-    |> Enum.reduce({[], 0}, fn [{start, len}, {qs, ql}], {acc, from} ->
-      before = binary_part(prose, from, start - from)
-      after_text = prose |> binary_part(start + len, byte_size(prose) - start - len) |> sentence()
-      line = binary_part(prose, qs, ql) |> String.trim()
-
-      case speaker(before, after_text, npcs) do
-        nil -> {acc, start + len}
-        id -> {[{id, line} | acc], start + len}
-      end
-    end)
+    |> Enum.reduce({[], 0}, &add_quote(&1, &2, {prose, npcs}))
     |> elem(0)
     |> Enum.reverse()
   end
 
   def lines(_prose, _npcs), do: []
+
+  # One quote: the text since the last quote and the rest of the sentence
+  # after it name the speaker.
+  defp add_quote([{start, len}, {qs, ql}], {acc, from}, {prose, npcs}) do
+    stop = start + len
+    after_text = prose |> binary_part(stop, byte_size(prose) - stop) |> sentence()
+
+    case speaker(binary_part(prose, from, start - from), after_text, npcs) do
+      nil -> {acc, stop}
+      id -> {[{id, String.trim(binary_part(prose, qs, ql))} | acc], stop}
+    end
+  end
 
   defp sentence(text), do: text |> String.split(~r/[.!?\n]/, parts: 2) |> hd()
 
