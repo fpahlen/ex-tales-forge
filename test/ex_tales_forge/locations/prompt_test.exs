@@ -35,8 +35,8 @@ defmodule TalesForge.Locations.PromptTest do
 
     off = %{on | flags: %{}}
 
-    assert Surroundings.applies?(on)
-    refute Surroundings.applies?(off)
+    assert :surroundings in TalesForge.Prompt.Profile.ids(%{on | call: :gm})
+    refute :surroundings in TalesForge.Prompt.Profile.ids(%{off | call: :gm})
     assert Surroundings.render(on) =~ "## Around the character (from the map)\n"
     assert Surroundings.render(%{on | data: %{surroundings: false}}) == nil
   end

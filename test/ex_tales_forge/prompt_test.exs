@@ -92,7 +92,8 @@ defmodule TalesForge.PromptTest do
       npc_dialogue_memory: false,
       npc_reactions: false,
       world_agents: false,
-      skill_detail_level: false
+      skill_detail_level: false,
+      location_grid: false
     }
 
     defp ids(call, flags),
@@ -125,7 +126,7 @@ defmodule TalesForge.PromptTest do
 
       assert ids(:gm, on) ==
                @static ++
-                 ~w(character_sheet opening perceived_facts intent_context npcs world_facts prices npc_reactions npc_memory gestures scene_now outcome_record noticed_details premise fallen rest_growth player_request gm_turn_action)a
+                 ~w(character_sheet opening perceived_facts intent_context npcs world_facts prices npc_reactions npc_memory gestures scene_now surroundings outcome_record noticed_details premise fallen rest_growth player_request gm_turn_action)a
     end
   end
 end

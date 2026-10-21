@@ -2,17 +2,12 @@ defmodule TalesForge.Prompt.Sections.Surroundings do
   @moduledoc """
   What the character sees around it, from the location grid
   (`data[:surroundings]`, `TalesForge.Locations.Prompt`). Only with
-  `LOCATION_GRID=on`.
+  `LOCATION_GRID=on` (`TalesForge.Prompt.Profile`).
 
       iex> TalesForge.Prompt.Sections.Surroundings.text(nil)
       nil
   """
   use TalesForge.Prompt.Section, id: :surroundings, slot: :turn
-
-  alias TalesForge.Prompt.Ctx
-
-  @impl true
-  def applies?(ctx), do: Ctx.flag?(ctx, :location_grid)
 
   @impl true
   def render(ctx), do: text(Map.get(ctx.data, :surroundings))
