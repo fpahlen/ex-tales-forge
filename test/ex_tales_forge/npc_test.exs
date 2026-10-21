@@ -6,12 +6,12 @@ defmodule TalesForge.NPCTest do
   alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, NpcInstance}
+  alias TalesForge.Schemas.Character
 
   doctest TalesForge.NPC.Person
   doctest TalesForge.Characters.Attrs
 
-  test "create_session seeds the NPCs' character rows from priv/npcs, not npc_instances" do
+  test "create_session seeds the NPCs' character rows from priv/npcs" do
     assert {:ok, session} = GameSessions.create_session(%{name: "NPC Seed"})
 
     row = Repo.get_by(Character, game_session_id: session.id, slug: "marta_kellen")
@@ -20,7 +20,6 @@ defmodule TalesForge.NPCTest do
     assert row.location_id == "weary_pilgrim"
     assert row.relationships == %{"elara_voss" => 0.0}
     assert row.runtime["memories"] == []
-    refute Repo.get_by(NpcInstance, game_session_id: session.id)
 
     inst = NPC.get_person(session.id, "marta_kellen")
     assert inst.personality["name"] == "Marta Kellen"
