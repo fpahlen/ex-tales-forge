@@ -306,19 +306,26 @@ defmodule TalesForge.Game.PremiseCheck do
     sentence = String.downcase(original)
     cased = if byte_size(original) == byte_size(sentence), do: original, else: sentence
 
-    (coin_claims(sentence) ++
-       possession_claims(sentence) ++
-       my_item_claims(sentence) ++
-       pack_claims(sentence) ++
-       given_claims(sentence) ++
-       purchase_claims(sentence) ++
-       bought_claims(sentence) ++
-       wearing_claims(sentence) ++
-       kill_claims(sentence, cased) ++
-       time_claims(sentence))
+    sentence
+    |> found(cased)
     |> Enum.filter(fn {pos, _claim} -> asserted?(sentence, pos) end)
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.map(&elem(&1, 1))
+  end
+
+  # Every claim the finders read, in finder order: at one position the
+  # earlier finder's claim comes first.
+  defp found(sentence, cased) do
+    coin_claims(sentence) ++
+      possession_claims(sentence) ++
+      my_item_claims(sentence) ++
+      pack_claims(sentence) ++
+      given_claims(sentence) ++
+      purchase_claims(sentence) ++
+      bought_claims(sentence) ++
+      wearing_claims(sentence) ++
+      kill_claims(sentence, cased) ++
+      time_claims(sentence)
   end
 
   # A claim counts unless a speech verb or a hedge comes before it in the
@@ -701,28 +708,27 @@ defmodule TalesForge.Game.PremiseCheck do
   # fights), `:settled` for a front that is no longer live, or nil.
   defp kill_subject(target, state) do
     words = key_words(target)
-
-    person =
-      Enum.find(Map.get(state, :people, []), fn p ->
-        overlap?(words, [p[:id], p[:name], p[:role]])
-      end)
-
     fronts = Enum.filter(Map.get(state, :fronts, []), &overlap?(words, [&1[:id], &1[:name]]))
-    live = Enum.find(fronts, &(&1[:status] in [nil, "live"]))
 
-    cond do
-      person ->
-        {:known, person[:name] || person[:id], "is alive",
-         key_words(Enum.join(Enum.filter([person[:id], person[:name]], &is_binary/1), " "))}
+    state
+    |> Map.get(:people, [])
+    |> Enum.find(&overlap?(words, [&1[:id], &1[:name], &1[:role]]))
+    |> person_subject() || front_subject(fronts)
+  end
 
-      live ->
-        {:known, live[:name] || live[:id], "is still active", []}
+  defp person_subject(nil), do: nil
 
-      fronts != [] ->
-        :settled
+  defp person_subject(person) do
+    names = Enum.filter([person[:id], person[:name]], &is_binary/1)
+    {:known, person[:name] || person[:id], "is alive", key_words(Enum.join(names, " "))}
+  end
 
-      true ->
-        nil
+  defp front_subject([]), do: nil
+
+  defp front_subject(fronts) do
+    case Enum.find(fronts, &(&1[:status] in [nil, "live"])) do
+      nil -> :settled
+      live -> {:known, live[:name] || live[:id], "is still active", []}
     end
   end
 
@@ -735,12 +741,7 @@ defmodule TalesForge.Game.PremiseCheck do
   end
 
   defp overlap?(words, fields) do
-    known =
-      fields
-      |> Enum.filter(&is_binary/1)
-      |> Enum.flat_map(&String.split(String.downcase(&1), ~r/[_\s'-]+/))
-      |> Enum.map(&singular/1)
-      |> Enum.reject(&(&1 in @filler or byte_size(&1) < 3))
+    known = fields |> Enum.filter(&is_binary/1) |> Enum.flat_map(&key_words/1)
 
     Enum.any?(words, &(&1 in known))
   end
