@@ -8,16 +8,20 @@ defmodule TalesForge.Game.Turn.Gm do
 
   alias TalesForge.AICalls.Steps
   alias TalesForge.Game.Turn
+  alias TalesForge.LLM.GmTurn
 
   @doc "Writes `narration`."
   @spec narrate(Turn.t()) :: Turn.t()
   def narrate(%Turn{adapters: adapters, session: session} = turn) do
     narration =
       Steps.time(:gm, fn ->
-        adapters.gm.(turn.prompt.messages, turn.intent, turn.outcome.handler, turn.number,
-          session_id: session.id,
-          on_text: &adapters.stream.(session.id, &1)
-        )
+        adapters.gm.(%GmTurn{
+          messages: turn.prompt.messages,
+          player_action: turn.intent,
+          handler: turn.outcome.handler,
+          turn_number: turn.number,
+          opts: [session_id: session.id, on_text: &adapters.stream.(session.id, &1)]
+        })
       end)
 
     %{turn | narration: narration}

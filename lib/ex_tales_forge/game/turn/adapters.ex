@@ -5,7 +5,7 @@ defmodule TalesForge.Game.Turn.Adapters do
 
     * `npc` — the NPC reactions (`TalesForge.Game.NpcReactions.react/1`; the
       Jev call with its timeout, `NPC_REACTIONS_TIMEOUT_MS`, default 600 ms);
-    * `gm` — the GM call (`TalesForge.LLM.complete_turn/5`);
+    * `gm` — the GM call (`TalesForge.LLM.complete_turn/1`);
     * `stream` — gets each GM text chunk (`{:turn_stream, chunk}` on the
       session topic);
     * `profiles` — the present NPCs for the noticed details
@@ -20,7 +20,7 @@ defmodule TalesForge.Game.Turn.Adapters do
   """
 
   defstruct npc: &TalesForge.Game.NpcReactions.react/1,
-            gm: &TalesForge.LLM.complete_turn/5,
+            gm: &TalesForge.LLM.complete_turn/1,
             stream: &__MODULE__.broadcast/2,
             profiles: &TalesForge.NPC.notice_profiles/2,
             store: &TalesForge.Game.Turn.Store.persist/1,

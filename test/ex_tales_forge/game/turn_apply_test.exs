@@ -22,7 +22,7 @@ defmodule TalesForge.Game.TurnApplyTest do
 
     adapters = %Adapters{
       npc: fn _moment -> [] end,
-      gm: fn messages, _a, _h, _n, _o ->
+      gm: fn %TalesForge.LLM.GmTurn{messages: messages} ->
         send(me, {:gm_prompt, messages |> Enum.map_join("\n", &to_string(&1.content))})
 
         {:ok, %GMStructuredResponse{narrative: "The night passes."}}

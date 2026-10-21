@@ -23,7 +23,7 @@ status: PR 2 built (delay, dots, smoothing); PR 3 not started
 
 Streaming is **on for every GM turn, on prod and playtest, with no flag** (#191 and #197, merged 2026-10-12).
 
-- `TalesForge.LLM.complete_turn/5` always streams (`gm_opts/3`). `stream_openai_compatible/3` reads the SSE chunks. `TalesForge.LLM.Stream.partial_narrative/1` reads the `narrative` string from the partial JSON. `narrative` is the first key in `narration_schema/1` (`Jason.OrderedObject`, strict `json_schema`). `maybe_emit/2` sends `{:text, so_far}` at most every 75 ms (`:llm_stream_throttle_ms`).
+- `TalesForge.LLM.complete_turn/1` always streams (`gm_opts/3`). `stream_openai_compatible/3` reads the SSE chunks. `TalesForge.LLM.Stream.partial_narrative/1` reads the `narrative` string from the partial JSON. `narrative` is the first key in `narration_schema/1` (`Jason.OrderedObject`, strict `json_schema`). `maybe_emit/2` sends `{:text, so_far}` at most every 75 ms (`:llm_stream_throttle_ms`).
 - `Turn.Gm.narrate/1` → `Turn.Adapters.broadcast/2` sends `{:turn_stream, _}` on the session PubSub topic. `PlayLive` assigns `:streaming_text`. `PlayComponents` renders `#gm-streaming`, and "The GM is thinking…" until the text starts. The text therefore starts as soon as the first token arrives, with no delay, and it arrives in 75 ms jumps.
 - Input stays locked until `{:turn_completed, _}`, which is sent after the commit.
 - **Bug, fixed in #472 (merged):** `Workers.ProcessTurn` had `max_attempts: 3`. A GM error showed "Turn failed" and then the whole turn ran again, which streamed new text onto that page and committed a turn. It now has one attempt.

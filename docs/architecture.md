@@ -856,7 +856,7 @@ We already learned this on the player side: if you hand the storyteller the mess
 | Blocks player? | Yes (this *is* the turn) | **No** |
 | May invent fronts? | No | No (drop unknown `front_id`) |
 | May invent extras? | No (today) | Yes, with parent + job (PR-7) |
-| Module | `LLM.complete_turn/5`, `complete_scene/3` | `LLM.complete_chronicler/2` |
+| Module | `LLM.complete_turn/1`, `complete_scene/3` | `LLM.complete_chronicler/2` |
 | Prompt file | `priv/prompts/gm_system.txt` | `priv/prompts/chronicler_system.txt` |
 
 Table GM prompt additions (PR-4, we do not wait for the chronicler):

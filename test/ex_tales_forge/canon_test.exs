@@ -2,6 +2,7 @@ defmodule TalesForge.CanonTest do
   use TalesForge.DataCase, async: false
 
   alias TalesForge.Canon
+  alias TalesForge.Canon.Ruling
   alias TalesForge.GameSessions
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
@@ -70,9 +71,24 @@ defmodule TalesForge.CanonTest do
     before = Repo.get!(GameSession, session.id)
     facts_before = World.stored_facts(session.id)
 
-    assert {:ok, kept} = Canon.decide(session, fact, "session_only", "founder@example.com")
+    assert {:ok, kept} =
+             Canon.decide(%Ruling{
+               session: session,
+               difference: fact,
+               action: "session_only",
+               founder: "founder@example.com"
+             })
+
     assert kept.seed_patch == nil
-    assert {:ok, error} = Canon.decide(session, free, "error", "founder@example.com")
+
+    assert {:ok, error} =
+             Canon.decide(%Ruling{
+               session: session,
+               difference: free,
+               action: "error",
+               founder: "founder@example.com"
+             })
+
     assert error.seed_patch == nil
 
     assert Repo.get!(GameSession, session.id).world_state == before.world_state
@@ -88,7 +104,13 @@ defmodule TalesForge.CanonTest do
 
     seed_before = File.read!(seed_file)
 
-    assert {:ok, decision} = Canon.decide(session, fact, "add_to_canon", "founder@example.com")
+    assert {:ok, decision} =
+             Canon.decide(%Ruling{
+               session: session,
+               difference: fact,
+               action: "add_to_canon",
+               founder: "founder@example.com"
+             })
 
     assert decision.seed_patch =~ "priv/adventures/tin_valley/world_agents.json"
     assert decision.seed_patch =~ "The inn has a blue door."
@@ -98,8 +120,21 @@ defmodule TalesForge.CanonTest do
   test "a new decision on the same row replaces the old one", %{session: session} do
     [fact, _] = Canon.review(session).differences
 
-    {:ok, _} = Canon.decide(session, fact, "error", "founder@example.com")
-    {:ok, _} = Canon.decide(session, fact, "add_to_canon", "other@example.com")
+    {:ok, _} =
+      Canon.decide(%Ruling{
+        session: session,
+        difference: fact,
+        action: "error",
+        founder: "founder@example.com"
+      })
+
+    {:ok, _} =
+      Canon.decide(%Ruling{
+        session: session,
+        difference: fact,
+        action: "add_to_canon",
+        founder: "other@example.com"
+      })
 
     assert [%{action: "add_to_canon", founder: "other@example.com"}] =
              Map.values(Canon.decisions(session.id))
@@ -108,8 +143,22 @@ defmodule TalesForge.CanonTest do
   test "a decision needs a founder email and a known action", %{session: session} do
     [fact, _] = Canon.review(session).differences
 
-    assert {:error, _} = Canon.decide(session, fact, "session_only", nil)
-    assert {:error, _} = Canon.decide(session, fact, "publish", "founder@example.com")
+    assert {:error, _} =
+             Canon.decide(%Ruling{
+               session: session,
+               difference: fact,
+               action: "session_only",
+               founder: nil
+             })
+
+    assert {:error, _} =
+             Canon.decide(%Ruling{
+               session: session,
+               difference: fact,
+               action: "publish",
+               founder: "founder@example.com"
+             })
+
     assert Canon.decisions(session.id) == %{}
   end
 
