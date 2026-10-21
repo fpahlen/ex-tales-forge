@@ -20,7 +20,7 @@ defmodule TalesForge.Characters.Defaults do
   No database, no AI.
   """
 
-  alias TalesForge.Characters.{Levers, RulesCheck}
+  alias TalesForge.Characters.{Levers, PackRules, RulesCheck}
 
   @stats ~w(STR DEX CON INT WIS CHA)
   @input_defaults %{
@@ -30,7 +30,6 @@ defmodule TalesForge.Characters.Defaults do
     "occupation" => "laborer",
     "seniority" => "journeyman"
   }
-  @tables ~w(seniority races classes standings occupations)
   @max_concerns 3
 
   @type rules :: %{required(String.t()) => map() | list()}
@@ -42,7 +41,8 @@ defmodule TalesForge.Characters.Defaults do
 
   @doc """
   The rules for an adventure: the global base extended by the pack's
-  `character_defaults.json`, if any. Raises `ArgumentError` if a pack redefines
+  `character_defaults.json`, if any. A pack may add `class_defaults`: the
+  default past occupation of each class it adds. Raises `ArgumentError` if a pack redefines
   a base label or a table refers to an unknown skill, stat, trait, Maslow level
   or concern focus.
   """
@@ -64,7 +64,8 @@ defmodule TalesForge.Characters.Defaults do
   @doc false
   # Base rules extended by one pack's additions, then validated. Public for tests.
   @spec extend_rules!(rules(), map(), String.t()) :: rules()
-  def extend_rules!(base, pack, source), do: base |> extend!(pack, source) |> RulesCheck.labels!()
+  def extend_rules!(base, pack, source),
+    do: base |> PackRules.extend!(pack, source) |> RulesCheck.labels!()
 
   @doc "A stable integer seed for one character: a hash of the session id and the character key."
   @spec seed(String.t() | nil, String.t()) :: non_neg_integer()
@@ -229,28 +230,6 @@ defmodule TalesForge.Characters.Defaults do
     end
 
     resolved
-  end
-
-  defp extend!(base, pack, source) do
-    Enum.reduce(pack, base, fn
-      {"_doc", _}, acc ->
-        acc
-
-      {"concern_focuses", extra}, acc ->
-        Map.update!(acc, "concern_focuses", &Enum.uniq(&1 ++ extra))
-
-      {table, extra}, acc when table in @tables and is_map(extra) ->
-        clash = extra |> Map.keys() |> Enum.filter(&Map.has_key?(acc[table], &1))
-
-        unless clash == [] do
-          raise ArgumentError, "#{source}: cannot redefine base #{table} #{inspect(clash)}"
-        end
-
-        Map.update!(acc, table, &Map.merge(&1, extra))
-
-      {key, _}, _acc ->
-        raise ArgumentError, "#{source}: unknown key #{inspect(key)}"
-    end)
   end
 
   defp read!(path), do: path |> File.read!() |> Jason.decode!()
