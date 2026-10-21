@@ -124,19 +124,24 @@ defmodule TalesForge.Game.ProseCheck do
 
   defp items(prose, record) do
     gained = record |> get_in(["items", "gained"]) |> List.wrap() |> Enum.map(&item_words/1)
-
     paid? = (get_in(record, ["coins", "delta_copper"]) || 0) < 0
-    lower = String.downcase(prose)
-    placed = if paid?, do: [], else: Regex.scan(@place_re, lower)
 
-    (Regex.scan(@give_re, lower) ++ placed)
-    |> Enum.map(fn [_, phrase] -> String.trim(phrase) end)
-    |> Enum.reject(&(&1 == "" or Regex.match?(@coin_re, &1) or coin_word?(&1)))
-    |> Enum.reject(fn phrase -> Enum.any?(gained, &named?(phrase, &1)) end)
+    prose
+    |> String.downcase()
+    |> handed(paid?)
+    |> Enum.map(&String.trim(List.last(&1)))
+    |> Enum.reject(&(&1 == "" or coin_word?(&1) or Enum.any?(gained, fn g -> named?(&1, g) end)))
     |> Enum.map(&%{kind: :item, detail: &1})
   end
 
-  defp coin_word?(phrase), do: Regex.match?(~r/\b(coins?|copper|silver|gold)\b/, phrase)
+  # What the prose hands over. A paid turn's "slides the ale across to you"
+  # is the purchase, so placing counts only when unpaid.
+  defp handed(lower, true), do: Regex.scan(@give_re, lower)
+  defp handed(lower, false), do: Regex.scan(@give_re, lower) ++ Regex.scan(@place_re, lower)
+
+  defp coin_word?(phrase),
+    do:
+      Regex.match?(@coin_re, phrase) or Regex.match?(~r/\b(coins?|copper|silver|gold)\b/, phrase)
 
   defp item_words(item), do: String.downcase("#{item["name"]} #{item["id"]}")
 
