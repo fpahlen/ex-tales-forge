@@ -23,7 +23,7 @@ defmodule TalesForge.Canon.Difference do
   @type kind :: :new_place | :changed_place | :new_entity | :new_fact | :free_text
 
   @type t :: %__MODULE__{
-          key: String.t(),
+          key: String.t() | nil,
           kind: kind(),
           entity_id: String.t(),
           summary: String.t(),
@@ -32,8 +32,8 @@ defmodule TalesForge.Canon.Difference do
           label: String.t() | nil
         }
 
-  @enforce_keys [:key, :kind, :entity_id, :summary]
-  defstruct [:key, :kind, :entity_id, :summary, seed: nil, session: nil, label: nil]
+  @enforce_keys [:kind, :entity_id, :summary]
+  defstruct [:kind, :entity_id, :summary, key: nil, seed: nil, session: nil, label: nil]
 
   @doc "The difference kinds, in list order."
   @spec kinds() :: [kind()]
@@ -43,22 +43,16 @@ defmodule TalesForge.Canon.Difference do
   @spec labels() :: [String.t()]
   def labels, do: @labels
 
-  @doc "Makes a difference. The key comes from the kind, the entity id and the session data."
-  @spec new(kind(), String.t(), String.t(), map() | nil, map() | nil) :: t()
-  def new(kind, entity_id, summary, seed, session) when kind in @kinds do
+  @doc "Makes a difference: sets its key from the kind, the entity id and the session data."
+  @spec new(t()) :: t()
+  def new(%__MODULE__{kind: kind, entity_id: entity_id, session: session} = d)
+      when kind in @kinds do
     digest =
       :crypto.hash(:sha256, :erlang.term_to_binary({entity_id, session}))
       |> Base.encode16(case: :lower)
       |> binary_part(0, 12)
 
-    %__MODULE__{
-      key: "#{kind}:#{entity_id}:#{digest}",
-      kind: kind,
-      entity_id: entity_id,
-      summary: summary,
-      seed: seed,
-      session: session
-    }
+    %{d | key: "#{kind}:#{entity_id}:#{digest}"}
   end
 
   @doc "A plain map of the difference, for storage with a founder decision."

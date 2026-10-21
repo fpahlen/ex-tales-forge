@@ -7,7 +7,7 @@ defmodule TalesForge.Canon do
      (`TalesForge.Canon.SessionSnapshot`), runs the pure diff
      (`TalesForge.Canon.Diff`) and labels the leftover free text with one
      classifier call (`TalesForge.Canon.Classifier`).
-  2. `decide/4` stores the founder decision on one difference
+  2. `decide/1` stores the founder decision on one difference
      (`TalesForge.Canon.Decision`). No decision changes the session or the
      seed files. "Add to canon" stores a proposed seed patch
      (`TalesForge.Canon.SeedPatch`) for a pull request.
@@ -23,8 +23,8 @@ defmodule TalesForge.Canon do
     Decision,
     Diff,
     Difference,
+    Ruling,
     Seed,
-    SeedPatch,
     SessionSnapshot
   }
 
@@ -67,22 +67,10 @@ defmodule TalesForge.Canon do
   `"session_only"`, `"add_to_canon"` or `"error"`. A later decision on the
   same difference replaces the earlier one.
   """
-  @spec decide(GameSession.t(), Difference.t(), String.t(), String.t() | nil) ::
-          {:ok, Decision.t()} | {:error, Ecto.Changeset.t()}
-  def decide(%GameSession{} = session, %Difference{} = d, action, founder) do
-    patch =
-      if action == "add_to_canon",
-        do: SeedPatch.propose(d, get_in(session.world_state || %{}, ["adventure_id"]))
-
-    %Decision{}
-    |> Decision.changeset(%{
-      game_session_id: session.id,
-      diff_key: d.key,
-      action: action,
-      founder: founder,
-      difference: Difference.to_map(d),
-      seed_patch: patch
-    })
+  @spec decide(Ruling.t()) :: {:ok, Decision.t()} | {:error, Ecto.Changeset.t()}
+  def decide(%Ruling{} = ruling) do
+    ruling
+    |> Ruling.decision()
     |> Repo.insert(
       on_conflict: {:replace, [:action, :founder, :difference, :seed_patch, :updated_at]},
       conflict_target: [:game_session_id, :diff_key],

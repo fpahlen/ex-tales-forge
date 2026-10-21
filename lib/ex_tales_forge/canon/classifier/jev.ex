@@ -35,11 +35,11 @@ defmodule TalesForge.Canon.Classifier.Jev do
 
     case result do
       {:ok, reply} ->
-        record(session_id, "ok", elapsed, reply)
+        record(session_id, {"ok", elapsed}, reply)
         {:ok, Map.new(keys, fn {q, key} -> {key, reply[q]} end)}
 
       {:error, reason} ->
-        record(session_id, "error", elapsed, %{})
+        record(session_id, {"error", elapsed}, %{})
         Logger.warning("canon review jev failed session=#{session_id} reason=#{inspect(reason)}")
         {:error, reason}
     end
@@ -72,7 +72,7 @@ defmodule TalesForge.Canon.Classifier.Jev do
     end)
   end
 
-  defp record(session_id, status, latency_ms, reply) do
+  defp record(session_id, {status, latency_ms}, reply) do
     input = get_in(reply, [:usage, :input_tokens]) || 0
 
     AICalls.record(%{

@@ -292,7 +292,7 @@ defmodule TalesForge.Game.TradeTest do
     adapters = %Adapters{
       npc: fn _moment -> [] end,
       stream: fn _id, _chunk -> :ok end,
-      gm: fn messages, _action, _handler, _n, _opts ->
+      gm: fn %TalesForge.LLM.GmTurn{messages: messages} ->
         send(me, {:gm_prompt, List.last(messages).content})
         {:ok, %GMStructuredResponse{narrative: "The trader nods."}}
       end

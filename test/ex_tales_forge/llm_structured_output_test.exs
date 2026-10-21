@@ -40,13 +40,16 @@ defmodule TalesForge.LLMStructuredOutputTest do
   end
 
   defp gm_turn(session) do
-    LLM.complete_turn(
-      [%{role: "system", content: @system}, %{role: "user", content: @user}],
-      %PlayerAction{overall_intent: "look around", action: %SingleAction{action_type: :observe}},
-      %HandlerResult{handler: "observe"},
-      1,
-      session_id: session.id
-    )
+    LLM.complete_turn(%LLM.GmTurn{
+      messages: [%{role: "system", content: @system}, %{role: "user", content: @user}],
+      player_action: %PlayerAction{
+        overall_intent: "look around",
+        action: %SingleAction{action_type: :observe}
+      },
+      handler: %HandlerResult{handler: "observe"},
+      turn_number: 1,
+      opts: [session_id: session.id]
+    })
   end
 
   defp next_request do

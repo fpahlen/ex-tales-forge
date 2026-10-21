@@ -186,13 +186,13 @@ defmodule TalesForge.Game.PromptPrefixTest do
       {player_action, handler} = action("look around the tavern")
 
       assert {:ok, _} =
-               LLM.complete_turn(
-                 gm_messages(a, 1, "look around the tavern"),
-                 player_action,
-                 handler,
-                 1,
-                 session_id: a.id
-               )
+               LLM.complete_turn(%LLM.GmTurn{
+                 messages: gm_messages(a, 1, "look around the tavern"),
+                 player_action: player_action,
+                 handler: handler,
+                 turn_number: 1,
+                 opts: [session_id: a.id]
+               })
 
       assert_received {:request, gm_conv, gm}
 
@@ -210,13 +210,13 @@ defmodule TalesForge.Game.PromptPrefixTest do
       {player_action, handler} = action("look around the tavern")
 
       assert {:ok, _} =
-               LLM.complete_turn(
-                 gm_messages(a, 1, "look around the tavern"),
-                 player_action,
-                 handler,
-                 1,
-                 session_id: a.id
-               )
+               LLM.complete_turn(%LLM.GmTurn{
+                 messages: gm_messages(a, 1, "look around the tavern"),
+                 player_action: player_action,
+                 handler: handler,
+                 turn_number: 1,
+                 opts: [session_id: a.id]
+               })
 
       assert_received {:request, conv1, gm1}
       assert_received {:raw_body, raw1}
@@ -231,13 +231,14 @@ defmodule TalesForge.Game.PromptPrefixTest do
       {player_action2, handler2} = action("ask Marta about the ledger")
 
       assert {:ok, _} =
-               LLM.complete_turn(
-                 gm_messages(%{a | world_state: later_world}, 2, "ask Marta about the ledger"),
-                 player_action2,
-                 handler2,
-                 2,
-                 session_id: a.id
-               )
+               LLM.complete_turn(%LLM.GmTurn{
+                 messages:
+                   gm_messages(%{a | world_state: later_world}, 2, "ask Marta about the ledger"),
+                 player_action: player_action2,
+                 handler: handler2,
+                 turn_number: 2,
+                 opts: [session_id: a.id]
+               })
 
       assert_received {:request, conv2, gm2}
       assert_received {:raw_body, raw2}
