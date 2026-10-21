@@ -15,7 +15,7 @@ defmodule TalesForge.IntentEval do
   """
 
   alias TalesForge.Game.Mechanics
-  alias TalesForge.IntentEval.{Metrics, Readers, Report}
+  alias TalesForge.IntentEval.{Metrics, Readers, Report, Run}
 
   @default_fixture "test/fixtures/intent_eval/items.jsonl"
   @default_worlds "test/fixtures/intent_eval/worlds.json"
@@ -55,15 +55,12 @@ defmodule TalesForge.IntentEval do
 
     worlds = load_worlds(Keyword.get(opts, :worlds, default_path(@default_worlds)))
 
-    scored = score(items, worlds, readers, opts)
+    run =
+      score(%Run{split: split, readers: readers, items: items, worlds: worlds, opts: opts})
 
-    metrics =
-      Map.new(readers, fn reader ->
-        {reader, Metrics.evaluate(reader, scored, opts)}
-      end)
+    run = %{run | metrics: Map.new(readers, &{&1, Metrics.evaluate(&1, run.scored, opts)})}
 
-    report = Report.render(split, readers, items, metrics, opts)
-    {report, %{items: items, scored: scored, metrics: metrics}}
+    {Report.render(run), %{items: items, scored: run.scored, metrics: run.metrics}}
   end
 
   @doc "Reads the JSONL fixture into a list of string-keyed item maps."
@@ -219,7 +216,7 @@ defmodule TalesForge.IntentEval do
   end
 
   # Items are read concurrently (`:concurrency`, default 1) and kept in order.
-  defp score(items, worlds, readers, opts) do
+  defp score(%Run{items: items, worlds: worlds, readers: readers, opts: opts} = run) do
     items
     |> Task.async_stream(
       fn item ->
@@ -237,6 +234,7 @@ defmodule TalesForge.IntentEval do
       timeout: :infinity
     )
     |> Enum.map(fn {:ok, scored} -> scored end)
+    |> then(&%{run | scored: &1})
   end
 
   defp filter_split(items, "all"), do: items

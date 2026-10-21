@@ -5,6 +5,8 @@ defmodule TalesForge.IntentEval.Report do
   thresholds from `docs/design-jev-intent.md` §5.
   """
 
+  alias TalesForge.IntentEval.Run
+
   @doc "The target thresholds the design note sets, for the comparison column."
   @spec targets() :: keyword()
   def targets do
@@ -26,8 +28,8 @@ defmodule TalesForge.IntentEval.Report do
   end
 
   @doc "Renders the full Markdown report."
-  @spec render(String.t(), [atom()], [map()], %{atom() => map()}, keyword()) :: String.t()
-  def render(split, readers, items, metrics, opts) do
+  @spec render(Run.t()) :: String.t()
+  def render(%Run{split: split, readers: readers, items: items, metrics: metrics, opts: opts}) do
     [
       "# Intent evaluation — `#{split}` split",
       "",
