@@ -14,13 +14,14 @@ defmodule TalesForge.Locations.MoveTurnsTest do
   alias TalesForge.Game.Context
   alias TalesForge.Game.Intent
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
-  alias TalesForge.Game.TurnProcessor
+  alias TalesForge.Game.{SceneProcessor, TurnProcessor}
   alias TalesForge.GameSessions
   alias TalesForge.Locations.{Grid, Pack, Position, Positions}
-  alias TalesForge.Schemas.{GameSession, SessionEvent}
+  alias TalesForge.Schemas.{GameSession, Scene, SessionEvent}
 
   doctest TalesForge.Locations.Destination
   doctest TalesForge.Locations.NoMove
+  doctest TalesForge.Game.Turn.NarratedArrival
 
   setup do
     for flag <- ~w(LOCATION_GRID TURN_APPLY_OUTCOMES INN_WORLD WORLD_ANTAGONIST),
@@ -79,6 +80,27 @@ defmodule TalesForge.Locations.MoveTurnsTest do
       assert after_turn["location_id"] == "valley_inn", text
       assert after_turn["world_tick"] == before, text
     end
+  end
+
+  test "a move is narrated once: the turn tells the arrival, no arrival scene follows", %{id: id} do
+    {:ok, prompts} = Agent.start_link(fn -> [] end)
+
+    stub_llm(fn _kind, user, system ->
+      Agent.update(prompts, &[system <> "\n" <> user | &1])
+      :default
+    end)
+
+    scenes = fn -> Repo.aggregate(from(s in Scene, where: s.game_session_id == ^id), :count) end
+    before = scenes.()
+    play(id, {"I flee out the door.", :move, "main door"})
+    world = stored_world(id)
+    assert world["location_id"] == "market_square"
+
+    told = Agent.get(prompts, &Enum.join(&1, "\n"))
+    assert length(String.split(told, "Just now: the character left")) == 2
+    refute SceneProcessor.needs_scene?(world)
+    SceneProcessor.run(id)
+    assert scenes.() == before
   end
 
   defp play(id, {text, type, target}) do

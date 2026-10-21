@@ -19,12 +19,14 @@ defmodule TalesForge.Game.Context do
   # Rules come from Prompts (which may be pack-aware), but state is Ecto.
 
   alias TalesForge.Characters
+  alias TalesForge.Game.Arrivals
   alias TalesForge.Game.Cast
   alias TalesForge.Game.Gestures
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Movement
   alias TalesForge.Game.Perception
   alias TalesForge.Game.Schemas.MechanicalResolution
+  alias TalesForge.Game.Turn.NarratedArrival
   alias TalesForge.Game.World
   alias TalesForge.NPC
   alias TalesForge.Repo
@@ -367,7 +369,8 @@ defmodule TalesForge.Game.Context do
       "Where: #{here} (#{intent["location_id"]}).",
       "Present: #{present_names(intent)}.",
       elsewhere_line(world, intent),
-      moved_line(world, Map.get(context, :moved_from), here),
+      NarratedArrival.line(world, Map.get(context, :moved_from), here),
+      Arrivals.line(Map.get(context, :arrived), intent["npc_details"]),
       "Narrate from this place. Only the people present can speak or act here; anyone else is elsewhere."
     ]
     |> Enum.reject(&is_nil/1)
@@ -397,13 +400,6 @@ defmodule TalesForge.Game.Context do
             "#{info["name"]} at #{Movement.name(world, info["location_id"])}"
           end) <> "."
     end
-  end
-
-  defp moved_line(_world, nil, _here), do: nil
-
-  defp moved_line(world, from, here) do
-    "Just now: the character left #{Movement.name(world, from)} for #{here}. " <>
-      "Narrate the way and the arrival here; whoever was at #{Movement.name(world, from)} stays there."
   end
 
   @doc false
