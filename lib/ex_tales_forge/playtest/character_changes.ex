@@ -11,7 +11,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
     * **NPC start**: the authored definition copied into the NPC's row,
       `characters.definition` (mood, home location, current concern), and
-      the seed defaults of `TalesForge.NPC` (relationship 0.0, no memories).
+      the seed defaults of `TalesForge.GameCharacter.Roster` (relationship 0.0, no memories).
     * **NPC end**: the NPC's row as `TalesForge.GameCharacter.Rows` reads it (mood,
       location, relationship score, current concern, the newest 20
       memories) and its latest Jev reaction, `characters.runtime["reaction"]`.

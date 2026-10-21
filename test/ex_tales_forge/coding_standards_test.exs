@@ -36,7 +36,9 @@ defmodule TalesForge.CodingStandardsTest do
     TalesForge.DeployLanes,
     TalesForge.DeployLanes.CLI,
     Mix.Tasks.Deploy.CheckBoundaries,
-    TalesForge.NPC,
+    TalesForge.GameCharacter.Roster,
+    TalesForge.GameCharacter.Seeding,
+    TalesForge.GameCharacter.Agency,
     TalesForge.GameCharacter.Rows,
     TalesForge.GameCharacter.Memories,
     TalesForge.Admin

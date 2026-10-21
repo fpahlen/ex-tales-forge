@@ -37,8 +37,8 @@ defmodule TalesForge.TurnPipeline.Replay do
   alias TalesForge.Game.OutcomeRecord
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.Game.WorldClock
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent, Turn}
 
@@ -147,11 +147,11 @@ defmodule TalesForge.TurnPipeline.Replay do
   defp put_skills(character, skills), do: Map.put(character, "skills", skills)
 
   defp put_stock(session_id, stock) do
-    # Written the way a trade writes goods (`NPC.put_inventories/2`).
-    traders = NPC.traders(session_id, Map.keys(stock))
+    # Written the way a trade writes goods (`Roster.put_inventories/2`).
+    traders = Roster.traders(session_id, Map.keys(stock))
 
     :ok =
-      NPC.put_inventories(session_id, for({id, t} <- traders, do: %{t | inventory: stock[id]}))
+      Roster.put_inventories(session_id, for({id, t} <- traders, do: %{t | inventory: stock[id]}))
   end
 
   # --- one turn ----------------------------------------------------------------

@@ -2,8 +2,8 @@ defmodule TalesForge.Playtest.CharacterChangesTest do
   use TalesForge.DataCase, async: true
 
   alias TalesForge.Characters
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Playtest.CharacterChanges
   alias TalesForge.Playtest.CharacterChanges.{Character, Field, RunMetrics, Summary}
   alias TalesForge.Schemas.{AICall, GameSession, PlaytestRun, SessionEvent, Turn}
@@ -415,14 +415,14 @@ defmodule TalesForge.Playtest.CharacterChangesTest do
     })
 
     :ok =
-      NPC.record_memory(%NPC.Note{
+      Roster.record_memory(%Roster.Note{
         session_id: session.id,
         npc_id: "innkeep",
         summary: "Corvin bought ale.",
         tick: tick
       })
 
-    {:ok, _} = NPC.bump_relationship(session.id, "innkeep", 0.1)
+    {:ok, _} = Roster.bump_relationship(session.id, "innkeep", 0.1)
 
     session.id
     |> Characters.get_by_slug("innkeep")

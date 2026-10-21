@@ -9,8 +9,8 @@ defmodule TalesForge.CharactersSyncTest do
   alias TalesForge.Game.{ActionHandler, Intent, TurnProcessor}
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.Turn.Board
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession, PlaytestRun}
 
@@ -57,14 +57,14 @@ defmodule TalesForge.CharactersSyncTest do
           |> Map.put("learning_failures", %{"climbing" => 3})
         end)
 
-      NPC.record_memory(%NPC.Note{
+      Roster.record_memory(%Roster.Note{
         session_id: session.id,
         npc_id: "innkeep",
         summary: "The stranger paid in silver",
         tick: 30
       })
 
-      NPC.bump_relationship(session.id, "innkeep", 0.4)
+      Roster.bump_relationship(session.id, "innkeep", 0.4)
 
       session = wait_turn(session, %{"climbing" => {51, 5}})
       assert get_in(session.world_state, ["character", "skills", "climbing"]) == 20
@@ -140,7 +140,7 @@ defmodule TalesForge.CharactersSyncTest do
   describe "NPC rows (10f PR 5)" do
     test "an NPC's state is its row: a memory gets its memory row at once", %{session: session} do
       :ok =
-        NPC.record_memory(%NPC.Note{
+        Roster.record_memory(%Roster.Note{
           session_id: session.id,
           npc_id: "innkeep",
           summary: "  The stranger paid in silver ",
@@ -155,7 +155,7 @@ defmodule TalesForge.CharactersSyncTest do
       assert [%{text: "The stranger paid in silver", tick: 30, kind: "memory", about: []}] =
                Characters.list_memories(innkeep)
 
-      {:ok, score} = NPC.bump_relationship(session.id, "innkeep", 0.25)
+      {:ok, score} = Roster.bump_relationship(session.id, "innkeep", 0.25)
       assert score == 0.25
 
       assert Characters.get_by_slug(session.id, "innkeep").relationships == %{
@@ -180,7 +180,7 @@ defmodule TalesForge.CharactersSyncTest do
                Rows.get(session.id, "innkeep").runtime_state["memories"]
 
       :ok =
-        NPC.record_memory(%NPC.Note{
+        Roster.record_memory(%Roster.Note{
           session_id: session.id,
           npc_id: "innkeep",
           summary: "Third",
@@ -198,7 +198,7 @@ defmodule TalesForge.CharactersSyncTest do
       assert {:error, :boom, :failed, _} =
                Ecto.Multi.new()
                |> Ecto.Multi.run(:npc, fn _repo, _ ->
-                 NPC.bump_relationship(session.id, "innkeep", 1.0)
+                 Roster.bump_relationship(session.id, "innkeep", 1.0)
                end)
                |> Ecto.Multi.run(:boom, fn _repo, _ -> {:error, :failed} end)
                |> Repo.transaction()
@@ -239,7 +239,7 @@ defmodule TalesForge.CharactersSyncTest do
       })
       |> Repo.update!()
 
-      assert NPC.combat_profile(session.id, "innkeep")["skills"] == %{"brawling" => 77}
+      assert Roster.combat_profile(session.id, "innkeep")["skills"] == %{"brawling" => 77}
     end
   end
 

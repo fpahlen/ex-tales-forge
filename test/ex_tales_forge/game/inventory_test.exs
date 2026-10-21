@@ -5,8 +5,8 @@ defmodule TalesForge.Game.InventoryTest do
   alias TalesForge.Game.Schemas.SingleAction
   alias TalesForge.Game.World
   alias TalesForge.GameCharacter
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.Turn
 
@@ -192,7 +192,7 @@ defmodule TalesForge.Game.InventoryTest do
       before = Inventory.coin_total_copper(get_in(world, ["character", "coins"]))
 
       traders =
-        NPC.traders(session.id, Inventory.trader_ids(action, world["present_npcs"] || []))
+        Roster.traders(session.id, Inventory.trader_ids(action, world["present_npcs"] || []))
 
       assert {:ok, updated, %{applied: applied}, [trader]} =
                Inventory.apply_transaction(world, traders, action)
@@ -229,7 +229,7 @@ defmodule TalesForge.Game.InventoryTest do
       before = Inventory.coin_total_copper(get_in(world, ["character", "coins"]))
 
       traders =
-        NPC.traders(session.id, Inventory.trader_ids(action, world["present_npcs"] || []))
+        Roster.traders(session.id, Inventory.trader_ids(action, world["present_npcs"] || []))
 
       assert {:ok, updated, %{applied: applied}, [trader]} =
                Inventory.apply_transaction(world, traders, action)
@@ -363,15 +363,15 @@ defmodule TalesForge.Game.InventoryTest do
         GameSessions.create_session(%{name: "Tin Valley Trader", adventure_id: "tin_valley"})
 
       assert %{"innkeep" => %GameCharacter{slug: "innkeep"} = innkeep} =
-               NPC.traders(session.id, ["innkeep", "nobody"])
+               Roster.traders(session.id, ["innkeep", "nobody"])
 
       assert Enum.all?(innkeep.inventory, &is_integer(&1["price_copper"]))
       ale = Enum.find(innkeep.inventory, &(&1["id"] == "ale_mug"))
 
       sold = %{innkeep | inventory: Inventory.remove_item(innkeep.inventory, "ale_mug", 3)}
-      assert :ok = NPC.put_inventories(session.id, [sold])
+      assert :ok = Roster.put_inventories(session.id, [sold])
 
-      assert %{"innkeep" => reloaded} = NPC.traders(session.id, ["innkeep"])
+      assert %{"innkeep" => reloaded} = Roster.traders(session.id, ["innkeep"])
       assert reloaded.inventory == sold.inventory
 
       assert Inventory.item_quantity(reloaded.inventory, "ale_mug") ==

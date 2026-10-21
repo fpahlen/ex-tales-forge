@@ -7,9 +7,9 @@ defmodule TalesForge.NPCInitiativeTest do
   alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Game.Turn.Intentions
+  alias TalesForge.GameCharacter.Agency
   alias TalesForge.GameSessions
   alias TalesForge.Intention
-  alias TalesForge.NPC
   alias TalesForge.NPCInitiative
   alias TalesForge.NPCSignals
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
@@ -157,7 +157,7 @@ defmodule TalesForge.NPCInitiativeTest do
       Enum.flat_map([288, 1, 1, 1, 1, 1], &play(session, turn(session, freeform(), "", &1)))
 
     assert Rows.get(session.id, "innkeep").runtime_state["initiative_emitted"]
-    assert NPC.initiative_text(Rows.get(session.id, "innkeep")) == nil
+    assert Agency.initiative_text(Rows.get(session.id, "innkeep")) == nil
     refute Enum.any?(payloads, &(&1.npc_id == "innkeep"))
     refute Enum.any?(payloads, &(&1.text =~ "as if a worry has been pressing"))
   end

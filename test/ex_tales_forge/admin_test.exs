@@ -120,7 +120,7 @@ defmodule TalesForge.AdminTest do
     [npc | _] = Rows.list(session.id)
 
     # A turn changes the row after the admin page read it.
-    {:ok, _} = TalesForge.NPC.bump_relationship(session.id, npc.npc_id, 0.3)
+    {:ok, _} = TalesForge.GameCharacter.Roster.bump_relationship(session.id, npc.npc_id, 0.3)
 
     json =
       Jason.encode!(Map.merge(npc.runtime_state, %{"mood" => "wary", "coins" => %{"gold" => 9}}))

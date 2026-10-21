@@ -1,6 +1,6 @@
 defmodule TalesForge.NPCGoodsTest do
   @moduledoc """
-  Only a trade writes an NPC's goods (`NPC.put_inventories/2`,
+  Only a trade writes an NPC's goods (`Roster.put_inventories/2`,
   `GameCharacter.Rows.put_goods!/2`). The world-sim tick saves people it read before
   the trade, and the memory, relationship, concern and initiative writes
   save the rest of the NPC's state: none of them writes the stock or the
@@ -10,8 +10,8 @@ defmodule TalesForge.NPCGoodsTest do
   alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Game.Inventory
+  alias TalesForge.GameCharacter.{Agency, Roster}
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
 
   setup do
     {:ok, session} = GameSessions.create_session(%{name: "Goods", adventure_id: "tin_valley"})
@@ -20,7 +20,7 @@ defmodule TalesForge.NPCGoodsTest do
 
   # Brenna sells three ales for 6c: her stock and purse after the trade.
   defp sold(session_id) do
-    %{"innkeep" => brenna} = NPC.traders(session_id, ["innkeep"])
+    %{"innkeep" => brenna} = Roster.traders(session_id, ["innkeep"])
 
     %{
       brenna
@@ -32,13 +32,13 @@ defmodule TalesForge.NPCGoodsTest do
   defp trade_step(multi, session_id, trader),
     do:
       Ecto.Multi.run(multi, :traders, fn _, _ ->
-        {:ok, NPC.put_inventories(session_id, [trader])}
+        {:ok, Roster.put_inventories(session_id, [trader])}
       end)
 
   # The tick's people, read before the trade; the tick moved Brenna.
   defp tick(session_id) do
     people =
-      for %{npc_id: "innkeep"} = person <- NPC.sim_people(session_id),
+      for %{npc_id: "innkeep"} = person <- Agency.sim_people(session_id),
           do: put_in(person, [:runtime_state, "location_id"], "tin_valley_square")
 
     %{people: people}
@@ -53,10 +53,10 @@ defmodule TalesForge.NPCGoodsTest do
       steps =
         case unquote(order) do
           :tick_first ->
-            [&NPC.persist_tick_multi(&1, session.id, sim), &trade_step(&1, session.id, trader)]
+            [&Agency.persist_tick_multi(&1, session.id, sim), &trade_step(&1, session.id, trader)]
 
           :trade_first ->
-            [&trade_step(&1, session.id, trader), &NPC.persist_tick_multi(&1, session.id, sim)]
+            [&trade_step(&1, session.id, trader), &Agency.persist_tick_multi(&1, session.id, sim)]
         end
 
       assert {:ok, _} = steps |> Enum.reduce(Ecto.Multi.new(), & &1.(&2)) |> Repo.transaction()
@@ -70,18 +70,18 @@ defmodule TalesForge.NPCGoodsTest do
 
   test "the state writes leave the goods as the trade wrote them", %{session: session} do
     trader = sold(session.id)
-    :ok = NPC.put_inventories(session.id, [trader])
+    :ok = Roster.put_inventories(session.id, [trader])
 
-    NPC.record_memory(%NPC.Note{
+    Roster.record_memory(%Roster.Note{
       session_id: session.id,
       npc_id: "innkeep",
       summary: "Sold ale.",
       tick: 1
     })
 
-    {:ok, _} = NPC.bump_relationship(session.id, "innkeep", 0.1)
-    NPC.adjust_concern(session.id, "innkeep", 1)
-    :ok = session.id |> Rows.get("innkeep") |> NPC.mark_initiative_emitted(2)
+    {:ok, _} = Roster.bump_relationship(session.id, "innkeep", 0.1)
+    Agency.adjust_concern(session.id, "innkeep", 1)
+    :ok = session.id |> Rows.get("innkeep") |> Agency.mark_initiative_emitted(2)
 
     brenna = Rows.get(session.id, "innkeep")
     Rows.update!(brenna, %{brenna.runtime_state | "stock" => [], "coins" => %{"gold" => 99}})

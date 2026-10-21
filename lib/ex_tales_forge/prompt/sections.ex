@@ -80,7 +80,7 @@ defmodule TalesForge.Prompt.Sections.Npcs do
   @impl true
   def render(ctx),
     do:
-      TalesForge.NPC.format_gm_sections(
+      TalesForge.GameCharacter.Roster.format_gm_sections(
         ctx.data.session_id,
         Map.get(ctx.data.intent_context, "present_npcs", []),
         dialogue_memory: get_in(ctx.data, [:world_state, "npc_memory"]),

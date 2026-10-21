@@ -4,8 +4,8 @@ defmodule TalesForge.NPCTest do
 
   alias TalesForge.Game.Schemas.GMStructuredResponse
   alias TalesForge.Game.WorldClock
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.Character
 
@@ -42,7 +42,7 @@ defmodule TalesForge.NPCTest do
       ]
     }
 
-    :ok = NPC.apply_gm_updates(session.id, gm_result, WorldClock.default_start_tick())
+    :ok = Roster.apply_gm_updates(session.id, gm_result, WorldClock.default_start_tick())
 
     inst = Rows.get(session.id, "marta_kellen")
     [memory | _] = Map.get(inst.runtime_state, "memories", [])
@@ -54,17 +54,17 @@ defmodule TalesForge.NPCTest do
   test "sync_present_npcs only lists NPCs at current location" do
     assert {:ok, session} = GameSessions.create_session(%{name: "NPC Presence"})
 
-    assert ["marta_kellen"] = NPC.sync_present_npcs(session.id, "weary_pilgrim")
-    assert ["worried_merchant"] = NPC.sync_present_npcs(session.id, "crossroads_square")
+    assert ["marta_kellen"] = Roster.sync_present_npcs(session.id, "weary_pilgrim")
+    assert ["worried_merchant"] = Roster.sync_present_npcs(session.id, "crossroads_square")
 
     inst = Rows.get(session.id, "marta_kellen")
 
     Rows.update!(inst, Map.put(inst.runtime_state, "location_id", "crossroads_square"))
 
     assert ["marta_kellen", "worried_merchant"] =
-             NPC.sync_present_npcs(session.id, "crossroads_square")
+             Roster.sync_present_npcs(session.id, "crossroads_square")
              |> Enum.sort()
 
-    assert [] = NPC.sync_present_npcs(session.id, "weary_pilgrim")
+    assert [] = Roster.sync_present_npcs(session.id, "weary_pilgrim")
   end
 end

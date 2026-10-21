@@ -60,10 +60,10 @@ defmodule TalesForge.Game.Inventory do
 
   @doc false
   # Pure: the acting character is the world's `"character"`, and `traders`
-  # are the GameCharacters `trader_ids/2` names (`TalesForge.NPC.traders/2`).
+  # are the GameCharacters `trader_ids/2` names (`TalesForge.GameCharacter.Roster.traders/2`).
   # Returns the world with the character's new inventory and coins, and the
   # traders whose inventory and coins changed, which the caller saves
-  # (`TalesForge.NPC.put_inventories/2`). All of it or, on an error, none.
+  # (`TalesForge.GameCharacter.Roster.put_inventories/2`). All of it or, on an error, none.
   @spec apply_transaction(map(), %{String.t() => GameCharacter.t()}, SingleAction.t()) ::
           {:ok, map(), %{applied: [String.t()]}, [GameCharacter.t()]} | {:error, String.t()}
   def apply_transaction(world_state, traders, %SingleAction{} = action) when is_map(traders) do

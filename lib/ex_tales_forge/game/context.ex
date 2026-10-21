@@ -28,7 +28,7 @@ defmodule TalesForge.Game.Context do
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.Turn.NarratedArrival
   alias TalesForge.Game.World
-  alias TalesForge.NPC
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.Repo
   alias TalesForge.Scenes
   alias TalesForge.Schemas.{GameSession, Scene, Turn}
@@ -113,10 +113,10 @@ defmodule TalesForge.Game.Context do
       else: Map.get(location, "exits", [])
   end
 
-  # What each present NPC sells: its inventory as a trader (TalesForge.NPC.traders/2).
+  # What each present NPC sells: its inventory as a trader (TalesForge.GameCharacter.Roster.traders/2).
   defp npc_stock(session_id, present_npcs) do
     session_id
-    |> NPC.traders(present_npcs)
+    |> Roster.traders(present_npcs)
     |> Map.new(fn {npc_id, trader} -> {npc_id, trader.inventory} end)
   end
 

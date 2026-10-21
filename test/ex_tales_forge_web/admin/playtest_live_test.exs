@@ -6,8 +6,8 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
 
   import Ecto.Query
 
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Repo
 
   alias TalesForge.Schemas.{
@@ -520,14 +520,14 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     })
 
     :ok =
-      NPC.record_memory(%NPC.Note{
+      Roster.record_memory(%Roster.Note{
         session_id: session.id,
         npc_id: "innkeep",
         summary: "The stranger asked about the orcs.",
         tick: tick
       })
 
-    {:ok, _} = NPC.bump_relationship(session.id, "innkeep", 0.05)
+    {:ok, _} = Roster.bump_relationship(session.id, "innkeep", 0.05)
 
     reaction = %{"emotion" => "wary", "intensity" => 0.6, "stance" => "cool", "turn_number" => 1}
 

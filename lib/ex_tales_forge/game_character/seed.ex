@@ -1,7 +1,7 @@
 defmodule TalesForge.GameCharacter.Seed do
   @moduledoc """
   The `characters` row of a pack NPC when a session is seeded
-  (`TalesForge.NPC.seed_session/1`): its definition and first runtime
+  (`TalesForge.GameCharacter.Seeding.seed_session/1`): its definition and first runtime
   state as columns.
   """
 
@@ -22,7 +22,7 @@ defmodule TalesForge.GameCharacter.Seed do
 
   @doc """
   Character attrs for a pack NPC (controller `gm`) seeded with its
-  definition and first runtime state (`TalesForge.NPC.seed_session/1`).
+  definition and first runtime state (`TalesForge.GameCharacter.Seeding.seed_session/1`).
   Stats default to 10 and OCEAN to 5 when the definition has none; without
   `maslow` the Maslow level is read from `motivations.primary_need`, else
   `"safety"`. The relationship to the player character is set when its row

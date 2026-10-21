@@ -21,9 +21,9 @@ defmodule TalesForge.GameSessions do
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.Turn.Store
   alias TalesForge.Game.World
+  alias TalesForge.GameCharacter.{Roster, Seeding}
   alias TalesForge.GameSessions.TurnRequest
   alias TalesForge.IntentJev
-  alias TalesForge.NPC
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
@@ -97,9 +97,9 @@ defmodule TalesForge.GameSessions do
            %GameSession{}
            |> GameSession.changeset(session_attrs(attrs, world, character_opts))
            |> Repo.insert(),
-         :ok <- NPC.seed_session(session),
+         :ok <- Seeding.seed_session(session),
          :ok <- Fronts.seed_session(session),
-         {:ok, session} <- NPC.refresh_session_world_state(session),
+         {:ok, session} <- Roster.refresh_session_world_state(session),
          :ok <- Characters.seed_session(session, character_opts),
          {:ok, _} <- ensure_scene(session) do
       {:ok, Repo.preload(session, [:front_instances])}

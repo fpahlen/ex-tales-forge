@@ -17,8 +17,8 @@ defmodule TalesForge.Game.TradeOffersTest do
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
 
   alias TalesForge.Game.{Inventory, JevIntent}
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.Character
 
@@ -550,8 +550,8 @@ defmodule TalesForge.Game.TradeOffersTest do
   defp open_offer(session_id), do: GameSessions.get_session!(session_id).world_state["open_offer"]
 
   defp stock(session_id, fun) do
-    [brenna] = session_id |> NPC.traders(["innkeep"]) |> Map.values()
-    NPC.put_inventories(session_id, [%{brenna | inventory: fun.(brenna.inventory)}])
+    [brenna] = session_id |> Roster.traders(["innkeep"]) |> Map.values()
+    Roster.put_inventories(session_id, [%{brenna | inventory: fun.(brenna.inventory)}])
   end
 
   # Coins and items are conserved; a serving (Brenna's ale, stew, bread and
