@@ -92,4 +92,39 @@ defmodule TalesForgeWeb.AdminLive.SessionLiveTest do
     assert saved.name == "World Form 2"
     assert saved.world_state == %{"location_id" => "x", "character" => character}
   end
+
+  # Gentry, playtest a1c02a9: after "Save world state" the only feedback was a
+  # toast that hid itself, and an invalid edit showed a raw Jason.DecodeError.
+  test "saving world state says when, next to the button", %{conn: conn} do
+    {:ok, session} = GameSessions.create_session(%{name: "Saved At"})
+    {:ok, view, html} = live(conn, ~p"/admin/play/sessions/#{session.id}")
+    refute html =~ "Saved at"
+
+    html =
+      view
+      |> form("form[phx-submit=save_world_state]", %{world_state_json: ~s({"location_id": "y"})})
+      |> render_submit()
+
+    assert Admin.get_session!(session.id).world_state["location_id"] == "y"
+    saved_at = view |> element("#world-state-saved-at") |> render()
+    assert saved_at =~ ~r/Saved at \d\d:\d\d/
+    assert saved_at =~ ~r/datetime="\d{4}-\d\d-\d\dT[\d:.]+Z"/
+    assert html =~ "World state saved."
+  end
+
+  test "invalid world state JSON says where, in plain words, and saves nothing", %{conn: conn} do
+    {:ok, session} = GameSessions.create_session(%{name: "Bad JSON"})
+    before = Admin.get_session!(session.id).world_state
+    {:ok, view, _html} = live(conn, ~p"/admin/play/sessions/#{session.id}")
+
+    html =
+      view
+      |> form("form[phx-submit=save_world_state]", %{world_state_json: ~s({"location_id": x})})
+      |> render_submit()
+
+    assert html =~ "Invalid JSON at position 17"
+    refute html =~ "DecodeError"
+    refute html =~ "Saved at"
+    assert Admin.get_session!(session.id).world_state == before
+  end
 end
