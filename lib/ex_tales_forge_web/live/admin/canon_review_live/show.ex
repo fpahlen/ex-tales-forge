@@ -5,7 +5,7 @@ defmodule TalesForgeWeb.AdminLive.CanonReviewLive.Show do
   The page does no review on mount. A founder clicks "Start the review",
   and the page then calls `TalesForge.Canon.review/1`. Each row has three
   actions: "Keep as session-only", "Add to canon" and "Mark as error".
-  `TalesForge.Canon.decide/4` stores the decision with the founder email.
+  `TalesForge.Canon.decide/1` stores the decision with the founder email.
   No action changes the session or the seed files. "Add to canon" shows the
   proposed seed patch for a pull request.
   """

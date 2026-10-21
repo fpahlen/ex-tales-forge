@@ -7,7 +7,7 @@ defmodule TalesForge.Canon do
      (`TalesForge.Canon.SessionSnapshot`), runs the pure diff
      (`TalesForge.Canon.Diff`) and labels the leftover free text with one
      classifier call (`TalesForge.Canon.Classifier`).
-  2. `decide/4` stores the founder decision on one difference
+  2. `decide/1` stores the founder decision on one difference
      (`TalesForge.Canon.Decision`). No decision changes the session or the
      seed files. "Add to canon" stores a proposed seed patch
      (`TalesForge.Canon.SeedPatch`) for a pull request.
