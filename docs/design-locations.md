@@ -43,18 +43,43 @@ Pure core, plain structs, match on `%Struct{}`, no function with 4+ params.
 
 ```elixir
 %Grid{id: :valley_inn, scale: :building, cell_m: 1,
-      cells: %{{x, y} => %Cell{item: :table, child: nil}}}
+      cells: %{{x, y, z} => %Cell{item: :table, child: nil}}}
 
 %Cell{item: atom(), child: grid_id | nil}
 
 # Path from the top grid down to one cell.
-%Position{path: [{:tin_valley_region, {3, 7}},
-                 {:tin_valley_village, {2, 3}},
-                 {:valley_inn, {10, 4}}]}
+%Position{path: [{:tin_valley_region, {3, 7, 0}},
+                 {:tin_valley_village, {2, 3, 0}},
+                 {:valley_inn, {10, 4, 0}}]}
 ```
 
 Legends (which items exist at which scale, what blocks movement, what is a link)
 live in the world pack.
+
+### Levels (z)
+
+Cells are keyed `{x, y, z}`. `z = 0` is ground, `1` a second floor, `-1` a
+cellar or underground caverns. Stairs, ladders and shafts are link items between
+`z` and `z ± 1`.
+
+### Tiles, not borders
+
+20×20 is the viewing window and the storage tile, not a world boundary. Tiles
+join at their edges: scrolling past an edge loads the neighbouring tile (the
+child grid of the neighbouring parent square), and the parent square stays
+visible around the view. The world scrolls without end.
+
+Neighbour lookup (idea): stepping east off the tile under parent cell
+`{px, py, z}` lands in the child grid of parent cell `{px + 1, py, z}`, at
+`{0, y}`. Same for the other three edges.
+
+### Large features
+
+- A great river is a chain of river cells across tile edges; a river trip
+  follows the chain.
+- Large underground structures are many joined tiles at `z = -1`.
+- Long trips travel at parent scale (~500 m/cell) and drop to detailed tiles
+  only where something happens.
 
 ## 4. Multi-cell buildings
 
@@ -98,3 +123,8 @@ into region cells. Not now.
 - Cell sizes per scale (see §6).
 - How the GM gets the position (and nearby items) into its prompt.
 - How Jev resolves "go to the inn" into a target path.
+
+## Review notes
+
+- The mapping in §7 (`fixtures` become cell items, `at` becomes the cell in the
+  parent grid) is a proposal, pending Fredrik's check.
