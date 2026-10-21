@@ -44,6 +44,7 @@ defmodule TalesForge.IntentJev do
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
   alias TalesForge.GameCharacter
   alias TalesForge.IntentJev.Read
+  alias TalesForge.Locations.Named
 
   @model "jev-1.13.0"
   @modes ~w(off shadow on)
@@ -340,7 +341,7 @@ defmodule TalesForge.IntentJev do
 
   # The confidence band, with `opts` overriding the config; a free-text answer
   # (`never_ask`) plays its best guess instead of asking.
-  defp decide_band(%Read{reading: reading, raw_action: raw_action, opts: opts}) do
+  defp decide_band(%Read{reading: reading, raw_action: raw_action, opts: opts} = read) do
     band_opts = [
       act_min: Keyword.get(opts, :act_min, Config.intent_act_min_confidence()),
       ask_below: Keyword.get(opts, :ask_below, Config.intent_ask_below_confidence()),
@@ -352,7 +353,16 @@ defmodule TalesForge.IntentJev do
       other -> other
     end
     |> clear_lodging(reading, raw_action)
+    |> named_move(read)
   end
+
+  # A move whose words name a place or a spot of the room exactly ("back to
+  # the inn", "to the bar") is clear: the words settle it, so nothing is asked
+  # (playtest session 39fcbc9d, 2026-10-21: both were asked and did not move).
+  defp named_move(:clarify, %Read{reading: %{action: :move}} = read),
+    do: if(Named.place_or_spot?(read.context, read.raw_action), do: :act, else: :clarify)
+
+  defp named_move(band, _read), do: band
 
   # The pure clarify decision (`TalesForge.Game.Clarify`); a free-text answer
   # to a question (`never_ask`) plays its best guess instead.
