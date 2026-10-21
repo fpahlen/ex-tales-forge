@@ -234,9 +234,9 @@ defmodule TalesForge.AICalls do
       if purpose == "persona",
         do: caps[:persona_run_micro_usd] || @default_persona_run_micro_usd
 
-    with :ok <- check_cap(:session, session_cap, session_id, now),
-         :ok <- check_cap(:persona_run, persona_cap, session_id, now) do
-      check_cap(:day, caps[:day_micro_usd], session_id, now)
+    with :ok <- check_cap(%{kind: :session, limit: session_cap}, session_id, now),
+         :ok <- check_cap(%{kind: :persona_run, limit: persona_cap}, session_id, now) do
+      check_cap(%{kind: :day, limit: caps[:day_micro_usd]}, session_id, now)
     end
   end
 
@@ -257,18 +257,19 @@ defmodule TalesForge.AICalls do
     DateTime.shift_zone!(midnight, "Etc/UTC")
   end
 
-  defp check_cap(_kind, nil, _session_id, _now), do: :ok
-  defp check_cap(kind, _limit, nil, _now) when kind != :day, do: :ok
+  # `cap` is `%{kind: kind, limit: limit_micro_usd}`.
+  defp check_cap(%{limit: nil}, _session_id, _now), do: :ok
+  defp check_cap(%{kind: kind}, nil, _now) when kind != :day, do: :ok
 
-  defp check_cap(kind, limit, session_id, now) do
+  defp check_cap(cap, session_id, now) do
     spent =
-      case kind do
+      case cap.kind do
         :session -> total_cost_for_session(session_id)
         :persona_run -> persona_totals(session_id).cost_micro_usd
         :day -> total_cost_since(day_start(now))
       end
 
-    if spent >= limit, do: {:error, {kind, limit, spent}}, else: :ok
+    if spent >= cap.limit, do: {:error, {cap.kind, cap.limit, spent}}, else: :ok
   end
 
   defp sum_cost(query) do

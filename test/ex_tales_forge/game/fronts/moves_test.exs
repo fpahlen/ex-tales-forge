@@ -5,7 +5,7 @@ defmodule TalesForge.Game.Fronts.MovesTest do
   """
   use ExUnit.Case, async: true
 
-  alias TalesForge.Game.Fronts.Moves
+  alias TalesForge.Game.Fronts.{Move, Moves}
 
   doctest Moves
 
@@ -23,7 +23,13 @@ defmodule TalesForge.Game.Fronts.MovesTest do
   }
 
   test "@player becomes the player's place in moves and facts" do
-    {:ok, state} = Moves.apply(%{}, "come", @defn, player_at: "smithy")
+    {:ok, state} =
+      Moves.apply(%Move{
+        runtime_state: %{},
+        move: "come",
+        pack_def: @defn,
+        opts: [player_at: "smithy"]
+      })
 
     assert state["pending"]["move_people"] == %{"rusk" => "smithy", "pip" => "west_road"}
 
@@ -32,7 +38,13 @@ defmodule TalesForge.Game.Fronts.MovesTest do
   end
 
   test "without a fallback, an out-of-reach player drops the @player entries" do
-    {:ok, state} = Moves.apply(%{}, "come", @defn, player_at: "orc_nest")
+    {:ok, state} =
+      Moves.apply(%Move{
+        runtime_state: %{},
+        move: "come",
+        pack_def: @defn,
+        opts: [player_at: "orc_nest"]
+      })
 
     assert state["pending"]["move_people"] == %{"pip" => "west_road"}
     assert [%{"id" => "here", "visibility" => []}, %{"id" => "inn"}] = state["public_facts"]
@@ -41,6 +53,11 @@ defmodule TalesForge.Game.Fronts.MovesTest do
   test "moves without @player are unchanged by the player's place" do
     defn = %{"moves" => %{"go" => %{"move_people" => %{"cobb" => "old_adit"}}}}
 
-    assert Moves.apply(%{}, "go", defn, player_at: "smithy") == Moves.apply(%{}, "go", defn)
+    assert Moves.apply(%Move{
+             runtime_state: %{},
+             move: "go",
+             pack_def: defn,
+             opts: [player_at: "smithy"]
+           }) == Moves.apply(%Move{runtime_state: %{}, move: "go", pack_def: defn})
   end
 end

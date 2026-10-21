@@ -23,7 +23,7 @@ defmodule TalesForge.Game.WorldSim do
   the player is" (`TalesForge.Game.Fronts.Moves.apply_generic/3`).
   """
 
-  alias TalesForge.Game.Fronts.Moves
+  alias TalesForge.Game.Fronts.{Move, Moves}
   alias TalesForge.Game.Fronts.Rules
 
   @spec tick(%{
@@ -94,7 +94,7 @@ defmodule TalesForge.Game.WorldSim do
     runtime = runtime(actor)
     defn = definition(actor)
 
-    case Moves.apply(runtime, move, defn) do
+    case Moves.apply(%Move{runtime_state: runtime, move: move, pack_def: defn}) do
       {:ok, state} ->
         {:ok, put_runtime(actor, state), %{id: actor_id(actor), move: move}}
 
@@ -137,7 +137,15 @@ defmodule TalesForge.Game.WorldSim do
 
     if stage_due?(stage, now, key not in fired) do
       move = stage_move(stage, player_at)
-      {:ok, state} = Moves.apply(runtime(acc), move, definition(acc), player_at: player_at)
+
+      {:ok, state} =
+        Moves.apply(%Move{
+          runtime_state: runtime(acc),
+          move: move,
+          pack_def: definition(acc),
+          opts: [player_at: player_at]
+        })
+
       state = Map.put(state, "stages_fired", fired ++ [key])
       {put_runtime(acc, state), moves ++ [%{id: actor_id(acc), move: move}]}
     else

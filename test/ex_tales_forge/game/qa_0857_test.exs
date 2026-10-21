@@ -177,12 +177,31 @@ defmodule TalesForge.Game.Qa0857Test do
       # Day 2 · midday
       world = %{"world_tick" => 96 + 18, "character" => %{"inventory" => []}}
 
-      assert [finding] = PremiseCheck.check(text, PremiseCheck.state(world, world, [], 0))
+      assert [finding] =
+               PremiseCheck.check(
+                 text,
+                 PremiseCheck.state(%PremiseCheck.Input{
+                   world_before: world,
+                   world_after: world,
+                   fronts: [],
+                   won_fights: 0
+                 })
+               )
+
       assert finding.kind == :time
       assert finding.correction =~ "Player claims it is midnight; the clock says Day 2 · midday."
 
       night = %{world | "world_tick" => 96 + 72}
-      assert PremiseCheck.check(text, PremiseCheck.state(night, night, [], 0)) == []
+
+      assert PremiseCheck.check(
+               text,
+               PremiseCheck.state(%PremiseCheck.Input{
+                 world_before: night,
+                 world_after: night,
+                 fronts: [],
+                 won_fights: 0
+               })
+             ) == []
     end
 
     test "T12 the room price in the turn data is the server price" do
@@ -208,7 +227,12 @@ defmodule TalesForge.Game.Qa0857Test do
       [finding] =
         PremiseCheck.check(
           "I put on my enchanted armor.",
-          PremiseCheck.state(before, after_turn, [], 0)
+          PremiseCheck.state(%PremiseCheck.Input{
+            world_before: before,
+            world_after: after_turn,
+            fronts: [],
+            won_fights: 0
+          })
         )
 
       assert finding.correction =~ "(they carry: travel cloak, hunting knife)"
