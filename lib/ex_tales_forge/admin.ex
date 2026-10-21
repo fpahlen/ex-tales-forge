@@ -8,8 +8,8 @@ defmodule TalesForge.Admin do
   require Logger
 
   alias TalesForge.Characters
+  alias TalesForge.GameCharacter.{Person, Rows}
   alias TalesForge.NPC
-  alias TalesForge.NPC.Person
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession, Scene, Turn}
 
@@ -132,7 +132,7 @@ defmodule TalesForge.Admin do
   @spec reset_session_npcs(map()) :: {:ok, GameSession.t()} | {:error, Ecto.Changeset.t()}
   def reset_session_npcs(session) do
     id = Map.get(session, :id)
-    slugs = NPC.Rows.slugs(id)
+    slugs = Rows.slugs(id)
 
     from(c in Character, where: c.game_session_id == ^id and c.slug in ^slugs)
     |> Repo.delete_all()
@@ -150,7 +150,7 @@ defmodule TalesForge.Admin do
   @doc """
   Saves `json_string` (a JSON object) as the NPC's runtime state: its place,
   mood, stock and relationship go to their columns, the rest to `runtime`
-  (`TalesForge.NPC.Person.attrs/3`). `npc` is the copy the admin page
+  (`TalesForge.GameCharacter.Person.attrs/3`). `npc` is the copy the admin page
   edited: when its row changed after that copy was read (a turn played, a
   trade), nothing is saved and the result is `{:error, :stale}`.
   """
@@ -159,7 +159,7 @@ defmodule TalesForge.Admin do
   def update_npc_runtime_state(%Person{} = npc, json_string) when is_binary(json_string) do
     with {:ok, runtime_state} <- decode_json_map(json_string) do
       npc
-      |> NPC.Rows.edit_changeset(runtime_state)
+      |> Rows.edit_changeset(runtime_state)
       |> Repo.update(stale_error_field: :lock_version)
       |> saved_npc()
     end

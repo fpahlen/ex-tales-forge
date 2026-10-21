@@ -7,7 +7,7 @@ defmodule TalesForge.Game.TinjacksTest do
   Rusk and Cobb come to the player.
   """
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Fronts
   alias TalesForge.Game.{Events, Pack, WorldSim}

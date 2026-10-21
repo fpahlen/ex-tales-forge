@@ -3,12 +3,12 @@ defmodule TalesForge.CharactersSyncTest do
 
   import Ecto.Query
   import ExUnit.CaptureLog
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Characters
-  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.{ActionHandler, Intent, TurnProcessor}
   alias TalesForge.Game.Schemas.MechanicalResolution
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.GameSessions
   alias TalesForge.NPC
   alias TalesForge.Repo

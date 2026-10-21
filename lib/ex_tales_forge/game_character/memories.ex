@@ -1,4 +1,4 @@
-defmodule TalesForge.NPC.Memories do
+defmodule TalesForge.GameCharacter.Memories do
   @moduledoc """
   A pack NPC's memories as `character_memories` rows (kind `memory`, no
   event, not about anyone).

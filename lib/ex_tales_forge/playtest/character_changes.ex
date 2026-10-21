@@ -12,7 +12,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
     * **NPC start**: the authored definition copied into the NPC's row,
       `characters.definition` (mood, home location, current concern), and
       the seed defaults of `TalesForge.NPC` (relationship 0.0, no memories).
-    * **NPC end**: the NPC's row as `TalesForge.NPC.Rows` reads it (mood,
+    * **NPC end**: the NPC's row as `TalesForge.GameCharacter.Rows` reads it (mood,
       location, relationship score, current concern, the newest 20
       memories) and its latest Jev reaction, `characters.runtime["reaction"]`.
     * **Memories**: the row's memory list joined with `character_memories`
@@ -183,7 +183,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   defp load_npcs(ids) do
     ids
-    |> TalesForge.NPC.Rows.list_many()
+    |> TalesForge.GameCharacter.Rows.list_many()
     |> Enum.map(fn %{personality: definition} = npc ->
       %{
         session_id: npc.row.game_session_id,
