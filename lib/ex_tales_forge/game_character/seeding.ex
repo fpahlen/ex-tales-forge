@@ -11,7 +11,7 @@ defmodule TalesForge.GameCharacter.Seeding do
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameCharacter.{Person, Seed}
   alias TalesForge.Repo
-  alias TalesForge.Schemas.Character
+  alias TalesForge.Schemas.{Character, GameSession}
 
   @doc """
   Seeds the session's NPCs (their character rows) from the pack (tin_valley) or the
