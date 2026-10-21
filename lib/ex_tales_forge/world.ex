@@ -53,7 +53,7 @@ defmodule TalesForge.World do
   alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.SessionEvent
-  alias TalesForge.World.Agent
+  alias TalesForge.World.{Agent, AgentSpec, Budget}
 
   import Ecto.Query
 
@@ -151,34 +151,39 @@ defmodule TalesForge.World do
   @spec collect(String.t(), map()) :: [agent()]
   def collect(session_id, world) do
     %Lookup{defs: defs} = lookup = lookup(session_id, world)
-    here = get_in(world, ["character", "location_id"])
-    [_ | parents] = chain = location_chain(defs, here)
-    persons = List.wrap(world["present_npcs"])
+    defs |> specs(world) |> Enum.flat_map(&start(&1, lookup))
+  end
 
-    held =
-      world
-      |> get_in(["character", "inventory"])
-      |> List.wrap()
-      |> Enum.map(&item_id/1)
-      |> Enum.filter(&Map.has_key?(defs.items, &1))
+  # The agents the turn needs, in budget order, each once (pure).
+  defp specs(defs, world) do
+    [here | parents] = location_chain(defs, get_in(world, ["character", "location_id"]))
 
-    specs =
-      Enum.map(Enum.take(chain, 1), &{&1, :here, :location}) ++
-        Enum.map(persons, &{&1, :present, :person}) ++
-        Enum.map(held, &{&1, :held, :item}) ++
-        Enum.map(parents, &{&1, :around, :location})
-
-    specs
-    |> Enum.reject(fn {id, _, _} -> is_nil(id) end)
-    |> Enum.uniq_by(fn {id, _, _} -> id end)
-    |> Enum.flat_map(fn {id, role, kind} ->
-      initial = initial_state(lookup, id, kind)
-
-      case ensure(initial) do
-        {:ok, pid} -> [pid |> Agent.state() |> Map.from_struct() |> Map.put(:role, role)]
-        :error -> []
-      end
+    [
+      {[here], :here, :location},
+      {List.wrap(world["present_npcs"]), :present, :person},
+      {held(defs, world), :held, :item},
+      {parents, :around, :location}
+    ]
+    |> Enum.flat_map(fn {ids, role, kind} ->
+      for id <- ids, id != nil, do: %AgentSpec{id: id, role: role, kind: kind}
     end)
+    |> Enum.uniq_by(& &1.id)
+  end
+
+  defp held(defs, world) do
+    world
+    |> get_in(["character", "inventory"])
+    |> List.wrap()
+    |> Enum.map(&item_id/1)
+    |> Enum.filter(&Map.has_key?(defs.items, &1))
+  end
+
+  # Starts or finds the agent (the process edge) and returns its state.
+  defp start(%AgentSpec{} = spec, lookup) do
+    case lookup |> initial_state(spec.id, spec.kind) |> ensure() do
+      {:ok, pid} -> [pid |> Agent.state() |> Map.from_struct() |> Map.put(:role, spec.role)]
+      :error -> []
+    end
   end
 
   defp lookup(session_id, world) do
@@ -266,20 +271,21 @@ defmodule TalesForge.World do
   """
   @spec prompt_lines([agent()]) :: [String.t()]
   def prompt_lines(agents) when is_list(agents) do
-    {lines, _count, _chars} =
-      Enum.reduce(agents, {[], 0, 0}, fn agent, {lines, count, chars} ->
-        facts = budget_facts(agent, @max_facts - count)
-        texts = Enum.map(facts, &fact_text/1)
-        size = texts |> Enum.map(&String.length/1) |> Enum.sum()
+    agents |> Enum.reduce(%Budget{}, &add_agent(&2, &1)) |> Map.fetch!(:lines) |> Enum.reverse()
+  end
 
-        cond do
-          facts == [] -> {lines, count, chars}
-          chars + size > @max_chars -> {lines, count, chars}
-          true -> {[line(agent, texts) | lines], count + length(facts), chars + size}
-        end
-      end)
+  # Adds the agent's line when its facts fit the budget left.
+  defp add_agent(%Budget{} = budget, agent) do
+    texts = agent |> budget_facts(@max_facts - budget.count) |> Enum.map(&fact_text/1)
+    size = texts |> Enum.map(&String.length/1) |> Enum.sum()
 
-    Enum.reverse(lines)
+    if texts == [] or budget.chars + size > @max_chars,
+      do: budget,
+      else: %Budget{
+        lines: [line(agent, texts) | budget.lines],
+        count: budget.count + length(texts),
+        chars: budget.chars + size
+      }
   end
 
   defp budget_facts(_agent, left) when left <= 0, do: []
