@@ -21,6 +21,7 @@ defmodule TalesForge.CharacterCreation.FromText do
 
   alias TalesForge.CharacterCreation, as: CC
   alias TalesForge.CharacterCreation.Draft
+  alias TalesForge.CharacterCreation.FromText.{Known, Label, Reading}
 
   @stats ~w(STR DEX CON INT WIS CHA)
   @max_questions 2
@@ -28,14 +29,8 @@ defmodule TalesForge.CharacterCreation.FromText do
   @min_confidence 0.5
   @fields ~w(name race class occupation)
 
-  @typedoc "One label: the value and the confidence (0 to 1)."
-  @type label :: %{value: term(), confidence: float()}
-
   @typedoc "The labels and the questions from one reading."
-  @type reading :: %{
-          labels: %{optional(String.t()) => label()},
-          questions: [String.t()]
-        }
+  @type reading :: Reading.t()
 
   @doc "Returns the lowest confidence that `build/2` uses (0.5)."
   @spec min_confidence() :: float()
@@ -61,9 +56,14 @@ defmodule TalesForge.CharacterCreation.FromText do
       options = CC.options(adventure_id)
 
       case adapter().read(system_prompt(options), user_prompt(text, answers)) do
-        {:ok, reply} when is_map(reply) -> {:ok, parse(reply, options, answers)}
-        {:ok, _other} -> {:error, :invalid_reply}
-        {:error, reason} -> {:error, reason}
+        {:ok, reply} when is_map(reply) ->
+          {:ok, parse(reply, Known.from_options(options), answers)}
+
+        {:ok, _other} ->
+          {:error, :invalid_reply}
+
+        {:error, reason} ->
+          {:error, reason}
       end
     end
   end
@@ -74,7 +74,7 @@ defmodule TalesForge.CharacterCreation.FromText do
   rules default. Returns `{:ok, draft}`.
   """
   @spec build(Draft.t(), reading()) :: {:ok, Draft.t()}
-  def build(%Draft{} = draft, %{labels: labels}) do
+  def build(%Draft{} = draft, %Reading{labels: labels}) do
     new = CC.new(draft.adventure_id, seed_key: draft.seed_key)
 
     {:ok, chosen} =
@@ -95,68 +95,62 @@ defmodule TalesForge.CharacterCreation.FromText do
 
   # --- reading ----------------------------------------------------------------------
 
-  defp parse(reply, options, answers) do
-    ids = %{
-      "race" => Enum.map(options.races, & &1.id),
-      "class" => Enum.map(options.classes, & &1.id),
-      "occupation" => Enum.map(options.occupations, & &1.id)
-    }
+  defp parse(reply, %Known{} = known, answers),
+    do: %Reading{labels: labels(reply, known), questions: questions(reply, answers)}
 
-    skills = MapSet.new(options.skill_list, & &1.id)
-
-    labels =
-      Map.new(@fields, fn field ->
-        label = reply[field] || %{}
-        value = label |> Map.get("value", "") |> to_string() |> String.trim()
-        value = if field == "name", do: value, else: String.downcase(value)
-        known? = field == "name" or value in ids[field]
-        confidence = if value != "" and known?, do: confidence(label["confidence"]), else: 0.0
-        {field, %{value: value, confidence: confidence}}
-      end)
-      |> Map.put("stats", %{
-        value:
-          for(
-            %{"stat" => s, "value" => v} <- List.wrap(reply["stats"]),
-            s in @stats,
-            is_integer(v),
-            into: %{},
-            do: {s, v}
-          ),
-        confidence: confidence(reply["stats_confidence"])
-      })
-      |> Map.put("skills", %{
-        value:
-          for(
-            %{"skill" => s, "level" => l} <- List.wrap(reply["skills"]),
-            MapSet.member?(skills, s),
-            is_integer(l) and l > 0,
-            into: %{},
-            do: {s, l}
-          ),
-        confidence: confidence(reply["skills_confidence"])
-      })
-
-    questions =
-      if answers == [] do
-        reply["questions"]
-        |> List.wrap()
-        |> Enum.filter(&is_binary/1)
-        |> Enum.map(&String.trim/1)
-        |> Enum.reject(&(&1 == ""))
-        |> Enum.take(@max_questions)
-      else
-        []
-      end
-
-    %{labels: labels, questions: questions}
+  defp labels(reply, known) do
+    @fields
+    |> Map.new(&{&1, field_label(&1, reply[&1] || %{}, known)})
+    |> Map.put("stats", stats_label(reply))
+    |> Map.put("skills", skills_label(reply, known))
   end
 
-  defp confidence(n) when is_number(n), do: n |> max(0.0) |> min(1.0) |> Kernel.*(1.0)
-  defp confidence(_), do: 0.0
+  defp field_label(field, label, known) do
+    value = label |> Map.get("value", "") |> to_string() |> String.trim() |> normalize(field)
+    known? = field == "name" or value in Known.ids(known, field)
+    confidence = if value != "" and known?, do: Label.confidence(label["confidence"]), else: 0.0
+    %Label{value: value, confidence: confidence}
+  end
+
+  defp normalize(value, "name"), do: value
+  defp normalize(value, _field), do: String.downcase(value)
+
+  defp stats_label(reply) do
+    value =
+      for %{"stat" => s, "value" => v} <- List.wrap(reply["stats"]),
+          s in @stats,
+          is_integer(v),
+          into: %{},
+          do: {s, v}
+
+    %Label{value: value, confidence: Label.confidence(reply["stats_confidence"])}
+  end
+
+  defp skills_label(reply, %Known{skills: skills}) do
+    value =
+      for %{"skill" => s, "level" => l} <- List.wrap(reply["skills"]),
+          MapSet.member?(skills, s),
+          is_integer(l) and l > 0,
+          into: %{},
+          do: {s, l}
+
+    %Label{value: value, confidence: Label.confidence(reply["skills_confidence"])}
+  end
+
+  defp questions(reply, []) do
+    reply["questions"]
+    |> List.wrap()
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.take(@max_questions)
+  end
+
+  defp questions(_reply, _answers), do: []
 
   # --- building ---------------------------------------------------------------------
 
-  defp apply_label(draft, %{value: value, confidence: c}, fun) when c >= @min_confidence do
+  defp apply_label(draft, %Label{value: value, confidence: c}, fun) when c >= @min_confidence do
     case fun.(draft, value) do
       {:ok, draft} -> draft
       {:error, _} -> draft
@@ -165,7 +159,7 @@ defmodule TalesForge.CharacterCreation.FromText do
 
   defp apply_label(draft, _label, _fun), do: draft
 
-  defp apply_stats(draft, %{value: wanted, confidence: c})
+  defp apply_stats(draft, %Label{value: wanted, confidence: c})
        when c >= @min_confidence and map_size(wanted) > 0 do
     %{"budget" => budget, "min" => lo, "max" => hi} = CC.options(draft.adventure_id).point_buy
     modifiers = CC.race_modifiers(draft)
@@ -206,7 +200,7 @@ defmodule TalesForge.CharacterCreation.FromText do
     end
   end
 
-  defp apply_skills(draft, %{value: wanted, confidence: c})
+  defp apply_skills(draft, %Label{value: wanted, confidence: c})
        when c >= @min_confidence and map_size(wanted) > 0 do
     free = CC.free_skills(draft)
     levels = Map.new(wanted, fn {s, l} -> {s, max(l, Map.get(free, s, 0))} end)
