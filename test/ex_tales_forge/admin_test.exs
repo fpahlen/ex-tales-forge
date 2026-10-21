@@ -151,20 +151,4 @@ defmodule TalesForge.AdminTest do
     assert Map.get(refreshed.runtime_state, "mood") != "broken"
     assert TalesForge.Characters.get_by_slug(session.id, "elara_voss")
   end
-
-  test "npc definitions are read from the pack files" do
-    [summary | _] = Admin.list_npc_definitions()
-    assert summary.file == "#{summary.id}.json"
-
-    json = Admin.npc_definition_json(summary.id)
-    assert json =~ summary.id
-    assert Admin.get_npc_definition!(summary.id)["id"] == summary.id
-
-    refute function_exported?(Admin, :save_npc_definition, 2)
-  end
-
-  test "get_npc_definition! rejects unknown ids and paths" do
-    assert_raise ArgumentError, fn -> Admin.get_npc_definition!("no_such_npc") end
-    assert_raise ArgumentError, fn -> Admin.get_npc_definition!("../npcs/marta_kellen") end
-  end
 end

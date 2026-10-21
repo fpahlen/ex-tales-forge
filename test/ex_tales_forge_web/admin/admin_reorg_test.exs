@@ -2,7 +2,7 @@ defmodule TalesForgeWeb.AdminLive.AdminReorgTest do
   @moduledoc """
   The admin area grouped by purpose (decision 2026-10-10): every old admin URL
   redirects to its new place (query and trailing slash kept, sign-in first),
-  the nav shows the groups with a collapsed Archive, and the admin home shows
+  the nav shows the groups, and the admin home shows
   one card per section.
   """
   use TalesForgeWeb.ConnCase, async: false
@@ -37,9 +37,7 @@ defmodule TalesForgeWeb.AdminLive.AdminReorgTest do
      "/admin/founders/surveys/founder-survey-3/results.md"},
     {"/admin/costs", "/admin/operate/costs"},
     {"/admin/oban", "/admin/operate/telemetry"},
-    {"/admin/oban/home", "/admin/operate/telemetry/home"},
-    {"/admin/npc-definitions", "/admin/archive/npc-definitions"},
-    {"/admin/npc-definitions/marta_kellen", "/admin/archive/npc-definitions/marta_kellen"}
+    {"/admin/oban/home", "/admin/operate/telemetry/home"}
   ]
 
   describe "old URLs" do
@@ -67,8 +65,7 @@ defmodule TalesForgeWeb.AdminLive.AdminReorgTest do
       for new <- [
             "/admin/play/sessions",
             "/admin/play/runs",
-            "/admin/operate/costs",
-            "/admin/archive/npc-definitions"
+            "/admin/operate/costs"
           ] do
         assert conn |> get(new) |> html_response(200), "#{new} is not a page"
       end
@@ -100,7 +97,7 @@ defmodule TalesForgeWeb.AdminLive.AdminReorgTest do
   describe "nav and home" do
     setup %{conn: conn}, do: {:ok, conn: log_in_admin(conn)}
 
-    test "the nav groups the pages by purpose, Archive collapsed", %{conn: conn} do
+    test "the nav groups the pages by purpose", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/play/sessions")
 
       for {group, label} <- [
@@ -117,25 +114,12 @@ defmodule TalesForgeWeb.AdminLive.AdminReorgTest do
       end
 
       assert has_element?(view, ~s(#admin-nav-play a[aria-current="page"]), "Game sessions")
-      assert has_element?(view, "#admin-nav-archive:not([open]) a", "NPC definitions")
-    end
-
-    test "an archived page opens the Archive and is marked current", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/archive/npc-definitions")
-
-      assert has_element?(
-               view,
-               ~s(#admin-nav-archive[open] a[aria-current="page"]),
-               "NPC definitions"
-             )
-
-      assert has_element?(view, "#admin-nav-menu > summary", "Archive · NPC definitions")
     end
 
     test "the home shows each section as a card with one line and its links", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin")
 
-      for section <- AdminSections.sections(), section.id != :archive do
+      for section <- AdminSections.sections() do
         assert has_element?(view, "#section-#{section.id} h3", section.title)
         assert has_element?(view, "#section-#{section.id} p", section.line)
 
@@ -143,7 +127,6 @@ defmodule TalesForgeWeb.AdminLive.AdminReorgTest do
             do: assert(has_element?(view, "#section-#{section.id} a", item.label))
       end
 
-      assert has_element?(view, "details#section-archive:not([open])", "NPC definitions")
       assert has_element?(view, "#at-a-glance", "Turns")
       assert has_element?(view, ~s(#section-operate a[target="_blank"]), "Logs (production)")
 

@@ -42,8 +42,6 @@ defmodule TalesForge.Online do
     "TalesForgeWeb.AdminLive.NpcLive.Show" => "NPCs",
     "TalesForgeWeb.AdminLive.TurnLive.Index" => "Turns",
     "TalesForgeWeb.AdminLive.CostsLive" => "Costs",
-    "TalesForgeWeb.AdminLive.NpcDefinitionLive.Index" => "NPC definitions",
-    "TalesForgeWeb.AdminLive.NpcDefinitionLive.Show" => "NPC definitions",
     "TalesForgeWeb.AdminLive.PlaytestLive.Index" => "Playtest runs",
     "TalesForgeWeb.AdminLive.PlaytestLive.Show" => "Playtest runs",
     "TalesForgeWeb.AdminLive.DecisionLive.Index" => "Decisions",

@@ -201,41 +201,6 @@ defmodule TalesForge.Admin do
     |> Repo.one!()
   end
 
-  @doc """
-  Summaries of the NPC definition files in `priv/npcs`. The admin pages show
-  these read-only; the files are edited in git.
-  """
-  @spec list_npc_definitions() :: [map()]
-  def list_npc_definitions do
-    npc_dir()
-    |> File.ls!()
-    |> Enum.filter(&String.ends_with?(&1, ".json"))
-    |> Enum.map(&load_npc_definition_summary/1)
-    |> Enum.sort_by(& &1.id)
-  end
-
-  @doc "The decoded NPC definition file for `npc_id`; raises `ArgumentError` if there is none."
-  @spec get_npc_definition!(String.t()) :: map()
-  def get_npc_definition!(npc_id) do
-    path = npc_definition_path(npc_id)
-
-    if valid_npc_id?(npc_id) and File.exists?(path) do
-      path
-      |> File.read!()
-      |> Jason.decode!()
-    else
-      raise ArgumentError, "NPC definition '#{npc_id}' not found"
-    end
-  end
-
-  @doc "The NPC definition file for `npc_id` (`get_npc_definition!/1`) as pretty JSON."
-  @spec npc_definition_json(String.t()) :: String.t()
-  def npc_definition_json(npc_id) do
-    npc_id
-    |> get_npc_definition!()
-    |> Jason.encode!(pretty: true)
-  end
-
   @doc "`data` as pretty JSON, for the admin JSON editors."
   @spec encode_json(term()) :: String.t()
   def encode_json(data) do
@@ -272,27 +237,4 @@ defmodule TalesForge.Admin do
     world_state = Map.get(session, :world_state, %{}) || %{}
     get_in(world_state, ["character", "name"]) || "—"
   end
-
-  defp load_npc_definition_summary(file) do
-    definition = npc_dir() |> Path.join(file) |> File.read!() |> Jason.decode!()
-    id = Map.get(definition, "id", Path.rootname(file))
-
-    %{
-      id: id,
-      name: Map.get(definition, "name", id),
-      role: Map.get(definition, "role", "—"),
-      default_location_id: Map.get(definition, "default_location_id", "—"),
-      file: file
-    }
-  end
-
-  defp npc_definition_path(npc_id) do
-    Path.join(npc_dir(), "#{npc_id}.json")
-  end
-
-  # Slugs only, so a crafted URL can't read files outside priv/npcs.
-  defp valid_npc_id?(npc_id), do: is_binary(npc_id) and npc_id =~ ~r/\A[a-z0-9_]+\z/
-
-  # Resolved at runtime (not a module attribute): in a release priv is not at its build path.
-  defp npc_dir, do: Path.join(:code.priv_dir(:ex_tales_forge), "npcs")
 end
