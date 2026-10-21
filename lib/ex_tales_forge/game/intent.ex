@@ -24,6 +24,7 @@ defmodule TalesForge.Game.Intent do
   alias TalesForge.Game.WorldClock
   alias TalesForge.Locations.Destination
   alias TalesForge.Locations.Exits
+  alias TalesForge.Locations.NoMove
 
   @no_skill_types ~w(move wait train pickup drop buy sell trade spend)a
   # Scene-change fix, 2026-10-07: more ways to say "I go
@@ -222,7 +223,7 @@ defmodule TalesForge.Game.Intent do
 
     case Movement.route(world, context["location_id"], id) do
       {:ok, stop} -> %SingleAction{action | target: stop}
-      :error -> Destination.no_move(%SingleAction{action | target: id}, world)
+      :error -> NoMove.place(%SingleAction{action | target: id}, world)
     end
   end
 
@@ -236,7 +237,7 @@ defmodule TalesForge.Game.Intent do
 
       # In a room with a grid, words for nothing may be a spot: the walk tells.
       {{:unknown, phrase}, resolved} when resolved != :error or not is_map_key(context, "spots") ->
-        Destination.no_move(%SingleAction{action | target: phrase}, movement_world(context))
+        NoMove.place(%SingleAction{action | target: phrase}, movement_world(context))
 
       {_said, :error} ->
         not_a_place(action, context)
@@ -246,10 +247,10 @@ defmodule TalesForge.Game.Intent do
   # A move to no place stops being a move; with a grid (`"spots"`,
   # LOCATION_GRID) it leaves through the door or walks in the room
   # (`TalesForge.Locations.Exits.no_place/2`); without, the GM is told there is no
-  # such place (`TalesForge.Locations.Destination.no_move/2`).
+  # such place (`TalesForge.Locations.NoMove.place/2`).
   defp not_a_place(action, %{"spots" => _spots} = context), do: Exits.no_place(action, context)
 
-  defp not_a_place(action, context), do: Destination.no_move(action, movement_world(context))
+  defp not_a_place(action, context), do: NoMove.place(action, movement_world(context))
 
   defp movement_world(context) do
     %{"locations" => Map.get(context, "places") || %{}}
