@@ -673,25 +673,22 @@ defmodule TalesForge.Game.Intent do
 
   defp maybe_put_split(params, _raw_action, _on), do: params
 
+  # The parameter that names the target of an inventory action, ahead of the
+  # person the text points at. Other actions aim at the place, the person or
+  # the fixture.
+  @target_keys %{
+    drop: "item_id",
+    pickup: "item_id",
+    buy: "npc_id",
+    sell: nil,
+    spend: nil,
+    train: nil
+  }
+
   defp inventory_target(%Clues{npc: target_npc} = clues, action_type, parameters) do
-    case action_type do
-      type when type in [:drop, :pickup] ->
-        {Map.get(parameters, "item_id") || target_npc, parameters}
-
-      :buy ->
-        {Map.get(parameters, "npc_id") || target_npc, parameters}
-
-      :sell ->
-        {target_npc, parameters}
-
-      :spend ->
-        {target_npc, parameters}
-
-      :train ->
-        {target_npc, parameters}
-
-      _ ->
-        {clues.location || target_npc || clues.fixture, parameters}
+    case Map.fetch(@target_keys, action_type) do
+      {:ok, key} -> {Map.get(parameters, key) || target_npc, parameters}
+      :error -> {clues.location || target_npc || clues.fixture, parameters}
     end
   end
 
