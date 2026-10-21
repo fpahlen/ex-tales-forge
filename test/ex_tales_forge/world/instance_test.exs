@@ -5,9 +5,9 @@ defmodule TalesForge.World.InstanceTest do
 
   import Ecto.Query
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
   alias TalesForge.Schemas.Turn
@@ -176,10 +176,10 @@ defmodule TalesForge.World.InstanceTest do
     {:ok, session} = GameSessions.create_session(%{name: "Initiative After Commit"})
 
     # Marta's concern has waited long enough, so she speaks up this turn.
-    marta = NPC.get_person(session.id, "marta_kellen")
+    marta = Rows.get(session.id, "marta_kellen")
     concern = Map.put(marta.runtime_state["current_concern"], "priority", 8)
 
-    NPC.put_state!(
+    Rows.update!(
       marta,
       Map.merge(marta.runtime_state, %{"current_concern" => concern, "concern_wait_ticks" => 4})
     )
@@ -192,7 +192,7 @@ defmodule TalesForge.World.InstanceTest do
     assert initiative.text =~ "ledger"
 
     # Committed: the speak-up is stored before anyone hears it.
-    assert NPC.get_person(session.id, "marta_kellen").runtime_state["initiative_emitted"]
+    assert Rows.get(session.id, "marta_kellen").runtime_state["initiative_emitted"]
   end
 
   # The turn's broadcasts, in the order they came.

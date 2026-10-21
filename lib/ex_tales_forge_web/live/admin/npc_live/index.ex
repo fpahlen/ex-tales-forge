@@ -4,13 +4,14 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Index do
   """
 
   use TalesForgeWeb, :live_view
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Admin
 
   @impl true
   def mount(%{"id" => session_id}, _session, socket) do
     session = Admin.get_session!(session_id)
-    npcs = Admin.list_npcs(session_id)
+    npcs = Rows.list(session_id)
 
     {:ok,
      socket

@@ -7,12 +7,12 @@ defmodule TalesForge.Game.TinjacksTest do
   Rusk and Cobb come to the player.
   """
   use TalesForge.DataCase, async: false
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Fronts
   alias TalesForge.Game.{Events, Pack, WorldSim}
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.SessionEvent
 
@@ -298,7 +298,7 @@ defmodule TalesForge.Game.TinjacksTest do
 
       assert session.world_state["features"] == @features
       assert Fronts.get_instance(session.id, "tinjacks")
-      assert NPC.get_person(session.id, "rusk").runtime_state["location_id"] == "old_adit"
+      assert Rows.get(session.id, "rusk").runtime_state["location_id"] == "old_adit"
 
       assert {:ok, _} =
                GameSessions.submit_message(session.id, "I wait by the fire for two hours.")
@@ -307,7 +307,7 @@ defmodule TalesForge.Game.TinjacksTest do
       assert world["location_id"] == "valley_inn"
       assert "rusk" in world["present_npcs"] and "cobb" in world["present_npcs"]
       assert Enum.any?(world["public_facts"], &(&1["id"] == "tinjacks_toll"))
-      assert NPC.get_person(session.id, "rusk").runtime_state["location_id"] == "valley_inn"
+      assert Rows.get(session.id, "rusk").runtime_state["location_id"] == "valley_inn"
     end
 
     test "a player who is out when the toll comes due finds Rusk and Cobb at their side" do
@@ -335,7 +335,7 @@ defmodule TalesForge.Game.TinjacksTest do
       assert "tinjacks_seek" in ids and "tinjacks_toll_taken" in ids
       refute "tinjacks_toll" in ids
 
-      memories = NPC.get_person(session.id, "innkeep").runtime_state["memories"]
+      memories = Rows.get(session.id, "innkeep").runtime_state["memories"]
       assert Enum.any?(memories, &(&1["who"] == "rusk"))
     end
 
@@ -389,7 +389,7 @@ defmodule TalesForge.Game.TinjacksTest do
 
       refute Map.has_key?(session.world_state, "features")
       refute Fronts.get_instance(session.id, "tinjacks")
-      refute NPC.get_person(session.id, "rusk")
+      refute Rows.get(session.id, "rusk")
     end
   end
 end

@@ -8,13 +8,13 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
   import ExUnit.CaptureLog
   import Ecto.Query
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Config
   alias TalesForge.Game.{Context, Intent, NpcReactions, Prompts, TurnProcessor}
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.Turn.Intentions
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Schemas.AICall
 
@@ -83,7 +83,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
   end
 
   test "Brenna has the barkeep OCEAN scores (rework 2026-10-07)", %{session: session} do
-    brenna = NPC.get_person(session.id, "innkeep")
+    brenna = Rows.get(session.id, "innkeep")
 
     assert get_in(brenna.personality, ["motivations", "personality_traits"]) == %{
              "openness" => 6,
@@ -97,7 +97,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
   test "Jev input is player-visible: OCEAN, mood, last narration, words and outcome", %{
     session: session
   } do
-    brenna = NPC.get_person(session.id, "innkeep")
+    brenna = Rows.get(session.id, "innkeep")
     mech = %MechanicalResolution{skill: "persuasion", outcome: "failure"}
     scene = NpcReactions.situation(session.id, "I tell her I'm the Guild's new assessor", mech)
     state = NpcReactions.state(brenna, nil, scene)

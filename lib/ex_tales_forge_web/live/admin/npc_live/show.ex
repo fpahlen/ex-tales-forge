@@ -11,6 +11,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
   use TalesForgeWeb, :live_view
 
   import TalesForgeWeb.AdminComponents
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Admin
 
@@ -22,7 +23,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
     session = Admin.get_session!(session_id)
 
     # The URL carries the NPC's slug (npc_id), unique per session.
-    case Admin.get_npc(session.id, npc_id) do
+    case Rows.get(session.id, npc_id) do
       nil ->
         {:ok,
          socket
@@ -52,7 +53,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
 
   # A stale copy: show the row as it is now.
   defp saved(%{assigns: %{session: session, npc: npc}} = socket, {:error, :stale}),
-    do: socket |> assign_npc(Admin.get_npc(session.id, npc.npc_id)) |> put_flash(:error, @stale)
+    do: socket |> assign_npc(Rows.get(session.id, npc.npc_id)) |> put_flash(:error, @stale)
 
   defp saved(socket, {:error, reason}), do: put_flash(socket, :error, reason)
 

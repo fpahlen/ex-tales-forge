@@ -10,10 +10,10 @@ defmodule Mix.Tasks.E2e.Smoke do
   use Mix.Task
 
   import Ecto.Query
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.GameSessions
   alias TalesForge.LLM
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Scene, Turn}
 
@@ -329,7 +329,7 @@ defmodule Mix.Tasks.E2e.Smoke do
   end
 
   defp evaluate_npc_expect(session_id, :marta_memory) do
-    case NPC.get_person(session_id, "marta_kellen") do
+    case Rows.get(session_id, "marta_kellen") do
       nil ->
         {["marta_kellen missing"], %{}}
 

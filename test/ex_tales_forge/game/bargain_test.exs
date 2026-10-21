@@ -1,5 +1,6 @@
 defmodule TalesForge.Game.BargainTest do
   use TalesForge.DataCase, async: false
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Game.{ActionHandler, Inventory}
   alias TalesForge.Game.Turn.Board
@@ -21,9 +22,9 @@ defmodule TalesForge.Game.BargainTest do
   end
 
   defp set_runtime(session_id, changes) do
-    inst = NPC.get_person(session_id, "innkeep")
+    inst = Rows.get(session_id, "innkeep")
 
-    NPC.put_state!(inst, Map.merge(inst.runtime_state, changes))
+    Rows.update!(inst, Map.merge(inst.runtime_state, changes))
   end
 
   # Brenna's stock, written the way a trade writes it (only a trade moves goods).
@@ -90,6 +91,6 @@ defmodule TalesForge.Game.BargainTest do
     board = buy(session, "I buy the rope", catalogue_v2: true)
     assert [%{"status" => "rejected", "code" => "npc_refused"}] = board.outcome["actions"]
     assert copper(board) == Inventory.coin_total_copper(session.world_state["character"]["coins"])
-    assert %NPC.Person{} = NPC.get_person(session.id, "innkeep")
+    assert %NPC.Person{} = Rows.get(session.id, "innkeep")
   end
 end
