@@ -65,9 +65,9 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
     paths = %{
       "/admin/founders/canon-review/:id" => "/admin/founders/canon-review/#{session.id}",
       "/admin/play/sessions/:id" => "/admin/play/sessions/#{session.id}",
-      "/admin/play/sessions/:id/npcs" => "/admin/play/sessions/#{session.id}/npcs",
-      "/admin/play/sessions/:id/npcs/:npc_id" =>
-        "/admin/play/sessions/#{session.id}/npcs/#{npc.npc_id}",
+      "/admin/play/sessions/:id/characters" => "/admin/play/sessions/#{session.id}/characters",
+      "/admin/play/sessions/:id/characters/:character_id" =>
+        "/admin/play/sessions/#{session.id}/characters/#{npc.npc_id}",
       "/admin/play/sessions/:id/turns" => "/admin/play/sessions/#{session.id}/turns",
       "/admin/play/runs/:id" => "/admin/play/runs/#{run.id}",
       "/admin/founders/surveys/:id" => "/admin/founders/surveys/founder-survey-3",

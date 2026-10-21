@@ -1,4 +1,4 @@
-defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
+defmodule TalesForgeWeb.AdminLive.CharacterLive.Show do
   @moduledoc """
   Admin: one NPC in a session (its character row), with its runtime state to edit.
 
@@ -19,7 +19,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
            "The page now shows the current state; make your edit again."
 
   @impl true
-  def mount(%{"id" => session_id, "npc_id" => npc_id}, _session, socket) do
+  def mount(%{"id" => session_id, "character_id" => npc_id}, _session, socket) do
     session = Admin.get_session!(session_id)
 
     # The URL carries the NPC's slug (npc_id), unique per session.
@@ -27,8 +27,8 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
       nil ->
         {:ok,
          socket
-         |> put_flash(:error, "No NPC #{inspect(npc_id)} in this session.")
-         |> push_navigate(to: ~p"/admin/play/sessions/#{session.id}/npcs")}
+         |> put_flash(:error, "No character #{inspect(npc_id)} in this session.")
+         |> push_navigate(to: ~p"/admin/play/sessions/#{session.id}/characters")}
 
       npc ->
         {:ok, socket |> assign(:session, session) |> assign_npc(npc)}
@@ -63,10 +63,10 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
     <Layouts.admin socket={@socket} flash={@flash} active="sessions">
       <header class="space-y-2">
         <.link
-          navigate={~p"/admin/play/sessions/#{@session.id}/npcs"}
+          navigate={~p"/admin/play/sessions/#{@session.id}/characters"}
           class="text-sm text-[var(--paper-accent)]"
         >
-          ← NPCs
+          ← Characters
         </.link>
         <h2 class="font-serif text-2xl font-bold text-[var(--paper-ink)]">{@npc.npc_id}</h2>
         <p id="npc-session" class="text-sm text-[var(--paper-ink)]">
