@@ -132,25 +132,33 @@ defmodule TalesForge.World.Prices do
   # cost less than the amount, the smallest set of priced things here that
   # contains them and costs exactly that amount is used; when they cost more,
   # the named items that add up to it.
+  defp by_amount(mentioned, _facts, nil), do: mentioned
+
   defp by_amount(mentioned, facts, amount) do
-    cond do
-      is_nil(amount) or total(mentioned) == amount ->
-        mentioned
-
-      total(mentioned) < amount ->
-        facts
-        |> combinations(@max_items)
-        |> Enum.filter(&(total(&1) == amount and Enum.all?(mentioned, fn m -> m in &1 end)))
-        |> Enum.min_by(&length/1, fn -> mentioned end)
-
-      true ->
-        # "Two copper it is for the ale, and the stew sounds good": the ale.
-        mentioned
-        |> combinations(@max_items)
-        |> Enum.filter(&(&1 != [] and total(&1) == amount))
-        |> Enum.max_by(&length/1, fn -> mentioned end)
+    case total(mentioned) do
+      ^amount -> mentioned
+      less when less < amount -> fill_up(mentioned, facts, amount)
+      _more -> narrow_down(mentioned, amount)
     end
   end
+
+  defp fill_up(mentioned, facts, amount) do
+    facts
+    |> adding_to(amount)
+    |> Enum.filter(fn set -> Enum.all?(mentioned, &(&1 in set)) end)
+    |> Enum.min_by(&length/1, fn -> mentioned end)
+  end
+
+  # "Two copper it is for the ale, and the stew sounds good": the ale.
+  defp narrow_down(mentioned, amount) do
+    mentioned
+    |> adding_to(amount)
+    |> Enum.reject(&(&1 == []))
+    |> Enum.max_by(&length/1, fn -> mentioned end)
+  end
+
+  defp adding_to(facts, amount),
+    do: facts |> combinations(@max_items) |> Enum.filter(&(total(&1) == amount))
 
   defp total(facts), do: facts |> Enum.map(& &1["copper"]) |> Enum.sum()
 
@@ -205,12 +213,7 @@ defmodule TalesForge.World.Prices do
   defp primary(%{action: %{} = a}), do: a
   defp primary(_), do: %{action_type: nil, parameters: %{}}
 
-  defp action_type(player_action) do
-    case primary(player_action) do
-      %{action_type: t} -> t
-      _ -> nil
-    end
-  end
+  defp action_type(player_action), do: Map.get(primary(player_action), :action_type)
 
   defp coins(world),
     do: Inventory.coin_total_copper(get_in(world || %{}, ["character", "coins"]) || %{})

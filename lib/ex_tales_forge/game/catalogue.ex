@@ -139,7 +139,7 @@ defmodule TalesForge.Game.Catalogue do
   end
 
   def apply(world, %Act{handler: %{handler: "equip", target: target}, text: text}) do
-    items = Inventory.normalize_items(get_in(world, ["character", "inventory"]) || [])
+    items = carried(world)
 
     case Inventory.resolve_item_id(target || "", items) || item_in_text(text, items) do
       nil ->
@@ -176,25 +176,29 @@ defmodule TalesForge.Game.Catalogue do
   end
 
   defp give(world, npc_id, text) do
-    items = Inventory.normalize_items(get_in(world, ["character", "inventory"]) || [])
-    coins = get_in(world, ["character", "coins"]) || %{}
+    items = carried(world)
 
     case {item_in_text(text, items), Inventory.parse_copper_hint(text)} do
       {item_id, _} when is_binary(item_id) ->
         {put_in(world, ["character", "inventory"], Inventory.remove_item(items, item_id)),
-         {:ok, %{applied: [%{"kind" => "give", "item_id" => item_id, "to" => npc_id}]}}}
+         given(%{"item_id" => item_id}, npc_id)}
 
       {nil, amount} when is_integer(amount) and amount > 0 ->
-        if Inventory.coin_total_copper(coins) >= amount,
-          do:
-            {update_coins(world, -amount),
-             {:ok, %{applied: [%{"kind" => "give", "copper" => amount, "to" => npc_id}]}}},
-          else: {world, {:error, "The character does not have #{amount}c."}}
+        give_coin(world, npc_id, amount)
 
       _ ->
         {world, {:error, "The character does not carry that."}}
     end
   end
+
+  defp give_coin(world, npc_id, amount) do
+    if Inventory.coin_total_copper(purse(world)) >= amount,
+      do: {update_coins(world, -amount), given(%{"copper" => amount}, npc_id)},
+      else: {world, {:error, "The character does not have #{amount}c."}}
+  end
+
+  defp given(detail, npc_id),
+    do: {:ok, %{applied: [Map.merge(%{"kind" => "give", "to" => npc_id}, detail)]}}
 
   defp item_in_text(text, items) do
     words = text |> String.downcase()
@@ -205,8 +209,13 @@ defmodule TalesForge.Game.Catalogue do
     end)
   end
 
+  defp carried(world),
+    do: Inventory.normalize_items(get_in(world, ["character", "inventory"]) || [])
+
+  defp purse(world), do: get_in(world, ["character", "coins"]) || %{}
+
   defp update_coins(world, delta) do
-    coins = get_in(world, ["character", "coins"]) || %{}
+    coins = purse(world)
 
     updated =
       if delta >= 0,
