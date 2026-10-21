@@ -3,8 +3,8 @@ defmodule TalesForge.Game.FirstMeetingTest do
   alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Game.FirstMeeting
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 
@@ -74,7 +74,7 @@ defmodule TalesForge.Game.FirstMeetingTest do
       for {id, want} <- @fixture["expect"], do: assert(to_string(marks[id]) == want)
 
       gm =
-        NPC.format_gm_sections(session.id, present,
+        Roster.format_gm_sections(session.id, present,
           dialogue_memory: @fixture["npc_memory"],
           character: @fixture["character"],
           first_meeting: true
@@ -86,20 +86,22 @@ defmodule TalesForge.Game.FirstMeetingTest do
       assert gm =~ ~s(No "back again")
       assert gm =~ "Hooks are things an NPC can offer or say now"
 
-      off = NPC.format_gm_sections(session.id, present, character: @fixture["character"])
+      off = Roster.format_gm_sections(session.id, present, character: @fixture["character"])
       refute off =~ "meeting"
     end
 
     test "after Mags has a memory of Ezzor, she has met him", %{session: session} do
       :ok =
-        NPC.record_memory(%NPC.Note{
+        Roster.record_memory(%Roster.Note{
           session_id: session.id,
           npc_id: "drover",
           summary: "Ezzor asked about the stolen salt.",
           tick: 19
         })
 
-      gm = NPC.format_gm_sections(session.id, ["drover"], character: "Ezzor", first_meeting: true)
+      gm =
+        Roster.format_gm_sections(session.id, ["drover"], character: "Ezzor", first_meeting: true)
+
       assert gm =~ ~s("meeting": "has_met")
       refute gm =~ "has never met the character"
     end

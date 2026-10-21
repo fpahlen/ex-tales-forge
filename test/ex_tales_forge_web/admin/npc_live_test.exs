@@ -47,7 +47,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
     {:ok, view, _html} = live(conn, ~p"/admin/play/sessions/#{session.id}/npcs/#{npc.npc_id}")
 
     # A turn is played while the page is open.
-    {:ok, _} = TalesForge.NPC.bump_relationship(session.id, npc.npc_id, 0.3)
+    {:ok, _} = TalesForge.GameCharacter.Roster.bump_relationship(session.id, npc.npc_id, 0.3)
 
     html =
       view

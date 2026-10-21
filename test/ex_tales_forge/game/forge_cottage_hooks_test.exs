@@ -10,8 +10,8 @@ defmodule TalesForge.Game.ForgeCottageHooksTest do
   use TalesForge.DataCase, async: false
 
   alias TalesForge.Game.{Context, Pack, Perception}
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
@@ -103,7 +103,7 @@ defmodule TalesForge.Game.ForgeCottageHooksTest do
       assert per_turn =~ "## Perceived facts"
       assert per_turn =~ "Brask's forge off the Market Square rang past midnight"
       assert per_turn =~ "Old Maude, the herb-wife"
-      assert NPC.format_gm_sections(session.id, ["innkeep"]) =~ "Hilde Brask's forge"
+      assert Roster.format_gm_sections(session.id, ["innkeep"]) =~ "Hilde Brask's forge"
     end
   end
 end

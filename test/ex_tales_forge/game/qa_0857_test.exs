@@ -97,7 +97,7 @@ defmodule TalesForge.Game.Qa0857Test do
     end
 
     test "(e) a world refresh keeps the minor foes and the NPC wounds", %{session: session} do
-      {:ok, plain} = TalesForge.NPC.refresh_session_world_state(session)
+      {:ok, plain} = TalesForge.GameCharacter.Roster.refresh_session_world_state(session)
       cast = TalesForge.Characters.cast(session.id)
       [npc_id | _] = cast |> Map.keys() |> Enum.sort()
       foe = Combat.minor_foe({"foe_miner", "a miner"}, Defaults.rules("tin_valley"), 7)
@@ -113,7 +113,7 @@ defmodule TalesForge.Game.Qa0857Test do
         |> TalesForge.Characters.write_multi(cast)
         |> TalesForge.Repo.transaction()
 
-      {:ok, refreshed} = TalesForge.NPC.refresh_session_world_state(plain)
+      {:ok, refreshed} = TalesForge.GameCharacter.Roster.refresh_session_world_state(plain)
       reloaded = TalesForge.Characters.cast(session.id)
 
       refute Map.has_key?(refreshed.world_state, "npc_state")

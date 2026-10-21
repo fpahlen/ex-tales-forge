@@ -18,8 +18,8 @@ defmodule TalesForge.Game.SceneChangeTest do
   doctest TalesForge.Game.Intent, only: [resolve_move_target: 2]
 
   alias TalesForge.Game.{ActionHandler, Context, Intent, Movement, Prompts, TurnProcessor}
-  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.GameSessions
   alias TalesForge.Prompt.Assemble
   alias TalesForge.Schemas.GameSession
@@ -57,7 +57,7 @@ defmodule TalesForge.Game.SceneChangeTest do
       |> GameSession.changeset(%{world_state: Map.put(world, "location_id", location_id)})
       |> save_session!()
 
-    {:ok, session} = TalesForge.NPC.refresh_session_world_state(session)
+    {:ok, session} = TalesForge.GameCharacter.Roster.refresh_session_world_state(session)
     session
   end
 

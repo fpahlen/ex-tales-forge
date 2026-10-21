@@ -6,8 +6,8 @@ defmodule TalesForge.Game.PackTest do
   alias TalesForge.Game.Fronts, as: FrontDefs
   alias TalesForge.Game.Pack
   alias TalesForge.Game.World
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.FrontInstance
 
@@ -202,7 +202,7 @@ defmodule TalesForge.Game.PackTest do
       refute Map.has_key?(caldern.runtime_state, "skills")
       refute Map.has_key?(caldern.runtime_state, "fee_copper")
 
-      gm = NPC.format_gm_sections(session.id, ["innkeep"])
+      gm = Roster.format_gm_sections(session.id, ["innkeep"])
       refute gm =~ "fee_copper"
       refute gm =~ ~s("skills")
 

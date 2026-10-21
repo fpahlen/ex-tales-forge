@@ -15,8 +15,8 @@ defmodule TalesForge.Game.Turn.Intentions do
   """
 
   alias TalesForge.Game.Cast
+  alias TalesForge.GameCharacter.{Agency, Roster}
   alias TalesForge.Intention
-  alias TalesForge.NPC
   alias TalesForge.NPCInitiative
 
   @doc """
@@ -56,7 +56,7 @@ defmodule TalesForge.Game.Turn.Intentions do
   end
 
   defp apply_one(session_id, %Intention{character_id: id, action: {:wait, delta}}, {out, ready}) do
-    case NPC.adjust_concern(session_id, id, delta) do
+    case Agency.adjust_concern(session_id, id, delta) do
       {:ok, %{initiative_pending: true}} -> {out, MapSet.put(ready, id)}
       _ -> {out, MapSet.delete(ready, id)}
     end
@@ -73,7 +73,7 @@ defmodule TalesForge.Game.Turn.Intentions do
 
   defp apply_one(session_id, %Intention{action: {:remember, summary}} = i, acc) do
     :ok =
-      NPC.record_memory(%NPC.Note{
+      Roster.record_memory(%Roster.Note{
         session_id: session_id,
         npc_id: i.character_id,
         summary: summary,
@@ -84,7 +84,7 @@ defmodule TalesForge.Game.Turn.Intentions do
   end
 
   defp apply_one(session_id, %Intention{character_id: id, action: {:warm, delta}}, acc) do
-    {:ok, _score} = NPC.bump_relationship(session_id, id, delta)
+    {:ok, _score} = Roster.bump_relationship(session_id, id, delta)
     acc
   end
 end

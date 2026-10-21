@@ -11,8 +11,8 @@ defmodule TalesForge.Game.SceneProcessor do
   alias TalesForge.Game.Context
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.World
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.LLM
-  alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
@@ -127,7 +127,7 @@ defmodule TalesForge.Game.SceneProcessor do
       |> Map.put("location_name", scene.location_name)
 
     with {:ok, session} <- persist_world_state(session, world_state),
-         {:ok, session} <- NPC.refresh_session_world_state(session) do
+         {:ok, session} <- Roster.refresh_session_world_state(session) do
       payload = %{
         session_id: session.id,
         location_id: scene.location_id,

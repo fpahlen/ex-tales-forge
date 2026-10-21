@@ -16,8 +16,8 @@ defmodule TalesForge.Game.TradeTest do
   alias TalesForge.Game.Schemas.{GMStructuredResponse, HandlerResult, SingleAction}
   alias TalesForge.Game.Turn.{Adapters, Board}
   alias TalesForge.GameCharacter
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession}
 
@@ -129,7 +129,7 @@ defmodule TalesForge.Game.TradeTest do
 
       {:ok, session} = GameSessions.create_session(%{name: "Trade", adventure_id: "tin_valley"})
       session = GameSessions.get_session!(session.id)
-      %{"innkeep" => brenna, "smith" => hilde} = NPC.traders(session.id, ["innkeep", "smith"])
+      %{"innkeep" => brenna, "smith" => hilde} = Roster.traders(session.id, ["innkeep", "smith"])
 
       assert Inventory.item_quantity(brenna.inventory, "ale_mug") == 72
       assert copper(brenna) == 1000
@@ -328,7 +328,7 @@ defmodule TalesForge.Game.TradeTest do
     }
 
   defp wealth(%GameSession{id: id, world_state: world}, npc_id) do
-    %{^npc_id => trader} = NPC.traders(id, [npc_id])
+    %{^npc_id => trader} = Roster.traders(id, [npc_id])
     %{player: world["character"], trader: trader}
   end
 

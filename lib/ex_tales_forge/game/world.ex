@@ -3,7 +3,7 @@ defmodule TalesForge.Game.World do
   Authored world seed for Crossroads Hamlet (Phase 1/2 transition).
 
   Hardcoded defaults + helpers for the Crossroads world. New sessions get
-  their NPCs via NPC.seed_session (from the priv/npcs files) and the player
+  their NPCs via `TalesForge.GameCharacter.Seeding.seed_session/1` (from the priv/npcs files) and the player
   character from the pack file `priv/adventures/crossroads_ledger/characters/`.
   """
 

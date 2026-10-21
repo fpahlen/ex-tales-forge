@@ -21,8 +21,8 @@ defmodule TalesForge.Game.PromptGoldenTest do
   alias TalesForge.Game.Context
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction, SingleAction}
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
 
   @dir Path.expand("../../fixtures/prompts", __DIR__)
@@ -162,7 +162,7 @@ defmodule TalesForge.Game.PromptGoldenTest do
       {"world_state.character", Jason.encode!(session.world_state["character"], pretty: true)},
       {"intent context",
        session |> Context.build_intent_context() |> Context.format_intent_context()},
-      {"npc gm sections", NPC.format_gm_sections(session.id, present)},
+      {"npc gm sections", Roster.format_gm_sections(session.id, present)},
       {"scene messages", messages(Assemble.scene_messages(context))},
       {"gm turn 1", messages(gm_messages(context, 1, "look around"))},
       {"gm turn 4", messages(gm_messages(context, 4, "ask about the road"))}

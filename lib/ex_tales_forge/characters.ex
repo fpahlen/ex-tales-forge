@@ -12,12 +12,12 @@ defmodule TalesForge.Characters do
   The GM's characters are the session's cast (`cast/1`,
   `TalesForge.Game.Cast`; refactor step 10f PR 4): their wounds, vitality
   and gut reaction live on their rows only, and a minor foe is a row of its
-  own. A pack NPC's row is its only store (step 10f PR 5): `TalesForge.NPC`
+  own. A pack NPC's row is its only store (step 10f PR 5): `TalesForge.GameCharacter.Roster`
   writes its place, mood, stock, relationship, runtime and memories onto
   the row (`TalesForge.GameCharacter.Rows`), in the transaction of its caller.
 
     * `seed_session/2` writes the player character's row when a session is
-      created, after `TalesForge.NPC.seed_session/1` has written the NPCs'.
+      created, after `TalesForge.GameCharacter.Seeding.seed_session/1` has written the NPCs'.
     * `write_multi/2` is the characters step of the turn Multi (and of the
       admin world-state edit): it writes the player character and the cast
       (wounds, reactions, minor foes) onto the rows, and each NPC's
@@ -42,8 +42,7 @@ defmodule TalesForge.Characters do
   alias TalesForge.Game.{Cast, Pack}
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameCharacter
-  alias TalesForge.GameCharacter.Person
-  alias TalesForge.NPC
+  alias TalesForge.GameCharacter.{Person, Roster}
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, GameSession, PlaytestRun}
 
@@ -126,7 +125,7 @@ defmodule TalesForge.Characters do
 
   @doc """
   The session's cast (`TalesForge.Game.Cast`): every GM character from its
-  row (controller `gm`), a pack NPC as `TalesForge.NPC.cast_member/2` has
+  row (controller `gm`), a pack NPC as `TalesForge.GameCharacter.Roster.cast_member/2` has
   it (name and role from its definition, mood `"neutral"` when unset, its
   current concern). A minor foe is a row of its own.
   """
@@ -141,7 +140,7 @@ defmodule TalesForge.Characters do
   end
 
   defp cast_member(%Character{origin: %{"source" => "pack"}} = row),
-    do: row |> Person.from_row() |> NPC.cast_member(GameCharacter.from_schema(row))
+    do: row |> Person.from_row() |> Roster.cast_member(GameCharacter.from_schema(row))
 
   defp cast_member(%Character{} = row), do: GameCharacter.from_schema(row)
 

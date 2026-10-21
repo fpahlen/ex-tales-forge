@@ -8,8 +8,7 @@ defmodule TalesForge.Admin do
   require Logger
 
   alias TalesForge.Characters
-  alias TalesForge.GameCharacter.{Person, Rows}
-  alias TalesForge.NPC
+  alias TalesForge.GameCharacter.{Person, Roster, Rows, Seeding}
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession, Scene, Turn}
 
@@ -139,9 +138,9 @@ defmodule TalesForge.Admin do
 
     # For seed/refresh we need the Ecto struct or world_state; fetch fresh
     ecto_session = get_session!(id)
-    :ok = NPC.seed_session(ecto_session)
+    :ok = Seeding.seed_session(ecto_session)
 
-    case NPC.refresh_session_world_state(ecto_session) do
+    case Roster.refresh_session_world_state(ecto_session) do
       {:ok, refreshed} -> {:ok, refreshed}
       error -> error
     end

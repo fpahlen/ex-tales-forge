@@ -35,9 +35,9 @@ defmodule TalesForge.Game.Turn.Store do
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.Turn.Intentions
+  alias TalesForge.GameCharacter.{Agency, Roster}
   alias TalesForge.GMReasoning
   alias TalesForge.LLM
-  alias TalesForge.NPC
   alias TalesForge.NPCSignals
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent}
@@ -178,7 +178,7 @@ defmodule TalesForge.Game.Turn.Store do
     multi
     |> insert_events(session.id, ctx.events)
     |> Fronts.persist_tick_multi(session.id, ctx.sim)
-    |> NPC.persist_tick_multi(session.id, ctx.sim)
+    |> Agency.persist_tick_multi(session.id, ctx.sim)
     |> npc_gm_updates(store)
     |> Characters.write_multi(Map.get_lazy(ctx, :cast, fn -> Characters.cast(session.id) end))
     |> traders(session.id, Map.get(ctx, :traders, []))
@@ -206,14 +206,14 @@ defmodule TalesForge.Game.Turn.Store do
 
   defp traders(multi, session_id, traders) do
     Ecto.Multi.run(multi, :traders, fn _repo, _changes ->
-      {:ok, NPC.put_inventories(session_id, traders)}
+      {:ok, Roster.put_inventories(session_id, traders)}
     end)
   end
 
   # The GM's NPC memory updates, onto the NPC rows (and their memory rows).
   defp npc_gm_updates(multi, %__MODULE__{session: session, world: world, ctx: ctx}) do
     Ecto.Multi.run(multi, :npc_gm_updates, fn _repo, _ ->
-      {:ok, NPC.apply_gm_updates(session.id, ctx.gm_result, Map.get(world, "world_tick"))}
+      {:ok, Roster.apply_gm_updates(session.id, ctx.gm_result, Map.get(world, "world_tick"))}
     end)
   end
 

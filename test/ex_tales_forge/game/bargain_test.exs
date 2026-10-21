@@ -5,8 +5,8 @@ defmodule TalesForge.Game.BargainTest do
   alias TalesForge.Game.{ActionHandler, Inventory}
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.Game.Turn.Board
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
 
   doctest TalesForge.Game.Bargain
 
@@ -29,8 +29,8 @@ defmodule TalesForge.Game.BargainTest do
 
   # Brenna's stock, written the way a trade writes it (only a trade moves goods).
   defp put_stock(session_id, items) do
-    %{"innkeep" => brenna} = NPC.traders(session_id, ["innkeep"])
-    :ok = NPC.put_inventories(session_id, [%{brenna | inventory: items}])
+    %{"innkeep" => brenna} = Roster.traders(session_id, ["innkeep"])
+    :ok = Roster.put_inventories(session_id, [%{brenna | inventory: items}])
   end
 
   defp buy(session, text, opts) do

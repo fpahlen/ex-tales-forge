@@ -49,7 +49,7 @@ defmodule TalesForge.Game.Turn.Board do
   alias TalesForge.Game.WorldClock
   alias TalesForge.Game.WorldSim
   alias TalesForge.GameCharacter
-  alias TalesForge.NPC
+  alias TalesForge.GameCharacter.{Agency, Roster}
   alias TalesForge.Schemas.GameSession
 
   @enforce_keys [:session, :handler, :player_action, :mechanical]
@@ -215,7 +215,7 @@ defmodule TalesForge.Game.Turn.Board do
   # world-sim tick of them.
   defp simulate_world(%Events.Turn{} = turn, session_id) do
     fronts = Fronts.sim_fronts(session_id)
-    people = NPC.sim_people(session_id)
+    people = Agency.sim_people(session_id)
     events = Events.from_turn(%{turn | fronts: fronts, people: people})
     {:ok, sim} = WorldSim.tick(%{fronts: fronts, people: people, events: events})
     Arrivals.after_tick({events, sim}, people, turn.world_after)
@@ -359,7 +359,7 @@ defmodule TalesForge.Game.Turn.Board do
       "location_name",
       Map.get(location, "name", Map.get(world_state, "location_name"))
     )
-    |> Map.put("present_npcs", NPC.sync_present_npcs(session.id, location_id))
+    |> Map.put("present_npcs", Roster.sync_present_npcs(session.id, location_id))
   end
 
   defp maybe_move(world_state, %{handler: "move", state_hints: %{"location_id" => location_id}})
@@ -402,7 +402,7 @@ defmodule TalesForge.Game.Turn.Board do
   defp apply_inventory(world_state, %__MODULE__{session: session} = board, refusals) do
     action = board.player_action.action
     ids = Inventory.trader_ids(action, Map.get(world_state, "present_npcs", []))
-    traders = session.id |> NPC.traders(ids) |> refuse(refusals)
+    traders = session.id |> Roster.traders(ids) |> refuse(refusals)
 
     case decide_inventory(world_state, traders, board.player_action) do
       {:ok, %Offer{} = offer} ->
@@ -461,7 +461,7 @@ defmodule TalesForge.Game.Turn.Board do
     if board.opts[:catalogue_v2] && board.handler.handler == "inventory" &&
          action.action_type in [:buy, :sell] do
       trader = trader_id(world, session.id, action)
-      profile = trader && session.id |> NPC.notice_profiles([trader]) |> List.first()
+      profile = trader && session.id |> Roster.notice_profiles([trader]) |> List.first()
 
       if Catalogue.refuses_trade?(profile) do
         Logger.info("trade refused session=#{session.id} npc=#{trader}")
@@ -486,7 +486,7 @@ defmodule TalesForge.Game.Turn.Board do
 
       action.action_type == :buy and is_binary(item_id) ->
         session_id
-        |> NPC.traders(present)
+        |> Roster.traders(present)
         |> Enum.find_value(&seller(&1, item_id))
 
       true ->
@@ -539,7 +539,7 @@ defmodule TalesForge.Game.Turn.Board do
     session_id = board.session.id
     item_id = (action.parameters || %{})["item_id"]
 
-    case NPC.traders(session_id, [trader]) do
+    case Roster.traders(session_id, [trader]) do
       %{^trader => %GameCharacter{inventory: stock}} ->
         Enum.find_value(stock, &if(&1["id"] == item_id, do: &1["price_copper"]))
 
@@ -601,7 +601,7 @@ defmodule TalesForge.Game.Turn.Board do
   defp gift_npc(_session, nil), do: nil
 
   defp gift_npc(session, npc_id),
-    do: session.id |> NPC.notice_profiles([npc_id]) |> List.first()
+    do: session.id |> Roster.notice_profiles([npc_id]) |> List.first()
 
   defp premise_result(%{state_hints: %{"premise_rejected" => true, "reason" => reason}}, _result),
     do: {:error, "Premise check: " <> reason}

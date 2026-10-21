@@ -72,7 +72,7 @@ defmodule TalesForge.GameCharacter.Rows do
 
   @doc """
   Saves the inventory and the coins of `trader` (the NPC after a trade,
-  `TalesForge.NPC.traders/2`) as the NPC's stock and purse, and nothing
+  `TalesForge.GameCharacter.Roster.traders/2`) as the NPC's stock and purse, and nothing
   else: the one write of an NPC's goods in a turn.
   """
   @spec put_goods!(Person.t(), GameCharacter.t()) :: Person.t()

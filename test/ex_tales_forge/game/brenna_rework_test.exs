@@ -7,8 +7,8 @@ defmodule TalesForge.Game.BrennaReworkTest do
   use TalesForge.DataCase, async: false
 
   alias TalesForge.Game.{Pack, Prompts}
+  alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
-  alias TalesForge.NPC
 
   defp brenna do
     "tin_valley" |> Pack.load() |> Map.fetch!(:npcs) |> Enum.find(&(&1["id"] == "innkeep"))
@@ -33,7 +33,7 @@ defmodule TalesForge.Game.BrennaReworkTest do
   test "a session's GM sections carry Brenna with her hooks" do
     {:ok, default} = GameSessions.create_session(%{adventure_id: "tin_valley"})
 
-    new = NPC.format_gm_sections(default.id, ["innkeep"])
+    new = Roster.format_gm_sections(default.id, ["innkeep"])
     assert new =~ ~s("hooks")
     assert new =~ "Osric Vane"
     assert new =~ ~s("mood": "cheerful")
