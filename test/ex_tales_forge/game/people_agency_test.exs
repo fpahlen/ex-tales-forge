@@ -5,7 +5,7 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Context
   alias TalesForge.Game.Events
-  alias TalesForge.Game.Fronts.Moves
+  alias TalesForge.Game.Fronts.{Move, Moves}
   alias TalesForge.Game.Intent
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.TurnProcessor
@@ -167,7 +167,9 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   test "hire_extra with coin 0 is illegal" do
     state = %{"resources" => %{"coin" => 0}}
     defn = %{"id" => "guild_steward", "moves" => %{"hire_extra" => %{"wage" => 1}}}
-    assert {:error, :illegal_move} = Moves.apply(state, "hire_extra", defn)
+
+    assert {:error, :illegal_move} =
+             Moves.apply(%Move{runtime_state: state, move: "hire_extra", pack_def: defn})
   end
 
   test "Caldern does not hire when Osric is the slighted actor" do

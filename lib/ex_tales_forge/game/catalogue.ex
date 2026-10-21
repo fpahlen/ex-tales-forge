@@ -14,6 +14,7 @@ defmodule TalesForge.Game.Catalogue do
   All functions are pure. The tables are **PROVISIONAL**.
   """
 
+  alias TalesForge.Game.Catalogue.Act
   alias TalesForge.Game.Economy
   alias TalesForge.Game.Inventory
   alias TalesForge.Game.WorldClock
@@ -126,19 +127,18 @@ defmodule TalesForge.Game.Catalogue do
   def refuses_trade?(_npc), do: false
 
   @doc """
-  Applies a catalogue v2 handler to `world`. `text` is the player's words,
-  `npc` the target NPC's profile (for `give`). Returns `{world, result}`;
+  Applies the catalogue v2 action `act` (its handler, the player's words and,
+  for `give`, the target NPC's profile) to `world`. Returns `{world, result}`;
   `result` is `{:ok, details}`, `{:error, reason}` (the action is rejected
   and the world does not change) or `nil` for other handlers.
   """
-  @spec apply(map(), struct(), String.t(), map() | nil) ::
-          {map(), {:ok, map()} | {:error, String.t()} | nil}
-  def apply(world, %{handler: "work", state_hints: hints}, _text, _npc) do
+  @spec apply(map(), Act.t()) :: {map(), {:ok, map()} | {:error, String.t()} | nil}
+  def apply(world, %Act{handler: %{handler: "work", state_hints: hints}}) do
     pay = wage(world, hints["ticks"] || WorldClock.ticks_per_hour())
     {update_coins(world, pay), {:ok, %{applied: [%{"kind" => "wage", "copper" => pay}]}}}
   end
 
-  def apply(world, %{handler: "equip", target: target}, text, _npc) do
+  def apply(world, %Act{handler: %{handler: "equip", target: target}, text: text}) do
     items = Inventory.normalize_items(get_in(world, ["character", "inventory"]) || [])
 
     case Inventory.resolve_item_id(target || "", items) || item_in_text(text, items) do
@@ -153,7 +153,7 @@ defmodule TalesForge.Game.Catalogue do
     end
   end
 
-  def apply(world, %{handler: "give", target: npc_id}, text, npc) do
+  def apply(world, %Act{handler: %{handler: "give", target: npc_id}, npc: npc} = act) do
     cond do
       npc_id not in List.wrap(world["present_npcs"]) ->
         {world, {:error, "Nobody by that name is here to take it."}}
@@ -162,11 +162,11 @@ defmodule TalesForge.Game.Catalogue do
         {world, {:error, "#{(npc || %{})["name"] || npc_id} refuses the gift."}}
 
       true ->
-        give(world, npc_id, text)
+        give(world, npc_id, act.text)
     end
   end
 
-  def apply(world, _handler, _text, _npc), do: {world, nil}
+  def apply(world, %Act{}), do: {world, nil}
 
   defp set_equipped(items, item_id, on) do
     Enum.map(items, fn

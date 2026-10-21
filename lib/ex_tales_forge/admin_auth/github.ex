@@ -115,13 +115,13 @@ defmodule TalesForge.AdminAuth.GitHub do
   def team_member?(login, opts) when is_binary(login) and login != "" do
     case team() do
       nil -> false
-      {org, slug} -> cached_membership(org, slug, login, opts[:fresh])
+      {_org, _slug} = team -> cached_membership(team, login, opts[:fresh])
     end
   end
 
   def team_member?(_login, _opts), do: false
 
-  defp cached_membership(org, slug, login, fresh?) do
+  defp cached_membership({org, slug}, login, fresh?) do
     key = {String.downcase(org), String.downcase(slug), String.downcase(login)}
 
     case if(fresh?, do: :miss, else: MembershipCache.get(key)) do

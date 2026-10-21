@@ -2,7 +2,7 @@ defmodule TalesForge.Game.VitalityTest do
   use TalesForge.DataCase, async: false
 
   alias TalesForge.Game.ActionHandler
-  alias TalesForge.Game.Fronts.Moves
+  alias TalesForge.Game.Fronts.{Move, Moves}
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
@@ -164,7 +164,9 @@ defmodule TalesForge.Game.VitalityTest do
       }
     }
 
-    assert {:ok, updated} = Moves.apply(state, "raise_alert", defn)
+    assert {:ok, updated} =
+             Moves.apply(%Move{runtime_state: state, move: "raise_alert", pack_def: defn})
+
     assert hd(updated["public_facts"])["harm"] == "wound"
   end
 

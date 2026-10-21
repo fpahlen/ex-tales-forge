@@ -595,7 +595,11 @@ defmodule TalesForge.Game.Turn.Board do
        when h in ["work", "equip", "give"] do
     npc = if h == "give", do: gift_npc(session, handler.target)
 
-    case Catalogue.apply(world, handler, player_action.overall_intent || "", npc) do
+    case Catalogue.apply(world, %Catalogue.Act{
+           handler: handler,
+           text: player_action.overall_intent || "",
+           npc: npc
+         }) do
       {updated, {:error, reason} = error} ->
         Logger.info("catalogue skipped session=#{session.id} reason=#{reason}")
         {updated, error}
