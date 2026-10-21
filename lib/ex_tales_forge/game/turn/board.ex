@@ -26,7 +26,6 @@ defmodule TalesForge.Game.Turn.Board do
   require Logger
   alias TalesForge.GameCharacter.Rows
 
-  alias TalesForge.Config
   alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Arrivals
@@ -45,6 +44,7 @@ defmodule TalesForge.Game.Turn.Board do
 
   alias TalesForge.Game.Train
   alias TalesForge.Game.TurnApply
+  alias TalesForge.Game.WalkThenTrade
   alias TalesForge.Game.World
   alias TalesForge.Game.WorldClock
   alias TalesForge.Game.WorldSim
@@ -107,6 +107,7 @@ defmodule TalesForge.Game.Turn.Board do
     {world_traded, traded} =
       world_before
       |> put_in(["character"], board.character)
+      |> walk_first(board)
       |> answer_offer(board.player_action)
       |> trade(board)
       |> apply_catalogue(board)
@@ -151,9 +152,19 @@ defmodule TalesForge.Game.Turn.Board do
 
   defp expire_offer(world), do: world
 
+  # A trade that walks first (`"move_to"`, `TalesForge.Game.Intent`): the
+  # character is at the place, with who is there, before the trade.
+  defp walk_first(
+         world,
+         %__MODULE__{player_action: %{action: %{parameters: %{"move_to" => to}}}} = board
+       ),
+       do: world |> move_to(to) |> apply_location_presence(board.session)
+
+  defp walk_first(world, %__MODULE__{}), do: world
+
   # The move, who is present, then the pause or the training.
   defp pause_step(world_traded, %__MODULE__{opts: opts} = board) do
-    moved_from = get_in(world_traded, ["character", "location_id"])
+    moved_from = board.character["location_id"]
 
     world_traded
     |> maybe_move(board.handler)
@@ -230,16 +241,17 @@ defmodule TalesForge.Game.Turn.Board do
   # Hierarchical locations (board card 7aba0394, PR 2): a move costs the walk
   # time from the place tree (TalesForge.Game.Travel), when the places have
   # positions. Other actions, and a rejected move, keep their cost.
-  defp ticks(world, %{handler: "move"} = handler, from) do
-    default = ActionHandler.tick_delta(handler)
-    to = get_in(world, ["character", "location_id"])
+  # A trade that walked first (TalesForge.Game.WalkThenTrade) costs the walk,
+  # then the trade.
+  defp ticks(world, handler, from) do
+    delta = ActionHandler.tick_delta(handler)
 
-    if default == 1 and is_binary(from) and from != to,
-      do: TalesForge.Game.Travel.ticks(world, from, to) || default,
-      else: default
+    case {handler.handler, WalkThenTrade.ticks(world, from)} do
+      {_, nil} -> delta
+      {"move", walk} when delta == 1 -> walk
+      {_, walk} -> delta + walk
+    end
   end
-
-  defp ticks(_world, handler, _from), do: ActionHandler.tick_delta(handler)
 
   # Decisions 2026-10-09: banked LP (one per failure) are
   # resolved only on a long rest (sleep, or a wait of six hours or more): at
@@ -442,14 +454,13 @@ defmodule TalesForge.Game.Turn.Board do
   defp decide_inventory(world_state, traders, %{action: action}),
     do: Inventory.apply_transaction(world_state, traders, action)
 
-  defp refuse(traders, refusals) do
-    Map.new(traders, fn {id, %GameCharacter{runtime: runtime} = trader} ->
-      case Map.fetch(refusals, id) do
-        {:ok, reason} -> {id, %{trader | runtime: Map.put(runtime, "refuses_trade", reason)}}
-        :error -> {id, trader}
-      end
-    end)
-  end
+  defp refuse(traders, refusals),
+    do: Map.new(traders, fn {id, trader} -> {id, refused(trader, refusals[id])} end)
+
+  defp refused(trader, nil), do: trader
+
+  defp refused(%GameCharacter{runtime: runtime} = trader, reason),
+    do: %{trader | runtime: Map.put(runtime, "refuses_trade", reason)}
 
   # Catalogue v2 (JEV_CATALOGUE_V2): an NPC can refuse a trade, and the words
   # can ask for a haggle (TalesForge.Game.Bargain) before the inventory step.
@@ -536,16 +547,10 @@ defmodule TalesForge.Game.Turn.Board do
          trader
        )
        when is_binary(trader) do
-    session_id = board.session.id
     item_id = (action.parameters || %{})["item_id"]
 
-    case Roster.traders(session_id, [trader]) do
-      %{^trader => %GameCharacter{inventory: stock}} ->
-        Enum.find_value(stock, &if(&1["id"] == item_id, do: &1["price_copper"]))
-
-      %{} ->
-        nil
-    end
+    with %GameCharacter{inventory: stock} <- Roster.traders(board.session.id, [trader])[trader],
+         do: Enum.find_value(stock, &if(&1["id"] == item_id, do: &1["price_copper"]))
   end
 
   defp trade_price(
@@ -611,13 +616,10 @@ defmodule TalesForge.Game.Turn.Board do
 
   defp premise_result(_handler, result), do: result
 
-  # TURN_OUTCOME_RECORD=on: stage 3 rejected the action, so the turn costs
-  # no game time (ActionHandler.tick_delta/1).
-  defp mark_rejected(handler, {:error, _reason}) do
-    if Config.turn_outcome_record?(),
-      do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "rejected", true)},
-      else: handler
-  end
+  # Stage 3 rejected the action, so the turn costs no game time
+  # (ActionHandler.tick_delta/1).
+  defp mark_rejected(handler, {:error, _reason}),
+    do: %{handler | state_hints: Map.put(handler.state_hints || %{}, "rejected", true)}
 
   defp mark_rejected(handler, _result), do: handler
 
@@ -625,25 +627,22 @@ defmodule TalesForge.Game.Turn.Board do
   # (`trade_outcome/2`): done, or refused with nothing moved.
   defp decided_trade(handler, result, %SingleAction{action_type: type})
        when type in [:buy, :sell] do
-    case result do
-      {:error, reason} ->
-        put_trade(handler, %{"status" => "refused", "detail" => reason})
-
-      {:ok, %{offer: %Offer{item: nil} = offer}} ->
-        put_trade(handler, %{"status" => "options", "detail" => Offer.text(offer)})
-
-      {:ok, %{offer: %Offer{} = offer}} ->
-        put_trade(handler, %{"status" => "offered", "detail" => Offer.text(offer)})
-
-      {:ok, %{applied: [done | _]}} ->
-        put_trade(handler, %{"status" => "done", "detail" => done})
-
-      _ ->
-        handler
+    case trade_status(result) do
+      nil -> handler
+      {status, detail} -> put_trade(handler, %{"status" => status, "detail" => detail})
     end
   end
 
   defp decided_trade(handler, _result, _action), do: handler
+
+  defp trade_status({:error, reason}), do: {"refused", reason}
+
+  defp trade_status({:ok, %{offer: %Offer{item: nil} = offer}}),
+    do: {"options", Offer.text(offer)}
+
+  defp trade_status({:ok, %{offer: %Offer{} = offer}}), do: {"offered", Offer.text(offer)}
+  defp trade_status({:ok, %{applied: [done | _]}}), do: {"done", done}
+  defp trade_status(_result), do: nil
 
   # The player declined the open offer: nothing moves, and the GM says so.
   defp declined(handler, %{} = stored, %PlayerAction{offer_answer: :decline}),

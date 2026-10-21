@@ -415,7 +415,7 @@
         "elara_voss": 0.2
       },
       "runtime": {
-        "concern_wait_ticks": 0,
+        "concern_wait_ticks": 3,
         "current_concern": {
           "blocked_by": null,
           "focus": "keeping her guests fed, talking and safe while the hills are restless",
@@ -499,11 +499,11 @@
           },
           {
             "summary": "Player tried to buy ale but lacked the 2 copper.",
-            "tick": 58
+            "tick": 57
           },
           {
             "summary": "Overheard player: Yes.",
-            "tick": 58
+            "tick": 57
           }
         ],
         "public_facts": [],
