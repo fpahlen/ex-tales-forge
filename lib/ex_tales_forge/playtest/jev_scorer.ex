@@ -19,10 +19,8 @@ defmodule TalesForge.Playtest.JevScorer do
 
   alias TalesForge.AICalls
   alias TalesForge.Config
-  alias TalesForge.Playtest.{AffectLevels, Personas, Reports}
-  alias TalesForge.Repo
+  alias TalesForge.Playtest.{AffectLevels, JevScoring, Personas, Reports}
   alias TalesForge.Scenes
-  alias TalesForge.Schemas.PlaytestScore
 
   @model "jev-1.13.0"
   @scoreable ~w(finished stopped)
@@ -58,8 +56,7 @@ defmodule TalesForge.Playtest.JevScorer do
   end
 
   defp do_score(run_id) do
-    with :ok <- if(Config.playtest_runner?(), do: :ok, else: {:error, :disabled}),
-         :ok <- if(configured?(), do: :ok, else: {:error, :jev_not_configured}),
+    with :ok <- ready(),
          {:ok, run} <- Reports.get_run(run_id),
          :ok <-
            if(run.status in @scoreable, do: :ok, else: {:error, {:not_scoreable, run.status}}),
@@ -68,7 +65,15 @@ defmodule TalesForge.Playtest.JevScorer do
          questions <- questions(persona, state.turns),
          {:ok, reply, timing} <- call_jev(state.text, questions),
          :ok <- record_usage(run, reply, timing) do
-      persist(run, persona, state.turns, reply)
+      persist(%JevScoring{run: run, persona: persona, turns: state.turns, reply: reply})
+    end
+  end
+
+  defp ready do
+    cond do
+      not Config.playtest_runner?() -> {:error, :disabled}
+      not configured?() -> {:error, :jev_not_configured}
+      true -> :ok
     end
   end
 
@@ -164,75 +169,14 @@ defmodule TalesForge.Playtest.JevScorer do
     :ok
   end
 
-  defp persist(run, persona, turns, reply) do
-    version = rubric_version(persona.id)
-    model = Map.get(reply, :model) || @model
-    conf = Map.get(reply, :confidence) || %{}
-    probs = Map.get(reply, :probabilities) || %{}
-
-    Repo.transaction(fn ->
-      session =
-        insert_affect!(run, %{
-          kind: "session_affect",
-          turn_number: nil,
-          model: model,
-          rubric_version: version,
-          overall: scale(reply[:persona_session_affect]),
-          confidence: conf[:persona_session_affect],
-          probabilities: stringify_probs(probs[:persona_session_affect]),
-          scores: %{
-            "persona_session_affect" => %{
-              "score" => scale(reply[:persona_session_affect]),
-              "confidence" => conf[:persona_session_affect]
-            }
-          }
-        })
-
-      for turn <- turns do
-        key = :"persona_turn_affect_#{turn.turn_number}"
-
-        insert_affect!(run, %{
-          kind: "turn_affect",
-          turn_number: turn.turn_number,
-          model: model,
-          rubric_version: version,
-          overall: scale(reply[key]),
-          confidence: conf[key],
-          probabilities: stringify_probs(probs[key]),
-          scores: %{
-            "persona_turn_affect" => %{
-              "score" => scale(reply[key]),
-              "confidence" => conf[key],
-              "turn_number" => turn.turn_number
-            }
-          }
-        })
-      end
-
-      session
-    end)
+  defp persist(%JevScoring{persona: persona, reply: reply} = scoring) do
+    JevScoring.persist(%{
+      scoring
+      | version: rubric_version(persona.id),
+        model: Map.get(reply, :model) || @model
+    })
   end
 
-  defp insert_affect!(run, attrs) do
-    %PlaytestScore{}
-    |> PlaytestScore.changeset(
-      Map.merge(attrs, %{
-        playtest_run_id: run.id,
-        source: "jev",
-        rationale: nil
-      })
-    )
-    |> Repo.insert!()
-  end
-
-  # Jev Score is 0-indexed fractional; we store the 1–5 human scale.
   @doc false
-  def scale(nil), do: nil
-  def scale(score) when is_number(score), do: Float.round(score + 1.0, 2)
-
-  defp stringify_probs(nil), do: %{}
-
-  defp stringify_probs(probs) when is_map(probs) do
-    Map.new(probs, fn {k, v} -> {to_string(k), v} end)
-  end
+  defdelegate scale(score), to: JevScoring
 end
