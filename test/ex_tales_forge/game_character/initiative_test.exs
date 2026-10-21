@@ -1,17 +1,15 @@
-defmodule TalesForge.NPCInitiativeTest do
+defmodule TalesForge.GameCharacter.InitiativeTest do
   # Refactor 10e: what a turn means for the present NPCs comes in as
-  # Intentions (TalesForge.NPCSignals.intentions/1) that the turn applies
+  # Intentions (TalesForge.GameCharacter.Signals.intentions/1) that the turn applies
   # (TalesForge.Game.Turn.Intentions.apply_all/2). Before 10e these were
   # Jido signals to the NPC agents.
   use TalesForge.DataCase, async: false
   alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Game.Turn.Intentions
-  alias TalesForge.GameCharacter.Agency
+  alias TalesForge.GameCharacter.{Agency, Initiative, Signals}
   alias TalesForge.GameSessions
   alias TalesForge.Intention
-  alias TalesForge.NPCInitiative
-  alias TalesForge.NPCSignals
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
 
   # A finished turn of `session` in which `delta` ticks passed.
@@ -19,7 +17,7 @@ defmodule TalesForge.NPCInitiativeTest do
     world = session.world_state
     tick = Map.get(world, "world_tick")
 
-    %NPCSignals.Turn{
+    %Signals.Turn{
       session_id: session.id,
       world_state: world,
       handler: handler,
@@ -28,8 +26,8 @@ defmodule TalesForge.NPCInitiativeTest do
     }
   end
 
-  defp play(session, %NPCSignals.Turn{} = turn),
-    do: Intentions.apply_all(session.id, NPCSignals.intentions(turn))
+  defp play(session, %Signals.Turn{} = turn),
+    do: Intentions.apply_all(session.id, Signals.intentions(turn))
 
   defp memories(session, npc_id),
     do: Rows.get(session.id, npc_id).runtime_state |> Map.get("memories", [])
@@ -43,7 +41,7 @@ defmodule TalesForge.NPCInitiativeTest do
     present = session.world_state["present_npcs"]
     assert "marta_kellen" in present
 
-    intentions = NPCSignals.intentions(turn(session, speak("marta_kellen"), "hello marta", 2))
+    intentions = Signals.intentions(turn(session, speak("marta_kellen"), "hello marta", 2))
 
     assert Enum.all?(intentions, &match?(%Intention{by: :system, tick: ^tick}, &1))
 
@@ -94,7 +92,7 @@ defmodule TalesForge.NPCInitiativeTest do
   test "an NPC that is not present hears nothing" do
     {:ok, session} = GameSessions.create_session(%{name: "NPC Absent"})
 
-    intentions = NPCSignals.intentions(turn(session, speak("ghost"), "hello?"))
+    intentions = Signals.intentions(turn(session, speak("ghost"), "hello?"))
     refute Enum.any?(intentions, &(&1.character_id == "ghost"))
   end
 
@@ -141,7 +139,7 @@ defmodule TalesForge.NPCInitiativeTest do
     assert payload.text =~ "ledger"
     assert Rows.get(session.id, "marta_kellen").runtime_state["initiative_emitted"]
 
-    :ok = NPCInitiative.broadcast(session.id, payload)
+    :ok = Initiative.broadcast(session.id, payload)
     assert_receive {:npc_initiative, ^payload}
   end
 

@@ -20,7 +20,7 @@ defmodule TalesForge.World.Instance do
 
   Once a turn has committed, the instance broadcasts the NPCs that spoke up
   in it (`:npc_initiatives` in the turn's payload,
-  `TalesForge.NPCInitiative.broadcast/2`), after the turn's own
+  `TalesForge.GameCharacter.Initiative.broadcast/2`), after the turn's own
   `{:turn_completed, _}`.
 
   Its state is a cache, never the truth: the world tick and the session's
@@ -35,7 +35,7 @@ defmodule TalesForge.World.Instance do
   alias TalesForge.Characters
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameCharacter
-  alias TalesForge.NPCInitiative
+  alias TalesForge.GameCharacter.Initiative
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
   alias TalesForge.World.TurnRequest
@@ -185,7 +185,7 @@ defmodule TalesForge.World.Instance do
 
   # The NPCs that spoke up in a committed turn.
   defp announce(session_id, {:played, {:ok, %{npc_initiatives: initiatives}}, _rand}),
-    do: Enum.each(initiatives, &NPCInitiative.broadcast(session_id, &1))
+    do: Enum.each(initiatives, &Initiative.broadcast(session_id, &1))
 
   defp announce(_session_id, _result), do: :ok
 

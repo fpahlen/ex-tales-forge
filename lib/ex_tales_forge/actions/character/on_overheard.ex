@@ -1,12 +1,12 @@
-defmodule TalesForge.Actions.NPC.OnOverheard do
+defmodule TalesForge.Actions.Character.OnOverheard do
   @moduledoc """
   A present NPC overheard what the acting character said or did: it
   remembers the first 100 characters. The turn applies it
   (`TalesForge.Game.Turn.Intentions.apply_all/2`).
   """
 
+  alias TalesForge.GameCharacter.Signals.Turn
   alias TalesForge.Intention
-  alias TalesForge.NPCSignals.Turn
 
   @doc "The Intention of NPC `npc_id` when it overheard `message` in `turn`."
   @spec intentions(String.t(), Turn.t()) :: [Intention.t()]

@@ -2,7 +2,7 @@ defmodule TalesForge.GameCharacter.Agency do
   @moduledoc """
   What a pack NPC does on its own: the world-sim tick's view of the
   session's NPCs and its save, and the concern that waits, escalates and
-  makes the NPC speak up (`TalesForge.NPCInitiative`).
+  makes the NPC speak up (`TalesForge.GameCharacter.Initiative`).
   """
 
   alias TalesForge.GameCharacter.{Person, Rows}

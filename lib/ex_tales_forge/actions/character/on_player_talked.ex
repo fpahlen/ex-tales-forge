@@ -1,12 +1,12 @@
-defmodule TalesForge.Actions.NPC.OnPlayerTalked do
+defmodule TalesForge.Actions.Character.OnPlayerTalked do
   @moduledoc """
   The acting character spoke to this NPC: it remembers the words and warms
   a little to the speaker. The turn applies both
   (`TalesForge.Game.Turn.Intentions.apply_all/2`).
   """
 
+  alias TalesForge.GameCharacter.Signals.Turn
   alias TalesForge.Intention
-  alias TalesForge.NPCSignals.Turn
 
   @relationship_bump 0.05
 

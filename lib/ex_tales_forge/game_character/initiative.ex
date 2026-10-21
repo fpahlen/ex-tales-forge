@@ -1,4 +1,4 @@
-defmodule TalesForge.NPCInitiative do
+defmodule TalesForge.GameCharacter.Initiative do
   @moduledoc """
   An NPC speaking up about a concern that has waited long enough.
 

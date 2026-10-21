@@ -9,15 +9,14 @@ defmodule TalesForge.Game.Turn.Intentions do
       (`runtime["reaction"]`), and so to their `characters` rows.
     * `apply_all/2`, in the turn transaction (`TalesForge.Game.Turn.Store`):
       what the NPCs heard and how long their concerns waited
-      (`TalesForge.NPCSignals.intentions/1`), on their character rows. It
+      (`TalesForge.GameCharacter.Signals.intentions/1`), on their character rows. It
       returns the initiative payloads, which the store broadcasts after the
       commit.
   """
 
   alias TalesForge.Game.Cast
-  alias TalesForge.GameCharacter.{Agency, Roster}
+  alias TalesForge.GameCharacter.{Agency, Initiative, Roster}
   alias TalesForge.Intention
-  alias TalesForge.NPCInitiative
 
   @doc """
   The cast (`TalesForge.Game.Cast`) with the `{:feel, mood}` Intentions as
@@ -64,7 +63,7 @@ defmodule TalesForge.Game.Turn.Intentions do
 
   defp apply_one(session_id, %Intention{character_id: id, action: :speak_up} = i, {out, ready}) do
     with true <- MapSet.member?(ready, id),
-         {:ok, payload} <- NPCInitiative.speak_up(session_id, id, i.tick) do
+         {:ok, payload} <- Initiative.speak_up(session_id, id, i.tick) do
       {[payload | out], ready}
     else
       _ -> {out, ready}
