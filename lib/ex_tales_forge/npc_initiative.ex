@@ -24,7 +24,8 @@ defmodule TalesForge.NPCInitiative do
 
   @doc """
   Marks the NPC's initiative as spoken at `world_tick` and returns its
-  payload; `:none` when the NPC has spoken already or is not in the session.
+  payload; `:none` when the NPC has spoken already, has no line to say
+  (`TalesForge.NPC.initiative_text/1`) or is not in the session.
   """
   @spec speak_up(Ecto.UUID.t(), String.t(), integer() | nil) :: {:ok, payload()} | :none
   def speak_up(session_id, npc_id, world_tick) when is_binary(session_id) and is_binary(npc_id) do
@@ -33,9 +34,8 @@ defmodule TalesForge.NPCInitiative do
         if Map.get(inst.runtime_state, "initiative_emitted", false) do
           :none
         else
-          payload = build_payload(inst, world_tick)
           :ok = NPC.mark_initiative_emitted(inst, world_tick)
-          {:ok, payload}
+          payload(inst, NPC.initiative_text(inst), world_tick)
         end
 
       nil ->
@@ -50,16 +50,17 @@ defmodule TalesForge.NPCInitiative do
     :ok
   end
 
-  defp build_payload(%Person{} = inst, world_tick) do
-    definition = inst.personality
+  defp payload(_inst, nil, _world_tick), do: :none
 
-    %{
-      session_id: inst.row.game_session_id,
-      npc_id: inst.npc_id,
-      npc_name: Map.get(definition, "name", inst.npc_id),
-      text: NPC.initiative_text(inst),
-      concern_priority: NPC.concern_priority(inst),
-      world_tick: world_tick
-    }
+  defp payload(inst, text, world_tick) do
+    {:ok,
+     %{
+       session_id: inst.row.game_session_id,
+       npc_id: inst.npc_id,
+       npc_name: Map.get(inst.personality, "name", inst.npc_id),
+       text: text,
+       concern_priority: NPC.concern_priority(inst),
+       world_tick: world_tick
+     }}
   end
 end
