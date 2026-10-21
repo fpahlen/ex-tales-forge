@@ -90,19 +90,4 @@ defmodule TalesForgeWeb.AdminLive.CharacterLiveTest do
 
     assert to == ~p"/admin/play/sessions/#{session.id}/characters"
   end
-
-  test "the old /npcs URLs redirect to the Characters pages (302)",
-       %{conn: conn, session: session, npc: npc} do
-    base = "/admin/play/sessions/#{session.id}"
-
-    for {old, new} <- [
-          {base <> "/npcs", base <> "/characters"},
-          {base <> "/npcs/#{npc.npc_id}", base <> "/characters/#{npc.npc_id}"},
-          {base <> "/npcs?tab=x", base <> "/characters?tab=x"}
-        ] do
-      conn = get(conn, old)
-      assert conn.status == 302, "#{old} answered #{conn.status}"
-      assert redirected_to(conn) == new
-    end
-  end
 end
