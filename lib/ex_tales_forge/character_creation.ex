@@ -52,7 +52,7 @@ defmodule TalesForge.CharacterCreation do
   rebalances.
   """
 
-  alias TalesForge.CharacterCreation.{Checks, Context, Draft}
+  alias TalesForge.CharacterCreation.{Checks, Context, Draft, Sheet}
   alias TalesForge.CharacterCreation.Options
   alias TalesForge.CharacterCreation.Spread
   alias TalesForge.Characters.{Defaults, PackRules, RulesCheck}
@@ -482,7 +482,9 @@ defmodule TalesForge.CharacterCreation do
       points_spent: points_spent(draft),
       modifiers: race_modifiers(draft, rules),
       final_stats: final_stats(draft, rules),
-      skill_errors: skill_errors(draft, rules)
+      skill_errors: skill_errors(draft, rules),
+      skill_levels: skill_levels(draft, rules),
+      skill_points_spent: skill_points_spent(draft, rules)
     }
   end
 
@@ -495,48 +497,11 @@ defmodule TalesForge.CharacterCreation do
   """
   @spec finalize(Draft.t()) :: {:ok, map()} | {:error, [error()]}
   def finalize(%Draft{} = draft) do
-    with :ok <- validate(draft) do
-      rules = rules(draft.adventure_id)
-      creation = rules["creation"]
-      slug = slug(draft.name)
-      stats = final_stats(draft, rules)
+    ctx = context(draft)
 
-      derived =
-        creation["derive"]
-        |> Map.merge(%{"race" => draft.race, "class" => draft.class})
-        |> Map.put("occupation", draft.occupation || creation["derive"]["occupation"])
-        |> Defaults.derive(rules["labels"], Defaults.seed(draft.seed_key, slug))
-
-      {:ok,
-       %{
-         "id" => slug,
-         "name" => draft.name,
-         "race" => draft.race,
-         "class" => draft.class,
-         "stats" => stats,
-         "skills" => skill_levels(draft, rules),
-         "learning_points" => %{},
-         "learning_failures" => %{},
-         "wounds" => 0,
-         "wound_max" => Mechanics.wound_max(%{"stats" => stats}),
-         "vitality" => "ok",
-         "coins" => derived["coins"],
-         "inventory" => creation["starting_kit"],
-         "ocean" => derived["ocean"],
-         "maslow" => derived["maslow"],
-         "concerns" => derived["concerns"],
-         "creation" => %{
-           "seed_key" => draft.seed_key,
-           "model" => draft.model,
-           "base_stats" => draft.base_stats,
-           "race_picks" => draft.race_picks,
-           "points_spent" => points_spent(draft),
-           "occupation" => draft.occupation,
-           "skill_choices" => draft.skills,
-           "skill_points_spent" => skill_points_spent(draft, rules),
-           "derive" => Map.put(creation["derive"], "occupation", draft.occupation)
-         }
-       }}
+    case Checks.errors(ctx) do
+      [] -> {:ok, Sheet.build(ctx, slug(draft.name))}
+      errors -> {:error, errors}
     end
   end
 
