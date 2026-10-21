@@ -2,7 +2,7 @@ defmodule TalesForge.CharacterCreation.Context do
   @moduledoc """
   A draft with what the checks and the finished sheet need from its
   adventure's rules, worked out once: the rules, the points spent, the race
-  modifiers, the final stats and the skill errors.
+  modifiers, the final stats, the skill errors, levels and points spent.
   """
   alias TalesForge.CharacterCreation.Draft
 
@@ -12,7 +12,9 @@ defmodule TalesForge.CharacterCreation.Context do
             points_spent: 0,
             modifiers: %{},
             final_stats: %{},
-            skill_errors: []
+            skill_errors: [],
+            skill_levels: %{},
+            skill_points_spent: 0
 
   @type error :: {atom(), String.t()}
 
@@ -22,7 +24,9 @@ defmodule TalesForge.CharacterCreation.Context do
           points_spent: integer(),
           modifiers: %{optional(String.t()) => integer()},
           final_stats: %{optional(String.t()) => integer()},
-          skill_errors: [error() | false]
+          skill_errors: [error() | false],
+          skill_levels: %{optional(String.t()) => pos_integer()},
+          skill_points_spent: non_neg_integer()
         }
 
   @doc "The point-buy limits: `{budget, min, max}`."
