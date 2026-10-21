@@ -10,7 +10,8 @@ defmodule TalesForge.GameCharacter.Seeding do
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameCharacter.{Defaults, Levers, Person, Seed}
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, GameSession}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.GameSession
 
   @doc """
   Seeds the session's NPCs (their character rows) from the pack (tin_valley) or the
@@ -88,8 +89,8 @@ defmodule TalesForge.GameCharacter.Seeding do
       |> Seed.attrs(world_tick)
       |> Map.put(:game_session_id, session_id)
 
-    %Character{}
-    |> Character.changeset(attrs)
+    %Schemas.GameCharacter{}
+    |> Schemas.GameCharacter.changeset(attrs)
     |> Repo.insert!(on_conflict: :nothing, conflict_target: [:game_session_id, :slug])
   end
 

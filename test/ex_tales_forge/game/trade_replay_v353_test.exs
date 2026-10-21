@@ -14,8 +14,7 @@ defmodule TalesForge.Game.TradeReplayV353Test do
   alias TalesForge.Game.{Inventory, JevIntent}
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForge.Schemas.Character
-
+  alias TalesForge.Schemas
   @servings ~w(ale_mug stew_bowl bread_cheese)
   @prices %{"ale_mug" => 2, "stew_bowl" => 5, "bread_cheese" => 2}
   @fixture "test/fixtures/replay/gentry_v353.json" |> File.read!() |> Jason.decode!()
@@ -101,7 +100,7 @@ defmodule TalesForge.Game.TradeReplayV353Test do
   end
 
   defp final_rows(session_id) do
-    Character
+    Schemas.GameCharacter
     |> where([c], c.game_session_id == ^session_id)
     |> order_by([c], asc: c.controller, asc: c.slug)
     |> Repo.all()
@@ -215,7 +214,7 @@ defmodule TalesForge.Game.TradeReplayV353Test do
 
   # Every character's copper and goods (by item id).
   defp snapshot(session_id) do
-    Character
+    Schemas.GameCharacter
     |> where([c], c.game_session_id == ^session_id)
     |> Repo.all()
     |> Map.new(fn c ->

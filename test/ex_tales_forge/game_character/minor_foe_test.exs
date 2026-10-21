@@ -12,7 +12,8 @@ defmodule TalesForge.GameCharacter.MinorFoeTest do
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameCharacter.{Defaults, Store}
   alias TalesForge.GameSessions
-  alias TalesForge.Schemas.{Character, GameSession}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.GameSession
 
   setup do
     previous = System.get_env("COMBAT_OPPOSED")
@@ -48,7 +49,9 @@ defmodule TalesForge.GameCharacter.MinorFoeTest do
   end
 
   defp rows(session_id) do
-    Repo.all(from c in Character, where: c.game_session_id == ^session_id, order_by: c.slug)
+    Repo.all(
+      from c in Schemas.GameCharacter, where: c.game_session_id == ^session_id, order_by: c.slug
+    )
   end
 
   defp world(session_id), do: Repo.get!(GameSession, session_id).world_state
@@ -57,7 +60,7 @@ defmodule TalesForge.GameCharacter.MinorFoeTest do
     attack(session)
     here = world(session.id)["location_id"]
 
-    assert %Character{controller: "gm", lifetime: :scene, location_id: ^here} =
+    assert %Schemas.GameCharacter{controller: "gm", lifetime: :scene, location_id: ^here} =
              foe = Store.get_by_slug(session.id, "foe_miner")
 
     assert foe.definition["minor"] == true

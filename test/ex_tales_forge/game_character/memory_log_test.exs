@@ -4,12 +4,13 @@ defmodule TalesForge.GameCharacter.MemoryLogTest do
   alias TalesForge.GameCharacter.{MemoryLog, Moment, Store}
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, SessionEvent}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.SessionEvent
 
   doctest MemoryLog
 
   test "a pack interests list replaces the defaults" do
-    c = %Character{definition: %{"interests" => ["ore"]}, ocean: nil, concerns: []}
+    c = %Schemas.GameCharacter{definition: %{"interests" => ["ore"]}, ocean: nil, concerns: []}
     assert MemoryLog.interests(c) == ["ore"]
   end
 

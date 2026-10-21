@@ -11,7 +11,8 @@ defmodule TalesForge.GameCharacter.Memories do
   import Ecto.Query
 
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, CharacterMemory}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.CharacterMemory
 
   @limit 20
 
@@ -23,8 +24,8 @@ defmodule TalesForge.GameCharacter.Memories do
   Adds a memory row to `row` for `entry` (a memory of the NPC's runtime
   list) unless it already has one with that tick and text.
   """
-  @spec add!(Character.t(), map()) :: :ok
-  def add!(%Character{id: id}, %{"summary" => text} = entry) do
+  @spec add!(Schemas.GameCharacter.t(), map()) :: :ok
+  def add!(%Schemas.GameCharacter{id: id}, %{"summary" => text} = entry) do
     tick = entry["tick"]
 
     known? =
@@ -46,9 +47,9 @@ defmodule TalesForge.GameCharacter.Memories do
   The memories of the `rows` written before their runtime kept them, by row
   id, oldest first; rows that keep their own are left out.
   """
-  @spec old([Character.t()]) :: %{Ecto.UUID.t() => [map()]}
+  @spec old([Schemas.GameCharacter.t()]) :: %{Ecto.UUID.t() => [map()]}
   def old(rows) do
-    case for(%Character{runtime: runtime, id: id} <- rows, not kept?(runtime), do: id) do
+    case for(%Schemas.GameCharacter{runtime: runtime, id: id} <- rows, not kept?(runtime), do: id) do
       [] -> %{}
       ids -> mirrored(ids)
     end

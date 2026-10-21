@@ -14,8 +14,7 @@ defmodule TalesForge.GameCharacter.Rows do
   alias TalesForge.GameCharacter
   alias TalesForge.GameCharacter.{Attrs, Memories, Person}
   alias TalesForge.Repo
-  alias TalesForge.Schemas.Character
-
+  alias TalesForge.Schemas
   @goods ~w(stock coins)
 
   @doc "The session's pack NPCs, by slug."
@@ -25,7 +24,7 @@ defmodule TalesForge.GameCharacter.Rows do
   @doc "The pack NPCs of the sessions `session_ids`, by session and slug."
   @spec list_many([Ecto.UUID.t()]) :: [Person.t()]
   def list_many(session_ids) when is_list(session_ids) do
-    Character
+    Schemas.GameCharacter
     |> where([c], c.game_session_id in ^session_ids)
     |> pack()
     |> order_by([c], asc: c.game_session_id)
@@ -66,7 +65,7 @@ defmodule TalesForge.GameCharacter.Rows do
   @spec changeset(Person.t(), map()) :: Ecto.Changeset.t()
   def changeset(%Person{row: row} = person, runtime_state) do
     attrs = Person.attrs(row, keep_goods(runtime_state, person), pc_slug(row))
-    Character.changeset(row, Map.drop(attrs, [:inventory, :coins]))
+    Schemas.GameCharacter.changeset(row, Map.drop(attrs, [:inventory, :coins]))
   end
 
   @doc """
@@ -78,7 +77,7 @@ defmodule TalesForge.GameCharacter.Rows do
   def put_goods!(%Person{row: row} = person, %GameCharacter{inventory: inventory, coins: coins}) do
     row =
       row
-      |> Character.changeset(%{inventory: Attrs.inventory(inventory), coins: coins})
+      |> Schemas.GameCharacter.changeset(%{inventory: Attrs.inventory(inventory), coins: coins})
       |> Repo.update!()
 
     goods = %{"stock" => inventory, "coins" => coins}
@@ -93,22 +92,23 @@ defmodule TalesForge.GameCharacter.Rows do
   """
   @spec edit_changeset(Person.t(), map()) :: Ecto.Changeset.t()
   def edit_changeset(%Person{row: row}, runtime_state),
-    do: Character.changeset(row, Person.attrs(row, runtime_state, pc_slug(row)))
+    do: Schemas.GameCharacter.changeset(row, Person.attrs(row, runtime_state, pc_slug(row)))
 
   defp keep_goods(runtime_state, %Person{runtime_state: read}),
     do: Map.merge(runtime_state, Map.take(read, @goods))
 
   defp query(session_id),
-    do: Character |> where([c], c.game_session_id == ^session_id) |> pack()
+    do: Schemas.GameCharacter |> where([c], c.game_session_id == ^session_id) |> pack()
 
   defp pack(query),
     do: where(query, [c], c.controller == "gm" and fragment("?->>'source' = 'pack'", c.origin))
 
   # The player character's slug, for a row that has no relationship yet.
-  defp pc_slug(%Character{relationships: rel}) when is_map(rel) and map_size(rel) > 0, do: nil
+  defp pc_slug(%Schemas.GameCharacter{relationships: rel}) when is_map(rel) and map_size(rel) > 0,
+    do: nil
 
-  defp pc_slug(%Character{game_session_id: session_id}) do
-    Character
+  defp pc_slug(%Schemas.GameCharacter{game_session_id: session_id}) do
+    Schemas.GameCharacter
     |> where([c], c.game_session_id == ^session_id and c.controller in ~w(player bot))
     |> select([c], c.slug)
     |> order_by([c], asc: c.slug)

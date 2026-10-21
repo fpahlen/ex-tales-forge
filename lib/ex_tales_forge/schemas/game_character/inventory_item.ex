@@ -1,4 +1,4 @@
-defmodule TalesForge.Schemas.Character.InventoryItem do
+defmodule TalesForge.Schemas.GameCharacter.InventoryItem do
   @moduledoc "Embedded: an item a character carries. `price_copper` set means it is for sale (an NPC's stock)."
 
   use Ecto.Schema

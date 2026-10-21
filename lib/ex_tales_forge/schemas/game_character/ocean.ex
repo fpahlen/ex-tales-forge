@@ -1,4 +1,4 @@
-defmodule TalesForge.Schemas.Character.Ocean do
+defmodule TalesForge.Schemas.GameCharacter.Ocean do
   @moduledoc "Embedded: the five OCEAN traits, 0–10 each, fixed for the session. Missing traits default to 5."
 
   use Ecto.Schema

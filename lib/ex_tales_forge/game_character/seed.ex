@@ -6,7 +6,7 @@ defmodule TalesForge.GameCharacter.Seed do
   """
 
   alias TalesForge.GameCharacter.{Attrs, Levers, Person}
-  alias TalesForge.Schemas.Character
+  alias TalesForge.Schemas
 
   @maslow_by_need %{
     "survival" => "physiological",
@@ -36,7 +36,7 @@ defmodule TalesForge.GameCharacter.Seed do
     |> npc_identity(definition)
     |> Map.merge(%{
       location_id: runtime["location_id"] || definition["default_location_id"],
-      stats: Character.Stats.from_sheet(definition["stats"]),
+      stats: Schemas.GameCharacter.Stats.from_sheet(definition["stats"]),
       skills: Attrs.int_map(definition["skills"]),
       ocean: Levers.ocean_source(definition),
       maslow_level: maslow_level(definition),

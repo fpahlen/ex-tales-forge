@@ -32,7 +32,8 @@ defmodule TalesForge.GameCharacter.Compression do
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameCharacter.{MemoryLog, Store}
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, CharacterMemory, SessionEvent}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.{CharacterMemory, SessionEvent}
 
   @model "jev-1.13.0"
   @dawn_slot 4
@@ -185,14 +186,14 @@ defmodule TalesForge.GameCharacter.Compression do
 
   # Old rows count as short-term: before the first compression the clock
   # starts at the oldest short-term row.
-  defp since(%Character{memory_compressed_tick: t}, _rows) when is_integer(t), do: t
+  defp since(%Schemas.GameCharacter{memory_compressed_tick: t}, _rows) when is_integer(t), do: t
 
   defp since(_c, rows),
     do: rows |> Enum.map(& &1.tick) |> Enum.reject(&is_nil/1) |> Enum.min(fn -> nil end)
 
   @doc "The short-term rows of a character, without rows of engine events."
-  @spec eligible_rows(Character.t()) :: [CharacterMemory.t()]
-  def eligible_rows(%Character{id: id}) do
+  @spec eligible_rows(Schemas.GameCharacter.t()) :: [CharacterMemory.t()]
+  def eligible_rows(%Schemas.GameCharacter{id: id}) do
     CharacterMemory
     |> where([m], m.character_id == ^id and m.tier == "short")
     |> join(:left, [m], e in SessionEvent, on: e.id == m.session_event_id)
@@ -216,8 +217,9 @@ defmodule TalesForge.GameCharacter.Compression do
   there is nothing to ask, so they fade with no long-term row, which is what
   a call would give. Returns `:ok` or `{:error, reason}`.
   """
-  @spec compress(Character.t(), [CharacterMemory.t()], integer()) :: :ok | {:error, term()}
-  def compress(%Character{} = c, rows, now) do
+  @spec compress(Schemas.GameCharacter.t(), [CharacterMemory.t()], integer()) ::
+          :ok | {:error, term()}
+  def compress(%Schemas.GameCharacter{} = c, rows, now) do
     with true <- configured?() || {:error, :jev_not_configured},
          {:ok, long} <- long_term(c, associations(rows, c.slug), now) do
       write(c, %Outcome{rows: rows, long: long, now: now})
@@ -254,7 +256,7 @@ defmodule TalesForge.GameCharacter.Compression do
   defp heaviest_first({about, rows}), do: {-Enum.sum_by(rows, &(&1.weight || 1.0)), about}
 
   @doc false
-  def state(%Character{} = c, groups) do
+  def state(%Schemas.GameCharacter{} = c, groups) do
     %{
       character: %{
         name: c.name,
