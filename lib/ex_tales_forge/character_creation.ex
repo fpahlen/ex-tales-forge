@@ -500,7 +500,7 @@ defmodule TalesForge.CharacterCreation do
   """
   @spec level_cost(String.t(), non_neg_integer(), non_neg_integer()) :: non_neg_integer()
   def level_cost(adventure_id, from, to),
-    do: cost(rules(adventure_id)["creation"]["skills"], from, to)
+    do: Spread.cost(rules(adventure_id)["creation"]["skills"], from, to)
 
   @doc """
   Checks a draft against the rules. Returns `:ok` or `{:error, errors}`, each
@@ -757,16 +757,9 @@ defmodule TalesForge.CharacterCreation do
     Enum.reduce(raw, {%{}, 0}, fn {skill, level}, {acc, refund} ->
       top = if MapSet.member?(signature, skill), do: sk["signature_cap"], else: sk["cap"]
       kept = min(level, top)
-      {Map.put(acc, skill, kept), refund + refund_cost(sk, kept, level)}
+      {Map.put(acc, skill, kept), refund + Spread.cost(sk, kept, level)}
     end)
   end
-
-  defp refund_cost(sk, kept, level), do: cost(sk, kept, level)
-
-  # Levels rise in steps of `level_step` (5 on the d100 scale). Each level
-  # costs the `level_costs` entry of its step, so one step of 5 levels costs
-  # 5 times that entry: the d20 price, scaled with the budget.
-  defp cost(sk, from, to), do: Spread.cost(sk, from, to)
 
   defp skill_levels(draft, rules) do
     {free, _refund} = free_levels(rules, draft)
@@ -787,7 +780,7 @@ defmodule TalesForge.CharacterCreation do
     {free, _refund} = free_levels(rules, draft)
 
     Enum.reduce(draft.skills, 0, fn {skill, level}, acc ->
-      acc + cost(sk, Map.get(free, skill, 0), level)
+      acc + Spread.cost(sk, Map.get(free, skill, 0), level)
     end)
   end
 
@@ -850,6 +843,11 @@ defmodule TalesForge.CharacterCreation do
 
   defp signed(n) when n >= 0, do: "+#{n}"
   defp signed(n), do: "#{n}"
+
+  @doc false
+  # Test seam for the creation.json checks; goes when they move to RulesCheck.
+  @spec check_rules!(map(), map()) :: :ok
+  def check_rules!(labels, creation), do: validate_rules!(labels, creation)
 
   defp validate_rules!(labels, creation) do
     for {race, choice} <- creation["race_choices"] do
