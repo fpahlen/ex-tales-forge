@@ -1,6 +1,6 @@
-defmodule TalesForge.NPCSignals.Turn do
+defmodule TalesForge.GameCharacter.Signals.Turn do
   @moduledoc """
-  A finished turn as `TalesForge.NPCSignals.intentions/1` sees it:
+  A finished turn as `TalesForge.GameCharacter.Signals.intentions/1` sees it:
   the session, the world after the turn, the action handler, the player's
   words and, when known, the world before the turn (for the tick delta).
   """

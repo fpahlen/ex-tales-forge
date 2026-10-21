@@ -103,7 +103,7 @@ submit_message
        NpcReactions → {:feel, mood} Intentions → Turn.Intentions.feel (the cast's runtime["reaction"])
        persist GameSession + Turn, and in the same transaction
          Characters.write_multi (the cast to the rows) and end_scene_multi (scene rows go)
-         NPCSignals.intentions → Turn.Intentions.apply_all (present NPCs only)
+         Signals.intentions → Turn.Intentions.apply_all (present NPCs only)
        PubSub {:turn_completed, payload}
      → World.Instance, once the turn has committed:
        PubSub {:npc_initiative, payload} for any NPC that spoke up (payload.npc_initiatives)
@@ -113,7 +113,7 @@ NPC agency today is **present-only**:
 
 Each turn gives every present NPC `TalesForge.Intention`s (`by: :system`), which the turn applies in its transaction (`Turn.Intentions`); nothing that makes an Intention writes state:
 
-- `ReactToTime` → `{:wait, delta}` (`NPC.adjust_concern`: priority +1 every 4 wait ticks) then `:speak_up` (`NPCInitiative.speak_up`) if priority ≥ 8 and wait ≥ 4.
+- `ReactToTime` → `{:wait, delta}` (`NPC.adjust_concern`: priority +1 every 4 wait ticks) then `:speak_up` (`Initiative.speak_up`) if priority ≥ 8 and wait ≥ 4.
 - `OnPlayerTalked` (the speak target) → `{:remember, _}` + `{:warm, 0.05}`.
 - `OnOverheard` → overheard memory for non-target present NPCs.
 - Memories: last 20 on the instance; last 5 concatenated into the table GM prompt via `NPC.format_gm_sections/2`. **Only present NPCs.** Distant facts rot out of the prompt.
@@ -257,7 +257,7 @@ The hole: there is no `outcome_bounds` structure. Social skills (intimidation, p
 ```mermaid
 flowchart LR
   TP[TurnProcessor] --> Persist
-  Persist --> Sig[NPCSignals.intentions]
+  Persist --> Sig[Signals.intentions]
   Sig -->|"time passed"| RT[ReactToTime]
   Sig -->|"spoken to"| Talk[OnPlayerTalked]
   Sig -->|"overheard"| Over[OnOverheard]
@@ -975,7 +975,7 @@ def run(session_id, raw_action, player_action_map) do
                       |> Map.put("live_fronts", live_ids(sim.fronts)),
        {:ok, %{session: session, turn: turn}} <- persist_turn_multi(session, world_after, turn_number, raw_action, gm_result, mechanical, events, sim),
        :ok <- NPCRegistry.sync(session),
-       :ok <- NPCSignals.emit_turn_signals(session.id, world_after, handler, raw_action) do
+       :ok <- Signals.emit_turn_signals(session.id, world_after, handler, raw_action) do
     # enqueue ProcessFrontMoves only if sim.unmatched != [] (always [] in tracer)
     broadcast {:turn_completed, payload with world_after, needs_scene?}
   end

@@ -8,9 +8,9 @@ defmodule TalesForge.Intention do
       `PlayerAction`. The persona runner (`bot`) comes in this way too.
     * `by: :gm` — the GM's updates (not yet an Intention).
     * `by: :system` — the rules: an NPC's gut reaction (`NpcReactions`), a
-      concern that waits (`Actions.NPC.ReactToTime`), what an NPC hears
-      (`Actions.NPC.OnPlayerTalked`, `Actions.NPC.OnOverheard`) and its
-      initiative (`NPCInitiative`).
+      concern that waits (`Actions.Character.ReactToTime`), what an NPC hears
+      (`Actions.Character.OnPlayerTalked`, `Actions.Character.OnOverheard`) and its
+      initiative (`Initiative`).
 
   The turn applies them (`TalesForge.Game.Turn.Intentions`); nothing that
   makes an Intention writes state.

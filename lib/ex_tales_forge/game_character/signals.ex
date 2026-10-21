@@ -1,21 +1,21 @@
-defmodule TalesForge.NPCSignals do
+defmodule TalesForge.GameCharacter.Signals do
   @moduledoc """
   What a finished turn means for the present NPCs, as Intentions
   (`TalesForge.Intention`, `by: :system`) for the turn to apply
   (`TalesForge.Game.Turn.Intentions.apply_all/2`), in this order:
 
-    1. time passed, for every present NPC (`Actions.NPC.ReactToTime`);
-    2. the player spoke to a present NPC (`Actions.NPC.OnPlayerTalked`);
-    3. the other present NPCs overheard it (`Actions.NPC.OnOverheard`),
+    1. time passed, for every present NPC (`Actions.Character.ReactToTime`);
+    2. the player spoke to a present NPC (`Actions.Character.OnPlayerTalked`);
+    3. the other present NPCs overheard it (`Actions.Character.OnOverheard`),
        unless the turn was quiet (wait, train) or had no words.
 
   Before refactor step 10e these were Jido signals to the NPC agents, which
   wrote after the commit; a missing agent dropped its signal.
   """
 
-  alias TalesForge.Actions.NPC.{OnOverheard, OnPlayerTalked, ReactToTime}
+  alias TalesForge.Actions.Character.{OnOverheard, OnPlayerTalked, ReactToTime}
+  alias TalesForge.GameCharacter.Signals.Turn
   alias TalesForge.Intention
-  alias TalesForge.NPCSignals.Turn
 
   @doc "The present NPCs' Intentions after `turn`: time passed, talked to, overheard."
   @spec intentions(Turn.t()) :: [Intention.t()]

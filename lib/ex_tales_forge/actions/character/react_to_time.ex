@@ -1,4 +1,4 @@
-defmodule TalesForge.Actions.NPC.ReactToTime do
+defmodule TalesForge.Actions.Character.ReactToTime do
   @moduledoc """
   Time passed for a present NPC: its concern waits `delta_ticks` longer
   (`{:wait, delta}`), and it speaks up when the concern has waited long
@@ -6,8 +6,8 @@ defmodule TalesForge.Actions.NPC.ReactToTime do
   (`TalesForge.Game.Turn.Intentions.apply_all/2`).
   """
 
+  alias TalesForge.GameCharacter.Signals.Turn
   alias TalesForge.Intention
-  alias TalesForge.NPCSignals.Turn
 
   @doc "The Intentions of NPC `npc_id` when the time of `turn` passed."
   @spec intentions(String.t(), Turn.t()) :: [Intention.t()]
