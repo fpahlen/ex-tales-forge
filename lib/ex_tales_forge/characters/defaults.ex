@@ -20,8 +20,7 @@ defmodule TalesForge.Characters.Defaults do
   No database, no AI.
   """
 
-  alias TalesForge.Characters.Levers
-  alias TalesForge.Game.Mechanics
+  alias TalesForge.Characters.{Levers, RulesCheck}
 
   @stats ~w(STR DEX CON INT WIS CHA)
   @input_defaults %{
@@ -55,17 +54,17 @@ defmodule TalesForge.Characters.Defaults do
       path when is_binary(path) ->
         if File.exists?(path),
           do: extend_rules!(base, read!(path), path),
-          else: validate_rules!(base)
+          else: RulesCheck.labels!(base)
 
       _ ->
-        validate_rules!(base)
+        RulesCheck.labels!(base)
     end
   end
 
   @doc false
   # Base rules extended by one pack's additions, then validated. Public for tests.
   @spec extend_rules!(rules(), map(), String.t()) :: rules()
-  def extend_rules!(base, pack, source), do: base |> extend!(pack, source) |> validate_rules!()
+  def extend_rules!(base, pack, source), do: base |> extend!(pack, source) |> RulesCheck.labels!()
 
   @doc "A stable integer seed for one character: a hash of the session id and the character key."
   @spec seed(String.t() | nil, String.t()) :: non_neg_integer()
@@ -253,74 +252,6 @@ defmodule TalesForge.Characters.Defaults do
         raise ArgumentError, "#{source}: unknown key #{inspect(key)}"
     end)
   end
-
-  defp validate_rules!(rules) do
-    skills = Mechanics.skill_stat_map() |> Map.keys() |> MapSet.new()
-    focuses = MapSet.new(rules["concern_focuses"])
-
-    for {id, occ} <- rules["occupations"] do
-      check_skills!(occ["core"] ++ occ["secondary"], skills, "occupation #{id}")
-      check_traits!(occ["ocean"], "occupation #{id}")
-      check_maslow!(occ["maslow"], "occupation #{id}")
-      Enum.each(occ["concerns"], &check_focus!(&1, focuses, "occupation #{id}"))
-    end
-
-    for {id, class} <- rules["classes"] do
-      check_skills!(class["skills"], skills, "class #{id}")
-      check_stats!(class["stats"], "class #{id}")
-    end
-
-    for {id, race} <- rules["races"] do
-      check_stats!(race["stats"], "race #{id}")
-      check_traits!(race["ocean"], "race #{id}")
-    end
-
-    for {id, standing} <- rules["standings"] do
-      if floor = standing["maslow_floor"], do: check_maslow!(floor, "standing #{id}")
-      if c = standing["concern"], do: check_focus!(c, focuses, "standing #{id}")
-    end
-
-    rules
-  end
-
-  defp check_skills!(list, known, where) do
-    case Enum.reject(list, &MapSet.member?(known, &1)) do
-      [] -> :ok
-      bad -> raise ArgumentError, "character defaults #{where}: unknown skills #{inspect(bad)}"
-    end
-  end
-
-  defp check_stats!(map, where) do
-    case Map.keys(map) -- @stats do
-      [] -> :ok
-      bad -> raise ArgumentError, "character defaults #{where}: unknown stats #{inspect(bad)}"
-    end
-  end
-
-  defp check_traits!(map, where) do
-    case Map.keys(map) -- Levers.ocean_traits() do
-      [] ->
-        :ok
-
-      bad ->
-        raise ArgumentError, "character defaults #{where}: unknown OCEAN traits #{inspect(bad)}"
-    end
-  end
-
-  defp check_maslow!(level, where) do
-    unless level in Levers.maslow_levels() do
-      raise ArgumentError, "character defaults #{where}: unknown Maslow level #{inspect(level)}"
-    end
-  end
-
-  defp check_focus!(%{"focus" => focus, "text" => text}, focuses, where) when is_binary(text) do
-    unless MapSet.member?(focuses, focus) do
-      raise ArgumentError, "character defaults #{where}: unknown concern focus #{inspect(focus)}"
-    end
-  end
-
-  defp check_focus!(concern, _focuses, where),
-    do: raise(ArgumentError, "character defaults #{where}: bad concern #{inspect(concern)}")
 
   defp read!(path), do: path |> File.read!() |> Jason.decode!()
 
