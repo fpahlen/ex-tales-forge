@@ -177,6 +177,7 @@ defmodule TalesForge.Game.TurnApplyTest do
 
       assert world["location_id"] == "crossroads_square"
       assert gm_prompt() =~ "There's no fields you know of."
+      assert world["world_tick"] == s.world_state["world_tick"]
     end
 
     test "to a known place: the location changes" do

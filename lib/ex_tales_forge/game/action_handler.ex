@@ -42,6 +42,17 @@ defmodule TalesForge.Game.ActionHandler do
 
   defp scale_hint_ticks(hints, _mods), do: hints
 
+  # A move the intent step refused (`parameters["no_move"]`,
+  # `TalesForge.Locations.NoMove`):
+  # nothing happens, so the turn costs no game time (`tick_delta/1`).
+  defp resolve_type(%PlayerAction{action: %{parameters: %{"no_move" => true}}}) do
+    %HandlerResult{
+      handler: "narrate",
+      notes: "No move: the character stays where it is. Narrate no walk.",
+      state_hints: %{"no_action" => true}
+    }
+  end
+
   defp resolve_type(%PlayerAction{} = player_action) do
     action = player_action.action
     skill = action.parameters |> Map.get("skill") |> Mechanics.normalize_skill_name()

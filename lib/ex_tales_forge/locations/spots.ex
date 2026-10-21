@@ -3,7 +3,8 @@ defmodule TalesForge.Locations.Spots do
   The spots in the player character's room: the legend items on its grid
   that it can walk to (docs/design-locations.md, step 2). Put in the intent
   context as `"spots"` only when the character has a grid position
-  (`LOCATION_GRID`), so Jev can read "I walk to the hearth" as a move to a
+  (`LOCATION_GRID`), with every name of them as `"spot_names"`
+  (`TalesForge.Locations.Target.names/1`), so Jev can read "I walk to the hearth" as a move to a
   spot, and contexts without a grid stay as they were.
   """
 
@@ -11,6 +12,7 @@ defmodule TalesForge.Locations.Spots do
   alias TalesForge.Locations.Grid
   alias TalesForge.Locations.Pack
   alias TalesForge.Locations.Positions
+  alias TalesForge.Locations.Target
   alias TalesForge.Locations.View
 
   @unlisted ["floor", "wall"]
@@ -20,7 +22,7 @@ defmodule TalesForge.Locations.Spots do
   def put(context, world) do
     with true <- Config.location_grid?(),
          {grid, _pos} <- world |> placed() |> View.of(get_in(world, ["character", "id"])) do
-      Map.put(context, "spots", names(grid))
+      Map.merge(context, %{"spots" => names(grid), "spot_names" => Target.names(grid)})
     else
       _none -> context
     end

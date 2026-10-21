@@ -12,7 +12,6 @@ defmodule TalesForge.Locations.Destination do
   """
 
   alias TalesForge.Game.Movement
-  alias TalesForge.Game.Schemas.SingleAction
 
   @phrase ~r/\b(?:to|towards?)\s+the\s+([\p{L}' -]+?)(?=\s+(?:by|near|on|in|at|with|and|beside|of)\b|[,.!?;]|$)/iu
   # A general word ("the inn") is no name of its own.
@@ -46,23 +45,6 @@ defmodule TalesForge.Locations.Destination do
   end
 
   def of(_world, _context, _text), do: nil
-
-  @doc """
-  No move: the action becomes `:other`, and a move that named a target
-  carries it in `parameters["no_place"]` (a place's name for a place id) for
-  the note to the GM (`TalesForge.Game.Turn.NoPlace`).
-  """
-  @spec no_move(SingleAction.t(), map()) :: SingleAction.t()
-  def no_move(%SingleAction{target: target} = action, world) when is_binary(target) do
-    what = if Map.has_key?(Movement.places(world), target), do: Movement.name(world, target)
-
-    params =
-      Map.put(action.parameters || %{}, "no_place", what || String.replace(target, "_", " "))
-
-    %SingleAction{action | action_type: :other, target: nil, parameters: params}
-  end
-
-  def no_move(action, _world), do: %SingleAction{action | action_type: :other, target: nil}
 
   # The place `text` names after a lead-in word ("back to the inn"),
   # reachable or not, other than those in `skip`.

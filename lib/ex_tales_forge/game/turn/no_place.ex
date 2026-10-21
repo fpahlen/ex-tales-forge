@@ -1,7 +1,7 @@
 defmodule TalesForge.Game.Turn.NoPlace do
   @moduledoc """
   The note for a move that gives no move (`parameters["no_place"]`,
-  `TalesForge.Locations.Destination.no_move/2`): a character travels only
+  `TalesForge.Locations.NoMove.place/2`): a character travels only
   to a place the world has and that has a route from where it is, so the GM
   is told "There's no X you know of." as a premise finding, as for a spot
   that is not in the room (`TalesForge.Game.Turn.Walk`).

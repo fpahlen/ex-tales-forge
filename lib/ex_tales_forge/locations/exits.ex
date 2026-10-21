@@ -12,6 +12,7 @@ defmodule TalesForge.Locations.Exits do
 
   alias TalesForge.Game.Movement
   alias TalesForge.Game.Schemas.SingleAction
+  alias TalesForge.Locations.NoMove
 
   @out ~r/\b(?:out|outside|flee|flees|fleeing|escape|escapes|leave|leaves|leaving|exit|exits|through (?:the |a )?(?:\w+ )?door)\b/iu
 
@@ -27,12 +28,23 @@ defmodule TalesForge.Locations.Exits do
     words = "#{action.target} #{context["overall_intent"]}"
 
     case way_out(world, context["location_id"], words) do
-      nil -> %SingleAction{action | action_type: :other, target: nil, parameters: walk_to(action)}
-      place -> %SingleAction{action | target: place}
+      nil ->
+        %SingleAction{
+          action
+          | action_type: :other,
+            target: nil,
+            parameters: walk_to(action, context)
+        }
+
+      place ->
+        %SingleAction{action | target: place}
     end
   end
 
-  defp walk_to(action), do: Map.put(action.parameters || %{}, "walk_to", action.target)
+  defp walk_to(action, context) do
+    params = Map.put(action.parameters || %{}, "walk_to", action.target)
+    NoMove.spot(params, context, action.target || context["overall_intent"])
+  end
 
   @doc """
   The place a move that names no place leaves for, or nil when the words
