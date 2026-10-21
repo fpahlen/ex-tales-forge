@@ -149,3 +149,9 @@ into region cells. Not now.
 
 1. Location pictures are made while authoring the adventure, not during play: generated from the grid and the world's style guide, checked by the author against the grid so nothing invented slips in, then stored with the adventure and shown to every player.
 2. A 20×20 tile view where you click to move, using the movement code, once the character's position is stored.
+
+## Next: what a character sees
+
+Each legend item has a height and a noticeability. Each character has an eye height (from race and size, changed by stance) and a perception threshold (from skill and situation). An item hides what's behind it only if it's taller than the viewer's eyes, and an item is listed for the GM only if it's in view and passes the threshold. Two characters on the same square can see different things.
+
+The GM never gets the grid or the map, only this computed list.
