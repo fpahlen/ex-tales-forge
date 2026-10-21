@@ -3,6 +3,7 @@ defmodule TalesForge.CharacterCreation.FromTextTest do
 
   alias TalesForge.CharacterCreation, as: CC
   alias TalesForge.CharacterCreation.FromText
+  alias TalesForge.CharacterCreation.FromText.Label
   alias TalesForge.CharacterTextStub, as: Stub
   alias TalesForge.Schemas.AICall
 
@@ -22,7 +23,7 @@ defmodule TalesForge.CharacterCreation.FromTextTest do
     {reading, d} = read_build(Stub.reply())
 
     assert reading.questions == []
-    assert reading.labels["race"] == %{value: "elf", confidence: 0.9}
+    assert reading.labels["race"] == %Label{value: "elf", confidence: 0.9}
     assert d.model == "from_text"
     assert {d.race, d.class, d.occupation, d.name} == {"elf", "ranger", "hunter", "Mira Vale"}
     assert d.base_stats["DEX"] == 16
