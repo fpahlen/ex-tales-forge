@@ -2,7 +2,8 @@ defmodule TalesForge.Game.OutcomeProseCharacterizationTest do
   @moduledoc """
   Characterization of the item deltas of `OutcomeRecord.build/1` and the
   item mismatches of `ProseCheck.check/2` before round 2 PR 9: exact
-  outputs from main. Pure, no LLM calls.
+  outputs from main, except that "Nobody gives you anything." no longer
+  reports an item "nything". Pure, no LLM calls.
   """
   use ExUnit.Case, async: true
 
@@ -90,7 +91,12 @@ defmodule TalesForge.Game.OutcomeProseCharacterizationTest do
      [%{"id" => "bowl_of_stew", "name" => "bowl of stew"}], 0,
      [%{kind: :item, detail: "warm loaf"}]},
     {"Brenna Hands You A Knife!", [], 0, [%{kind: :item, detail: "knife"}]},
-    {"Nobody gives you anything.", nil, nil, [%{kind: :item, detail: "nything"}]}
+    {"Nobody gives you anything.", nil, nil, []},
+    {"She hands you nothing; he offers you something.", nil, nil, []},
+    {"He passes you everyone's thanks.", nil, nil, []},
+    {"Nobody gives anyone anything.", nil, nil, []},
+    {"She hands you an apple.", nil, nil, [%{kind: :item, detail: "apple"}]},
+    {"She hands you anise seed.", nil, nil, [%{kind: :item, detail: "anise seed"}]}
   ]
 
   test "prose items the record does not back, in order" do

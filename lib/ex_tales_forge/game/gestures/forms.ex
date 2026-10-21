@@ -19,13 +19,14 @@ defmodule TalesForge.Game.Gestures.Forms do
   @spec verb(String.t()) :: [String.t()]
   def verb(base) when is_binary(base) do
     {third, stem} = stems(base)
-    [base, third, stem <> "ing", stem <> "ed"]
+    [base, third, stem <> "ing", String.replace_suffix(stem, "e", "") <> "ed"]
   end
 
   defp stems(base) do
     cond do
-      String.ends_with?(base, "e") ->
-        {base <> "s", String.slice(base, 0..-2//1)}
+      # "see", "hoe" and "dye" keep their "e" before -ing.
+      Regex.match?(~r/[^eoy]e$/, base) ->
+        {base <> "s", String.trim_trailing(base, "e")}
 
       String.ends_with?(base, ~w(sh ch ss x)) ->
         {base <> "es", base}
