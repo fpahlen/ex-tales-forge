@@ -91,8 +91,8 @@ defmodule TalesForgeWeb.Router do
       # Play and test
       live "/play/sessions", SessionLive.Index, :index
       live "/play/sessions/:id", SessionLive.Show, :show
-      live "/play/sessions/:id/npcs", NpcLive.Index, :index
-      live "/play/sessions/:id/npcs/:npc_id", NpcLive.Show, :show
+      live "/play/sessions/:id/characters", CharacterLive.Index, :index
+      live "/play/sessions/:id/characters/:character_id", CharacterLive.Show, :show
       live "/play/sessions/:id/turns", TurnLive.Index, :index
       # Founders: session versus canon (a review per session, on a button)
       live "/founders/canon-review", CanonReviewLive.Index, :index
@@ -151,6 +151,10 @@ defmodule TalesForgeWeb.Router do
       get "/#{old}", AdminRedirectController, :show
       get "/#{old}/*rest", AdminRedirectController, :show
     end
+
+    # A session's NPC pages became its Characters pages (NPC cleanup PR 6).
+    get "/play/sessions/:id/npcs", CharactersRedirectController, :show
+    get "/play/sessions/:id/npcs/*rest", CharactersRedirectController, :show
   end
 
   # ExDoc site built into the release (CodeDocsController) and the images of

@@ -1,4 +1,4 @@
-defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
+defmodule TalesForgeWeb.AdminLive.CharacterLiveTest do
   use TalesForgeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -14,8 +14,8 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
   end
 
   test "index links to an NPC page that renders it", %{conn: conn, session: session, npc: npc} do
-    {:ok, index, _html} = live(conn, ~p"/admin/play/sessions/#{session.id}/npcs")
-    path = ~p"/admin/play/sessions/#{session.id}/npcs/#{npc.npc_id}"
+    {:ok, index, _html} = live(conn, ~p"/admin/play/sessions/#{session.id}/characters")
+    path = ~p"/admin/play/sessions/#{session.id}/characters/#{npc.npc_id}"
     assert has_element?(index, ~s(a[href="#{path}"]))
 
     {:ok, view, html} = live(conn, path)
@@ -25,7 +25,8 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
   end
 
   test "saving runtime state keeps the page working", %{conn: conn, session: session, npc: npc} do
-    {:ok, view, _html} = live(conn, ~p"/admin/play/sessions/#{session.id}/npcs/#{npc.npc_id}")
+    {:ok, view, _html} =
+      live(conn, ~p"/admin/play/sessions/#{session.id}/characters/#{npc.npc_id}")
 
     view
     |> form("form[phx-submit=save_runtime]", %{runtime_json: ~s({"mood": "wary"})})
@@ -36,7 +37,9 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
   end
 
   test "the page names its session", %{conn: conn, session: session, npc: npc} do
-    {:ok, view, _html} = live(conn, ~p"/admin/play/sessions/#{session.id}/npcs/#{npc.npc_id}")
+    {:ok, view, _html} =
+      live(conn, ~p"/admin/play/sessions/#{session.id}/characters/#{npc.npc_id}")
+
     text = view |> element("#npc-session") |> render()
     assert text =~ session.id
     assert text =~ "NPC Live Test"
@@ -44,7 +47,8 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
 
   test "saving a copy older than the row is refused and the page reloads",
        %{conn: conn, session: session, npc: npc} do
-    {:ok, view, _html} = live(conn, ~p"/admin/play/sessions/#{session.id}/npcs/#{npc.npc_id}")
+    {:ok, view, _html} =
+      live(conn, ~p"/admin/play/sessions/#{session.id}/characters/#{npc.npc_id}")
 
     # A turn is played while the page is open.
     {:ok, _} = TalesForge.GameCharacter.Roster.bump_relationship(session.id, npc.npc_id, 0.3)
@@ -74,16 +78,31 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
     end
 
     assert {:error, {:live_redirect, %{to: to, flash: flash}}} =
-             live(conn, ~p"/admin/play/sessions/#{other.id}/npcs/#{npc.npc_id}")
+             live(conn, ~p"/admin/play/sessions/#{other.id}/characters/#{npc.npc_id}")
 
-    assert to == ~p"/admin/play/sessions/#{other.id}/npcs"
-    assert flash["error"] =~ "No NPC"
+    assert to == ~p"/admin/play/sessions/#{other.id}/characters"
+    assert flash["error"] =~ "No character"
   end
 
   test "an unknown NPC slug redirects instead of crashing", %{conn: conn, session: session} do
     assert {:error, {:live_redirect, %{to: to}}} =
-             live(conn, ~p"/admin/play/sessions/#{session.id}/npcs/no_such_npc")
+             live(conn, ~p"/admin/play/sessions/#{session.id}/characters/no_such_npc")
 
-    assert to == ~p"/admin/play/sessions/#{session.id}/npcs"
+    assert to == ~p"/admin/play/sessions/#{session.id}/characters"
+  end
+
+  test "the old /npcs URLs redirect to the Characters pages (302)",
+       %{conn: conn, session: session, npc: npc} do
+    base = "/admin/play/sessions/#{session.id}"
+
+    for {old, new} <- [
+          {base <> "/npcs", base <> "/characters"},
+          {base <> "/npcs/#{npc.npc_id}", base <> "/characters/#{npc.npc_id}"},
+          {base <> "/npcs?tab=x", base <> "/characters?tab=x"}
+        ] do
+      conn = get(conn, old)
+      assert conn.status == 302, "#{old} answered #{conn.status}"
+      assert redirected_to(conn) == new
+    end
   end
 end

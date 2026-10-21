@@ -1,6 +1,6 @@
-defmodule TalesForgeWeb.AdminLive.NpcLive.Index do
+defmodule TalesForgeWeb.AdminLive.CharacterLive.Index do
   @moduledoc """
-  Admin: the NPCs of one game session.
+  Admin: the pack NPCs (GM characters) of one game session.
   """
 
   use TalesForgeWeb, :live_view
@@ -15,7 +15,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Index do
 
     {:ok,
      socket
-     |> assign(:page_title, "NPCs")
+     |> assign(:page_title, "Characters")
      |> assign(:session, session)
      |> assign(:npcs, npcs)}
   end
@@ -31,14 +31,14 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Index do
         >
           ← {@session.name}
         </.link>
-        <h2 class="font-serif text-2xl font-bold text-[var(--paper-ink)]">NPCs</h2>
+        <h2 class="font-serif text-2xl font-bold text-[var(--paper-ink)]">Characters</h2>
       </header>
 
       <div class="overflow-x-auto rounded-lg border border-[var(--paper-rule)]">
         <table class="min-w-full divide-y divide-[var(--paper-rule)] text-sm">
           <thead class="bg-[var(--paper-panel)] text-left text-[var(--paper-muted)]">
             <tr>
-              <th class="px-4 py-2">NPC</th>
+              <th class="px-4 py-2">Character</th>
               <th class="px-4 py-2">Location</th>
               <th class="px-4 py-2">Mood</th>
               <th class="px-4 py-2">Stock items</th>
@@ -53,7 +53,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Index do
               <td class="px-4 py-3">{stock_count(npc)}</td>
               <td class="px-4 py-3">
                 <.link
-                  navigate={~p"/admin/play/sessions/#{@session.id}/npcs/#{npc.npc_id}"}
+                  navigate={~p"/admin/play/sessions/#{@session.id}/characters/#{npc.npc_id}"}
                   class="text-[var(--paper-accent)]"
                 >
                   Edit

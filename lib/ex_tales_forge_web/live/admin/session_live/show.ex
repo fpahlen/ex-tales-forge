@@ -102,7 +102,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
           Open in play
         </.link>
         <.link
-          navigate={~p"/admin/play/sessions/#{@session.id}/npcs"}
+          navigate={~p"/admin/play/sessions/#{@session.id}/characters"}
           class="rounded border border-[var(--paper-rule)] px-3 py-1.5 text-sm"
         >
           NPCs
