@@ -65,31 +65,13 @@ defmodule TalesForge.Game.Schemas do
     defp parameters(params) when is_map(params), do: params
     defp parameters(_null_or_other), do: %{}
 
-    defp action_type_atom(type) do
-      case type do
-        "observe" -> :observe
-        "interact" -> :interact
-        "speak" -> :speak
-        "move" -> :move
-        "combat" -> :combat
-        "use_item" -> :use_item
-        "pickup" -> :pickup
-        "drop" -> :drop
-        "buy" -> :buy
-        "sell" -> :sell
-        "trade" -> :trade
-        "spend" -> :spend
-        "wait" -> :wait
-        "train" -> :train
-        "freeform" -> :freeform
-        "rest" -> :rest
-        "work" -> :work
-        "equip" -> :equip
-        "give" -> :give
-        "none_fits" -> :none_fits
-        _ -> :other
-      end
-    end
+    @action_types Map.new(
+                    ~w(observe interact speak move combat use_item pickup drop buy sell trade
+                       spend wait train freeform rest work equip give none_fits)a,
+                    &{Atom.to_string(&1), &1}
+                  )
+
+    defp action_type_atom(type), do: Map.get(@action_types, type, :other)
 
     def encode(%__MODULE__{} = action) do
       %{
