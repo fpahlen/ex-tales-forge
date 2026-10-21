@@ -21,9 +21,14 @@ defmodule TalesForge.Schemas.WorldState do
   characters' rows (`TalesForge.Characters.cast/1`). A world stored before
   10f PR 4 may still hold `"npc_state"` and `"npc_moods"`: `load/1` drops
   them, so nothing reads them, and `dump/1` never writes them.
+
+  `"positions"` (`TalesForge.Locations.Positions.Json`) is parsed here into
+  `%Position{}` structs on load and written back as JSON on dump.
   """
 
   use Ecto.Type
+
+  alias TalesForge.Locations.Positions.Json
 
   @retired ~w(npc_state npc_moods)
 
@@ -34,10 +39,12 @@ defmodule TalesForge.Schemas.WorldState do
   def cast(value), do: Ecto.Type.cast(:map, value)
 
   @impl true
-  def load(%{} = world), do: Ecto.Type.load(:map, Map.drop(world, @retired))
-  def load(value), do: Ecto.Type.load(:map, value)
+  def load(%{} = world), do: {:ok, world |> Map.drop(@retired) |> Json.parse()}
+  def load(_value), do: :error
 
   @impl true
-  def dump(%{} = world), do: Ecto.Type.dump(:map, Map.drop(world, ["character" | @retired]))
-  def dump(value), do: Ecto.Type.dump(:map, value)
+  def dump(%{} = world),
+    do: {:ok, world |> Map.drop(["character" | @retired]) |> Json.json()}
+
+  def dump(_value), do: :error
 end
