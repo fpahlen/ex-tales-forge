@@ -144,3 +144,8 @@ into region cells. Not now.
   the map)" from `TalesForge.Locations.Prompt`. Step 1 keeps no position in
   the game state: the character stands on the main door facing in, until a
   later step maps the player's words to `Move.approach/3` and stores it.
+
+## Future: pictures and a map view
+
+1. Location pictures are made while authoring the adventure, not during play: generated from the grid and the world's style guide, checked by the author against the grid so nothing invented slips in, then stored with the adventure and shown to every player.
+2. A 20×20 tile view where you click to move, using the movement code, once the character's position is stored.
