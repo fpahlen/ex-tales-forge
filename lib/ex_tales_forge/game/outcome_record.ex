@@ -226,36 +226,28 @@ defmodule TalesForge.Game.OutcomeRecord do
     do: get_in(world, ["character", "location_id"]) || Map.get(world, "location_id")
 
   defp item_deltas(before_char, after_char) do
-    before_q = quantities(before_char)
-    after_q = quantities(after_char)
     names = Map.merge(names(before_char), names(after_char))
-    ids = (Map.keys(before_q) ++ Map.keys(after_q)) |> Enum.uniq() |> Enum.sort()
+    rows = changes(quantities(before_char), quantities(after_char), names)
+    {for({delta, row} <- rows, delta > 0, do: row), for({delta, row} <- rows, delta < 0, do: row)}
+  end
 
-    Enum.reduce(ids, {[], []}, fn id, {gained, lost} ->
-      delta = Map.get(after_q, id, 0) - Map.get(before_q, id, 0)
-      entry = &%{"id" => id, "name" => Map.get(names, id, id), "quantity" => &1}
-
-      cond do
-        delta > 0 -> {gained ++ [entry.(delta)], lost}
-        delta < 0 -> {gained, lost ++ [entry.(-delta)]}
-        true -> {gained, lost}
-      end
-    end)
+  # `{delta, row}` for each item whose quantity changed, by id.
+  defp changes(before_q, after_q, names) do
+    for id <- before_q |> Map.merge(after_q) |> Map.keys() |> Enum.sort(),
+        delta = Map.get(after_q, id, 0) - Map.get(before_q, id, 0),
+        delta != 0,
+        do: {delta, %{"id" => id, "name" => Map.get(names, id, id), "quantity" => abs(delta)}}
   end
 
   defp quantities(character) do
     character
-    |> Map.get("inventory", [])
-    |> Inventory.normalize_items()
+    |> held()
     |> Enum.reduce(%{}, fn item, acc ->
       Map.update(acc, item["id"], item["quantity"] || 1, &(&1 + (item["quantity"] || 1)))
     end)
   end
 
-  defp names(character) do
-    character
-    |> Map.get("inventory", [])
-    |> Inventory.normalize_items()
-    |> Map.new(&{&1["id"], &1["name"]})
-  end
+  defp names(character), do: character |> held() |> Map.new(&{&1["id"], &1["name"]})
+
+  defp held(character), do: character |> Map.get("inventory", []) |> Inventory.normalize_items()
 end
