@@ -4,7 +4,7 @@ defmodule TalesForge.Locations.NoMove do
   travels only to a place the world has and that has a route from where it
   is, and walks only to a spot in its room. A refused move becomes `:other`
   with `parameters["no_move"]`, so nothing happens and the turn costs no
-  game time (`TalesForge.Game.ActionHandler`); the GM gets the note
+  game time (the action handler, TalesForge.Game.ActionHandler); the GM gets the note
   (`TalesForge.Game.Turn.NoPlace`, `TalesForge.Game.Turn.Walk`). Pure.
   """
 
