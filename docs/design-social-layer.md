@@ -24,7 +24,8 @@ readings in `npc_reaction`, hearing cut, theory of mind);
 > bar, this plan is re-planned, not built.
 
 **The motivating case (measured).** Live Jev reads the bare reply "Yes." as
-action `buy`, target `ale_mug`, at confidence 0.47–0.77. The old test stubs said
+action `buy`, target `ale_mug`, at confidence 0.63–0.78, or as `speak` at
+0.45–0.81 (Gentry's v353 recording, `test/fixtures/replay/gentry_v353.json`). The old test stubs said
 `speak` at 0.95, which was wrong. The single call alone cannot tell "yes, I take
 the ale" from "yes, I hear you". The listener who made the quote can. This case
 drives listener readings (§3) and System 2 (§6).
@@ -400,7 +401,7 @@ lines. Nothing below starts before this. If System 1 fails, re-plan.
 Each PR is behind a flag (default off) and leaves the files it touches better.
 
 1. **Live stubs for "Yes."** Replace the `speak 0.95` stubs with recorded live
-   replies (buy `ale_mug` 0.47–0.77). Check: a test pins real behaviour.
+   replies (buy `ale_mug` 0.63–0.78, speak 0.45–0.81). Check: a test pins real behaviour.
 2. **`Hearing` pure module.** Structs, `clarity/2`, `modifier/1`, `fragment/3`,
    no wiring. Check: unit tests for the §2.3 table, −6 dB per doubling (property
    test), same seed → same fragment.
