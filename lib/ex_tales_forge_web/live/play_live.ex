@@ -275,8 +275,13 @@ defmodule TalesForgeWeb.PlayLive do
     |> assign(:thinking, false)
     |> drop_pending_action()
     |> forget_expired_question(reason)
-    |> put_flash(:error, submit_error(reason))
+    |> put_flash(flash_kind(reason), submit_error(reason))
   end
+
+  # An empty submit is a hint, so it is an info toast, which closes itself
+  # (Layouts.flash_group); the other failures are errors that stay.
+  defp flash_kind(:empty_message), do: :info
+  defp flash_kind(_reason), do: :error
 
   defp forget_expired_question(socket, :clarification_expired),
     do: assign(socket, :clarification, nil)
@@ -317,10 +322,10 @@ defmodule TalesForgeWeb.PlayLive do
   defp drop_pending_action(socket),
     do: stream_delete_by_dom_id(socket, :entries, "entries-" <> @pending_action_id)
 
-  defp current_scene_image(%{world_state: world_state, scenes: scenes}) do
-    location_id = Map.get(world_state || %{}, "location_id")
+  defp current_scene_image(session) do
+    location_id = Map.get(session.world_state || %{}, "location_id")
 
-    scenes
+    session.scenes
     |> Enum.find(&(&1.location_id == location_id))
     |> case do
       %{image_url: url} when is_binary(url) and url != "" -> url
