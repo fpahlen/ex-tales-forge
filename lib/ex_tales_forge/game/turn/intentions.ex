@@ -4,7 +4,7 @@ defmodule TalesForge.Game.Turn.Intentions do
   (`TalesForge.Intention`, `by: :system`); the code that makes them writes
   nothing.
 
-    * `feel/2`, in the NPC stage (`TalesForge.Game.Turn.Npcs`): the NPCs'
+    * `feel/2`, in the NPC stage (`TalesForge.Game.Turn.Reactions`): the NPCs'
       gut reactions go on their characters in the turn's cast
       (`runtime["reaction"]`), and so to their `characters` rows.
     * `apply_all/2`, in the turn transaction (`TalesForge.Game.Turn.Store`):

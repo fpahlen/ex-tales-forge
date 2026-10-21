@@ -21,8 +21,8 @@ defmodule TalesForge.Game.Turn.Outcome do
   require Logger
 
   alias TalesForge.AICalls.{Steps, Tags}
+  alias TalesForge.Game.DialogueMemory
   alias TalesForge.Game.Gestures
-  alias TalesForge.Game.NpcMemory
   alias TalesForge.Game.OutcomeRecord
   alias TalesForge.Game.ProseCheck
   alias TalesForge.Game.Turn
@@ -122,10 +122,13 @@ defmodule TalesForge.Game.Turn.Outcome do
 
   defp npc_memory(turn, board, narrative) do
     if Turn.flag?(turn, :npc_dialogue_memory) do
-      npcs = NpcMemory.present_npcs(turn.prompt.context.intent_context)
+      npcs = DialogueMemory.present_npcs(turn.prompt.context.intent_context)
 
       {memory, repeats} =
-        NpcMemory.put(board.world["npc_memory"] || %{}, NpcMemory.lines(narrative, npcs))
+        DialogueMemory.put(
+          board.world["npc_memory"] || %{},
+          DialogueMemory.lines(narrative, npcs)
+        )
 
       if repeats != [],
         do:
@@ -137,7 +140,7 @@ defmodule TalesForge.Game.Turn.Outcome do
       world = Map.put(board.world, "npc_memory", memory)
 
       {%{board | world: world},
-       NpcMemory.event(repeats, world["world_tick"] || 0, world["location_id"])}
+       DialogueMemory.event(repeats, world["world_tick"] || 0, world["location_id"])}
     else
       {board, nil}
     end

@@ -1,4 +1,4 @@
-defmodule TalesForge.Game.NpcReactions do
+defmodule TalesForge.Game.CharacterReactions do
   @moduledoc """
   Prototype (`NPC_REACTIONS=on`, default off): an NPC's gut reaction (System 1)
   read by TypeSafe Jev **before** the GM call, so the GM's lines for that NPC
@@ -43,7 +43,7 @@ defmodule TalesForge.Game.NpcReactions do
 
   defmodule Moment do
     @moduledoc """
-    The moment the NPCs react to (`TalesForge.Game.NpcReactions.react/1`):
+    The moment the NPCs react to (`TalesForge.Game.CharacterReactions.react/1`):
     the session, the world, the session's cast (`TalesForge.Game.Cast`),
     the turn number, the player's words, the mechanical outcome and the
     premise findings. `react/1` adds the moods
@@ -142,7 +142,7 @@ defmodule TalesForge.Game.NpcReactions do
   Each reaction as a `{:feel, mood}` Intention of its NPC: the mood that
   carries over on the NPC's character (`runtime["reaction"]`).
 
-      iex> [i] = TalesForge.Game.NpcReactions.intentions([%{"npc_id" => "innkeep", "emotion" => "wary", "intensity" => 0.5, "stance" => "cool", "confidence" => 0.7, "turn_number" => 3, "name" => "Brenna"}])
+      iex> [i] = TalesForge.Game.CharacterReactions.intentions([%{"npc_id" => "innkeep", "emotion" => "wary", "intensity" => 0.5, "stance" => "cool", "confidence" => 0.7, "turn_number" => 3, "name" => "Brenna"}])
       iex> {i.character_id, i.by, i.action}
       {"innkeep", :system, {:feel, %{"emotion" => "wary", "intensity" => 0.5, "stance" => "cool", "confidence" => 0.7, "turn_number" => 3}}}
   """

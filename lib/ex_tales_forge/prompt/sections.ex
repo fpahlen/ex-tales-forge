@@ -73,7 +73,7 @@ defmodule TalesForge.Prompt.Sections.IntentContext do
   def render(ctx), do: ctx.data.formatted_intent
 end
 
-defmodule TalesForge.Prompt.Sections.Npcs do
+defmodule TalesForge.Prompt.Sections.Characters do
   @moduledoc false
   use TalesForge.Prompt.Section, id: :npcs, slot: :turn
 
@@ -141,12 +141,12 @@ defmodule TalesForge.Prompt.Sections.Prices do
       )
 end
 
-defmodule TalesForge.Prompt.Sections.NpcReactions do
+defmodule TalesForge.Prompt.Sections.CharacterReactions do
   @moduledoc """
-  The NPC reactions of this turn (`TalesForge.Game.NpcReactions`). One short
+  The NPC reactions of this turn (`TalesForge.Game.CharacterReactions`). One short
   typed line per NPC, e.g. `- Brenna Holt — wary (0.7), stance cool, confidence 0.8`.
 
-      iex> TalesForge.Prompt.Sections.NpcReactions.text([])
+      iex> TalesForge.Prompt.Sections.CharacterReactions.text([])
       nil
   """
   use TalesForge.Prompt.Section, id: :npc_reactions, slot: :turn
@@ -173,25 +173,25 @@ defmodule TalesForge.Prompt.Sections.NpcReactions do
   defp fmt(x), do: to_string(x)
 end
 
-defmodule TalesForge.Prompt.Sections.NpcMemory do
+defmodule TalesForge.Prompt.Sections.DialogueMemory do
   @moduledoc """
-  The memory of the present NPCs (`TalesForge.Game.NpcMemory`): the last
+  The memory of the present NPCs (`TalesForge.Game.DialogueMemory`): the last
   lines each NPC spoke.
   """
   use TalesForge.Prompt.Section, id: :npc_memory, slot: :turn
 
-  alias TalesForge.Game.NpcMemory
+  alias TalesForge.Game.DialogueMemory
 
   @impl true
   def render(%{data: data}) do
     text(
       get_in(data, [:world_state, "npc_memory"]),
-      NpcMemory.present_npcs(Map.get(data, :intent_context))
+      DialogueMemory.present_npcs(Map.get(data, :intent_context))
     )
   end
 
   @doc "The section for the memory of `npcs`, or nil when it is empty."
-  @spec text(map() | nil, [NpcMemory.npc()]) :: String.t() | nil
+  @spec text(map() | nil, [DialogueMemory.npc()]) :: String.t() | nil
   def text(memory, npcs) do
     blocks =
       npcs

@@ -75,7 +75,7 @@ defmodule TalesForge.Game.TurnProcessor do
             |> Turn.new({raw_action, PlayerAction.decode(player_action_map)}, opts)
             |> Turn.Premise.check()
             |> Turn.Mechanics.apply()
-            |> Turn.Npcs.react()
+            |> Turn.Reactions.react()
             |> Turn.Place.settle()
             |> Turn.Notice.select()
             |> Turn.Prompt.build()

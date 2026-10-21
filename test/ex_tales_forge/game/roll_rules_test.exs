@@ -6,7 +6,7 @@ defmodule TalesForge.Game.RollRulesTest do
   """
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Game.{ActionHandler, Context, Intent, Mechanics, NpcReactions, Prompts}
+  alias TalesForge.Game.{ActionHandler, CharacterReactions, Context, Intent, Mechanics, Prompts}
   alias TalesForge.Game.Schemas.{IntentExtraction, MechanicalResolution, SingleAction}
   alias TalesForge.GameSessions
 
@@ -105,8 +105,8 @@ defmodule TalesForge.Game.RollRulesTest do
     failed_read = %MechanicalResolution{skill: "insight", outcome: "failure", roll: 17}
     failed_lie = %MechanicalResolution{skill: "deception", outcome: "failure", roll: 17}
 
-    assert NpcReactions.visible_outcome(failed_read, %{}) == nil
-    assert NpcReactions.visible_outcome(failed_lie, %{}) == failed_lie
+    assert CharacterReactions.visible_outcome(failed_read, %{}) == nil
+    assert CharacterReactions.visible_outcome(failed_lie, %{}) == failed_lie
   end
 
   test "the GM prompt says a failed check means learning nothing extra, not a colder NPC" do

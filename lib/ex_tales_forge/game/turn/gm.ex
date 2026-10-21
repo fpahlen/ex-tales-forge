@@ -1,7 +1,7 @@
 defmodule TalesForge.Game.Turn.Gm do
   @moduledoc """
   Stage 6 of a turn: the GM narration. It starts after
-  `TalesForge.Game.Turn.Npcs.react/1` and streams each text chunk to the
+  `TalesForge.Game.Turn.Reactions.react/1` and streams each text chunk to the
   `stream` adapter. Writes `narration`: `{:ok, gm_result}` or
   `{:error, reason}`.
   """

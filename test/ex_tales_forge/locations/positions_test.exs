@@ -3,11 +3,11 @@ defmodule TalesForge.Locations.PositionsTest do
 
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction, SingleAction}
   alias TalesForge.Game.Turn
-  alias TalesForge.Schemas.GameSession
   alias TalesForge.GameSessions
   alias TalesForge.Locations.Pack
   alias TalesForge.Locations.Position
   alias TalesForge.Locations.Positions
+  alias TalesForge.Schemas.GameSession
   alias TalesForge.Schemas.WorldState
 
   doctest TalesForge.Locations.Positions.Json
@@ -105,7 +105,7 @@ defmodule TalesForge.Locations.PositionsTest do
     |> Turn.new({"look around", action}, flags: flags, role: :playtest, adapters: adapters)
     |> Turn.Premise.check()
     |> Turn.Mechanics.apply()
-    |> Turn.Npcs.react()
+    |> Turn.Reactions.react()
     |> Turn.Place.settle()
     |> Turn.Prompt.build()
     |> Turn.Gm.narrate()
