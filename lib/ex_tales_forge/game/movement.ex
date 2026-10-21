@@ -37,6 +37,8 @@ defmodule TalesForge.Game.Movement do
   With the feature off, movement uses only the hand-written exits.
   """
 
+  alias TalesForge.Game.Movement.PlaceHit
+
   @max_hops 3
 
   # Words that put a place right after them in a sentence about going there.
@@ -339,36 +341,36 @@ defmodule TalesForge.Game.Movement do
 
     world
     |> reachable(from)
-    |> Enum.flat_map(fn {id, hops} ->
-      id
-      |> match_terms(Map.get(locations, id, %{}))
-      |> Enum.flat_map(&led_in_matches(lowered, &1))
-      |> Enum.map(fn {pos, term} -> {id, hops, pos, term} end)
-    end)
-    |> Enum.sort_by(fn {_id, hops, pos, term} -> {pos, hops, -byte_size(term)} end)
-    |> Enum.map(fn {id, _hops, pos, _term} -> {id, pos} end)
+    |> Enum.flat_map(fn {id, hops} -> hits(lowered, Map.get(locations, id, %{}), {id, hops}) end)
+    |> Enum.sort_by(&rank/1)
+    |> Enum.map(&{&1.id, &1.pos})
   end
 
   def mentioned_places(_world, _from, _text), do: []
+
+  defp hits(lowered, location, {id, hops}) do
+    for term <- match_terms(id, location),
+        pos <- led_in_matches(lowered, term),
+        do: %PlaceHit{id: id, hops: hops, pos: pos, term: term}
+  end
+
+  # Earliest first, then nearest, then the longer term.
+  defp rank(%PlaceHit{pos: pos, hops: hops, term: term}), do: {pos, hops, -byte_size(term)}
 
   # Words to look for in running text: the id as words and the name without a
   # leading "the", and the aliases as written ("the cut" must say "the cut",
   # so "to cut off the chill" is no place).
   defp match_terms(id, location) do
     named =
-      [String.replace(id, "_", " "), Map.get(location, "name")]
-      |> Enum.filter(&(is_binary(&1) and &1 != ""))
-      |> Enum.map(&(&1 |> normalize() |> strip_article()))
+      Enum.map(
+        present([String.replace(id, "_", " "), location["name"]]),
+        &strip_article(normalize(&1))
+      )
 
-    aliases =
-      location
-      |> Map.get("aliases")
-      |> List.wrap()
-      |> Enum.filter(&(is_binary(&1) and &1 != ""))
-      |> Enum.map(&normalize/1)
-
-    Enum.uniq(named ++ aliases)
+    Enum.uniq(named ++ Enum.map(present(List.wrap(location["aliases"])), &normalize/1))
   end
+
+  defp present(words), do: Enum.filter(words, &(is_binary(&1) and &1 != ""))
 
   # Positions of `term` (whole words) in `text` that a lead-in word precedes.
   defp led_in_matches(text, term) do
@@ -377,7 +379,7 @@ defmodule TalesForge.Game.Movement do
     |> Enum.flat_map(fn [{pos, _len}] ->
       start = max(pos - @window, 0)
       before = binary_part(text, start, pos - start)
-      if Regex.match?(@lead_in, before), do: [{pos, term}], else: []
+      if Regex.match?(@lead_in, before), do: [pos], else: []
     end)
   end
 
@@ -391,7 +393,7 @@ defmodule TalesForge.Game.Movement do
   @spec terms(String.t(), location()) :: [String.t()]
   def terms(id, location) do
     [id, String.replace(id, "_", " "), Map.get(location, "name") | List.wrap(location["aliases"])]
-    |> Enum.filter(&(is_binary(&1) and &1 != ""))
+    |> present()
     |> Enum.map(&(&1 |> normalize() |> strip_article()))
     |> Enum.reject(&(&1 == ""))
     |> Enum.uniq()
