@@ -68,7 +68,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
     Turn
   }
 
-  alias TalesForge.Schemas.Character, as: CharacterRow
+  alias TalesForge.Schemas
 
   @typedoc """
   A run's character changes: the characters (player character first) with
@@ -198,7 +198,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
   end
 
   defp load_characters(ids) do
-    from(c in CharacterRow,
+    from(c in Schemas.GameCharacter,
       where: c.game_session_id in ^ids,
       select: %{
         session_id: c.game_session_id,
@@ -224,7 +224,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   defp load_memories(ids) do
     from(m in CharacterMemory,
-      join: c in CharacterRow,
+      join: c in Schemas.GameCharacter,
       on: c.id == m.character_id,
       where: c.game_session_id in ^ids,
       order_by: [m.tick, m.inserted_at],

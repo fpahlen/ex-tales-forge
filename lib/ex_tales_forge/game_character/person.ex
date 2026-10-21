@@ -14,8 +14,7 @@ defmodule TalesForge.GameCharacter.Person do
   `attrs/2` turns a changed `runtime_state` back into the row's columns.
   """
 
-  alias TalesForge.Schemas.Character
-
+  alias TalesForge.Schemas
   @columns ~w(location_id mood stock coins relationship_score)
 
   defstruct [:npc_id, :row, personality: %{}, runtime_state: %{}]
@@ -23,7 +22,7 @@ defmodule TalesForge.GameCharacter.Person do
   @typedoc "One pack NPC of a session, read from its character row."
   @type t :: %__MODULE__{
           npc_id: String.t(),
-          row: Character.t() | nil,
+          row: Schemas.GameCharacter.t() | nil,
           personality: map(),
           runtime_state: map()
         }
@@ -32,9 +31,9 @@ defmodule TalesForge.GameCharacter.Person do
   The NPC of a character `row`. `memories` is the NPC's memory list for a
   row written before this step, which has none in its `runtime`.
 
-      iex> row = %TalesForge.Schemas.Character{slug: "smith", definition: %{"name" => "Hilde", "skills" => %{"smithing" => 8}},
+      iex> row = %TalesForge.Schemas.GameCharacter{slug: "smith", definition: %{"name" => "Hilde", "skills" => %{"smithing" => 8}},
       ...>   skills: %{"smithing" => 40}, location_id: "smithy", mood: "busy", relationships: %{"pc" => 0.5},
-      ...>   inventory: [%TalesForge.Schemas.Character.InventoryItem{id: "nail", name: "Nail", quantity: 3, price_copper: 1}],
+      ...>   inventory: [%TalesForge.Schemas.GameCharacter.InventoryItem{id: "nail", name: "Nail", quantity: 3, price_copper: 1}],
       ...>   coins: %{"silver" => 4}, runtime: %{"since_tick" => 7, "memories" => [], "reaction" => %{"emotion" => "calm"}}}
       iex> person = TalesForge.GameCharacter.Person.from_row(row)
       iex> {person.npc_id, person.personality["skills"], person.runtime_state}
@@ -43,8 +42,8 @@ defmodule TalesForge.GameCharacter.Person do
          "stock" => [%{"id" => "nail", "name" => "Nail", "quantity" => 3, "price_copper" => 1}],
          "coins" => %{"silver" => 4}}}
   """
-  @spec from_row(Character.t(), [map()]) :: t()
-  def from_row(%Character{} = row, memories \\ []) do
+  @spec from_row(Schemas.GameCharacter.t(), [map()]) :: t()
+  def from_row(%Schemas.GameCharacter{} = row, memories \\ []) do
     runtime = Map.delete(row.runtime || %{}, "reaction")
 
     %__MODULE__{
@@ -70,15 +69,15 @@ defmodule TalesForge.GameCharacter.Person do
   or the one the row already has) and the rest as `runtime`, which keeps
   the row's gut reaction.
 
-      iex> row = %TalesForge.Schemas.Character{relationships: %{"pc" => 0.0}, coins: %{"gold" => 1},
+      iex> row = %TalesForge.Schemas.GameCharacter{relationships: %{"pc" => 0.0}, coins: %{"gold" => 1},
       ...>   runtime: %{"reaction" => %{"emotion" => "calm"}}}
       iex> TalesForge.GameCharacter.Person.attrs(row, %{"location_id" => "inn", "mood" => "glad", "stock" => [],
       ...>   "relationship_score" => 0.1, "memories" => []})
       %{location_id: "inn", mood: "glad", inventory: [], coins: %{"gold" => 1}, relationships: %{"pc" => 0.1},
         runtime: %{"memories" => [], "reaction" => %{"emotion" => "calm"}}}
   """
-  @spec attrs(Character.t(), map(), String.t() | nil) :: map()
-  def attrs(%Character{} = row, runtime_state, pc_slug \\ nil) do
+  @spec attrs(Schemas.GameCharacter.t(), map(), String.t() | nil) :: map()
+  def attrs(%Schemas.GameCharacter{} = row, runtime_state, pc_slug \\ nil) do
     %{
       location_id: runtime_state["location_id"],
       mood: runtime_state["mood"],
@@ -97,7 +96,7 @@ defmodule TalesForge.GameCharacter.Person do
   @spec columns() :: [String.t()]
   def columns, do: @columns
 
-  defp personality(%Character{definition: definition, skills: skills}) do
+  defp personality(%Schemas.GameCharacter{definition: definition, skills: skills}) do
     definition = definition || %{}
 
     if skills in [nil, %{}] and not Map.has_key?(definition, "skills"),

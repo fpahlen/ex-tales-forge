@@ -20,7 +20,7 @@ defmodule TalesForge.Game.TradeOffersTest do
   alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForge.Schemas.Character
+  alias TalesForge.Schemas
 
   setup do
     previous = Map.new(~w(INN_WORLD TURN_APPLY_OUTCOMES), &{&1, System.get_env(&1)})
@@ -204,7 +204,7 @@ defmodule TalesForge.Game.TradeOffersTest do
     # Gentry's T24-T25: her purse set to 1c on the admin page, then a quote and a yes.
     live(session.id, {"tin_valley", 24})
 
-    Character
+    Schemas.GameCharacter
     |> where([c], c.game_session_id == ^session.id and c.controller == "player")
     |> Repo.update_all(set: [coins: %{"copper" => 1}])
 
@@ -381,7 +381,7 @@ defmodule TalesForge.Game.TradeOffersTest do
     @tag finding: "v353 T14 clarify has no asker: the patience never applies"
     test "unmet low needs lower patience: Brenna going hungry brushes off; nothing moves",
          %{session: session} do
-      Character
+      Schemas.GameCharacter
       |> where([c], c.game_session_id == ^session.id and c.slug == "innkeep")
       |> Repo.update_all(set: [maslow_level: "physiological"])
 
@@ -566,7 +566,7 @@ defmodule TalesForge.Game.TradeOffersTest do
   end
 
   defp snapshot(session_id) do
-    Character
+    Schemas.GameCharacter
     |> where([c], c.game_session_id == ^session_id)
     |> Repo.all()
     |> Map.new(fn c ->

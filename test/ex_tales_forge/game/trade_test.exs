@@ -19,7 +19,8 @@ defmodule TalesForge.Game.TradeTest do
   alias TalesForge.GameCharacter.Roster
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, GameSession}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.GameSession
 
   doctest TalesForge.Game.Trade
   doctest TalesForge.Game.Turn.Board, only: [trade_outcome: 2]
@@ -352,7 +353,7 @@ defmodule TalesForge.Game.TradeTest do
     }
 
   defp npc_row(%GameSession{id: id}, slug),
-    do: Repo.get_by!(Character, game_session_id: id, slug: slug)
+    do: Repo.get_by!(Schemas.GameCharacter, game_session_id: id, slug: slug)
 
   defp put_npc(session, slug, changes) do
     row = npc_row(session, slug)

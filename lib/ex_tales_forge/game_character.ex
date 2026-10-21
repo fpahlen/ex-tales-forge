@@ -5,7 +5,7 @@ defmodule TalesForge.GameCharacter do
   human; an NPC is one whose intentions come from the GM or the system.
   Nothing else differs, so this struct has no controller.
 
-  `from_schema/1` reads a `TalesForge.Schemas.Character` row and `to_sheet/1`
+  `from_schema/1` reads a `TalesForge.Schemas.GameCharacter` row and `to_sheet/1`
   gives the sheet map the turn plays on (`world_state["character"]`). Every
   sheet key has a column, so `to_sheet/1` of a mirrored row is the sheet
   that was mirrored. `class`, `creation`, `reflecting` and
@@ -20,8 +20,7 @@ defmodule TalesForge.GameCharacter do
   the play page treat every character alike.
   """
 
-  alias TalesForge.Schemas.Character
-
+  alias TalesForge.Schemas
   @stat_keys ~w(STR DEX CON INT WIS CHA)
 
   # Row columns taken as they are, and map columns that may be nil.
@@ -96,15 +95,15 @@ defmodule TalesForge.GameCharacter do
   `extra` and `missing`; the rest of `runtime` stays in `runtime`. A minor
   foe's row keeps its sheet in `definition`, so `minor` comes from there.
 
-      iex> row = %TalesForge.Schemas.Character{slug: "elara_voss", name: "Elara Voss",
-      ...>   stats: %TalesForge.Schemas.Character.Stats{str: 12},
+      iex> row = %TalesForge.Schemas.GameCharacter{slug: "elara_voss", name: "Elara Voss",
+      ...>   stats: %TalesForge.Schemas.GameCharacter.Stats{str: 12},
       ...>   class: "bard", runtime: %{"sheet" => %{"extra" => %{}, "missing" => []}}}
       iex> gc = TalesForge.GameCharacter.from_schema(row)
       iex> {gc.slug, gc.stats["STR"], gc.class, gc.extra, gc.runtime}
       {"elara_voss", 12, "bard", %{}, %{}}
   """
-  @spec from_schema(Character.t()) :: t()
-  def from_schema(%Character{} = row) do
+  @spec from_schema(Schemas.GameCharacter.t()) :: t()
+  def from_schema(%Schemas.GameCharacter{} = row) do
     %__MODULE__{}
     |> struct(Map.take(row, @plain))
     |> struct(for k <- @maps, into: %{}, do: {k, Map.get(row, k) || %{}})
@@ -113,7 +112,7 @@ defmodule TalesForge.GameCharacter do
     |> struct(minor: (row.definition || %{})["minor"] == true)
   end
 
-  defp embeds(%Character{} = row) do
+  defp embeds(%Schemas.GameCharacter{} = row) do
     %{
       stats: stats(row.stats),
       ocean: embed_map(row.ocean),
@@ -243,12 +242,12 @@ defmodule TalesForge.GameCharacter do
 
   defp stats(nil), do: %{}
 
-  defp stats(%Character.Stats{} = s) do
+  defp stats(%Schemas.GameCharacter.Stats{} = s) do
     @stat_keys |> Enum.zip([s.str, s.dex, s.con, s.int, s.wis, s.cha]) |> Map.new()
   end
 
   # An item as the sheet has it: no nil price, copper value or equipped flag.
-  defp item(%Character.InventoryItem{} = i) do
+  defp item(%Schemas.GameCharacter.InventoryItem{} = i) do
     i
     |> embed_map()
     |> Map.reject(fn {k, v} -> k in ~w(price_copper copper_value equipped) and is_nil(v) end)

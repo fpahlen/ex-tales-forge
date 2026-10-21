@@ -1,4 +1,4 @@
-defmodule TalesForge.Schemas.Character do
+defmodule TalesForge.Schemas.GameCharacter do
   @moduledoc """
   Ecto schema: one character in a game session, player character or NPC alike.
   The `controller` (`player`, `gm` or `bot`) is the only difference.
@@ -15,7 +15,7 @@ defmodule TalesForge.Schemas.Character do
   import Ecto.Changeset
 
   alias TalesForge.GameCharacter.Levers
-  alias TalesForge.Schemas.Character.{Concern, InventoryItem, Ocean, Stats}
+  alias TalesForge.Schemas.GameCharacter.{Concern, InventoryItem, Ocean, Stats}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -70,7 +70,7 @@ defmodule TalesForge.Schemas.Character do
     field :lock_version, :integer, default: 1
 
     belongs_to :game_session, TalesForge.Schemas.GameSession
-    has_many :memories, TalesForge.Schemas.CharacterMemory
+    has_many :memories, TalesForge.Schemas.CharacterMemory, foreign_key: :character_id
 
     timestamps(type: :utc_datetime)
   end

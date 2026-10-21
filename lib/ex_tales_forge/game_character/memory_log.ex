@@ -25,7 +25,8 @@ defmodule TalesForge.GameCharacter.MemoryLog do
   alias TalesForge.Game.Progression
   alias TalesForge.GameCharacter.{Moment, Store}
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, CharacterMemory, SessionEvent}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.{CharacterMemory, SessionEvent}
 
   # OCEAN trait at or above this level gives its interests.
   @high 7
@@ -68,8 +69,8 @@ defmodule TalesForge.GameCharacter.MemoryLog do
   end
 
   @doc "A character's interests: the pack's `interests` list, else the defaults."
-  @spec interests(Character.t()) :: [String.t()]
-  def interests(%Character{} = c) do
+  @spec interests(Schemas.GameCharacter.t()) :: [String.t()]
+  def interests(%Schemas.GameCharacter{} = c) do
     case (c.definition || %{})["interests"] do
       list when is_list(list) and list != [] -> Enum.map(list, &to_string/1)
       _ -> default_interests(c.ocean, c.role, c.concerns)
@@ -227,8 +228,8 @@ defmodule TalesForge.GameCharacter.MemoryLog do
   Recall: a character's short- and long-term memories about any of `ids`,
   heaviest and newest first, at most #{@recall_cap}.
   """
-  @spec recall(Character.t(), [String.t()], pos_integer()) :: [CharacterMemory.t()]
-  def recall(%Character{id: id}, ids, cap \\ @recall_cap) do
+  @spec recall(Schemas.GameCharacter.t(), [String.t()], pos_integer()) :: [CharacterMemory.t()]
+  def recall(%Schemas.GameCharacter{id: id}, ids, cap \\ @recall_cap) do
     CharacterMemory
     |> where([m], m.character_id == ^id and m.tier in ["short", "long"])
     |> where([m], fragment("? && ?", m.about, ^ids))
@@ -268,7 +269,7 @@ defmodule TalesForge.GameCharacter.MemoryLog do
   def overview(session_id) do
     counts =
       CharacterMemory
-      |> join(:inner, [m], c in Character, on: c.id == m.character_id)
+      |> join(:inner, [m], c in Schemas.GameCharacter, on: c.id == m.character_id)
       |> where([_m, c], c.game_session_id == ^session_id)
       |> group_by([m], [m.character_id, m.tier])
       |> select([m], {m.character_id, m.tier, count(m.id)})

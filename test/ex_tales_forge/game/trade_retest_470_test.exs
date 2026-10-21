@@ -16,8 +16,7 @@ defmodule TalesForge.Game.TradeRetest470Test do
   alias TalesForge.Game.{Inventory, JevIntent}
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForge.Schemas.Character
-
+  alias TalesForge.Schemas
   # {player text, Jev action, Jev target id, GM narrative (shortened)}, and
   # T4, the accept of T3's quote (PR B, docs/design-trade-offers.md), which
   # the playtest did not have: Jev also answers the open offer. T3 and T4
@@ -169,7 +168,7 @@ defmodule TalesForge.Game.TradeRetest470Test do
 
   # The player's and every NPC's coins (copper) and items, as their rows hold them.
   defp snapshot(session_id) do
-    Character
+    Schemas.GameCharacter
     |> where([c], c.game_session_id == ^session_id)
     |> Repo.all()
     |> Map.new(fn c ->

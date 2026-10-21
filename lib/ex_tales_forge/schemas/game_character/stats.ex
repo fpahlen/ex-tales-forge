@@ -1,4 +1,4 @@
-defmodule TalesForge.Schemas.Character.Stats do
+defmodule TalesForge.Schemas.GameCharacter.Stats do
   @moduledoc "Embedded: the six ability scores. NPCs default to 10, so one roll formula serves both."
 
   use Ecto.Schema
@@ -12,12 +12,8 @@ defmodule TalesForge.Schemas.Character.Stats do
   end
 
   def changeset(stats, attrs) do
-    stats
-    |> cast(attrs, @fields)
-    |> validate_required(@fields)
-    |> then(fn cs ->
-      Enum.reduce(@fields, cs, &validate_number(&2, &1, greater_than_or_equal_to: 1))
-    end)
+    cs = stats |> cast(attrs, @fields) |> validate_required(@fields)
+    Enum.reduce(@fields, cs, &validate_number(&2, &1, greater_than_or_equal_to: 1))
   end
 
   @doc "Converts a sheet map (`\"STR\" => 12`, …) into changeset params (`str: 12`, …)."

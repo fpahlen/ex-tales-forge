@@ -1,4 +1,4 @@
-defmodule TalesForge.Schemas.Character.Concern do
+defmodule TalesForge.Schemas.GameCharacter.Concern do
   @moduledoc "Embedded: one thing a character is worried about or working towards (at most three per character)."
 
   use Ecto.Schema

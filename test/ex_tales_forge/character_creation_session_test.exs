@@ -5,7 +5,8 @@ defmodule TalesForge.CharacterCreationSessionTest do
   alias TalesForge.GameCharacter.Store
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, GameSession}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.GameSession
 
   defp created(adventure) do
     {:ok, d} = CC.new(adventure, seed_key: "s1") |> CC.choose_class("thief")
@@ -16,7 +17,8 @@ defmodule TalesForge.CharacterCreationSessionTest do
   end
 
   defp pc_row(session),
-    do: Repo.get_by!(Character, game_session_id: session.id, slug: "pc_pip_thistledown")
+    do:
+      Repo.get_by!(Schemas.GameCharacter, game_session_id: session.id, slug: "pc_pip_thistledown")
 
   for adventure <- ["tin_valley", "crossroads_ledger"] do
     test "a created character replaces Elara in #{adventure}" do
@@ -50,7 +52,7 @@ defmodule TalesForge.CharacterCreationSessionTest do
       # a former thief: the levers follow the occupation
       assert Enum.map(row.concerns, & &1.focus) == ["freedom"]
       assert row.maslow_level == "safety"
-      refute Repo.get_by(Character, game_session_id: session.id, slug: "elara_voss")
+      refute Repo.get_by(Schemas.GameCharacter, game_session_id: session.id, slug: "elara_voss")
     end
   end
 

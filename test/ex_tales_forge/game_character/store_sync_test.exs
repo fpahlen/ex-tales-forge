@@ -11,7 +11,8 @@ defmodule TalesForge.GameCharacter.StoreSyncTest do
   alias TalesForge.GameCharacter.{Roster, Store}
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, GameSession, PlaytestRun}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.{GameSession, PlaytestRun}
 
   setup do
     {:ok, session} = GameSessions.create_session(%{name: "Sync", adventure_id: "tin_valley"})
@@ -166,7 +167,7 @@ defmodule TalesForge.GameCharacter.StoreSyncTest do
       innkeep = Store.get_by_slug(session.id, "innkeep")
 
       innkeep
-      |> Character.changeset(%{runtime: Map.delete(innkeep.runtime, "memories")})
+      |> Schemas.GameCharacter.changeset(%{runtime: Map.delete(innkeep.runtime, "memories")})
       |> Repo.update!()
 
       for {text, tick} <- [{"Second", 12}, {"First", 11}] do
@@ -232,7 +233,7 @@ defmodule TalesForge.GameCharacter.StoreSyncTest do
       innkeep = Store.get_by_slug(session.id, "innkeep")
 
       innkeep
-      |> Character.changeset(%{
+      |> Schemas.GameCharacter.changeset(%{
         skills: %{"brawling" => 77},
         definition: Map.put(innkeep.definition, "skills", %{"brawling" => 3})
       })
@@ -247,10 +248,13 @@ defmodule TalesForge.GameCharacter.StoreSyncTest do
          %{session: session} do
       # A session as it looked before 10b-2: no player character row, the sheet in world_state.
       Repo.delete_all(
-        from c in Character, where: c.game_session_id == ^session.id and c.controller == "player"
+        from c in Schemas.GameCharacter,
+          where: c.game_session_id == ^session.id and c.controller == "player"
       )
 
-      from(c in Character, where: c.game_session_id == ^session.id and c.controller == "gm")
+      from(c in Schemas.GameCharacter,
+        where: c.game_session_id == ^session.id and c.controller == "gm"
+      )
       |> Repo.update_all(set: [relationships: %{}])
 
       put_stored_world!(
@@ -315,7 +319,9 @@ defmodule TalesForge.GameCharacter.StoreSyncTest do
       assert_received {:mix_shell, :info, [output]}
       assert output =~ "inserted: 0"
       assert output =~ "failed: []"
-      assert Repo.aggregate(where(Character, game_session_id: ^session.id), :count) == 4
+
+      assert Repo.aggregate(where(Schemas.GameCharacter, game_session_id: ^session.id), :count) ==
+               4
     end
   end
 end

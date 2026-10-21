@@ -5,7 +5,8 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
   import Phoenix.LiveViewTest
 
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{AICall, Character, GameSession}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.{AICall, GameSession}
 
   setup %{conn: conn} do
     {:ok, conn: log_in_admin(conn)}
@@ -109,7 +110,7 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
                "CHA" => 11
              }
 
-      row = Repo.get_by!(Character, game_session_id: session.id, controller: "player")
+      row = Repo.get_by!(Schemas.GameCharacter, game_session_id: session.id, controller: "player")
       assert row.slug == "pc_sela_vorn"
       assert row.name == "Sela Vorn"
       assert row.race == "elf"
@@ -118,7 +119,7 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
       assert %{"ranged_combat" => 35, "tracking" => 25, "survival" => 25} = row.skills
       assert map_size(row.skills) >= 5
       assert row.origin["source"] == "created"
-      refute Repo.get_by(Character, game_session_id: session.id, slug: "elara_voss")
+      refute Repo.get_by(Schemas.GameCharacter, game_session_id: session.id, slug: "elara_voss")
 
       # creation made no AI calls (none without a session): the first character is free
       assert Repo.aggregate(from(c in AICall, where: is_nil(c.game_session_id)), :count) == 0
@@ -422,7 +423,7 @@ defmodule TalesForgeWeb.CreateCharacterLiveTest do
       assert pc["name"] == "Dice Wren"
       assert Enum.all?(Map.values(pc["stats"]), &(&1 in 3..18))
 
-      row = Repo.get_by!(Character, game_session_id: id, slug: "pc_dice_wren")
+      row = Repo.get_by!(Schemas.GameCharacter, game_session_id: id, slug: "pc_dice_wren")
       assert row.controller == "player"
 
       assert TalesForge.CharacterDrafts.get("tf-tester", "tin_valley") == nil

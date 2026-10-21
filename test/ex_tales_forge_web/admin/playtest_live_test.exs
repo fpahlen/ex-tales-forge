@@ -564,7 +564,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     run = seed_run()
 
     Repo.delete_all(
-      from c in TalesForge.Schemas.Character, where: c.game_session_id == ^run.game_session_id
+      from c in TalesForge.Schemas.GameCharacter, where: c.game_session_id == ^run.game_session_id
     )
 
     session = Repo.get!(GameSession, run.game_session_id)
