@@ -10,6 +10,12 @@ defmodule TalesForge.SkillsToD100MigrationTest do
     %{mod: mod}
   end
 
+  # npc_instances is dropped (20261021190000); this older migration still updates it.
+  setup do
+    Repo.query!("CREATE TEMP TABLE npc_instances (personality jsonb, runtime_state jsonb)")
+    :ok
+  end
+
   defp run(mod, direction),
     do: Enum.each(mod.statements(direction), &Repo.query!/1)
 
