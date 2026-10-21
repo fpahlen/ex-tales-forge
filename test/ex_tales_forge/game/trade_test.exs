@@ -292,7 +292,10 @@ defmodule TalesForge.Game.TradeTest do
         {prompt, saved} = play(session, "I deal with Hilde.", unquote(action), "smith")
 
         assert saved == before
-        assert unquote(what) == "a swap" or prompt =~ "The server refused this trade"
+
+        assert unquote(what) == "a swap" or
+                 prompt =~ "The server refused this trade: Hilde Brask isn't here."
+
         assert GameSessions.get_session!(session.id).world_state["world_tick"] == tick
       end
     end

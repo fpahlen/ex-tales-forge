@@ -28,6 +28,7 @@ defmodule TalesForge.Game.Turn.Board do
 
   alias TalesForge.Config
   alias TalesForge.Fronts
+  alias TalesForge.Game.Absent
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Arrivals
   alias TalesForge.Game.Bargain
@@ -399,7 +400,14 @@ defmodule TalesForge.Game.Turn.Board do
   # the traders whose inventory and coins it changes go with the result
   # (`:traders`), saved in the turn's transaction (`Turn.Store`) with the
   # character, so a trade is all or nothing.
-  defp apply_inventory(world_state, %__MODULE__{session: session} = board, refusals) do
+  defp apply_inventory(world_state, %__MODULE__{} = board, refusals) do
+    case Absent.reason(board.session.id, board.player_action.action, world_state) do
+      nil -> trade_present(world_state, board, refusals)
+      reason -> {world_state, {:error, reason}}
+    end
+  end
+
+  defp trade_present(world_state, %__MODULE__{session: session} = board, refusals) do
     action = board.player_action.action
     ids = Inventory.trader_ids(action, Map.get(world_state, "present_npcs", []))
     traders = session.id |> Roster.traders(ids) |> refuse(refusals)
@@ -443,11 +451,8 @@ defmodule TalesForge.Game.Turn.Board do
     do: Inventory.apply_transaction(world_state, traders, action)
 
   defp refuse(traders, refusals) do
-    Map.new(traders, fn {id, %GameCharacter{runtime: runtime} = trader} ->
-      case Map.fetch(refusals, id) do
-        {:ok, reason} -> {id, %{trader | runtime: Map.put(runtime, "refuses_trade", reason)}}
-        :error -> {id, trader}
-      end
+    Enum.reduce(refusals, traders, fn {id, reason}, traders ->
+      Map.replace_lazy(traders, id, &put_in(&1.runtime["refuses_trade"], reason))
     end)
   end
 

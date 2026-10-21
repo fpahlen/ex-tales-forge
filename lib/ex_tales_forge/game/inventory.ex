@@ -819,12 +819,18 @@ defmodule TalesForge.Game.Inventory do
   def trader_ids(%SingleAction{action_type: type}, present_npcs) when type in [:buy, :sell],
     do: present_npcs
 
-  def trader_ids(%SingleAction{action_type: :trade} = action, present_npcs) do
-    counterparty = String.trim("#{(action.parameters || %{})["counterparty"]}")
-    Enum.filter(present_npcs, &(&1 == counterparty))
-  end
+  def trader_ids(%SingleAction{action_type: :trade} = action, present_npcs),
+    do: Enum.filter(present_npcs, &(&1 == named_trader(action)))
 
   def trader_ids(_action, _present_npcs), do: []
+
+  @doc false
+  # The trader id the buy, sell or trade `action` names, or "".
+  @spec named_trader(SingleAction.t()) :: String.t()
+  def named_trader(%SingleAction{action_type: :trade} = action),
+    do: String.trim("#{(action.parameters || %{})["counterparty"]}")
+
+  def named_trader(action), do: npc_ref(action, "")
 
   defp default_name(entry, item_id) do
     case Map.get(entry, "name") do
