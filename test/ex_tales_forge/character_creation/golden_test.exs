@@ -17,7 +17,7 @@ defmodule TalesForge.CharacterCreation.GoldenTest do
 
     for key <-
           ~w(races classes occupations point_buy stat_roll skills skill_list name_max_length)a do
-      assert Map.fetch!(opts, key) == Map.fetch!(expected, key), "options.#{key} changed"
+      assert plain(Map.fetch!(opts, key)) == Map.fetch!(expected, key), "options.#{key} changed"
     end
 
     for {race, i} <- Enum.with_index(expected.races) do
@@ -41,6 +41,12 @@ defmodule TalesForge.CharacterCreation.GoldenTest do
           do: assert(Map.fetch!(got, key) == Map.fetch!(occ, key))
     end
   end
+
+  # Structs as plain maps, so the comparison holds whether options use structs or maps.
+  defp plain(%_{} = struct), do: struct |> Map.from_struct() |> plain()
+  defp plain(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, plain(v)} end)
+  defp plain(list) when is_list(list), do: Enum.map(list, &plain/1)
+  defp plain(other), do: other
 
   defp read(reply, answers \\ []) do
     Stub.put(reply)
