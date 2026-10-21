@@ -4,7 +4,9 @@ defmodule TalesForge.Game.Turn.Place do
   character in the turn's world gets its grid position
   (`TalesForge.Locations.Positions.settle/3`), so a new session starts on
   the main door, facing in, and the position persists across turns. With the
-  flag off the turn passes through.
+  flag off the turn passes through. Then the player character walks inside
+  the room when the intent asks for it (`TalesForge.Game.Turn.Walk`). Runs
+  after the NPC step, so a "no such spot" note joins the premise findings.
   """
 
   alias TalesForge.Game.Context
@@ -20,7 +22,7 @@ defmodule TalesForge.Game.Turn.Place do
       world = board.world
       grids = world |> Context.adventure_id() |> Pack.grids()
       world = Enum.reduce(placed(world, board), world, &Positions.settle(&2, grids, &1))
-      %{turn | outcome: %{outcome | board: %{board | world: world}}}
+      Turn.Walk.walk(%{turn | outcome: %{outcome | board: %{board | world: world}}})
     else
       turn
     end

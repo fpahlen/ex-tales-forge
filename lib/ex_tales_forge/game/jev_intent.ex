@@ -239,7 +239,7 @@ defmodule TalesForge.Game.JevIntent do
   # Which kinds of candidate each action type can be aimed at (post-processing
   # in decode/3). Types not listed (wait, other, freeform) take no target.
   @target_kinds %{
-    move: [:place, :npc_elsewhere],
+    move: [:place, :npc_elsewhere, :spot],
     speak: [:npc, :npc_elsewhere],
     combat: [:npc],
     spend: [:npc],
@@ -268,7 +268,7 @@ defmodule TalesForge.Game.JevIntent do
           optional(:name) => String.t(),
           optional(:items) => [String.t()],
           label: atom(),
-          kind: :place | :npc | :npc_elsewhere | :fixture | :item | :goods,
+          kind: :place | :npc | :npc_elsewhere | :fixture | :item | :goods | :spot,
           id: String.t(),
           text: String.t()
         }
@@ -308,7 +308,8 @@ defmodule TalesForge.Game.JevIntent do
        absent_npc_candidates(context) ++
        item_candidates(context) ++
        goods_candidates(context) ++
-       fixture_candidates(context))
+       fixture_candidates(context) ++
+       spot_candidates(context))
     |> Enum.uniq_by(&{&1.kind, &1.id})
     |> Enum.take(@max_candidates)
     |> Enum.with_index()
@@ -383,30 +384,16 @@ defmodule TalesForge.Game.JevIntent do
   end
 
   defp item_candidates(context) do
-    inv =
-      context
-      |> Map.get("player_inventory", [])
-      |> Inventory.normalize_items()
-      |> Enum.map(fn item ->
-        %{kind: :item, id: item["id"], text: "#{item["name"] || item["id"]} (carried)"}
-      end)
+    inv = Inventory.normalize_items(Map.get(context, "player_inventory", []))
+    ground = Inventory.normalize_items(Map.get(context, "ground_items", []))
 
-    stock =
-      context
-      |> for_sale()
-      |> Enum.map(fn item ->
-        %{kind: :item, id: item["id"], text: "#{item["name"] || item["id"]} (for sale)"}
-      end)
-
-    ground =
-      context
-      |> Map.get("ground_items", [])
-      |> Inventory.normalize_items()
-      |> Enum.map(fn item ->
-        %{kind: :item, id: item["id"], text: "#{item["name"] || item["id"]} (on the ground)"}
-      end)
-
-    inv ++ stock ++ ground
+    for {where, items} <- [
+          {"carried", inv},
+          {"for sale", for_sale(context)},
+          {"on the ground", ground}
+        ],
+        item <- items,
+        do: %{kind: :item, id: item["id"], text: "#{item["name"] || item["id"]} (#{where})"}
   end
 
   # The kinds of goods for sale here with more than one item ("a meal: Bread
@@ -433,6 +420,13 @@ defmodule TalesForge.Game.JevIntent do
     |> List.wrap()
     |> Enum.filter(&(is_binary(&1) and &1 != ""))
     |> Enum.map(fn fixture -> %{kind: :fixture, id: fixture, text: "#{fixture} (fixture)"} end)
+  end
+
+  # LOCATION_GRID: the things in the room the character can walk to
+  # (`TalesForge.Locations.Spots`), as move targets.
+  defp spot_candidates(context) do
+    for spot <- Map.get(context, "spots", []),
+        do: %{kind: :spot, id: spot, text: "#{spot} (in this room, walk there)"}
   end
 
   @doc """
