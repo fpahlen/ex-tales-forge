@@ -219,31 +219,30 @@ defmodule TalesForge.Game.SkillSplit do
   # that earns a learning chance gives the character after the turn; the
   # other parts bank nothing (one learning chance for each split action).
   defp split(character, {skill, parts}, rolls) do
-    results =
-      parts
-      |> Enum.with_index()
-      |> Enum.map(fn {level, i} ->
-        Mechanics.perform_part(character, {skill, level}, Enum.at(rolls, i))
-      end)
-
-    learned = Enum.find(results, fn {_char, res} -> (res.lp_awarded || 0) > 0 end)
+    results = perform_parts(character, {skill, parts}, rolls)
 
     {updated, lp} =
-      if learned, do: {elem(learned, 0), elem(learned, 1).lp_awarded}, else: {character, 0.0}
+      Enum.find_value(results, {character, 0.0}, fn {char, res} ->
+        if (res.lp_awarded || 0) > 0, do: {char, res.lp_awarded}
+      end)
 
     {_char, best} = Enum.max_by(results, fn {_char, res} -> rank(res.outcome) end, fn -> nil end)
+    rows = Enum.map(results, &part_row/1)
 
-    part_rows = Enum.map(results, &part_row/1)
+    {updated,
+     %{
+       best
+       | lp_awarded: lp,
+         parts: rows,
+         split: %{"requested" => length(parts), "parts" => parts},
+         notes: split_notes(rows)
+     }}
+  end
 
-    resolution = %{
-      best
-      | lp_awarded: lp,
-        parts: part_rows,
-        split: %{"requested" => length(parts), "parts" => parts},
-        notes: split_notes(part_rows)
-    }
-
-    {updated, resolution}
+  # One attempt per part, each with its injected roll (nil: a random roll).
+  defp perform_parts(character, {skill, parts}, rolls) do
+    for {level, i} <- Enum.with_index(parts),
+        do: Mechanics.perform_part(character, {skill, level}, Enum.at(rolls, i))
   end
 
   defp part_row({_char, res}),
