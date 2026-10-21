@@ -53,6 +53,7 @@ defmodule TalesForge.CharacterCreation do
   """
 
   alias TalesForge.CharacterCreation.Draft
+  alias TalesForge.CharacterCreation.Options
   alias TalesForge.CharacterCreation.Spread
   alias TalesForge.Characters.{Defaults, PackRules, RulesCheck}
   alias TalesForge.Game.Mechanics
@@ -89,56 +90,9 @@ defmodule TalesForge.CharacterCreation do
   the past occupations (description and free skill levels), the point-buy
   limits, the skill rules and the skills with their linked stat. Human and "none" come first.
   """
-  @spec options(String.t()) :: map()
-  def options(adventure_id) when is_binary(adventure_id) do
-    %{"labels" => labels, "creation" => creation} = rules(adventure_id)
-    descriptions = creation["descriptions"]
-
-    %{
-      races:
-        labels["races"]
-        |> ordered("human")
-        |> Enum.map(fn {id, race} ->
-          %{
-            id: id,
-            description: description(descriptions, "races", id),
-            stats: race["stats"],
-            choice: race_choice(creation, id),
-            skill_bonus: race_bonus(creation, id)
-          }
-        end),
-      classes:
-        labels["classes"]
-        |> ordered("none")
-        |> Enum.map(fn {id, class} ->
-          %{
-            id: id,
-            description: description(descriptions, "classes", id),
-            stats: class["stats"],
-            skills: class_skills(class, creation),
-            occupation: creation["occupation"]["class_defaults"][id]
-          }
-        end),
-      occupations:
-        Enum.map(creation["occupation"]["choices"], fn id ->
-          occupation = labels["occupations"][id]
-
-          %{
-            id: id,
-            description: description(descriptions, "occupations", id),
-            skills: occupation_skills(occupation, creation)
-          }
-        end),
-      point_buy: creation["point_buy"],
-      stat_roll: Map.delete(creation["stat_roll"], "_doc"),
-      skills: Map.delete(creation["skills"], "_doc"),
-      skill_list:
-        Mechanics.skill_stat_map()
-        |> Enum.sort()
-        |> Enum.map(fn {id, stat} -> %{id: id, stat: stat} end),
-      name_max_length: creation["name_max_length"]
-    }
-  end
+  @spec options(String.t()) :: Options.t()
+  def options(adventure_id) when is_binary(adventure_id),
+    do: adventure_id |> rules() |> Options.from_rules()
 
   # --- building a draft -----------------------------------------------------------
 
@@ -230,7 +184,7 @@ defmodule TalesForge.CharacterCreation do
   """
   @spec pick_race_bonus(Draft.t(), [String.t()]) :: {:ok, Draft.t()} | {:error, error()}
   def pick_race_bonus(%Draft{} = draft, picks) when is_list(picks) do
-    case race_choice(rules(draft.adventure_id)["creation"], draft.race) do
+    case Options.race_choice(rules(draft.adventure_id)["creation"], draft.race) do
       nil ->
         {:error, {:race_picks, "#{draft.race} has no stat choice"}}
 
@@ -651,7 +605,7 @@ defmodule TalesForge.CharacterCreation do
   end
 
   defp suggested_picks(draft, rules) do
-    case race_choice(rules["creation"], draft.race) do
+    case Options.race_choice(rules["creation"], draft.race) do
       nil ->
         []
 
@@ -668,7 +622,7 @@ defmodule TalesForge.CharacterCreation do
   defp race_modifiers(draft, rules) do
     fixed = rules["labels"]["races"][draft.race]["stats"]
 
-    case race_choice(rules["creation"], draft.race) do
+    case Options.race_choice(rules["creation"], draft.race) do
       nil ->
         fixed
 
@@ -697,7 +651,7 @@ defmodule TalesForge.CharacterCreation do
   end
 
   defp race_picks_error(draft, rules) do
-    case race_choice(rules["creation"], draft.race) do
+    case Options.race_choice(rules["creation"], draft.race) do
       %{"count" => count} when length(draft.race_picks) != count ->
         {:race_picks, "choose #{count} stats for the #{draft.race} bonus"}
 
@@ -706,44 +660,18 @@ defmodule TalesForge.CharacterCreation do
     end
   end
 
-  defp description(descriptions, kind, id), do: get_in(descriptions, [kind, id]) || ""
-
-  defp race_choice(creation, race), do: get_in(creation, ["race_choices", race])
-
-  # The class package: every class skill, at the package's free levels in order.
-  defp class_skills(class, creation) do
-    package = creation["skills"]["class_package"]
-
-    class["skills"]
-    |> Enum.with_index()
-    |> Map.new(fn {skill, i} -> {skill, Enum.at(package, i)} end)
-  end
-
-  defp race_bonus(creation, race), do: get_in(creation, ["skills", "race_bonuses", race]) || %{}
-
   # --- skills -----------------------------------------------------------------------
 
   # Free levels before the caps, in priority order (class package, then race).
   defp free_sources(draft, rules) do
     creation = rules["creation"]
-    class = class_skills(rules["labels"]["classes"][draft.class], creation)
-    race = Map.get(race_bonus(creation, draft.race), "fixed", %{})
-    past = occupation_skills(rules["labels"]["occupations"][draft.occupation], creation)
+    class = Options.class_skills(rules["labels"]["classes"][draft.class], creation)
+    race = Map.get(Options.race_bonus(creation, draft.race), "fixed", %{})
+    past = Options.occupation_skills(rules["labels"]["occupations"][draft.occupation], creation)
     sum = fn _skill, a, b -> a + b end
 
     {class |> Map.merge(race, sum) |> Map.merge(past, sum),
      Map.keys(class) ++ Map.keys(race) ++ Map.keys(past)}
-  end
-
-  # The past occupation's free levels: core skills, then secondary ones.
-  defp occupation_skills(nil, _creation), do: %{}
-
-  defp occupation_skills(occupation, creation) do
-    %{"core_bonus" => core, "secondary_bonus" => secondary} = creation["occupation"]
-
-    occupation["secondary"]
-    |> Map.new(&{&1, secondary})
-    |> Map.merge(Map.new(occupation["core"], &{&1, core}))
   end
 
   # {free levels after the caps, points refunded for the levels cut off}. A free
@@ -778,7 +706,7 @@ defmodule TalesForge.CharacterCreation do
   defp skill_budget(draft, rules) do
     sk = rules["creation"]["skills"]
     {_free, refund} = free_levels(rules, draft)
-    sk["budget"] + Map.get(race_bonus(rules["creation"], draft.race), "pool", 0) + refund
+    sk["budget"] + Map.get(Options.race_bonus(rules["creation"], draft.race), "pool", 0) + refund
   end
 
   defp skill_points_spent(draft, rules) do
@@ -842,10 +770,6 @@ defmodule TalesForge.CharacterCreation do
   end
 
   defp label(skill), do: skill |> String.replace("_", " ") |> String.capitalize()
-
-  defp ordered(table, first) do
-    Enum.sort_by(table, fn {id, _} -> {id != first, id} end)
-  end
 
   defp signed(n) when n >= 0, do: "+#{n}"
   defp signed(n), do: "#{n}"
