@@ -4,13 +4,13 @@ defmodule Mix.Tasks.Characters.Backfill do
   player character from its row, or from a sheet still stored in
   `world_state["character"]` (a session not saved since step 10b-2), and the
   NPC rows' relationship to it.
-  Idempotent and safe to re-run; see `TalesForge.Characters.backfill/0`.
+  Idempotent and safe to re-run; see `TalesForge.GameCharacter.Store.backfill/0`.
 
       mix characters.backfill
 
   On a release, call it over rpc instead:
 
-      bin/ex_tales_forge rpc 'TalesForge.Characters.backfill() |> IO.inspect()'
+      bin/ex_tales_forge rpc 'TalesForge.GameCharacter.Store.backfill() |> IO.inspect()'
   """
   use Mix.Task
 
@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Characters.Backfill do
   @impl Mix.Task
   def run(_args) do
     Mix.Task.run("app.start")
-    result = TalesForge.Characters.backfill()
+    result = TalesForge.GameCharacter.Store.backfill()
     Mix.shell().info(inspect(result, pretty: true, limit: :infinity))
     if result.failed != [], do: exit({:shutdown, 1})
   end

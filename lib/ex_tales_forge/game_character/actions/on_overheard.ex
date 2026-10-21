@@ -1,4 +1,4 @@
-defmodule TalesForge.Actions.Character.OnOverheard do
+defmodule TalesForge.GameCharacter.Actions.OnOverheard do
   @moduledoc """
   A present NPC overheard what the acting character said or did: it
   remembers the first 100 characters. The turn applies it

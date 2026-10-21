@@ -327,7 +327,7 @@ defmodule TalesForge.Playtest.RunnerTest do
     session =
       from(s in GameSession, order_by: [desc: s.inserted_at], limit: 1)
       |> Repo.one!()
-      |> TalesForge.Characters.put_sheet()
+      |> TalesForge.GameCharacter.Store.put_sheet()
 
     world = put_in(session.world_state, ["character", "vitality"], "dead")
     session |> GameSession.changeset(%{status: "dead", world_state: world}) |> save_session!()

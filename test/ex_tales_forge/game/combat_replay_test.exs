@@ -8,9 +8,9 @@ defmodule TalesForge.Game.CombatReplayTest do
   """
   use ExUnit.Case, async: true
 
-  alias TalesForge.Characters.Defaults
   alias TalesForge.Game.{Combat, ProseCheck}
   alias TalesForge.GameCharacter
+  alias TalesForge.GameCharacter.Defaults
 
   @fixture "test/fixtures/combat/hakan_ezzor_turns_27_29.json"
            |> File.read!()

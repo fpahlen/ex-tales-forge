@@ -485,7 +485,7 @@ defmodule TalesForge.LLM do
 
   @doc """
   The player character's thought (board card 845b6b15,
-  `TalesForge.Characters.Thought`): one or two sentences of inner voice,
+  `TalesForge.GameCharacter.Thought`): one or two sentences of inner voice,
   typed as `%{"thought" => text}`. Purpose `thought`, conv id
   `<session>:thought`, temperature 0.7. Each call writes one ai_calls row,
   also the mock call.

@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters.Memory do
+defmodule TalesForge.GameCharacter.MemoryLog do
   @moduledoc """
   Character memory, PR 1 of board card fc3c9371.
 
@@ -12,19 +12,18 @@ defmodule TalesForge.Characters.Memory do
   `interests:` in the NPC file; the player character gets defaults from its
   own OCEAN.
 
-      iex> TalesForge.Characters.Memory.default_interests(%{"extraversion" => 8, "neuroticism" => 7}, "smith", [])
+      iex> TalesForge.GameCharacter.MemoryLog.default_interests(%{"extraversion" => 8, "neuroticism" => 7}, "smith", [])
       ["people", "threats", "smith"]
 
-      iex> TalesForge.Characters.Memory.weight(["people"], ["people"], ["mara"])
+      iex> TalesForge.GameCharacter.MemoryLog.weight(["people"], ["people"], ["mara"])
       1.5
   """
 
   import Ecto.Query
   require Logger
 
-  alias TalesForge.Characters
-  alias TalesForge.Characters.Moment
   alias TalesForge.Game.Progression
+  alias TalesForge.GameCharacter.{Moment, Store}
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, SessionEvent}
 
@@ -165,7 +164,7 @@ defmodule TalesForge.Characters.Memory do
     events = scene_events(session_id, location)
 
     session_id
-    |> Characters.list_for_session()
+    |> Store.list_for_session()
     |> Enum.filter(&(&1.slug == actor or &1.location_id == location))
     |> Enum.each(&remember(&1, events, actor))
 
@@ -194,7 +193,7 @@ defmodule TalesForge.Characters.Memory do
     events
     |> Enum.reject(&MapSet.member?(known, &1.id))
     |> Enum.filter(&(&1.player_aware or character.slug != actor))
-    |> Enum.each(fn e -> {:ok, _} = Characters.add_memory(character, row(e, interests)) end)
+    |> Enum.each(fn e -> {:ok, _} = Store.add_memory(character, row(e, interests)) end)
   end
 
   @doc "The short-term row for one event and a character's interests."
@@ -247,7 +246,7 @@ defmodule TalesForge.Characters.Memory do
           {String.t(), list()}
         ]
   def recall_for_scene(session_id, present, about) do
-    chars = Characters.list_for_session(session_id)
+    chars = Store.list_for_session(session_id)
     ids = Enum.reject(about ++ present, &is_nil/1)
 
     for c <- chars, c.slug in present, (mems = recall(c, ids)) != [], do: {c.slug, mems}
@@ -275,7 +274,7 @@ defmodule TalesForge.Characters.Memory do
       |> select([m], {m.character_id, m.tier, count(m.id)})
       |> Repo.all()
 
-    for c <- Characters.list_for_session(session_id) do
+    for c <- Store.list_for_session(session_id) do
       tiers = for {id, t, n} <- counts, id == c.id, into: %{}, do: {t, n}
 
       %{

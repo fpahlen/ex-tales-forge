@@ -10,7 +10,7 @@ defmodule TalesForge.NPCTest do
   alias TalesForge.Schemas.Character
 
   doctest TalesForge.GameCharacter.Person
-  doctest TalesForge.Characters.Attrs
+  doctest TalesForge.GameCharacter.Attrs
 
   test "create_session seeds the NPCs' character rows from priv/npcs" do
     assert {:ok, session} = GameSessions.create_session(%{name: "NPC Seed"})

@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters.MinorFoeTest do
+defmodule TalesForge.GameCharacter.MinorFoeTest do
   @moduledoc """
   Minor foes live on `characters` rows (10f step 4): a row with controller
   `gm` and `lifetime: :scene`, removed when its scene ends. Rows that live
@@ -6,10 +6,11 @@ defmodule TalesForge.Characters.MinorFoeTest do
   """
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Characters
-  alias TalesForge.Characters.Defaults
+  alias TalesForge.GameCharacter
+
   alias TalesForge.Game.{Combat, Context}
   alias TalesForge.Game.TurnProcessor
+  alias TalesForge.GameCharacter.{Defaults, Store}
   alias TalesForge.GameSessions
   alias TalesForge.Schemas.{Character, GameSession}
 
@@ -57,7 +58,7 @@ defmodule TalesForge.Characters.MinorFoeTest do
     here = world(session.id)["location_id"]
 
     assert %Character{controller: "gm", lifetime: :scene, location_id: ^here} =
-             foe = Characters.get_by_slug(session.id, "foe_miner")
+             foe = Store.get_by_slug(session.id, "foe_miner")
 
     assert foe.definition["minor"] == true
     assert foe.vitality == "down"
@@ -65,7 +66,7 @@ defmodule TalesForge.Characters.MinorFoeTest do
 
     # The next turn finds the same foe in the session's cast.
     assert %TalesForge.GameCharacter{minor: true, lifetime: :scene, vitality: "down"} =
-             Characters.cast(session.id)["foe_miner"]
+             Store.cast(session.id)["foe_miner"]
 
     # Every other row lives on.
     assert session.id
@@ -86,7 +87,7 @@ defmodule TalesForge.Characters.MinorFoeTest do
 
     refute world(session.id)["location_id"] == here
     assert session.id |> rows() |> Enum.map(& &1.slug) == before -- ["foe_miner"]
-    refute Map.has_key?(Characters.cast(session.id), "foe_miner")
+    refute Map.has_key?(Store.cast(session.id), "foe_miner")
   end
 
   test "an old world with npc_state and npc_moods: read as if absent, gone after the next turn",
@@ -107,7 +108,7 @@ defmodule TalesForge.Characters.MinorFoeTest do
     assert Map.take(raw.(), ["npc_state", "npc_moods"]) == old
     refute Map.has_key?(world(session.id), "npc_state")
     refute Map.has_key?(world(session.id), "npc_moods")
-    refute Map.has_key?(Characters.cast(session.id), "foe_x")
+    refute Map.has_key?(Store.cast(session.id), "foe_x")
 
     attack(session)
     assert Map.take(raw.(), ["npc_state", "npc_moods"]) == %{}
@@ -121,12 +122,12 @@ defmodule TalesForge.Characters.MinorFoeTest do
         |> Map.put(:location_id, "valley_inn")
 
       far = %{foe | slug: "foe_far", location_id: "inn_yard"}
-      cast = session.id |> Characters.cast() |> Map.merge(%{"foe_guard" => foe, "foe_far" => far})
+      cast = session.id |> Store.cast() |> Map.merge(%{"foe_guard" => foe, "foe_far" => far})
 
       {:ok, _} =
         Ecto.Multi.new()
         |> Ecto.Multi.put(:session, session)
-        |> Characters.write_multi(cast)
+        |> Store.write_multi(cast)
         |> Repo.transaction()
 
       :ok
@@ -136,7 +137,7 @@ defmodule TalesForge.Characters.MinorFoeTest do
       {:ok, _} =
         Ecto.Multi.new()
         |> Ecto.Multi.put(:session, session)
-        |> Characters.end_scene_multi(Characters.Memory.scene_end(events))
+        |> Store.end_scene_multi(GameCharacter.MemoryLog.scene_end(events))
         |> Repo.transaction()
 
       session.id |> rows() |> Enum.map(& &1.slug)

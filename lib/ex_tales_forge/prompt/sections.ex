@@ -472,7 +472,7 @@ end
 defmodule TalesForge.Prompt.Sections.CharacterMemory do
   @moduledoc """
   What the present NPCs recall from earlier scenes, by association
-  (`TalesForge.Characters.Memory`, board card fc3c9371). Only with
+  (`TalesForge.GameCharacter.MemoryLog`, board card fc3c9371). Only with
   CHARACTER_MEMORY=on.
   """
   use TalesForge.Prompt.Section, id: :character_memory, slot: :turn
@@ -489,8 +489,8 @@ defmodule TalesForge.Prompt.Sections.CharacterMemory do
       about = [world["location_id"], get_in(world, ["character", "id"])]
 
       ctx.data.session_id
-      |> TalesForge.Characters.Memory.recall_for_scene(present, about)
-      |> TalesForge.Characters.Memory.section()
+      |> TalesForge.GameCharacter.MemoryLog.recall_for_scene(present, about)
+      |> TalesForge.GameCharacter.MemoryLog.section()
     end
   end
 end

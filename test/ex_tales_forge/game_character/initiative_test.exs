@@ -231,7 +231,7 @@ defmodule TalesForge.GameCharacter.InitiativeTest do
       |> put_in(["current_concern", "priority"], 9)
     )
 
-    marta = TalesForge.Characters.cast(session.id)["marta_kellen"]
+    marta = TalesForge.GameCharacter.Store.cast(session.id)["marta_kellen"]
 
     assert TalesForge.Game.Cast.details(marta)["concern_priority"] == 9
   end

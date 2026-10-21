@@ -143,7 +143,7 @@ defmodule TalesForge.Game.CharacterReactionsTest do
     end)
 
     world = session.world_state
-    cast = TalesForge.Characters.cast(session.id)
+    cast = TalesForge.GameCharacter.Store.cast(session.id)
     assert "innkeep" in world["present_npcs"]
 
     [r] =
@@ -195,7 +195,7 @@ defmodule TalesForge.Game.CharacterReactionsTest do
 
     cast =
       session.id
-      |> TalesForge.Characters.cast()
+      |> TalesForge.GameCharacter.Store.cast()
       |> update_in(["innkeep"], &%{&1 | runtime: %{"reaction" => %{"emotion" => "calm"}}})
 
     Req.Test.stub(Jev.HTTP, &Jev.Test.error(&1, 500, "boom"))
@@ -305,7 +305,9 @@ defmodule TalesForge.Game.CharacterReactionsTest do
 
     refute Map.has_key?(GameSessions.get_session!(session.id).world_state, "npc_moods")
 
-    assert TalesForge.Characters.cast(session.id)["innkeep"].runtime["reaction"]["stance"] ==
+    assert TalesForge.GameCharacter.Store.cast(session.id)["innkeep"].runtime["reaction"][
+             "stance"
+           ] ==
              "cool"
 
     purposes =
@@ -332,7 +334,7 @@ defmodule TalesForge.Game.CharacterReactionsTest do
     assert {:ok, _} =
              TurnProcessor.run(session.id, {"ask Brenna for a room", PlayerAction.encode(action)})
 
-    assert TalesForge.Characters.cast(session.id)["innkeep"].runtime["reaction"] == nil
+    assert TalesForge.GameCharacter.Store.cast(session.id)["innkeep"].runtime["reaction"] == nil
     assert Repo.all(from c in AICall, where: c.purpose == "npc_reaction") == []
   end
 

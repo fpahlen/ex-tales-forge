@@ -1,17 +1,17 @@
-defmodule TalesForge.Characters.RulesCheck do
+defmodule TalesForge.GameCharacter.RulesCheck do
   @moduledoc """
   The one place the character rules are checked.
 
   `labels!/1` checks the label
   tables (`defaults.json` plus a pack's `character_defaults.json`);
   `creation!/2` checks `creation.json` against those labels. Each check is a
-  `TalesForge.Characters.RulesCheck.Rule`; the first one that fails raises
+  `TalesForge.GameCharacter.RulesCheck.Rule`; the first one that fails raises
   `ArgumentError`.
   """
 
-  alias TalesForge.Characters.Levers
-  alias TalesForge.Characters.RulesCheck.Rule
   alias TalesForge.Game.Mechanics
+  alias TalesForge.GameCharacter.Levers
+  alias TalesForge.GameCharacter.RulesCheck.Rule
 
   @stats ~w(STR DEX CON INT WIS CHA)
 

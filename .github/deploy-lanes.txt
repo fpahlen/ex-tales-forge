@@ -102,7 +102,6 @@ lib/ex_tales_forge/world/
 lib/ex_tales_forge/game_character.ex
 lib/ex_tales_forge/game_character/
 lib/ex_tales_forge/intention.ex
-lib/ex_tales_forge/actions/
 lib/ex_tales_forge/intent_jev.ex
 lib/ex_tales_forge/intent_jev/
 lib/ex_tales_forge/gm_reasoning.ex
@@ -111,8 +110,6 @@ lib/ex_tales_forge/game_sessions.ex
 lib/ex_tales_forge/game_sessions/
 lib/ex_tales_forge/character_creation.ex
 lib/ex_tales_forge/character_creation/
-lib/ex_tales_forge/characters.ex
-lib/ex_tales_forge/characters/
 lib/ex_tales_forge/workers/
 lib/ex_tales_forge/llm.ex
 lib/ex_tales_forge/llm/

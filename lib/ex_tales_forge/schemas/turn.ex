@@ -20,7 +20,7 @@ defmodule TalesForge.Schemas.Turn do
     field :player_action, :string
     field :narrative, :string
     field :mechanical_resolution, :map, default: %{}
-    # Board card 845b6b15: the player character's thought (TalesForge.Characters.Thought).
+    # Board card 845b6b15: the player character's thought (TalesForge.GameCharacter.Thought).
     field :thought, :map
     field :founder, :string
 

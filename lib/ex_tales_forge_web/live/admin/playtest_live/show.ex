@@ -85,7 +85,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLive.Show do
     |> assign(:metrics, Reports.metrics(run.game_session_id))
     |> assign(:score, Reports.latest_score(run.id))
     |> assign(:character_changes, CharacterChanges.for_session(run.game_session_id))
-    |> assign(:memory_tiers, TalesForge.Characters.Memory.overview(run.game_session_id))
+    |> assign(:memory_tiers, TalesForge.GameCharacter.MemoryLog.overview(run.game_session_id))
     |> assign_turn_affects(Reports.turn_affect_scores(run.id))
   end
 

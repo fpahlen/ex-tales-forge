@@ -1,8 +1,7 @@
-defmodule TalesForge.Characters.CompressionTest do
+defmodule TalesForge.GameCharacter.CompressionTest do
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Characters
-  alias TalesForge.Characters.Compression
+  alias TalesForge.GameCharacter.{Compression, Store}
   alias TalesForge.GameSessions
   alias TalesForge.Repo
   alias TalesForge.Schemas.{AICall, CharacterMemory}
@@ -18,18 +17,18 @@ defmodule TalesForge.Characters.CompressionTest do
     end)
 
     {:ok, session} = GameSessions.create_session(%{name: "Comp", adventure_id: "tin_valley"})
-    [pc | _] = Enum.filter(Characters.list_for_session(session.id), &(&1.controller != "gm"))
+    [pc | _] = Enum.filter(Store.list_for_session(session.id), &(&1.controller != "gm"))
     %{session: session, pc: pc}
   end
 
   defp short!(pc, text, about, tick, kind \\ "memory") do
     {:ok, row} =
-      Characters.add_memory(pc, %{kind: kind, tier: "short", text: text, about: about, tick: tick})
+      Store.add_memory(pc, %{kind: kind, tier: "short", text: text, about: about, tick: tick})
 
     row
   end
 
-  defp tiers(pc), do: pc |> Characters.list_memories() |> Enum.map(&{&1.tier, &1.text})
+  defp tiers(pc), do: pc |> Store.list_memories() |> Enum.map(&{&1.tier, &1.text})
 
   describe "timing (option 4)" do
     test "a long rest is always due" do
@@ -98,7 +97,7 @@ defmodule TalesForge.Characters.CompressionTest do
 
     assert :ok = Compression.after_turn(session.id, rest, now: 50, mode: :shadow)
 
-    [long] = pc |> Characters.list_memories() |> Enum.filter(&(&1.tier == "long"))
+    [long] = pc |> Store.list_memories() |> Enum.filter(&(&1.tier == "long"))
     assert long.text =~ "grateful: "
     assert long.text =~ "promised to help me"
     assert long.kind == "promise"
@@ -136,5 +135,49 @@ defmodule TalesForge.Characters.CompressionTest do
     assert :ok = Compression.after_turn(session.id, [], now: 500, mode: :off)
     assert Repo.aggregate(CharacterMemory, :count) >= 1
     assert {"short", "Mags laughed"} in tiers(pc)
+  end
+
+  test "long_rows: one row per association that does not fade (characterization)" do
+    r = fn kind, text -> %{kind: kind, text: text} end
+
+    groups = [
+      {"mags", [r.("memory", "Mags sold me bread"), r.("promise", "Mags promised to help me")]},
+      {"ox", [r.("memory", "the ox kicked")]},
+      {"tom", [r.("memory", "Tom spoke of the harbour"), r.("memory", "Tom left")]}
+    ]
+
+    reply = %{
+      a0_feeling: :grateful,
+      a0_weight: 2,
+      a0_belief: :ally,
+      a1_feeling: :indifferent,
+      a1_weight: 0,
+      a2_feeling: :angry,
+      a2_weight: 1,
+      a2_key: :r0
+    }
+
+    assert Compression.long_rows(groups, reply, 42) == [
+             %{
+               kind: "promise",
+               tier: "long",
+               text: "grateful: Mags promised to help me",
+               felt: "grateful",
+               belief: "mags is on my side",
+               about: ["mags"],
+               weight: 0.75,
+               tick: 42
+             },
+             %{
+               kind: "memory",
+               tier: "long",
+               text: "angry: Tom spoke of the harbour",
+               felt: "angry",
+               belief: nil,
+               about: ["tom"],
+               weight: 0.375,
+               tick: 42
+             }
+           ]
   end
 end

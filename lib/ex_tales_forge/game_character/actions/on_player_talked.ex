@@ -1,4 +1,4 @@
-defmodule TalesForge.Actions.Character.OnPlayerTalked do
+defmodule TalesForge.GameCharacter.Actions.OnPlayerTalked do
   @moduledoc """
   The acting character spoke to this NPC: it remembers the words and warms
   a little to the speaker. The turn applies both

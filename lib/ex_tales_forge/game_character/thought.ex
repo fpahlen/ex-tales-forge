@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters.Thought do
+defmodule TalesForge.GameCharacter.Thought do
   @moduledoc """
   The player character's thought (💭), PR 3 of board card 845b6b15. UI spec:
   Slick's thought-bubble design (`role: "thought"` stream entry).
@@ -19,17 +19,16 @@ defmodule TalesForge.Characters.Thought do
   CHARACTER_MEMORY `on` shows the thought; `shadow` stores and logs it
   without showing it; `off` makes no call.
 
-      iex> TalesForge.Characters.Thought.clean("I owe her 3 coins.")
+      iex> TalesForge.GameCharacter.Thought.clean("I owe her 3 coins.")
       nil
-      iex> TalesForge.Characters.Thought.clean("  She smiled like she meant it.  ")
+      iex> TalesForge.GameCharacter.Thought.clean("  She smiled like she meant it.  ")
       "She smiled like she meant it."
   """
 
   import Ecto.Query
   require Logger
 
-  alias TalesForge.Characters
-  alias TalesForge.Characters.{Memory, Moment}
+  alias TalesForge.GameCharacter.{MemoryLog, Moment, Store}
   alias TalesForge.LLM
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, SessionEvent, Turn}
@@ -114,15 +113,15 @@ defmodule TalesForge.Characters.Thought do
   # The present NPC with the heaviest memory, and the memories.
   defp heaviest_memory(session_id, pc, present) do
     session_id
-    |> Characters.list_for_session()
+    |> Store.list_for_session()
     |> Enum.filter(&(&1.slug in present))
-    |> Enum.map(&{&1, Memory.recall(pc, [&1.slug], @rows)})
+    |> Enum.map(&{&1, MemoryLog.recall(pc, [&1.slug], @rows)})
     |> Enum.reject(fn {_npc, mems} -> mems == [] end)
     |> Enum.max_by(fn {_npc, [top | _]} -> top.weight end, fn -> nil end)
   end
 
   defp sleep(pc, events) do
-    if Memory.long_rest_in?(events) do
+    if MemoryLog.long_rest_in?(events) do
       case strongest(pc) do
         [] -> nil
         mems -> {:sleep, mems}
@@ -163,7 +162,7 @@ defmodule TalesForge.Characters.Thought do
   defp actor(%Moment{actor: nil}), do: nil
 
   defp actor(%Moment{session_id: session_id, actor: slug}),
-    do: Characters.get_by_slug(session_id, slug)
+    do: Store.get_by_slug(session_id, slug)
 
   # -- text ----------------------------------------------------------------
 

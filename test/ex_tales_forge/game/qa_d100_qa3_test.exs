@@ -42,7 +42,9 @@ defmodule TalesForge.Game.QaD100Qa3Test do
       |> put_in(["character", "location_id"], "weary_pilgrim")
       |> Map.put("present_npcs", [])
 
-    cast = session.id |> TalesForge.Characters.cast() |> Map.put("marta_kellen", @dead_marta)
+    cast =
+      session.id |> TalesForge.GameCharacter.Store.cast() |> Map.put("marta_kellen", @dead_marta)
+
     %{session: %{session | world_state: world}, cast: cast}
   end
 

@@ -62,11 +62,11 @@ defmodule TalesForge.DataCase do
 
   @doc """
   Saves a session changeset with its characters, the way the turn does
-  (`TalesForge.Characters.save_session/1`), so a test can set up
+  (`TalesForge.GameCharacter.Store.save_session/1`), so a test can set up
   `world_state["character"]`: the column is stored without it.
   """
   def save_session!(%Ecto.Changeset{} = changeset) do
-    {:ok, session} = TalesForge.Characters.save_session(changeset)
+    {:ok, session} = TalesForge.GameCharacter.Store.save_session(changeset)
     session
   end
 

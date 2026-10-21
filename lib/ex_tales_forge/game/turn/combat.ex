@@ -17,11 +17,11 @@ defmodule TalesForge.Game.Turn.Combat do
   tests, otherwise from `:rand`.
   """
 
-  alias TalesForge.Characters.Defaults
   alias TalesForge.Game.Combat
   alias TalesForge.Game.Schemas.{HandlerResult, PlayerAction}
   alias TalesForge.Game.Turn
   alias TalesForge.GameCharacter
+  alias TalesForge.GameCharacter.Defaults
 
   defmodule Fight do
     @moduledoc """

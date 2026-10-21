@@ -4,7 +4,7 @@ defmodule TalesForge.CharacterCreation.FromText.StatLimits do
   lowest and highest stat, and the race modifiers (a stat stays within the
   limits after its modifier).
   """
-  alias TalesForge.Characters.RulesCheck
+  alias TalesForge.GameCharacter.RulesCheck
 
   defstruct budget: 0, lo: 0, hi: 0, modifiers: %{}
 

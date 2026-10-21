@@ -175,7 +175,7 @@ defmodule TalesForge.Game.TurnTest do
 
       cast =
         session.id
-        |> TalesForge.Characters.cast()
+        |> TalesForge.GameCharacter.Store.cast()
         |> update_in(["innkeep"], &%{&1 | runtime: %{"reaction" => %{"emotion" => "wary"}}})
 
       t =

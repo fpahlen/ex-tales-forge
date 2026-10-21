@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters do
+defmodule TalesForge.GameCharacter.Store do
   @moduledoc """
   One Character entity for player characters and NPCs (Character plan in
   ex-tales-forge, phases 1 and 1b).
@@ -38,11 +38,10 @@ defmodule TalesForge.Characters do
 
   require Logger
 
-  alias TalesForge.Characters.{Attrs, Levers}
   alias TalesForge.Game.{Cast, Pack}
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameCharacter
-  alias TalesForge.GameCharacter.{Person, Roster}
+  alias TalesForge.GameCharacter.{Attrs, Levers, Person, Roster}
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, GameSession, PlaytestRun}
 
@@ -105,7 +104,7 @@ defmodule TalesForge.Characters do
   Removes the rows that live for a scene (`lifetime: :scene`, a minor foe)
   at `location_id`, the place of the scene that the turn ends (a
   `player.travel` away from it or a long rest there,
-  `TalesForge.Characters.Memory.scene_end/1`), as a step of a Multi after
+  `TalesForge.GameCharacter.MemoryLog.scene_end/1`), as a step of a Multi after
   its `:session` step. The only reader of `lifetime`. Nothing to do when no
   scene ends (nil).
   """

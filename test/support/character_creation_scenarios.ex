@@ -8,7 +8,7 @@ defmodule TalesForge.CharacterCreationScenarios do
   alias TalesForge.CharacterCreation, as: CC
   alias TalesForge.CharacterCreation.FromText
   alias TalesForge.CharacterCreation.FromText.{Label, Reading}
-  alias TalesForge.Characters.Defaults
+  alias TalesForge.GameCharacter.Defaults
 
   @adventure "tin_valley"
 

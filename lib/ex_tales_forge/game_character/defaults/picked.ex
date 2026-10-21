@@ -1,6 +1,6 @@
-defmodule TalesForge.Characters.Defaults.Picked do
+defmodule TalesForge.GameCharacter.Defaults.Picked do
   @moduledoc "The rules rows that resolved inputs pick: race, class, standing, occupation and seniority tier."
-  alias TalesForge.Characters.Defaults.Inputs
+  alias TalesForge.GameCharacter.Defaults.Inputs
 
   defstruct race: %{}, class: %{}, standing: %{}, occupation: %{}, tier: 0
 
