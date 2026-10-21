@@ -3,7 +3,7 @@ defmodule TalesForge.Locations.Cell do
 
   alias TalesForge.Locations.Legend
 
-  defstruct item: nil, char: nil, blocks: false, opaque: false, link: nil, child: nil
+  defstruct item: nil, char: nil, blocks: false, opaque: false, link: nil, child: nil, aliases: []
 
   @type t :: %__MODULE__{
           item: String.t(),
@@ -11,7 +11,8 @@ defmodule TalesForge.Locations.Cell do
           blocks: boolean(),
           opaque: boolean(),
           link: %{dz: integer()} | nil,
-          child: String.t() | nil
+          child: String.t() | nil,
+          aliases: [String.t()]
         }
 
   @doc "The cell for `char` in `legend`."
@@ -24,7 +25,8 @@ defmodule TalesForge.Locations.Cell do
       char: char,
       blocks: entry.blocks,
       opaque: entry.opaque,
-      link: entry.link
+      link: entry.link,
+      aliases: entry.aliases
     }
   end
 end

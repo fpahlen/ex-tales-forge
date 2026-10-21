@@ -4,7 +4,8 @@ defmodule TalesForge.Locations.Legend do
 
   World-pack data, one file per scale (`world/legends/<scale>.json`), so the
   same character can mean different things at different scales (`S` is
-  stairs in a room, sea in a region). `blocks` stops walking, `opaque` stops
+  stairs in a room, sea in a region). `aliases` are the other words a
+  player may use for the item ("bar" for the bar desk). `blocks` stops walking, `opaque` stops
   sight; they are separate because a window blocks walking but not sight.
   """
 
@@ -16,13 +17,14 @@ defmodule TalesForge.Locations.Legend do
 
   defmodule Item do
     @moduledoc "One legend entry: the item a character stands for."
-    defstruct item: nil, blocks: false, opaque: false, link: nil
+    defstruct item: nil, blocks: false, opaque: false, link: nil, aliases: []
 
     @type t :: %__MODULE__{
             item: String.t(),
             blocks: boolean(),
             opaque: boolean(),
-            link: %{dz: integer()} | nil
+            link: %{dz: integer()} | nil,
+            aliases: [String.t()]
           }
 
     @doc "An item from its legend entry."
@@ -32,7 +34,8 @@ defmodule TalesForge.Locations.Legend do
         item: entry["item"],
         blocks: entry["blocks"] == true,
         opaque: entry["opaque"] == true,
-        link: link(entry["link"])
+        link: link(entry["link"]),
+        aliases: Map.get(entry, "aliases", [])
       }
     end
 
@@ -63,6 +66,7 @@ defmodule TalesForge.Locations.Legend do
 
   def parse(_data), do: {:error, :bad_legend}
 
-  defp entry?({char, %{"item" => item}}), do: String.length(char) == 1 and is_binary(item)
+  # One character (a single codepoint) and an item name.
+  defp entry?({<<_char::utf8>>, %{"item" => item}}), do: is_binary(item)
   defp entry?(_entry), do: false
 end
