@@ -243,6 +243,19 @@ defmodule TalesForgeWeb.PlayLiveTest do
     end
   end
 
+  # Gentry QA 2026-10-21 (playtest 9b08e77): the empty-submit toast never
+  # cleared. It was an error flash, and only info flashes close themselves.
+  test "an empty submit says so in a toast that closes itself", %{conn: conn} do
+    {:ok, session} =
+      GameSessions.create_session(%{name: "Empty Tin Valley", adventure_id: "tin_valley"})
+
+    {:ok, view, _html} = live(conn, ~p"/play/#{session.id}")
+    view |> form("#action-form", %{message: "   "}) |> render_submit()
+
+    assert has_element?(view, "#flash-info[data-autohide-ms]", "Say something first.")
+    refute has_element?(view, "#flash-error")
+  end
+
   test "the player's action shows as soon as it is sent, above the GM text",
        %{conn: conn} do
     {:ok, session} =

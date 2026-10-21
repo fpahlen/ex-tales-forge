@@ -279,8 +279,12 @@ defmodule TalesForge.NPC do
      }}
   end
 
-  @doc "What the NPC says when it speaks up about its concern."
-  @spec initiative_text(Person.t()) :: String.t()
+  @doc """
+  What the NPC says when it speaks up about its concern; `nil` when it has
+  no line written for it, so the play page shows nothing rather than a
+  stage direction with no speech.
+  """
+  @spec initiative_text(Person.t()) :: String.t() | nil
   def initiative_text(%Person{npc_id: "worried_merchant"} = inst) do
     focus =
       inst.runtime_state
@@ -317,10 +321,7 @@ defmodule TalesForge.NPC do
     end
   end
 
-  def initiative_text(%Person{} = inst) do
-    name = Map.get(inst.personality, "name", inst.npc_id)
-    "#{name} speaks up, as if a worry has been pressing on them for some time."
-  end
+  def initiative_text(%Person{}), do: nil
 
   @doc "Marks that the NPC has spoken up about its concern, at `world_tick`."
   @spec mark_initiative_emitted(Person.t(), integer() | nil) :: :ok

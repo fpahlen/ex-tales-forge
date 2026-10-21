@@ -64,6 +64,46 @@ defmodule TalesForge.Game.TurnTest do
     assert t.outcome.handler.state_hints["reason"] == "There is no sword."
   end
 
+  # Gentry QA 2026-10-21 (playtest 9b08e77, session b01271a7, turn 10): with no
+  # key on the sheet, "I take out the silver key Brenna gave me earlier ..."
+  # was narrated as drawing the key. The premise check found the claim, but
+  # without TURN_PREMISE_FIRST the action is not blocked: the board plays it as
+  # an everyday action (outcome none, "simply happens"), so the GM got both.
+  test "TURN_PREMISE_FIRST: an invented key blocks the action and the GM is told",
+       %{session: session} do
+    me = self()
+
+    adapters = %Adapters{
+      gm: fn %TalesForge.LLM.GmTurn{messages: messages} ->
+        send(me, {:gm, Enum.map_join(messages, "\n", & &1.content)})
+        {:ok, %GMStructuredResponse{narrative: "Elara pats her cloak and finds no key."}}
+      end,
+      stream: fn _id, _chunk -> :ok end
+    }
+
+    text = "I take out the silver key Brenna gave me earlier and unlock the guild vault."
+
+    t =
+      session
+      |> turn(text, flags: %{turn_premise_first: true}, adapters: adapters)
+      |> Turn.Premise.check()
+      |> Turn.Mechanics.apply()
+      |> Turn.Npcs.react()
+      |> Turn.Prompt.build()
+      |> Turn.Gm.narrate()
+
+    assert [%{kind: :item, claim: "silver key"}] = t.premise.first
+    assert t.outcome.handler.handler == "narrate"
+    assert t.outcome.handler.state_hints["premise_rejected"]
+
+    assert t.outcome.handler.state_hints["reason"] =~
+             "Player claims to own silver key; they don't"
+
+    assert_received {:gm, prompt}
+    assert prompt =~ "Premise check: the action is blocked."
+    assert prompt =~ "Player claims to own silver key; they don't"
+  end
+
   test "the npc adapter gives the reactions; the gm adapter streams after them",
        %{session: session} do
     previous = Application.get_env(:jev, :api_key)

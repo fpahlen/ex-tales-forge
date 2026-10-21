@@ -144,6 +144,23 @@ defmodule TalesForge.NPCInitiativeTest do
     assert_receive {:npc_initiative, ^payload}
   end
 
+  # Gentry QA 2026-10-21 (playtest 9b08e77, session b01271a7): Brenna, Cobb
+  # and Rusk "speak up, as if a worry has been pressing on them for some
+  # time." with nothing said. Only Henrik and Marta have lines written; the
+  # fallback was a stage direction with no speech.
+  test "a pack NPC with no line written speaks up with nothing, not an empty line" do
+    {:ok, session} =
+      GameSessions.create_session(%{name: "Tin Valley Speak Up", adventure_id: "tin_valley"})
+
+    payloads =
+      Enum.flat_map([288, 1, 1, 1, 1, 1], &play(session, turn(session, freeform(), "", &1)))
+
+    assert NPC.get_person(session.id, "innkeep").runtime_state["initiative_emitted"]
+    assert NPC.initiative_text(NPC.get_person(session.id, "innkeep")) == nil
+    refute Enum.any?(payloads, &(&1.npc_id == "innkeep"))
+    refute Enum.any?(payloads, &(&1.text =~ "as if a worry has been pressing"))
+  end
+
   test "a turn applies its NPC Intentions in its own transaction" do
     {:ok, session} = GameSessions.create_session(%{name: "NPC Turn"})
 
