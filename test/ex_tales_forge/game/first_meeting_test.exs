@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.FirstMeetingTest do
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Game.FirstMeeting
   alias TalesForge.GameSessions

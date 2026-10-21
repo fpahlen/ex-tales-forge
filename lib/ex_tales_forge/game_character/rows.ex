@@ -1,19 +1,19 @@
-defmodule TalesForge.NPC.Rows do
+defmodule TalesForge.GameCharacter.Rows do
   @moduledoc """
   The store of the pack NPCs: their `characters` rows (controller `gm`,
-  origin `pack`), read and written as `TalesForge.NPC.Person`s (refactor
+  origin `pack`), read and written as `TalesForge.GameCharacter.Person`s (refactor
   step 10f PR 5).
 
   A row written before this step has no memory list in its `runtime`; its
   memories are read from their `character_memories` rows
-  (`TalesForge.NPC.Memories.old/1`). The next write keeps them in the row.
+  (`TalesForge.GameCharacter.Memories.old/1`). The next write keeps them in the row.
   """
 
   import Ecto.Query
 
   alias TalesForge.Characters.Attrs
   alias TalesForge.GameCharacter
-  alias TalesForge.NPC.{Memories, Person}
+  alias TalesForge.GameCharacter.{Memories, Person}
   alias TalesForge.Repo
   alias TalesForge.Schemas.Character
 
@@ -41,12 +41,8 @@ defmodule TalesForge.NPC.Rows do
 
   @doc "One pack NPC of the session, or nil."
   @spec get(Ecto.UUID.t(), String.t()) :: Person.t() | nil
-  def get(session_id, npc_id) when is_binary(npc_id) do
-    case session_id |> query() |> where([c], c.slug == ^npc_id) |> Repo.one() do
-      nil -> nil
-      row -> Person.from_row(row, Map.get(Memories.old([row]), row.id, []))
-    end
-  end
+  def get(session_id, npc_id) when is_binary(npc_id),
+    do: session_id |> query() |> where([c], c.slug == ^npc_id) |> people() |> List.first()
 
   def get(_session_id, _npc_id), do: nil
 
@@ -56,7 +52,7 @@ defmodule TalesForge.NPC.Rows do
     do: session_id |> query() |> select([c], c.slug) |> order_by([c], asc: c.slug) |> Repo.all()
 
   @doc """
-  Saves `runtime_state` as the NPC's state (`TalesForge.NPC.Person.attrs/3`),
+  Saves `runtime_state` as the NPC's state (`TalesForge.GameCharacter.Person.attrs/3`),
   except its goods: the stock and the coins stay as the row has them, since
   only a trade moves them (`put_goods!/2`). A row without a relationship yet
   gets it to the session's player character.

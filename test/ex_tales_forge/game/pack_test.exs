@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.PackTest do
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Fronts
   alias TalesForge.Game.Fronts, as: FrontDefs

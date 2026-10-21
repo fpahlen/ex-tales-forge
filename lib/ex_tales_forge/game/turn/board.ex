@@ -24,7 +24,7 @@ defmodule TalesForge.Game.Turn.Board do
   """
 
   require Logger
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Config
   alias TalesForge.Fronts

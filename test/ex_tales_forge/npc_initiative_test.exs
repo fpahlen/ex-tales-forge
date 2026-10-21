@@ -4,7 +4,7 @@ defmodule TalesForge.NPCInitiativeTest do
   # (TalesForge.Game.Turn.Intentions.apply_all/2). Before 10e these were
   # Jido signals to the NPC agents.
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Game.Turn.Intentions
   alias TalesForge.GameSessions

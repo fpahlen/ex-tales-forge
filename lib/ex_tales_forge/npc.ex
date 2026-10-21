@@ -3,8 +3,8 @@ defmodule TalesForge.NPC do
   Per-session NPC runtime: definitions, state, memories, presence.
 
   An NPC's live state is its `characters` row (refactor step 10f PR 5),
-  read and written as a `TalesForge.NPC.Person` through
-  `TalesForge.NPC.Rows`; definitions come from the pack files in
+  read and written as a `TalesForge.GameCharacter.Person` through
+  `TalesForge.GameCharacter.Rows`; definitions come from the pack files in
   `priv/npcs` (or the pack's own NPCs). Every write runs in the caller's
   transaction, so the turn's NPC updates commit with the turn.
   """
@@ -15,7 +15,7 @@ defmodule TalesForge.NPC do
   alias TalesForge.Game.Pack
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameCharacter
-  alias TalesForge.NPC.{Memories, Person, Rows, Seed}
+  alias TalesForge.GameCharacter.{Memories, Person, Rows, Seed}
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession}
 
@@ -162,7 +162,7 @@ defmodule TalesForge.NPC do
   The world-sim tick's people (`sim.people`) saved onto their rows, as
   steps of `multi`; each row is read in the step, so it sees the steps
   before it. The tick's people were read before the turn's trade, so their
-  stock and coins are left as the row has them (`TalesForge.NPC.Rows.changeset/2`).
+  stock and coins are left as the row has them (`TalesForge.GameCharacter.Rows.changeset/2`).
   """
   @spec persist_tick_multi(Ecto.Multi.t(), Ecto.UUID.t(), map()) :: Ecto.Multi.t()
   def persist_tick_multi(multi, session_id, sim) when is_map(sim) do

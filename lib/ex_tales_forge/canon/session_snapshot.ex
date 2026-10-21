@@ -6,7 +6,7 @@ defmodule TalesForge.Canon.SessionSnapshot do
   `from_session/1` reads the database. `TalesForge.Canon.Diff` uses the
   struct and does no reads.
   """
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Schemas.GameSession
   alias TalesForge.World

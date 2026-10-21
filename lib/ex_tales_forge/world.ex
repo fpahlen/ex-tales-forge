@@ -48,7 +48,7 @@ defmodule TalesForge.World do
           }
   end
 
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Config
   alias TalesForge.Game.World, as: GameWorld

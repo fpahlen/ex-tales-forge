@@ -2,7 +2,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLiveTest do
   use TalesForgeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.GameSessions
 

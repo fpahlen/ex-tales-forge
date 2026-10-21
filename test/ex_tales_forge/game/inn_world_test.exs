@@ -5,10 +5,10 @@ defmodule TalesForge.Game.InnWorldTest do
   created with the flag on.
   """
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
-  alias TalesForge.GameSessions
   alias TalesForge.Game.{Features, Pack}
+  alias TalesForge.GameSessions
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
 

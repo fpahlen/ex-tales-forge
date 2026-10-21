@@ -1,4 +1,4 @@
-defmodule TalesForge.NPC.Person do
+defmodule TalesForge.GameCharacter.Person do
   @moduledoc """
   A pack NPC as the NPC runtime reads and writes it, from its `characters`
   row (refactor step 10f PR 5):
@@ -36,7 +36,7 @@ defmodule TalesForge.NPC.Person do
       ...>   skills: %{"smithing" => 40}, location_id: "smithy", mood: "busy", relationships: %{"pc" => 0.5},
       ...>   inventory: [%TalesForge.Schemas.Character.InventoryItem{id: "nail", name: "Nail", quantity: 3, price_copper: 1}],
       ...>   coins: %{"silver" => 4}, runtime: %{"since_tick" => 7, "memories" => [], "reaction" => %{"emotion" => "calm"}}}
-      iex> person = TalesForge.NPC.Person.from_row(row)
+      iex> person = TalesForge.GameCharacter.Person.from_row(row)
       iex> {person.npc_id, person.personality["skills"], person.runtime_state}
       {"smith", %{"smithing" => 40},
        %{"location_id" => "smithy", "mood" => "busy", "relationship_score" => 0.5, "since_tick" => 7, "memories" => [],
@@ -72,7 +72,7 @@ defmodule TalesForge.NPC.Person do
 
       iex> row = %TalesForge.Schemas.Character{relationships: %{"pc" => 0.0}, coins: %{"gold" => 1},
       ...>   runtime: %{"reaction" => %{"emotion" => "calm"}}}
-      iex> TalesForge.NPC.Person.attrs(row, %{"location_id" => "inn", "mood" => "glad", "stock" => [],
+      iex> TalesForge.GameCharacter.Person.attrs(row, %{"location_id" => "inn", "mood" => "glad", "stock" => [],
       ...>   "relationship_score" => 0.1, "memories" => []})
       %{location_id: "inn", mood: "glad", inventory: [], coins: %{"gold" => 1}, relationships: %{"pc" => 0.1},
         runtime: %{"memories" => [], "reaction" => %{"emotion" => "calm"}}}
@@ -109,9 +109,9 @@ defmodule TalesForge.NPC.Person do
   The NPC's relationship score to the player character (the one entry of
   its `relationships`), 0.0 when it has none.
 
-      iex> TalesForge.NPC.Person.relationship_score(%{"pc" => 0.25})
+      iex> TalesForge.GameCharacter.Person.relationship_score(%{"pc" => 0.25})
       0.25
-      iex> TalesForge.NPC.Person.relationship_score(%{})
+      iex> TalesForge.GameCharacter.Person.relationship_score(%{})
       0.0
   """
   @spec relationship_score(map() | nil) :: number()

@@ -10,7 +10,7 @@ defmodule Mix.Tasks.E2e.Smoke do
   use Mix.Task
 
   import Ecto.Query
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.GameSessions
   alias TalesForge.LLM

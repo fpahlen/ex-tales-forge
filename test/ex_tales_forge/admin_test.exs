@@ -2,7 +2,7 @@ defmodule TalesForge.AdminTest do
   use TalesForge.DataCase, async: false
 
   import Ecto.Query
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Admin
   alias TalesForge.GameSessions

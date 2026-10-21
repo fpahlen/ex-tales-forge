@@ -7,10 +7,10 @@ defmodule TalesForge.NPCInitiative do
   `TalesForge.World.Instance` broadcasts it to the play page with
   `broadcast/2` once the turn has committed.
   """
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
+  alias TalesForge.GameCharacter.Person
   alias TalesForge.NPC
-  alias TalesForge.NPC.Person
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
 
   @typedoc "What the play page shows when an NPC speaks up."
