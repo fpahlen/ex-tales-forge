@@ -1,6 +1,8 @@
 defmodule TalesForge.Characters.RulesCheck do
   @moduledoc """
-  The one place the character rules are checked. `labels!/1` checks the label
+  The one place the character rules are checked.
+
+  `labels!/1` checks the label
   tables (`defaults.json` plus a pack's `character_defaults.json`);
   `creation!/2` checks `creation.json` against those labels. Each check is a
   `TalesForge.Characters.RulesCheck.Rule`; the first one that fails raises
