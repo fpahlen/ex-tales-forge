@@ -1,5 +1,6 @@
 defmodule TalesForge.NPCTest do
   use TalesForge.DataCase, async: false
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Game.Schemas.GMStructuredResponse
   alias TalesForge.Game.WorldClock
@@ -21,12 +22,12 @@ defmodule TalesForge.NPCTest do
     assert row.relationships == %{"elara_voss" => 0.0}
     assert row.runtime["memories"] == []
 
-    inst = NPC.get_person(session.id, "marta_kellen")
+    inst = Rows.get(session.id, "marta_kellen")
     assert inst.personality["name"] == "Marta Kellen"
     assert inst.runtime_state["location_id"] == "weary_pilgrim"
     assert "marta_kellen" in session.world_state["present_npcs"]
 
-    henrik = NPC.get_person(session.id, "worried_merchant")
+    henrik = Rows.get(session.id, "worried_merchant")
     assert henrik.personality["name"] == "Henrik Bale"
     assert henrik.runtime_state["location_id"] == "crossroads_square"
   end
@@ -43,7 +44,7 @@ defmodule TalesForge.NPCTest do
 
     :ok = NPC.apply_gm_updates(session.id, gm_result, WorldClock.default_start_tick())
 
-    inst = NPC.get_person(session.id, "marta_kellen")
+    inst = Rows.get(session.id, "marta_kellen")
     [memory | _] = Map.get(inst.runtime_state, "memories", [])
 
     assert memory["summary"] =~ "chalk marks"
@@ -56,9 +57,9 @@ defmodule TalesForge.NPCTest do
     assert ["marta_kellen"] = NPC.sync_present_npcs(session.id, "weary_pilgrim")
     assert ["worried_merchant"] = NPC.sync_present_npcs(session.id, "crossroads_square")
 
-    inst = NPC.get_person(session.id, "marta_kellen")
+    inst = Rows.get(session.id, "marta_kellen")
 
-    NPC.put_state!(inst, Map.put(inst.runtime_state, "location_id", "crossroads_square"))
+    Rows.update!(inst, Map.put(inst.runtime_state, "location_id", "crossroads_square"))
 
     assert ["marta_kellen", "worried_merchant"] =
              NPC.sync_present_npcs(session.id, "crossroads_square")

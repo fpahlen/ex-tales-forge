@@ -7,6 +7,7 @@ defmodule TalesForge.NPCGoodsTest do
   coins, whatever order the turn's steps run in.
   """
   use TalesForge.DataCase, async: false
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Game.Inventory
   alias TalesForge.GameSessions
@@ -60,7 +61,7 @@ defmodule TalesForge.NPCGoodsTest do
 
       assert {:ok, _} = steps |> Enum.reduce(Ecto.Multi.new(), & &1.(&2)) |> Repo.transaction()
 
-      brenna = NPC.get_person(session.id, "innkeep")
+      brenna = Rows.get(session.id, "innkeep")
       assert brenna.row.coins == trader.coins
       assert brenna.runtime_state["stock"] == trader.inventory
       assert brenna.runtime_state["location_id"] == "tin_valley_square"
@@ -80,12 +81,12 @@ defmodule TalesForge.NPCGoodsTest do
 
     {:ok, _} = NPC.bump_relationship(session.id, "innkeep", 0.1)
     NPC.adjust_concern(session.id, "innkeep", 1)
-    :ok = session.id |> NPC.get_person("innkeep") |> NPC.mark_initiative_emitted(2)
+    :ok = session.id |> Rows.get("innkeep") |> NPC.mark_initiative_emitted(2)
 
-    brenna = NPC.get_person(session.id, "innkeep")
-    NPC.put_state!(brenna, %{brenna.runtime_state | "stock" => [], "coins" => %{"gold" => 99}})
+    brenna = Rows.get(session.id, "innkeep")
+    Rows.update!(brenna, %{brenna.runtime_state | "stock" => [], "coins" => %{"gold" => 99}})
 
-    brenna = NPC.get_person(session.id, "innkeep")
+    brenna = Rows.get(session.id, "innkeep")
     assert brenna.row.coins == trader.coins
     assert brenna.runtime_state["stock"] == trader.inventory
     assert brenna.runtime_state["initiative_emitted"]
@@ -93,7 +94,7 @@ defmodule TalesForge.NPCGoodsTest do
   end
 
   test "a state write's changeset has no goods in it", %{session: session} do
-    brenna = NPC.get_person(session.id, "innkeep")
+    brenna = Rows.get(session.id, "innkeep")
 
     changes =
       NPC.Rows.changeset(brenna, %{brenna.runtime_state | "stock" => [], "coins" => %{}}).changes

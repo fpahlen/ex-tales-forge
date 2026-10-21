@@ -3,9 +3,9 @@ defmodule TalesForge.Game.Perception do
   What the table GM and scene prompts may see. Single implementation
   for Context and SceneProcessor.
   """
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Fronts
-  alias TalesForge.NPC
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent}
 
@@ -14,7 +14,7 @@ defmodule TalesForge.Game.Perception do
   def visible_world(%GameSession{} = session) do
     world = session.world_state || %{}
     fronts = Fronts.list_all(session.id)
-    people = NPC.list_people(session.id)
+    people = Rows.list(session.id)
     events = list_event_maps(session.id)
     visible_world(world, fronts ++ people, events)
   end

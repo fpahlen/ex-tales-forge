@@ -1,5 +1,6 @@
 defmodule TalesForge.CharactersTest do
   use TalesForge.DataCase, async: false
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Characters
   alias TalesForge.Game.Pack
@@ -71,10 +72,10 @@ defmodule TalesForge.CharactersTest do
         Map.take(Map.from_struct(c.stats), ~w(str dex con int wis cha)a)
       end
 
-      inst = TalesForge.NPC.get_person(a.id, "prospector")
+      inst = Rows.get(a.id, "prospector")
 
       assert inst.personality["stats"] ==
-               TalesForge.NPC.get_person(a.id, "prospector").personality["stats"]
+               Rows.get(a.id, "prospector").personality["stats"]
 
       for slug <- ~w(innkeep guild_steward prospector) do
         assert Enum.all?(Map.values(stats.(a, slug)), &(&1 in 9..11))

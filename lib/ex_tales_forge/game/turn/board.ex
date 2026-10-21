@@ -24,6 +24,7 @@ defmodule TalesForge.Game.Turn.Board do
   """
 
   require Logger
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Config
   alias TalesForge.Fronts
@@ -322,7 +323,7 @@ defmodule TalesForge.Game.Turn.Board do
   end
 
   defp trainer_personality(session_id, npc_id) when is_binary(npc_id) and npc_id != "" do
-    case NPC.get_person(session_id, npc_id) do
+    case Rows.get(session_id, npc_id) do
       %{personality: personality} when is_map(personality) -> personality
       _ -> %{}
     end

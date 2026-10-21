@@ -147,17 +147,6 @@ defmodule TalesForge.Admin do
     end
   end
 
-  @doc "The session's pack NPCs (`TalesForge.NPC.Person`), by slug."
-  @spec list_npcs(Ecto.UUID.t()) :: [Person.t()]
-  def list_npcs(session_id), do: NPC.list_people(session_id)
-
-  @doc """
-  The NPC for the `npc_id` slug in that session, or `nil` when the session
-  has no such NPC.
-  """
-  @spec get_npc(Ecto.UUID.t(), String.t()) :: Person.t() | nil
-  def get_npc(session_id, npc_id), do: NPC.get_person(session_id, npc_id)
-
   @doc """
   Saves `json_string` (a JSON object) as the NPC's runtime state: its place,
   mood, stock and relationship go to their columns, the rest to `runtime`

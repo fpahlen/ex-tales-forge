@@ -61,7 +61,7 @@ defmodule TalesForge.NPC do
   @spec notice_profiles(String.t(), [String.t()]) :: [map()]
   def notice_profiles(session_id, present_npc_ids) do
     session_id
-    |> list_people()
+    |> Rows.list()
     |> Enum.filter(&(&1.npc_id in present_npc_ids))
     |> Enum.map(&prompt_npc_context/1)
   end
@@ -118,10 +118,6 @@ defmodule TalesForge.NPC do
 
   defp validate_derive!(_definition, _rules, _source), do: :ok
 
-  @doc "The session's NPCs (`TalesForge.NPC.Rows.list/1`)."
-  @spec list_people(Ecto.UUID.t()) :: [Person.t()]
-  def list_people(session_id), do: Rows.list(session_id)
-
   @doc """
   The combat fighter of one NPC (`TalesForge.Game.Combat`): the stats,
   OCEAN, Maslow level and concerns of its definition (with the
@@ -130,7 +126,7 @@ defmodule TalesForge.NPC do
   """
   @spec combat_profile(String.t(), String.t()) :: map() | nil
   def combat_profile(session_id, npc_id) do
-    case get_person(session_id, npc_id) do
+    case Rows.get(session_id, npc_id) do
       %Person{} = inst ->
         definition = inst.personality
         runtime = inst.runtime_state
@@ -153,25 +149,13 @@ defmodule TalesForge.NPC do
     end
   end
 
-  @doc "One NPC of the session (`TalesForge.NPC.Rows.get/2`), or nil."
-  @spec get_person(Ecto.UUID.t(), String.t()) :: Person.t() | nil
-  def get_person(session_id, npc_id), do: Rows.get(session_id, npc_id)
-
-  @doc """
-  Saves `runtime_state` as the NPC's state onto its row
-  (`TalesForge.NPC.Rows.update!/2`) and returns the NPC as saved. Its stock
-  and coins are not saved: only a trade moves them (`put_inventories/2`).
-  """
-  @spec put_state!(Person.t(), map()) :: Person.t()
-  def put_state!(%Person{} = inst, runtime_state), do: Rows.update!(inst, runtime_state)
-
   @doc """
   The session's NPCs as the world-sim tick takes them
   (`TalesForge.Game.WorldSim.tick/1`): id, definition and runtime state.
   """
   @spec sim_people(Ecto.UUID.t()) :: [map()]
   def sim_people(session_id) when is_binary(session_id) do
-    Enum.map(list_people(session_id), &to_sim/1)
+    Enum.map(Rows.list(session_id), &to_sim/1)
   end
 
   @doc """
@@ -186,7 +170,7 @@ defmodule TalesForge.NPC do
       id = npc_id(person)
 
       Ecto.Multi.run(acc, {:npc, id}, fn _repo, _changes ->
-        persist_tick(get_person(session_id, id), runtime(person))
+        persist_tick(Rows.get(session_id, id), runtime(person))
       end)
     end)
   end
@@ -213,7 +197,7 @@ defmodule TalesForge.NPC do
     if trimmed == "" do
       :ok
     else
-      case get_person(session_id, npc_id) do
+      case Rows.get(session_id, npc_id) do
         %Person{} = inst -> persist_memory(inst, trimmed, world_tick)
         nil -> :ok
       end
@@ -226,7 +210,7 @@ defmodule TalesForge.NPC do
   """
   @spec bump_relationship(Ecto.UUID.t(), String.t(), number()) :: {:ok, number()}
   def bump_relationship(session_id, npc_id, delta) when is_number(delta) do
-    case get_person(session_id, npc_id) do
+    case Rows.get(session_id, npc_id) do
       %Person{} = inst ->
         score = Map.get(inst.runtime_state, "relationship_score", 0.0) + delta
         runtime = Map.put(inst.runtime_state, "relationship_score", score)
@@ -245,7 +229,7 @@ defmodule TalesForge.NPC do
   """
   @spec adjust_concern(Ecto.UUID.t(), String.t(), integer()) :: :ok | {:ok, map()}
   def adjust_concern(session_id, npc_id, delta_ticks) when is_integer(delta_ticks) do
-    case get_person(session_id, npc_id) do
+    case Rows.get(session_id, npc_id) do
       %Person{runtime_state: %{"current_concern" => %{} = concern}} = inst ->
         wait_on_concern(inst, concern, delta_ticks)
 
@@ -362,7 +346,7 @@ defmodule TalesForge.NPC do
   @spec sync_present_npcs(Ecto.UUID.t(), String.t()) :: [String.t()]
   def sync_present_npcs(session_id, location_id) do
     session_id
-    |> list_people()
+    |> Rows.list()
     |> Enum.filter(fn inst ->
       Map.get(inst.runtime_state, "location_id") == location_id
     end)
@@ -381,7 +365,7 @@ defmodule TalesForge.NPC do
   @spec traders(Ecto.UUID.t(), [String.t()]) :: %{String.t() => GameCharacter.t()}
   def traders(session_id, npc_ids) when is_list(npc_ids) do
     Enum.reduce(npc_ids, %{}, fn npc_id, acc ->
-      case get_person(session_id, npc_id) do
+      case Rows.get(session_id, npc_id) do
         %Person{} = inst -> Map.put(acc, npc_id, trader(inst))
         nil -> acc
       end
@@ -408,7 +392,7 @@ defmodule TalesForge.NPC do
   @spec put_inventories(Ecto.UUID.t(), [GameCharacter.t()]) :: :ok
   def put_inventories(session_id, traders) when is_list(traders) do
     Enum.each(traders, fn %GameCharacter{slug: npc_id} = trader ->
-      case get_person(session_id, npc_id) do
+      case Rows.get(session_id, npc_id) do
         %Person{} = inst -> Rows.put_goods!(inst, trader)
         nil -> :ok
       end
@@ -457,7 +441,7 @@ defmodule TalesForge.NPC do
   def format_gm_sections(session_id, present_npc_ids, opts \\ []) do
     present =
       session_id
-      |> list_people()
+      |> Rows.list()
       |> Enum.filter(&(&1.npc_id in present_npc_ids))
 
     meeting =

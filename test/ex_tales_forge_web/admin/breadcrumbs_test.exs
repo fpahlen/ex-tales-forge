@@ -7,6 +7,7 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
   use TalesForgeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
+  alias TalesForge.NPC.Rows
 
   alias TalesForgeWeb.AdminSections
 
@@ -48,7 +49,7 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
   test "every admin LiveView with params renders the breadcrumbs", %{conn: conn} do
     conn = log_in_admin(conn)
     {:ok, session} = TalesForge.GameSessions.create_session(%{name: "Crumbs"})
-    [npc | _] = TalesForge.Admin.list_npcs(session.id)
+    [npc | _] = Rows.list(session.id)
 
     run =
       TalesForge.Repo.insert!(%TalesForge.Schemas.PlaytestRun{

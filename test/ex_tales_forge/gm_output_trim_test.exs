@@ -9,13 +9,13 @@ defmodule TalesForge.GMOutputTrimTest do
   (dropped 2026-10-18; playtest QA reads the turn's session events instead).
   """
   use TalesForge.DataCase, async: false
+  alias TalesForge.NPC.Rows
 
   alias TalesForge.Game.{Context, Intent, Prompts, TurnProcessor}
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction}
   alias TalesForge.GameSessions
   alias TalesForge.GMReasoning
   alias TalesForge.LLM
-  alias TalesForge.NPC
   alias TalesForge.Prompt.Assemble
 
   setup do
@@ -145,7 +145,7 @@ defmodule TalesForge.GMOutputTrimTest do
     assert event.payload["gm_reply"] == reply
     refute Map.has_key?(event.payload, "gm_notes")
 
-    memories = NPC.get_person(session.id, "marta_kellen").runtime_state["memories"]
+    memories = Rows.get(session.id, "marta_kellen").runtime_state["memories"]
     assert Enum.any?(memories, &(&1["summary"] =~ "asked nothing and paid"))
 
     # The next GM turn sees the summary as its situation.
