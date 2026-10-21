@@ -139,3 +139,8 @@ into region cells. Not now.
   default false. `link: {dz: ±1}` marks stairs.
 - `TalesForge.Locations.Pack.grids/1` loads them by location id.
 - `TalesForge.Locations.Legend`, `Grid` and `Cell` parse them (pure).
+- `LOCATION_GRID=on` (playtest only, `fly.playtest.toml`): when the place
+  (`location_id`) has a grid, the GM prompt gets "Around the character (from
+  the map)" from `TalesForge.Locations.Prompt`. Step 1 keeps no position in
+  the game state: the character stands on the main door facing in, until a
+  later step maps the player's words to `Move.approach/3` and stores it.
