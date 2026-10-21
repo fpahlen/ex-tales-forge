@@ -25,7 +25,7 @@ defmodule TalesForge.Schemas.GameSession do
     has_many :scenes, TalesForge.Schemas.Scene
     has_many :front_instances, TalesForge.Schemas.FrontInstance
     has_many :session_events, TalesForge.Schemas.SessionEvent
-    has_many :characters, TalesForge.Schemas.Character
+    has_many :characters, TalesForge.Schemas.GameCharacter
 
     timestamps(type: :utc_datetime)
   end

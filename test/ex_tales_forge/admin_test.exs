@@ -7,7 +7,8 @@ defmodule TalesForge.AdminTest do
   alias TalesForge.Admin
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{AICall, Character, FrontInstance, GameSession, SessionEvent}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.{AICall, FrontInstance, GameSession, SessionEvent}
 
   test "stats returns counts" do
     before = Admin.stats()
@@ -86,7 +87,7 @@ defmodule TalesForge.AdminTest do
 
     assert :ok = Admin.delete_session(session)
 
-    for schema <- [Character, SessionEvent, FrontInstance] do
+    for schema <- [Schemas.GameCharacter, SessionEvent, FrontInstance] do
       assert Repo.all(from r in schema, where: r.game_session_id == ^session.id) == []
     end
 
@@ -107,7 +108,7 @@ defmodule TalesForge.AdminTest do
     assert {:ok, saved} = Admin.update_npc_runtime_state(npc, json)
     assert saved.runtime_state["mood"] == "wary"
 
-    row = Repo.get!(Character, npc.row.id)
+    row = Repo.get!(Schemas.GameCharacter, npc.row.id)
     assert {row.slug, row.mood, row.location_id} == {npc.npc_id, "wary", npc.row.location_id}
     assert row.runtime["note"] == "admin"
     assert row.definition == npc.row.definition

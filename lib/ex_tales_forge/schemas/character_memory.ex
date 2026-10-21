@@ -30,7 +30,7 @@ defmodule TalesForge.Schemas.CharacterMemory do
     # Board card 845b6b15: the character's belief from compression; it can be wrong.
     field :belief, :string
 
-    belongs_to :character, TalesForge.Schemas.Character
+    belongs_to :character, TalesForge.Schemas.GameCharacter
     belongs_to :session_event, TalesForge.Schemas.SessionEvent
 
     timestamps(type: :utc_datetime, updated_at: false)

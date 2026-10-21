@@ -9,7 +9,8 @@ defmodule TalesForge.Admin do
 
   alias TalesForge.GameCharacter.{Person, Roster, Rows, Seeding, Store}
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, GameSession, Scene, Turn}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.{GameSession, Scene, Turn}
 
   @doc "Row counts for the admin dashboard."
   @spec stats() :: %{atom() => non_neg_integer()}
@@ -22,7 +23,7 @@ defmodule TalesForge.Admin do
         |> Repo.aggregate(:count, :id),
       turns: Repo.aggregate(Turn, :count, :id),
       npcs:
-        Character
+        Schemas.GameCharacter
         |> where([c], c.controller == "gm" and fragment("?->>'source' = 'pack'", c.origin))
         |> Repo.aggregate(:count, :id),
       scenes: Repo.aggregate(Scene, :count, :id)
@@ -132,7 +133,7 @@ defmodule TalesForge.Admin do
     id = Map.get(session, :id)
     slugs = Rows.slugs(id)
 
-    from(c in Character, where: c.game_session_id == ^id and c.slug in ^slugs)
+    from(c in Schemas.GameCharacter, where: c.game_session_id == ^id and c.slug in ^slugs)
     |> Repo.delete_all()
 
     # For seed/refresh we need the Ecto struct or world_state; fetch fresh

@@ -31,7 +31,8 @@ defmodule TalesForge.GameCharacter.Thought do
   alias TalesForge.GameCharacter.{MemoryLog, Moment, Store}
   alias TalesForge.LLM
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, CharacterMemory, SessionEvent, Turn}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.{CharacterMemory, SessionEvent, Turn}
 
   @max_chars 220
   @rows 5
@@ -46,7 +47,7 @@ defmodule TalesForge.GameCharacter.Thought do
 
   @typedoc "A trigger: who or what the thought is about, with the memories."
   @type trigger ::
-          {:person, Character.t(), [CharacterMemory.t()]}
+          {:person, Schemas.GameCharacter.t(), [CharacterMemory.t()]}
           | {:sleep, [CharacterMemory.t()]}
 
   @doc """
@@ -56,7 +57,7 @@ defmodule TalesForge.GameCharacter.Thought do
   def for_turn(%Moment{mode: :off}), do: nil
 
   def for_turn(%Moment{session_id: session_id} = moment) do
-    with %Character{} = pc <- actor(moment),
+    with %Schemas.GameCharacter{} = pc <- actor(moment),
          scene = scene_key(session_id, moment.world),
          trigger when not is_nil(trigger) <- trigger(moment, pc, scene),
          {:ok, text} <- text(pc, trigger, moment) do
@@ -129,7 +130,7 @@ defmodule TalesForge.GameCharacter.Thought do
     end
   end
 
-  defp strongest(%Character{id: id}) do
+  defp strongest(%Schemas.GameCharacter{id: id}) do
     CharacterMemory
     |> where([m], m.character_id == ^id and m.tier in ["short", "long"])
     |> order_by([m], desc: m.weight, desc: m.tick)

@@ -43,7 +43,8 @@ defmodule TalesForge.GameCharacter.Store do
   alias TalesForge.GameCharacter
   alias TalesForge.GameCharacter.{Attrs, Levers, Person, Roster}
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, CharacterMemory, GameSession, PlaytestRun}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.{CharacterMemory, GameSession, PlaytestRun}
 
   # Columns copied from the game state on every sync. Everything else is set
   # once, when the row is first written.
@@ -114,7 +115,7 @@ defmodule TalesForge.GameCharacter.Store do
   def end_scene_multi(%Ecto.Multi{} = multi, location_id) do
     Ecto.Multi.delete_all(multi, :scene_characters, fn %{session: session} ->
       where(
-        Character,
+        Schemas.GameCharacter,
         [c],
         c.game_session_id == ^session.id and c.lifetime == :scene and
           c.location_id == ^location_id
@@ -132,16 +133,16 @@ defmodule TalesForge.GameCharacter.Store do
   def cast(nil), do: %{}
 
   def cast(session_id) do
-    Character
+    Schemas.GameCharacter
     |> where([c], c.game_session_id == ^session_id and c.controller == "gm")
     |> Repo.all()
     |> Map.new(fn row -> {row.slug, cast_member(row)} end)
   end
 
-  defp cast_member(%Character{origin: %{"source" => "pack"}} = row),
+  defp cast_member(%Schemas.GameCharacter{origin: %{"source" => "pack"}} = row),
     do: row |> Person.from_row() |> Roster.cast_member(GameCharacter.from_schema(row))
 
-  defp cast_member(%Character{} = row), do: GameCharacter.from_schema(row)
+  defp cast_member(%Schemas.GameCharacter{} = row), do: GameCharacter.from_schema(row)
 
   @doc """
   Saves a session changeset and its characters in one transaction
@@ -165,7 +166,10 @@ defmodule TalesForge.GameCharacter.Store do
 
     case Enum.reject(
            rows,
-           &Character.changeset(%Character{}, Map.put(&1, :game_session_id, id)).valid?
+           &Schemas.GameCharacter.changeset(
+             %Schemas.GameCharacter{},
+             Map.put(&1, :game_session_id, id)
+           ).valid?
          ) do
       [] ->
         write_rows!(rows, npcs, id)
@@ -231,7 +235,7 @@ defmodule TalesForge.GameCharacter.Store do
       race: member.race,
       role: member.role,
       location_id: member.location_id,
-      stats: Character.Stats.from_sheet(member.stats),
+      stats: Schemas.GameCharacter.Stats.from_sheet(member.stats),
       skills: Attrs.int_map(member.skills),
       ocean: member.ocean || %{},
       maslow_level: member.maslow_level || "safety",
@@ -257,14 +261,14 @@ defmodule TalesForge.GameCharacter.Store do
   # An NPC row, read in the transaction: its cast state and its relationship
   # keyed by the player character (whose slug a re-seed can change).
   defp write_npc!(session_id, slug, %{pc_slug: pc_slug, cast: cast}) do
-    %Character{} = row = get_by_slug(session_id, slug)
+    %Schemas.GameCharacter{} = row = get_by_slug(session_id, slug)
 
     attrs =
       row
       |> cast_state(cast[slug], Cast.reaction(cast, slug))
       |> Map.put(:relationships, %{pc_slug => Person.relationship_score(row.relationships)})
 
-    case row |> Character.changeset(attrs) |> Repo.update() do
+    case row |> Schemas.GameCharacter.changeset(attrs) |> Repo.update() do
       {:ok, _} -> :ok
       {:error, changeset} -> Repo.rollback({slug, changeset})
     end
@@ -282,7 +286,7 @@ defmodule TalesForge.GameCharacter.Store do
   """
   @spec backfill() :: map()
   def backfill do
-    before = Repo.aggregate(Character, :count)
+    before = Repo.aggregate(Schemas.GameCharacter, :count)
     personas = Map.new(Repo.all(from r in PlaytestRun, select: {r.game_session_id, r.persona}))
 
     failed =
@@ -297,7 +301,7 @@ defmodule TalesForge.GameCharacter.Store do
         end
       end)
 
-    total = Repo.aggregate(Character, :count)
+    total = Repo.aggregate(Schemas.GameCharacter, :count)
 
     %{
       sessions: Repo.aggregate(GameSession, :count),
@@ -312,7 +316,11 @@ defmodule TalesForge.GameCharacter.Store do
   defp backfill_opts(persona), do: %{controller: "bot", controller_ref: persona}
 
   defp upsert_or_rollback!(attrs, session_id) do
-    changeset = Character.changeset(%Character{}, Map.put(attrs, :game_session_id, session_id))
+    changeset =
+      Schemas.GameCharacter.changeset(
+        %Schemas.GameCharacter{},
+        Map.put(attrs, :game_session_id, session_id)
+      )
 
     case Repo.insert(changeset,
            on_conflict: {:replace, @mirrored ++ [:updated_at]},
@@ -359,7 +367,7 @@ defmodule TalesForge.GameCharacter.Store do
   """
   @spec player_sheets([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => map()}
   def player_sheets(session_ids) do
-    Character
+    Schemas.GameCharacter
     |> where([c], c.game_session_id in ^session_ids and c.controller in ~w(player bot))
     |> order_by([c], asc: c.slug)
     |> Repo.all()
@@ -372,7 +380,7 @@ defmodule TalesForge.GameCharacter.Store do
 
   @doc "The session's characters, ordered by slug."
   def list_for_session(session_id) do
-    Character
+    Schemas.GameCharacter
     |> where([c], c.game_session_id == ^session_id)
     |> order_by([c], asc: c.slug)
     |> Repo.all()
@@ -380,20 +388,20 @@ defmodule TalesForge.GameCharacter.Store do
 
   @doc "One character by session and slug, or nil."
   def get_by_slug(session_id, slug),
-    do: Repo.get_by(Character, game_session_id: session_id, slug: slug)
+    do: Repo.get_by(Schemas.GameCharacter, game_session_id: session_id, slug: slug)
 
   @doc """
   Adds one memory row for a character: its own view (felt, salience, secret)
   of an event, optionally pointing at the shared `session_events` row.
   """
-  def add_memory(%Character{id: id}, attrs) when is_map(attrs) do
+  def add_memory(%Schemas.GameCharacter{id: id}, attrs) when is_map(attrs) do
     %CharacterMemory{}
     |> CharacterMemory.changeset(Map.put(attrs, :character_id, id))
     |> Repo.insert()
   end
 
   @doc "A character's memories, oldest first."
-  def list_memories(%Character{id: id}) do
+  def list_memories(%Schemas.GameCharacter{id: id}) do
     CharacterMemory
     |> where([m], m.character_id == ^id)
     |> order_by([m], asc: m.tick, asc: m.inserted_at)
@@ -448,7 +456,7 @@ defmodule TalesForge.GameCharacter.Store do
       name: sheet["name"],
       race: sheet["race"],
       location_id: sheet["location_id"] || world_state["location_id"],
-      stats: Character.Stats.from_sheet(sheet["stats"]),
+      stats: Schemas.GameCharacter.Stats.from_sheet(sheet["stats"]),
       skills: number_map(sheet["skills"]),
       inventory: Attrs.inventory(sheet["inventory"]),
       coins: sheet["coins"] || %{},
@@ -471,8 +479,8 @@ defmodule TalesForge.GameCharacter.Store do
   # name, a non-number skill).
   defp put_sheet_runtime(attrs, sheet) do
     gc =
-      %Character{}
-      |> Character.changeset(attrs)
+      %Schemas.GameCharacter{}
+      |> Schemas.GameCharacter.changeset(attrs)
       |> Ecto.Changeset.apply_changes()
       |> GameCharacter.from_schema()
 

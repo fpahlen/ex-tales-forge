@@ -125,7 +125,7 @@ defmodule TalesForge.Game.SellOwnWordsTest do
   # is carried away.
   defp mug_trader(session) do
     row =
-      TalesForge.Repo.get_by!(TalesForge.Schemas.Character,
+      TalesForge.Repo.get_by!(TalesForge.Schemas.GameCharacter,
         game_session_id: session.id,
         slug: "innkeep"
       )

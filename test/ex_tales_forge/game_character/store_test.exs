@@ -6,7 +6,8 @@ defmodule TalesForge.GameCharacter.StoreTest do
   alias TalesForge.GameCharacter.Store
   alias TalesForge.GameSessions
   alias TalesForge.Repo
-  alias TalesForge.Schemas.{Character, CharacterMemory, GameSession, SessionEvent}
+  alias TalesForge.Schemas
+  alias TalesForge.Schemas.{CharacterMemory, GameSession, SessionEvent}
 
   defp create(attrs) do
     {:ok, session} = GameSessions.create_session(Map.merge(%{name: "Characters"}, attrs))
@@ -225,12 +226,21 @@ defmodule TalesForge.GameCharacter.StoreTest do
     end
 
     test "accepts player, gm and bot; defaults stats to 10 and OCEAN to 5", %{session: session} do
-      for controller <- Character.controllers() do
-        cs = Character.changeset(%Character{}, attrs(session, %{controller: controller}))
+      for controller <- Schemas.GameCharacter.controllers() do
+        cs =
+          Schemas.GameCharacter.changeset(
+            %Schemas.GameCharacter{},
+            attrs(session, %{controller: controller})
+          )
+
         assert cs.valid?
       end
 
-      {:ok, c} = Repo.insert(Character.changeset(%Character{}, attrs(session, %{})))
+      {:ok, c} =
+        Repo.insert(
+          Schemas.GameCharacter.changeset(%Schemas.GameCharacter{}, attrs(session, %{}))
+        )
+
       assert c.stats.wis == 10
       assert c.ocean.neuroticism == 5
     end
@@ -247,7 +257,7 @@ defmodule TalesForge.GameCharacter.StoreTest do
             {%{concerns: [concern, concern, concern, concern]}, :concerns},
             {%{vitality: "fine"}, :vitality}
           ] do
-        cs = Character.changeset(%Character{}, attrs(session, extra))
+        cs = Schemas.GameCharacter.changeset(%Schemas.GameCharacter{}, attrs(session, extra))
         refute cs.valid?
         assert Map.has_key?(errors_on(cs), field), "expected an error on #{field}"
       end
@@ -255,7 +265,12 @@ defmodule TalesForge.GameCharacter.StoreTest do
 
     test "slug is unique per session", %{session: session} do
       assert {:error, cs} =
-               Repo.insert(Character.changeset(%Character{}, attrs(session, %{slug: "innkeep"})))
+               Repo.insert(
+                 Schemas.GameCharacter.changeset(
+                   %Schemas.GameCharacter{},
+                   attrs(session, %{slug: "innkeep"})
+                 )
+               )
 
       assert %{game_session_id: _} = errors_on(cs)
     end
