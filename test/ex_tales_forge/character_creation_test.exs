@@ -2,7 +2,7 @@ defmodule TalesForge.CharacterCreationTest do
   use ExUnit.Case, async: true
 
   alias TalesForge.CharacterCreation, as: CC
-  alias TalesForge.CharacterCreation.Draft
+  alias TalesForge.CharacterCreation.{Draft, Options}
   alias TalesForge.Characters.{Defaults, Levers}
   alias TalesForge.Game.{Mechanics, Pack}
 
@@ -50,7 +50,7 @@ defmodule TalesForge.CharacterCreationTest do
       assert %{"budget" => 125, "cap" => 25, "signature_cap" => 35, "signature_max" => 2} =
                opts.skills
 
-      assert %{id: "arcana", stat: "INT"} in opts.skill_list
+      assert %Options.SkillOption{id: "arcana", stat: "INT"} in opts.skill_list
     end
   end
 
