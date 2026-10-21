@@ -49,7 +49,7 @@ defmodule TalesForge.SceneProcessorTest do
     end)
   end
 
-  test "travel sets needs_scene until a new scene is described" do
+  test "travel narrates the arrival in the turn: no arrival scene follows" do
     assert {:ok, session} = GameSessions.create_session(%{name: "Travel Scene"})
 
     assert {:ok, %{status: :processing}} =
@@ -57,17 +57,8 @@ defmodule TalesForge.SceneProcessorTest do
 
     session = GameSessions.get_session!(session.id)
     assert session.world_state["location_id"] == "crossroads_square"
-    assert SceneProcessor.needs_scene?(session.world_state)
-
-    assert {:ok, _} = GameSessions.ensure_scene(session)
-
-    session = GameSessions.get_session!(session.id)
     refute SceneProcessor.needs_scene?(session.world_state)
-
-    square_scene =
-      Scene
-      |> Repo.get_by(game_session_id: session.id, location_id: "crossroads_square")
-
-    assert square_scene
+    assert {:ok, :scene_ready} = GameSessions.ensure_scene(session)
+    refute Repo.get_by(Scene, game_session_id: session.id, location_id: "crossroads_square")
   end
 end

@@ -26,7 +26,7 @@ defmodule TalesForge.Game.Turn.Outcome do
   alias TalesForge.Game.OutcomeRecord
   alias TalesForge.Game.ProseCheck
   alias TalesForge.Game.Turn
-  alias TalesForge.Game.Turn.{Board, Premise, Store}
+  alias TalesForge.Game.Turn.{Board, NarratedArrival, Premise, Store}
   alias TalesForge.World, as: WorldAgents
   alias TalesForge.World.Extract
 
@@ -80,7 +80,10 @@ defmodule TalesForge.Game.Turn.Outcome do
   defp write(%Turn{} = turn, board, ctx) do
     turn.adapters.store.(%Store{
       session: turn.session,
-      world: Board.turn_patches(board.world, ctx.gm_result, turn.injected),
+      world:
+        board.world
+        |> Board.turn_patches(ctx.gm_result, turn.injected)
+        |> NarratedArrival.mark(turn.session.world_state),
       number: turn.number,
       raw_action: turn.history_action,
       ctx:

@@ -223,12 +223,13 @@ defmodule TalesForge.Game.SceneChangeTest do
       assert {:ok, payload} =
                TurnProcessor.run(session.id, {@paul_t6, PlayerAction.encode(action)})
 
-      # Recorded: location, name, who is present; a new scene is due.
+      # Recorded: location, name, who is present; the turn narrates the
+      # arrival, so no arrival scene is due (it would tell it twice).
       assert payload.world_state["location_id"] == "market_square"
       assert payload.world_state["character"]["location_id"] == "market_square"
       assert payload.world_state["location_name"] == "Market Square"
       assert payload.world_state["present_npcs"] == ["guild_steward"]
-      assert payload.needs_scene
+      refute payload.needs_scene
 
       assert_receive {:gm, body}
       move_turn = List.last(body["messages"])["content"]
