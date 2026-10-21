@@ -4,7 +4,7 @@ defmodule TalesForge.Game.Turn.Store do
   Multi with the session, the turn row, its events, the GM reasoning, the
   fronts and NPC ticks, the work-log push, the GM's NPC updates, the
   characters (`TalesForge.Characters.write_multi/2`) and the NPC Intentions
-  of the turn (`TalesForge.NPCSignals.intentions/1`, applied by
+  of the turn (`TalesForge.GameCharacter.Signals.intentions/1`, applied by
   `TalesForge.Game.Turn.Intentions.apply_all/2`); then character memory
   and the thought. The NPC initiatives go back in the payload
   (`:npc_initiatives`), and `TalesForge.World.Instance` broadcasts them
@@ -35,10 +35,9 @@ defmodule TalesForge.Game.Turn.Store do
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.Turn.Intentions
-  alias TalesForge.GameCharacter.{Agency, Roster}
+  alias TalesForge.GameCharacter.{Agency, Roster, Signals}
   alias TalesForge.GMReasoning
   alias TalesForge.LLM
-  alias TalesForge.NPCSignals
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent}
   alias TalesForge.Schemas.Turn, as: TurnRow
@@ -128,7 +127,7 @@ defmodule TalesForge.Game.Turn.Store do
       if saved.status == "dead" or Mechanics.dead?(world) do
         {:ok, []}
       else
-        {:ok, Intentions.apply_all(saved.id, NPCSignals.intentions(heard(store, saved)))}
+        {:ok, Intentions.apply_all(saved.id, Signals.intentions(heard(store, saved)))}
       end
     end)
   end
@@ -138,7 +137,7 @@ defmodule TalesForge.Game.Turn.Store do
   # Multi saved, already the world after) gave 0, so no concern built and no
   # NPC spoke up on its own.
   defp heard(%__MODULE__{session: before, world: world, ctx: ctx} = store, saved) do
-    %NPCSignals.Turn{
+    %Signals.Turn{
       session_id: saved.id,
       world_state: world,
       handler: ctx.handler,
