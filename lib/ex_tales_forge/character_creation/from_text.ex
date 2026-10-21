@@ -21,7 +21,7 @@ defmodule TalesForge.CharacterCreation.FromText do
 
   alias TalesForge.CharacterCreation, as: CC
   alias TalesForge.CharacterCreation.Draft
-  alias TalesForge.CharacterCreation.FromText.{Known, Label, Reading}
+  alias TalesForge.CharacterCreation.FromText.{Known, Label, Reading, StatLimits}
 
   @stats ~w(STR DEX CON INT WIS CHA)
   @max_questions 2
@@ -75,21 +75,7 @@ defmodule TalesForge.CharacterCreation.FromText do
   """
   @spec build(Draft.t(), reading()) :: {:ok, Draft.t()}
   def build(%Draft{} = draft, %Reading{labels: labels}) do
-    new = CC.new(draft.adventure_id, seed_key: draft.seed_key)
-
-    {:ok, chosen} =
-      %{new | rolled_stats: draft.rolled_stats, rerolls_left: draft.rerolls_left}
-      |> CC.choose_model("from_text")
-
-    built =
-      chosen
-      |> apply_label(labels["race"], &CC.choose_race/2)
-      |> apply_label(labels["class"], &CC.choose_class/2)
-      |> apply_label(labels["occupation"], &CC.choose_occupation/2)
-      |> apply_stats(labels["stats"])
-      |> apply_skills(labels["skills"])
-      |> apply_label(labels["name"], &CC.set_name/2)
-
+    built = draft |> fresh_draft() |> apply_labels(labels)
     {:ok, %{built | text_labels: labels, approved: false}}
   end
 
@@ -159,44 +145,41 @@ defmodule TalesForge.CharacterCreation.FromText do
 
   defp apply_label(draft, _label, _fun), do: draft
 
+  # A new draft for the same adventure and seed, keeping the dice roll.
+  defp fresh_draft(%Draft{} = draft) do
+    new = CC.new(draft.adventure_id, seed_key: draft.seed_key)
+
+    {:ok, chosen} =
+      %{new | rolled_stats: draft.rolled_stats, rerolls_left: draft.rerolls_left}
+      |> CC.choose_model("from_text")
+
+    chosen
+  end
+
+  defp apply_labels(draft, labels) do
+    draft
+    |> apply_label(labels["race"], &CC.choose_race/2)
+    |> apply_label(labels["class"], &CC.choose_class/2)
+    |> apply_label(labels["occupation"], &CC.choose_occupation/2)
+    |> apply_stats(labels["stats"])
+    |> apply_skills(labels["skills"])
+    |> apply_label(labels["name"], &CC.set_name/2)
+  end
+
   defp apply_stats(draft, %Label{value: wanted, confidence: c})
        when c >= @min_confidence and map_size(wanted) > 0 do
-    %{"budget" => budget, "min" => lo, "max" => hi} = CC.options(draft.adventure_id).point_buy
-    modifiers = CC.race_modifiers(draft)
-
-    stats =
-      Map.new(@stats, fn stat ->
-        mod = Map.get(modifiers, stat, 0)
-        value = Map.get(wanted, stat, draft.base_stats[stat])
-        {stat, value |> max(lo) |> max(lo - mod) |> min(hi) |> min(hi - mod)}
-      end)
-      |> fit_budget(%{budget: budget, lo: lo, modifiers: modifiers})
-
-    Enum.reduce(stats, draft, fn {stat, value}, acc ->
-      case CC.set_stat(acc, stat, value) do
-        {:ok, acc} -> acc
-        {:error, _} -> acc
-      end
-    end)
+    CC.options(draft.adventure_id).point_buy
+    |> StatLimits.new(CC.race_modifiers(draft))
+    |> StatLimits.fit(wanted, draft.base_stats)
+    |> Enum.reduce(draft, &set_stat/2)
   end
 
   defp apply_stats(draft, _label), do: draft
 
-  # Lowers the highest stat by one until the stats fit the budget. `limits`
-  # has the point budget, the lowest stat and the stat modifiers.
-  defp fit_budget(stats, %{budget: budget} = limits) do
-    if stats |> Map.values() |> Enum.sum() <= budget,
-      do: stats,
-      else: lower_highest(stats, limits)
-  end
-
-  defp lower_highest(stats, %{lo: lo, modifiers: modifiers} = limits) do
-    stats
-    |> Enum.filter(fn {stat, v} -> v > max(lo, lo - Map.get(modifiers, stat, 0)) end)
-    |> Enum.max_by(fn {_stat, v} -> v end, fn -> nil end)
-    |> case do
-      nil -> stats
-      {stat, v} -> fit_budget(Map.put(stats, stat, v - 1), limits)
+  defp set_stat({stat, value}, draft) do
+    case CC.set_stat(draft, stat, value) do
+      {:ok, draft} -> draft
+      {:error, _} -> draft
     end
   end
 
