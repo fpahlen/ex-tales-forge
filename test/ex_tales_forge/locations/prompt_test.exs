@@ -4,27 +4,34 @@ defmodule TalesForge.Locations.PromptTest do
   alias TalesForge.Game.Turn
   alias TalesForge.GameSessions
   alias TalesForge.Locations
+  alias TalesForge.Locations.Position
+  alias TalesForge.Locations.Positions
   alias TalesForge.Prompt.Sections.Surroundings
 
   doctest TalesForge.Prompt.Sections.Surroundings
 
-  test "in the Valley Inn the character sees the room from the main door" do
-    lines =
-      Locations.Prompt.surroundings(%{
-        "adventure_id" => "tin_valley",
-        "location_id" => "valley_inn"
-      })
+  @door %Position{grid_id: "valley_inn", cell: {9, 0, 0}, facing: :s}
+
+  test "in the Valley Inn the character sees the room from its stored position" do
+    lines = Locations.Prompt.surroundings(world(@door))
 
     assert lines =~ ~r/^ahead: .*open hearth 6 m/m
     assert lines =~ ~r/^left: .*stairs up/m
     refute lines =~ "kitchen hearth"
   end
 
-  test "a place with no grid has no surroundings" do
-    assert Locations.Prompt.surroundings(%{
-             "adventure_id" => "tin_valley",
-             "location_id" => "market_square"
-           }) == nil
+  test "the view turns with the stored facing" do
+    lines = Locations.Prompt.surroundings(world(%Position{@door | cell: {9, 8, 0}, facing: :n}))
+    assert lines =~ ~r/^ahead: .*main door/m
+  end
+
+  test "a character with no position has no surroundings" do
+    assert Locations.Prompt.surroundings(world(nil)) == nil
+  end
+
+  defp world(pos) do
+    %{"adventure_id" => "tin_valley", "character" => %{"id" => "pc"}}
+    |> Positions.put("pc", pos)
   end
 
   test "the section renders only with LOCATION_GRID on" do
@@ -70,6 +77,7 @@ defmodule TalesForge.Locations.PromptTest do
     |> Turn.new({"look around", action}, flags: flags, role: :playtest, adapters: adapters)
     |> Turn.Premise.check()
     |> Turn.Mechanics.apply()
+    |> Turn.Place.settle()
     |> Turn.Npcs.react()
     |> Turn.Prompt.build()
     |> Turn.Gm.narrate()
