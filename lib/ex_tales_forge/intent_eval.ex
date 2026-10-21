@@ -56,9 +56,9 @@ defmodule TalesForge.IntentEval do
     worlds = load_worlds(Keyword.get(opts, :worlds, default_path(@default_worlds)))
 
     run =
-      score(%Run{split: split, readers: readers, items: items, worlds: worlds, opts: opts})
-
-    run = %{run | metrics: Map.new(readers, &{&1, Metrics.evaluate(&1, run.scored, opts)})}
+      %Run{split: split, readers: readers, items: items, worlds: worlds, opts: opts}
+      |> score()
+      |> evaluate()
 
     {Report.render(run), %{items: items, scored: run.scored, metrics: run.metrics}}
   end
@@ -236,6 +236,9 @@ defmodule TalesForge.IntentEval do
     |> Enum.map(fn {:ok, scored} -> scored end)
     |> then(&%{run | scored: &1})
   end
+
+  defp evaluate(%Run{readers: readers, scored: scored, opts: opts} = run),
+    do: %{run | metrics: Map.new(readers, &{&1, Metrics.evaluate(&1, scored, opts)})}
 
   defp filter_split(items, "all"), do: items
   defp filter_split(items, split), do: Enum.filter(items, &(&1["split"] == split))
