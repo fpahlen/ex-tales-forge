@@ -47,7 +47,7 @@ defmodule TalesForge.CodeHeat do
   ]
 
   # Modules whose functions make AI calls. The page marks them "AI".
-  @ai_modules ~w(TalesForge.IntentJev TalesForge.Game.NpcReactions TalesForge.LLM)
+  @ai_modules ~w(TalesForge.IntentJev TalesForge.Game.CharacterReactions TalesForge.LLM)
 
   # The number of tiles that can be a hot spot.
   @hot_count 5

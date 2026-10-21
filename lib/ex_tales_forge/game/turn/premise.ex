@@ -5,7 +5,7 @@ defmodule TalesForge.Game.Turn.Premise do
   the GM prompt and to the turn as `player.false_premise` events.
 
   `check/1` runs first only with `TURN_PREMISE_FIRST=on`: its findings block
-  the action. Otherwise `TalesForge.Game.Turn.Npcs.react/1` runs the check on
+  the action. Otherwise `TalesForge.Game.Turn.Reactions.react/1` runs the check on
   the board.
   """
 

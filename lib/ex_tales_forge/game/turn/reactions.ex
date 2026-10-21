@@ -1,4 +1,4 @@
-defmodule TalesForge.Game.Turn.Npcs do
+defmodule TalesForge.Game.Turn.Reactions do
   @moduledoc """
   Stage 4 of a turn: the NPC reactions (prototype, `NPC_REACTIONS=on` or
   `WORLD_AGENTS=on`), before the GM call. Each reaction is a `{:feel, mood}`
@@ -13,7 +13,7 @@ defmodule TalesForge.Game.Turn.Npcs do
   """
 
   alias TalesForge.AICalls.Steps
-  alias TalesForge.Game.NpcReactions
+  alias TalesForge.Game.CharacterReactions
   alias TalesForge.Game.Turn
   alias TalesForge.Game.Turn.{Intentions, Premise}
 
@@ -40,7 +40,7 @@ defmodule TalesForge.Game.Turn.Npcs do
     if enabled?(turn) do
       Steps.time(:npc_reactions, fn ->
         reactions =
-          turn.adapters.npc.(%NpcReactions.Moment{
+          turn.adapters.npc.(%CharacterReactions.Moment{
             session_id: turn.session.id,
             world: board.world,
             cast: board.cast,
@@ -50,7 +50,7 @@ defmodule TalesForge.Game.Turn.Npcs do
             findings: findings
           })
 
-        cast = Intentions.feel(board.cast, NpcReactions.intentions(reactions))
+        cast = Intentions.feel(board.cast, CharacterReactions.intentions(reactions))
         {reactions, Map.put(board, :cast, cast)}
       end)
     else
@@ -61,5 +61,5 @@ defmodule TalesForge.Game.Turn.Npcs do
   defp enabled?(turn),
     do:
       (Turn.flag?(turn, :npc_reactions) or Turn.flag?(turn, :world_agents)) and
-        NpcReactions.configured?()
+        CharacterReactions.configured?()
 end

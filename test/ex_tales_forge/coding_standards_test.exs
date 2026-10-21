@@ -19,7 +19,7 @@ defmodule TalesForge.CodingStandardsTest do
     TalesForge.Game.Intent,
     TalesForge.Game.Movement,
     TalesForge.Game.Prompts,
-    TalesForge.Game.NpcReactions,
+    TalesForge.Game.CharacterReactions,
     TalesForge.Game.Gestures,
     TalesForge.Game.Gestures.Forms,
     TalesForge.Game.Mechanics,

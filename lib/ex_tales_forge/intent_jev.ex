@@ -39,8 +39,8 @@ defmodule TalesForge.IntentJev do
 
   alias TalesForge.AICalls
   alias TalesForge.Config
-  alias TalesForge.Game.{Clarify, Combat, Intent, IntentClarification, JevIntent}
-  alias TalesForge.Game.{NpcReactions, PlayerQuote, Rest}
+  alias TalesForge.Game.{CharacterReactions, Clarify, Combat, Intent, IntentClarification}
+  alias TalesForge.Game.{JevIntent, PlayerQuote, Rest}
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
   alias TalesForge.GameCharacter
   alias TalesForge.IntentJev.Read
@@ -233,7 +233,7 @@ defmodule TalesForge.IntentJev do
   defp with_narration(%{"last_narration" => text} = context) when is_binary(text), do: context
 
   defp with_narration(%{"session_id" => id} = context) when is_binary(id),
-    do: Map.put(context, "last_narration", NpcReactions.last_narration(id))
+    do: Map.put(context, "last_narration", CharacterReactions.last_narration(id))
 
   defp with_narration(context), do: context
 

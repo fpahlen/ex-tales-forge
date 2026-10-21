@@ -48,7 +48,7 @@ defmodule TalesForge.Game.CombatTurnTest do
     assert t.outcome.mechanical.roll == nil
     assert %{"target_unclear" => _names} = t.outcome.combat
 
-    prompt = t |> Turn.Npcs.react() |> Turn.Notice.select() |> Turn.Prompt.build()
+    prompt = t |> Turn.Reactions.react() |> Turn.Notice.select() |> Turn.Prompt.build()
     text = prompt.prompt.messages |> Enum.map_join("\n", & &1.content)
     assert text =~ "Ask the player whom the character attacks"
   end
@@ -70,7 +70,7 @@ defmodule TalesForge.Game.CombatTurnTest do
     assert t.outcome.board.outcome["combat"]["defender_id"] == "foe_miner"
     assert world["character"]["wounds"] in [0, nil]
 
-    prompt = t |> Turn.Npcs.react() |> Turn.Notice.select() |> Turn.Prompt.build()
+    prompt = t |> Turn.Reactions.react() |> Turn.Notice.select() |> Turn.Prompt.build()
     text = prompt.prompt.messages |> Enum.map_join("\n", & &1.content)
     assert text =~ "## Combat exchange (rolled by the server)"
     assert text =~ "The target is a miner."

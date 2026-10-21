@@ -14,7 +14,7 @@ defmodule TalesForge.Game.FirstMeeting do
       someone in the room is not to meet them. With no character name, any
       other memory counts;
     * the NPC's dialogue lines (`world_state["npc_memory"]`,
-      `TalesForge.Game.NpcMemory`);
+      `TalesForge.Game.DialogueMemory`);
     * a relationship score that is not 0.
 
   Any of these means `:has_met`. Old sessions are not migrated: an NPC with

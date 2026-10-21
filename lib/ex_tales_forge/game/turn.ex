@@ -7,7 +7,7 @@ defmodule TalesForge.Game.Turn do
       |> Turn.new({raw_action, intent}, opts)
       |> Turn.Premise.check()
       |> Turn.Mechanics.apply()
-      |> Turn.Npcs.react()
+      |> Turn.Reactions.react()
       |> Turn.Place.settle()
       |> Turn.Notice.select()
       |> Turn.Prompt.build()

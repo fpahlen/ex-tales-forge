@@ -7,7 +7,7 @@ defmodule TalesForge.Intention do
     * `by: :human` — the player's words, read by `Intent`/`JevIntent` into a
       `PlayerAction`. The persona runner (`bot`) comes in this way too.
     * `by: :gm` — the GM's updates (not yet an Intention).
-    * `by: :system` — the rules: an NPC's gut reaction (`NpcReactions`), a
+    * `by: :system` — the rules: an NPC's gut reaction (`CharacterReactions`), a
       concern that waits (`Actions.Character.ReactToTime`), what an NPC hears
       (`Actions.Character.OnPlayerTalked`, `Actions.Character.OnOverheard`) and its
       initiative (`Initiative`).

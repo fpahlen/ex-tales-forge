@@ -1,12 +1,12 @@
 defmodule TalesForge.Game.TextHelpersCharacterizationTest do
   @moduledoc """
-  Characterization of `Gestures.Forms.verb/1`, `NpcMemory.lines/2` and
+  Characterization of `Gestures.Forms.verb/1`, `DialogueMemory.lines/2` and
   `Rest.rest_place?/2` before round 2 PR 10: exact outputs from main,
   quirks included ("see" gives "seing"). Pure, no LLM calls.
   """
   use ExUnit.Case, async: true
 
-  alias TalesForge.Game.{NpcMemory, Rest}
+  alias TalesForge.Game.{DialogueMemory, Rest}
   alias TalesForge.Game.Gestures.Forms
 
   @verbs [
@@ -63,7 +63,7 @@ defmodule TalesForge.Game.TextHelpersCharacterizationTest do
 
   test "quoted lines and their speakers, in order" do
     for {prose, npcs, expected} <- @lines,
-        do: assert(NpcMemory.lines(prose, npcs) == expected, inspect(prose))
+        do: assert(DialogueMemory.lines(prose, npcs) == expected, inspect(prose))
   end
 
   @world %{

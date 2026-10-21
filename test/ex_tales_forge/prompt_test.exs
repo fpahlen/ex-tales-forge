@@ -7,7 +7,7 @@ defmodule TalesForge.PromptTest do
 
   doctest Sections.WorldFacts
   doctest Sections.Prices
-  doctest Sections.NpcReactions
+  doctest Sections.CharacterReactions
   doctest Sections.Gestures
   doctest Sections.OutcomeRecord
   doctest Sections.Premise
