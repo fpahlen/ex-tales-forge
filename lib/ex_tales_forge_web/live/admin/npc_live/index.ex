@@ -4,7 +4,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Index do
   """
 
   use TalesForgeWeb, :live_view
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Admin
 

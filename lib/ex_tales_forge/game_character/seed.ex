@@ -1,4 +1,4 @@
-defmodule TalesForge.NPC.Seed do
+defmodule TalesForge.GameCharacter.Seed do
   @moduledoc """
   The `characters` row of a pack NPC when a session is seeded
   (`TalesForge.NPC.seed_session/1`): its definition and first runtime
@@ -6,7 +6,7 @@ defmodule TalesForge.NPC.Seed do
   """
 
   alias TalesForge.Characters.{Attrs, Levers}
-  alias TalesForge.NPC.Person
+  alias TalesForge.GameCharacter.Person
   alias TalesForge.Schemas.Character
 
   @maslow_by_need %{

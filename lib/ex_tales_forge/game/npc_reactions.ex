@@ -32,7 +32,7 @@ defmodule TalesForge.Game.NpcReactions do
   require Logger
 
   import Ecto.Query
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.AICalls
   alias TalesForge.Config

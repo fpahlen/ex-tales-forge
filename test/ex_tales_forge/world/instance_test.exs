@@ -5,7 +5,7 @@ defmodule TalesForge.World.InstanceTest do
 
   import Ecto.Query
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.GameSessions
   alias TalesForge.PubSub.GameSession, as: SessionPubSub

@@ -1,6 +1,6 @@
 defmodule TalesForge.Game.PeopleAgencyTest do
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
@@ -9,8 +9,8 @@ defmodule TalesForge.Game.PeopleAgencyTest do
   alias TalesForge.Game.Fronts.{Move, Moves}
   alias TalesForge.Game.Intent
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
-  alias TalesForge.Game.TurnProcessor
   alias TalesForge.Game.Turn.Board
+  alias TalesForge.Game.TurnProcessor
   alias TalesForge.Game.WorldSim
   alias TalesForge.GameSessions
   alias TalesForge.Prompt.Assemble

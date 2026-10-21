@@ -2,8 +2,8 @@ defmodule TalesForge.Characters.Attrs do
   @moduledoc """
   Column values of a `characters` row from game data: an inventory, a
   number map, concerns. A leaf of pure helpers, shared by
-  `TalesForge.Characters` and the NPC store (`TalesForge.NPC.Person`,
-  `TalesForge.NPC.Seed`).
+  `TalesForge.Characters` and the NPC store (`TalesForge.GameCharacter.Person`,
+  `TalesForge.GameCharacter.Seed`).
   """
 
   alias TalesForge.Characters.Levers

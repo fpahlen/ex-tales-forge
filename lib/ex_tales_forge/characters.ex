@@ -14,7 +14,7 @@ defmodule TalesForge.Characters do
   and gut reaction live on their rows only, and a minor foe is a row of its
   own. A pack NPC's row is its only store (step 10f PR 5): `TalesForge.NPC`
   writes its place, mood, stock, relationship, runtime and memories onto
-  the row (`TalesForge.NPC.Rows`), in the transaction of its caller.
+  the row (`TalesForge.GameCharacter.Rows`), in the transaction of its caller.
 
     * `seed_session/2` writes the player character's row when a session is
       created, after `TalesForge.NPC.seed_session/1` has written the NPCs'.
@@ -42,8 +42,8 @@ defmodule TalesForge.Characters do
   alias TalesForge.Game.{Cast, Pack}
   alias TalesForge.Game.WorldClock
   alias TalesForge.GameCharacter
+  alias TalesForge.GameCharacter.Person
   alias TalesForge.NPC
-  alias TalesForge.NPC.Person
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, GameSession, PlaytestRun}
 
@@ -187,7 +187,7 @@ defmodule TalesForge.Characters do
   defp rows(%GameSession{} = session, cast, opts) do
     tick = Map.get(session.world_state, "world_tick", WorldClock.default_start_tick())
     pc = player_character_attrs(session, opts, tick)
-    npc_ids = session.id |> NPC.Rows.slugs() |> MapSet.new()
+    npc_ids = session.id |> GameCharacter.Rows.slugs() |> MapSet.new()
 
     others =
       for %GameCharacter{slug: slug} = member <- Cast.sorted(cast),

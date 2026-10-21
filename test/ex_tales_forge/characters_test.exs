@@ -1,6 +1,6 @@
 defmodule TalesForge.CharactersTest do
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Characters
   alias TalesForge.Game.Pack

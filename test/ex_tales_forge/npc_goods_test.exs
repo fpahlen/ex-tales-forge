@@ -1,13 +1,13 @@
 defmodule TalesForge.NPCGoodsTest do
   @moduledoc """
   Only a trade writes an NPC's goods (`NPC.put_inventories/2`,
-  `NPC.Rows.put_goods!/2`). The world-sim tick saves people it read before
+  `GameCharacter.Rows.put_goods!/2`). The world-sim tick saves people it read before
   the trade, and the memory, relationship, concern and initiative writes
   save the rest of the NPC's state: none of them writes the stock or the
   coins, whatever order the turn's steps run in.
   """
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Game.Inventory
   alias TalesForge.GameSessions
@@ -97,7 +97,7 @@ defmodule TalesForge.NPCGoodsTest do
     brenna = Rows.get(session.id, "innkeep")
 
     changes =
-      NPC.Rows.changeset(brenna, %{brenna.runtime_state | "stock" => [], "coins" => %{}}).changes
+      Rows.changeset(brenna, %{brenna.runtime_state | "stock" => [], "coins" => %{}}).changes
 
     refute Map.has_key?(changes, :inventory)
     refute Map.has_key?(changes, :coins)

@@ -7,7 +7,7 @@ defmodule TalesForgeWeb.AdminBreadcrumbsTest do
   use TalesForgeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForgeWeb.AdminSections
 

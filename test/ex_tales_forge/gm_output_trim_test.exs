@@ -9,7 +9,7 @@ defmodule TalesForge.GMOutputTrimTest do
   (dropped 2026-10-18; playtest QA reads the turn's session events instead).
   """
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Game.{Context, Intent, Prompts, TurnProcessor}
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction}

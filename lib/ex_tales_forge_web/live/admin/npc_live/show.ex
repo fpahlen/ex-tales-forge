@@ -11,7 +11,7 @@ defmodule TalesForgeWeb.AdminLive.NpcLive.Show do
   use TalesForgeWeb, :live_view
 
   import TalesForgeWeb.AdminComponents
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Admin
 

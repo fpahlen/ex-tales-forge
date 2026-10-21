@@ -8,7 +8,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
   import ExUnit.CaptureLog
   import Ecto.Query
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Config
   alias TalesForge.Game.{Context, Intent, NpcReactions, Prompts, TurnProcessor}

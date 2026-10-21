@@ -1,6 +1,6 @@
 defmodule TalesForge.NPCTest do
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Game.Schemas.GMStructuredResponse
   alias TalesForge.Game.WorldClock
@@ -9,7 +9,7 @@ defmodule TalesForge.NPCTest do
   alias TalesForge.Repo
   alias TalesForge.Schemas.Character
 
-  doctest TalesForge.NPC.Person
+  doctest TalesForge.GameCharacter.Person
   doctest TalesForge.Characters.Attrs
 
   test "create_session seeds the NPCs' character rows from priv/npcs" do

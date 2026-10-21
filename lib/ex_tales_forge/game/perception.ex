@@ -3,7 +3,7 @@ defmodule TalesForge.Game.Perception do
   What the table GM and scene prompts may see. Single implementation
   for Context and SceneProcessor.
   """
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Fronts
   alias TalesForge.Repo

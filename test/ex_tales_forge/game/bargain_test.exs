@@ -1,10 +1,10 @@
 defmodule TalesForge.Game.BargainTest do
   use TalesForge.DataCase, async: false
-  alias TalesForge.NPC.Rows
+  alias TalesForge.GameCharacter.{Person, Rows}
 
   alias TalesForge.Game.{ActionHandler, Inventory}
-  alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
+  alias TalesForge.Game.Turn.Board
   alias TalesForge.GameSessions
   alias TalesForge.NPC
 
@@ -91,6 +91,6 @@ defmodule TalesForge.Game.BargainTest do
     board = buy(session, "I buy the rope", catalogue_v2: true)
     assert [%{"status" => "rejected", "code" => "npc_refused"}] = board.outcome["actions"]
     assert copper(board) == Inventory.coin_total_copper(session.world_state["character"]["coins"])
-    assert %NPC.Person{} = Rows.get(session.id, "innkeep")
+    assert %Person{} = Rows.get(session.id, "innkeep")
   end
 end
