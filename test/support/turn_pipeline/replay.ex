@@ -457,7 +457,7 @@ defmodule TalesForge.TurnPipeline.Replay do
     npcs = [%{id: npc_id, names: Enum.uniq([name, name |> String.split() |> hd()])}]
 
     lines =
-      for({^npc_id, line} <- TalesForge.Game.NpcMemory.lines(turn.prose, npcs), do: line) ++
+      for({^npc_id, line} <- TalesForge.Game.DialogueMemory.lines(turn.prose, npcs), do: line) ++
         (get_in(turn.after, ["npc_memory", npc_id]) || [])
 
     for word <- words, line <- lines, contains?(line, word), do: "line has #{inspect(word)}"

@@ -52,11 +52,11 @@ defmodule TalesForge.Prompt.Profile do
     [
       Sections.PerceivedFacts,
       Sections.IntentContext,
-      Sections.Npcs,
+      Sections.Characters,
       Sections.WorldFacts,
       Sections.Prices,
-      Sections.NpcReactions,
-      Sections.NpcMemory,
+      Sections.CharacterReactions,
+      Sections.DialogueMemory,
       Sections.CharacterMemory,
       Sections.Gestures,
       Sections.SceneNow,
@@ -76,10 +76,10 @@ defmodule TalesForge.Prompt.Profile do
   defp include?(Sections.WorldFacts, ctx), do: Ctx.flag?(ctx, :world_agents)
   defp include?(Sections.Prices, ctx), do: Ctx.flag?(ctx, :world_agents)
 
-  defp include?(Sections.NpcReactions, ctx),
+  defp include?(Sections.CharacterReactions, ctx),
     do: Ctx.flag?(ctx, :npc_reactions) or Ctx.flag?(ctx, :world_agents)
 
-  defp include?(Sections.NpcMemory, ctx), do: Ctx.flag?(ctx, :npc_dialogue_memory)
+  defp include?(Sections.DialogueMemory, ctx), do: Ctx.flag?(ctx, :npc_dialogue_memory)
   defp include?(Sections.CharacterMemory, ctx), do: Ctx.flag?(ctx, :character_memory)
 
   defp include?(Sections.OutcomeRecord, ctx),

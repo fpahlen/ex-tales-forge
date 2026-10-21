@@ -177,7 +177,7 @@ defmodule TalesForge.Config do
 
   @doc """
   Turn pipeline step 4: NPC dialogue memory and the repetition guard
-  (`TalesForge.Game.NpcMemory`). The premise check runs before the NPC
+  (`TalesForge.Game.DialogueMemory`). The premise check runs before the NPC
   reactions, and the NPCs get its findings: NPC_DIALOGUE_MEMORY=on.
   Default off.
   """

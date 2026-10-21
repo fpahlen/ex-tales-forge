@@ -1,6 +1,6 @@
-defmodule TalesForge.Game.NpcMemoryTest do
+defmodule TalesForge.Game.DialogueMemoryTest do
   @moduledoc """
-  NPC dialogue memory and the repetition guard (`TalesForge.Game.NpcMemory`,
+  NPC dialogue memory and the repetition guard (`TalesForge.Game.DialogueMemory`,
   `NPC_DIALOGUE_MEMORY`). Brenna says the same line on two turns: the second
   turn shows the memory in the GM prompt and records a `turn.npc_repeat`.
   """
@@ -14,7 +14,7 @@ defmodule TalesForge.Game.NpcMemoryTest do
   alias TalesForge.Repo
   alias TalesForge.Schemas.{GameSession, SessionEvent}
 
-  doctest TalesForge.Game.NpcMemory
+  doctest TalesForge.Game.DialogueMemory
 
   @env ~w(NPC_DIALOGUE_MEMORY INN_WORLD)
 

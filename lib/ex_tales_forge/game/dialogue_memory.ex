@@ -1,4 +1,4 @@
-defmodule TalesForge.Game.NpcMemory do
+defmodule TalesForge.Game.DialogueMemory do
   @moduledoc """
   NPC dialogue memory and the repetition guard (turn pipeline step 4, design
   §8; flag `NPC_DIALOGUE_MEMORY`).
@@ -39,7 +39,7 @@ defmodule TalesForge.Game.NpcMemory do
   NPC. A line with no speaker is dropped.
 
       iex> npcs = [%{id: "innkeep", names: ["Brenna Holt", "Brenna"]}, %{id: "rusk", names: ["Rusk"]}]
-      iex> TalesForge.Game.NpcMemory.lines(~s(Brenna wipes a mug. "We close at midnight." Rusk laughs: "Not for me."), npcs)
+      iex> TalesForge.Game.DialogueMemory.lines(~s(Brenna wipes a mug. "We close at midnight." Rusk laughs: "Not for me."), npcs)
       [{"innkeep", "We close at midnight."}, {"rusk", "Not for me."}]
   """
   @spec lines(String.t() | nil, [npc()]) :: [{String.t(), String.t()}]
@@ -116,7 +116,7 @@ defmodule TalesForge.Game.NpcMemory do
   (`{npc_id, line}`). A repeat is not written again. Each NPC keeps the last
   #{@max_lines} lines.
 
-      iex> {memory, repeats} = TalesForge.Game.NpcMemory.put(%{"rusk" => ["Not for me."]}, [{"rusk", "not  for ME."}, {"rusk", "Go."}])
+      iex> {memory, repeats} = TalesForge.Game.DialogueMemory.put(%{"rusk" => ["Not for me."]}, [{"rusk", "not  for ME."}, {"rusk", "Go."}])
       iex> {memory, repeats}
       {%{"rusk" => ["Not for me.", "Go."]}, [{"rusk", "not  for ME."}]}
   """

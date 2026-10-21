@@ -1,4 +1,4 @@
-defmodule TalesForge.Game.NpcReactionsTest do
+defmodule TalesForge.Game.CharacterReactionsTest do
   @moduledoc """
   NPC_REACTIONS=on prototype: Jev reads each present NPC's gut reaction before
   the GM call; the reaction goes into the per-turn prompt only and the mood
@@ -11,7 +11,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
   alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Config
-  alias TalesForge.Game.{Context, Intent, NpcReactions, Prompts, TurnProcessor}
+  alias TalesForge.Game.{CharacterReactions, Context, Intent, Prompts, TurnProcessor}
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.Turn.Intentions
   alias TalesForge.GameSessions
@@ -63,9 +63,9 @@ defmodule TalesForge.Game.NpcReactionsTest do
     refute Config.npc_reactions?()
     System.put_env("NPC_REACTIONS", "on")
     assert Config.npc_reactions?()
-    refute NpcReactions.enabled?()
+    refute CharacterReactions.enabled?()
     Application.put_env(:jev, :api_key, "test-key")
-    assert NpcReactions.enabled?()
+    assert CharacterReactions.enabled?()
   end
 
   test "configured?/0 ignores TYPESAFE_API_KEY in the OS environment" do
@@ -79,7 +79,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
     Application.put_env(:jev, :api_key, nil)
     System.put_env("TYPESAFE_API_KEY", "env-key")
-    refute NpcReactions.configured?()
+    refute CharacterReactions.configured?()
   end
 
   test "Brenna has the barkeep OCEAN scores (rework 2026-10-07)", %{session: session} do
@@ -99,8 +99,11 @@ defmodule TalesForge.Game.NpcReactionsTest do
   } do
     brenna = Rows.get(session.id, "innkeep")
     mech = %MechanicalResolution{skill: "persuasion", outcome: "failure"}
-    scene = NpcReactions.situation(session.id, "I tell her I'm the Guild's new assessor", mech)
-    state = NpcReactions.state(brenna, nil, scene)
+
+    scene =
+      CharacterReactions.situation(session.id, "I tell her I'm the Guild's new assessor", mech)
+
+    state = CharacterReactions.state(brenna, nil, scene)
 
     assert state =~ "NPC: Brenna Holt (innkeep)."
     assert state =~ "OCEAN (0-10): openness 6, conscientiousness 7"
@@ -114,14 +117,14 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
     mood = %{"emotion" => "suspicious", "intensity" => 0.6, "stance" => "cool"}
 
-    assert NpcReactions.state(brenna, mood, scene) =~
+    assert CharacterReactions.state(brenna, mood, scene) =~
              "Mood before this moment: suspicious (0.6), stance cool."
 
     assert [emotion: {_, emotions}, intensity: {_, levels}, stance: {_, stances}] =
-             NpcReactions.questions(brenna)
+             CharacterReactions.questions(brenna)
 
     assert emotions |> Map.keys() |> Enum.map(&to_string/1) |> Enum.sort() ==
-             NpcReactions.emotions()
+             CharacterReactions.emotions()
 
     assert length(levels) == 5
     assert stances == ~w(hostile cool neutral warm friendly)
@@ -144,7 +147,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
     assert "innkeep" in world["present_npcs"]
 
     [r] =
-      NpcReactions.react(%NpcReactions.Moment{
+      CharacterReactions.react(%CharacterReactions.Moment{
         session_id: session.id,
         world: world,
         cast: cast,
@@ -160,14 +163,14 @@ defmodule TalesForge.Game.NpcReactionsTest do
              {"wary", 0.7, "cool", 0.74}
 
     # The turn feels the reactions (Turn.Intentions.feel/2): the mood carries over.
-    cast = Intentions.feel(cast, NpcReactions.intentions([r]))
+    cast = Intentions.feel(cast, CharacterReactions.intentions([r]))
     assert cast["innkeep"].runtime["reaction"]["emotion"] == "wary"
     assert_receive {:jev, request}
     assert inspect(request) =~ "Mood before this moment: neutral."
 
     # The next turn's call starts from the carried-over mood.
     [_] =
-      NpcReactions.react(%NpcReactions.Moment{
+      CharacterReactions.react(%CharacterReactions.Moment{
         session_id: session.id,
         world: world,
         cast: cast,
@@ -199,7 +202,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
     capture_log(fn ->
       assert [] =
-               NpcReactions.react(%NpcReactions.Moment{
+               CharacterReactions.react(%CharacterReactions.Moment{
                  session_id: session.id,
                  world: world,
                  cast: cast,
@@ -216,7 +219,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
     capture_log(fn ->
       assert [] =
-               NpcReactions.react(%NpcReactions.Moment{
+               CharacterReactions.react(%CharacterReactions.Moment{
                  session_id: session.id,
                  world: world,
                  cast: cast,
@@ -230,7 +233,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
              ["error", "error"]
 
     # No reaction, no Intention: the mood is kept.
-    assert Intentions.feel(cast, NpcReactions.intentions([])) == cast
+    assert Intentions.feel(cast, CharacterReactions.intentions([])) == cast
   end
 
   test "the reaction is a per-turn line; the cached prefix is unchanged", %{session: session} do
@@ -268,7 +271,7 @@ defmodule TalesForge.Game.NpcReactionsTest do
 
     refute List.last(plain).content =~ "NPC reactions"
     assert Prompts.gm_system() =~ "NPC reactions (this moment)"
-    assert TalesForge.Prompt.Sections.NpcReactions.text([]) == nil
+    assert TalesForge.Prompt.Sections.CharacterReactions.text([]) == nil
   end
 
   test "a turn with the flag on calls Jev before the GM and persists the mood", %{

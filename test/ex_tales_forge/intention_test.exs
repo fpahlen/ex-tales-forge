@@ -3,5 +3,5 @@ defmodule TalesForge.IntentionTest do
 
   doctest TalesForge.Intention
   doctest TalesForge.Game.Turn.Intentions
-  doctest TalesForge.Game.NpcReactions
+  doctest TalesForge.Game.CharacterReactions
 end

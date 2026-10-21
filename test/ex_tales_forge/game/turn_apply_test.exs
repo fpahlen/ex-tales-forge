@@ -49,7 +49,7 @@ defmodule TalesForge.Game.TurnApplyTest do
     |> Turn.new({text, player_action}, adapters: adapters, flags: flags, role: :playtest)
     |> Turn.Premise.check()
     |> Turn.Mechanics.apply()
-    |> Turn.Npcs.react()
+    |> Turn.Reactions.react()
     |> Turn.Place.settle()
     |> Turn.Notice.select()
     |> Turn.Prompt.build()

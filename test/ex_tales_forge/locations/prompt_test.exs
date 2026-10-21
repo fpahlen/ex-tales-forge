@@ -77,7 +77,7 @@ defmodule TalesForge.Locations.PromptTest do
     |> Turn.new({"look around", action}, flags: flags, role: :playtest, adapters: adapters)
     |> Turn.Premise.check()
     |> Turn.Mechanics.apply()
-    |> Turn.Npcs.react()
+    |> Turn.Reactions.react()
     |> Turn.Place.settle()
     |> Turn.Prompt.build()
     |> Turn.Gm.narrate()

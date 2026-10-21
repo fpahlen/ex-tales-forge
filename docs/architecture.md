@@ -100,7 +100,7 @@ submit_message
        Inventory.apply_transaction (pure; a trade between the character and an NPC trader, both GameCharacters; Turn.Board loads the traders with NPC.traders/2 and saves them with NPC.put_inventories/2)
        WorldClock.advance(+1)
        NPC.apply_gm_updates (npc_memory_updates)
-       NpcReactions → {:feel, mood} Intentions → Turn.Intentions.feel (the cast's runtime["reaction"])
+       CharacterReactions → {:feel, mood} Intentions → Turn.Intentions.feel (the cast's runtime["reaction"])
        persist GameSession + Turn, and in the same transaction
          Characters.write_multi (the cast to the rows) and end_scene_multi (scene rows go)
          Signals.intentions → Turn.Intentions.apply_all (present NPCs only)

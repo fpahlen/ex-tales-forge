@@ -88,7 +88,7 @@ defmodule TalesForge.Game.TurnTest do
       |> turn(text, flags: %{turn_premise_first: true}, adapters: adapters)
       |> Turn.Premise.check()
       |> Turn.Mechanics.apply()
-      |> Turn.Npcs.react()
+      |> Turn.Reactions.react()
       |> Turn.Prompt.build()
       |> Turn.Gm.narrate()
 
@@ -131,7 +131,7 @@ defmodule TalesForge.Game.TurnTest do
       |> turn("look around", flags: %{npc_reactions: true}, adapters: adapters)
       |> Turn.Premise.check()
       |> Turn.Mechanics.apply()
-      |> Turn.Npcs.react()
+      |> Turn.Reactions.react()
       |> Turn.Prompt.build()
       |> Turn.Gm.narrate()
 
@@ -154,7 +154,7 @@ defmodule TalesForge.Game.TurnTest do
       |> turn("look around", adapters: adapters)
       |> Turn.Premise.check()
       |> Turn.Mechanics.apply()
-      |> Turn.Npcs.react()
+      |> Turn.Reactions.react()
       |> Turn.Prompt.build()
       |> Turn.Gm.narrate()
       |> Turn.Outcome.persist()
@@ -185,7 +185,7 @@ defmodule TalesForge.Game.TurnTest do
 
       t
       |> Map.update!(:outcome, &%{&1 | mechanical: mechanical})
-      |> Turn.Npcs.react()
+      |> Turn.Reactions.react()
       |> Turn.Notice.select()
       |> Turn.Prompt.build()
     end
