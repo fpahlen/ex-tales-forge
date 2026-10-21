@@ -73,14 +73,21 @@ defmodule TalesForge.Locations.Grid do
   end
 
   defp cells(rows, legend, z) do
-    coded =
-      for {row, y} <- Enum.with_index(rows),
-          {char, x} <- row |> String.graphemes() |> Enum.with_index(),
-          do: {{x, y, z}, char}
+    coded = rows |> Enum.with_index() |> Enum.flat_map(&row(&1, z))
 
-    case Enum.find(coded, fn {_coord, char} -> not Map.has_key?(legend.items, char) end) do
-      nil -> {:ok, Map.new(coded, fn {coord, char} -> {coord, Cell.new(char, legend)} end)}
+    case Enum.find(coded, &unknown?(&1, legend)) do
+      nil -> {:ok, Map.new(coded, &cell(&1, legend))}
       {{x, y, _z}, char} -> {:error, {:unknown_char, char, {x, y}}}
     end
   end
+
+  defp row({line, y}, z) do
+    line
+    |> String.graphemes()
+    |> Enum.with_index()
+    |> Enum.map(fn {char, x} -> {{x, y, z}, char} end)
+  end
+
+  defp unknown?({_coord, char}, legend), do: not Map.has_key?(legend.items, char)
+  defp cell({coord, char}, legend), do: {coord, Cell.new(char, legend)}
 end
