@@ -155,3 +155,7 @@ into region cells. Not now.
 Each legend item has a height and a noticeability. Each character has an eye height (from race and size, changed by stance) and a perception threshold (from skill and situation). An item hides what's behind it only if it's taller than the viewer's eyes, and an item is listed for the GM only if it's in view and passes the threshold. Two characters on the same square can see different things.
 
 The GM never gets the grid or the map, only this computed list.
+
+## Ground map and overlays
+
+A location is a ground map plus a stack of sparse overlays. Each overlay holds only the cells it changes and has a height in metres (z), and a cell reads as the topmost overlay that has something there. Events add, swap or remove overlays (a bridge destroyed becomes a ruined-bridge overlay, a flood adds a swamp overlay), so the ground map never changes. Overlays can also move over time: a spreading flood, a storm, or an army of orcs on the march. A building is a few overlays at different heights. Stairs, ladders and wells are links between overlays, so jumping into the well drops you 10 m to the overlay below. An overlay belongs to one grid at one scale, and an event covering many grids writes one overlay per grid.
