@@ -97,6 +97,24 @@ defmodule TalesForge.Characters.DefaultsTest do
     end
   end
 
+  test "input_defaults/0 and unknown inputs are unchanged" do
+    assert Defaults.input_defaults() == %{
+             "race" => "human",
+             "class" => "none",
+             "standing" => "commoner",
+             "occupation" => "laborer",
+             "seniority" => "journeyman"
+           }
+
+    assert_raise ArgumentError, ~s(unknown standing "pirate"), fn ->
+      Defaults.derive(%{"standing" => "pirate", "seniority" => "x"}, @rules, 1)
+    end
+
+    assert_raise ArgumentError, ~s(p.json: unknown seniority "x"), fn ->
+      Defaults.validate_inputs!(%{"seniority" => "x"}, @rules, "p.json")
+    end
+  end
+
   describe "seed/2" do
     test "depends on session and character key, and is stable" do
       assert Defaults.seed("s1", "innkeep") == Defaults.seed("s1", "innkeep")

@@ -20,16 +20,10 @@ defmodule TalesForge.Characters.Defaults do
   No database, no AI.
   """
 
+  alias TalesForge.Characters.Defaults.{Inputs, Picked}
   alias TalesForge.Characters.{Levers, PackRules, RulesCheck}
 
   @stats ~w(STR DEX CON INT WIS CHA)
-  @input_defaults %{
-    "race" => "human",
-    "class" => "none",
-    "standing" => "commoner",
-    "occupation" => "laborer",
-    "seniority" => "journeyman"
-  }
   @max_concerns 3
 
   @type rules :: %{required(String.t()) => map() | list()}
@@ -37,7 +31,7 @@ defmodule TalesForge.Characters.Defaults do
 
   @doc "Input labels used when a `derive` block leaves one out."
   @spec input_defaults() :: inputs()
-  def input_defaults, do: @input_defaults
+  def input_defaults, do: Inputs.defaults()
 
   @doc """
   The rules for an adventure: the global base extended by the pack's
@@ -79,22 +73,19 @@ defmodule TalesForge.Characters.Defaults do
   """
   @spec derive(inputs(), rules(), integer()) :: map()
   def derive(inputs, rules, seed) when is_map(inputs) and is_integer(seed) do
-    inputs = resolve_inputs!(inputs, rules)
-    race = rules["races"][inputs["race"]]
-    class = rules["classes"][inputs["class"]]
-    standing = rules["standings"][inputs["standing"]]
-    occupation = rules["occupations"][inputs["occupation"]]
-    tier = rules["seniority"][inputs["seniority"]]
+    inputs |> Inputs.resolve!(rules) |> Picked.from(rules) |> sheet(seed)
+  end
 
+  defp sheet(%Picked{} = p, seed) do
     %{
-      "stats" => stats(race, class, seed),
-      "skills" => skills(occupation, class, tier),
-      "ocean" => ocean(race, occupation, seed),
-      "maslow" => maslow(occupation["maslow"], standing["maslow_floor"]),
-      "concerns" => concerns(occupation, standing),
+      "stats" => stats(p.race, p.class, seed),
+      "skills" => skills(p.occupation, p.class, p.tier),
+      "ocean" => ocean(p.race, p.occupation, seed),
+      "maslow" => maslow(p.occupation["maslow"], p.standing["maslow_floor"]),
+      "concerns" => concerns(p.occupation, p.standing),
       # QA 2026-10-14 21:15: a standing lists "20s 300c"; the sheet keeps it
       # converted up ("1g").
-      "coins" => TalesForge.Game.Inventory.normalize_coins(standing["coins"])
+      "coins" => TalesForge.Game.Inventory.normalize_coins(p.standing["coins"])
     }
   end
 
@@ -104,23 +95,19 @@ defmodule TalesForge.Characters.Defaults do
   """
   @spec merge(map(), map()) :: map()
   def merge(defaults, overrides) when is_map(defaults) and is_map(overrides) do
-    merged =
-      Map.merge(defaults, overrides, fn
-        key, d, o when key in ~w(stats skills ocean) and is_map(d) and is_map(o) ->
-          Map.merge(d, o)
-
-        _key, _d, o ->
-          o
-      end)
-
-    case merged do
-      %{"skills" => skills} when is_map(skills) ->
-        Map.put(merged, "skills", Map.reject(skills, fn {_k, v} -> v == 0 end))
-
-      _ ->
-        merged
-    end
+    defaults |> Map.merge(overrides, &merge_field/3) |> drop_zero_skills()
   end
+
+  # stats, skills and ocean merge key by key; any other field is replaced.
+  defp merge_field(key, d, o) when key in ~w(stats skills ocean) and is_map(d) and is_map(o),
+    do: Map.merge(d, o)
+
+  defp merge_field(_key, _d, o), do: o
+
+  defp drop_zero_skills(%{"skills" => skills} = merged) when is_map(skills),
+    do: Map.put(merged, "skills", Map.reject(skills, fn {_k, v} -> v == 0 end))
+
+  defp drop_zero_skills(merged), do: merged
 
   @doc """
   Applies the defaults to an authored definition that has a `derive` block.
@@ -153,7 +140,7 @@ defmodule TalesForge.Characters.Defaults do
   @doc "Checks a `derive` block against the rules; raises `ArgumentError` naming `source`."
   @spec validate_inputs!(map(), rules(), String.t()) :: :ok
   def validate_inputs!(inputs, rules, source) when is_map(inputs) do
-    resolve_inputs!(inputs, rules)
+    Inputs.resolve!(inputs, rules)
     :ok
   rescue
     e in ArgumentError ->
@@ -213,24 +200,6 @@ defmodule TalesForge.Characters.Defaults do
   defp index(list, item), do: Enum.find_index(list, &(&1 == item))
 
   # --- rules ----------------------------------------------------------------------
-
-  defp resolve_inputs!(inputs, rules) do
-    resolved = Map.merge(@input_defaults, Map.reject(inputs, fn {_k, v} -> is_nil(v) end))
-
-    for {input, table} <- [
-          {"race", "races"},
-          {"class", "classes"},
-          {"standing", "standings"},
-          {"occupation", "occupations"},
-          {"seniority", "seniority"}
-        ] do
-      unless Map.has_key?(rules[table], resolved[input]) do
-        raise ArgumentError, "unknown #{input} #{inspect(resolved[input])}"
-      end
-    end
-
-    resolved
-  end
 
   defp read!(path), do: path |> File.read!() |> Jason.decode!()
 
