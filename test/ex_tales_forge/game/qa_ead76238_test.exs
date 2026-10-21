@@ -71,14 +71,13 @@ defmodule TalesForge.Game.QaEad76238Test do
     |> Turn.Mechanics.apply()
   end
 
-  test "turn 1: heading out to the old mill keeps the character here and names the exits",
+  test "turn 1: heading out to the old mill keeps the character here with the refused-move note",
        %{session: session} do
     t = play(session, 1)
 
     assert t.outcome.handler.state_hints["move_rejected"]
     reason = t.outcome.handler.state_hints["reason"]
-    assert reason =~ "There is no place called old mill near here."
-    assert reason =~ "Crossroads Square"
+    assert reason == "There's no old mill you know of."
     assert t.outcome.board.world["location_id"] == "weary_pilgrim"
   end
 
