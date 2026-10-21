@@ -186,7 +186,7 @@ defmodule TalesForge.Game.Intent do
     else
       case resolve_move_target(action.target, context) do
         {:ok, id} -> %SingleAction{action | target: id}
-        :error -> %SingleAction{action | action_type: :other, target: nil}
+        :error -> not_a_place(action, context)
       end
     end
   end
@@ -215,6 +215,16 @@ defmodule TalesForge.Game.Intent do
   end
 
   defp normalize_move(action, _context), do: action
+
+  # A move to no place stops being a move. With a grid (`"spots"` in the
+  # context, LOCATION_GRID) it becomes a walk inside the room to its target
+  # (`TalesForge.Game.Turn.Walk`); the target words stay in `"walk_to"`.
+  defp not_a_place(action, %{"spots" => _spots}) do
+    params = Map.put(action.parameters || %{}, "walk_to", action.target)
+    %SingleAction{action | action_type: :other, target: nil, parameters: params}
+  end
+
+  defp not_a_place(action, _context), do: %SingleAction{action | action_type: :other, target: nil}
 
   defp movement_world(context) do
     %{"locations" => Map.get(context, "places") || %{}}

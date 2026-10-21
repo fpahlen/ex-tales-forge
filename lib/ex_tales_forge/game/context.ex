@@ -69,6 +69,7 @@ defmodule TalesForge.Game.Context do
     })
     |> put_features(world)
     |> put_offer(world)
+    |> TalesForge.Locations.Spots.put(world)
   end
 
   defp valid_skills, do: Mechanics.skill_stat_map() |> Map.keys() |> Enum.sort()

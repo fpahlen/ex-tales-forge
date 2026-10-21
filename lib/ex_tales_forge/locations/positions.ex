@@ -13,7 +13,6 @@ defmodule TalesForge.Locations.Positions do
   has no grid has no position.
   """
 
-  alias TalesForge.Game.Context
   alias TalesForge.Locations.Grid
   alias TalesForge.Locations.Pack
   alias TalesForge.Locations.Position
@@ -26,16 +25,6 @@ defmodule TalesForge.Locations.Positions do
   @doc "Where character `id` stands, or nil."
   @spec get(map(), String.t()) :: Position.t() | nil
   def get(world, id), do: world |> Map.get(@key, %{}) |> Map.get(id)
-
-  @doc "The grid character `id` stands in and its position there, or nil."
-  @spec view(map(), String.t() | nil) :: {Grid.t(), Position.t()} | nil
-  def view(world, id) do
-    with %Position{grid_id: grid_id, cell: {_x, _y, z}} = pos <- get(world, id),
-         %Grid{} = grid <-
-           world |> Context.adventure_id() |> Pack.grids() |> Pack.grid(grid_id, z) do
-      {grid, pos}
-    end
-  end
 
   @doc "The world with character `id` at `pos`, or without a position (nil)."
   @spec put(map(), String.t(), Position.t() | nil) :: map()

@@ -5,13 +5,13 @@ defmodule TalesForge.Locations.Prompt do
   position (`TalesForge.Locations.Positions`), recomputed every turn.
   """
 
-  alias TalesForge.Locations.Positions
   alias TalesForge.Locations.Surroundings
+  alias TalesForge.Locations.View
 
   @doc "What the player character sees, as prompt lines; nil when it has no position."
   @spec surroundings(map()) :: String.t() | nil
   def surroundings(world) do
-    case Positions.view(world, get_in(world, ["character", "id"])) do
+    case View.of(world, get_in(world, ["character", "id"])) do
       {grid, pos} -> grid |> Surroundings.of(pos) |> Surroundings.text()
       nil -> nil
     end
