@@ -132,9 +132,10 @@ into region cells. Not now.
 ## 10. Step 1: grid files (built)
 
 - Each grid is an ASCII block, one character per cell, 20 rows of 20:
-  `priv/adventures/<pack>/world/grids/<location>_z<z>.txt`. Row 0 is north.
-- One legend per scale: `world/legends/<scale>.json` with `scale`, `cell_m`
+  `priv/adventures/<pack>/world/grids/<scale>/<location>_z<z>.txt`. Row 0 is north.
+- The grid directory names its scale; one legend per scale: `world/legends/<scale>.json` with `scale`, `cell_m`
   and `items` (`char => {item, blocks, opaque, link}`). `blocks` stops
   walking, `opaque` stops sight (a window blocks walking, not sight); both
   default false. `link: {dz: ±1}` marks stairs.
+- `TalesForge.Locations.Pack.grids/1` loads them by location id.
 - `TalesForge.Locations.Legend`, `Grid` and `Cell` parse them (pure).

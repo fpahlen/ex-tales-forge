@@ -20,7 +20,7 @@ defmodule TalesForge.Locations.GridTest do
     legend
   end
 
-  defp inn, do: File.read!(Path.join(@world, "grids/valley_inn_z0.txt"))
+  defp inn, do: File.read!(Path.join(@world, "grids/room/valley_inn_z0.txt"))
 
   test "the Valley Inn ground floor parses into 400 cells" do
     assert {:ok, grid} = Grid.parse(inn(), legend(), %{id: "valley_inn", z: 0})
