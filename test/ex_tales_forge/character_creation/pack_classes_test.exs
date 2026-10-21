@@ -8,7 +8,7 @@ defmodule TalesForge.CharacterCreation.PackClassesTest do
   use ExUnit.Case, async: false
 
   alias TalesForge.CharacterCreation, as: CC
-  alias TalesForge.Characters.{Defaults, PackRules}
+  alias TalesForge.GameCharacter.{Defaults, PackRules}
 
   @fixtures "test/support/fixtures/packs"
 
@@ -67,7 +67,7 @@ defmodule TalesForge.CharacterCreation.PackClassesTest do
       |> File.read!()
       |> Jason.decode!()
       |> PackRules.with_class_defaults(labels)
-      |> then(&TalesForge.Characters.RulesCheck.creation!(labels, &1))
+      |> then(&TalesForge.GameCharacter.RulesCheck.creation!(labels, &1))
     end
   end
 

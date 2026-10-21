@@ -70,7 +70,7 @@ defmodule TalesForge.Game.PackTest do
         |> Enum.find(&(&1["id"] == "ale_mug"))
 
       assert ale["price_copper"] == 2
-      # Skills are derived at seeding (Characters.Defaults); the pack holds the
+      # Skills are derived at seeding (GameCharacter.Defaults); the pack holds the
       # derive inputs plus the authored overrides only.
       assert by_npc["innkeep"]["derive"]["occupation"] == "innkeep"
       refute Map.has_key?(by_npc["innkeep"], "skills")

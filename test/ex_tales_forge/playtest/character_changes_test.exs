@@ -1,8 +1,7 @@
 defmodule TalesForge.Playtest.CharacterChangesTest do
   use TalesForge.DataCase, async: true
 
-  alias TalesForge.Characters
-  alias TalesForge.GameCharacter.Roster
+  alias TalesForge.GameCharacter.{Roster, Store}
   alias TalesForge.GameSessions
   alias TalesForge.Playtest.CharacterChanges
   alias TalesForge.Playtest.CharacterChanges.{Character, Field, RunMetrics, Summary}
@@ -425,7 +424,7 @@ defmodule TalesForge.Playtest.CharacterChangesTest do
     {:ok, _} = Roster.bump_relationship(session.id, "innkeep", 0.1)
 
     session.id
-    |> Characters.get_by_slug("innkeep")
+    |> Store.get_by_slug("innkeep")
     |> Ecto.Changeset.change(
       runtime: %{"reaction" => %{"emotion" => "curious", "stance" => "warm", "turn_number" => 1}}
     )

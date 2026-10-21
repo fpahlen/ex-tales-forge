@@ -2,10 +2,10 @@ defmodule TalesForge.Game.CombatTest do
   @moduledoc "Opposed combat rolls with injected dice (COMBAT_OPPOSED, card e6a933d4)."
   use ExUnit.Case, async: true
 
-  alias TalesForge.Characters.Defaults
   alias TalesForge.Game.{Combat, Mechanics, ProseCheck}
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.GameCharacter
+  alias TalesForge.GameCharacter.Defaults
 
   doctest TalesForge.Game.Combat
 

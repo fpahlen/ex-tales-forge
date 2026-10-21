@@ -4,16 +4,16 @@ defmodule TalesForge.GameCharacter.Signals do
   (`TalesForge.Intention`, `by: :system`) for the turn to apply
   (`TalesForge.Game.Turn.Intentions.apply_all/2`), in this order:
 
-    1. time passed, for every present NPC (`Actions.Character.ReactToTime`);
-    2. the player spoke to a present NPC (`Actions.Character.OnPlayerTalked`);
-    3. the other present NPCs overheard it (`Actions.Character.OnOverheard`),
+    1. time passed, for every present NPC (`GameCharacter.Actions.ReactToTime`);
+    2. the player spoke to a present NPC (`GameCharacter.Actions.OnPlayerTalked`);
+    3. the other present NPCs overheard it (`GameCharacter.Actions.OnOverheard`),
        unless the turn was quiet (wait, train) or had no words.
 
   Before refactor step 10e these were Jido signals to the NPC agents, which
   wrote after the commit; a missing agent dropped its signal.
   """
 
-  alias TalesForge.Actions.Character.{OnOverheard, OnPlayerTalked, ReactToTime}
+  alias TalesForge.GameCharacter.Actions.{OnOverheard, OnPlayerTalked, ReactToTime}
   alias TalesForge.GameCharacter.Signals.Turn
   alias TalesForge.Intention
 

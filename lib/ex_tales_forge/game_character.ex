@@ -12,11 +12,11 @@ defmodule TalesForge.GameCharacter do
   `improved_since_rest` are keys a sheet may lack: nil means it has none.
   Only a sheet the columns can't hold (an item without a name, a skill that
   is not a number) leaves anything in the row's `runtime["sheet"]`
-  (`extra` and `missing`, written by `TalesForge.Characters`' mirror).
+  (`extra` and `missing`, written by `TalesForge.GameCharacter.Store`' mirror).
 
   `lifetime` is how long the character's row lives (`:persistent`, or
   `:scene` for a minor foe). Only the cleanup at the end of a scene reads
-  it (`TalesForge.Characters.end_scene_multi/2`); the rules, the prompts and
+  it (`TalesForge.GameCharacter.Store.end_scene_multi/2`); the rules, the prompts and
   the play page treat every character alike.
   """
 

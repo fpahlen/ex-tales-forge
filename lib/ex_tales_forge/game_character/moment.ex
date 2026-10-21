@@ -1,7 +1,7 @@
-defmodule TalesForge.Characters.Moment do
+defmodule TalesForge.GameCharacter.Moment do
   @moduledoc """
-  A saved turn as character memory (`TalesForge.Characters.Memory.on_turn/1`)
-  and the thought (`TalesForge.Characters.Thought.for_turn/1`) see it: the
+  A saved turn as character memory (`TalesForge.GameCharacter.MemoryLog.on_turn/1`)
+  and the thought (`TalesForge.GameCharacter.Thought.for_turn/1`) see it: the
   session, the turn number, the turn's events, the world after the turn, the
   CHARACTER_MEMORY mode and `actor`, the slug of the character whose
   Intention the turn played (`TalesForge.Intention`). Neither asks who

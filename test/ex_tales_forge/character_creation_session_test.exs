@@ -2,7 +2,7 @@ defmodule TalesForge.CharacterCreationSessionTest do
   use TalesForge.DataCase, async: false
 
   alias TalesForge.CharacterCreation, as: CC
-  alias TalesForge.Characters
+  alias TalesForge.GameCharacter.Store
   alias TalesForge.GameSessions
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession}
@@ -67,7 +67,7 @@ defmodule TalesForge.CharacterCreationSessionTest do
 
     session |> GameSession.changeset(%{world_state: ws}) |> save_session!()
 
-    assert Characters.backfill().failed == []
+    assert Store.backfill().failed == []
 
     after_ = pc_row(session)
     assert after_.skills["stealth"] == 4

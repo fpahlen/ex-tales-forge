@@ -1,8 +1,8 @@
-defmodule TalesForge.Characters.DefaultsTest do
+defmodule TalesForge.GameCharacter.DefaultsTest do
   use ExUnit.Case, async: true
 
-  alias TalesForge.Characters.{Defaults, Levers}
   alias TalesForge.Game.{Mechanics, Pack}
+  alias TalesForge.GameCharacter.{Defaults, Levers}
 
   @rules Defaults.rules()
 

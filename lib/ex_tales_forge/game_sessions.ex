@@ -9,8 +9,9 @@ defmodule TalesForge.GameSessions do
 
   require Logger
 
+  alias TalesForge.GameCharacter
+
   alias TalesForge.AICalls.{Steps, Tags}
-  alias TalesForge.Characters
   alias TalesForge.Fronts
   alias TalesForge.Game.Context
   alias TalesForge.Game.Features
@@ -37,15 +38,15 @@ defmodule TalesForge.GameSessions do
 
   @doc """
   The session with its player character in `world_state["character"]`, read
-  from the character's row (`TalesForge.Characters.put_sheet/1`).
+  from the character's row (`TalesForge.GameCharacter.Store.put_sheet/1`).
   """
   @spec get_session!(Ecto.UUID.t()) :: GameSession.t()
-  def get_session!(id), do: GameSession |> Repo.get!(id) |> Characters.put_sheet()
+  def get_session!(id), do: GameSession |> Repo.get!(id) |> GameCharacter.Store.put_sheet()
 
   defp get_session(id) do
     case Repo.get(GameSession, id) do
       nil -> {:error, :not_found}
-      session -> {:ok, Characters.put_sheet(session)}
+      session -> {:ok, GameCharacter.Store.put_sheet(session)}
     end
   end
 
@@ -56,7 +57,7 @@ defmodule TalesForge.GameSessions do
 
   Besides the session fields, `attrs` takes `:adventure_id` and the player
   character options `:controller` (`"player"` or `"bot"`), `:controller_ref`
-  and `:owner_player_id` (see `TalesForge.Characters.seed_session/2`).
+  and `:owner_player_id` (see `TalesForge.GameCharacter.Store.seed_session/2`).
 
   `:character` is a created player character in the shape of a pack character
   file (`TalesForge.CharacterCreation.finalize/1`). It replaces the pack's
@@ -100,7 +101,7 @@ defmodule TalesForge.GameSessions do
          :ok <- Seeding.seed_session(session),
          :ok <- Fronts.seed_session(session),
          {:ok, session} <- Roster.refresh_session_world_state(session),
-         :ok <- Characters.seed_session(session, character_opts),
+         :ok <- GameCharacter.Store.seed_session(session, character_opts),
          {:ok, _} <- ensure_scene(session) do
       {:ok, Repo.preload(session, [:front_instances])}
     end
@@ -258,7 +259,7 @@ defmodule TalesForge.GameSessions do
 
   @doc "What the play page shows as the story so far. Needs `:turns` and `:scenes` preloaded."
   def transcript(%GameSession{} = session) do
-    thoughts? = TalesForge.Characters.Thought.visible?()
+    thoughts? = TalesForge.GameCharacter.Thought.visible?()
 
     scene_rows =
       Enum.map(session.scenes, fn scene ->
@@ -289,7 +290,7 @@ defmodule TalesForge.GameSessions do
 
   # Board card 845b6b15: a stored thought follows its GM entry (flag on only).
   defp thought_rows(%{thought: %{"text" => text} = thought} = turn, true) when is_binary(text),
-    do: [{turn.inserted_at, TalesForge.Characters.Thought.entry(turn.id, thought)}]
+    do: [{turn.inserted_at, TalesForge.GameCharacter.Thought.entry(turn.id, thought)}]
 
   defp thought_rows(_turn, _visible), do: []
 

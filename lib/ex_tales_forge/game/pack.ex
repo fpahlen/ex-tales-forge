@@ -3,7 +3,7 @@ defmodule TalesForge.Game.Pack do
   File loader for complete adventure packs under `priv/adventures/<id>/`.
 
   Fail-fast on missing start, dangling exits, portent spawn targets, or bad
-  character levers (Maslow, concerns, OCEAN; see `TalesForge.Characters.Levers`).
+  character levers (Maslow, concerns, OCEAN; see `TalesForge.GameCharacter.Levers`).
   Crossroads is **not** loaded through this module at session create, but its
   player character file is (`player_character!/1`).
 
@@ -22,10 +22,10 @@ defmodule TalesForge.Game.Pack do
   A location's blurb is the first paragraph of its body under the heading.
   """
 
-  alias TalesForge.Characters.{Defaults, Levers}
   alias TalesForge.Game.Fronts
   alias TalesForge.Game.Pack.Raw
   alias TalesForge.Game.WorldClock
+  alias TalesForge.GameCharacter.{Defaults, Levers}
 
   @sheet_keys ~w(id name race stats skills)
 

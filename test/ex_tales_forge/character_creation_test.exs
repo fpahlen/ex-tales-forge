@@ -3,8 +3,8 @@ defmodule TalesForge.CharacterCreationTest do
 
   alias TalesForge.CharacterCreation, as: CC
   alias TalesForge.CharacterCreation.{Draft, Options}
-  alias TalesForge.Characters.{Defaults, Levers}
   alias TalesForge.Game.{Mechanics, Pack}
+  alias TalesForge.GameCharacter.{Defaults, Levers}
 
   doctest CC, only: [level_cost: 3]
 

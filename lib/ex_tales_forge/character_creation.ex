@@ -4,7 +4,7 @@ defmodule TalesForge.CharacterCreation do
   point buy and a typed name. Pure Elixir (no database, no AI), so the creation
   screen and the persona runner drive the same functions.
 
-  * **Labels** (races, classes) come from `TalesForge.Characters.Defaults.rules/1`,
+  * **Labels** (races, classes) come from `TalesForge.GameCharacter.Defaults.rules/1`,
     the global list extended by the world pack.
   * **Creation rules** come from `priv/characters/creation.json`: the 75-point
     buy with 3–18 per stat (`rules/core_mechanics.md`), the race stat choices
@@ -55,8 +55,8 @@ defmodule TalesForge.CharacterCreation do
   alias TalesForge.CharacterCreation.{Checks, Context, Draft, Sheet, Skills}
   alias TalesForge.CharacterCreation.Options
   alias TalesForge.CharacterCreation.Spread
-  alias TalesForge.Characters.{Defaults, PackRules, RulesCheck}
   alias TalesForge.Game.Mechanics
+  alias TalesForge.GameCharacter.{Defaults, PackRules, RulesCheck}
 
   @stats ~w(STR DEX CON INT WIS CHA)
 

@@ -6,10 +6,10 @@ defmodule TalesForge.Game.Qa0857Test do
   """
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Characters.Defaults
   alias TalesForge.Game.{Combat, PremiseCheck, TurnApply, WorldClock}
   alias TalesForge.Game.Schemas.{HandlerResult, MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.Game.Turn
+  alias TalesForge.GameCharacter.Defaults
   alias TalesForge.GameSessions
   alias TalesForgeWeb.PlayComponents
 
@@ -65,7 +65,7 @@ defmodule TalesForge.Game.Qa0857Test do
 
     test "(f) the Jev target counts when the text refers to the person", %{session: session} do
       world = Map.put(session.world_state, "present_npcs", ["innkeep"])
-      scene = {world, TalesForge.Characters.cast(session.id)}
+      scene = {world, TalesForge.GameCharacter.Store.cast(session.id)}
 
       assert {:npc, "innkeep"} = Combat.target("innkeep", "I attack her", scene)
       assert {:npc, "innkeep"} = Combat.target("innkeep", "I attack the innkeeper", scene)
@@ -98,7 +98,7 @@ defmodule TalesForge.Game.Qa0857Test do
 
     test "(e) a world refresh keeps the minor foes and the NPC wounds", %{session: session} do
       {:ok, plain} = TalesForge.GameCharacter.Roster.refresh_session_world_state(session)
-      cast = TalesForge.Characters.cast(session.id)
+      cast = TalesForge.GameCharacter.Store.cast(session.id)
       [npc_id | _] = cast |> Map.keys() |> Enum.sort()
       foe = Combat.minor_foe({"foe_miner", "a miner"}, Defaults.rules("tin_valley"), 7)
 
@@ -110,11 +110,11 @@ defmodule TalesForge.Game.Qa0857Test do
       {:ok, _} =
         Ecto.Multi.new()
         |> Ecto.Multi.put(:session, plain)
-        |> TalesForge.Characters.write_multi(cast)
+        |> TalesForge.GameCharacter.Store.write_multi(cast)
         |> TalesForge.Repo.transaction()
 
       {:ok, refreshed} = TalesForge.GameCharacter.Roster.refresh_session_world_state(plain)
-      reloaded = TalesForge.Characters.cast(session.id)
+      reloaded = TalesForge.GameCharacter.Store.cast(session.id)
 
       refute Map.has_key?(refreshed.world_state, "npc_state")
       assert reloaded["foe_miner"].minor

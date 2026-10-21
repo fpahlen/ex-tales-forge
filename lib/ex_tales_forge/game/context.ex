@@ -12,13 +12,12 @@ defmodule TalesForge.Game.Context do
     messages.
 
   The people come from the session's cast (`TalesForge.Game.Cast`): pass
-  the turn's cast, or the functions load it (`TalesForge.Characters.cast/1`).
+  the turn's cast, or the functions load it (`TalesForge.GameCharacter.Store.cast/1`).
   """
 
   # NON-NEGOTIABLE: Core runtime. Pure Ecto + game logic only.
   # Rules come from Prompts (which may be pack-aware), but state is Ecto.
 
-  alias TalesForge.Characters
   alias TalesForge.Game.Arrivals
   alias TalesForge.Game.Cast
   alias TalesForge.Game.Gestures
@@ -28,7 +27,7 @@ defmodule TalesForge.Game.Context do
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.Turn.NarratedArrival
   alias TalesForge.Game.World
-  alias TalesForge.GameCharacter.Roster
+  alias TalesForge.GameCharacter.{Roster, Store}
   alias TalesForge.Repo
   alias TalesForge.Scenes
   alias TalesForge.Schemas.{GameSession, Scene, Turn}
@@ -47,7 +46,7 @@ defmodule TalesForge.Game.Context do
   """
   @spec build_intent_context(GameSession.t(), Cast.t() | nil) :: map()
   def build_intent_context(%GameSession{} = session, cast \\ nil) do
-    cast = cast || Characters.cast(session.id)
+    cast = cast || Store.cast(session.id)
     world = session.world_state || %{}
     location_id = Map.get(world, "location_id", "weary_pilgrim")
     location = World.runtime_location(world, location_id)
@@ -189,7 +188,7 @@ defmodule TalesForge.Game.Context do
   """
   @spec build_gm_context(GameSession.t(), Cast.t() | nil) :: map()
   def build_gm_context(%GameSession{} = session, cast \\ nil) do
-    cast = cast || Characters.cast(session.id)
+    cast = cast || Store.cast(session.id)
     intent = build_intent_context(session, cast)
     world = session.world_state || %{}
     adventure_id = Map.get(world, "adventure_id")

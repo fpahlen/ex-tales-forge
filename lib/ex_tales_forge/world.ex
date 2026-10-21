@@ -192,7 +192,8 @@ defmodule TalesForge.World do
       session_id: session_id,
       defs: definitions(world["adventure_id"]),
       stored: stored_facts(session_id),
-      moods: session_id |> TalesForge.Characters.cast() |> TalesForge.Game.Cast.reactions(),
+      moods:
+        session_id |> TalesForge.GameCharacter.Store.cast() |> TalesForge.Game.Cast.reactions(),
       names: if(List.wrap(world["present_npcs"]) == [], do: %{}, else: person_names(session_id)),
       world: world
     }

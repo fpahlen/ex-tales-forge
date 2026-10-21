@@ -5,8 +5,8 @@ defmodule TalesForge.CharacterCreation.Sheet do
   `TalesForge.CharacterCreation.Context`.
   """
   alias TalesForge.CharacterCreation.Context
-  alias TalesForge.Characters.Defaults
   alias TalesForge.Game.Mechanics
+  alias TalesForge.GameCharacter.Defaults
 
   @doc "The character map for the draft in `ctx`, with id `slug`."
   @spec build(Context.t(), String.t()) :: map()

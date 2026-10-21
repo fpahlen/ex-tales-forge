@@ -32,10 +32,9 @@ defmodule TalesForge.World.Instance do
 
   require Logger
 
-  alias TalesForge.Characters
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameCharacter
-  alias TalesForge.GameCharacter.Initiative
+  alias TalesForge.GameCharacter.{Initiative, Store}
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
   alias TalesForge.World.TurnRequest
@@ -193,7 +192,7 @@ defmodule TalesForge.World.Instance do
     case Repo.get(GameSession, session_id) do
       %GameSession{world_state: world} ->
         characters =
-          session_id |> Characters.list_for_session() |> Enum.map(&GameCharacter.from_schema/1)
+          session_id |> Store.list_for_session() |> Enum.map(&GameCharacter.from_schema/1)
 
         %{state | world_tick: Map.get(world || %{}, "world_tick"), characters: characters}
 

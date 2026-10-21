@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters.Compression do
+defmodule TalesForge.GameCharacter.Compression do
   @moduledoc """
   Character memory, PR 2 (board card 845b6b15): short-term to long-term.
 
@@ -17,11 +17,11 @@ defmodule TalesForge.Characters.Compression do
   When it runs (option 4 of Q3, Fredrik's answer 1): on a long rest, or at the
   next scene end after dawn when a game day passed with no compression.
 
-      iex> TalesForge.Characters.Compression.dawn_between?(90, 100)
+      iex> TalesForge.GameCharacter.Compression.dawn_between?(90, 100)
       true
-      iex> TalesForge.Characters.Compression.dawn_between?(10, 90)
+      iex> TalesForge.GameCharacter.Compression.dawn_between?(10, 90)
       false
-      iex> TalesForge.Characters.Compression.gist("warm", "Mags promised to help me find the lost ore cart near the old adit tomorrow at first light without fail ever")
+      iex> TalesForge.GameCharacter.Compression.gist("warm", "Mags promised to help me find the lost ore cart near the old adit tomorrow at first light without fail ever")
       "warm: Mags promised to help me find the lost ore cart near the old adit tomorrow at first light…"
   """
 
@@ -29,9 +29,8 @@ defmodule TalesForge.Characters.Compression do
   require Logger
 
   alias TalesForge.AICalls
-  alias TalesForge.Characters
-  alias TalesForge.Characters.Memory
   alias TalesForge.Game.WorldClock
+  alias TalesForge.GameCharacter.{MemoryLog, Store}
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, CharacterMemory, SessionEvent}
 
@@ -151,8 +150,8 @@ defmodule TalesForge.Characters.Compression do
 
   defp compress_due(session_id, events, now) do
     trigger = %Trigger{
-      long_rest: Memory.long_rest_in?(events),
-      scene_end: Memory.scene_end(events) != nil,
+      long_rest: MemoryLog.long_rest_in?(events),
+      scene_end: MemoryLog.scene_end(events) != nil,
       now: now
     }
 
@@ -174,7 +173,7 @@ defmodule TalesForge.Characters.Compression do
 
   @doc false
   def run(session_id, %Trigger{} = trigger) do
-    for c <- Characters.list_for_session(session_id),
+    for c <- Store.list_for_session(session_id),
         rows = eligible_rows(c),
         rows != [],
         due?(trigger, since(c, rows)) do
@@ -262,7 +261,7 @@ defmodule TalesForge.Characters.Compression do
         role: c.role,
         mood: c.mood,
         ocean: ocean(c.ocean),
-        interests: Memory.interests(c)
+        interests: MemoryLog.interests(c)
       },
       associations:
         for {{about, rs}, i} <- Enum.with_index(groups) do
@@ -312,31 +311,33 @@ defmodule TalesForge.Characters.Compression do
   def long_rows(groups, reply, now) do
     groups
     |> Enum.with_index()
-    |> Enum.flat_map(fn {{about, rs}, i} ->
-      n = @names[i]
-      feeling = Map.get(reply, n.feeling) || :indifferent
-      level = Map.get(reply, n.weight) || 0.0
-      weight = level / (length(@weights) - 1) * if(feeling in @strong, do: 1.5, else: 1.0)
-      key = key_row(rs, Map.get(reply, n.key))
-      core = promise_row(rs) || key
-
-      if weight < @fade_below do
-        []
-      else
-        [
-          %{
-            kind: if(core.kind == "promise", do: "promise", else: "memory"),
-            tier: "long",
-            text: gist(to_string(feeling), core.text),
-            felt: to_string(feeling),
-            belief: belief(about, Map.get(reply, n.belief)),
-            about: [about],
-            weight: Float.round(weight, 3),
-            tick: now
-          }
-        ]
-      end
+    |> Enum.flat_map(fn {group, i} ->
+      long_row(group, Map.new(@names[i], fn {k, name} -> {k, Map.get(reply, name)} end), now)
     end)
+  end
+
+  defp long_row({about, rs}, answer, now) do
+    feeling = answer.feeling || :indifferent
+
+    weight =
+      (answer.weight || 0.0) / (length(@weights) - 1) * if(feeling in @strong, do: 1.5, else: 1.0)
+
+    core = promise_row(rs) || key_row(rs, answer.key)
+
+    if weight < @fade_below,
+      do: [],
+      else: [
+        %{
+          kind: if(core.kind == "promise", do: "promise", else: "memory"),
+          tier: "long",
+          text: gist(to_string(feeling), core.text),
+          felt: to_string(feeling),
+          belief: belief(about, answer.belief),
+          about: [about],
+          weight: Float.round(weight, 3),
+          tick: now
+        }
+      ]
   end
 
   @doc "A gist of at most #{@gist_words} words: the feeling, then the text."
@@ -377,7 +378,7 @@ defmodule TalesForge.Characters.Compression do
   defp write(c, %Outcome{rows: rows, long: long, now: now}) do
     Repo.transaction(fn ->
       fade_long!(c)
-      Enum.each(long, &({:ok, _} = Characters.add_memory(c, &1)))
+      Enum.each(long, &({:ok, _} = Store.add_memory(c, &1)))
 
       ids = Enum.map(rows, & &1.id)
       Repo.update_all(from(m in CharacterMemory, where: m.id in ^ids), set: [tier: "faded"])

@@ -8,13 +8,13 @@ defmodule TalesForge.Schemas.Character do
   immutable copy of the authored source; `origin` says where it came from.
   `lifetime` says how long the row lives: `:persistent` (the default) or
   `:scene`, for a minor foe whose row is removed when its scene ends
-  (`TalesForge.Characters.end_scene_multi/2`, the only code that reads it).
+  (`TalesForge.GameCharacter.Store.end_scene_multi/2`, the only code that reads it).
   """
 
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias TalesForge.Characters.Levers
+  alias TalesForge.GameCharacter.Levers
   alias TalesForge.Schemas.Character.{Concern, InventoryItem, Ocean, Stats}
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -62,7 +62,7 @@ defmodule TalesForge.Schemas.Character do
     field :relationships, :map, default: %{}
     field :runtime, :map, default: %{}
     # Board card 845b6b15: the world tick of the last memory compression.
-    # Written only by `TalesForge.Characters.Compression`, never mirrored.
+    # Written only by `TalesForge.GameCharacter.Compression`, never mirrored.
     field :memory_compressed_tick, :integer
 
     field :lifetime, Ecto.Enum, values: @lifetimes, default: :persistent

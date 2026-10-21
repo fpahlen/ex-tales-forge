@@ -1,8 +1,8 @@
-defmodule TalesForge.Characters.RulesCheckTest do
+defmodule TalesForge.GameCharacter.RulesCheckTest do
   use ExUnit.Case, async: true
 
-  alias TalesForge.Characters.RulesCheck
-  alias TalesForge.Characters.RulesCheck.Rule
+  alias TalesForge.GameCharacter.RulesCheck
+  alias TalesForge.GameCharacter.RulesCheck.Rule
 
   test "a rule lists unknown names in order, duplicates kept, and raises its message" do
     rule = %Rule{names: ~w(a x b x), known: ~w(a b), message: &"bad #{inspect(&1)}"}

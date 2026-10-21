@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters.Levers do
+defmodule TalesForge.GameCharacter.Levers do
   @moduledoc """
   The behaviour levers every character carries: OCEAN (five traits, 0–10), a
   Maslow level and up to three concerns.

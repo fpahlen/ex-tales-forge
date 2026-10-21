@@ -4,7 +4,7 @@ defmodule TalesForge.Schemas.GameSession do
   NPCs, clock). The player character is in memory under
   `world_state["character"]` but is stored only in its `characters` row
   (`TalesForge.Schemas.WorldState`); the GM characters' wounds and moods are
-  on their rows only (`TalesForge.Characters.cast/1`).
+  on their rows only (`TalesForge.GameCharacter.Store.cast/1`).
   """
 
   use Ecto.Schema
