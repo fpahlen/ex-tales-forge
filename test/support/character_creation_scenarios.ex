@@ -1,7 +1,8 @@
 defmodule TalesForge.CharacterCreationScenarios do
   @moduledoc """
-  Drafts and inputs for the character-creation golden tests, and what the
-  public functions return for them. `outputs/0` is captured into
+  Drafts and inputs for the character-creation golden tests.
+
+  What the public functions return for them, `outputs/0`, is captured into
   `test/support/fixtures/cc_golden.exs`; the golden test compares against it.
   """
   alias TalesForge.CharacterCreation, as: CC
