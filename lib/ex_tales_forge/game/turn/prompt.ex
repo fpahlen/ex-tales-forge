@@ -12,6 +12,7 @@ defmodule TalesForge.Game.Turn.Prompt do
   alias TalesForge.Game.Prompts
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.Turn
+  alias TalesForge.Game.Turn.NarratedArrival
   alias TalesForge.Locations
   alias TalesForge.Prompt.Assemble
 
@@ -41,7 +42,8 @@ defmodule TalesForge.Game.Turn.Prompt do
       npc_reactions: turn.npcs.reactions,
       world_facts: outcome.agents,
       price_lines: outcome.price_lines,
-      moved_from: moved_from(session.world_state, outcome.board.world),
+      moved_from: NarratedArrival.from(session.world_state, outcome.board.world),
+      arrived: (session.world_state || %{})["arrived_npcs"],
       premise_findings: turn.premise.findings,
       outcome_record: Map.get(outcome.board, :outcome),
       rest_growth: rest_growth(outcome),
@@ -61,13 +63,6 @@ defmodule TalesForge.Game.Turn.Prompt do
       handler: outcome.handler,
       turn_number: turn.number
     }
-  end
-
-  # The location the character left this turn, or nil (the scene block in
-  # the GM prompt narrates the move from it).
-  defp moved_from(before, after_board) do
-    from = Map.get(before || %{}, "location_id")
-    if from != Map.get(after_board, "location_id"), do: from
   end
 
   # On a long rest, the improvement attempts the rest resolved and the skills

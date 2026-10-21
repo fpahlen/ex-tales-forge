@@ -13,8 +13,15 @@ defmodule TalesForge.Game.TinjacksTest do
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction, SingleAction}
   alias TalesForge.GameSessions
   alias TalesForge.NPC
+  alias TalesForge.Repo
+  alias TalesForge.Schemas.SessionEvent
+
+  import Ecto.Query
+  import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
 
   @features ["inn_world", "antagonist"]
+
+  doctest TalesForge.Game.Arrivals
 
   setup do
     previous =
@@ -330,6 +337,49 @@ defmodule TalesForge.Game.TinjacksTest do
 
       memories = NPC.get_person(session.id, "innkeep").runtime_state["memories"]
       assert Enum.any?(memories, &(&1["who"] == "rusk"))
+    end
+
+    test "Rusk and Cobb coming to the player: one npc.arrived event each, and the next GM prompt says so" do
+      System.put_env("INN_WORLD", "on")
+      System.put_env("WORLD_ANTAGONIST", "on")
+      {:ok, prompts} = Agent.start_link(fn -> [] end)
+
+      stub_llm(fn _kind, user, system ->
+        Agent.update(prompts, &[system <> "\n" <> user | &1])
+        :default
+      end)
+
+      on_exit(fn -> for k <- ~w(LLM_PROVIDER XAI_API_KEY), do: System.delete_env(k) end)
+      {:ok, session} = GameSessions.create_session(%{adventure_id: "tin_valley"})
+
+      session
+      |> Ecto.Changeset.change(
+        world_state:
+          session.world_state
+          |> Map.merge(%{"location_id" => "smithy", "last_scene_location" => "smithy"})
+          |> put_in(["character", "location_id"], "smithy")
+      )
+      |> save_session!()
+
+      assert {:ok, _} =
+               GameSessions.submit_message(session.id, "I wait by the forge for two hours.")
+
+      arrived =
+        Repo.all(
+          from e in SessionEvent,
+            where: e.game_session_id == ^session.id and e.kind == "npc.arrived",
+            select: e.payload["npc_id"]
+        )
+
+      assert Enum.sort(arrived) == ["cobb", "rusk"]
+
+      assert GameSessions.get_session!(session.id).world_state["arrived_npcs"] |> Enum.sort() ==
+               ["cobb", "rusk"]
+
+      Agent.update(prompts, fn _ -> [] end)
+      assert {:ok, _} = GameSessions.submit_message(session.id, "I look at them.")
+      assert Agent.get(prompts, &Enum.join(&1, "\n")) =~ ~r/Just arrived: .* walked in here/
+      refute GameSessions.get_session!(session.id).world_state["arrived_npcs"]
     end
 
     test "WORLD_ANTAGONIST alone does nothing; without flags there is no Tinjacks front" do

@@ -28,6 +28,7 @@ defmodule TalesForge.Game.Turn.Board do
   alias TalesForge.Config
   alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
+  alias TalesForge.Game.Arrivals
   alias TalesForge.Game.Bargain
   alias TalesForge.Game.Catalogue
   alias TalesForge.Game.Events
@@ -203,9 +204,10 @@ defmodule TalesForge.Game.Turn.Board do
     hidden = Enum.reject(events, & &1["player_aware"])
 
     world
-    |> present_after_tick(sim.people)
+    |> Arrivals.present(sim.people)
     |> Perception.scrub_situation_lines(hidden)
     |> Perception.snapshot_public_facts(sim.fronts ++ sim.people)
+    |> Arrivals.put(sim)
   end
 
   # The turn's events with the session's fronts and people, then one
@@ -215,23 +217,7 @@ defmodule TalesForge.Game.Turn.Board do
     people = NPC.sim_people(session_id)
     events = Events.from_turn(%{turn | fronts: fronts, people: people})
     {:ok, sim} = WorldSim.tick(%{fronts: fronts, people: people, events: events})
-    {events, sim}
-  end
-
-  # People a front moved this tick (e.g. the Tinjacks walking into the inn) are
-  # present this turn, not only from the next one.
-  defp present_after_tick(world, []), do: world
-
-  defp present_after_tick(world, people) do
-    here = world["location_id"]
-
-    present =
-      people
-      |> Enum.filter(&(get_in(&1, [:runtime_state, "location_id"]) == here))
-      |> Enum.map(& &1.npc_id)
-      |> Enum.sort()
-
-    Map.put(world, "present_npcs", present)
+    Arrivals.after_tick({events, sim}, people, turn.world_after)
   end
 
   defp apply_pause_or_train(world, %__MODULE__{handler: %{handler: "train"}} = board),
