@@ -5,7 +5,16 @@ defmodule TalesForge.Game.TurnApplyTest do
   """
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction, SingleAction}
+  alias TalesForge.Game.Context
+  alias TalesForge.Game.Intent
+
+  alias TalesForge.Game.Schemas.{
+    GMStructuredResponse,
+    IntentExtraction,
+    PlayerAction,
+    SingleAction
+  }
+
   alias TalesForge.Game.Turn
   alias TalesForge.Game.Turn.{Adapters, Store}
   alias TalesForge.GameSessions
@@ -34,13 +43,14 @@ defmodule TalesForge.Game.TurnApplyTest do
       end
     }
 
-    player_action = %PlayerAction{overall_intent: text, action: action}
+    player_action = %PlayerAction{overall_intent: text, action: intent(session, text, action)}
 
     {session, 1}
     |> Turn.new({text, player_action}, adapters: adapters, flags: flags, role: :playtest)
     |> Turn.Premise.check()
     |> Turn.Mechanics.apply()
     |> Turn.Npcs.react()
+    |> Turn.Place.settle()
     |> Turn.Notice.select()
     |> Turn.Prompt.build()
     |> Turn.Gm.narrate()
@@ -54,6 +64,15 @@ defmodule TalesForge.Game.TurnApplyTest do
     do:
       Map.get(coins, "gold", 0) * 500 + Map.get(coins, "silver", 0) * 10 +
         Map.get(coins, "copper", 0)
+
+  # A move is validated by the intent step, as Jev's reading is
+  # (`TalesForge.Game.Intent`): the words settle where it goes.
+  defp intent(session, text, %SingleAction{action_type: :move} = move) do
+    extraction = %IntentExtraction{overall_intent: text, actions: [move]}
+    Intent.validate_player_action(extraction, Context.build_intent_context(session)).action
+  end
+
+  defp intent(_session, _text, action), do: action
 
   defp session(adventure, location, present) do
     {:ok, session} = GameSessions.create_session(%{name: "Apply", adventure_id: adventure})
@@ -150,16 +169,14 @@ defmodule TalesForge.Game.TurnApplyTest do
   end
 
   describe "move" do
-    test "to an unknown place: rejected, the location stays, the reason names the exits" do
+    test "to an unknown place: no move, and the GM is told there is no such place" do
       s = session("crossroads_ledger", "crossroads_square", [])
       move = %SingleAction{action_type: :move, target: "fields", parameters: %{}}
 
-      {world, handler} = play(s, "I walk into the fields", move, @on)
+      {world, _handler} = play(s, "I walk into the fields", move, @on)
 
       assert world["location_id"] == "crossroads_square"
-      assert handler.state_hints["move_rejected"]
-      assert handler.state_hints["reason"] =~ "The Weary Pilgrim"
-      assert world["world_tick"] == s.world_state["world_tick"]
+      assert gm_prompt() =~ "There's no fields you know of."
     end
 
     test "to a known place: the location changes" do
@@ -177,11 +194,10 @@ defmodule TalesForge.Game.TurnApplyTest do
       s = session("crossroads_ledger", "crossroads_square", ["worried_merchant"])
       move = %SingleAction{action_type: :move, target: "weary_pilgrim", parameters: %{}}
 
-      {world, handler} = play(s, "I walk to the old mill by the creek.", move, @on)
+      {world, _handler} = play(s, "I walk to the old mill by the creek.", move, @on)
 
       assert world["location_id"] == "crossroads_square"
-      assert handler.state_hints["move_rejected"] == true
-      assert handler.state_hints["reason"] =~ "old mill"
+      assert gm_prompt() =~ "There's no old mill you know of."
     end
 
     test "turn 4: 'the Weary Pilgrim inn' read as the cellar goes to the Weary Pilgrim" do
@@ -240,15 +256,11 @@ defmodule TalesForge.Game.TurnApplyTest do
       s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
       move = %SingleAction{action_type: :move, target: "crossroads_square", parameters: %{}}
 
-      {world, handler} = play(s, "I walk to the old mill by the creek", move, @on)
+      {world, _handler} = play(s, "I walk to the old mill by the creek", move, @on)
       prompt = gm_prompt()
 
       assert world["location_id"] == "weary_pilgrim"
-      assert handler.state_hints["move_rejected"] == true
-      assert prompt =~ "There is no place called old mill near here."
-      assert prompt =~ "The exits from The Weary Pilgrim are: Crossroads Square"
-      assert prompt =~ "Rejected: move"
-      assert prompt =~ "Location: weary_pilgrim (no move)."
+      assert prompt =~ "There's no old mill you know of."
     end
 
     test "1c82f268 turn 2: 'old mill' from the square (Jev: kings_road) is rejected" do
@@ -259,8 +271,7 @@ defmodule TalesForge.Game.TurnApplyTest do
       prompt = gm_prompt()
 
       assert world["location_id"] == "crossroads_square"
-      assert prompt =~ "There is no place called old mill near here."
-      assert prompt =~ "The Weary Pilgrim"
+      assert prompt =~ "There's no old mill you know of."
     end
 
     test "141e1b85 turn 2: 'into the Weary Pilgrim inn' in the inn (Jev: square) stays, with no walk" do
