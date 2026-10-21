@@ -15,6 +15,7 @@ defmodule TalesForge.Game.Turn.Premise do
   alias TalesForge.AICalls.Steps
   alias TalesForge.Fronts
   alias TalesForge.Game.PremiseCheck
+  alias TalesForge.Game.PremiseCheck.Input
   alias TalesForge.Game.Turn
   alias TalesForge.Repo
   alias TalesForge.Schemas.Turn, as: TurnRow
@@ -31,8 +32,13 @@ defmodule TalesForge.Game.Turn.Premise do
         turn,
         run(
           turn,
-          world
-          |> PremiseCheck.state(world, Fronts.sim_fronts(turn.session.id), fights(turn))
+          %Input{
+            world_before: world,
+            world_after: world,
+            fronts: Fronts.sim_fronts(turn.session.id),
+            won_fights: fights(turn)
+          }
+          |> PremiseCheck.state()
           |> Map.put(:people, PremiseCheck.people(turn.cast))
         )
       )
@@ -48,8 +54,13 @@ defmodule TalesForge.Game.Turn.Premise do
 
     run(
       turn,
-      world
-      |> PremiseCheck.state(board.world, Map.get(board.sim, :fronts, []), fights(turn))
+      %Input{
+        world_before: world,
+        world_after: board.world,
+        fronts: Map.get(board.sim, :fronts, []),
+        won_fights: fights(turn)
+      }
+      |> PremiseCheck.state()
       |> Map.put(:people, PremiseCheck.people(Map.get(board, :cast, turn.cast)))
     )
   end

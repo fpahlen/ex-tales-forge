@@ -289,7 +289,14 @@ defmodule TalesForge.Game.PremiseCheckTest do
       cast = %{"cobb" => %TalesForge.GameCharacter{slug: "cobb", name: "Cobb", role: "brute"}}
 
       fronts = [%{front_id: "orc_nest", status: "live", definition: %{"name" => "Orc nest"}}]
-      state = PremiseCheck.state(before, after_turn, fronts, 2)
+
+      state =
+        PremiseCheck.state(%PremiseCheck.Input{
+          world_before: before,
+          world_after: after_turn,
+          fronts: fronts,
+          won_fights: 2
+        })
 
       assert Enum.map(state.inventory, & &1["id"]) == ["rope", "iron_key"]
       assert state.coins == %{"silver" => 5}
@@ -299,12 +306,23 @@ defmodule TalesForge.Game.PremiseCheckTest do
       assert state.fronts == [%{id: "orc_nest", name: "Orc nest", status: "live"}]
       assert state.combat_wins == 2
       refute Map.has_key?(state, :won_fights)
-      assert PremiseCheck.state(nil, nil, [], 0).inventory == []
+
+      assert PremiseCheck.state(%PremiseCheck.Input{
+               world_before: nil,
+               world_after: nil,
+               fronts: [],
+               won_fights: 0
+             }).inventory == []
 
       fights = ["I punch Cobb.\nCobb reels."]
 
       assert %{combat_wins: 1, won_fights: ^fights} =
-               PremiseCheck.state(before, after_turn, [], fights)
+               PremiseCheck.state(%PremiseCheck.Input{
+                 world_before: before,
+                 world_after: after_turn,
+                 fronts: [],
+                 won_fights: fights
+               })
     end
   end
 end

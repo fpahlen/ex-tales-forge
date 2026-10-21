@@ -53,6 +53,7 @@ defmodule TalesForge.Game.PremiseCheck do
   """
 
   alias TalesForge.Game.Inventory
+  alias TalesForge.Game.PremiseCheck.Input
   alias TalesForge.Game.WorldClock
 
   @typedoc "One claim found in the player's words."
@@ -74,7 +75,7 @@ defmodule TalesForge.Game.PremiseCheck do
     * `:inventory` — the carried items (`%{"id", "name", "quantity"}`);
     * `:coins` — `%{"gold", "silver", "copper"}`;
     * `:people` — known persons, `%{id: _, name: _, role: _}` (`people/1`;
-      `state/4` leaves it empty, the turn adds the cast);
+      `state/1` leaves it empty, the turn adds the cast);
     * `:fronts` — known fronts, `%{id: _, name: _, status: _}`;
     * `:combat_wins` — fights the character has won this session;
     * `:won_fights` — the player text and narration of each of those fights,
@@ -217,47 +218,8 @@ defmodule TalesForge.Game.PremiseCheck do
   Items carried before or after the turn both count, and the larger purse
   counts, so an item bought or a coin spent this turn is never contradicted.
   """
-  @spec state(map() | nil, map() | nil, [map()], non_neg_integer() | [String.t()]) :: state()
-  def state(world_before, world_after, fronts, won_fights) when is_list(won_fights) do
-    world_before
-    |> state(world_after, fronts, length(won_fights))
-    |> Map.put(:won_fights, won_fights)
-  end
-
-  def state(world_before, world_after, fronts, combat_wins) do
-    before = character(world_before)
-    after_turn = character(world_after)
-
-    %{
-      inventory: carried(before, after_turn),
-      coins:
-        Enum.max_by(
-          [before["coins"] || %{}, after_turn["coins"] || %{}],
-          &Inventory.coin_total_copper/1
-        ),
-      skills: after_turn["skills"] || before["skills"] || %{},
-      people: [],
-      fronts: Enum.map(fronts, &front/1),
-      combat_wins: combat_wins,
-      clock: clock(world_before || world_after)
-    }
-  end
-
-  # QA 2026-10-14 08:57: an item carried before and after the turn is listed
-  # once.
-  defp carried(before, after_turn) do
-    (Inventory.normalize_items(before["inventory"] || []) ++
-       Inventory.normalize_items(after_turn["inventory"] || []))
-    |> Enum.uniq_by(&String.downcase(to_string(&1["name"] || &1["id"])))
-  end
-
-  defp clock(%{"world_tick" => tick}) when is_integer(tick) and tick >= 0,
-    do: %{tick: tick, period: WorldClock.period(tick)}
-
-  defp clock(_world), do: nil
-
-  defp character(world) when is_map(world), do: Map.get(world, "character") || %{}
-  defp character(_world), do: %{}
+  @spec state(Input.t()) :: state()
+  defdelegate state(input), to: Input
 
   @doc """
   The known persons of a state (`:people`): the session's cast
@@ -272,11 +234,6 @@ defmodule TalesForge.Game.PremiseCheck do
     cast
     |> TalesForge.Game.Cast.sorted()
     |> Enum.map(&%{id: &1.slug, name: &1.name, role: &1.role})
-  end
-
-  defp front(front) do
-    definition = Map.get(front, :definition) || %{}
-    %{id: Map.get(front, :front_id), name: definition["name"], status: Map.get(front, :status)}
   end
 
   @doc """

@@ -604,7 +604,7 @@ Closed set of **physics**, not a menu that replaces thinking. Tracer rules and p
 | `mark_debt` | guild / person | witnessed slight or unpaid hire | structured memory `{felt: "owed"}` |
 | `stall` | any | always legal | clock +1 with no other spend |
 
-`hire_extra` with `coin == 0` is **illegal**. The server drops it (`{:error, :illegal_move}`) and logs `session= front= move=hire_extra reason=no_coin`. Default: stall / no-op. The tracer **does not spawn extras**; the coin==0 hire test is a **unit test of `Moves.apply/3` only**.
+`hire_extra` with `coin == 0` is **illegal**. The server drops it (`{:error, :illegal_move}`) and logs `session= front= move=hire_extra reason=no_coin`. Default: stall / no-op. The tracer **does not spawn extras**; the coin==0 hire test is a **unit test of `Moves.apply/1` only**.
 
 **`raise_alert` must write a perceivable fact.** Clock-only updates are invisible to Perception (which excludes `clocks.alert`). `Moves.apply(state, "raise_alert", pack_def)` sets:
 
@@ -621,7 +621,7 @@ state
 
 Text and `visibility` come from the pack (`moves.raise_alert.public_fact`), not hardcoded in Elixir.
 
-Implementation: `TalesForge.Game.Fronts.Moves.apply/3` with multiclause heads + guards.
+Implementation: `TalesForge.Game.Fronts.Moves.apply/1` with multiclause heads + guards.
 
 ```elixir
 @spec apply(map(), String.t(), map()) :: {:ok, map()} | {:error, term()}

@@ -4,7 +4,7 @@ defmodule TalesForge.Game.WorldSimTracerTest do
   alias TalesForge.Fronts
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Context
-  alias TalesForge.Game.Fronts.Moves
+  alias TalesForge.Game.Fronts.{Move, Moves}
   alias TalesForge.Game.Intent
   alias TalesForge.Game.Schemas.{MechanicalResolution, PlayerAction}
   alias TalesForge.Game.WorldClock
@@ -250,7 +250,9 @@ defmodule TalesForge.Game.WorldSimTracerTest do
       }
     }
 
-    assert {:ok, updated} = Moves.apply(state, "raise_alert", defn)
+    assert {:ok, updated} =
+             Moves.apply(%Move{runtime_state: state, move: "raise_alert", pack_def: defn})
+
     fact = Enum.find(updated["public_facts"], &(&1["id"] == "nest_standing_to_arms"))
     assert fact["harm"] == "wound"
     assert fact["visibility"] == ["orc_nest"]
@@ -259,7 +261,9 @@ defmodule TalesForge.Game.WorldSimTracerTest do
   test "hire_extra with coin 0 is illegal" do
     state = %{"resources" => %{"coin" => 0}}
     defn = %{"id" => "miners_guild", "moves" => %{"hire_extra" => %{"wage" => 1}}}
-    assert {:error, :illegal_move} = Moves.apply(state, "hire_extra", defn)
+
+    assert {:error, :illegal_move} =
+             Moves.apply(%Move{runtime_state: state, move: "hire_extra", pack_def: defn})
   end
 
   test "unknown front_id from a fake chronicler payload is dropped" do

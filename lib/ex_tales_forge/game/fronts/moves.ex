@@ -3,6 +3,8 @@ defmodule TalesForge.Game.Fronts.Moves do
   Server-enforced legal move palette. Pure — no Repo.
   """
 
+  alias TalesForge.Game.Fronts.Move
+
   require Logger
 
   @doc """
@@ -19,10 +21,9 @@ defmodule TalesForge.Game.Fronts.Moves do
   make now (`:illegal_move`, `:unknown_move`). Raises `ArgumentError` for a
   move the pack does not define.
   """
-  @spec apply(map(), String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
-  def apply(runtime_state, move, pack_def, opts \\ [])
-
-  def apply(runtime_state, "raise_alert", pack_def, _opts) when is_map(runtime_state) do
+  @spec apply(Move.t()) :: {:ok, map()} | {:error, term()}
+  def apply(%Move{runtime_state: runtime_state, move: "raise_alert", pack_def: pack_def})
+      when is_map(runtime_state) do
     fact = get_in(pack_def, ["moves", "raise_alert", "public_fact"]) || %{}
     tick = runtime_state["since_tick"]
 
@@ -42,7 +43,8 @@ defmodule TalesForge.Game.Fronts.Moves do
     {:ok, state}
   end
 
-  def apply(runtime_state, "hire_extra", pack_def, _opts) when is_map(runtime_state) do
+  def apply(%Move{runtime_state: runtime_state, move: "hire_extra", pack_def: pack_def})
+      when is_map(runtime_state) do
     coin = get_in(runtime_state, ["resources", "coin"]) || 0
     move = get_in(pack_def, ["moves", "hire_extra"]) || %{}
     wage = move["wage"] || 1
@@ -61,18 +63,20 @@ defmodule TalesForge.Game.Fronts.Moves do
     end
   end
 
-  def apply(runtime_state, "mark_debt", pack_def, _opts) when is_map(runtime_state) do
+  def apply(%Move{runtime_state: runtime_state, move: "mark_debt", pack_def: pack_def})
+      when is_map(runtime_state) do
     memory = get_in(pack_def, ["moves", "mark_debt", "memory"]) || %{"felt" => "owed"}
     {:ok, maybe_put_memory(runtime_state, memory)}
   end
 
-  def apply(_runtime_state, "unknown_front_probe", _pack_def, _opts) do
+  def apply(%Move{move: "unknown_front_probe"}) do
     {:error, :unknown_move}
   end
 
-  def apply(runtime_state, move, pack_def, opts) when is_binary(move) and is_map(runtime_state) do
-    case get_in(pack_def, ["moves", move]) do
-      %{} = spec -> {:ok, apply_generic(runtime_state, spec, opts)}
+  def apply(%Move{runtime_state: runtime_state, move: move} = m)
+      when is_binary(move) and is_map(runtime_state) do
+    case get_in(m.pack_def, ["moves", move]) do
+      %{} = spec -> {:ok, apply_generic(runtime_state, spec, m.opts)}
       _ -> raise ArgumentError, "unknown legal move #{inspect(move)}"
     end
   end

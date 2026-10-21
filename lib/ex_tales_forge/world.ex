@@ -329,8 +329,10 @@ defmodule TalesForge.World do
 
   # Adds one proposed fact to the accepted or the rejected list.
   defp sort_fact(nf, {acc, rej, seen}, {agents, turn_number}) do
-    case validate(nf, agents, seen, turn_number) do
+    case validate(nf, agents, seen) do
       {:ok, id, fact} ->
+        fact = Map.put(fact, "turn", turn_number)
+
         {[{id, fact} | acc], rej, MapSet.put(seen, {id, normalize(fact["text"])})}
 
       {:error, reason} ->
@@ -369,7 +371,7 @@ defmodule TalesForge.World do
     |> Enum.group_by(& &1["entity_id"], & &1["fact"])
   end
 
-  defp validate(nf, agents, seen, turn_number) do
+  defp validate(nf, agents, seen) do
     text = nf["text"] |> to_string() |> String.trim()
     kind = if nf["kind"] in @kinds, do: nf["kind"], else: "fact"
 
@@ -378,8 +380,7 @@ defmodule TalesForge.World do
          :ok <- check(kind != "promise" or agent.kind == :person, :promise_not_person),
          :ok <- check(not duplicate?(agent, text, seen), :duplicate),
          :ok <- check(kind != "price" or not price_conflict?(agents, text), :price_conflict) do
-      {:ok, agent.id,
-       %{"kind" => kind, "text" => text, "source" => "narration", "turn" => turn_number}}
+      {:ok, agent.id, %{"kind" => kind, "text" => text, "source" => "narration"}}
     end
   end
 
