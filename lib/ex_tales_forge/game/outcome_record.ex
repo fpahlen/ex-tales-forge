@@ -17,6 +17,7 @@ defmodule TalesForge.Game.OutcomeRecord do
   """
 
   alias TalesForge.Game.Inventory
+  alias TalesForge.Game.OutcomeRecord.Input
   alias TalesForge.Game.Schemas.SingleAction
 
   # The fixed rejection phrasing of the GM prompt (design §4, #180 "premise
@@ -51,13 +52,16 @@ defmodule TalesForge.Game.OutcomeRecord do
       ...>   "inventory" => [%{"id" => "hunting_knife", "name" => "hunting knife", "quantity" => 1}]}}
       iex> action = %TalesForge.Game.Schemas.SingleAction{action_type: :sell, target: "smith",
       ...>   parameters: %{"item_id" => "enchanted_armor"}}
-      iex> record = TalesForge.Game.OutcomeRecord.build(before, before, action, %{handler: "inventory"},
-      ...>   {:error, "Cannot sell 'enchanted_armor' — not in inventory."})
+      iex> record = TalesForge.Game.OutcomeRecord.build(%TalesForge.Game.OutcomeRecord.Input{
+      ...>   world_before: before, world_after: before, action: action, handler: %{handler: "inventory"},
+      ...>   inventory_result: {:error, "Cannot sell 'enchanted_armor' — not in inventory."}})
       iex> {hd(record["actions"])["status"], record["coins"]["delta_copper"], record["items"]}
       {"rejected", 0, %{"gained" => [], "lost" => []}}
   """
-  @spec build(map(), map(), SingleAction.t(), map(), inventory_result()) :: t()
-  def build(world_before, world_after, %SingleAction{} = action, handler, inventory_result) do
+  @spec build(Input.t()) :: t()
+  def build(%Input{action: %SingleAction{} = action} = input) do
+    world_before = input.world_before
+    world_after = input.world_after
     before_char = character(world_before)
     after_char = character(world_after)
     before_copper = Inventory.coin_total_copper(Map.get(before_char, "coins", %{}))
@@ -65,7 +69,7 @@ defmodule TalesForge.Game.OutcomeRecord do
     {gained, lost} = item_deltas(before_char, after_char)
 
     %{
-      "actions" => actions(action, handler, inventory_result),
+      "actions" => actions(action, input.handler, input.inventory_result),
       "coins" => %{
         "before_copper" => before_copper,
         "after_copper" => after_copper,

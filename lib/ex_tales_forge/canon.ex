@@ -23,8 +23,8 @@ defmodule TalesForge.Canon do
     Decision,
     Diff,
     Difference,
+    Ruling,
     Seed,
-    SeedPatch,
     SessionSnapshot
   }
 
@@ -67,22 +67,10 @@ defmodule TalesForge.Canon do
   `"session_only"`, `"add_to_canon"` or `"error"`. A later decision on the
   same difference replaces the earlier one.
   """
-  @spec decide(GameSession.t(), Difference.t(), String.t(), String.t() | nil) ::
-          {:ok, Decision.t()} | {:error, Ecto.Changeset.t()}
-  def decide(%GameSession{} = session, %Difference{} = d, action, founder) do
-    patch =
-      if action == "add_to_canon",
-        do: SeedPatch.propose(d, get_in(session.world_state || %{}, ["adventure_id"]))
-
-    %Decision{}
-    |> Decision.changeset(%{
-      game_session_id: session.id,
-      diff_key: d.key,
-      action: action,
-      founder: founder,
-      difference: Difference.to_map(d),
-      seed_patch: patch
-    })
+  @spec decide(Ruling.t()) :: {:ok, Decision.t()} | {:error, Ecto.Changeset.t()}
+  def decide(%Ruling{} = ruling) do
+    ruling
+    |> Ruling.decision()
     |> Repo.insert(
       on_conflict: {:replace, [:action, :founder, :difference, :seed_patch, :updated_at]},
       conflict_target: [:game_session_id, :diff_key],

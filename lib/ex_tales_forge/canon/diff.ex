@@ -25,20 +25,27 @@ defmodule TalesForge.Canon.Diff do
 
       case Map.fetch(seed.places, id) do
         :error ->
-          [Difference.new(:new_place, id, "New place: #{now.name || id}", nil, place_map(now))]
+          [
+            Difference.new(%Difference{
+              kind: :new_place,
+              entity_id: id,
+              summary: "New place: #{now.name || id}",
+              session: place_map(now)
+            })
+          ]
 
         {:ok, ^now} ->
           []
 
         {:ok, before} ->
           [
-            Difference.new(
-              :changed_place,
-              id,
-              changed_summary(id, before, now),
-              place_map(before),
-              place_map(now)
-            )
+            Difference.new(%Difference{
+              kind: :changed_place,
+              entity_id: id,
+              summary: changed_summary(id, before, now),
+              seed: place_map(before),
+              session: place_map(now)
+            })
           ]
       end
     end)
@@ -63,7 +70,13 @@ defmodule TalesForge.Canon.Diff do
     |> Enum.reject(&Map.has_key?(seed.entities, &1))
     |> Enum.map(fn id ->
       name = Map.get(session.npc_names, id, id)
-      Difference.new(:new_entity, id, "New NPC: #{name}", nil, %{"name" => name})
+
+      Difference.new(%Difference{
+        kind: :new_entity,
+        entity_id: id,
+        summary: "New NPC: #{name}",
+        session: %{"name" => name}
+      })
     end)
   end
 
@@ -90,7 +103,13 @@ defmodule TalesForge.Canon.Diff do
     kind = if known, do: :new_fact, else: :free_text
     typed = Map.take(fact, ~w(kind text turn))
     prefix = if known, do: "New #{typed["kind"] || "fact"} on #{entity_id}", else: entity_id
-    Difference.new(kind, entity_id, "#{prefix}: #{typed["text"]}", nil, typed)
+
+    Difference.new(%Difference{
+      kind: kind,
+      entity_id: entity_id,
+      summary: "#{prefix}: #{typed["text"]}",
+      session: typed
+    })
   end
 
   defp kind_rank(kind), do: Enum.find_index(Difference.kinds(), &(&1 == kind))

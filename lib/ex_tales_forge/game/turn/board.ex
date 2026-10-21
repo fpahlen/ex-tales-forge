@@ -84,13 +84,13 @@ defmodule TalesForge.Game.Turn.Board do
       |> perceive(board)
 
     outcome =
-      OutcomeRecord.build(
-        world_before,
-        world,
-        board.player_action.action,
-        handler,
-        inventory_result
-      )
+      OutcomeRecord.build(%OutcomeRecord.Input{
+        world_before: world_before,
+        world_after: world,
+        action: board.player_action.action,
+        handler: handler,
+        inventory_result: inventory_result
+      })
 
     Map.merge(result, %{outcome: outcome, traders: traders(inventory_result)})
   end

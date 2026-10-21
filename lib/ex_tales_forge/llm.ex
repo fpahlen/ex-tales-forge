@@ -8,7 +8,7 @@ defmodule TalesForge.LLM do
   alias TalesForge.AICalls
   alias TalesForge.AppRole
   alias TalesForge.Config
-  alias TalesForge.LLM.{Endpoint, Request}
+  alias TalesForge.LLM.{Endpoint, GmTurn, Request}
   alias TalesForge.LLM.Stream, as: SSE
 
   alias TalesForge.Game.Schemas.{
@@ -145,7 +145,7 @@ defmodule TalesForge.LLM do
 
   @typedoc """
   Options for the `complete_*` calls: `:session_id` (conv id and cost rows),
-  `:turn_number`. `complete_turn/5` also takes `:on_text` (see there) and
+  `:turn_number`. `complete_turn/1` also takes `:on_text` (see there) and
   `:variant` (default `gm_variant/1`).
   """
   @type call_opts :: [
@@ -580,21 +580,15 @@ defmodule TalesForge.LLM do
 
   `:variant` picks the prompt and schema (`gm_variant/1`, by app role).
   """
-  @spec complete_turn([map()], PlayerAction.t(), HandlerResult.t(), integer(), call_opts()) ::
-          result(GMStructuredResponse.t())
-  def complete_turn(
-        messages,
-        %PlayerAction{} = player_action,
-        %HandlerResult{} = handler,
-        turn_number,
-        opts \\ []
-      )
+  @spec complete_turn(GmTurn.t()) :: result(GMStructuredResponse.t())
+  def complete_turn(%GmTurn{messages: messages, player_action: %PlayerAction{}} = gm)
       when is_list(messages) do
+    %GmTurn{handler: %HandlerResult{}, turn_number: turn_number, opts: opts} = gm
     model = tier2_model()
     variant = Keyword.get_lazy(opts, :variant, &gm_variant/0)
 
     if mock?(model) do
-      {:ok, mock_turn_response(player_action, handler, turn_number)}
+      {:ok, mock_turn_response(gm.player_action, gm.handler, turn_number)}
     else
       %Request{
         model: model,

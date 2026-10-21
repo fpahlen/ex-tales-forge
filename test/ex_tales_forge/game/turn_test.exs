@@ -78,7 +78,7 @@ defmodule TalesForge.Game.TurnTest do
         send(me, :npc)
         [reaction]
       end,
-      gm: fn messages, _action, _handler, _n, opts ->
+      gm: fn %TalesForge.LLM.GmTurn{messages: messages, opts: opts} ->
         send(me, {:gm, List.last(messages).content})
         opts[:on_text].("Brenna ")
         {:ok, %GMStructuredResponse{narrative: "Brenna looks up."}}
@@ -105,7 +105,7 @@ defmodule TalesForge.Game.TurnTest do
 
   test "a failed GM call is data; persist passes the turn through", %{session: session} do
     adapters = %Adapters{
-      gm: fn _m, _a, _h, _n, _o -> {:error, :timeout} end,
+      gm: fn %TalesForge.LLM.GmTurn{} -> {:error, :timeout} end,
       store: fn _store -> flunk("the store must not run") end
     }
 

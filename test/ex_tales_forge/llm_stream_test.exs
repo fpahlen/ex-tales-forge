@@ -98,16 +98,19 @@ defmodule TalesForge.LLMStreamTest do
   defp gm_turn(session, opts \\ []) do
     test_pid = self()
 
-    LLM.complete_turn(
-      [
+    LLM.complete_turn(%LLM.GmTurn{
+      messages: [
         %{role: "system", content: Prompts.gm_system(role(opts[:variant]))},
         %{role: "user", content: "RULES AND STATE"}
       ],
-      %PlayerAction{overall_intent: "look around", action: %SingleAction{action_type: :observe}},
-      %HandlerResult{handler: "observe"},
-      1,
-      Keyword.merge([session_id: session.id, on_text: &send(test_pid, {:stream, &1})], opts)
-    )
+      player_action: %PlayerAction{
+        overall_intent: "look around",
+        action: %SingleAction{action_type: :observe}
+      },
+      handler: %HandlerResult{handler: "observe"},
+      turn_number: 1,
+      opts: Keyword.merge([session_id: session.id, on_text: &send(test_pid, {:stream, &1})], opts)
+    })
   end
 
   defp role(:lean), do: :production
