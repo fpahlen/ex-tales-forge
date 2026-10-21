@@ -54,8 +54,7 @@ defmodule TalesForge.CharacterCreation do
 
   alias TalesForge.CharacterCreation.Draft
   alias TalesForge.CharacterCreation.Spread
-  alias TalesForge.Characters.Defaults
-  alias TalesForge.Characters.RulesCheck
+  alias TalesForge.Characters.{Defaults, PackRules, RulesCheck}
   alias TalesForge.Game.Mechanics
 
   @stats ~w(STR DEX CON INT WIS CHA)
@@ -67,14 +66,18 @@ defmodule TalesForge.CharacterCreation do
 
   @doc """
   The rules for creating a character in `adventure_id`: `"labels"` (the
-  `Defaults` rules) and `"creation"` (`creation.json`). Raises `ArgumentError`
+  `Defaults` rules) and `"creation"` (`creation.json`, with the pack's
+  `class_defaults` for the classes it adds). Raises `ArgumentError`
   if `creation.json` refers to an unknown race or stat. A label without a
   description (one a pack added) is offered with an empty one.
   """
   @spec rules(String.t()) :: rules()
   def rules(adventure_id) when is_binary(adventure_id) do
     labels = Defaults.rules(adventure_id)
-    creation = creation_path() |> File.read!() |> Jason.decode!()
+
+    creation =
+      creation_path() |> File.read!() |> Jason.decode!() |> PackRules.with_class_defaults(labels)
+
     RulesCheck.creation!(labels, creation)
     %{"labels" => labels, "creation" => creation}
   end
@@ -98,7 +101,7 @@ defmodule TalesForge.CharacterCreation do
         |> Enum.map(fn {id, race} ->
           %{
             id: id,
-            description: get_in(descriptions, ["races", id]) || "",
+            description: description(descriptions, "races", id),
             stats: race["stats"],
             choice: race_choice(creation, id),
             skill_bonus: race_bonus(creation, id)
@@ -110,7 +113,7 @@ defmodule TalesForge.CharacterCreation do
         |> Enum.map(fn {id, class} ->
           %{
             id: id,
-            description: get_in(descriptions, ["classes", id]) || "",
+            description: description(descriptions, "classes", id),
             stats: class["stats"],
             skills: class_skills(class, creation),
             occupation: creation["occupation"]["class_defaults"][id]
@@ -122,7 +125,7 @@ defmodule TalesForge.CharacterCreation do
 
           %{
             id: id,
-            description: get_in(descriptions, ["occupations", id]) || "",
+            description: description(descriptions, "occupations", id),
             skills: occupation_skills(occupation, creation)
           }
         end),
@@ -702,6 +705,8 @@ defmodule TalesForge.CharacterCreation do
         false
     end
   end
+
+  defp description(descriptions, kind, id), do: get_in(descriptions, [kind, id]) || ""
 
   defp race_choice(creation, race), do: get_in(creation, ["race_choices", race])
 

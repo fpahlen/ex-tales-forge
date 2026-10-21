@@ -1,0 +1,4 @@
+{
+  "_doc": "Test pack: overrides the base ranger class's default past occupation.",
+  "class_defaults": {"ranger": "guard"}
+}
