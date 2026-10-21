@@ -32,18 +32,22 @@ drives listener readings (§3) and System 2 (§6).
 
 ## 1. What you're deciding
 
-Each item lists options. This doc does not pick for the founders.
+Each item listed options. Status after 2026-10-21 is in brackets; details in
+"Decided (Fredrik, 2026-10-21)" below.
 
-1. **Liking scale N:** (a) 3; (b) 5; (c) 10. Integers in −N..N.
+1. **Liking scale N:** (a) 3; (b) 5; (c) 10. Integers in −N..N. **[Decided: 5]**
 2. **Liking direction:** (a) directed, A→B and B→A are two rows; (b) symmetric.
+   **[Decided: directed]**
 3. **Liking start:** (a) 0; (b) from today's `relationship_score`; (c) world data.
+   **[Decided: b, 0 if none]**
 4. **Ledger kinds first:** (a) `promise`; (b) + `debt`; (c) + `favour`, and a
-   gift creates a small favour owed.
+   gift creates a small favour owed. **[Decided: one open-trade model covers all three]**
 5. **An `accept` act** (the 14 labels lack it): (a) keep 14; (b) add `accept`,
-   `decline` (breaks comparison with survey 5).
+   `decline` (breaks comparison with survey 5). **[Decided: b]**
 6. **System 2 model:** (a) a reasoning LLM; (b) a second Jev call; (c) decide
-   after the comparison.
+   after the comparison. **[Deferred until after playtest]**
 7. **The System 2 ship bar** (§6.5) and the level-2 labels (§6.4).
+   **[Deferred until after playtest]**
 
 ### Decided: hearing (Fredrik, 2026-10-19, on #489)
 
@@ -58,6 +62,35 @@ Each item lists options. This doc does not pick for the founders.
   only. Dropped words never count.
 - **The dB values (§2.2) and clarity thresholds (§2.3) stand for now**, tuned in
   playtest.
+
+### Decided (Fredrik, 2026-10-21)
+
+1. **Scale −5..+5**, integers, clamped.
+2. **Directed.** A→B and B→A are separate rows: `Social.Liking{from_id, to_id,
+   value}`, one table keyed on the pair. The turn loads only pairs in the room.
+3. **Start** from today's `relationship_score`, 0 if none.
+4. **Liking is a running score**: the sum of heard interactions. No stored
+   reasons. Memories stay a separate record the GM can use for flavour; they do
+   not explain the number.
+5. **Personality means OCEAN.** Few levers, no new fields: agreeableness sets
+   how fast a slight fades back toward the start; neuroticism sets how hard it
+   hits. Bad weighs more than good. Weights tuned in playtest.
+6. **Debts, promises and favours are one model: an open trade** where one side
+   is delivered later (spot vs futures). Debt = coins later; promise = action
+   later; favour = the other side never named (a gift). Whether a gift creates
+   a debt depends on agreeableness. Same trade rules: both sides accept, nothing
+   created or destroyed. A default (not delivered) lowers the creditor's
+   liking. Trade code stays frozen: the open trade is a new record the social
+   layer reads; merge with trade code when trade unfreezes. Replaces the
+   three-kind `Social.Obligation` sketch (§5).
+7. **Add labels `accept` and `decline`** (14 → 16). Reading a reply is two
+   steps: code checks whether an offer or open trade is pending between speaker
+   and listener; only then Jev picks accept or decline. With nothing open,
+   "Yes." is just talk.
+8. **System 2 model and ship bar deferred** until after playtest of liking and
+   promises. System 1 only for now; measure where it fails.
+9. **Survey 5 / gate 0 set aside** (people busy). Untested risk: how well Jev
+   reads social acts. Checked by playtest instead.
 
 ## 2. Hearing (pure game code, no LLM)
 
@@ -262,12 +295,20 @@ default 0, check `between -N and N`), `last_turn` (integer, null), `inserted_at`
 to_character_id)`; symmetric (decision 2) adds a check `from < to`. Writes are
 upserts. One read per turn for the present characters, beside the cast.
 
-## 5. Obligations ledger
+## 5. Open trades (debts, promises, favours)
+
+Decided 2026-10-21: one model, not three kinds. An open trade is a trade where
+one side is delivered later. Debt = coins later, promise = action later, favour
+= the return side never named (a gift; whether it creates a debt depends on
+agreeableness). The rest of this section is the older ledger sketch; read
+"obligation" as "open trade" until it is rewritten.
 
 ```elixir
-# Social.Obligation: @enforce_keys [:debtor_id, :creditor_id, :kind]  (:promise | :debt | :favour)
-defstruct [:id, :debtor_id, :creditor_id, :kind, item_id: nil, amount_copper: nil,
-           service: nil, status: :open,   # :open | :kept | :broken | :forgiven
+# Social.OpenTrade: @enforce_keys [:debtor_id, :creditor_id]
+defstruct [:id, :debtor_id, :creditor_id,
+           given: nil,     # what the creditor handed over now
+           owed: nil,      # coins | item | action; nil = favour (never named)
+           status: :open,  # :open | :kept | :defaulted
            due_tick: nil, source_turn: nil, settled_turn: nil]
 ```
 
@@ -394,9 +435,8 @@ new process. PubSub only for a later screen-only signal.
 
 ## 8. Plan: small verifiable PRs, most important first
 
-**Gate 0 (not a build): survey 5 results (#486).** Founders answer; Fredrik
-sets the pass bar; System 1 (with `social_act`) is scored offline on the 40
-lines. Nothing below starts before this. If System 1 fails, re-plan.
+**Gate 0 (survey 5, #486): set aside 2026-10-21.** Jev's reading of social acts
+is checked by playtest instead.
 
 Each PR is behind a flag (default off) and leaves the files it touches better.
 
@@ -408,7 +448,7 @@ Each PR is behind a flag (default off) and leaves the files it touches better.
 3. **`%Reaction{}` struct** in `NpcReactions`, `Turn.Npcs`, `Turn.Prompt`, the
    playtest views. No behaviour change. Check: golden prompts byte-identical.
 4. **S1 questions** `social_act`, `voice` in `JevIntent`, logged only; `mix
-   social.eval` on survey 5. Check: the score against the bar.
+   social.eval` kept for later. Check: playtest logs show where S1 fails.
 5. **Hearing wired + listener readings** (`SOCIAL_READINGS`). `ambient_db` in
    the place files, default distances, clarity per listener, two questions,
    fragments for partial, logged on `turn.npc_reactions`. Check: playtest batch;
@@ -417,13 +457,14 @@ Each PR is behind a flag (default off) and leaves the files it touches better.
    Check: property tests (clamp, bands); an insult lowers liking in a playtest.
 7. **Liking in use.** Into reaction state, the GM section, `%Stakes{}`;
    `{:warm, 0.05}` off under the flag. Check: playtest diff of reactions.
-8. **S2 offline comparison.** `Trigger.check/2`, `Depth.for/2` (pure, tested)
+8. **[Deferred until after playtest] S2 offline comparison.** `Trigger.check/2`, `Depth.for/2` (pure, tested)
    and the S2 pass in `mix social.eval`; a results doc. Founders decide.
-9. **S2 live, shadow then on; level 2 in the listener call** (only if 8 passes).
+9. **[Deferred] S2 live, shadow then on; level 2 in the listener call** (only if 8 passes).
    Check: trigger rate, cost, latency match the offline numbers.
-10. **Obligations table and `Ledger`** (`OBLIGATIONS`). Check: unit tests; `git
+10. **Open-trades table** (`OPEN_TRADES`), plus `accept`/`decline` with the
+    pending-offer check first. Check: unit tests; `git
     diff` empty under `game/trade.ex` and `game/offer.ex`.
-11. **Ledger in use.** Into reaction state and the GM section; a broken promise
+11. **Open trades in use.** Into reaction state and the GM section; a default
     lowers liking. Check: a scripted playtest with a promise.
 
 PRs 2 and 8 touch no game path and can run beside the others.
@@ -440,7 +481,7 @@ PRs 2 and 8 touch no game path and can run beside the others.
   confidence in practice; the thresholds are tuned in playtest.
 - **Untuned dB numbers and one bystander distance.** Rough real-world values in
   one module attribute; every bystander in a place hears alike until positions.
-- **The 14 labels lack `accept`** (decision 5).
+- **Jev reading social acts is untested** (survey 5 set aside); playtest checks it.
 - **Latency.** S2 adds wait on triggered turns (open deals are common); the bar caps it.
 - **Existing word checks.** `Offer.asked?/1` reads player words in Elixir. It is
   trade code, so it stays frozen; noted for when trade unfreezes.
@@ -456,3 +497,9 @@ PRs 2 and 8 touch no game path and can run beside the others.
 - The System 2 prompt text and model tuning (after the comparison).
 - UI for liking or the ledger; PubSub signals for them.
 - Any DB backfill on production; decision 3 picks the start values first.
+
+## 11. Next design topic: location in game state
+
+Movement bugs (walk to the inn lands at the smithy; flee does not move) come from
+the story and the system disagreeing on where a character is. Location should be
+tracked in game state, with the story following it. Hearing (§2) needs this too.
