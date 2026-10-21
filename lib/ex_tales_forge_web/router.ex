@@ -151,10 +151,6 @@ defmodule TalesForgeWeb.Router do
       get "/#{old}", AdminRedirectController, :show
       get "/#{old}/*rest", AdminRedirectController, :show
     end
-
-    # A session's NPC pages became its Characters pages (NPC cleanup PR 6).
-    get "/play/sessions/:id/npcs", CharactersRedirectController, :show
-    get "/play/sessions/:id/npcs/*rest", CharactersRedirectController, :show
   end
 
   # ExDoc site built into the release (CodeDocsController) and the images of
