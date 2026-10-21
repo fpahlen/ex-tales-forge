@@ -45,7 +45,8 @@ defmodule TalesForge.Prompt.Ctx do
       world_agents: TalesForge.Config.world_agents?(),
       skill_detail_level: TalesForge.Config.skill_detail_level?(),
       skill_split: TalesForge.Config.skill_split?(),
-      combat_opposed: TalesForge.Config.combat_opposed?()
+      combat_opposed: TalesForge.Config.combat_opposed?(),
+      location_grid: TalesForge.Config.location_grid?()
     }
   end
 

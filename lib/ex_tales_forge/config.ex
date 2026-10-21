@@ -94,7 +94,7 @@ defmodule TalesForge.Config do
   def gm_reveal_min_ms_per_char, do: env_int("GM_REVEAL_MIN_MS_PER_CHAR", 8)
 
   @doc "NPC reaction prototype (Jev, before the GM call): NPC_REACTIONS=on. Default off."
-  def npc_reactions?, do: System.get_env("NPC_REACTIONS", "off") in ~w(on true 1)
+  def npc_reactions?, do: on?("NPC_REACTIONS")
 
   @doc "Per-NPC Jev reaction timeout (ms); on timeout the turn goes on without that reaction."
   def npc_reactions_timeout_ms, do: env_int("NPC_REACTIONS_TIMEOUT_MS", 600)
@@ -106,7 +106,7 @@ defmodule TalesForge.Config do
   JEV_CATALOGUE_V2=on. Default off.
   """
   @spec jev_catalogue_v2?() :: boolean()
-  def jev_catalogue_v2?, do: System.get_env("JEV_CATALOGUE_V2", "off") in ~w(on true 1)
+  def jev_catalogue_v2?, do: on?("JEV_CATALOGUE_V2")
 
   @doc """
   Turn pipeline PR 1: the outcome record of each turn goes to the per-turn GM
@@ -114,7 +114,7 @@ defmodule TalesForge.Config do
   TURN_OUTCOME_RECORD=on. Default off.
   """
   @spec turn_outcome_record?() :: boolean()
-  def turn_outcome_record?, do: System.get_env("TURN_OUTCOME_RECORD", "off") in ~w(on true 1)
+  def turn_outcome_record?, do: on?("TURN_OUTCOME_RECORD")
 
   @doc """
   The skill sets how much the character notices (`TalesForge.Game.Notice`):
@@ -122,7 +122,7 @@ defmodule TalesForge.Config do
   state. SKILL_DETAIL_LEVEL=on. Default off.
   """
   @spec skill_detail_level?() :: boolean()
-  def skill_detail_level?, do: System.get_env("SKILL_DETAIL_LEVEL", "off") in ~w(on true 1)
+  def skill_detail_level?, do: on?("SKILL_DETAIL_LEVEL")
 
   @doc """
   Skill split (`TalesForge.Game.SkillSplit`): a player splits one skill action
@@ -130,7 +130,7 @@ defmodule TalesForge.Config do
   Default off. With the flag off, the prompts and the rolls do not change.
   """
   @spec skill_split?() :: boolean()
-  def skill_split?, do: System.get_env("SKILL_SPLIT", "off") in ~w(on true 1)
+  def skill_split?, do: on?("SKILL_SPLIT")
 
   @doc """
   The skill split thresholds (d100 scale): `start`, `triple` and
@@ -157,7 +157,14 @@ defmodule TalesForge.Config do
   (`TalesForge.Game.TurnProcessor`): TURN_PREMISE_FIRST=on. Default off.
   """
   @spec turn_premise_first?() :: boolean()
-  def turn_premise_first?, do: System.get_env("TURN_PREMISE_FIRST", "off") in ~w(on true 1)
+  def turn_premise_first?, do: on?("TURN_PREMISE_FIRST")
+
+  @doc """
+  Locations step 1 (docs/design-locations.md): the GM prompt gets what the
+  character sees on its place's grid. LOCATION_GRID=on. Default off.
+  """
+  @spec location_grid?() :: boolean()
+  def location_grid?, do: on?("LOCATION_GRID")
 
   @doc """
   Turn pipeline step 7 (bug h-fa06): an injection turn plays no action, and
@@ -166,7 +173,7 @@ defmodule TalesForge.Config do
   """
   @spec history_strip_injection?() :: boolean()
   def history_strip_injection?,
-    do: System.get_env("HISTORY_STRIP_INJECTION", "off") in ~w(on true 1)
+    do: on?("HISTORY_STRIP_INJECTION")
 
   @doc """
   Turn pipeline step 4: NPC dialogue memory and the repetition guard
@@ -176,7 +183,7 @@ defmodule TalesForge.Config do
   """
   @spec npc_dialogue_memory?() :: boolean()
   def npc_dialogue_memory?,
-    do: System.get_env("NPC_DIALOGUE_MEMORY", "off") in ~w(on true 1)
+    do: on?("NPC_DIALOGUE_MEMORY")
 
   @doc """
   NPCs know a first meeting (board card 84e11f16): each present NPC in the GM
@@ -218,7 +225,7 @@ defmodule TalesForge.Config do
   """
   @spec turn_state_from_mechanics?() :: boolean()
   def turn_state_from_mechanics?,
-    do: System.get_env("TURN_STATE_FROM_MECHANICS", "off") in ~w(on true 1)
+    do: on?("TURN_STATE_FROM_MECHANICS")
 
   @doc """
   Stage 3 applies the outcome of sleep, pay and move to the state
@@ -230,7 +237,7 @@ defmodule TalesForge.Config do
   """
   @spec turn_apply_outcomes?() :: boolean()
   def turn_apply_outcomes?,
-    do: System.get_env("TURN_APPLY_OUTCOMES", "off") in ~w(on true 1)
+    do: on?("TURN_APPLY_OUTCOMES")
 
   @doc """
   Opposed combat (`TalesForge.Game.Combat`): the player attacks against the
@@ -239,22 +246,22 @@ defmodule TalesForge.Config do
   """
   @spec combat_opposed?() :: boolean()
   def combat_opposed?,
-    do: System.get_env("COMBAT_OPPOSED", "off") in ~w(on true 1)
+    do: on?("COMBAT_OPPOSED")
 
   @doc "World agents prototype (persons/locations hold facts for the GM): WORLD_AGENTS=on. Default off."
-  def world_agents?, do: System.get_env("WORLD_AGENTS", "off") in ~w(on true 1)
+  def world_agents?, do: on?("WORLD_AGENTS")
 
   @doc """
   The places and people around the Valley Inn (`TalesForge.Game.Features`,
   feature `inn_world`): INN_WORLD=on. Read when a session is created. Default off.
   """
-  def inn_world?, do: System.get_env("INN_WORLD", "off") in ~w(on true 1)
+  def inn_world?, do: on?("INN_WORLD")
 
   @doc """
   The Tinjacks antagonist (feature `antagonist`, needs INN_WORLD):
   WORLD_ANTAGONIST=on. Read when a session is created. Default off.
   """
-  def world_antagonist?, do: System.get_env("WORLD_ANTAGONIST", "off") in ~w(on true 1)
+  def world_antagonist?, do: on?("WORLD_ANTAGONIST")
 
   @doc """
   Hierarchical locations (board card 7aba0394): each place can name its
@@ -300,4 +307,7 @@ defmodule TalesForge.Config do
   defp blank_to_nil(value), do: value
 
   defp present?(value), do: String.trim(value) != ""
+
+  # A flag that is off unless its env var says on.
+  defp on?(name), do: System.get_env(name, "off") in ~w(on true 1)
 end

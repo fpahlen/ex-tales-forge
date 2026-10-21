@@ -60,6 +60,7 @@ defmodule TalesForge.Prompt.Profile do
       Sections.CharacterMemory,
       Sections.Gestures,
       Sections.SceneNow,
+      Sections.Surroundings,
       Sections.OutcomeRecord,
       Sections.NoticedDetails,
       Sections.Premise,
