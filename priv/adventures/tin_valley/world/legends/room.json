@@ -1,0 +1,21 @@
+{
+  "scale": "room",
+  "cell_m": 1,
+  "items": {
+    "#": {"item": "wall", "blocks": true, "opaque": true},
+    "D": {"item": "main door", "opaque": true},
+    "d": {"item": "kitchen back door", "opaque": true},
+    "+": {"item": "inner door", "opaque": true},
+    "=": {"item": "bar desk", "blocks": true},
+    "B": {"item": "barrels", "blocks": true},
+    "T": {"item": "table", "blocks": true},
+    "C": {"item": "chair"},
+    "H": {"item": "open hearth", "blocks": true},
+    "W": {"item": "hearth brickwork", "blocks": true, "opaque": true},
+    "K": {"item": "kitchen hearth", "blocks": true},
+    "S": {"item": "stairs up", "link": {"dz": 1}},
+    "s": {"item": "stairs down", "link": {"dz": -1}},
+    "X": {"item": "storeroom", "blocks": true},
+    ".": {"item": "floor"}
+  }
+}
