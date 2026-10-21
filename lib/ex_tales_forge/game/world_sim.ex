@@ -79,15 +79,18 @@ defmodule TalesForge.Game.WorldSim do
   end
 
   defp apply_matching_events(rule, events, {current, applied}) do
-    Enum.reduce(Rules.matching_events(current, rule, events), {current, applied}, fn event,
-                                                                                     {cur, acc} ->
-      case apply_rule(cur, rule, event) do
-        {:ok, next, moves} when is_list(moves) -> {next, acc ++ moves}
-        {:ok, next, move} -> {next, acc ++ [move]}
-        {:ok, next} -> {maybe_threshold(next), acc}
-        {:error, _} -> {cur, acc}
-      end
-    end)
+    current
+    |> Rules.matching_events(rule, events)
+    |> Enum.reduce({current, applied}, &apply_event(rule, &1, &2))
+  end
+
+  defp apply_event(rule, event, {cur, acc}) do
+    case apply_rule(cur, rule, event) do
+      {:ok, next, moves} when is_list(moves) -> {next, acc ++ moves}
+      {:ok, next, move} -> {next, acc ++ [move]}
+      {:ok, next} -> {maybe_threshold(next), acc}
+      {:error, _} -> {cur, acc}
+    end
   end
 
   defp apply_rule(actor, %{"move" => move}, _event) when is_binary(move) do
@@ -232,35 +235,30 @@ defmodule TalesForge.Game.WorldSim do
     end)
   end
 
-  defp apply_threshold(front, clock, defn) when is_map(clock) do
-    threshold = clock["threshold"]
-    value = clock["value"]
-    key = clock["on_threshold"]
-    fact = get_in(defn, ["public_facts_on", key])
-    coin = get_in(runtime(front), ["resources", "coin"]) || 0
-
-    cond do
-      not is_integer(threshold) or not is_integer(value) or value < threshold ->
-        front
-
-      not is_binary(key) or not is_map(fact) ->
-        front
-
-      coin == 0 ->
-        front
-
-      true ->
-        row = %{
-          "id" => key,
-          "text" => fact["text"],
-          "visibility" => List.wrap(fact["visibility"])
-        }
-
+  defp apply_threshold(front, clock, defn) do
+    case threshold_fact(front, clock, defn) do
+      {:ok, row} ->
         put_runtime(front, update_in(runtime(front), ["public_facts"], &append_unique(&1, row)))
+
+      :skip ->
+        front
     end
   end
 
-  defp apply_threshold(front, _, _), do: front
+  # The public fact a clock at or past its threshold adds, when the pack
+  # names one and the front has coin.
+  defp threshold_fact(front, %{"threshold" => at, "value" => value, "on_threshold" => key}, defn)
+       when is_integer(at) and is_integer(value) and value >= at and is_binary(key) do
+    fact = get_in(defn, ["public_facts_on", key])
+
+    if is_map(fact) and (get_in(runtime(front), ["resources", "coin"]) || 0) != 0,
+      do:
+        {:ok,
+         %{"id" => key, "text" => fact["text"], "visibility" => List.wrap(fact["visibility"])}},
+      else: :skip
+  end
+
+  defp threshold_fact(_front, _clock, _defn), do: :skip
 
   defp append_unique(nil, fact), do: [fact]
 
