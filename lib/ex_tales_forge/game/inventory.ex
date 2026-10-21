@@ -812,21 +812,16 @@ defmodule TalesForge.Game.Inventory do
   end
 
   @doc false
-  # The traders `apply_transaction/3` needs for `action`.
+  # The traders `apply_transaction/3` needs for `action`: only people present,
+  # as a trade needs both parties in the scene (the sale to Hilde, at her
+  # forge, went through at the inn).
   @spec trader_ids(SingleAction.t(), [String.t()]) :: [String.t()]
-  def trader_ids(%SingleAction{action_type: type} = action, present_npcs)
-      when type in [:buy, :sell] do
-    case npc_ref(action, "") do
-      "" -> present_npcs
-      npc_id -> Enum.uniq([npc_id | List.wrap(present_npcs)])
-    end
-  end
+  def trader_ids(%SingleAction{action_type: type}, present_npcs) when type in [:buy, :sell],
+    do: present_npcs
 
-  def trader_ids(%SingleAction{action_type: :trade} = action, _present_npcs) do
-    params = action.parameters || %{}
-    counterparty = params |> Map.get("counterparty", "ground") |> to_string() |> String.trim()
-
-    if counterparty in ["", "ground"], do: [], else: [counterparty]
+  def trader_ids(%SingleAction{action_type: :trade} = action, present_npcs) do
+    counterparty = String.trim("#{(action.parameters || %{})["counterparty"]}")
+    Enum.filter(present_npcs, &(&1 == counterparty))
   end
 
   def trader_ids(_action, _present_npcs), do: []

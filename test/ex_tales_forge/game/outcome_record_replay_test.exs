@@ -69,9 +69,18 @@ defmodule TalesForge.Game.OutcomeRecordReplayTest do
     world =
       session.world_state
       |> Map.put("character", character)
-      |> then(&if(location_id, do: Map.put(&1, "location_id", location_id), else: &1))
+      |> then(&if(location_id, do: at(&1, session.id, location_id), else: &1))
 
     session |> GameSession.changeset(%{world_state: world}) |> save_session!()
+  end
+
+  # The character placed at `location_id`, with the people there present (a
+  # trade needs its trader present).
+  defp at(world, session_id, location_id) do
+    Map.merge(world, %{
+      "location_id" => location_id,
+      "present_npcs" => TalesForge.GameCharacter.Roster.sync_present_npcs(session_id, location_id)
+    })
   end
 
   defp play(session_id, step) do

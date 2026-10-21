@@ -193,7 +193,7 @@ defmodule TalesForge.Game.TradeTest do
     end
 
     test "a sale to a trader who buys the item pays the character", %{session: session} do
-      session = value(session, "hunting_knife", 15)
+      session = session |> at_smithy() |> value("hunting_knife", 15)
       before = wealth(session, "smith")
 
       {prompt, saved} =
@@ -213,7 +213,7 @@ defmodule TalesForge.Game.TradeTest do
     end
 
     test "an NPC who cannot afford it refuses, and nothing changes", %{session: session} do
-      session = value(session, "hunting_knife", 15)
+      session = session |> at_smithy() |> value("hunting_knife", 15)
       put_npc(session, "smith", fn _row -> %{coins: %{"copper" => 14}} end)
       before = wealth(session, "smith")
 
@@ -236,6 +236,7 @@ defmodule TalesForge.Game.TradeTest do
 
     test "T11 (session 8a9dbde9): a knife with no value sells at Hilde's own price",
          %{session: session} do
+      session = at_smithy(session)
       before = wealth(session, "smith")
 
       {prompt, saved} =
@@ -250,6 +251,50 @@ defmodule TalesForge.Game.TradeTest do
       assert copper(saved.trader) == copper(before.trader) - 15
       assert Inventory.item_quantity(saved.trader.inventory, "hunting_knife") == 4
       assert prompt =~ "The server made this trade: sold 1x hunting_knife for 15c."
+    end
+
+    # Case's "castle" case: at the inn, the sale to Hilde (at her forge, not
+    # PRESENT) went through. A trade needs both parties in the scene.
+    for {what, action} <- [
+          {"a sale",
+           Macro.escape(%{
+             "action_type" => "sell",
+             "target" => "smith",
+             "parameters" => %{"item_id" => "hunting_knife", "npc_id" => "smith"}
+           })},
+          {"a purchase",
+           Macro.escape(%{
+             "action_type" => "buy",
+             "target" => "smith",
+             "parameters" => %{"item_id" => "spearhead", "npc_id" => "smith"}
+           })},
+          {"a swap",
+           Macro.escape(%{
+             "action_type" => "trade",
+             "target" => "smith",
+             "parameters" => %{
+               "counterparty" => "smith",
+               "give" => [%{"id" => "hunting_knife", "quantity" => 1}],
+               "receive" => [%{"id" => "spearhead", "quantity" => 1}]
+             }
+           })}
+        ] do
+      test "#{what} with Hilde while she is not present is refused: nothing moves, no time",
+           %{session: session} do
+        # A refused trade costs no time (TURN_OUTCOME_RECORD; always, after #571).
+        System.put_env("TURN_OUTCOME_RECORD", "on")
+        on_exit(fn -> System.delete_env("TURN_OUTCOME_RECORD") end)
+        session = value(session, "hunting_knife", 15)
+        refute "smith" in session.world_state["present_npcs"]
+        before = wealth(session, "smith")
+        tick = session.world_state["world_tick"]
+
+        {prompt, saved} = play(session, "I deal with Hilde.", unquote(action), "smith")
+
+        assert saved == before
+        assert unquote(what) == "a swap" or prompt =~ "The server refused this trade"
+        assert GameSessions.get_session!(session.id).world_state["world_tick"] == tick
+      end
     end
 
     test "a price question is an offer: the GM gets the quote and nothing moves",
@@ -369,6 +414,17 @@ defmodule TalesForge.Game.TradeTest do
           &if(&1["id"] == item_id, do: Map.put(&1, "copper_value", copper), else: &1)
         )
       end)
+
+    session |> GameSession.changeset(%{world_state: world}) |> save_session!()
+    GameSessions.get_session!(session.id)
+  end
+
+  # The character at Hilde's forge, with her there.
+  defp at_smithy(%GameSession{world_state: world} = session) do
+    world =
+      world
+      |> Map.merge(%{"location_id" => "smithy", "present_npcs" => ["smith"]})
+      |> put_in(["character", "location_id"], "smithy")
 
     session |> GameSession.changeset(%{world_state: world}) |> save_session!()
     GameSessions.get_session!(session.id)
