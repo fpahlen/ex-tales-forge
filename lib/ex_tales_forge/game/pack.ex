@@ -24,6 +24,7 @@ defmodule TalesForge.Game.Pack do
 
   alias TalesForge.Characters.{Defaults, Levers}
   alias TalesForge.Game.Fronts
+  alias TalesForge.Game.Pack.Raw
   alias TalesForge.Game.WorldClock
 
   @sheet_keys ~w(id name race stats skills)
@@ -36,45 +37,7 @@ defmodule TalesForge.Game.Pack do
   def load(adventure_id, features \\ [])
 
   def load(adventure_id, features) when is_binary(adventure_id) and adventure_id != "" do
-    dir = Path.join(adventures_dir(), adventure_id)
-
-    unless File.dir?(dir) do
-      raise ArgumentError, "adventure pack missing: #{adventure_id}"
-    end
-
-    adventure = load_adventure!(dir)
-    extensions = load_extensions!(dir, features)
-    locations = dir |> load_locations!() |> merge_locations!(extensions)
-    npcs = dir |> Path.join("npcs") |> load_npc_dir!() |> merge_npcs!(extensions)
-    defaults = Defaults.rules(adventure_id)
-    Enum.each(npcs, &validate_npc!(&1, defaults, "#{adventure_id} NPC #{&1["id"]}"))
-    player_character = player_character!(adventure_id)
-    fronts_dir = Path.join(dir, "fronts")
-
-    fronts =
-      fronts_dir
-      |> Fronts.parse_dir!()
-      |> Enum.map(&attach_identity(&1, fronts_dir))
-      |> Kernel.++(Enum.flat_map(extensions, & &1.fronts))
-      |> unique_ids!("front")
-
-    validate_graph!(adventure["starting_location_id"], locations)
-    validate_tree!(locations)
-    validate_positions!(locations)
-    Fronts.validate!(fronts)
-
-    %{
-      adventure_id: adventure["adventure_id"] || adventure_id,
-      name: adventure["name"] || adventure_id,
-      starting_location_id: adventure["starting_location_id"],
-      initial_present_npc_ids: List.wrap(adventure["initial_present_npc_ids"]),
-      situation_lines: List.wrap(adventure["situation_lines"]),
-      economy: economy(adventure),
-      locations: areas_for(locations, features),
-      npcs: npcs,
-      player_character: player_character,
-      fronts: fronts
-    }
+    adventure_id |> read!(features) |> validate!() |> build(features)
   end
 
   def load(_, _, _), do: raise(ArgumentError, "adventure_id required")
@@ -167,28 +130,25 @@ defmodule TalesForge.Game.Pack do
 
   @doc false
   def validate_graph!(start, locations) do
-    unless is_binary(start) and Map.has_key?(locations, start) do
-      raise ArgumentError, "starting_location_id #{inspect(start)} missing from locations"
-    end
+    unless is_binary(start) and Map.has_key?(locations, start),
+      do: raise(ArgumentError, "starting_location_id #{inspect(start)} missing from locations")
 
-    locations
-    |> Enum.flat_map(fn {id, loc} -> Enum.map(List.wrap(loc["exits"]), &{id, &1}) end)
-    |> Enum.each(fn {id, exit_id} ->
-      unless Map.has_key?(locations, exit_id) do
-        raise ArgumentError, "location #{id} exit #{inspect(exit_id)} missing from locations"
-      end
-    end)
-
-    Enum.each(locations, fn {id, loc} ->
-      door = loc["door"]
-
-      if is_binary(door) and door not in List.wrap(loc["exits"]) do
-        raise ArgumentError, "location #{id} door #{inspect(door)} is not one of its exits"
-      end
-    end)
-
-    :ok
+    Enum.each(locations, &check_exits!(&1, locations))
+    Enum.each(locations, &check_door!/1)
   end
+
+  defp check_exits!({id, loc}, locations) do
+    for exit_id <- List.wrap(loc["exits"]),
+        not Map.has_key?(locations, exit_id),
+        do: raise(ArgumentError, "location #{id} exit #{inspect(exit_id)} missing from locations")
+  end
+
+  defp check_door!({id, %{"door" => door} = loc}) when is_binary(door) do
+    unless door in List.wrap(loc["exits"]),
+      do: raise(ArgumentError, "location #{id} door #{inspect(door)} is not one of its exits")
+  end
+
+  defp check_door!(_place), do: :ok
 
   @max_depth 5
 
@@ -207,35 +167,41 @@ defmodule TalesForge.Game.Pack do
     Enum.each(locations, fn {id, _loc} -> chain!(locations, id, [id]) end)
   end
 
-  defp chain!(locations, id, [current | _] = trail) do
-    case get_in(locations, [current, "parent"]) do
-      nil ->
-        if length(trail) > @max_depth do
-          raise ArgumentError,
-                "location #{id}: the parent chain has #{length(trail)} places, more than #{@max_depth}"
-        end
-
-        :ok
-
-      parent when not is_binary(parent) ->
-        raise ArgumentError,
-              "location #{current}: parent must be a place id, got #{inspect(parent)}"
-
-      parent ->
-        cond do
-          not Map.has_key?(locations, parent) ->
-            raise ArgumentError,
-                  "location #{current} parent #{inspect(parent)} missing from locations"
-
-          parent in trail ->
-            loop = trail |> Enum.reverse() |> Kernel.++([parent]) |> Enum.join(", ")
-            raise ArgumentError, "location #{id}: the parent chain has a loop (#{loop})"
-
-          true ->
-            chain!(locations, id, [parent | trail])
-        end
+  defp chain!(locations, id, trail) do
+    case step(locations, id, trail) do
+      {:next, parent} -> chain!(locations, id, [parent | trail])
+      {:error, message} -> raise ArgumentError, message
+      :done -> :ok
     end
   end
+
+  # One step up the tree from the head of `trail`.
+  defp step(locations, id, [current | _] = trail) do
+    case get_in(locations, [current, "parent"]) do
+      nil when length(trail) > @max_depth ->
+        tree_error(id, "#{length(trail)} places, more than #{@max_depth}")
+
+      nil ->
+        :done
+
+      parent when not is_binary(parent) ->
+        {:error, "location #{current}: parent must be a place id, got #{inspect(parent)}"}
+
+      parent when not is_map_key(locations, parent) ->
+        {:error, "location #{current} parent #{inspect(parent)} missing from locations"}
+
+      parent ->
+        if parent in trail,
+          do:
+            tree_error(
+              id,
+              "a loop (#{Enum.join(Enum.reverse([parent | trail]), ", ")})"
+            ),
+          else: {:next, parent}
+    end
+  end
+
+  defp tree_error(id, what), do: {:error, "location #{id}: the parent chain has #{what}"}
 
   @doc """
   Checks the travel keys of each place (board card 7aba0394, PR 2): `at` is
@@ -253,16 +219,7 @@ defmodule TalesForge.Game.Pack do
   end
 
   defp position!(id, loc) do
-    case loc["at"] do
-      nil ->
-        :ok
-
-      [x, y] when is_number(x) and is_number(y) ->
-        loc["parent"] || at_error!(id, "at needs a parent")
-
-      other ->
-        at_error!(id, "at must be [x, y], got #{inspect(other)}")
-    end
+    check_at!(id, loc)
 
     unless loc["scale"] in [nil, "building", "settlement", "region"],
       do:
@@ -271,11 +228,23 @@ defmodule TalesForge.Game.Pack do
           "scale must be building, settlement or region, got #{inspect(loc["scale"])}"
         )
 
-    unless is_nil(loc["cell_m"]) or (is_number(loc["cell_m"]) and loc["cell_m"] > 0),
-      do: at_error!(id, "cell_m must be a positive number, got #{inspect(loc["cell_m"])}")
-
-    :ok
+    check_cell!(id, loc["cell_m"])
   end
+
+  defp check_at!(_id, %{"at" => nil}), do: :ok
+
+  defp check_at!(id, %{"at" => [x, y]} = loc) when is_number(x) and is_number(y),
+    do: loc["parent"] || at_error!(id, "at needs a parent")
+
+  defp check_at!(id, %{"at" => other}),
+    do: at_error!(id, "at must be [x, y], got #{inspect(other)}")
+
+  defp check_at!(_id, _loc), do: :ok
+
+  defp check_cell!(_id, cell) when is_nil(cell) or (is_number(cell) and cell > 0), do: :ok
+
+  defp check_cell!(id, cell),
+    do: at_error!(id, "cell_m must be a positive number, got #{inspect(cell)}")
 
   defp at_error!(id, message), do: raise(ArgumentError, "location #{id}: #{message}")
 
@@ -308,7 +277,67 @@ defmodule TalesForge.Game.Pack do
     |> Map.new(fn {id, loc} -> {id, loc["parent"]} end)
   end
 
-  # The world config of the economy (TalesForge.Game.Economy).
+  # The files of a pack, read in order; a broken file raises.
+  defp read!(adventure_id, features) do
+    dir = Path.join(adventures_dir(), adventure_id)
+    unless File.dir?(dir), do: raise(ArgumentError, "adventure pack missing: #{adventure_id}")
+    adventure = load_adventure!(dir)
+    extensions = load_extensions!(dir, features)
+    locations = dir |> load_locations!() |> merge_locations!(extensions)
+    npcs = npcs!(dir, extensions, adventure_id)
+
+    %Raw{
+      adventure_id: adventure_id,
+      adventure: adventure,
+      locations: locations,
+      npcs: npcs,
+      player_character: player_character!(adventure_id),
+      fronts: fronts!(dir, extensions)
+    }
+  end
+
+  defp npcs!(dir, extensions, adventure_id) do
+    npcs = dir |> Path.join("npcs") |> load_npc_dir!() |> merge_npcs!(extensions)
+    defaults = Defaults.rules(adventure_id)
+    Enum.each(npcs, &validate_npc!(&1, defaults, "#{adventure_id} NPC #{&1["id"]}"))
+    npcs
+  end
+
+  defp fronts!(dir, extensions) do
+    dir
+    |> Path.join("fronts")
+    |> parse_fronts()
+    |> Kernel.++(Enum.flat_map(extensions, & &1.fronts))
+    |> unique_ids!("front")
+  end
+
+  defp parse_fronts(fronts_dir),
+    do: fronts_dir |> Fronts.parse_dir!() |> Enum.map(&attach_identity(&1, fronts_dir))
+
+  defp validate!(%Raw{locations: locations} = raw) do
+    validate_graph!(raw.adventure["starting_location_id"], locations)
+    validate_tree!(locations)
+    validate_positions!(locations)
+    Fronts.validate!(raw.fronts)
+    raw
+  end
+
+  defp build(%Raw{adventure: adventure} = raw, features) do
+    %{
+      adventure_id: adventure["adventure_id"] || raw.adventure_id,
+      name: adventure["name"] || raw.adventure_id,
+      starting_location_id: adventure["starting_location_id"],
+      initial_present_npc_ids: List.wrap(adventure["initial_present_npc_ids"]),
+      situation_lines: List.wrap(adventure["situation_lines"]),
+      economy: economy(adventure),
+      locations: areas_for(raw.locations, features),
+      npcs: raw.npcs,
+      player_character: raw.player_character,
+      fronts: raw.fronts
+    }
+  end
+
+  # The world config of the economy  # The world config of the economy (TalesForge.Game.Economy).
   defp economy(adventure) do
     case adventure["unskilled_wage_copper_per_hour"] do
       wage when is_integer(wage) -> %{"unskilled_wage_copper_per_hour" => wage}
@@ -375,11 +404,7 @@ defmodule TalesForge.Game.Pack do
       feature: feature,
       locations: if(File.dir?(world_dir), do: load_location_dir(world_dir), else: %{}),
       npcs: load_npc_dir!(Path.join(ext_dir, "npcs")),
-      fronts:
-        if(File.dir?(fronts_dir),
-          do: fronts_dir |> Fronts.parse_dir!() |> Enum.map(&attach_identity(&1, fronts_dir)),
-          else: []
-        ),
+      fronts: if(File.dir?(fronts_dir), do: parse_fronts(fronts_dir), else: []),
       meta:
         if(File.exists?(meta_path), do: meta_path |> File.read!() |> Jason.decode!(), else: %{})
     }
