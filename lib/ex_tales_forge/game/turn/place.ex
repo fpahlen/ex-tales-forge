@@ -4,7 +4,8 @@ defmodule TalesForge.Game.Turn.Place do
   character in the turn's world gets its grid position
   (`TalesForge.Locations.Positions.settle/3`), so a new session starts on
   the main door, facing in, and the position persists across turns. With the
-  flag off the turn passes through. Then the player character walks inside
+  flag off only the note for a move to no known place runs
+  (`TalesForge.Game.Turn.NoPlace`). Then the player character walks inside
   the room when the intent asks for it (`TalesForge.Game.Turn.Walk`). Runs
   after the NPC step, so a "no such spot" note joins the premise findings.
   """
@@ -17,7 +18,9 @@ defmodule TalesForge.Game.Turn.Place do
 
   @doc "Settles the positions on `outcome.board.world`."
   @spec settle(Turn.t()) :: Turn.t()
-  def settle(%Turn{outcome: %{board: board} = outcome} = turn) do
+  def settle(%Turn{} = turn), do: turn |> on_grid() |> Turn.NoPlace.note()
+
+  defp on_grid(%Turn{outcome: %{board: board} = outcome} = turn) do
     if Turn.flag?(turn, :location_grid) do
       world = board.world
       grids = world |> Context.adventure_id() |> Pack.grids()

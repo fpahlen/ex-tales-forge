@@ -22,6 +22,7 @@ defmodule TalesForge.Game.Intent do
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
   alias TalesForge.Game.WorldClock
+  alias TalesForge.Locations.Destination
   alias TalesForge.Locations.Exits
 
   @no_skill_types ~w(move wait train pickup drop buy sell trade spend)a
@@ -180,15 +181,15 @@ defmodule TalesForge.Game.Intent do
   # A move target in any form becomes a location id;
   # a target that is no reachable place stops being a move (the character
   # stays, and the GM is told so by the scene block).
+  # The words win over the reading's guess (`TalesForge.Locations.Destination`):
+  # a place they name, routed from here; a spot of the room; or a phrase for
+  # nothing known, which gives no move.
   defp normalize_move(%SingleAction{action_type: :move} = action, context) do
-    if Movement.places(movement_world(context)) == %{} do
-      action
-    else
-      case resolve_move_target(action.target, context) do
-        {:ok, id} -> %SingleAction{action | target: id}
-        :error -> not_a_place(action, context)
-      end
-    end
+    world = movement_world(context)
+
+    if Movement.places(world) == %{},
+      do: action,
+      else: move_to(Destination.of(world, context, context["overall_intent"]), action, context)
   end
 
   # Speaking to a person who is not here but is reachable (a speak with
@@ -216,11 +217,39 @@ defmodule TalesForge.Game.Intent do
 
   defp normalize_move(action, _context), do: action
 
+  defp move_to({:place, id}, action, context) do
+    world = movement_world(context)
+
+    case Movement.route(world, context["location_id"], id) do
+      {:ok, stop} -> %SingleAction{action | target: stop}
+      :error -> Destination.no_move(%SingleAction{action | target: id}, world)
+    end
+  end
+
+  defp move_to(said, action, context) do
+    case {said, resolve_move_target(action.target, context)} do
+      {nil, {:ok, id}} ->
+        %SingleAction{action | target: id}
+
+      {{:spot, phrase}, {:ok, _id}} ->
+        not_a_place(%SingleAction{action | target: phrase}, context)
+
+      # In a room with a grid, words for nothing may be a spot: the walk tells.
+      {{:unknown, phrase}, resolved} when resolved != :error or not is_map_key(context, "spots") ->
+        Destination.no_move(%SingleAction{action | target: phrase}, movement_world(context))
+
+      {_said, :error} ->
+        not_a_place(action, context)
+    end
+  end
+
   # A move to no place stops being a move; with a grid (`"spots"`,
   # LOCATION_GRID) it leaves through the door or walks in the room
-  # (`TalesForge.Locations.Exits.no_place/2`).
+  # (`TalesForge.Locations.Exits.no_place/2`); without, the GM is told there is no
+  # such place (`TalesForge.Locations.Destination.no_move/2`).
   defp not_a_place(action, %{"spots" => _spots} = context), do: Exits.no_place(action, context)
-  defp not_a_place(action, _context), do: %SingleAction{action | action_type: :other, target: nil}
+
+  defp not_a_place(action, context), do: Destination.no_move(action, movement_world(context))
 
   defp movement_world(context) do
     %{"locations" => Map.get(context, "places") || %{}}

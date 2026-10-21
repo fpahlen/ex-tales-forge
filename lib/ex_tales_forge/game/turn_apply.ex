@@ -13,11 +13,9 @@ defmodule TalesForge.Game.TurnApply do
     * `unpaid_sleep/1` — the payment failed, so the sleep is one hour.
     * `item_buy/3` — a purchase whose target is an item ("ale_mug") gets
       that item, and the seller is the person here who has it in stock.
-    * `named_move/3` — a move goes to the place that the text names. A move
-      to the place where the character is plays no walk. A move
-      to a named place that the world does not have is rejected.
-    * `unknown_move/2` — a move to a place that the world does not have is
-      rejected, and the reason names the exits.
+    * `deferred_move/3` — a talk that sets out for a place the world does
+      not have keeps the character here. Moves themselves are settled by
+      the intent step (`TalesForge.Locations.Destination`).
 
   The rules that tell a person's words from a place's take the scene as
   `{world, cast}`: the world state and the session's GM characters
@@ -244,73 +242,6 @@ defmodule TalesForge.Game.TurnApply do
   end
 
   @doc """
-  Makes a move go to the place that `text` names. The place with the most
-  words in common with the text wins (name, id and fixtures). When the text
-  names a place ("to the old mill") that has no word in common with any
-  place or person of the world, the move is rejected. Other handlers do not
-  change.
-
-  Gentry's playtest session f3a7bac0 on 2026-10-13: Jev always gives a move
-  a known place, so "I walk to the old mill" moved the character into the
-  Weary Pilgrim, and "I go into the Weary Pilgrim inn" moved the character
-  into the Pilgrim Cellar.
-
-  ## Examples
-
-      iex> alias TalesForge.Game.Schemas.HandlerResult
-      iex> world = %{"location_id" => "square", "locations" => %{
-      ...>   "square" => %{"name" => "Crossroads Square", "exits" => ["inn"]},
-      ...>   "inn" => %{"name" => "The Weary Pilgrim", "exits" => ["square", "cellar"]},
-      ...>   "cellar" => %{"name" => "Pilgrim Cellar"}}}
-      iex> h = %HandlerResult{handler: "move", target: "cellar", state_hints: %{"location_id" => "cellar"}}
-      iex> TalesForge.Game.TurnApply.named_move(h, {world, %{}}, "I go into the Weary Pilgrim inn.").state_hints["location_id"]
-      "inn"
-      iex> h = %HandlerResult{handler: "move", target: "inn", state_hints: %{"location_id" => "inn"}}
-      iex> TalesForge.Game.TurnApply.named_move(h, {world, %{}}, "I walk to the old mill by the creek.").state_hints["reason"]
-      "There is no place called old mill near here. The exits from Crossroads Square are: The Weary Pilgrim."
-  """
-  @spec named_move(HandlerResult.t(), {map(), Cast.t()}, String.t() | nil) :: HandlerResult.t()
-  def named_move(%HandlerResult{handler: "move"} = handler, {world, cast}, text)
-      when is_binary(text) do
-    target = handler.state_hints["location_id"] || handler.target
-    words = words(text)
-
-    scores =
-      world
-      |> Map.get("locations", %{})
-      |> Enum.map(fn {id, loc} -> {id, overlap(words, place_words(id, loc))} end)
-      |> Enum.sort()
-
-    target_score = Enum.find_value(scores, 0, fn {id, s} -> if id == target, do: s end)
-    {best, best_score} = Enum.max_by(scores, fn {_id, s} -> s end, fn -> {nil, 0} end)
-    phrase = place_phrase(text)
-
-    cond do
-      generic_here?(text, world) ->
-        stay(world, world["location_id"])
-
-      best_score > target_score and best == world["location_id"] ->
-        stay(world, best)
-
-      best_score > target_score ->
-        %{
-          handler
-          | target: best,
-            notes: "Move to #{best}.",
-            state_hints: Map.put(handler.state_hints || %{}, "location_id", best)
-        }
-
-      target_score == 0 and unknown_phrase?(phrase, cast) ->
-        reject_move(phrase, world)
-
-      true ->
-        handler
-    end
-  end
-
-  def named_move(handler, _scene, _text), do: handler
-
-  @doc """
   A move to the place where the character is plays no walk, with or without
   `TURN_APPLY_OUTCOMES` (QA 2026-10-15 retest, session 9a1ff8c2: "I go
   inside the inn" in the Weary Pilgrim told a walk down to the cellar, and
@@ -383,7 +314,6 @@ defmodule TalesForge.Game.TurnApply do
       not Regex.match?(@leave_words, text) and Rest.rest_place?(world, here)
   end
 
-  @place_phrase ~r/\b(?:to|into|towards?)\s+the\s+([\p{L}' -]+?)(?=\s+(?:by|near|on|in|at|with|and|beside|of)\b|[,.!?;]|$)/iu
   @stop ~w(the and inn)
 
   # A phrase names an unknown place when it has words and none of them is a
@@ -393,13 +323,6 @@ defmodule TalesForge.Game.TurnApply do
   defp unknown_phrase?(phrase, cast) do
     named = words(phrase)
     named != [] and overlap(named, people_words(cast)) == 0
-  end
-
-  defp place_phrase(text) do
-    case Regex.run(@place_phrase, text) do
-      [_, phrase] -> String.trim(phrase)
-      nil -> nil
-    end
   end
 
   defp words(text) do
@@ -424,21 +347,6 @@ defmodule TalesForge.Game.TurnApply do
   end
 
   defp overlap(words, other), do: Enum.count(words, &(&1 in other))
-
-  defp reject_move(name, world) do
-    %HandlerResult{
-      handler: "narrate",
-      target: name,
-      notes:
-        "Move rejected: the place does not exist. The character stays here. " <>
-          "Give the exits as a plain list, in the words of the reason.",
-      state_hints: %{
-        "move_rejected" => true,
-        "rejected" => true,
-        "reason" => "There is no place called #{name} near here. " <> exits(world)
-      }
-    }
-  end
 
   @set_out ~r/\b(?:head|heads|heading|go|goes|going|walk|walks|walking|set out|setting out|leave|leaving|travel|travelling|traveling|ride|riding|on my way)\b/iu
   @any_place_phrase ~r/\b(?:to|into|towards?|about|for|at)\s+the\s+([\p{L}' -]+?)(?=\s+(?:by|near|on|in|at|with|and|beside|of)\b|[,.!?;]|$)/iu
@@ -513,36 +421,6 @@ defmodule TalesForge.Game.TurnApply do
 
     unknown_phrase?(phrase, cast) and overlap(named, places) == 0
   end
-
-  @doc """
-  Rejects a move to a place that the world does not have. The reason names
-  the exits of the current place. Other handlers do not change.
-
-  ## Examples
-
-      iex> alias TalesForge.Game.Schemas.HandlerResult
-      iex> world = %{"location_id" => "square", "locations" => %{
-      ...>   "square" => %{"name" => "Square", "exits" => ["inn"]},
-      ...>   "inn" => %{"name" => "The Inn"}}}
-      iex> h = %HandlerResult{handler: "move", target: "fields", state_hints: %{"location_id" => "fields"}}
-      iex> TalesForge.Game.TurnApply.unknown_move(h, world).state_hints["reason"]
-      "There is no place called fields near here. The exits from Square are: The Inn."
-      iex> ok = %HandlerResult{handler: "move", target: "inn", state_hints: %{"location_id" => "inn"}}
-      iex> TalesForge.Game.TurnApply.unknown_move(ok, world) == ok
-      true
-  """
-  @spec unknown_move(HandlerResult.t(), map()) :: HandlerResult.t()
-  def unknown_move(%HandlerResult{handler: "move"} = handler, world) do
-    target = handler.state_hints["location_id"] || handler.target
-
-    if is_binary(target) and World.runtime_location(world, target) == %{} do
-      target |> String.replace("_", " ") |> reject_move(world)
-    else
-      handler
-    end
-  end
-
-  def unknown_move(handler, _world), do: handler
 
   defp exits(%{"location_id" => here_id} = world) when is_binary(here_id) do
     here = World.runtime_location(world, here_id)
