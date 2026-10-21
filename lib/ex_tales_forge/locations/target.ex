@@ -24,11 +24,18 @@ defmodule TalesForge.Locations.Target do
       :unknown
   """
   @spec resolve(Grid.t(), String.t()) :: {:ok, String.t()} | :unknown
-  def resolve(%Grid{} = grid, words) when is_binary(words) do
+  def resolve(%Grid{} = grid, words) when is_binary(words), do: among(names(grid), words)
+
+  @doc """
+  The item `words` name among `names` (`%{name => item}`, `names/1`), or
+  `:unknown`: the same reading as `resolve/2`, for the intent step, which has
+  the names and not the grid (`TalesForge.Locations.Spots`).
+  """
+  @spec among(%{String.t() => String.t()}, String.t()) :: {:ok, String.t()} | :unknown
+  def among(names, words) when is_binary(words) do
     text = " " <> normalize(words) <> " "
 
-    grid
-    |> names()
+    names
     |> Enum.filter(fn {name, _item} -> String.contains?(text, " " <> name <> " ") end)
     |> Enum.max_by(fn {name, _item} -> String.length(name) end, fn -> nil end)
     |> case do
@@ -37,10 +44,12 @@ defmodule TalesForge.Locations.Target do
     end
   end
 
-  # Every name of every item on the grid, as {name, item}.
-  defp names(%Grid{cells: cells}) do
+  @doc "Every name of every item on the grid, as `%{name => item}`."
+  @spec names(Grid.t()) :: %{String.t() => String.t()}
+  def names(%Grid{cells: cells}) do
     for %Cell{item: item, aliases: aliases} <- Enum.uniq_by(Map.values(cells), & &1.char),
         name <- [item | aliases],
+        into: %{},
         do: {normalize(name), item}
   end
 

@@ -20,6 +20,7 @@ defmodule TalesForge.Locations.MoveTurnsTest do
   alias TalesForge.Schemas.{GameSession, SessionEvent}
 
   doctest TalesForge.Locations.Destination
+  doctest TalesForge.Locations.NoMove
 
   setup do
     for flag <- ~w(LOCATION_GRID TURN_APPLY_OUTCOMES INN_WORLD WORLD_ANTAGONIST),
@@ -65,6 +66,19 @@ defmodule TalesForge.Locations.MoveTurnsTest do
     assert stored_world(id)["location_id"] == "valley_inn"
     assert travels(id) == []
     assert inspect(events(id)) =~ "There's no castle you know of."
+  end
+
+  test "a refused move costs no time: the clock is the same before and after", %{id: id} do
+    for {text, target} <- [
+          {"I walk to the castle.", "market_square"},
+          {"I walk to the dragon.", nil}
+        ] do
+      before = stored_world(id)["world_tick"]
+      play(id, {text, :move, target})
+      after_turn = stored_world(id)
+      assert after_turn["location_id"] == "valley_inn", text
+      assert after_turn["world_tick"] == before, text
+    end
   end
 
   defp play(id, {text, type, target}) do
