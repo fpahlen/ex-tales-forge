@@ -1,0 +1,5 @@
+{
+  "_doc": "Test pack: adds a bard class and its default past occupation.",
+  "classes": {"bard": {"stats": {"CHA": 2}, "skills": ["persuasion", "insight"]}},
+  "class_defaults": {"bard": "innkeep"}
+}
