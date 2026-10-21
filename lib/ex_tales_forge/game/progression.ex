@@ -52,6 +52,7 @@ defmodule TalesForge.Game.Progression do
   """
 
   alias TalesForge.Game.Mechanics
+  alias TalesForge.Game.Progression.RestAcc
   alias TalesForge.Game.WorldClock
 
   @trainer_bonus 25
@@ -232,25 +233,32 @@ defmodule TalesForge.Game.Progression do
   @spec resolve_rest(character(), rolls(), keyword()) :: rest_result()
   def resolve_rest(character, rolls \\ %{}, opts \\ [])
       when is_map(character) and is_map(rolls) and is_list(opts) do
-    only = Keyword.get(opts, :only)
     reflected = Keyword.get(opts, :reflected, [])
 
+    %RestAcc{char: char, attempts: attempts, pending: pending} =
+      character
+      |> rest_skills(Keyword.get(opts, :only))
+      |> Enum.reduce(%RestAcc{char: character, rolls: rolls}, &rest_step(&1, &2, reflected))
+
+    {char, attempts, pending}
+  end
+
+  # The skills with banked LP (of `only`, when given), alphabetical.
+  defp rest_skills(character, only) do
     character
     |> Map.get("learning_points", %{})
     |> Enum.filter(fn {skill, lp} -> to_float(lp) > 0.0 and (is_nil(only) or skill in only) end)
-    |> Enum.map(fn {skill, _lp} -> skill end)
+    |> Enum.map(&elem(&1, 0))
     |> Enum.sort()
-    |> Enum.reduce({character, [], [], rolls}, fn skill, {char, acc, pending, rolls} ->
-      level = char |> get_in(["skills", skill]) |> to_int()
+  end
 
-      if needs_reflection?(level) and skill not in reflected do
-        {char, acc, pending ++ [skill], rolls}
-      else
-        {char, attempts, rolls} = resolve_skill(char, skill, rolls)
-        {char, acc ++ attempts, pending, rolls}
-      end
-    end)
-    |> then(fn {char, attempts, pending, _rolls} -> {char, attempts, pending} end)
+  defp rest_step(skill, %RestAcc{char: char} = acc, reflected) do
+    if needs_reflection?(char |> get_in(["skills", skill]) |> to_int()) and skill not in reflected do
+      %{acc | pending: acc.pending ++ [skill]}
+    else
+      {char, attempts, rolls} = resolve_skill(char, skill, acc.rolls)
+      %{acc | char: char, attempts: acc.attempts ++ attempts, rolls: rolls}
+    end
   end
 
   @doc """
