@@ -355,9 +355,10 @@ defmodule TalesForge.Game.TurnApply do
   Keeps the character here when the turn is not a move but the text sets out
   for a place that the world does not have ("I ask Marta about the old mill
   and say I'm heading out there now"). The handler stays (the character
-  still talks), and it gets the reason with the exits and a note: the
-  character stays here, and the GM narrates no walk. Other handlers do not
-  change.
+  still talks), and it gets the reason in the words of a refused move
+  ("There's no old mill you know of.", `TalesForge.Locations.NoMove`) and a
+  note: the character stays here, and the GM narrates no walk. A refused move
+  (`"no_action"`) has its note already. Other handlers do not change.
 
   Gentry's playtest session ead76238 on 2026-10-14: Jev read the turn as
   speech with a deferred move, so the move check did not run, and the prose
@@ -371,30 +372,30 @@ defmodule TalesForge.Game.TurnApply do
       ...>   "square" => %{"name" => "Crossroads Square"}}}
       iex> h = %HandlerResult{handler: "narrate", target: "marta_kellen", notes: "Talk.", state_hints: %{}}
       iex> TalesForge.Game.TurnApply.deferred_move(h, {world, %{}}, "I ask Marta about the old mill and say I'm heading out there now.").state_hints["reason"]
-      "There is no place called old mill near here. The exits from The Inn are: Crossroads Square."
+      "There's no old mill you know of."
       iex> TalesForge.Game.TurnApply.deferred_move(h, {world, %{}}, "I ask Marta about the weather.") == h
       true
   """
   @spec deferred_move(HandlerResult.t(), {map(), Cast.t()}, String.t() | nil) ::
           HandlerResult.t()
-  def deferred_move(%HandlerResult{handler: handler_name} = handler, {world, _cast} = scene, text)
+  def deferred_move(%HandlerResult{handler: handler_name} = handler, scene, text)
       when is_binary(text) and handler_name != "move" do
     hints = handler.state_hints || %{}
     phrase = any_place_phrase(text)
 
-    if Regex.match?(@set_out, text) and hints["rejected"] != true and is_binary(phrase) and
-         unknown_place?(phrase, scene) do
+    if Regex.match?(@set_out, text) and hints["rejected"] != true and hints["no_action"] != true and
+         is_binary(phrase) and unknown_place?(phrase, scene) do
       %{
         handler
         | notes:
             String.trim(
               (handler.notes || "") <>
-                " The character stays here this turn. Narrate no walk. Give the exits as a plain list, in the words of the reason."
+                " The character stays here this turn. Narrate no walk."
             ),
           state_hints:
             hints
             |> Map.put("move_rejected", true)
-            |> Map.put("reason", "There is no place called #{phrase} near here. " <> exits(world))
+            |> Map.put("reason", "There's no #{phrase} you know of.")
       }
     else
       handler
@@ -421,23 +422,6 @@ defmodule TalesForge.Game.TurnApply do
 
     unknown_phrase?(phrase, cast) and overlap(named, places) == 0
   end
-
-  defp exits(%{"location_id" => here_id} = world) when is_binary(here_id) do
-    here = World.runtime_location(world, here_id)
-
-    names =
-      here
-      |> Map.get("exits", [])
-      |> List.wrap()
-      |> Enum.map(&(World.runtime_location(world, &1)["name"] || String.replace(&1, "_", " ")))
-
-    case names do
-      [] -> "The character stays here."
-      _ -> "The exits from #{here["name"] || "here"} are: #{Enum.join(names, ", ")}."
-    end
-  end
-
-  defp exits(_world), do: "The character stays here."
 
   @doc """
   QA 2026-10-14 08:57: "I wait until dusk" waits to the named time of day

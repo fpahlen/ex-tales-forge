@@ -227,20 +227,26 @@ defmodule TalesForge.Game.Intent do
     end
   end
 
-  defp move_to(said, action, context) do
-    case {said, resolve_move_target(action.target, context)} do
-      {nil, {:ok, id}} ->
-        %SingleAction{action | target: id}
+  # Words for a spot or for nothing known: the walk or the refusal is about
+  # those words, never Jev's target (session 39fcbc9d turn 3 walked to Jev's
+  # bar desk). Jev's reading only says whether the words meant a place: then
+  # there is no such place; else, in a room with a grid, the walk tells.
+  defp move_to({:spot, phrase}, action, context),
+    do: not_a_place(%SingleAction{action | target: phrase}, context)
 
-      {{:spot, phrase}, {:ok, _id}} ->
-        not_a_place(%SingleAction{action | target: phrase}, context)
+  defp move_to({:unknown, phrase}, action, context) do
+    refused = %SingleAction{action | target: phrase}
 
-      # In a room with a grid, words for nothing may be a spot: the walk tells.
-      {{:unknown, phrase}, resolved} when resolved != :error or not is_map_key(context, "spots") ->
-        NoMove.place(%SingleAction{action | target: phrase}, movement_world(context))
+    case resolve_move_target(action.target, context) do
+      {:ok, _place} -> NoMove.place(refused, movement_world(context))
+      :error -> not_a_place(refused, context)
+    end
+  end
 
-      {_said, :error} ->
-        not_a_place(action, context)
+  defp move_to(nil, action, context) do
+    case resolve_move_target(action.target, context) do
+      {:ok, id} -> %SingleAction{action | target: id}
+      :error -> not_a_place(action, context)
     end
   end
 

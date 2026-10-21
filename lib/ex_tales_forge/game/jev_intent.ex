@@ -84,6 +84,7 @@ defmodule TalesForge.Game.JevIntent do
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, SingleAction}
   alias TalesForge.Game.WorldClock
+  alias TalesForge.Locations.Named
 
   @action_chars 600
   @max_candidates 48
@@ -419,6 +420,8 @@ defmodule TalesForge.Game.JevIntent do
     |> Map.get("fixtures", [])
     |> List.wrap()
     |> Enum.filter(&(is_binary(&1) and &1 != ""))
+    # A fixture that is a spot ("bar counter", the bar desk) is offered once.
+    |> Enum.reject(&Named.spot?(context, &1))
     |> Enum.map(fn fixture -> %{kind: :fixture, id: fixture, text: "#{fixture} (fixture)"} end)
   end
 
