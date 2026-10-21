@@ -7,8 +7,7 @@ defmodule TalesForge.Admin do
 
   require Logger
 
-  alias TalesForge.Characters
-  alias TalesForge.GameCharacter.{Person, Roster, Rows, Seeding}
+  alias TalesForge.GameCharacter.{Person, Roster, Rows, Seeding, Store}
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession, Scene, Turn}
 
@@ -37,7 +36,7 @@ defmodule TalesForge.Admin do
       GameSession
       |> order_by([s], desc: s.inserted_at)
       |> Repo.all()
-      |> Characters.put_sheets()
+      |> Store.put_sheets()
 
     counts = turn_counts(Enum.map(sessions, & &1.id))
 
@@ -61,7 +60,7 @@ defmodule TalesForge.Admin do
 
     GameSession
     |> Repo.get!(id)
-    |> Characters.put_sheet()
+    |> Store.put_sheet()
     |> Repo.preload(preloads)
   end
 
@@ -83,7 +82,7 @@ defmodule TalesForge.Admin do
   @doc """
   Saves an edited world state. Its `"character"` is the player character's
   sheet, so the session and the characters rows are written in one
-  transaction (`TalesForge.Characters.save_session/1`). The row is the only
+  transaction (`TalesForge.GameCharacter.Store.save_session/1`). The row is the only
   copy of the sheet, so an edit without `"character"` keeps the current one.
   """
   @spec update_session_world_state(%{id: Ecto.UUID.t()}, String.t()) ::
@@ -95,7 +94,7 @@ defmodule TalesForge.Admin do
 
       current
       |> GameSession.changeset(%{world_state: keep_character(world_state, current.world_state)})
-      |> Characters.save_session()
+      |> Store.save_session()
     end
   end
 

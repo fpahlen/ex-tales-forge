@@ -14,9 +14,9 @@ defmodule TalesForge.GameCharacterTest do
 
   import TalesForge.PlaytestHelpers, only: [stub_llm: 1]
 
-  alias TalesForge.Characters
   alias TalesForge.Game.TurnProcessor
   alias TalesForge.GameCharacter
+  alias TalesForge.GameCharacter.Store
   alias TalesForge.GameSessions
   alias TalesForge.Repo
   alias TalesForge.Schemas.GameSession
@@ -71,7 +71,7 @@ defmodule TalesForge.GameCharacterTest do
     }
   end
 
-  defp row_sheet(session_id), do: Characters.player_sheets([session_id])[session_id]
+  defp row_sheet(session_id), do: Store.player_sheets([session_id])[session_id]
 
   defp stored_world(session_id), do: Repo.get!(GameSession, session_id).world_state
 
@@ -150,7 +150,7 @@ defmodule TalesForge.GameCharacterTest do
   test "the promoted sheet keys are columns and the row keeps no runtime sheet" do
     {:ok, session} = GameSessions.create_session(%{name: "Promoted", adventure_id: "tin_valley"})
     session = GameSessions.get_session!(session.id)
-    [row] = Enum.filter(Characters.list_for_session(session.id), &(&1.controller == "player"))
+    [row] = Enum.filter(Store.list_for_session(session.id), &(&1.controller == "player"))
 
     # A row written before the promotion, with "class" in the bridge.
     row
@@ -170,7 +170,7 @@ defmodule TalesForge.GameCharacterTest do
       })
 
     save_sheet(session, sheet)
-    [row] = Enum.filter(Characters.list_for_session(session.id), &(&1.controller == "player"))
+    [row] = Enum.filter(Store.list_for_session(session.id), &(&1.controller == "player"))
 
     assert {row.class, row.creation["occupation"], row.reflecting, row.improved_since_rest} ==
              {"warrior", "drover", ["climbing"], ["insight"]}
@@ -250,7 +250,7 @@ defmodule TalesForge.GameCharacterTest do
     Repo.delete_all(Ecto.assoc(session, :characters))
     stored = Repo.get!(GameSession, session.id)
 
-    assert Characters.put_sheet(stored) == stored
+    assert Store.put_sheet(stored) == stored
     refute Map.has_key?(stored.world_state, "character")
   end
 

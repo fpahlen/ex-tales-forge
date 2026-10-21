@@ -150,6 +150,6 @@ defmodule TalesForge.AdminTest do
     assert {:ok, _} = Admin.reset_session_npcs(session)
     refreshed = Rows.get(session.id, npc.npc_id)
     assert Map.get(refreshed.runtime_state, "mood") != "broken"
-    assert TalesForge.Characters.get_by_slug(session.id, "elara_voss")
+    assert TalesForge.GameCharacter.Store.get_by_slug(session.id, "elara_voss")
   end
 end

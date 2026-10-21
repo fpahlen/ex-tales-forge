@@ -5,18 +5,17 @@ defmodule TalesForge.GameCharacter.Seeding do
   runtime state (`TalesForge.GameCharacter.Seed`).
   """
 
-  alias TalesForge.Characters.{Defaults, Levers}
   alias TalesForge.Game.Features
   alias TalesForge.Game.Pack
   alias TalesForge.Game.WorldClock
-  alias TalesForge.GameCharacter.{Person, Seed}
+  alias TalesForge.GameCharacter.{Defaults, Levers, Person, Seed}
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession}
 
   @doc """
   Seeds the session's NPCs (their character rows) from the pack (tin_valley) or the
   `priv/npcs` files. Definitions with a `derive` block get their defaults from
-  `TalesForge.Characters.Defaults` (skills on the PC scale, stats, OCEAN), seeded
+  `TalesForge.GameCharacter.Defaults` (skills on the PC scale, stats, OCEAN), seeded
   per session and NPC; the authored keys stay as overrides.
   """
   @spec seed_session(GameSession.t()) :: :ok
@@ -67,7 +66,7 @@ defmodule TalesForge.GameCharacter.Seeding do
 
   # `seed` has the session id and the world tick the session starts at. The
   # player character's relationship is set when its row is written
-  # (`Characters.seed_session/2`).
+  # (`GameCharacter.Store.seed_session/2`).
   defp insert_row!(%{session_id: session_id, world_tick: world_tick}, npc_id, definition) do
     location_id = Map.get(definition, "default_location_id", "weary_pilgrim")
 

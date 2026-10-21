@@ -1,15 +1,14 @@
-defmodule TalesForge.CharactersSyncTest do
+defmodule TalesForge.GameCharacter.StoreSyncTest do
   use TalesForge.DataCase, async: false
 
   import Ecto.Query
   import ExUnit.CaptureLog
   alias TalesForge.GameCharacter.Rows
 
-  alias TalesForge.Characters
   alias TalesForge.Game.{ActionHandler, Intent, TurnProcessor}
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.Turn.Board
-  alias TalesForge.GameCharacter.Roster
+  alias TalesForge.GameCharacter.{Roster, Store}
   alias TalesForge.GameSessions
   alias TalesForge.Repo
   alias TalesForge.Schemas.{Character, GameSession, PlaytestRun}
@@ -69,22 +68,22 @@ defmodule TalesForge.CharactersSyncTest do
       session = wait_turn(session, %{"climbing" => {51, 5}})
       assert get_in(session.world_state, ["character", "skills", "climbing"]) == 20
 
-      elara = Characters.get_by_slug(session.id, "elara_voss")
+      elara = Store.get_by_slug(session.id, "elara_voss")
       assert elara.skills["climbing"] == 20
       assert elara.learning_points == %{"climbing" => 0.0}
       # Levers set at seeding are not overwritten by the mirror.
       assert elara.maslow_level == "esteem"
       assert elara.controller == "player"
 
-      innkeep = Characters.get_by_slug(session.id, "innkeep")
+      innkeep = Store.get_by_slug(session.id, "innkeep")
       assert_in_delta innkeep.relationships["elara_voss"], 0.4, 0.001
 
       assert [%{text: "The stranger paid in silver", tick: 30, kind: "memory"}] =
-               Characters.list_memories(innkeep)
+               Store.list_memories(innkeep)
 
       # A second turn adds nothing twice.
       wait_turn(reload(session.id), %{})
-      assert length(Characters.list_memories(innkeep)) == 1
+      assert length(Store.list_memories(innkeep)) == 1
     end
   end
 
@@ -99,20 +98,20 @@ defmodule TalesForge.CharactersSyncTest do
       assert {:error, :boom, :failed, _} =
                Ecto.Multi.new()
                |> Ecto.Multi.put(:session, saved)
-               |> Characters.write_multi(Characters.cast(session.id))
+               |> Store.write_multi(Store.cast(session.id))
                |> Ecto.Multi.run(:boom, fn _repo, _ -> {:error, :failed} end)
                |> Repo.transaction()
 
       # The turn failed, so the row kept its coins.
-      refute Characters.get_by_slug(session.id, "elara_voss").coins == %{"silver" => 7}
+      refute Store.get_by_slug(session.id, "elara_voss").coins == %{"silver" => 7}
 
       assert {:ok, %{characters: :ok}} =
                Ecto.Multi.new()
                |> Ecto.Multi.put(:session, saved)
-               |> Characters.write_multi(Characters.cast(session.id))
+               |> Store.write_multi(Store.cast(session.id))
                |> Repo.transaction()
 
-      assert Characters.get_by_slug(session.id, "elara_voss").coins == %{"silver" => 7}
+      assert Store.get_by_slug(session.id, "elara_voss").coins == %{"silver" => 7}
     end
 
     test "a sheet that doesn't validate skips the write and never fails the turn",
@@ -128,12 +127,12 @@ defmodule TalesForge.CharactersSyncTest do
           assert {:ok, %{characters: :skipped}} =
                    Ecto.Multi.new()
                    |> Ecto.Multi.put(:session, broken)
-                   |> Characters.write_multi(Characters.cast(session.id))
+                   |> Store.write_multi(Store.cast(session.id))
                    |> Repo.transaction()
         end)
 
       assert log =~ "characters write skipped session=#{session.id} slugs=elara_voss"
-      assert Characters.get_by_slug(session.id, "elara_voss").name == "Elara Voss"
+      assert Store.get_by_slug(session.id, "elara_voss").name == "Elara Voss"
     end
   end
 
@@ -147,34 +146,34 @@ defmodule TalesForge.CharactersSyncTest do
           tick: 30
         })
 
-      innkeep = Characters.get_by_slug(session.id, "innkeep")
+      innkeep = Store.get_by_slug(session.id, "innkeep")
 
       assert [%{"summary" => "The stranger paid in silver", "tick" => 30}] =
                innkeep.runtime["memories"]
 
       assert [%{text: "The stranger paid in silver", tick: 30, kind: "memory", about: []}] =
-               Characters.list_memories(innkeep)
+               Store.list_memories(innkeep)
 
       {:ok, score} = Roster.bump_relationship(session.id, "innkeep", 0.25)
       assert score == 0.25
 
-      assert Characters.get_by_slug(session.id, "innkeep").relationships == %{
+      assert Store.get_by_slug(session.id, "innkeep").relationships == %{
                "elara_voss" => 0.25
              }
     end
 
     test "a row from before PR 5 reads its memories from its memory rows", %{session: session} do
-      innkeep = Characters.get_by_slug(session.id, "innkeep")
+      innkeep = Store.get_by_slug(session.id, "innkeep")
 
       innkeep
       |> Character.changeset(%{runtime: Map.delete(innkeep.runtime, "memories")})
       |> Repo.update!()
 
       for {text, tick} <- [{"Second", 12}, {"First", 11}] do
-        {:ok, _} = Characters.add_memory(innkeep, %{kind: "memory", text: text, tick: tick})
+        {:ok, _} = Store.add_memory(innkeep, %{kind: "memory", text: text, tick: tick})
       end
 
-      {:ok, _} = Characters.add_memory(innkeep, %{kind: "memory", text: "Long", about: ["x"]})
+      {:ok, _} = Store.add_memory(innkeep, %{kind: "memory", text: "Long", about: ["x"]})
 
       assert [%{"summary" => "First", "tick" => 11}, %{"summary" => "Second", "tick" => 12}] =
                Rows.get(session.id, "innkeep").runtime_state["memories"]
@@ -189,7 +188,7 @@ defmodule TalesForge.CharactersSyncTest do
 
       assert ~w(First Second Third) ==
                Enum.map(
-                 Characters.get_by_slug(session.id, "innkeep").runtime["memories"],
+                 Store.get_by_slug(session.id, "innkeep").runtime["memories"],
                  & &1["summary"]
                )
     end
@@ -203,13 +202,13 @@ defmodule TalesForge.CharactersSyncTest do
                |> Ecto.Multi.run(:boom, fn _repo, _ -> {:error, :failed} end)
                |> Repo.transaction()
 
-      assert Characters.get_by_slug(session.id, "innkeep").relationships == %{"elara_voss" => 0.0}
+      assert Store.get_by_slug(session.id, "innkeep").relationships == %{"elara_voss" => 0.0}
     end
 
     test "the characters step keeps the NPC updates before it and adds the reaction",
          %{session: session} do
       reaction = %{"emotion" => "wary", "intensity" => 0.4}
-      cast = Characters.cast(session.id)
+      cast = Store.cast(session.id)
 
       cast =
         put_in(cast["innkeep"].runtime, Map.put(cast["innkeep"].runtime, "reaction", reaction))
@@ -221,16 +220,16 @@ defmodule TalesForge.CharactersSyncTest do
                  inst = Rows.get(session.id, "innkeep")
                  {:ok, Rows.update!(inst, Map.put(inst.runtime_state, "mood", "tired"))}
                end)
-               |> Characters.write_multi(cast)
+               |> Store.write_multi(cast)
                |> Repo.transaction()
 
-      innkeep = Characters.get_by_slug(session.id, "innkeep")
+      innkeep = Store.get_by_slug(session.id, "innkeep")
       assert {innkeep.mood, innkeep.runtime["reaction"]} == {"tired", reaction}
-      assert Characters.cast(session.id)["innkeep"].mood == "tired"
+      assert Store.cast(session.id)["innkeep"].mood == "tired"
     end
 
     test "the combat profile reads the skills column, not the definition", %{session: session} do
-      innkeep = Characters.get_by_slug(session.id, "innkeep")
+      innkeep = Store.get_by_slug(session.id, "innkeep")
 
       innkeep
       |> Character.changeset(%{
@@ -274,19 +273,19 @@ defmodule TalesForge.CharactersSyncTest do
         })
       )
 
-      first = Characters.backfill()
+      first = Store.backfill()
       assert first.failed == []
       assert first.inserted == 1
 
-      elara = Characters.get_by_slug(session.id, "elara_voss")
+      elara = Store.get_by_slug(session.id, "elara_voss")
       assert {elara.controller, elara.controller_ref} == {"bot", "ronny"}
       assert [%{id: "rope_coil", name: "Rope Coil", quantity: 2}] = elara.inventory
 
-      assert Characters.get_by_slug(session.id, "prospector").relationships == %{
+      assert Store.get_by_slug(session.id, "prospector").relationships == %{
                "elara_voss" => 0.0
              }
 
-      second = Characters.backfill()
+      second = Store.backfill()
       assert second.failed == []
       assert second.inserted == 0
       assert second.characters == first.characters
@@ -295,13 +294,13 @@ defmodule TalesForge.CharactersSyncTest do
 
     test "seeding and backfill agree on a fresh session", %{session: session} do
       before =
-        Characters.list_for_session(session.id)
+        Store.list_for_session(session.id)
         |> Enum.map(&Map.take(&1, [:slug, :controller, :skills, :maslow_level]))
 
-      assert Characters.backfill().failed == []
+      assert Store.backfill().failed == []
 
       after_ =
-        Characters.list_for_session(session.id)
+        Store.list_for_session(session.id)
         |> Enum.map(&Map.take(&1, [:slug, :controller, :skills, :maslow_level]))
 
       assert before == after_

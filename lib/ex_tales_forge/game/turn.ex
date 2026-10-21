@@ -31,13 +31,13 @@ defmodule TalesForge.Game.Turn do
   to the store.
   """
 
-  alias TalesForge.Characters
   alias TalesForge.Config
   alias TalesForge.Game.Cast
   alias TalesForge.Game.HistoryStrip
   alias TalesForge.Game.Offer
   alias TalesForge.Game.Schemas.PlayerAction
   alias TalesForge.Game.Turn.Adapters
+  alias TalesForge.GameCharacter.Store
   alias TalesForge.Intention
   alias TalesForge.Schemas.GameSession
 
@@ -88,10 +88,10 @@ defmodule TalesForge.Game.Turn do
   @doc """
   A new turn. Reads the feature flags and the role one time. `opts` are the
   intent options of `TalesForge.Game.TurnProcessor.run/3` plus `:adapters`,
-  `:flags` and `:cast` (for tests; else `TalesForge.Characters.cast/1`).
+  `:flags` and `:cast` (for tests; else `TalesForge.GameCharacter.Store.cast/1`).
   The session's `world_state["character"]`
   is the acting character, from its `characters` row
-  (`TalesForge.Characters.put_sheet/1`, when the session is loaded); the
+  (`TalesForge.GameCharacter.Store.put_sheet/1`, when the session is loaded); the
   turn plays its Intention (`intention`, `by: :human`).
   """
   @spec new({GameSession.t(), integer()}, {String.t(), PlayerAction.t()}, keyword()) :: t()
@@ -119,7 +119,7 @@ defmodule TalesForge.Game.Turn do
   # and the adapters.
   defp from_opts(opts, session_id) do
     [
-      cast: Keyword.get_lazy(opts, :cast, fn -> Characters.cast(session_id) end),
+      cast: Keyword.get_lazy(opts, :cast, fn -> Store.cast(session_id) end),
       role: Keyword.get_lazy(opts, :role, &TalesForge.AppRole.role/0),
       adapters: Keyword.get(opts, :adapters, %Adapters{})
     ]

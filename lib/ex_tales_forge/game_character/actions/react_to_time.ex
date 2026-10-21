@@ -1,4 +1,4 @@
-defmodule TalesForge.Actions.Character.ReactToTime do
+defmodule TalesForge.GameCharacter.Actions.ReactToTime do
   @moduledoc """
   Time passed for a present NPC: its concern waits `delta_ticks` longer
   (`{:wait, delta}`), and it speaks up when the concern has waited long

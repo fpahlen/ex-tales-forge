@@ -11,9 +11,8 @@ defmodule TalesForge.GameCharacter.Rows do
 
   import Ecto.Query
 
-  alias TalesForge.Characters.Attrs
   alias TalesForge.GameCharacter
-  alias TalesForge.GameCharacter.{Memories, Person}
+  alias TalesForge.GameCharacter.{Attrs, Memories, Person}
   alias TalesForge.Repo
   alias TalesForge.Schemas.Character
 

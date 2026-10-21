@@ -101,7 +101,7 @@ defmodule TalesForge.Locations.PositionsTest do
 
     flags = Map.put(Turn.read_flags(), :location_grid, on?)
 
-    {TalesForge.Characters.put_sheet(session), number}
+    {TalesForge.GameCharacter.Store.put_sheet(session), number}
     |> Turn.new({"look around", action}, flags: flags, role: :playtest, adapters: adapters)
     |> Turn.Premise.check()
     |> Turn.Mechanics.apply()

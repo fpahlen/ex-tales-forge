@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters.PackRules do
+defmodule TalesForge.GameCharacter.PackRules do
   @moduledoc """
   How a pack's `character_defaults.json` extends the base character rules:
   new labels only, more concern focuses, and `class_defaults`, the default

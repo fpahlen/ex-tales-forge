@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters.Defaults.Inputs do
+defmodule TalesForge.GameCharacter.Defaults.Inputs do
   @moduledoc """
   The input labels a character's defaults are derived from. A label left out
   (or nil) takes its default.

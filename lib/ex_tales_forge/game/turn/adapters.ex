@@ -15,7 +15,7 @@ defmodule TalesForge.Game.Turn.Adapters do
     * `fighter` — the combat fighter of one NPC
       (`TalesForge.GameCharacter.Roster.combat_profile/2`; only with `COMBAT_OPPOSED=on`);
     * `character_rules` — the character defaults rules of an adventure, for
-      a minor foe (`TalesForge.Characters.Defaults.rules/1`; only with
+      a minor foe (`TalesForge.GameCharacter.Defaults.rules/1`; only with
       `COMBAT_OPPOSED=on`).
   """
 
@@ -25,7 +25,7 @@ defmodule TalesForge.Game.Turn.Adapters do
             profiles: &TalesForge.GameCharacter.Roster.notice_profiles/2,
             store: &TalesForge.Game.Turn.Store.persist/1,
             fighter: &TalesForge.GameCharacter.Roster.combat_profile/2,
-            character_rules: &TalesForge.Characters.Defaults.rules/1
+            character_rules: &TalesForge.GameCharacter.Defaults.rules/1
 
   @type t :: %__MODULE__{
           npc: (TalesForge.Game.CharacterReactions.Moment.t() -> [map()]),

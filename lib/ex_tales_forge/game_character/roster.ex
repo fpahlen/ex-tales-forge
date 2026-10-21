@@ -68,7 +68,7 @@ defmodule TalesForge.GameCharacter.Roster do
   @doc """
   The combat fighter of one NPC (`TalesForge.Game.Combat`): the stats,
   OCEAN, Maslow level and concerns of its definition (with the
-  `Characters.Defaults` already applied), the skills of its row and its
+  `GameCharacter.Defaults` already applied), the skills of its row and its
   current concern. Returns nil when the session has no NPC with that id.
   """
   @spec combat_profile(String.t(), String.t()) :: map() | nil
@@ -209,7 +209,7 @@ defmodule TalesForge.GameCharacter.Roster do
 
   @doc """
   The NPC `inst` as a member of the session's cast
-  (`TalesForge.Game.Cast`, `TalesForge.Characters.cast/1`): `row` (its
+  (`TalesForge.Game.Cast`, `TalesForge.GameCharacter.Store.cast/1`): `row` (its
   character row as a `GameCharacter`) with the name, role and portrait of
   its definition, its place and mood (`"neutral"` when unset) and its
   current concern.

@@ -1,8 +1,8 @@
-defmodule TalesForge.Characters.LeversTest do
+defmodule TalesForge.GameCharacter.LeversTest do
   use ExUnit.Case, async: true
 
-  alias TalesForge.Characters.Levers
   alias TalesForge.Game.Pack
+  alias TalesForge.GameCharacter.Levers
 
   @valid %{"maslow" => "safety", "concerns" => [%{"text" => "Keep the inn", "priority" => 5}]}
 

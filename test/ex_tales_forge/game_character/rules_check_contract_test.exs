@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters.RulesCheckContractTest do
+defmodule TalesForge.GameCharacter.RulesCheckContractTest do
   @moduledoc """
   Characterization tests: every rule the two rule validators apply today
   (`Defaults` on the label tables, `CharacterCreation` on `creation.json`),
@@ -7,7 +7,7 @@ defmodule TalesForge.Characters.RulesCheckContractTest do
   """
   use ExUnit.Case, async: true
 
-  alias TalesForge.Characters.{Defaults, RulesCheck}
+  alias TalesForge.GameCharacter.{Defaults, RulesCheck}
 
   @labels Defaults.rules()
   @creation Path.join([:code.priv_dir(:ex_tales_forge), "characters", "creation.json"])

@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters.RulesCheck.Rule do
+defmodule TalesForge.GameCharacter.RulesCheck.Rule do
   @moduledoc """
   One rule check: every name in `names` must be in `known`, or `message`
   (a function of the unknown names, in order) is raised as an `ArgumentError`.

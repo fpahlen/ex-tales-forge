@@ -1,4 +1,4 @@
-defmodule TalesForge.Characters.Defaults do
+defmodule TalesForge.GameCharacter.Defaults do
   @moduledoc """
   Character defaults derived in pure Elixir from race, class, social standing,
   occupation and seniority (Character plan, section 7). People are assumed to
@@ -20,8 +20,8 @@ defmodule TalesForge.Characters.Defaults do
   No database, no AI.
   """
 
-  alias TalesForge.Characters.Defaults.{Inputs, Picked}
-  alias TalesForge.Characters.{Levers, PackRules, RulesCheck}
+  alias TalesForge.GameCharacter.Defaults.{Inputs, Picked}
+  alias TalesForge.GameCharacter.{Levers, PackRules, RulesCheck}
 
   @stats ~w(STR DEX CON INT WIS CHA)
   @max_concerns 3

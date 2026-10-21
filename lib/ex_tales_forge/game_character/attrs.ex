@@ -1,18 +1,18 @@
-defmodule TalesForge.Characters.Attrs do
+defmodule TalesForge.GameCharacter.Attrs do
   @moduledoc """
   Column values of a `characters` row from game data: an inventory, a
   number map, concerns. A leaf of pure helpers, shared by
-  `TalesForge.Characters` and the NPC store (`TalesForge.GameCharacter.Person`,
+  `TalesForge.GameCharacter.Store` and the NPC store (`TalesForge.GameCharacter.Person`,
   `TalesForge.GameCharacter.Seed`).
   """
 
-  alias TalesForge.Characters.Levers
+  alias TalesForge.GameCharacter.Levers
 
   @doc """
   The `inventory` column of `items`. Old sheets can hold items without an
   id, or a quantity as a string; an item without a name is left out.
 
-      iex> TalesForge.Characters.Attrs.inventory([%{"name" => "Rope Coil", "quantity" => "2"}, %{"id" => "x"}])
+      iex> TalesForge.GameCharacter.Attrs.inventory([%{"name" => "Rope Coil", "quantity" => "2"}, %{"id" => "x"}])
       [%{"id" => "rope_coil", "name" => "Rope Coil", "quantity" => 2, "price_copper" => nil,
          "copper_value" => nil, "equipped" => nil}]
   """
@@ -52,7 +52,7 @@ defmodule TalesForge.Characters.Attrs do
   @doc """
   The integer values of `map`, keys as strings (a float is truncated).
 
-      iex> TalesForge.Characters.Attrs.int_map(%{brawling: 41.7, note: "x"})
+      iex> TalesForge.GameCharacter.Attrs.int_map(%{brawling: 41.7, note: "x"})
       %{"brawling" => 41}
   """
   @spec int_map(term()) :: %{String.t() => integer()}

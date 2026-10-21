@@ -3,7 +3,7 @@ defmodule TalesForge.Game.Turn.Store do
   The persist step of a turn (the effect at the end of the pipeline): one
   Multi with the session, the turn row, its events, the GM reasoning, the
   fronts and NPC ticks, the work-log push, the GM's NPC updates, the
-  characters (`TalesForge.Characters.write_multi/2`) and the NPC Intentions
+  characters (`TalesForge.GameCharacter.Store.write_multi/2`) and the NPC Intentions
   of the turn (`TalesForge.GameCharacter.Signals.intentions/1`, applied by
   `TalesForge.Game.Turn.Intentions.apply_all/2`); then character memory
   and the thought. The NPC initiatives go back in the payload
@@ -20,22 +20,22 @@ defmodule TalesForge.Game.Turn.Store do
   characters after the turn,
   `TalesForge.Game.Cast`; without it the store loads the cast). The cast
   goes to the `characters` rows, and the rows that live for a scene go
-  when the turn ends that scene (`TalesForge.Characters.end_scene_multi/2`).
+  when the turn ends that scene (`TalesForge.GameCharacter.Store.end_scene_multi/2`).
   """
 
   require Logger
 
   import Ecto.Query, only: [where: 3, select: 3]
 
-  alias TalesForge.Characters
-  alias TalesForge.Characters.{Moment, Thought}
+  alias TalesForge.GameCharacter
+
   alias TalesForge.Fronts
   alias TalesForge.Game.Mechanics
   alias TalesForge.Game.RollLine
   alias TalesForge.Game.SceneProcessor
   alias TalesForge.Game.Schemas.MechanicalResolution
   alias TalesForge.Game.Turn.Intentions
-  alias TalesForge.GameCharacter.{Agency, Roster, Signals}
+  alias TalesForge.GameCharacter.{Agency, Moment, Roster, Signals, Store, Thought}
   alias TalesForge.GMReasoning
   alias TalesForge.LLM
   alias TalesForge.Repo
@@ -88,9 +88,9 @@ defmodule TalesForge.Game.Turn.Store do
   defp after_commit(%Moment{} = moment, session) do
     # Character memory (board card fc3c9371): scene end moves working
     # memory to short-term; never fails the turn.
-    with :ok <- TalesForge.Characters.Memory.on_turn(moment) do
+    with :ok <- TalesForge.GameCharacter.MemoryLog.on_turn(moment) do
       # PR 2 (board card 845b6b15): Jev compression in a task, after commit.
-      TalesForge.Characters.Compression.after_turn(session.id, moment.events,
+      TalesForge.GameCharacter.Compression.after_turn(session.id, moment.events,
         now: Map.get(moment.world, "world_tick"),
         mode: moment.mode
       )
@@ -179,9 +179,9 @@ defmodule TalesForge.Game.Turn.Store do
     |> Fronts.persist_tick_multi(session.id, ctx.sim)
     |> Agency.persist_tick_multi(session.id, ctx.sim)
     |> npc_gm_updates(store)
-    |> Characters.write_multi(Map.get_lazy(ctx, :cast, fn -> Characters.cast(session.id) end))
+    |> Store.write_multi(Map.get_lazy(ctx, :cast, fn -> Store.cast(session.id) end))
     |> traders(session.id, Map.get(ctx, :traders, []))
-    |> Characters.end_scene_multi(Characters.Memory.scene_end(ctx.events))
+    |> Store.end_scene_multi(GameCharacter.MemoryLog.scene_end(ctx.events))
     |> npc_intentions(store)
   end
 
@@ -298,7 +298,7 @@ defmodule TalesForge.Game.Turn.Store do
   defp thought_entries(_turn_id, nil), do: []
 
   defp thought_entries(turn_id, thought),
-    do: [TalesForge.Characters.Thought.entry(turn_id, thought)]
+    do: [TalesForge.GameCharacter.Thought.entry(turn_id, thought)]
 
   defp build_entries(%__MODULE__{raw_action: raw_action, ctx: ctx}, turn_id, mechanical) do
     [

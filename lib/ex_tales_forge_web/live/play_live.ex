@@ -7,7 +7,7 @@ defmodule TalesForgeWeb.PlayLive do
 
   import TalesForgeWeb.PlayComponents
 
-  alias TalesForge.Characters
+  alias TalesForge.GameCharacter.Store
   alias TalesForge.GameSessions
   alias TalesForge.PubSub.GameSession, as: SessionPubSub
   alias TalesForge.Repo
@@ -33,7 +33,7 @@ defmodule TalesForgeWeb.PlayLive do
      socket
      |> assign(:page_title, session.name)
      |> assign(:session, session)
-     |> assign(:cast, Characters.cast(session.id))
+     |> assign(:cast, Store.cast(session.id))
      |> assign(:connected, connected?(socket))
      |> assign(:thinking, false)
      |> assign(:gm_reveal, GmReveal.from_config())
@@ -77,7 +77,7 @@ defmodule TalesForgeWeb.PlayLive do
      socket
      |> assign(:scene_loading, false)
      |> assign(:session, session)
-     |> assign(:cast, Characters.cast(session.id))
+     |> assign(:cast, Store.cast(session.id))
      |> assign(:llm_source, payload.llm_source)
      |> assign(:scene_image_url, payload.image_url)
      |> append_entries(payload.entries)}
@@ -133,7 +133,7 @@ defmodule TalesForgeWeb.PlayLive do
       |> drop_pending_action()
       |> assign(:clarification, nil)
       |> assign(:session, session)
-      |> assign(:cast, Characters.cast(session.id))
+      |> assign(:cast, Store.cast(session.id))
       |> assign(:llm_source, payload.llm_source)
       |> append_entries(payload.entries)
       |> maybe_start_scene_after_travel(payload, session)

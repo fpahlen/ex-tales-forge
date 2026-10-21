@@ -5,8 +5,7 @@ defmodule TalesForge.GameCharacter.Seed do
   state as columns.
   """
 
-  alias TalesForge.Characters.{Attrs, Levers}
-  alias TalesForge.GameCharacter.Person
+  alias TalesForge.GameCharacter.{Attrs, Levers, Person}
   alias TalesForge.Schemas.Character
 
   @maslow_by_need %{
@@ -26,7 +25,7 @@ defmodule TalesForge.GameCharacter.Seed do
   Stats default to 10 and OCEAN to 5 when the definition has none; without
   `maslow` the Maslow level is read from `motivations.primary_need`, else
   `"safety"`. The relationship to the player character is set when its row
-  is written (`TalesForge.Characters.seed_session/2`).
+  is written (`TalesForge.GameCharacter.Store.seed_session/2`).
   """
   @spec attrs(Person.t(), integer()) :: map()
   def attrs(%Person{} = inst, tick) do

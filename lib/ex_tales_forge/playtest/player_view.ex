@@ -32,7 +32,7 @@ defmodule TalesForge.Playtest.PlayerView do
       "Where: #{Map.get(world, "location_name", "Unknown")} · Time: #{Map.get(world, "world_clock", "—")}",
       "Character: #{Map.get(character, "name", "—")} · #{PlayPanel.quick_stats(character)}",
       "Inventory: #{inventory(character)}",
-      "Here: #{npcs(world, TalesForge.Characters.cast(session.id))}",
+      "Here: #{npcs(world, TalesForge.GameCharacter.Store.cast(session.id))}",
       "Story since the opening (latest last):\n" <> transcript(session, opening),
       question(clarification)
     ]

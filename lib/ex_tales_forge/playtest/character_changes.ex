@@ -23,7 +23,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
       `gm_reasoning` event.
     * **Player character**: the sheet copied into `characters.definition` at
       creation (start) and the character's row (end,
-      `TalesForge.Characters.player_sheets/1`); travel from
+      `TalesForge.GameCharacter.Store.player_sheets/1`); travel from
       `player.travel` session events; learning points and improvement rolls
       from each turn's `mechanical_resolution`.
     * **Levers**: OCEAN, Maslow level and concerns from the `characters` rows.
@@ -44,8 +44,8 @@ defmodule TalesForge.Playtest.CharacterChanges do
 
   import Ecto.Query
 
-  alias TalesForge.Characters
   alias TalesForge.Game.Pack
+  alias TalesForge.GameCharacter.Store
 
   alias TalesForge.Playtest.CharacterChanges.{
     Change,
@@ -164,9 +164,9 @@ defmodule TalesForge.Playtest.CharacterChanges do
   end
 
   # The world keys `build/1` reads, with the player character from its row
-  # (`TalesForge.Characters.put_world_sheet/2`).
+  # (`TalesForge.GameCharacter.Store.put_world_sheet/2`).
   defp load_worlds(ids) do
-    sheets = Characters.player_sheets(ids)
+    sheets = Store.player_sheets(ids)
 
     from(g in GameSession,
       where: g.id in ^ids,
@@ -178,7 +178,7 @@ defmodule TalesForge.Playtest.CharacterChanges do
          }}
     )
     |> Repo.all()
-    |> Map.new(fn {id, world} -> {id, Characters.put_world_sheet(world, sheets[id])} end)
+    |> Map.new(fn {id, world} -> {id, Store.put_world_sheet(world, sheets[id])} end)
   end
 
   defp load_npcs(ids) do

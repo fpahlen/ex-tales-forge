@@ -46,10 +46,10 @@ defmodule TalesForge.Game.Combat do
           }
   end
 
-  alias TalesForge.Characters.Defaults
   alias TalesForge.Game.Cast
   alias TalesForge.Game.Mechanics
   alias TalesForge.GameCharacter
+  alias TalesForge.GameCharacter.Defaults
 
   @combat_skills ~w(melee_combat ranged_combat unarmed_combat)
 
@@ -530,7 +530,7 @@ defmodule TalesForge.Game.Combat do
   :scene`: stats from `Defaults.derive/3` (the occupation of the person
   word, or laborer), no skills (the untrained floor) and 1 wound. `book/3`
   puts it in the cast at the place of the fight, and its row is removed
-  when that scene ends (`TalesForge.Characters.end_scene_multi/2`).
+  when that scene ends (`TalesForge.GameCharacter.Store.end_scene_multi/2`).
   """
   @spec minor_foe({String.t(), String.t()}, Defaults.rules(), integer()) :: fighter()
   def minor_foe({id, name}, rules, seed) do

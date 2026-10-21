@@ -7,8 +7,8 @@ defmodule TalesForge.Game.World do
   character from the pack file `priv/adventures/crossroads_ledger/characters/`.
   """
 
-  alias TalesForge.Characters.Levers
   alias TalesForge.Game.WorldClock
+  alias TalesForge.GameCharacter.Levers
 
   # Elara lives in the Crossroads pack (characters/elara_voss.json). Read at
   # compile time, levers stripped, so the session's character map stays the same.

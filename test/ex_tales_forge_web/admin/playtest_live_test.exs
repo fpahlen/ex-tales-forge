@@ -532,7 +532,7 @@ defmodule TalesForgeWeb.AdminLive.PlaytestLiveTest do
     reaction = %{"emotion" => "wary", "intensity" => 0.6, "stance" => "cool", "turn_number" => 1}
 
     session.id
-    |> TalesForge.Characters.get_by_slug("innkeep")
+    |> TalesForge.GameCharacter.Store.get_by_slug("innkeep")
     |> Ecto.Changeset.change(runtime: %{"reaction" => reaction})
     |> Repo.update!()
 

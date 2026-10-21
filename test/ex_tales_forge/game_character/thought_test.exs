@@ -1,8 +1,7 @@
-defmodule TalesForge.Characters.ThoughtTest do
+defmodule TalesForge.GameCharacter.ThoughtTest do
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Characters
-  alias TalesForge.Characters.{Moment, Thought}
+  alias TalesForge.GameCharacter.{Moment, Store, Thought}
   alias TalesForge.GameSessions
   alias TalesForge.Repo
   alias TalesForge.Schemas.{AICall, Turn}
@@ -11,7 +10,7 @@ defmodule TalesForge.Characters.ThoughtTest do
 
   setup do
     {:ok, session} = GameSessions.create_session(%{name: "Thought", adventure_id: "tin_valley"})
-    chars = Characters.list_for_session(session.id)
+    chars = Store.list_for_session(session.id)
     pc = Enum.find(chars, &(&1.controller != "gm"))
     npc = Enum.find(chars, &(&1.controller == "gm"))
     %{session: session, pc: pc, npc: npc}
@@ -19,7 +18,7 @@ defmodule TalesForge.Characters.ThoughtTest do
 
   defp remember!(pc, about, weight) do
     {:ok, _} =
-      Characters.add_memory(pc, %{
+      Store.add_memory(pc, %{
         kind: "memory",
         tier: "long",
         text: "warm: shared bread at the inn",

@@ -82,7 +82,7 @@ defmodule TalesForge.GameCharacter.Person do
     %{
       location_id: runtime_state["location_id"],
       mood: runtime_state["mood"],
-      inventory: TalesForge.Characters.Attrs.inventory(runtime_state["stock"]),
+      inventory: TalesForge.GameCharacter.Attrs.inventory(runtime_state["stock"]),
       coins: Map.get(runtime_state, "coins", row.coins),
       relationships:
         relationships(row.relationships, pc_slug, runtime_state["relationship_score"]),
