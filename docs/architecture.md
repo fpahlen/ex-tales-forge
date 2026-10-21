@@ -72,7 +72,7 @@ One `GameSession` (`lib/ex_tales_forge/schemas/game_session.ex`) is one instance
 | `game_sessions` | Instance: `name`, `status`, `world_state` (stored without `"character"`: `TalesForge.Schemas.WorldState`), unused `world_clock` UTC column |
 | `turns` | Auditable history: `player_action`, `narrative`, `mechanical_resolution` |
 | `scenes` | Per `(session, location_id)` exposition + optional `image_url` |
-| `npc_instances` | Per-session NPC (`personality` + `runtime_state`) until 10f PR 5; no longer read or written, kept until Fredrik OKs the drop. An NPC's state is its `characters` row |
+| `npc_instances` | Per-session NPC (`personality` + `runtime_state`) until 10f PR 5; no longer read or written and has no schema module, kept until Fredrik OKs the drop. An NPC's state is its `characters` row |
 | `characters` | One row per character, player or NPC (`controller` `player` \| `gm` \| `bot`), with OCEAN, Maslow level and concerns. Written at session create and in each turn's Multi (`TalesForge.Characters.write_multi/2`), and backfilled for older sessions with `TalesForge.Characters.backfill/0`. The player character's row is its only stored copy (refactor step 10b-2): a loaded session gets `world_state["character"]` from it (`TalesForge.Characters.put_sheet/1`). A pack NPC's row is its only store (10f PR 5): `TalesForge.NPC` reads and writes it through `TalesForge.NPC.Rows` as a `TalesForge.NPC.Person` (place, mood, stock in `inventory`, relationship, and `runtime` with the memories, concern wait and initiative flags), in the caller's transaction, and gives each memory its `character_memories` row when it is recorded. The GM characters' rows, read as the session's cast (`TalesForge.Characters.cast/1`, `TalesForge.Game.Cast`), hold the NPCs' wounds and vitality, their gut reaction (`runtime["reaction"]`) and the minor foes (10f PR 4). `lifetime` (`persistent` by default, `scene` for a minor foe) says when a row goes: `TalesForge.Characters.end_scene_multi/2` removes the `scene` rows of a place when the player leaves it or takes a long rest there, and nothing else reads the column |
 | `character_memories` | One character's own view (felt, salience, secret) of an event in `session_events`. Mirrored from each NPC's `runtime_state["memories"]` (matched on tick + text, never duplicated); nothing reads it yet |
 
@@ -1453,7 +1453,7 @@ Not open: instancing, turn ticks, no invented major fronts, Ecto runtime, table 
 - `lib/ex_tales_forge/game/mechanics.ex` — 1d20 + LP; social unbounded.
 - `lib/ex_tales_forge/npc.ex`, `npc_signals.ex` — present-NPC agency.
 - `lib/ex_tales_forge/world/instance.ex` — the one process per active session.
-- `lib/ex_tales_forge/schemas/*` — `GameSession`, `Turn`, `NpcInstance`, `Scene`.
+- `lib/ex_tales_forge/schemas/*` — `GameSession`, `Turn`, `Scene`.
 - `priv/adventures/crossroads_ledger/` — hook without an opposing plan.
 - `priv/npcs/marta_kellen.json` — `current_concern`, OCEAN, `agency_tier` (person, not a front).
 - `priv/prompts/gm_system.txt` — table GM contract (extend, do not fork).

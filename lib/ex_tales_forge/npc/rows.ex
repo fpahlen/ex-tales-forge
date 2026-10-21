@@ -2,7 +2,7 @@ defmodule TalesForge.NPC.Rows do
   @moduledoc """
   The store of the pack NPCs: their `characters` rows (controller `gm`,
   origin `pack`), read and written as `TalesForge.NPC.Person`s (refactor
-  step 10f PR 5; before it, `npc_instances`).
+  step 10f PR 5).
 
   A row written before this step has no memory list in its `runtime`; its
   memories are read from their `character_memories` rows
