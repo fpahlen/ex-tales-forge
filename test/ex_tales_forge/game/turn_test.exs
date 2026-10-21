@@ -95,7 +95,9 @@ defmodule TalesForge.Game.TurnTest do
     assert [%{kind: :item, claim: "silver key"}] = t.premise.first
     assert t.outcome.handler.handler == "narrate"
     assert t.outcome.handler.state_hints["premise_rejected"]
-    assert t.outcome.handler.state_hints["reason"] =~ "Player claims to own silver key; they don't"
+
+    assert t.outcome.handler.state_hints["reason"] =~
+             "Player claims to own silver key; they don't"
 
     assert_received {:gm, prompt}
     assert prompt =~ "Premise check: the action is blocked."
