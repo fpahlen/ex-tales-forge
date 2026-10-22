@@ -160,6 +160,8 @@ defmodule TalesForge.Game.ActionHandler do
   # pipeline design §11, decision 1).
   def tick_delta(%{state_hints: %{"rejected" => true}}), do: 0
   def tick_delta(%{state_hints: %{"no_action" => true}}), do: 0
+  # A counter-offer on a price the player named: nothing moved (Case, 2026-10-22).
+  def tick_delta(%{state_hints: %{"trade" => %{"status" => "counter"}}}), do: 0
 
   def tick_delta(_), do: 1
 

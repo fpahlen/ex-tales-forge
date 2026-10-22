@@ -363,6 +363,124 @@ defmodule TalesForge.Game.TradeTest do
       assert world["world_tick"] == session.world_state["world_tick"]
     end
 
+    # Fredrik's rule (2026-10-22): a price the player names trades at once
+    # when it is at least as good for the trader, else her price stays an
+    # open offer the player can accept. Gentry a1c02a9, session 89bfac5d T9.
+    test "T9 (89bfac5d): 'sell my hunting knife to Hilde for 12 copper' sells it for 12c",
+         %{session: session} do
+      session = at_hilde(session)
+      before = wealth(session, "smith")
+
+      text =
+        "I offer to sell Hilde my hunting knife for 12 copper. She agrees and I hand it over for 12 copper."
+
+      {prompt, saved} = play(session, text, named(sell("hunting_knife", "smith"), 12), "smith")
+
+      assert copper(saved.player) == copper(before.player) + 12
+      assert copper(saved.trader) == copper(before.trader) - 12
+      assert Inventory.item_quantity(saved.player["inventory"], "hunting_knife") == 0
+      assert Inventory.item_quantity(saved.trader.inventory, "hunting_knife") == 4
+      assert totals(saved) == totals(before)
+      assert prompt =~ "The server made this trade: sold 1x hunting_knife for 12c."
+    end
+
+    for named <- [15, 10] do
+      test "a sale at #{named}c, at or below Hilde's 15c, is made at #{named}c", %{
+        session: session
+      } do
+        session = at_hilde(session)
+        before = wealth(session, "smith")
+
+        {prompt, saved} =
+          play(
+            session,
+            "I sell my knife for #{unquote(named)}c.",
+            named(sell("hunting_knife", "smith"), unquote(named)),
+            "smith"
+          )
+
+        assert copper(saved.player) == copper(before.player) + unquote(named)
+        assert totals(saved) == totals(before)
+        assert prompt =~ "sold 1x hunting_knife for #{unquote(named)}c"
+      end
+    end
+
+    test "a sale at 20c, above Hilde's 15c, leaves her price open; accepting it sells at 15c",
+         %{session: session} do
+      session = at_hilde(session)
+      before = wealth(session, "smith")
+      tick = session.world_state["world_tick"]
+
+      {prompt, saved} =
+        play(
+          session,
+          "I sell my knife for 20 copper.",
+          named(sell("hunting_knife", "smith"), 20),
+          "smith"
+        )
+
+      assert saved == before
+      world = GameSessions.get_session!(session.id).world_state
+      assert world["world_tick"] == tick
+      assert %{"receiver" => "smith", "price" => 15} = world["open_offer"]
+      assert prompt =~ "the trader's price stands: Hilde Brask buys hunting knife for 15c."
+
+      accept = %{
+        "overall_intent" => "Fine, fifteen it is.",
+        "action" => %{"action_type" => "speak", "target" => "smith", "parameters" => %{}},
+        "offer_answer" => "accept"
+      }
+
+      {prompt, saved} = play(session, "Fine, fifteen it is.", accept, "smith")
+      assert copper(saved.player) == copper(before.player) + 15
+      assert totals(saved) == totals(before)
+      assert prompt =~ "sold 1x hunting_knife for 15c"
+      refute GameSessions.get_session!(session.id).world_state["open_offer"]
+    end
+
+    test "a buy at or above her price is made at it; below, her price is quoted and nothing moves",
+         %{session: session} do
+      session = at_hilde(session)
+      before = wealth(session, "smith")
+
+      spear = fn price ->
+        named(
+          %{
+            "action_type" => "buy",
+            "target" => "smith",
+            "parameters" => %{"item_id" => "spearhead", "npc_id" => "smith"}
+          },
+          price
+        )
+      end
+
+      tick = session.world_state["world_tick"]
+
+      {prompt, saved} = play(session, "I buy a spearhead for 15 copper.", spear.(15), "smith")
+      assert saved == before
+      assert GameSessions.get_session!(session.id).world_state["world_tick"] == tick
+      assert prompt =~ "the trader's price stands: Hilde Brask sells Spearhead for 20c."
+
+      {prompt, saved} = play(session, "I buy a spearhead for 25 copper.", spear.(25), "smith")
+      assert copper(saved.player) == copper(before.player) - 25
+      assert Inventory.item_quantity(saved.player["inventory"], "spearhead") == 1
+      assert totals(saved) == totals(before)
+      assert prompt =~ "bought 1x spearhead for 25c"
+    end
+
+    # Fredrik, 2026-10-22 (Q4 b): her stock price first, then the item's value.
+    test "a carried item Hilde also stocks sells at her stock price, not its own value",
+         %{session: session} do
+      session = session |> at_hilde() |> value("hunting_knife", 30)
+      before = wealth(session, "smith")
+
+      {prompt, saved} =
+        play(session, "I sell my knife to Hilde.", sell("hunting_knife", "smith"), "smith")
+
+      assert copper(saved.player) == copper(before.player) + 15
+      assert prompt =~ "sold 1x hunting_knife for 15c"
+    end
+
     test "a price question is an offer: the GM gets the quote and nothing moves",
          %{session: session} do
       before = wealth(session, "innkeep")
@@ -443,6 +561,20 @@ defmodule TalesForge.Game.TradeTest do
     extraction
     |> Intent.validate_player_action(Context.build_intent_context(session))
     |> PlayerAction.encode()
+  end
+
+  defp named(%{"parameters" => params} = action, price),
+    do: %{action | "parameters" => Map.put(params, "named_price", price)}
+
+  # The character at Hilde's forge, with her there.
+  defp at_hilde(%GameSession{world_state: world} = session) do
+    world =
+      world
+      |> Map.merge(%{"location_id" => "smithy", "present_npcs" => ["smith"]})
+      |> put_in(["character", "location_id"], "smithy")
+
+    session |> GameSession.changeset(%{world_state: world}) |> save_session!()
+    GameSessions.get_session!(session.id)
   end
 
   defp move(to), do: %{"action_type" => "move", "target" => to, "parameters" => %{}}

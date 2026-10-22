@@ -39,6 +39,8 @@ defmodule TalesForge.Game.Inventory do
   import TalesForge.Game.Goods, only: [find_item_index: 2, int_field: 3]
 
   alias TalesForge.Game.Goods
+  alias TalesForge.Game.ItemWords
+  alias TalesForge.Game.NamedPrice
   alias TalesForge.Game.Offer
   alias TalesForge.Game.Schemas.SingleAction
   alias TalesForge.Game.Trade
@@ -168,9 +170,15 @@ defmodule TalesForge.Game.Inventory do
       {:error, Exception.message(error)}
   end
 
+  # A price the player names is settled against the trader's
+  # (`NamedPrice.settle/3`): the trade at it, or her price as an open offer.
   defp to_trade(:buy, t) do
     with {:ok, npc_id, %Offer{item: %{}} = offer} <- purchase_offer(t),
-         do: {:ok, npc_id, Offer.to_trade(offer, t.character)}
+         do:
+           settled(
+             npc_id,
+             NamedPrice.deal(:buy, Offer.to_trade(offer, t.character), named_price(t))
+           )
   end
 
   defp to_trade(:sell, t), do: sale_trade(t)
@@ -229,19 +237,32 @@ defmodule TalesForge.Game.Inventory do
         {:error, "Nobody here buys '#{item_id}'."}
 
       {_item_id, %GameCharacter{} = trader} ->
-        {:ok, npc_id,
-         %Trade{
-           giver: character,
-           receiver: trader,
-           item: goods(carried || %{"id" => item_id}, params),
-           price:
-             total(params, valued(carried, Enum.find(trader.inventory, &(&1["id"] == item_id))))
-         }}
+        settled(npc_id, NamedPrice.deal(:sell, sale_to(trader, carried, t), named_price(t)))
     end
   end
 
-  defp valued(%{"copper_value" => value} = carried, _stocked) when value > 0, do: carried
-  defp valued(carried, stocked), do: stocked || carried
+  # The sale to `trader` at her price: her stock price, else the item's value.
+  defp sale_to(trader, carried, %Transaction{character: character, action: action}) do
+    params = params(action)
+    item_id = param_item_id(params)
+    stocked = Enum.find(trader.inventory, &(&1["id"] == item_id))
+
+    %Trade{
+      giver: character,
+      receiver: trader,
+      item: goods(carried || %{"id" => item_id}, params),
+      price: total(params, valued(carried, stocked))
+    }
+  end
+
+  # Her stock price, else the item's own value (Fredrik, 2026-10-22).
+  defp valued(_carried, %{"price_copper" => price} = stocked) when price > 0, do: stocked
+  defp valued(carried, stocked), do: carried || stocked
+
+  defp named_price(%Transaction{action: action}), do: params(action)["named_price"]
+
+  defp settled(npc_id, {:trade, %Trade{} = trade}), do: {:ok, npc_id, trade}
+  defp settled(_npc_id, counter_offer), do: counter_offer
 
   defp total(params, item), do: price_copper(params, item) * action_quantity(params)
 
@@ -427,33 +448,22 @@ defmodule TalesForge.Game.Inventory do
     }
   end
 
-  def resolve_item_id(hint, items) when is_binary(hint) do
-    hint = String.trim(hint)
-    normalized = String.downcase(hint)
-
-    cond do
-      hint == "" -> nil
-      match = Enum.find(items, &(&1["id"] == normalized)) -> match["id"]
-      true -> Enum.find_value(items, &matching_item_id(normalized, &1))
-    end
-  end
-
-  def resolve_item_id(_, _), do: nil
+  defdelegate resolve_item_id(hint, items), to: ItemWords
 
   @doc """
   The sale of a carried item, as a purchase takes its item and price from
   the stock: `"item_id"` is the item of `inventory` whose id is `item`, else
-  the one `text` names, and `"price_copper"` is its value when it has one.
-  Empty when no carried item matches.
+  the one `text` names. Empty when no carried item matches. The price is
+  the buyer's (her stock price, else the item's value, `sale_trade/1`).
 
   Playtest v319 on 2026-10-18 (drift session 464229eb): "I sell my mug of
   ale to Brenna" was a sale with no item.
 
       iex> inventory = [%{"id" => "ale_mug", "name" => "Mug of Ale", "copper_value" => 2}]
       iex> TalesForge.Game.Inventory.sale(nil, "I sell my mug of ale to Brenna", inventory)
-      %{"item_id" => "ale_mug", "price_copper" => 2}
+      %{"item_id" => "ale_mug"}
       iex> TalesForge.Game.Inventory.sale("ale_mug", "I sell it", inventory)
-      %{"item_id" => "ale_mug", "price_copper" => 2}
+      %{"item_id" => "ale_mug"}
       iex> TalesForge.Game.Inventory.sale(nil, "I sell my boots", inventory)
       %{}
   """
@@ -462,14 +472,8 @@ defmodule TalesForge.Game.Inventory do
     items = normalize_items(inventory)
 
     case Enum.find(items, &(&1["id"] == item)) || named_item(text, items) do
-      nil ->
-        %{}
-
-      %{"copper_value" => value, "id" => id} when value > 0 ->
-        %{"item_id" => id, "price_copper" => value}
-
-      %{"id" => id} ->
-        %{"item_id" => id}
+      nil -> %{}
+      %{"id" => id} -> %{"item_id" => id}
     end
   end
 
@@ -478,19 +482,6 @@ defmodule TalesForge.Game.Inventory do
       nil -> nil
       id -> Enum.find(items, &(&1["id"] == id))
     end
-  end
-
-  defp matching_item_id(normalized, item) do
-    id = item["id"]
-    name = String.downcase(Map.get(item, "name", id))
-    readable = String.replace(String.downcase(id), "_", " ")
-
-    if item_name_matches?(normalized, readable, name), do: id
-  end
-
-  defp item_name_matches?(normalized, readable, name) do
-    String.contains?(normalized, readable) or String.contains?(readable, normalized) or
-      String.contains?(normalized, name) or String.contains?(name, normalized)
   end
 
   defp finish(%Transaction{character: %GameCharacter{inventory: inventory, coins: coins}} = t) do

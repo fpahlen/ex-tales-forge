@@ -36,6 +36,7 @@ defmodule TalesForge.Game.Offer do
       false
   """
 
+  alias TalesForge.Game.CounterOffer
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
   alias TalesForge.Game.Trade
   alias TalesForge.GameCharacter
@@ -108,6 +109,9 @@ defmodule TalesForge.Game.Offer do
   @spec text(t()) :: String.t()
   def text(%__MODULE__{giver: giver, item: nil, options: options}),
     do: "#{giver.name} has #{Enum.map_join(options, ", or ", &priced/1)}"
+
+  def text(%__MODULE__{receiver: %GameCharacter{} = buyer, item: item, price: price}),
+    do: "#{buyer.name} buys #{name(item)} for #{price}c"
 
   def text(%__MODULE__{giver: giver, item: item, price: price}),
     do: "#{giver.name} sells #{name(item)} for #{price}c"
@@ -183,7 +187,7 @@ defmodule TalesForge.Game.Offer do
       %{"item" => %{"id" => id} = item, "price" => price} when is_binary(id) ->
         if expired?(stored, world),
           do: player_action,
-          else: buy(player_action, stored["giver"], {item, price})
+          else: deal(player_action, stored, {item, price})
 
       _ ->
         player_action
@@ -196,12 +200,16 @@ defmodule TalesForge.Game.Offer do
   defp chosen(%{"item" => %{}} = stored, %PlayerAction{offer_answer: :accept}), do: stored
   defp chosen(_stored, _player_action), do: nil
 
-  defp buy(%PlayerAction{} = player_action, giver, {item, price}) do
+  # A buy from the giver, or for a counter-offer on a sale (`"receiver"`) the
+  # sale to the trader, at the offer's price.
+  defp deal(%PlayerAction{} = player_action, stored, {item, price}) do
     quantity = max(1, item["quantity"] || 1)
 
+    {type, trader} = CounterOffer.accepting(stored)
+
     action = %SingleAction{
-      action_type: :buy,
-      target: giver,
+      action_type: type,
+      target: trader,
       parameters: %{
         "item_id" => item["id"],
         "quantity" => quantity,
@@ -217,9 +225,9 @@ defmodule TalesForge.Game.Offer do
   player is not at its place, or its giver is not present.
   """
   @spec expired?(map(), map()) :: boolean()
-  def expired?(%{"location_id" => place, "giver" => giver}, world) do
+  def expired?(%{"location_id" => place, "giver" => _giver} = stored, world) do
     get_in(world, ["character", "location_id"]) != place or
-      giver not in List.wrap(world["present_npcs"])
+      CounterOffer.trader(stored) not in List.wrap(world["present_npcs"])
   end
 
   def expired?(_stored, _world), do: true
@@ -241,6 +249,7 @@ defmodule TalesForge.Game.Offer do
       "location_id" => offer.location_id,
       "age" => offer.age
     }
+    |> CounterOffer.put_buyer(offer.receiver)
   end
 
   @doc "The offer kept in the world state (`to_world/1`), for the GM and Jev."
@@ -251,6 +260,7 @@ defmodule TalesForge.Game.Offer do
       item: stored["item"],
       price: stored["price"],
       options: stored["options"] || [],
+      receiver: CounterOffer.buyer(stored),
       location_id: stored["location_id"],
       age: stored["age"] || 0
     }

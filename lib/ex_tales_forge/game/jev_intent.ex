@@ -80,6 +80,7 @@ defmodule TalesForge.Game.JevIntent do
 
   alias TalesForge.Game.IntentCalibration
   alias TalesForge.Game.Inventory
+  alias TalesForge.Game.NamedPrice
   alias TalesForge.Game.Offer
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, SingleAction}
@@ -1135,15 +1136,21 @@ defmodule TalesForge.Game.JevIntent do
   defp put_numbers(params, %Choice{action: :spend, text: text}),
     do: Map.put(params, "amount_copper", Inventory.parse_copper_hint(text))
 
-  defp put_numbers(params, %Choice{action: :buy, context: context, target: target}) do
+  defp put_numbers(params, %Choice{action: :buy, context: context, target: target} = c) do
     case price_for(context, target) do
       nil -> params
       price -> Map.put(params, "price_copper", price)
     end
+    |> Map.merge(NamedPrice.params(c.text))
   end
 
   defp put_numbers(params, %Choice{action: :sell, context: context} = c),
-    do: Map.merge(params, Inventory.sale(c.item, c.text, context["player_inventory"]))
+    do:
+      Map.merge(
+        params,
+        Inventory.sale(c.item, c.text, context["player_inventory"])
+        |> Map.merge(NamedPrice.params(c.text))
+      )
 
   defp put_numbers(params, %Choice{}), do: params
 
