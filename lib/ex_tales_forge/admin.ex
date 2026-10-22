@@ -201,7 +201,7 @@ defmodule TalesForge.Admin do
     case Jason.decode(json_string) do
       {:ok, map} when is_map(map) -> {:ok, map}
       {:ok, _} -> {:error, "JSON must be an object"}
-      {:error, reason} -> {:error, "Invalid JSON: #{inspect(reason)}"}
+      {:error, %Jason.DecodeError{position: at}} -> {:error, "Invalid JSON at position #{at + 1}"}
     end
   end
 
@@ -217,12 +217,12 @@ defmodule TalesForge.Admin do
   end
 
   defp session_location(session) do
-    world_state = Map.get(session, :world_state, %{}) || %{}
+    world_state = session.world_state || %{}
     Map.get(world_state, "location_name", Map.get(world_state, "location_id", "—"))
   end
 
   defp session_character_name(session) do
-    world_state = Map.get(session, :world_state, %{}) || %{}
+    world_state = session.world_state || %{}
     get_in(world_state, ["character", "name"]) || "—"
   end
 end

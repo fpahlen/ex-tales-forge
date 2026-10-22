@@ -8,6 +8,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
   import TalesForgeWeb.AdminComponents
 
   alias TalesForge.Admin
+  alias TalesForgeWeb.TimeAgo
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -15,7 +16,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
 
     {:ok,
      socket
-     |> assign(:page_title, session.name)
+     |> assign(page_title: session.name, saved_at: nil)
      |> assign_session(session)}
   end
 
@@ -48,6 +49,7 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
         {:noreply,
          socket
          |> assign_session(session)
+         |> assign(:saved_at, DateTime.utc_now())
          |> put_flash(:info, "World state saved.")}
 
       {:error, reason} ->
@@ -74,10 +76,11 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
   end
 
   defp assign_session(socket, session) do
-    socket
-    |> assign(:session, session)
-    |> assign(:world_state_json, Admin.encode_json(session.world_state || %{}))
-    |> assign(:form, to_form(Admin.change_session(session), as: "session"))
+    assign(socket,
+      session: session,
+      world_state_json: Admin.encode_json(session.world_state || %{}),
+      form: to_form(Admin.change_session(session), as: "session")
+    )
   end
 
   @impl true
@@ -199,6 +202,14 @@ defmodule TalesForgeWeb.AdminLive.SessionLive.Show do
           >
             Save world state
           </button>
+          <time
+            :if={@saved_at}
+            id="world-state-saved-at"
+            datetime={DateTime.to_iso8601(@saved_at)}
+            class="ml-3 text-sm text-[var(--paper-muted)]"
+          >
+            Saved at {TimeAgo.stockholm(@saved_at, "%H:%M")}
+          </time>
         </form>
       </.section_card>
 
