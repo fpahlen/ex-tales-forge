@@ -4,7 +4,7 @@ defmodule TalesForge.Game.NamedPrice do
   words: "for 12 copper", "for twelve copper", "at 12c", "for a silver"
   (Fredrik's rule, 2026-10-22; Gentry's session 89bfac5d T9, "I offer to
   sell Hilde my hunting knife for 12 copper", paid 15c). A count with no
-  coin word is not a price. `settle/3` decides it.
+  coin word is not a price.
 
       iex> TalesForge.Game.NamedPrice.of("I sell Hilde my hunting knife for 12 copper.")
       12
