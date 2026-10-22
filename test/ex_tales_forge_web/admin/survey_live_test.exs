@@ -203,7 +203,9 @@ defmodule TalesForgeWeb.AdminLive.SurveyLiveTest do
 
     assert html =~ "Now the player types:"
     assert html =~ "Flattery: praise used to get something"
-    refute html =~ ~r/scripted|jev/i
+    # Visible text, whole words: the raw HTML holds random CSRF and LiveView
+    # tokens that sometimes contain "jev" (about 1 render in 100).
+    refute html |> LazyHTML.from_document() |> LazyHTML.text() =~ ~r/\b(?:scripted|jev)\b/i
   end
 
   test "tabs show only active, open surveys with this founder's status", %{conn: conn} do
