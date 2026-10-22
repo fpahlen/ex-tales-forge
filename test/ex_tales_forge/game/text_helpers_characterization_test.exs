@@ -2,7 +2,8 @@ defmodule TalesForge.Game.TextHelpersCharacterizationTest do
   @moduledoc """
   Characterization of `Gestures.Forms.verb/1`, `DialogueMemory.lines/2` and
   `Rest.rest_place?/2` before round 2 PR 10: exact outputs from main,
-  quirks included ("see" gives "seing"). Pure, no LLM calls.
+  except that "ee" verbs now keep the "ee" before -ing ("seeing", not the
+  old "seing"). Pure, no LLM calls.
   """
   use ExUnit.Case, async: true
 
@@ -15,7 +16,7 @@ defmodule TalesForge.Game.TextHelpersCharacterizationTest do
     {"dab", ["dab", "dabs", "dabbing", "dabbed"]},
     {"drum", ["drum", "drums", "drumming", "drummed"]},
     {"fix", ["fix", "fixes", "fixing", "fixed"]},
-    {"free", ["free", "frees", "freing", "freed"]},
+    {"free", ["free", "frees", "freeing", "freed"]},
     {"glance", ["glance", "glances", "glancing", "glanced"]},
     {"grin", ["grin", "grins", "grinning", "grinned"]},
     {"hug", ["hug", "hugs", "hugging", "hugged"]},
@@ -28,16 +29,20 @@ defmodule TalesForge.Game.TextHelpersCharacterizationTest do
     {"pour", ["pour", "pours", "pouring", "poured"]},
     {"rub", ["rub", "rubs", "rubbing", "rubbed"]},
     {"scratch", ["scratch", "scratches", "scratching", "scratched"]},
-    {"see", ["see", "sees", "seing", "seed"]},
+    {"see", ["see", "sees", "seeing", "seed"]},
     {"shrug", ["shrug", "shrugs", "shrugging", "shrugged"]},
     {"sit", ["sit", "sits", "sitting", "sitted"]},
     {"stop", ["stop", "stops", "stopping", "stopped"]},
     {"tap", ["tap", "taps", "tapping", "tapped"]},
     {"wash", ["wash", "washes", "washing", "washed"]},
-    {"wipe", ["wipe", "wipes", "wiping", "wiped"]}
+    {"wipe", ["wipe", "wipes", "wiping", "wiped"]},
+    {"flee", ["flee", "flees", "fleeing", "fleed"]},
+    {"agree", ["agree", "agrees", "agreeing", "agreed"]},
+    {"make", ["make", "makes", "making", "maked"]},
+    {"hoe", ["hoe", "hoes", "hoeing", "hoed"]}
   ]
 
-  test "verb forms of 25 verbs" do
+  test "verb forms of 29 verbs" do
     for {base, forms} <- @verbs, do: assert(Forms.verb(base) == forms, base)
   end
 
