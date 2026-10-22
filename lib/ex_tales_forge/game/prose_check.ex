@@ -53,8 +53,10 @@ defmodule TalesForge.Game.ProseCheck do
   @number_words @numbers |> Map.keys() |> Enum.sort_by(&(-byte_size(&1))) |> Enum.join("|")
 
   @coin_re ~r/\b(\d+|#{@number_words})\s+(copper|coppers|silver|silvers|gold)\b/
+  # A phrase that names money: a coin word, or @coin_re's "two coppers".
+  @coin_word_re ~r/\b(?:coins?|copper|silver|gold)\b|\b(?:\d+|#{@number_words})\s+(?:coppers|silvers)\b/
 
-  @give_re ~r/\b(?:hands|gives|passes|tosses|slides|offers)\s+you\s+(?:a|an|the|some|your)?\s*([a-z' -]+?)(?:[.,;!]|\s+for\b|\s+and\b|$)/
+  @give_re ~r/\b(?:hands|gives|passes|tosses|slides|offers)\s+you\s+(?:(?:a|an|the|some|your)\s+)?(?!(?:any|no|some|every)(?:thing|one|body)\b)([a-z' -]+?)(?:[.,;!]|\s+for\b|\s+and\b|$)/
 
   # "sliding a small wooden token across to you", "sets a fresh mug of ale
   # in front of you". Gentry's playtest session ead76238 on 2026-10-14.
@@ -139,9 +141,7 @@ defmodule TalesForge.Game.ProseCheck do
   defp handed(lower, true), do: Regex.scan(@give_re, lower)
   defp handed(lower, false), do: Regex.scan(@give_re, lower) ++ Regex.scan(@place_re, lower)
 
-  defp coin_word?(phrase),
-    do:
-      Regex.match?(@coin_re, phrase) or Regex.match?(~r/\b(coins?|copper|silver|gold)\b/, phrase)
+  defp coin_word?(phrase), do: Regex.match?(@coin_word_re, phrase)
 
   defp item_words(item), do: String.downcase("#{item["name"]} #{item["id"]}")
 
