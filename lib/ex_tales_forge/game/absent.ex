@@ -8,9 +8,13 @@ defmodule TalesForge.Game.Absent do
   alias TalesForge.Game.Inventory
   alias TalesForge.GameCharacter.Roster
 
-  @doc ~s(The reason "<name> isn't here." when `action` names a person of the session not in `world`'s `"present_npcs"`, or nil.)
-  @spec reason(Ecto.UUID.t(), TalesForge.Game.Schemas.SingleAction.t(), map()) :: String.t() | nil
-  def reason(session_id, action, world) do
+  @doc ~s(The reason "<name> isn't here." when `action` names a person of `session` not in `world`'s `"present_npcs"`, or nil.)
+  @spec reason(
+          TalesForge.Schemas.GameSession.t(),
+          TalesForge.Game.Schemas.SingleAction.t(),
+          map()
+        ) :: String.t() | nil
+  def reason(%{id: session_id}, action, world) do
     id = Inventory.named_trader(action)
 
     case id not in ["" | List.wrap(world["present_npcs"])] && Roster.traders(session_id, [id]) do
