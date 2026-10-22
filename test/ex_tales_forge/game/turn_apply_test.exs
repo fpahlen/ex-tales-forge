@@ -128,14 +128,16 @@ defmodule TalesForge.Game.TurnApplyTest do
       assert world["world_tick"] == tick + 4
     end
 
-    test "flag off: the turn plays as before (no coins, one tick)" do
+    # The payment is refused and nothing else is done, so the turn costs no
+    # time (playtest v392; it cost one tick before).
+    test "flag off: no coins move, and the refused turn costs no time" do
       s = session("crossroads_ledger", "weary_pilgrim", ["marta_kellen"])
       tick = s.world_state["world_tick"]
 
       {world, _handler} = play(s, @pay_sleep, @spend, %{})
 
       assert world["character"]["coins"] == s.world_state["character"]["coins"]
-      assert world["world_tick"] == tick + 1
+      assert world["world_tick"] == tick
     end
   end
 
