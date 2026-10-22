@@ -27,6 +27,7 @@ defmodule TalesForge.Game.Turn.Board do
   alias TalesForge.GameCharacter.Rows
 
   alias TalesForge.Fronts
+  alias TalesForge.Game.Absent
   alias TalesForge.Game.ActionHandler
   alias TalesForge.Game.Arrivals
   alias TalesForge.Game.Bargain
@@ -401,9 +402,16 @@ defmodule TalesForge.Game.Turn.Board do
          %__MODULE__{player_action: %{action: action}} = board,
          refusals
        ) do
-    if Inventory.applies?(board.handler, action),
-      do: apply_inventory(world_state, board, refusals),
-      else: {world_state, nil}
+    cond do
+      not Inventory.applies?(board.handler, action) ->
+        {world_state, nil}
+
+      reason = Absent.reason(board.session, action, world_state) ->
+        {world_state, {:error, reason}}
+
+      true ->
+        apply_inventory(world_state, board, refusals)
+    end
   end
 
   # The inventory step is pure; the traders it reads are loaded here, with
@@ -454,13 +462,11 @@ defmodule TalesForge.Game.Turn.Board do
   defp decide_inventory(world_state, traders, %{action: action}),
     do: Inventory.apply_transaction(world_state, traders, action)
 
-  defp refuse(traders, refusals),
-    do: Map.new(traders, fn {id, trader} -> {id, refused(trader, refusals[id])} end)
-
-  defp refused(trader, nil), do: trader
-
-  defp refused(%GameCharacter{runtime: runtime} = trader, reason),
-    do: %{trader | runtime: Map.put(runtime, "refuses_trade", reason)}
+  defp refuse(traders, refusals) do
+    Enum.reduce(refusals, traders, fn {id, reason}, traders ->
+      Map.replace_lazy(traders, id, &put_in(&1.runtime["refuses_trade"], reason))
+    end)
+  end
 
   # Catalogue v2 (JEV_CATALOGUE_V2): an NPC can refuse a trade, and the words
   # can ask for a haggle (TalesForge.Game.Bargain) before the inventory step.
