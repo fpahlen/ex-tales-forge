@@ -625,15 +625,23 @@ defmodule TalesForge.Game.Turn.Board do
 
   # A buy or a sale as the board step decided it, for the GM
   # (`trade_outcome/2`): done, or refused with nothing moved.
-  defp decided_trade(handler, result, %SingleAction{action_type: type})
+  defp decided_trade(handler, result, %SingleAction{action_type: type} = action)
        when type in [:buy, :sell] do
     case trade_status(result) do
-      nil -> handler
-      {status, detail} -> put_trade(handler, %{"status" => status, "detail" => detail})
+      nil ->
+        handler
+
+      {status, detail} ->
+        put_trade(handler, %{"status" => countered(status, action), "detail" => detail})
     end
   end
 
   defp decided_trade(handler, _result, _action), do: handler
+
+  # The trader's price quoted back on a price the player named that is worse
+  # for her (`TalesForge.Game.NamedPrice.settle/3`): her counter-offer.
+  defp countered("offered", %SingleAction{parameters: %{"named_price" => _}}), do: "counter"
+  defp countered(status, _action), do: status
 
   defp trade_status({:error, reason}), do: {"refused", reason}
 

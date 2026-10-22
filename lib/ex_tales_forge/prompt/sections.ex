@@ -415,6 +415,12 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
       "The server quotes: #{detail}. Nothing changed hands; " <>
         "narrate the quote and wait for the player's answer, with no payment and no handover."
 
+  defp trade_line(%{"status" => "counter", "detail" => detail}),
+    do:
+      "The server did not take the price the player named; the trader's price stands: #{detail}. " <>
+        "Nothing changed hands; voice her answer with her price and wait for the player's, " <>
+        "with no payment and no handover."
+
   defp trade_line(%{"status" => "options", "detail" => detail}),
     do:
       "The server listed these options from stock: #{detail}. Nothing changed hands; " <>

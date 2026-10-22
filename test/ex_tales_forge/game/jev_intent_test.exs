@@ -410,4 +410,47 @@ defmodule TalesForge.Game.JevIntentTest do
       assert read(:speak, %{"innkeep" => 1.0}, later: :move).later == :move
     end
   end
+
+  # Gentry a1c02a9, session 89bfac5d T9: the price the player names goes to
+  # the board as "named_price" (TalesForge.Game.NamedPrice).
+  test "a sale or a buy that names a price carries it as named_price" do
+    context = context()
+    cands = JevIntent.candidates(context)
+    brenna = Enum.find(cands, &(&1.id == "innkeep"))
+    ale = Enum.find(cands, &(&1.id == "ale_mug"))
+
+    reply = fn action, target ->
+      %{
+        action: action,
+        target: target.label,
+        skill: :none,
+        later: :none,
+        safety: :benign,
+        confidence: %{action: 0.9, target: 0.9, safety: 0.99}
+      }
+    end
+
+    text = "I offer to sell Brenna my hunting knife for twelve copper. She agrees."
+    sale = JevIntent.decode(reply.(:sell, brenna), cands, text: text, context: context)
+
+    assert [
+             %{
+               action_type: :sell,
+               parameters: %{"item_id" => "hunting_knife", "named_price" => 12} = params
+             }
+           ] =
+             sale.extraction.actions
+
+    refute Map.has_key?(params, "price_copper")
+
+    buy =
+      JevIntent.decode(reply.(:buy, ale), cands, text: "I buy an ale for 3c", context: context)
+
+    assert [%{action_type: :buy, parameters: %{"named_price" => 3, "price_copper" => 2}}] =
+             buy.extraction.actions
+
+    plain = JevIntent.decode(reply.(:buy, ale), cands, text: "I buy an ale", context: context)
+    assert [%{parameters: params}] = plain.extraction.actions
+    refute Map.has_key?(params, "named_price")
+  end
 end
