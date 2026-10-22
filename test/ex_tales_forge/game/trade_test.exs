@@ -12,8 +12,9 @@ defmodule TalesForge.Game.TradeTest do
   """
   use TalesForge.DataCase, async: false
 
-  alias TalesForge.Game.{Inventory, Trade, TurnProcessor, World}
-  alias TalesForge.Game.Schemas.{GMStructuredResponse, HandlerResult, SingleAction}
+  alias TalesForge.Game.{Context, Intent, Inventory, Trade, TurnProcessor, World}
+  alias TalesForge.Game.Schemas.{GMStructuredResponse, HandlerResult, IntentExtraction}
+  alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
   alias TalesForge.Game.Turn.{Adapters, Board}
   alias TalesForge.GameCharacter
   alias TalesForge.GameCharacter.Roster
@@ -281,9 +282,7 @@ defmodule TalesForge.Game.TradeTest do
         ] do
       test "#{what} with Hilde while she is not present is refused: nothing moves, no time",
            %{session: session} do
-        # A refused trade costs no time (TURN_OUTCOME_RECORD; always, after #571).
-        System.put_env("TURN_OUTCOME_RECORD", "on")
-        on_exit(fn -> System.delete_env("TURN_OUTCOME_RECORD") end)
+        # A refused trade costs no time (always, since #571).
         session = value(session, "hunting_knife", 15)
         refute "smith" in session.world_state["present_npcs"]
         before = wealth(session, "smith")
@@ -298,6 +297,70 @@ defmodule TalesForge.Game.TradeTest do
 
         assert GameSessions.get_session!(session.id).world_state["world_tick"] == tick
       end
+    end
+
+    # Gentry, playtest v392 (session 63094001, T8): "I walk to the smithy and
+    # sell my hunting knife to Hilde." read as a sale at the inn: no walk, no
+    # sale, and the clock ticked.
+    test "move then trade: the character walks to the smithy, then sells to Hilde there",
+         %{session: session} do
+      session = value(session, "hunting_knife", 15)
+      before = wealth(session, "smith")
+      walk = ticks_of(session, "I walk to the smithy.", move("smithy"))
+
+      {prompt, saved} =
+        play(
+          session,
+          "I walk to the smithy and sell my hunting knife to Hilde.",
+          read(
+            session,
+            "I walk to the smithy and sell my hunting knife to Hilde.",
+            sell("hunting_knife", "smith")
+          ),
+          "smith"
+        )
+
+      world = GameSessions.get_session!(session.id).world_state
+      assert world["location_id"] == "smithy"
+      assert Inventory.item_quantity(saved.player["inventory"], "hunting_knife") == 0
+      assert copper(saved.player) == copper(before.player) + 15
+      assert totals(saved) == totals(before)
+      assert world["world_tick"] == session.world_state["world_tick"] + walk + 1
+      assert prompt =~ "The server made this trade: sold 1x hunting_knife for 15c."
+    end
+
+    test "move then trade to a place that does not exist: no walk, items conserved",
+         %{session: session} do
+      session = value(session, "hunting_knife", 15)
+      before = wealth(session, "smith")
+
+      {_prompt, saved} =
+        play(
+          session,
+          "I walk to the castle and sell my hunting knife to Hilde.",
+          read(
+            session,
+            "I walk to the castle and sell my hunting knife to Hilde.",
+            sell("hunting_knife", "smith")
+          ),
+          "smith"
+        )
+
+      world = GameSessions.get_session!(session.id).world_state
+      assert world["location_id"] == session.world_state["location_id"]
+      assert totals(saved) == totals(before)
+    end
+
+    test "a turn with no move and a refused trade costs no time", %{session: session} do
+      before = wealth(session, "innkeep")
+
+      {prompt, saved} =
+        play(session, "I sell my hunting knife to Brenna.", sell("hunting_knife"), "innkeep")
+
+      assert saved == before
+      assert prompt =~ "The server refused this trade"
+      world = GameSessions.get_session!(session.id).world_state
+      assert world["world_tick"] == session.world_state["world_tick"]
     end
 
     test "a price question is an offer: the GM gets the quote and nothing moves",
@@ -347,7 +410,11 @@ defmodule TalesForge.Game.TradeTest do
       end
     }
 
-    player_action = %{"overall_intent" => text, "action" => action}
+    player_action =
+      case action do
+        %{"action" => _} = read -> read
+        action -> %{"overall_intent" => text, "action" => action}
+      end
 
     assert {:ok, _payload} =
              TurnProcessor.run(id, {text, player_action},
@@ -363,6 +430,32 @@ defmodule TalesForge.Game.TradeTest do
   # T7, the mug of ale bought from Brenna.
   defp bought(session),
     do: play(session, "I buy a mug of ale from Brenna and pay her.", buy("ale_mug"), "innkeep")
+
+  # The player action of `text` after the intent step (`Intent.validate_player_action/2`).
+  defp read(session, text, action) do
+    extraction = %IntentExtraction{
+      overall_intent: text,
+      actions: [SingleAction.decode(action)],
+      primary_index: 0,
+      confidence: 1.0
+    }
+
+    extraction
+    |> Intent.validate_player_action(Context.build_intent_context(session))
+    |> PlayerAction.encode()
+  end
+
+  defp move(to), do: %{"action_type" => "move", "target" => to, "parameters" => %{}}
+
+  # The ticks a turn of `action` costs, played on a copy of `session`'s start.
+  defp ticks_of(session, text, action) do
+    {:ok, other} = GameSessions.create_session(%{name: "Walk", adventure_id: "tin_valley"})
+    other = GameSessions.get_session!(other.id)
+    play(other, text, action, "smith")
+
+    GameSessions.get_session!(other.id).world_state["world_tick"] -
+      session.world_state["world_tick"]
+  end
 
   defp buy(nil), do: %{"action_type" => "buy", "target" => "innkeep", "parameters" => %{}}
 

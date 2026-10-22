@@ -382,6 +382,46 @@ defmodule TalesForge.Game.TinjacksTest do
       refute GameSessions.get_session!(session.id).world_state["arrived_npcs"]
     end
 
+    # Gentry, playtest v392 (session 63094001, T6 to T7): Rusk and Cobb walked
+    # in at the square, the player walked back to the inn, and the inn prompt
+    # still said "Just arrived: Rusk and Cobb walked in here", so the GM had
+    # Rusk stride into the inn while he was not present.
+    test "the player leaves after Rusk and Cobb arrive: the next prompt does not say they walked in" do
+      System.put_env("INN_WORLD", "on")
+      System.put_env("WORLD_ANTAGONIST", "on")
+      {:ok, prompts} = Agent.start_link(fn -> [] end)
+
+      stub_llm(fn _kind, user, system ->
+        Agent.update(prompts, &[system <> "\n" <> user | &1])
+        :default
+      end)
+
+      on_exit(fn -> for k <- ~w(LLM_PROVIDER XAI_API_KEY), do: System.delete_env(k) end)
+      {:ok, session} = GameSessions.create_session(%{adventure_id: "tin_valley"})
+
+      session
+      |> Ecto.Changeset.change(
+        world_state:
+          session.world_state
+          |> Map.merge(%{"location_id" => "smithy", "last_scene_location" => "smithy"})
+          |> put_in(["character", "location_id"], "smithy")
+      )
+      |> save_session!()
+
+      assert {:ok, _} =
+               GameSessions.submit_message(session.id, "I wait by the forge for two hours.")
+
+      assert GameSessions.get_session!(session.id).world_state["arrived_npcs"] |> Enum.sort() ==
+               ["cobb", "rusk"]
+
+      Agent.update(prompts, fn _ -> [] end)
+      assert {:ok, _} = GameSessions.submit_message(session.id, "I walk back to the inn.")
+      world = GameSessions.get_session!(session.id).world_state
+      assert world["location_id"] == "valley_inn"
+      refute "rusk" in world["present_npcs"]
+      refute Agent.get(prompts, &Enum.join(&1, "\n")) =~ "Just arrived"
+    end
+
     test "WORLD_ANTAGONIST alone does nothing; without flags there is no Tinjacks front" do
       System.delete_env("INN_WORLD")
       System.put_env("WORLD_ANTAGONIST", "on")

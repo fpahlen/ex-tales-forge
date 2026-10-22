@@ -33,16 +33,16 @@ defmodule TalesForge.Game.Arrivals do
   @spec after_tick({[map()], map()}, [map()], map()) :: {[map()], map()}
   def after_tick({events, sim}, people_before, %{"location_id" => here} = world) do
     arrived = of(people_before, sim.people, here)
-    {events ++ events(arrived, world), Map.put(sim, :arrived, arrived)}
+    {events ++ events(arrived, here, world["world_tick"]), Map.put(sim, :arrived, arrived)}
   end
 
-  defp events(arrived, %{"location_id" => here} = world) do
+  defp events(arrived, here, tick) do
     for id <- arrived do
       %{
         "kind" => "npc.arrived",
         "actor" => id,
         "player_aware" => true,
-        "tick" => world["world_tick"],
+        "tick" => tick,
         "location_id" => here,
         "payload" => %{"npc_id" => id, "location_id" => here}
       }
@@ -62,30 +62,34 @@ defmodule TalesForge.Game.Arrivals do
   def present(world, []), do: world
 
   def present(world, people) do
-    here = world["location_id"]
-
-    present =
-      for person <- people, place(person) == here, do: person.npc_id
+    present = for person <- people, place(person) == world["location_id"], do: person.npc_id
 
     Map.put(world, "present_npcs", Enum.sort(present))
   end
 
   @doc """
   The GM line for the people who walked in on the last tick (the
-  `"arrived_npcs"` of the world before this turn), or nil.
+  `"arrived_npcs"` of the world before this turn) still present, or nil
+  (playtest v392: Rusk "strode into" the inn the player went back to).
 
-      iex> TalesForge.Game.Arrivals.line(["rusk"], %{"rusk" => %{"name" => "Rusk"}})
+      iex> intent = %{"present_npcs" => ["rusk"], "npc_details" => %{"rusk" => %{"name" => "Rusk"}}}
+      iex> TalesForge.Game.Arrivals.line(["rusk"], intent)
       "Just arrived: Rusk walked in here since the last turn. Narrate them as newly here."
+      iex> TalesForge.Game.Arrivals.line(["rusk"], %{intent | "present_npcs" => ["innkeep"]})
+      nil
       iex> TalesForge.Game.Arrivals.line(nil, %{})
       nil
   """
   @spec line([String.t()] | nil, map()) :: String.t() | nil
-  def line([_ | _] = ids, details) do
-    names = Enum.map_join(ids, " and ", &(get_in(details, [&1, "name"]) || &1))
-    "Just arrived: #{names} walked in here since the last turn. Narrate them as newly here."
+  def line(ids, intent) do
+    case Enum.filter(ids || [], &(&1 in intent["present_npcs"])) do
+      [] ->
+        nil
+
+      here ->
+        "Just arrived: #{Enum.map_join(here, " and ", &get_in(intent, ["npc_details", &1, "name"]))} walked in here since the last turn. Narrate them as newly here."
+    end
   end
 
-  def line(_ids, _details), do: nil
-
-  defp place(person), do: get_in(person, [Access.key(:runtime_state), "location_id"])
+  defp place(person), do: person.runtime_state["location_id"]
 end
