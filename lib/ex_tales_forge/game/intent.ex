@@ -21,6 +21,7 @@ defmodule TalesForge.Game.Intent do
   alias TalesForge.Game.Movement
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, PlayerAction, SingleAction}
+  alias TalesForge.Game.WalkThenTrade
   alias TalesForge.Game.WorldClock
   alias TalesForge.Locations.Destination
   alias TalesForge.Locations.Exits
@@ -216,7 +217,8 @@ defmodule TalesForge.Game.Intent do
     end
   end
 
-  defp normalize_move(action, _context), do: action
+  # A trade whose words walk somewhere first (TalesForge.Game.WalkThenTrade).
+  defp normalize_move(action, context), do: WalkThenTrade.walk(action, context)
 
   defp move_to({:place, id}, action, context) do
     world = movement_world(context)
