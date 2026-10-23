@@ -19,10 +19,6 @@ defmodule TalesForge.MixProject do
       source_url: "https://github.com/whyse-ab/ex-tales-forge",
       docs: docs(),
       test_coverage: test_coverage(),
-      # EEF-CVE-2026-105659 (bandit, HTTP/2): no fixed release yet; HTTP/2 is
-      # off in config/config.exs. Remove this ignore when bandit ships a fix
-      # (the hourly Security lane bumps it).
-      hex: [ignore_advisories: ["EEF-CVE-2026-105659"]],
       releases: [
         ex_tales_forge: [
           include_executables_for: [:unix],
