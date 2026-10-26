@@ -18,6 +18,6 @@ defmodule TalesForge.Prompt.Sections.StateFacts do
         | Enum.map(StateFacts.lines(facts), &("- " <> &1))
       ],
       "\n"
-    )
+    ) <> "\n"
   end
 end
