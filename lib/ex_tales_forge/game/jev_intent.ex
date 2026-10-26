@@ -49,6 +49,7 @@ defmodule TalesForge.Game.JevIntent do
       :later_target,
       :manner,
       :split,
+      :self_check,
       :text,
       :context,
       :confidence,
@@ -68,6 +69,7 @@ defmodule TalesForge.Game.JevIntent do
             later_target: String.t() | nil,
             manner: atom() | nil,
             split: 2 | 3 | nil,
+            self_check: [TalesForge.Game.SelfCheck.ask()] | nil,
             text: String.t(),
             context: map(),
             confidence: float() | nil,
@@ -80,10 +82,12 @@ defmodule TalesForge.Game.JevIntent do
 
   alias TalesForge.Game.IntentCalibration
   alias TalesForge.Game.Inventory
+  alias TalesForge.Game.JevSelfCheck
   alias TalesForge.Game.NamedPrice
   alias TalesForge.Game.Offer
   alias TalesForge.Game.Rest
   alias TalesForge.Game.Schemas.{IntentExtraction, SingleAction}
+  alias TalesForge.Game.SelfCheck
   alias TalesForge.Game.WorldClock
   alias TalesForge.Locations.Named
 
@@ -287,6 +291,7 @@ defmodule TalesForge.Game.JevIntent do
           offer_answer: :accept | :decline | :other_offer | :other | nil,
           offer_pick: non_neg_integer() | nil,
           manner: atom() | nil,
+          self_check: [SelfCheck.ask()] | nil,
           safety: atom(),
           confidence: float() | nil,
           raw_confidence: float() | nil,
@@ -320,8 +325,7 @@ defmodule TalesForge.Game.JevIntent do
 
   defp present_npc_candidates(context) do
     context
-    |> Map.get("present_npcs", [])
-    |> List.wrap()
+    |> list("present_npcs")
     |> Enum.map(fn id ->
       detail = get_in(context, ["npc_details", id]) || %{}
       name = Map.get(detail, "name", id)
@@ -335,17 +339,19 @@ defmodule TalesForge.Game.JevIntent do
     |> Map.get("npc_locations", %{})
     |> Enum.sort_by(fn {id, _} -> id end)
     |> Enum.map(fn {id, info} ->
+      name = info["name"] || id
+
       %{
         kind: :npc_elsewhere,
         id: id,
-        name: info["name"] || id,
-        text: "#{info["name"] || id} — elsewhere, at #{info["location_id"]}"
+        name: name,
+        text: "#{name} — elsewhere, at #{info["location_id"]}"
       }
     end)
   end
 
   defp place_candidates(context) do
-    exits = context |> Map.get("exits", []) |> List.wrap()
+    exits = list(context, "exits")
     exit_names = Map.get(context, "exit_names", %{})
 
     exit_cands =
@@ -386,16 +392,13 @@ defmodule TalesForge.Game.JevIntent do
   end
 
   defp item_candidates(context) do
-    inv = Inventory.normalize_items(Map.get(context, "player_inventory", []))
-    ground = Inventory.normalize_items(Map.get(context, "ground_items", []))
-
     for {where, items} <- [
-          {"carried", inv},
+          {"carried", items(context, "player_inventory")},
           {"for sale", for_sale(context)},
-          {"on the ground", ground}
+          {"on the ground", items(context, "ground_items")}
         ],
         item <- items,
-        do: %{kind: :item, id: item["id"], text: "#{item["name"] || item["id"]} (#{where})"}
+        do: %{kind: :item, id: item["id"], text: "#{item_name(item)} (#{where})"}
   end
 
   # The kinds of goods for sale here with more than one item ("a meal: Bread
@@ -405,7 +408,7 @@ defmodule TalesForge.Game.JevIntent do
     |> for_sale()
     |> Offer.kinds()
     |> Enum.map(fn {kind, items} ->
-      names = Enum.map_join(items, " or ", &(&1["name"] || &1["id"]))
+      names = Enum.map_join(items, " or ", &item_name/1)
 
       %{
         kind: :goods,
@@ -418,8 +421,7 @@ defmodule TalesForge.Game.JevIntent do
 
   defp fixture_candidates(context) do
     context
-    |> Map.get("fixtures", [])
-    |> List.wrap()
+    |> list("fixtures")
     |> Enum.filter(&(is_binary(&1) and &1 != ""))
     # A fixture that is a spot ("bar counter", the bar desk) is offered once.
     |> Enum.reject(&Named.spot?(context, &1))
@@ -602,7 +604,7 @@ defmodule TalesForge.Game.JevIntent do
     @option_labels
     |> Enum.zip(options)
     |> Map.new(fn {label, %{"item" => item, "price" => price}} ->
-      {label, "#{item["name"] || item["id"]} (#{price}c)"}
+      {label, "#{item_name(item)} (#{price}c)"}
     end)
     |> Map.put(:none, "None of these options.")
   end
@@ -621,9 +623,9 @@ defmodule TalesForge.Game.JevIntent do
       "location_blurb" => context["location_blurb"] || "",
       "present" => present_lines(context),
       "elsewhere" => elsewhere_lines(context),
-      "exits" => context |> Map.get("exits", []) |> List.wrap(),
-      "inventory" => item_names(Map.get(context, "player_inventory", [])),
-      "for_sale" => context |> for_sale() |> Enum.map(&(&1["name"] || &1["id"])),
+      "exits" => list(context, "exits"),
+      "inventory" => Enum.map(items(context, "player_inventory"), &item_name/1),
+      "for_sale" => context |> for_sale() |> Enum.map(&item_name/1),
       "last_narration" => last_narration(context),
       "player_text" => text |> to_string() |> String.trim() |> String.slice(0, @action_chars)
     }
@@ -640,8 +642,7 @@ defmodule TalesForge.Game.JevIntent do
 
   defp present_lines(context) do
     context
-    |> Map.get("present_npcs", [])
-    |> List.wrap()
+    |> list("present_npcs")
     |> Enum.map(fn id ->
       detail = get_in(context, ["npc_details", id]) || %{}
       "#{Map.get(detail, "name", id)} (#{Map.get(detail, "role", "present")})"
@@ -655,9 +656,13 @@ defmodule TalesForge.Game.JevIntent do
     |> Enum.map(fn {_id, info} -> "#{info["name"]} at #{info["location_id"]}" end)
   end
 
-  defp item_names(inventory) do
-    inventory |> Inventory.normalize_items() |> Enum.map(&(&1["name"] || &1["id"]))
-  end
+  # The items under `key` in the context ("player_inventory", "ground_items").
+  defp items(context, key), do: Inventory.normalize_items(Map.get(context, key, []))
+
+  defp item_name(item), do: item["name"] || item["id"]
+
+  # A list from the context; a missing key is [].
+  defp list(context, key), do: List.wrap(Map.get(context, key, []))
 
   # The stock for sale here: every present seller's, one list.
   defp for_sale(context) do
@@ -699,7 +704,8 @@ defmodule TalesForge.Game.JevIntent do
     }
 
     c = choose(base, reply)
-    probs = get_in(reply, [:probabilities, :action]) || %{}
+    probabilities = Map.get(reply, :probabilities, %{})
+    probs = probabilities[:action] || %{}
 
     %{
       extraction: build_extraction(c),
@@ -710,13 +716,14 @@ defmodule TalesForge.Game.JevIntent do
       later_target: c.later_target,
       then: this_turn(reply, c.action, c.safety),
       manner: c.manner,
+      self_check: c.self_check,
       safety: c.safety,
       confidence: c.confidence,
       raw_confidence: c.raw_confidence,
       calibration: IntentCalibration.version(),
-      probabilities: Map.get(reply, :probabilities, %{}),
+      probabilities: probabilities,
       safety_confidence: get_in(reply, [:confidence, :safety]),
-      benign_probability: get_in(reply, [:probabilities, :safety, :benign]),
+      benign_probability: get_in(probabilities, [:safety, :benign]),
       action_probabilities: probs,
       top2: top2(probs, c.action),
       target_ranking: target_ranking(reply, by_label)
@@ -753,6 +760,7 @@ defmodule TalesForge.Game.JevIntent do
         later_target: if(later, do: pick_target(c, later, answer(reply, :later_target))),
         manner: manner(reply[:manner]),
         split: split(reply[:split]),
+        self_check: SelfCheck.from_label(reply[:self_check]),
         confidence: IntentCalibration.apply(raw_confidence),
         raw_confidence: raw_confidence
     }
@@ -961,9 +969,12 @@ defmodule TalesForge.Game.JevIntent do
   end
 
   # The labels `action` can be aimed at, most likely first.
-  defp ranked(%Choice{} = c, action, probs) do
+  defp ranked(%Choice{} = c, action, probs), do: best(probs, &aimable?(c, action, &1))
+
+  # The labels of `probs` that `keep?`, most likely first (ties by label).
+  defp best(probs, keep?) do
     probs
-    |> Enum.filter(fn {label, _p} -> aimable?(c, action, label) end)
+    |> Enum.filter(fn {label, _p} -> keep?.(label) end)
     |> Enum.sort_by(fn {label, p} -> {-p, label} end)
   end
 
@@ -995,18 +1006,14 @@ defmodule TalesForge.Game.JevIntent do
   """
   @spec unnamed_elsewhere?(candidate() | map() | nil, String.t()) :: boolean()
   def unnamed_elsewhere?(%{kind: :npc_elsewhere} = cand, text) do
-    words =
-      text |> to_string() |> String.downcase() |> String.split(~r/[^\p{L}\p{N}_]+/u, trim: true)
+    words = String.split(String.downcase(to_string(text)), ~r/[^\p{L}\p{N}_]+/u, trim: true)
 
     names =
-      [Map.get(cand, :name), cand.id]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.flat_map(
-        &(&1
-          |> String.downcase()
-          |> String.split(~r/[^\p{L}\p{N}]+/u, trim: true))
-      )
-      |> Enum.filter(&(String.length(&1) >= 3))
+      for name <- [cand[:name], cand.id],
+          name,
+          part <- String.split(String.downcase(name), ~r/[^\p{L}\p{N}]+/u, trim: true),
+          String.length(part) >= 3,
+          do: part
 
     not Enum.any?(names, fn name -> Enum.any?(words, &name_word?(name, &1)) end)
   end
@@ -1046,9 +1053,9 @@ defmodule TalesForge.Game.JevIntent do
   end
 
   defp target_ranking(reply, by_label) do
-    reply
-    |> get_in([:probabilities, :target])
-    |> Kernel.||(%{})
+    {probs, _picked} = answer(reply, :target)
+
+    probs
     |> Enum.map(fn {label, p} -> {candidate_id(by_label, label), p} end)
     |> Enum.sort_by(fn {_id, p} -> -p end)
   end
@@ -1087,6 +1094,7 @@ defmodule TalesForge.Game.JevIntent do
   defp parameters(%Choice{} = c) do
     %{}
     |> put_manner(c.manner)
+    |> JevSelfCheck.put_param(c.self_check)
     |> put_skill(c.skill, c.action)
     |> put_numbers(c)
     |> put_asked(c)
@@ -1165,7 +1173,7 @@ defmodule TalesForge.Game.JevIntent do
     if Enum.any?(by_label, fn {_l, cand} -> cand.kind == :npc and cand.id == target end) do
       c
     else
-      carried = c.context |> Map.get("player_inventory", []) |> Inventory.normalize_items()
+      carried = items(c.context, "player_inventory")
       item = if Enum.any?(carried, &(&1["id"] == target)), do: target
       %{c | target: top_person(reply, by_label), item: item}
     end
@@ -1174,11 +1182,10 @@ defmodule TalesForge.Game.JevIntent do
   defp sale(%Choice{} = c, _reply), do: c
 
   defp top_person(reply, by_label) do
-    reply
-    |> get_in([:probabilities, :target])
-    |> Kernel.||(%{})
-    |> Enum.filter(fn {label, _p} -> match?(%{kind: :npc}, Map.get(by_label, label)) end)
-    |> Enum.sort_by(fn {label, p} -> {-p, label} end)
+    {probs, _picked} = answer(reply, :target)
+
+    probs
+    |> best(&match?(%{kind: :npc}, by_label[&1]))
     |> case do
       [{label, _p} | _] -> candidate_id(by_label, label)
       [] -> nil

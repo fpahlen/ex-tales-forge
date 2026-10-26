@@ -39,7 +39,9 @@ defmodule TalesForge.Game.SelfCheckTest do
           "How much money does Henrik owe the guild?",
           "What's in the chest?",
           "I give Marta my coins.",
-          "I order a mug of ale from the barkeep and pay for it."
+          "I order a mug of ale from the barkeep and pay for it.",
+          # An action, not a question (Case, PR 2 review)
+          "Empty my pockets onto the table."
         ] do
       test "#{inspect(text)} -> []" do
         assert SelfCheck.asks(unquote(text)) == []
@@ -49,6 +51,21 @@ defmodule TalesForge.Game.SelfCheckTest do
     test "blank or non-text input asks nothing" do
       assert SelfCheck.asks("") == []
       assert SelfCheck.asks(nil) == []
+    end
+  end
+
+  describe "the Jev question" do
+    test "has one label per eval label, and each reads back as its asks" do
+      {_text, labels} = SelfCheck.question()
+
+      assert labels |> Map.keys() |> Enum.map(&Atom.to_string/1) |> Enum.sort() ==
+               Enum.sort(SelfCheck.labels())
+
+      assert SelfCheck.from_label(:none) == []
+      assert SelfCheck.from_label(:coins) == [:coins]
+      assert SelfCheck.from_label(:pack) == [:pack]
+      assert SelfCheck.from_label(:both) == [:coins, :pack]
+      assert SelfCheck.from_label(nil) == nil
     end
   end
 

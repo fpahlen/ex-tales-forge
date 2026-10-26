@@ -133,7 +133,8 @@ defmodule TalesForge.Game.Turn do
       turn_state_from_mechanics: Config.turn_state_from_mechanics?(),
       turn_apply_outcomes: Config.turn_apply_outcomes?(),
       history_strip_injection: Config.history_strip_injection?(),
-      jev_catalogue_v2: Config.jev_catalogue_v2?()
+      jev_catalogue_v2: Config.jev_catalogue_v2?(),
+      jev_self_check: Config.jev_self_check?()
     })
   end
 

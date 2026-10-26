@@ -33,7 +33,7 @@ defmodule TalesForge.Game.SelfCheck do
   @money "(?:coins?|money|gold|silver|copper)"
   @purse "(?:coins?|money|purse|coin ?purse|coin pouch|gold|silver)"
   @bag "(?:pack|backpack|bag|satchel|knapsack|rucksack|inventory|pockets?)"
-  @look "(?:check|search|look (?:in|into|through|at)|go through|rummage (?:in|through)|open|empty)"
+  @look "(?:check|search|look (?:in|into|through|at)|go through|rummage (?:in|through)|open)"
 
   @patterns [
     coins: [
@@ -55,6 +55,19 @@ defmodule TalesForge.Game.SelfCheck do
   ]
 
   @labels %{[] => "none", [:coins] => "coins", [:pack] => "pack", [:coins, :pack] => "both"}
+  @asks Map.new(@labels, fn {asks, label} -> {String.to_atom(label), asks} end)
+
+  # The Jev question (JEV_SELF_CHECK=on), asked next to the manner.
+  @question {"Does the player ask the narrator about their own coins or what they carry " <>
+               "(not a question to someone in the scene)?",
+             %{
+               none:
+                 "No: nothing about their own coins or pack, or a question about someone " <>
+                   "else's goods, prices or debts.",
+               coins: "Their own coins: how much money they have, or they count their purse.",
+               pack: "Their own pack: what they carry, or they look through their own bag.",
+               both: "Both their own coins and what they carry."
+             }}
 
   @doc "What the text asks about the player's own state, in `[:coins, :pack]` order."
   @spec asks(String.t() | nil) :: [ask()]
@@ -81,6 +94,14 @@ defmodule TalesForge.Game.SelfCheck do
   @doc "The eval label of `asks`: `none`, `coins`, `pack` or `both`."
   @spec label([ask()]) :: String.t()
   def label(asks), do: Map.fetch!(@labels, asks)
+
+  @doc "The Jev self-check question and its labels (`TalesForge.Game.JevIntent`)."
+  @spec question() :: {String.t(), %{atom() => String.t()}}
+  def question, do: @question
+
+  @doc "What a Jev label asks (`:none` is `[]`); `nil` for no answer."
+  @spec from_label(atom() | nil) :: [ask()] | nil
+  def from_label(label), do: Map.get(@asks, label)
 
   @doc "Every eval label."
   @spec labels() :: [String.t()]

@@ -392,6 +392,7 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
     payload
     |> put_hint("reason", hints["reason"])
     |> put_hint("trade", trade_line(hints["trade"]))
+    |> put_hint("self_check", hints["self_check"])
   end
 
   defp put_hint(payload, _key, nil), do: payload
