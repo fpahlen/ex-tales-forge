@@ -887,6 +887,7 @@ Narrate from this place. Only the people present can speak or act here; anyone e
 - Coins: 2g 10s 0c
 - Pack: travel cloak, hunting knife
 
+
 ===== gm turn 1 =====
 --- system ---
 You are the Game Master for Tales Forge, a text-first RPG.
@@ -1702,6 +1703,7 @@ Narrate from this place. Only the people present can speak or act here; anyone e
 ## Your character now (from the server; when the player asks about their own coins or pack, answer from these facts and do not invent)
 - Coins: 2g 10s 0c
 - Pack: travel cloak, hunting knife
+
 ## Server resolution (tone bounds only)
 skill: insight
 roll: 14
@@ -2543,6 +2545,7 @@ Narrate from this place. Only the people present can speak or act here; anyone e
 ## Your character now (from the server; when the player asks about their own coins or pack, answer from these facts and do not invent)
 - Coins: 2g 10s 0c
 - Pack: travel cloak, hunting knife
+
 ## Server resolution (tone bounds only)
 skill: insight
 roll: 14
