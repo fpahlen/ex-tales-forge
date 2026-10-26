@@ -39,6 +39,17 @@ defmodule TalesForge.IntentEvalTest do
     assert is_number(jev.fields.action.rate)
   end
 
+  test "the heuristic reads self-checks on the tune split and the report shows them; jev does not yet" do
+    {report, results} =
+      IntentEval.run(split: "tune", readers: [:jev, :heuristic], jev: [api_key: "test-key"])
+
+    heuristic = results.metrics[:heuristic].self_check
+    assert heuristic.accuracy.n >= 8
+    assert heuristic.read == length(results.items)
+    assert results.metrics[:jev].self_check.read == 0
+    assert report =~ "### Self-check (coins / pack)"
+  end
+
   test "the holdout split carries items and stays separate from tune" do
     tune =
       IntentEval.load_items("test/fixtures/intent_eval/items.jsonl")

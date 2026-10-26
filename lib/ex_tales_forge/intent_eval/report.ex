@@ -5,7 +5,7 @@ defmodule TalesForge.IntentEval.Report do
   thresholds from `docs/design-jev-intent.md` §5.
   """
 
-  alias TalesForge.IntentEval.Run
+  alias TalesForge.IntentEval.{Run, SelfCheckScore}
 
   @doc "The target thresholds the design note sets, for the comparison column."
   @spec targets() :: keyword()
@@ -29,7 +29,7 @@ defmodule TalesForge.IntentEval.Report do
 
   @doc "Renders the full Markdown report."
   @spec render(Run.t()) :: String.t()
-  def render(%Run{split: split, readers: readers, items: items, metrics: metrics, opts: opts}) do
+  def render(%Run{split: split, readers: readers, items: items, metrics: metrics}) do
     [
       "# Intent evaluation — `#{split}` split",
       "",
@@ -37,9 +37,7 @@ defmodule TalesForge.IntentEval.Report do
       "",
       composition(items),
       "",
-      Enum.map_join(readers, "\n\n", fn reader ->
-        reader_section(reader, metrics[reader], opts)
-      end)
+      Enum.map_join(readers, "\n\n", &reader_section(&1, metrics[&1]))
     ]
     |> Enum.join("\n")
   end
@@ -70,9 +68,9 @@ defmodule TalesForge.IntentEval.Report do
     |> Enum.join("\n")
   end
 
-  defp reader_section(reader, nil, _opts), do: "## #{reader}\n\n(no metrics)"
+  defp reader_section(reader, nil), do: "## #{reader}\n\n(no metrics)"
 
-  defp reader_section(reader, m, opts) do
+  defp reader_section(reader, m) do
     [
       "## #{reader}",
       "",
@@ -84,9 +82,11 @@ defmodule TalesForge.IntentEval.Report do
       "",
       reliability_table(m.calibration),
       "",
-      clarifying_table(m.clarifying, opts),
+      clarifying_table(m.clarifying),
       "",
-      bands_table(m)
+      bands_table(m),
+      "",
+      SelfCheckScore.section(m.self_check)
     ]
     |> Enum.join("\n")
   end
@@ -163,7 +163,7 @@ defmodule TalesForge.IntentEval.Report do
     header <> "\n" <> body
   end
 
-  defp clarifying_table(c, _opts) do
+  defp clarifying_table(c) do
     header =
       "### Clarifying rate by threshold\n\n| ask-below | ask rate | asks | justified |\n|---|---|---|---|"
 
@@ -204,13 +204,7 @@ defmodule TalesForge.IntentEval.Report do
   defp num_cell(nil), do: {"—", nil}
   defp num_cell(x) when is_number(x), do: {fmt(x), x}
 
-  defp clarifying_cell(%{by_threshold: rows}) do
-    case List.first(rows) do
-      %{ask_rate: nil} -> {"—", nil}
-      %{ask_rate: rate} -> {num_text(rate), rate}
-      _ -> {"—", nil}
-    end
-  end
+  defp clarifying_cell(%{by_threshold: [lowest | _]}), do: num_cell(lowest.ask_rate)
 
   defp txt(nil), do: "—"
   defp txt(x) when is_float(x), do: fmt(x)
