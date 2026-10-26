@@ -135,13 +135,14 @@ defmodule TalesForge.Game.Context do
     |> Map.new(&{&1.slug, %{"name" => &1.name || &1.slug, "location_id" => &1.location_id}})
   end
 
-  @doc "The intent context as prompt text (location, exits, NPCs and their stock, skills)."
+  @doc """
+  The intent context as prompt text (location, exits, NPCs and their stock,
+  skills). The coins and the pack are in `TalesForge.Game.StateFacts`.
+  """
   @spec format_intent_context(map()) :: String.t()
   def format_intent_context(context) do
     (place_lines(context) ++
        [
-         "Player inventory:",
-         Jason.encode!(context["player_inventory"] || [], pretty: true),
          "Situation:",
          Enum.join(context["situation_lines"] || ["(none)"], "\n"),
          "Character:",
@@ -538,9 +539,7 @@ defmodule TalesForge.Game.Context do
       "vitality" => Map.get(character, "vitality", "ok"),
       "wounds" => Map.get(character, "wounds", 0),
       "wound_max" => Map.get(character, "wound_max", 3),
-      "location_id" => Map.get(character, "location_id"),
-      "coins" => Map.get(character, "coins", %{}),
-      "inventory" => Map.get(character, "inventory", [])
+      "location_id" => Map.get(character, "location_id")
     }
   end
 

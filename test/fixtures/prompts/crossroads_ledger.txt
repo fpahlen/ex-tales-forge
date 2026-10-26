@@ -50,41 +50,11 @@ Fixtures:
 chalked slate, bar counter, hearth
 Ground items:
 []
-Player inventory:
-[
-  {
-    "id": "travel_cloak",
-    "name": "travel cloak",
-    "quantity": 1
-  },
-  {
-    "id": "hunting_knife",
-    "name": "hunting knife",
-    "quantity": 1
-  }
-]
 Situation:
 You have just pushed through the tavern door.
 Marta Kellen watches from behind the bar.
 Character:
 {
-  "coins": {
-    "copper": 0,
-    "gold": 2,
-    "silver": 10
-  },
-  "inventory": [
-    {
-      "id": "travel_cloak",
-      "name": "travel cloak",
-      "quantity": 1
-    },
-    {
-      "id": "hunting_knife",
-      "name": "hunting knife",
-      "quantity": 1
-    }
-  ],
   "location_id": "weary_pilgrim",
   "name": "Elara Voss",
   "vitality": "ok",
@@ -834,41 +804,11 @@ Fixtures:
 chalked slate, bar counter, hearth
 Ground items:
 []
-Player inventory:
-[
-  {
-    "id": "travel_cloak",
-    "name": "travel cloak",
-    "quantity": 1
-  },
-  {
-    "id": "hunting_knife",
-    "name": "hunting knife",
-    "quantity": 1
-  }
-]
 Situation:
 You have just pushed through the tavern door.
 Marta Kellen watches from behind the bar.
 Character:
 {
-  "coins": {
-    "copper": 0,
-    "gold": 2,
-    "silver": 10
-  },
-  "inventory": [
-    {
-      "id": "travel_cloak",
-      "name": "travel cloak",
-      "quantity": 1
-    },
-    {
-      "id": "hunting_knife",
-      "name": "hunting knife",
-      "quantity": 1
-    }
-  ],
   "location_id": "weary_pilgrim",
   "name": "Elara Voss",
   "vitality": "ok",
@@ -939,6 +879,13 @@ Where: The Weary Pilgrim (weary_pilgrim).
 Present: Marta Kellen (marta_kellen).
 Elsewhere (not here): Henrik Bale at Crossroads Square.
 Narrate from this place. Only the people present can speak or act here; anyone else is elsewhere.
+
+
+---
+
+## Your character now (from the server; when the player asks about their own coins or pack, answer from these facts and do not invent)
+- Coins: 2g 10s 0c
+- Pack: travel cloak, hunting knife
 
 
 ===== gm turn 1 =====
@@ -1674,41 +1621,11 @@ Fixtures:
 chalked slate, bar counter, hearth
 Ground items:
 []
-Player inventory:
-[
-  {
-    "id": "travel_cloak",
-    "name": "travel cloak",
-    "quantity": 1
-  },
-  {
-    "id": "hunting_knife",
-    "name": "hunting knife",
-    "quantity": 1
-  }
-]
 Situation:
 You have just pushed through the tavern door.
 Marta Kellen watches from behind the bar.
 Character:
 {
-  "coins": {
-    "copper": 0,
-    "gold": 2,
-    "silver": 10
-  },
-  "inventory": [
-    {
-      "id": "travel_cloak",
-      "name": "travel cloak",
-      "quantity": 1
-    },
-    {
-      "id": "hunting_knife",
-      "name": "hunting knife",
-      "quantity": 1
-    }
-  ],
   "location_id": "weary_pilgrim",
   "name": "Elara Voss",
   "vitality": "ok",
@@ -1779,6 +1696,13 @@ Where: The Weary Pilgrim (weary_pilgrim).
 Present: Marta Kellen (marta_kellen).
 Elsewhere (not here): Henrik Bale at Crossroads Square.
 Narrate from this place. Only the people present can speak or act here; anyone else is elsewhere.
+
+
+---
+
+## Your character now (from the server; when the player asks about their own coins or pack, answer from these facts and do not invent)
+- Coins: 2g 10s 0c
+- Pack: travel cloak, hunting knife
 
 ## Server resolution (tone bounds only)
 skill: insight
@@ -2539,41 +2463,11 @@ Fixtures:
 chalked slate, bar counter, hearth
 Ground items:
 []
-Player inventory:
-[
-  {
-    "id": "travel_cloak",
-    "name": "travel cloak",
-    "quantity": 1
-  },
-  {
-    "id": "hunting_knife",
-    "name": "hunting knife",
-    "quantity": 1
-  }
-]
 Situation:
 You have just pushed through the tavern door.
 Marta Kellen watches from behind the bar.
 Character:
 {
-  "coins": {
-    "copper": 0,
-    "gold": 2,
-    "silver": 10
-  },
-  "inventory": [
-    {
-      "id": "travel_cloak",
-      "name": "travel cloak",
-      "quantity": 1
-    },
-    {
-      "id": "hunting_knife",
-      "name": "hunting knife",
-      "quantity": 1
-    }
-  ],
   "location_id": "weary_pilgrim",
   "name": "Elara Voss",
   "vitality": "ok",
@@ -2644,6 +2538,13 @@ Where: The Weary Pilgrim (weary_pilgrim).
 Present: Marta Kellen (marta_kellen).
 Elsewhere (not here): Henrik Bale at Crossroads Square.
 Narrate from this place. Only the people present can speak or act here; anyone else is elsewhere.
+
+
+---
+
+## Your character now (from the server; when the player asks about their own coins or pack, answer from these facts and do not invent)
+- Coins: 2g 10s 0c
+- Pack: travel cloak, hunting knife
 
 ## Server resolution (tone bounds only)
 skill: insight

@@ -22,7 +22,7 @@ defmodule TalesForge.Game.PromptPrefixTest do
     "Action handler result:",
     "## Server resolution",
     "Current location:",
-    "Player inventory:",
+    "## Your character now",
     "Situation:",
     "Earlier turns (already resolved):",
     "## Present NPCs",
@@ -99,7 +99,7 @@ defmodule TalesForge.Game.PromptPrefixTest do
     refute last1 == last5
     assert last5 =~ "Validated player action (turn 5)"
     assert last5 =~ "Marta has gone quiet."
-    assert last5 =~ ~s("copper": 7)
+    assert last5 =~ "Coins: 0g 3s 7c"
   end
 
   test "per-turn content only appears after session-stable content", %{a: a} do
