@@ -730,41 +730,11 @@ Fixtures:
 hearth, bar counter
 Ground items:
 []
-Player inventory:
-[
-  {
-    "id": "travel_cloak",
-    "name": "travel cloak",
-    "quantity": 1
-  },
-  {
-    "id": "hunting_knife",
-    "name": "hunting knife",
-    "quantity": 1
-  }
-]
 Situation:
 You have just pushed through the inn door.
 Osric Vane wants the nest off the cut so the Guild can take the hill.
 Character:
 {
-  "coins": {
-    "copper": 0,
-    "gold": 2,
-    "silver": 10
-  },
-  "inventory": [
-    {
-      "id": "travel_cloak",
-      "name": "travel cloak",
-      "quantity": 1
-    },
-    {
-      "id": "hunting_knife",
-      "name": "hunting knife",
-      "quantity": 1
-    }
-  ],
   "location_id": "valley_inn",
   "name": "Elara Voss",
   "vitality": "ok",
@@ -849,6 +819,12 @@ Present: Brenna Holt (innkeep).
 Elsewhere (not here): Osric Vane at Market Square; Caldern Voss at Mine workings.
 Narrate from this place. Only the people present can speak or act here; anyone else is elsewhere.
 
+
+---
+
+## Your character now (from the server; when the player asks about their own coins or pack, answer from these facts and do not invent)
+- Coins: 2g 10s 0c
+- Pack: travel cloak, hunting knife
 ## Server resolution (tone bounds only)
 skill: insight
 roll: 14

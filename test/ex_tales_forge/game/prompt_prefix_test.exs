@@ -22,7 +22,7 @@ defmodule TalesForge.Game.PromptPrefixTest do
     "Action handler result:",
     "## Server resolution",
     "Current location:",
-    "Player inventory:",
+    "## Your character now",
     "Situation:",
     "Earlier turns (already resolved):",
     "## Present NPCs",
