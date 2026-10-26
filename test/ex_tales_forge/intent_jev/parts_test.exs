@@ -19,14 +19,20 @@ defmodule TalesForge.IntentJev.PartsTest do
   describe "PlayerQuote.decide/2" do
     test "a confident benign read quotes the player's sanitised words" do
       q = PlayerQuote.decide(@action, read("  Hello   there ", safety(:benign, 0.95)))
-      assert {q.quote, q.used, q.reason} == {"Hello there", "quote", "benign"}
+
+      assert {q.quote, q.used, q.reason} ==
+               {"<<player_text>>Hello there<</player_text>>", "quote", "benign"}
     end
 
-    test "anything else gets the typed summary" do
-      summary = "speak (target: innkeep)"
+    test "a benign read below the threshold still quotes the words, in the same pair" do
+      q = PlayerQuote.decide(@action, read("Hello", safety(:benign, 0.8)))
 
-      assert %{quote: ^summary, reason: "low_confidence"} =
-               PlayerQuote.decide(@action, read("Hello", safety(:benign, 0.8)))
+      assert {q.quote, q.used, q.reason} ==
+               {"<<player_text>>Hello<</player_text>>", "quote", "low_confidence"}
+    end
+
+    test "any other label, no read or no words gets the typed summary" do
+      summary = "speak (target: innkeep)"
 
       assert %{quote: ^summary, reason: "label_prompt_injection"} =
                PlayerQuote.decide(@action, read("Hello", safety(:prompt_injection, 0.99)))
@@ -40,6 +46,9 @@ defmodule TalesForge.IntentJev.PartsTest do
 
       assert %{quote: ^summary, reason: "empty_text"} =
                PlayerQuote.decide(@action, read("   ", safety(:benign, 0.99)))
+
+      assert %{quote: ^summary, used: "summary", reason: "empty_text"} =
+               PlayerQuote.decide(@action, read("   ", safety(:benign, 0.5)))
     end
 
     test "only nefarious is declined, and meta leaves out the text" do

@@ -24,7 +24,7 @@ defmodule TalesForge.Game.PromptPrefixTest do
     "Current location:",
     "Player inventory:",
     "Situation:",
-    "Recent turns:",
+    "Earlier turns (already resolved):",
     "## Present NPCs",
     "## NPC Memories",
     "## NPC reactions",

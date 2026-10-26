@@ -146,7 +146,7 @@ defmodule TalesForge.Game.Context do
          Enum.join(context["situation_lines"] || ["(none)"], "\n"),
          "Character:",
          Jason.encode!(context["character"] || %{}, pretty: true),
-         "Recent turns:",
+         "Earlier turns (already resolved):",
          listed(context["recent_turns"], &"- #{&1["action"]} → #{&1["outcome"]}"),
          "Available exits:",
          listed(context["exits"], &exit_line(context, &1)),
