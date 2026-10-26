@@ -68,26 +68,31 @@ defmodule TalesForge.Prompt.Profile do
       Sections.Combat,
       Sections.Fallen,
       Sections.RestGrowth,
-      Sections.PlayerRequest
+      Sections.PlayerRequest,
+      Sections.StateFacts
     ]
     |> Enum.filter(&include?(&1, ctx))
   end
 
-  defp include?(Sections.WorldFacts, ctx), do: Ctx.flag?(ctx, :world_agents)
-  defp include?(Sections.Prices, ctx), do: Ctx.flag?(ctx, :world_agents)
+  # The flags that turn a section on (any one of them); a section not listed
+  # is always on.
+  @flags %{
+    Sections.WorldFacts => [:world_agents],
+    Sections.Prices => [:world_agents],
+    Sections.CharacterReactions => [:npc_reactions, :world_agents],
+    Sections.DialogueMemory => [:npc_dialogue_memory],
+    Sections.CharacterMemory => [:character_memory],
+    Sections.OutcomeRecord => [:turn_outcome_record, :turn_apply_outcomes],
+    Sections.NoticedDetails => [:skill_detail_level],
+    Sections.SkillSplit => [:skill_split],
+    Sections.Combat => [:combat_opposed],
+    Sections.Surroundings => [:location_grid]
+  }
 
-  defp include?(Sections.CharacterReactions, ctx),
-    do: Ctx.flag?(ctx, :npc_reactions) or Ctx.flag?(ctx, :world_agents)
-
-  defp include?(Sections.DialogueMemory, ctx), do: Ctx.flag?(ctx, :npc_dialogue_memory)
-  defp include?(Sections.CharacterMemory, ctx), do: Ctx.flag?(ctx, :character_memory)
-
-  defp include?(Sections.OutcomeRecord, ctx),
-    do: Ctx.flag?(ctx, :turn_outcome_record) or Ctx.flag?(ctx, :turn_apply_outcomes)
-
-  defp include?(Sections.NoticedDetails, ctx), do: Ctx.flag?(ctx, :skill_detail_level)
-  defp include?(Sections.SkillSplit, ctx), do: Ctx.flag?(ctx, :skill_split)
-  defp include?(Sections.Combat, ctx), do: Ctx.flag?(ctx, :combat_opposed)
-  defp include?(Sections.Surroundings, ctx), do: Ctx.flag?(ctx, :location_grid)
-  defp include?(_section, _ctx), do: true
+  defp include?(section, ctx) do
+    case Map.fetch(@flags, section) do
+      {:ok, flags} -> Enum.any?(flags, &Ctx.flag?(ctx, &1))
+      :error -> true
+    end
+  end
 end
