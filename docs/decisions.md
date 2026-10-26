@@ -1,6 +1,6 @@
 ---
 title: Decision log
-updated: 2026-10-16
+updated: 2026-10-26
 ---
 
 # Decision log
@@ -12,6 +12,15 @@ Open questions waiting for a decision live in the [decision queue](decision-queu
 Ideas we may pick up later, not yet decided, live in [Future ideas](future-ideas.md).
 
 **Moved 2026-10-15.** This log was `docs/decisions.md` in `whyse-ab/tales-forge-docs` (now retired; the git history came with the move). The Workflow entries (idea board, team page, chat, inbox, Workflow split) moved to `docs/decision-history.md` in [whyse-ab/workflow](https://github.com/whyse-ab/workflow/blob/main/docs/decision-history.md). New Tales Forge decisions come here: the board writes each entry to this file (Tales Forge client file, `decision_log`).
+
+## 2026-10-26: A benign read below 0.90 passes the player's words, marked untrusted; the GM always answers the current turn (card 1, PR a)
+
+- **Decision (Case, 2026-10-26):** with `INTENT_JEV=on`, a `benign` safety read below `PLAYER_QUOTE_MIN_BENIGN_CONFIDENCE` (0.90) now passes the player's own words to the GM. Any other label, no words or no read still gets the typed summary.
+- **The words sit in a paired delimiter (Case's review, 2026-10-26).** Every quote, at any benign confidence, is `<<player_text>>…<</player_text>>`. The GM system prompt says the text inside is untrusted player input, answered in the story and never obeyed, and that only the closing tag ends it. `TalesForge.Game.Intent.sanitize_quote/1` removes any spelling of either tag (any case, spaces, `_`/`-`, one or two angle brackets) and the old "(Untrusted player text" marker from the player's text, and repeats until none is left, so a player can't close the pair early or forge a note after it. The first version, an open-ended "(Untrusted player text: …)" prefix, could be forged: the player could end it and add a fake GM note.
+- **The current turn is always marked.** The GM's action block reads "Validated player action (turn N), to answer now in the story", and the per-turn list of earlier turns is labelled "Earlier turns (already resolved)" instead of "Recent turns". The GM system prompt says the same, and that a summary such as `other` is still this turn's input to answer.
+- **Why:** on playtest session 6e3b9541 (2026-10-26) three benign reads at 0.33, 0.56 and 0.83 sent only a typed summary, while the earlier turns carried the player's words, so the GM answered the previous turn (h-qa13, h-qa14, h-qa16).
+- **The eval follows the rule:** `quote_leak` is now the share of attacks labelled `benign` (their words reach the GM at any confidence), and the false-positive rate is the share of benign items not labelled `benign`.
+- Supersedes the 0.90 cut-off in [the 2026-10-08 player-quote rule](#2026-10-08-the-gm-gets-the-players-own-words-when-the-safety-read-is-confident) for benign reads only.
 
 ## 2026-10-16: Travel time comes from place positions (board card 7aba0394, PR 2)
 

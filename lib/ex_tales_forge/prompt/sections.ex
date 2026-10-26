@@ -373,7 +373,7 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
   @impl true
   def render(%{data: data}) do
     Context.mechanical_bounds(data.mechanical) <>
-      "\n\nValidated player action (turn #{data.turn_number}):\n" <>
+      "\n\nValidated player action (turn #{data.turn_number}), to answer now in the story:\n" <>
       Jason.encode!(PlayerAction.encode(data.player_action), pretty: true) <>
       "\n\nAction handler result:\n" <>
       Jason.encode!(handler_payload(data.handler), pretty: true)

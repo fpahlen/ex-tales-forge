@@ -109,8 +109,7 @@ defmodule TalesForge.IntentEval.Report do
       {"this turn vs later", rate_cell(f.this_turn_vs_later), :this_turn_vs_later},
       {"safety recall", num_cell(m.safety.recall), :safety_recall},
       {"injection quote-leak", num_cell(m.safety.quote_leak), :quote_leak},
-      {"false-positive rate (0.90)", num_cell(m.safety.false_positive_rate_at_090),
-       :false_positive_rate},
+      {"false-positive rate", num_cell(m.safety.false_positive_rate), :false_positive_rate},
       {"ECE", num_cell(m.calibration.ece), :ece},
       {"clarifying rate (lowest ask)", clarifying_cell(m.clarifying), :clarifying_rate}
     ]

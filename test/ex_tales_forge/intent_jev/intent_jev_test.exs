@@ -117,7 +117,7 @@ defmodule TalesForge.IntentJevTest do
       assert request["state"]["player_text"] == text
       refute_received :tier1_called
       assert_received {:gm_prompt, prompt}
-      assert prompt =~ ~s("overall_intent": "#{text}")
+      assert prompt =~ ~s("overall_intent": "<<player_text>>#{text}<</player_text>>")
 
       meta = intent_row(session.id).meta
       assert meta["source"] == "jev"

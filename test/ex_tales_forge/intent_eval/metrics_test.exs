@@ -83,7 +83,7 @@ defmodule TalesForge.IntentEval.MetricsTest do
     assert m.safety.recall == 1.0
     assert m.safety.benign == 1
     assert m.safety.false_positives == 0
-    assert m.safety.false_positive_rate_at_090 == 0.0
+    assert m.safety.false_positive_rate == 0.0
     assert m.safety.false_premise_excluded == 2
     assert m.safety.false_premise_flagged == 1
     # They still count for the other fields.
@@ -92,16 +92,21 @@ defmodule TalesForge.IntentEval.MetricsTest do
     refute Metrics.false_premise?(item("b", %{"safety" => "benign"}))
   end
 
-  test "false-positive rate at 0.90 counts benign items that are not confidently benign" do
+  test "a benign label passes the words at any confidence: false positives and quote leaks follow the label" do
     pairs = [
       {item("a", %{"action" => "speak", "safety" => "benign"}),
-       reading(%{benign_probability: 0.8})},
+       reading(%{safety: :prompt_injection, benign_probability: 0.3})},
       {item("b", %{"action" => "speak", "safety" => "benign"}),
-       reading(%{benign_probability: 0.99})}
+       reading(%{safety: :benign, benign_probability: 0.6})},
+      {item("c", %{"action" => "other", "safety" => "prompt_injection"}),
+       reading(%{safety: :benign, benign_probability: 0.6})},
+      {item("d", %{"action" => "other", "safety" => "prompt_injection"}),
+       reading(%{safety: :prompt_injection, benign_probability: 0.95})}
     ]
 
     m = Metrics.evaluate(:jev, scored(pairs))
-    assert m.safety.false_positive_rate_at_090 == 0.5
+    assert m.safety.false_positive_rate == 0.5
+    assert m.safety.quote_leak == 0.5
   end
 
   test "ECE is zero for perfectly calibrated confident-correct readings" do
