@@ -13,7 +13,7 @@ defmodule TalesForge.IntentEval.Readers do
 
   require Logger
 
-  alias TalesForge.Game.{Intent, JevIntent}
+  alias TalesForge.Game.{Intent, JevIntent, SelfCheck}
   alias TalesForge.Game.Schemas.{IntentExtraction, SingleAction}
 
   @jev_model "jev-1.13.0"
@@ -46,6 +46,7 @@ defmodule TalesForge.IntentEval.Readers do
           required(:top2) => [atom()],
           required(:cost) => float(),
           required(:cached) => boolean(),
+          optional(:self_check) => [SelfCheck.ask()],
           optional(:raw_confidence) => float(),
           optional(:probabilities) => %{atom() => %{atom() => float()}}
         }
@@ -59,9 +60,12 @@ defmodule TalesForge.IntentEval.Readers do
 
   # --- heuristic ---------------------------------------------------------------
 
+  # The heuristic also reads self-checks with the narrow text fallback.
   defp heuristic(item, context) do
-    extraction = Intent.heuristic_intent(item["text"], context)
-    from_extraction(extraction)
+    item["text"]
+    |> Intent.heuristic_intent(context)
+    |> from_extraction()
+    |> Map.put(:self_check, SelfCheck.asks(item["text"]))
   end
 
   # --- jev ---------------------------------------------------------------------
@@ -203,13 +207,8 @@ defmodule TalesForge.IntentEval.Readers do
     }
   end
 
-  defp deferred_action(%IntentExtraction{actions: actions, primary_index: index}) do
-    actions
-    |> Enum.with_index()
-    |> Enum.reject(fn {_a, idx} -> idx == index end)
-    |> Enum.map(fn {a, _idx} -> a end)
-    |> List.first()
-  end
+  defp deferred_action(%IntentExtraction{actions: actions, primary_index: index}),
+    do: actions |> List.delete_at(index) |> List.first()
 
   defp action_type(%SingleAction{action_type: type}), do: type
   defp action_type(_), do: nil

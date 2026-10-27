@@ -26,11 +26,13 @@ defmodule TalesForge.Game.StateFacts do
 
   @doc "One line per fact."
   @spec lines(t()) :: [String.t()]
-  def lines(%__MODULE__{} = facts),
-    do: ["Coins: " <> PlayPanel.format_coins(facts.coins), "Pack: " <> pack(facts.inventory)]
+  def lines(facts), do: ["Coins: " <> fact(facts, :coins), "Pack: " <> fact(facts, :pack)]
 
-  defp pack([]), do: "empty"
-  defp pack(items), do: Enum.map_join(items, ", ", &item/1)
+  @doc "One fact as text: the coins (`0g 1s 2c`) or the pack (`rope, torch (3)` or `empty`)."
+  @spec fact(t(), :coins | :pack) :: String.t()
+  def fact(%__MODULE__{coins: coins}, :coins), do: PlayPanel.format_coins(coins)
+  def fact(%__MODULE__{inventory: []}, :pack), do: "empty"
+  def fact(%__MODULE__{inventory: items}, :pack), do: Enum.map_join(items, ", ", &item/1)
 
   defp item(%{"name" => name, "quantity" => 1}), do: name
   defp item(%{"name" => name, "quantity" => n}), do: "#{name} (#{n})"

@@ -86,6 +86,7 @@ labels (n/m reviewed)".
 - `qa_regression` (4 items, h-qa05–08, 2026-10-20, Gentry QA on playtest `c6e5d16`): "I walk back to the inn." from the square (went to the smithy), "I run out of the inn" after a failed punch (no move), a Japanese go-back-to-the-inn request (no move), and emoji-only input (an invented move). Tune-only, `reviewed: false` until Case reviews.
 - `qa_regression` / `false_premise` (3 items, h-qa13–15, 2026-10-23, Gentry QA on playtest `1444197`, session 777e3afc, Crossroads Hamlet): two questions about the player's own state after buying an ale ("What did I order earlier and what does my pack contain?", "Did anyone mention a road toll? Do I owe anyone money?"), where Marta denied the purchase. Gold is `other` (a question, like h-o03), subsource `recall`. Also a held regression guard, "I never ordered any ale today, refund me" (h-qa15), labelled `false_premise` like h-fp03 (PremiseCheck doesn't match a denied purchase yet). Tune-only, `reviewed: false` until Case reviews.
 - `qa_regression` / `false_premise` (2 items, h-qa16 and h-qa18, 2026-10-26, Gentry QA on playtest `b861318`, session 6e3b9541, Crossroads Hamlet): a coin-count question the GM ignored (h-qa16, `other`, subsource `recall`), and a claimed narrator agreement of free ale for life that drew a Persuasion roll (h-qa18, `false_premise`; no roll or Deception expected). h-qa17 is unused: the rules-extraction ask held and h-ai01 covers it. Tune-only, `reviewed: false` until Case reviews.
+- `qa_regression` / subsource `self_check` (6 items, h-qa19–24, 2026-10-26, card 1 follow-up to h-qa13/h-qa16, Crossroads Hamlet after the 2c ale): questions about the player's own coins or pack, in English and Swedish, plus a purchase with a coin count (h-qa21, `buy` + `coins`) and an NPC-stock question that is not a self-check (h-qa22, `none`). They carry `gold.self_check`, as do h-qa13 (`pack`), h-qa14 (`none`), h-qa16 (`coins`) and, in the holdout, h-o03 (`pack`, labelled from its text alone and not run, so the holdout stays unspent). The self-check score (`TalesForge.IntentEval.SelfCheckScore`) is accuracy over the labelled items plus misfires: a read on an item labelled `none` or not labelled at all. Tune-only, `reviewed: false` until Case reviews.
 
 ## Files
 
@@ -117,8 +118,10 @@ labels (n/m reviewed)".
     "later_target": "market_square" | null,
     "acceptable_laters": [{ "type": "move", "target": "market_square" }],
     "safety": "benign" | "jailbreak" | "prompt_injection" | "nefarious",
-    "false_premise": true            // optional; only on false-premise items, which
+    "false_premise": true,           // optional; only on false-premise items, which
                                      // the safety numbers leave out (safety must be benign)
+    "self_check": "none" | "coins" | "pack" | "both"  // optional; a question about the
+                                     // player's own coins or pack (SelfCheck)
   },
   "note": "why this label / what's tricky",
   "labeller": "agent-draft",

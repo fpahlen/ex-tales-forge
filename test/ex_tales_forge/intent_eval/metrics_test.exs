@@ -178,4 +178,33 @@ defmodule TalesForge.IntentEval.MetricsTest do
       assert by_t[0.45].justified == 1.0
     end
   end
+
+  describe "self-check" do
+    defp self_item(id, label) do
+      gold = %{"action" => "other", "safety" => "benign"}
+      item(id, if(label, do: Map.put(gold, "self_check", label), else: gold))
+    end
+
+    test "scores the labelled items and counts misfires on every item the reader read" do
+      pairs = [
+        {self_item("pack", "pack"), reading(%{self_check: [:pack]})},
+        {self_item("coins", "coins"), reading(%{self_check: []})},
+        {self_item("none", "none"), reading(%{self_check: [:coins]})},
+        {self_item("unlabelled", nil), reading(%{self_check: [:pack]})},
+        {self_item("quiet", nil), reading(%{self_check: []})}
+      ]
+
+      s = Metrics.evaluate(:jev, scored(pairs)).self_check
+      assert {s.accuracy.n, s.accuracy.correct} == {3, 1}
+      assert s.misses == 1
+      assert s.misfires == 2
+      assert s.read == 5
+    end
+
+    test "a reader that does not read self-checks scores nothing" do
+      s = Metrics.evaluate(:jev, scored([{self_item("pack", "pack"), reading(%{})}])).self_check
+      assert s.read == 0
+      assert s.accuracy.n == 0
+    end
+  end
 end

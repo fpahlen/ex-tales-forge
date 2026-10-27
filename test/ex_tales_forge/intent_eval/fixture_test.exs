@@ -1,7 +1,7 @@
 defmodule TalesForge.IntentEval.FixtureTest do
   use ExUnit.Case, async: true
 
-  alias TalesForge.Game.Mechanics
+  alias TalesForge.Game.{Mechanics, SelfCheck}
   alias TalesForge.IntentEval
 
   @items IntentEval.load_items("test/fixtures/intent_eval/items.jsonl")
@@ -118,5 +118,23 @@ defmodule TalesForge.IntentEval.FixtureTest do
 
     valid = Mechanics.skill_stat_map() |> Map.keys()
     assert Enum.all?(gold_skills, &(&1 in valid))
+  end
+
+  test "self-check golds are none, coins, pack or both; the holdout's only one is h-o03" do
+    labelled = Enum.filter(@items, &Map.has_key?(&1["gold"], "self_check"))
+    assert Enum.all?(labelled, &(get_in(&1, ["gold", "self_check"]) in SelfCheck.labels()))
+
+    by_id = Map.new(labelled, &{&1["id"], get_in(&1, ["gold", "self_check"])})
+
+    assert Map.take(by_id, ~w(h-qa13 h-qa14 h-qa16 h-o03)) ==
+             %{"h-qa13" => "pack", "h-qa14" => "none", "h-qa16" => "coins", "h-o03" => "pack"}
+
+    assert labelled |> Enum.filter(&(&1["split"] == "holdout")) |> Enum.map(& &1["id"]) == [
+             "h-o03"
+           ]
+
+    added = Enum.filter(@items, &(&1["subsource"] == "self_check"))
+    assert Enum.map(added, & &1["id"]) == ~w(h-qa19 h-qa20 h-qa21 h-qa22 h-qa23 h-qa24)
+    assert Enum.all?(added, &(&1["split"] == "tune" and &1["category"] == "qa_regression"))
   end
 end
