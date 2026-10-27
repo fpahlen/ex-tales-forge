@@ -1,6 +1,8 @@
 # Hourly dependency audit (ex-tales-forge docs/decisions.md, 2026-10-11
-# "Security-bump lane"). Runs `mix hex.audit` (retired packages) and
-# `mix deps.audit` (mix_audit: published advisories). For each package with an
+# "Security-bump lane"). Runs `mix hex.audit` (retired packages and Hex
+# advisories) and `mix deps.audit` (mix_audit: published advisories). Hex often
+# knows an advisory first (jose, 2026-10-26: #582, #585), so both reports go
+# into one list (.github/scripts/hex_audit.exs). For each package with an
 # advisory it runs `mix deps.update <package>` within the requirement in
 # mix.exs, keeps the bump only when every changed package keeps its major
 # version, and opens a PR "security: <advisory id> …" with the label
@@ -8,7 +10,10 @@
 # (.github/workflows/security-lane.yml, then playtest.yml).
 #
 # High and critical advisories are fixed at any hour: this job runs every hour,
-# day and night. A package that needs a major bump or a code change gets a
+# day and night. GitHub delays or drops scheduled runs under load (at
+# "17 * * * *" about 6 of 24 runs a day came, 17-27 Oct 2026), so the cron
+# asks twice an hour, and the job also runs when CI fails on main (CI runs
+# `mix hex.audit` too, so a new advisory usually shows there first). A package that needs a major bump or a code change gets a
 # warning in the run summary; a founder decides (normal lane).
 #
 # The PR must trigger CI, and a PR opened with GITHUB_TOKEN does not trigger
@@ -25,15 +30,19 @@
 # Tooling errors: the audit steps run after a separate compile step, so their
 # stdout holds only the report; stderr goes to its own file. When other text is
 # still mixed in, `security_lane.exs extract-json` takes the JSON report out.
-# Output with no report (or a hex.audit failure without its retired-packages
-# report) is a tooling error: the job fails with "Tooling error" in the
+# Output with no report (or a hex.audit failure with neither advisories nor
+# retired packages) is a tooling error: the job fails with "Tooling error" in the
 # summary and opens no PR.
 name: Security audit
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "17,47 * * * *"
   workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -51,6 +60,11 @@ env:
 jobs:
   audit:
     name: Audit deps
+    # workflow_run: only after a failed CI run for a push to main.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'failure' &&
+       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -64,7 +78,7 @@ jobs:
           app-id: ${{ secrets.SECURITY_BOT_APP_ID }}
           private-key: ${{ secrets.SECURITY_BOT_APP_PRIVATE_KEY }}
 
-      # The schedule runs on main; a run by hand runs on the branch it names
+      # The schedule and workflow_run run on main; a run by hand runs on the branch it names
       # (gh workflow run security-audit.yml --ref <branch>). Security PRs
       # always start from origin/main.
       - uses: actions/checkout@v7
@@ -93,25 +107,45 @@ jobs:
       - name: Compile deps and app
         run: mix deps.compile && mix compile
 
-      # Exit 0: no retired packages. Exit 1 with "Found retired packages": a
-      # finding (a warning, no PR: a retirement has no advisory id). Anything
-      # else is a tooling error and fails the job.
-      - name: Hex audit (retired packages)
+      # Exit 0: clean. Advisories are findings: hex.json holds them in the
+      # deps.audit shape, and the next step adds them to audit.json. "Found
+      # retired packages": a warning (no PR: a retirement has no advisory id).
+      # A failure with neither is a tooling error and fails the job.
+      - name: Hex audit (advisories and retired packages)
         run: |
           set -uo pipefail
           mix hex.audit > hex-audit.out 2> hex-audit.err
           status=$?
+          if ! elixir .github/scripts/hex_audit.exs hex-audit.out hex-audit.err > hex.json; then
+            echo "::error title=Tooling error::.github/scripts/hex_audit.exs could not read the mix hex.audit output."
+            exit 1
+          fi
+          count="$(jq '.vulnerabilities | length' hex.json)"
+          retired=0
+          grep -q "Found retired packages" hex-audit.out hex-audit.err && retired=1
           if [ "$status" = "0" ]; then
-            echo "Hex audit: no retired packages." >> "$GITHUB_STEP_SUMMARY"
-          elif grep -q "Found retired packages" hex-audit.out hex-audit.err; then
+            echo "Hex audit: no advisories, no retired packages." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$count" != "0" ]; then
+            echo "::warning::mix hex.audit found $count advisory(ies); they go into the bump step."
+            {
+              echo "### Hex audit: $count advisory(ies)"
+              echo
+              echo "| Package | Version | Advisory | Severity |"
+              echo "| --- | --- | --- | --- |"
+              jq -r '.vulnerabilities[] | "| \(.dependency.package) | \(.dependency.version) | \(.advisory.id) | \(.advisory.severity) |"' hex.json
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$retired" = "1" ]; then
             echo "::warning::mix hex.audit found retired packages (see the summary)."
             { echo "### Hex audit: retired packages"; echo; echo '```'; cat hex-audit.out; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-          else
+          fi
+          if [ "$status" != "0" ] && [ "$count" = "0" ] && [ "$retired" = "0" ]; then
             echo "::error title=Tooling error::mix hex.audit failed (exit $status) without a report."
             {
               echo "### Tooling error: mix hex.audit"
               echo
-              echo "Exit $status and no retired-packages report. This is not a finding; no PR is opened."
+              echo "Exit $status with neither advisories nor retired packages. This is not a finding; no PR is opened."
               echo; echo '```'; tail -40 hex-audit.out hex-audit.err; echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
@@ -120,15 +154,15 @@ jobs:
       # stdout holds the JSON report, stderr goes to its own file. When other
       # text is mixed into stdout, the report is taken out of it
       # (security_lane.exs extract-json). No report = a tooling error: the job
-      # fails and opens no PR.
+      # fails and opens no PR. audit.json = this report plus hex.json.
       - name: Advisory audit (mix deps.audit)
         id: audit
         run: |
           set -uo pipefail
           mix deps.audit --format json > audit.out 2> audit.err
           status=$?
-          if ! elixir .github/scripts/security_lane.exs extract-json audit.out > audit.json 2> extract.err \
-             || ! jq -e '.vulnerabilities | type == "array"' audit.json > /dev/null 2>&1; then
+          if ! elixir .github/scripts/security_lane.exs extract-json audit.out > deps-audit.json 2> extract.err \
+             || ! jq -e '.vulnerabilities | type == "array"' deps-audit.json > /dev/null 2>&1; then
             echo "::error title=Tooling error::mix deps.audit (exit $status) gave no JSON report; see the job summary."
             {
               echo "### Tooling error: mix deps.audit"
@@ -141,13 +175,14 @@ jobs:
             exit 1
           fi
           # Whitespace (the trailing newline) does not count as other text.
-          if [ "$(tr -d '[:space:]' < audit.json | wc -c)" -lt "$(tr -d '[:space:]' < audit.out | wc -c)" ]; then
+          if [ "$(tr -d '[:space:]' < deps-audit.json | wc -c)" -lt "$(tr -d '[:space:]' < audit.out | wc -c)" ]; then
             echo "::notice::mix deps.audit printed other text next to the JSON report; the report was taken out of it."
           fi
+          jq -s '{vulnerabilities: ([.[].vulnerabilities[]] | unique_by([.dependency.package, .advisory.id]))}' deps-audit.json hex.json > audit.json
           count="$(jq '.vulnerabilities | length' audit.json)"
           echo "count=$count" >> "$GITHUB_OUTPUT"
           if [ "$count" = "0" ]; then
-            echo "Advisory audit (mix deps.audit): no known advisories." >> "$GITHUB_STEP_SUMMARY"
+            echo "Advisory audit (mix deps.audit and mix hex.audit): no known advisories." >> "$GITHUB_STEP_SUMMARY"
           else
             {
               echo "### Advisory audit: $count finding(s)"
@@ -208,7 +243,9 @@ jobs:
               tooling_error=1
               continue
             fi
-            still="$(jq -r --arg p "$package" '[.vulnerabilities[] | select(.dependency.package == $p) | .advisory.id] | join(" ")' recheck.json)"
+            mix hex.audit > recheck-hex.out 2>&1 || true
+            elixir .github/scripts/hex_audit.exs recheck-hex.out > recheck-hex.json
+            still="$(jq -rs --arg p "$package" '[.[].vulnerabilities[] | select(.dependency.package == $p) | .advisory.id] | unique | join(" ")' recheck.json recheck-hex.json)"
             if [ -n "$still" ]; then
               echo "::warning::$package: after the update ($bump) the advisories $still are still open; a founder decides."
               echo "- $package: \`mix deps.update\` gives $bump, but $still are still open (the fix needs a new major or a new mix.exs requirement). A founder decides." >> "$GITHUB_STEP_SUMMARY"
