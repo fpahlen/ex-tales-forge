@@ -8,6 +8,8 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
   """
   use TalesForge.DataCase, async: false
 
+  doctest TalesForge.Game.Turn.SelfCheck
+
   alias TalesForge.Game.{JevIntent, JevSelfCheck, SelfCheck, StateFacts, TurnProcessor}
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction, SingleAction}
   alias TalesForge.Game.Turn
