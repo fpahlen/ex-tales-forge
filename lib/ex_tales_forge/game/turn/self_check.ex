@@ -50,14 +50,13 @@ defmodule TalesForge.Game.Turn.SelfCheck do
   @doc """
   The handler of a turn that only asks (no target, no other action, nothing
   else to play): a `narrate` handler with no action, so no roll and no time.
-  A `speak` to an NPC whom the text does not name counts as one with no
-  target (`unaddressed/3`). Any other turn keeps `handler`.
+  Any other turn keeps `handler`.
   """
   @spec only_ask(HandlerResult.t(), Turn.t()) :: HandlerResult.t()
   def only_ask(%HandlerResult{state_hints: %{"rejected" => true}} = handler, _turn), do: handler
 
   def only_ask(%HandlerResult{} = handler, %Turn{} = turn) do
-    if asks(turn) != [] and only_asks?(unaddressed(turn.intent, turn.raw_action, turn.cast)),
+    if only_asks?(turn.intent) and asks(turn) != [],
       do: %HandlerResult{
         handler: "narrate",
         notes: "The player only asks about their own coins or pack: no action plays.",
@@ -70,6 +69,18 @@ defmodule TalesForge.Game.Turn.SelfCheck do
     do: type in @asking_types and action.deferred_actions == []
 
   defp only_asks?(_action), do: false
+
+  @doc """
+  The turn with no target when its action is a `speak` to an NPC whom the
+  text does not name (`unaddressed/3`) and the turn then only asks: the
+  intent the rules, the board, the GM and the stored turn get, so
+  `only_ask/2` applies. Any other turn is unchanged.
+  """
+  @spec address(Turn.t()) :: Turn.t()
+  def address(turn) do
+    addressed = unaddressed(turn.intent, turn.raw_action, turn.cast)
+    if only_asks?(addressed) and asks(turn) != [], do: %{turn | intent: addressed}, else: turn
+  end
 
   @doc """
   `action` with no target when it is a `speak` to an NPC of `cast` whose

@@ -135,13 +135,22 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
       end
     end
 
+    test "h-qa23 read as a speak to Marta: the GM's validated action has no target",
+         %{session: session} do
+      read = action("speak", %{"self_check" => ["coins"]}, "marta_kellen")
+      {prompt, _ticks, _world} = play(session, @h_qa23, read, on())
+
+      assert validated(prompt) =~ ~s("target": null)
+      refute validated(prompt) =~ "marta_kellen"
+    end
+
     test "\"Marta, how much money do I have?\" keeps its target and its time",
          %{session: session} do
       read = action("speak", %{"self_check" => ["coins"]}, "marta_kellen")
       {prompt, ticks, _world} = play(session, "Marta, how much money do I have?", read, on())
 
       refute prompt =~ ~s("handler": "narrate")
-      assert prompt =~ "marta_kellen"
+      assert validated(prompt) =~ ~s("target": "marta_kellen")
       assert ticks > 0
     end
 
@@ -279,6 +288,12 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
     assert prompt =~ "no character in the scene answers or comments on them."
     assert prompt =~ ~s("handler": "narrate")
     assert prompt =~ ~s("target": null)
+  end
+
+  # The GM's "Validated player action" block of `prompt`.
+  defp validated(prompt) do
+    [_before, block] = String.split(prompt, "Validated player action", parts: 2)
+    block |> String.split("Action handler result", parts: 2) |> hd()
   end
 
   defp fact(world, ask),
