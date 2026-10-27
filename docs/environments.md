@@ -45,7 +45,7 @@ Playtest first, then production (decision 2026-10-09, [ex-tales-forge #91](https
    gh workflow run deploy-production.yml -R whyse-ab/ex-tales-forge -f sha=<full 40-character sha>
    ```
 
-   A first job refuses the run unless the sha is on `main` and its `Test` and `Dialyzer` checks passed, and warns when no successful playtest deploy of that sha is found. The deploy job then runs in the GitHub environment **`production`** and deploys exactly that commit to `tales-forge`, with migrations first (`/app/bin/migrate`). Only one prod deploy runs at a time, and a running deploy is never cancelled. It uses the Actions secret `FLY_API_TOKEN`. A bot starts this workflow only on Fredrik's explicit OK for that sha. Once a required reviewer (Fredrik) is set on the `production` environment (repo Settings → Environments), the job also waits for that approval; until then the manual start is the gate.
+   A first job refuses the run unless the sha is on `main` and its `Test` and `Dialyzer` checks passed, and warns when no successful playtest deploy of that sha is found. The deploy job then runs in the GitHub environment **`production`** (security lanes outside working hours: **`production-security`**, no reviewer, `main` only) and deploys exactly that commit to `tales-forge`, with migrations first (`/app/bin/migrate`). Only one prod deploy runs at a time, and a running deploy is never cancelled. It uses `FLY_API_TOKEN`, an environment secret on both environments. A bot starts this workflow only on Fredrik's explicit OK for that sha. Once a required reviewer (Fredrik) is set on the `production` environment (repo Settings → Environments), the job also waits for that approval; until then the manual start is the gate.
 
 A manual `fly deploy` is the fallback when Actions is down. It is the same command CI runs; see `docs/DEPLOY-FLY.md` in ex-tales-forge. For playtest: `fly deploy --remote-only --depot=false -c fly.playtest.toml -a tales-forge-playtest --ha=false`.
 
@@ -123,7 +123,7 @@ Memory: at 512 MB with no swap, the playtest app was killed for running out of m
 Values live in Fly secrets or GitHub Actions secrets, never in the repos.
 
 **Production** (Fly app `tales-forge`): `DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `ADMIN_EMAILS`, `ADMIN_GITHUB_TEAM`, `GITHUB_DOCS_TOKEN`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `XAI_API_KEY`; later `MAIL_ADAPTER`, `RESEND_API_KEY`, `ADMIN_MAIL_FROM`. See [fly-secrets.md](fly-secrets.md).
-GitHub Actions secret: `FLY_API_TOKEN`, a deploy token that only works on `tales-forge` (set).
+GitHub environment secret (on `production` and `production-security`): `FLY_API_TOKEN`, a deploy token that only works on `tales-forge`.
 GitHub Actions secrets for the security lane (not set yet, [#171](https://github.com/whyse-ab/ex-tales-forge/pull/171)): `SECURITY_BOT_APP_ID` and `SECURITY_BOT_APP_PRIVATE_KEY` (or `SECURITY_BOT_TOKEN`), and the optional `SECURITY_LANE_WEBHOOK_URL` and `SECURITY_LANE_WEBHOOK_KEY`. See [fly-secrets.md](fly-secrets.md#github-actions-secrets-for-the-security-lane).
 
 **Playtest** (Fly app `tales-forge-playtest`, live). All values are its own, never copied from production, except the read-only `GITHUB_DOCS_TOKEN`:

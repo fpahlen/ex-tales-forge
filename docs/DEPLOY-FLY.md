@@ -149,7 +149,12 @@ Decision 2026-10-11 "Security-bump lane". The rules are in `TalesForge.DeployLan
    LiveView mount over the websocket; no game turn, because a turn calls the LLM). A green smoke
    check starts "Production (security lane)", deploy-production.yml with `lane=security`: the
    same "Verify commit" job and the same tip-of-main and production-unchanged guard as the
-   admin lane.
+   admin lane. Outside working hours (Mon–Fri 08:00–18:00 Stockholm) and only for a run on
+   `main`, the deploy job runs in the environment `production-security` (no reviewer, branch
+   `main` only); in working hours it runs in `production` and waits for Fredrik's approval.
+   Before `deployed/production` moves, its old value goes to the tag
+   `deployed/production-previous`, the target of the `security-rollback` lane (workflow_call
+   only, no caller yet).
 4. **Tell:** "Notify Bobby" posts a signed JSON note to `SECURITY_LANE_WEBHOOK_URL` (event
    `security_lane.deployed`: sha, PR, advisory ids, run URL). Bobby tells Gentry and the
    founders through Case. The headers are `X-Security-Lane-Timestamp`, and, with
@@ -192,9 +197,10 @@ gh workflow run deploy-production.yml -R whyse-ab/ex-tales-forge -f sha=<full 40
 
 It first checks that the sha is on `main` and that its `Test` and `Dialyzer` checks passed
 (and warns if no successful playtest deploy of it is found), then deploys exactly that commit
-in the GitHub environment `production` (a required reviewer there makes the job wait for
-approval, in both lanes). It uses the Actions secret `FLY_API_TOKEN` (a deploy token scoped to
-`tales-forge`, created with `fly tokens create deploy -a tales-forge`). Deploys run one at a time
+in the GitHub environment `production` (its required reviewer makes the job wait for
+approval, in the normal and admin lanes). It uses `FLY_API_TOKEN` (a deploy token scoped to
+`tales-forge`, created with `fly tokens create deploy -a tales-forge`), an environment secret
+on `production` and `production-security`. Deploys run one at a time
 and are never cancelled mid-way. After a successful deploy it moves the tag
 `deployed/production` to the sha.
 
