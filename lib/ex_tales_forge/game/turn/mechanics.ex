@@ -32,6 +32,9 @@ defmodule TalesForge.Game.Turn.Mechanics do
   @doc "Writes `outcome`."
   @spec apply(Turn.t()) :: Turn.t()
   def apply(%Turn{} = turn) do
+    # JEV_SELF_CHECK=on: a speak to an NPC the text does not name, which
+    # only asks, has no target from here on (the GM's action, the board).
+    turn = TurnSelfCheck.address(turn)
     {handler, mechanical, ruled, played, combat} = Steps.time(:rules, fn -> rules(turn) end)
     agents = agents(turn, ruled)
     {price_lines, board} = prices(turn, agents, ruled)
@@ -186,9 +189,13 @@ defmodule TalesForge.Game.Turn.Mechanics do
       state_hints: %{"premise_rejected" => true, "rejected" => true, "reason" => reason}
     }
 
-    action = player_action.action
-    unrolled = %{action | parameters: Map.delete(action.parameters, "skill")}
-    {blocked, %PlayerAction{player_action | action: unrolled}}
+    {blocked, unrolled(player_action)}
+  end
+
+  # A blocked action rolls nothing: the action without its skill.
+  defp unrolled(%PlayerAction{action: action} = played) do
+    parameters = Map.delete(action.parameters || %{}, "skill")
+    %PlayerAction{played | action: %{action | parameters: parameters}}
   end
 
   # A move to the place where the character is plays no walk, with or
@@ -213,9 +220,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
           state_hints: %{"target_rejected" => true, "rejected" => true, "reason" => reason}
         }
 
-        action = played.action
-        unrolled = %{action | parameters: Map.delete(action.parameters || %{}, "skill")}
-        {%PlayerAction{played | action: unrolled}, blocked}
+        {unrolled(played), blocked}
     end
   end
 

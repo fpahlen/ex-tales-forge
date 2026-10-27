@@ -8,6 +8,8 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
   """
   use TalesForge.DataCase, async: false
 
+  doctest TalesForge.Game.Turn.SelfCheck
+
   alias TalesForge.Game.{JevIntent, JevSelfCheck, SelfCheck, StateFacts, TurnProcessor}
   alias TalesForge.Game.Schemas.{GMStructuredResponse, PlayerAction, SingleAction}
   alias TalesForge.Game.Turn
@@ -20,6 +22,7 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
   @h_qa16 "I check: how many coins do I have exactly, and did I just sell anything?"
   @h_qa19 "How much money do I have left?"
   @h_qa21 "I buy an ale and count my coins"
+  @h_qa23 "Hur mycket pengar har jag?"
 
   @context %{
     "present_npcs" => ["innkeep"],
@@ -79,6 +82,86 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
       clarify = %{other(%{}) | clarify: %{"words" => "x"}}
       assert TurnSelfCheck.asks(turn(@h_qa13, clarify)) == []
       assert TurnSelfCheck.asks(%{turn(@h_qa13, other(%{})) | injected: true}) == []
+    end
+  end
+
+  describe "Turn.SelfCheck.unaddressed/3" do
+    @cast %{
+      "marta_kellen" => %TalesForge.GameCharacter{slug: "marta_kellen", name: "Marta Kellen"}
+    }
+
+    test "a speak to an NPC the text does not name loses its target" do
+      for text <- [@h_qa19, @h_qa23, "Ask Martanna how much I have", "Kellen, my coins?"] do
+        assert target(TurnSelfCheck.unaddressed(speak("marta_kellen"), text, @cast)) == nil
+      end
+    end
+
+    test "the full or the first name, any case, as a word, keeps the target" do
+      for text <- ["Marta, how much money do I have?", "marta kellen: my purse?", "I ask MARTA."] do
+        assert target(TurnSelfCheck.unaddressed(speak("marta_kellen"), text, @cast)) ==
+                 "marta_kellen"
+      end
+    end
+
+    test "not a speak, or not an NPC of the cast: unchanged" do
+      buy = %{
+        speak("marta_kellen")
+        | action: %SingleAction{action_type: :buy, target: "marta_kellen"}
+      }
+
+      assert TurnSelfCheck.unaddressed(buy, @h_qa19, @cast) == buy
+      assert TurnSelfCheck.unaddressed(speak("ale_mug"), @h_qa19, @cast) == speak("ale_mug")
+      assert TurnSelfCheck.unaddressed(speak(nil), @h_qa19, @cast) == speak(nil)
+    end
+  end
+
+  describe "a speak to an NPC the text does not name (crossroads_ledger)" do
+    setup do
+      {:ok, session} =
+        GameSessions.create_session(%{name: "Unaddressed", adventure_id: "crossroads_ledger"})
+
+      {:ok, session: GameSessions.get_session!(session.id)}
+    end
+
+    test "h-qa19 and h-qa23, read as a speak to Marta: the narrator states the coins, no time",
+         %{session: session} do
+      for text <- [@h_qa19, @h_qa23] do
+        read = action("speak", %{"self_check" => ["coins"]}, "marta_kellen")
+        {prompt, ticks, world} = play(session, text, read, on())
+
+        assert prompt =~ "Coins: #{fact(world, :coins)}."
+        assert_narrator(prompt)
+        assert ticks == 0
+      end
+    end
+
+    test "h-qa23 read as a speak to Marta: the GM's validated action has no target",
+         %{session: session} do
+      read = action("speak", %{"self_check" => ["coins"]}, "marta_kellen")
+      {prompt, _ticks, _world} = play(session, @h_qa23, read, on())
+
+      assert validated(prompt) =~ ~s("target": null)
+      refute validated(prompt) =~ "marta_kellen"
+    end
+
+    test "\"Marta, how much money do I have?\" keeps its target and its time",
+         %{session: session} do
+      read = action("speak", %{"self_check" => ["coins"]}, "marta_kellen")
+      {prompt, ticks, _world} = play(session, "Marta, how much money do I have?", read, on())
+
+      refute prompt =~ ~s("handler": "narrate")
+      assert validated(prompt) =~ ~s("target": "marta_kellen")
+      assert ticks > 0
+    end
+
+    test "self_check none: a speak to Marta the text does not name plays as before",
+         %{session: session} do
+      read = action("speak", %{"self_check" => []}, "marta_kellen")
+      {prompt, ticks, _world} = play(session, @h_qa19, read, on())
+
+      refute prompt =~ "Narrator, not an NPC"
+      refute prompt =~ ~s("handler": "narrate")
+      assert ticks > 0
     end
   end
 
@@ -207,6 +290,12 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
     assert prompt =~ ~s("target": null)
   end
 
+  # The GM's "Validated player action" block of `prompt`.
+  defp validated(prompt) do
+    [_before, block] = String.split(prompt, "Validated player action", parts: 2)
+    block |> String.split("Action handler result", parts: 2) |> hd()
+  end
+
   defp fact(world, ask),
     do: Map.fetch!(SelfCheck.resolve(StateFacts.build(world["character"] || %{}), [ask]), ask)
 
@@ -215,6 +304,14 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
       overall_intent: "x",
       action: %SingleAction{action_type: :other, target: nil, parameters: params}
     }
+
+  defp speak(target),
+    do: %PlayerAction{
+      overall_intent: "x",
+      action: %SingleAction{action_type: :speak, target: target, parameters: %{}}
+    }
+
+  defp target(%PlayerAction{action: %SingleAction{target: target}}), do: target
 
   defp turn(text, action),
     do: %Turn{raw_action: text, intent: action, flags: on()}
