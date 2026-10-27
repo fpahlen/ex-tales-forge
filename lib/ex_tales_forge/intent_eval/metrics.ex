@@ -25,6 +25,7 @@ defmodule TalesForge.IntentEval.Metrics do
   """
 
   alias TalesForge.Game.IntentClarification
+  alias TalesForge.IntentEval.SelfCheckScore
 
   @z 1.96
   @ask_thresholds [0.30, 0.40, 0.45, 0.50, 0.60]
@@ -59,14 +60,13 @@ defmodule TalesForge.IntentEval.Metrics do
       calibration: calibration(usable),
       clarifying: clarifying(usable, opts),
       bands: bands(usable, opts),
-      cost: usable |> Enum.map(fn {_item, r} -> r.cost end) |> Enum.sum(),
-      spent:
-        usable
-        |> Enum.reject(fn {_item, r} -> Map.get(r, :cached, false) end)
-        |> Enum.map(fn {_item, r} -> r.cost end)
-        |> Enum.sum()
+      self_check: SelfCheckScore.evaluate(usable),
+      cost: cost(usable),
+      spent: usable |> Enum.reject(fn {_item, r} -> Map.get(r, :cached, false) end) |> cost()
     }
   end
+
+  defp cost(pairs), do: pairs |> Enum.map(fn {_item, r} -> r.cost end) |> Enum.sum()
 
   # --- per-field accuracy ------------------------------------------------------
 
@@ -156,18 +156,17 @@ defmodule TalesForge.IntentEval.Metrics do
 
   # F1 of "a deferred action is present".
   defp deferred_f1(pairs) do
-    tp =
-      Enum.count(pairs, fn {item, r} ->
-        not is_nil(gold(item, "later")) and not is_nil(r.later)
+    # {no gold later, no read later} => count
+    counts =
+      Enum.frequencies_by(pairs, fn {item, r} ->
+        {is_nil(gold(item, "later")), is_nil(r.later)}
       end)
 
-    fp =
-      Enum.count(pairs, fn {item, r} -> is_nil(gold(item, "later")) and not is_nil(r.later) end)
-
-    fn_ =
-      Enum.count(pairs, fn {item, r} -> not is_nil(gold(item, "later")) and is_nil(r.later) end)
-
-    f1(tp, fp, fn_)
+    f1(
+      Map.get(counts, {false, false}, 0),
+      Map.get(counts, {true, false}, 0),
+      Map.get(counts, {false, true}, 0)
+    )
   end
 
   # --- material error ----------------------------------------------------------
