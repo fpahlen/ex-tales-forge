@@ -149,7 +149,7 @@ The `Dockerfile` builds a release with Elixir 1.18.4 and OTP 27.3.4.16 on Debian
 
 | Repo | Visibility | `main` protection | Rulesets | Actions secrets (names) | Actions variables | Environments |
 |---|---|---|---|---|---|---|
-| `whyse-ab/ex-tales-forge` | public | Classic branch protection: required checks `Test` and `Dialyzer`; no required reviews; admins not enforced | none | `FLY_API_TOKEN`, `FLY_API_TOKEN_PLAYTEST` | none (`FLY_USE_DEPOT` is read but not set) | `production`, no protection rules, no branch policy |
+| `whyse-ab/ex-tales-forge` | public | Classic branch protection: required checks `Test` and `Dialyzer`; no required reviews; admins not enforced | none | `FLY_API_TOKEN_PLAYTEST` (`FLY_API_TOKEN` is an environment secret) | none (`FLY_USE_DEPOT` is read but not set) | `production` (required reviewer `fpahlen`) and `production-security` (no reviewer, branch `main` only), each with the secret `FLY_API_TOKEN` |
 | `whyse-ab/tales-forge-docs` | private | none (commits go straight to `main`) | none | none | none | none |
 
 Repo access: `fpahlen` is admin on ex-tales-forge. `maxpahlen`, `jpa71` and `Hawkan-Fredriksson` have read access as direct collaborators. The team `tales-forge` has no repo grant of its own.
@@ -162,7 +162,7 @@ Repo access: `fpahlen` is admin on ex-tales-forge. `maxpahlen`, `jpa71` and `Haw
 |---|---|---|---|---|
 | `ci.yml` | CI | `pull_request`; `push` to `main` | `Test` (Postgres 18 service; includes `mix deploy.check_boundaries`), `Dialyzer`, `Dependency warnings` (report only, `continue-on-error`) | none |
 | `playtest.yml` | Deploy to playtest | `workflow_run` of CI, `completed`, branch `main`, only when CI passed for a `push`; `workflow_dispatch` (inputs `sha`, `force`) | `deploy` (tip-of-main guard, `fly deploy -c fly.playtest.toml`), `lane` (`.github/scripts/deploy_lane.exs`), `smoke` (security lane, `smoke_check.py`), `Production (admin lane)`, `Production (security lane)`, `Notify Bobby (security lane)` | `FLY_API_TOKEN_PLAYTEST`, `FLY_API_TOKEN`, `SECURITY_LANE_WEBHOOK_URL`, `SECURITY_LANE_WEBHOOK_KEY` |
-| `deploy-production.yml` | Deploy to production | `workflow_dispatch` (input `sha`); `workflow_call` from `playtest.yml` (lane `admin` or `security`) | `verify` (full 40-char sha, on `main`, `Test` and `Dialyzer` green), `deploy` (environment `production`, moves tag `deployed/production`) | `FLY_API_TOKEN` |
+| `deploy-production.yml` | Deploy to production | `workflow_dispatch` (input `sha`); `workflow_call` from `playtest.yml` (lane `admin` or `security`; `security-rollback` has no caller yet) | `verify` (full 40-char sha, on `main`, `Test` and `Dialyzer` green; picks the environment), `deploy` (environment `production`, or `production-security` for the security lanes outside working hours; moves tag `deployed/production-previous`, then `deployed/production`) | `FLY_API_TOKEN` (environment secret) |
 | `security-audit.yml` | Security audit | `schedule` `17 * * * *` (every hour at :17 UTC); `workflow_dispatch` | `audit` (`mix hex.audit`, `mix deps.audit`, opens a `security:` PR) | `SECURITY_BOT_APP_ID`, `SECURITY_BOT_APP_PRIVATE_KEY` or `SECURITY_BOT_TOKEN` |
 | `security-lane.yml` | Security lane | `workflow_run` of CI, `completed` (for `pull_request` runs); `workflow_dispatch` (input `pr`) | `classify` (`security_lane.exs`), `merge` (`gh pr merge --squash --match-head-commit`) | same bot secrets as Security audit |
 
@@ -218,7 +218,7 @@ Optional names that the code reads but no app has today: `RESEND_API_KEY`, `MAIL
 
 | Name | Set | Source | Owner |
 |---|---|---|---|
-| `FLY_API_TOKEN` | yes (updated 2026-10-06 14:08 CEST) | `fly tokens create deploy -a tales-forge` | Fredrik |
+| `FLY_API_TOKEN` (environment secret on `production` and `production-security`) | yes (updated 2026-10-06 14:08 CEST) | `fly tokens create deploy -a tales-forge` | Fredrik |
 | `FLY_API_TOKEN_PLAYTEST` | yes (updated 2026-10-06 15:02 CEST) | `fly tokens create deploy -a tales-forge-playtest` | Fredrik |
 | `SECURITY_BOT_APP_ID`, `SECURITY_BOT_APP_PRIVATE_KEY` | **no** | A GitHub App on `ex-tales-forge` only: Contents, Pull requests and Issues write | To create |
 | `SECURITY_BOT_TOKEN` | **no** | Fallback: fine-grained PAT with the same permissions | Optional |
@@ -313,7 +313,7 @@ All three agents share one Grok Bot box. `flyctl` is at `~/.fly/bin/flyctl` on t
 - **Approval of the PR:** a normal-lane PR waits on the card. Any founder clicks Approve or Request changes. Approve wakes Bobby (`pr.approved`). Request changes wakes Bobby (`pr.changes_requested`) with the comment. The card stays in Building.
 - **Approve once:** when Bobby links a new commit, the approval stays for the new head sha. A link with `player_change: true`, or a Request changes, asks the founders again.
 - **Admin-lane and security-lane PRs** need no Approve.
-- **GitHub environment `production`** has no required reviewer today. When you add one, every production deploy (also the admin and security lanes) waits for that reviewer.
+- **GitHub environment `production`** requires `fpahlen`. Every production deploy in it waits for him (normal and admin lanes, and the security lanes in working hours). The security lanes outside working hours use `production-security` (no reviewer, `main` only).
 - `TalesForge.Board.Workers.PrBackfill` marks old plain `pr` links on Building cards as waiting, after each production boot and when a link comes. It needs `GITHUB_FEED_TOKEN`.
 
 ### 3.4 Auto-Done
@@ -492,7 +492,8 @@ Do this for each bot: `CASE`, `BOBBY` and, when Gentry needs wake-ups, `GENTRY`.
 1. Create the deploy tokens and store them as Actions secrets. The token goes through a pipe and does not show:
 
    ```bash
-   fly tokens create deploy -a tales-forge | gh secret set FLY_API_TOKEN -R whyse-ab/ex-tales-forge
+   fly tokens create deploy -a tales-forge | gh secret set FLY_API_TOKEN -R whyse-ab/ex-tales-forge --env production
+   fly tokens create deploy -a tales-forge | gh secret set FLY_API_TOKEN -R whyse-ab/ex-tales-forge --env production-security
    fly tokens create deploy -a tales-forge-playtest | gh secret set FLY_API_TOKEN_PLAYTEST -R whyse-ab/ex-tales-forge
    ```
 
@@ -504,7 +505,16 @@ Do this for each bot: `CASE`, `BOBBY` and, when Gentry needs wake-ups, `GENTRY`.
    gh api -X PUT repos/whyse-ab/ex-tales-forge/environments/production
    ```
 
-   Today it has no required reviewer.
+   It requires the reviewer `fpahlen`. Also create `production-security`, with no reviewer and only the branch `main`:
+
+   ```bash
+   echo '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}' \
+     | gh api -X PUT repos/whyse-ab/ex-tales-forge/environments/production-security --input -
+   gh api -X POST repos/whyse-ab/ex-tales-forge/environments/production-security/deployment-branch-policies \
+     -f name=main -f type=branch
+   ```
+
+   Create both environments before step 1's `--env` commands.
 
 3. Optional, for the security lane: create a GitHub App on `ex-tales-forge` with Contents, Pull requests and Issues write. Store `SECURITY_BOT_APP_ID` and `SECURITY_BOT_APP_PRIVATE_KEY`:
 
@@ -588,7 +598,7 @@ Then check by hand:
 | `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID` | Change only when you create or install the App again | Same as the private key |
 | `BOARD_WEBHOOK_URL_<BOT>`, `BOARD_WEBHOOK_KEY_<BOT>` | Rotate the trigger key in the bot's Grok Bot routine. Set the new key (and URL) on production in one import | URL missing: that bot is not woken (the job is cancelled). Key wrong: the bot refuses the signature, and Oban retries up to 8 times |
 | `BOARD_BOT_TOKEN_<BOT>` | New `openssl rand -hex 32`. Give it to the bot first, then set it on production | That bot gets 401 on `/internal/board/*`, `/internal/chat` and `/internal/images/*` |
-| `FLY_API_TOKEN` | `fly tokens create deploy -a tales-forge \| gh secret set FLY_API_TOKEN …`. Then revoke the old token with `fly tokens list` and `fly tokens revoke` | No production deploy (by hand, admin lane or security lane) |
+| `FLY_API_TOKEN` | `fly tokens create deploy -a tales-forge \| gh secret set FLY_API_TOKEN --env <environment> …`, once for `production` and once for `production-security`. Then revoke the old token with `fly tokens list` and `fly tokens revoke` | No production deploy (by hand, admin lane or security lane) |
 | `FLY_API_TOKEN_PLAYTEST` | Same, with `-a tales-forge-playtest` | No playtest deploy. The lanes after it do not run |
 | `SECURITY_BOT_APP_ID`, `SECURITY_BOT_APP_PRIVATE_KEY`, `SECURITY_BOT_TOKEN` | New private key or PAT, `gh secret set` | The audit only reports. No `security:` PR and no automatic merge. A fix waits for a founder (state today) |
 | `SECURITY_LANE_WEBHOOK_URL`, `SECURITY_LANE_WEBHOOK_KEY` | Rotate in Bobby's webhook trigger, then `gh secret set` | No note to Bobby after a security deploy. Founders get no note (state today) |

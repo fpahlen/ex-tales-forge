@@ -32,15 +32,28 @@
 # not on main, or whose Test and Dialyzer checks did not pass. By hand it warns
 # (does not fail) when no successful playtest deploy of the sha is found.
 #
+# 4. Security rollback (lane=security-rollback, workflow_call only). Deploys the
+#    sha in the tag `deployed/production-previous` while production still runs
+#    production_base. No caller yet: the security-fix deploy calls it when the
+#    production smoke check fails (off-hours security plan, PR c).
+#
 # After a successful deploy the tag `deployed/production` is moved to the sha:
 # the admin lane diffs against it, so an admin merge never carries a game
-# change that still waits for a founder's Approve.
+# change that still waits for a founder's Approve. Before that, its old value
+# goes to `deployed/production-previous` (not on a rollback), the rollback
+# target.
 #
-# The deploy job runs in the GitHub environment `production`. With a required
-# reviewer on that environment (repo Settings -> Environments -> production),
-# every deploy, the admin lane's too, waits for that approval.
+# GitHub environment of the deploy job (picked by "Verify commit"):
+# - `production-security` for the security and security-rollback lanes, but
+#   only outside working hours (Mon-Fri 08:00-18:00 Europe/Stockholm) and only
+#   for a run on main. It has no reviewer and allows only the branch main.
+# - `production` for everything else: by hand, the admin lane, and the
+#   security lanes during working hours. Its required reviewer (fpahlen)
+#   approves every such deploy; bots never approve it.
 #
-# Needs the repo secret FLY_API_TOKEN: a deploy token scoped to tales-forge.
+# Needs FLY_API_TOKEN (a deploy token scoped to tales-forge) as an environment
+# secret on both environments. The caller still passes it by name: the job's
+# environment supplies the value.
 name: Deploy to production
 
 on:
@@ -57,7 +70,7 @@ on:
         required: true
         type: string
       lane:
-        description: "admin or security: the automatic lane from playtest.yml"
+        description: "admin, security or security-rollback: the automatic lane"
         required: true
         type: string
       production_base:
@@ -82,6 +95,8 @@ jobs:
     name: Verify commit
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    outputs:
+      environment: ${{ steps.environment.outputs.name }}
     steps:
       # Full history of main, to check that the sha is on it.
       - uses: actions/checkout@v7
@@ -112,6 +127,16 @@ jobs:
               exit 1
             fi
           done
+          if [ "$LANE" = "security-rollback" ]; then
+            git fetch --force origin "+refs/tags/deployed/production-previous:refs/tags/deployed/production-previous"
+            previous="$(git rev-parse 'refs/tags/deployed/production-previous^{commit}')"
+            if [ "$SHA" != "$previous" ]; then
+              echo "::error::A rollback deploys only deployed/production-previous ($previous), got $SHA."
+              exit 1
+            fi
+            echo "Security rollback: deploying $SHA (deployed/production-previous; on main; Test and Dialyzer passed)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if [ "$LANE" = "admin" ] || [ "$LANE" = "security" ]; then
             # Called from playtest.yml right after it deployed this sha to playtest
             # (security: and after the smoke check passed).
@@ -125,12 +150,36 @@ jobs:
           fi
           echo "Deploying $SHA (on main; Test and Dialyzer passed; playtest deploys found: $playtest)." >> "$GITHUB_STEP_SUMMARY"
 
+      # production-security has no reviewer, so it is used only when nobody is
+      # there to approve: security lanes, outside working hours, on main.
+      - name: Pick the environment
+        id: environment
+        env:
+          LANE: ${{ inputs.lane || 'manual' }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          day="$(TZ=Europe/Stockholm date +%u)"
+          hour="$(TZ=Europe/Stockholm date +%H)"
+          name=production
+          if [ "$LANE" = "security" ] || [ "$LANE" = "security-rollback" ]; then
+            if [ "$REF" != "refs/heads/main" ]; then
+              echo "::notice::$REF is not main: environment production."
+            elif [ "$day" -le 5 ] && [ "$((10#$hour))" -ge 8 ] && [ "$((10#$hour))" -lt 18 ]; then
+              echo "::notice::Working hours in Stockholm: environment production (a founder approves)."
+            else
+              name=production-security
+            fi
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Environment: \`$name\` (lane $LANE)." >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     name: Deploy to production
     needs: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    environment: production
+    environment: ${{ needs.verify.outputs.environment }}
     outputs:
       deployed: ${{ steps.done.outputs.deployed }}
     # Moves the deployed/production tag after the deploy.
@@ -157,7 +206,7 @@ jobs:
           BASE: ${{ inputs.production_base }}
         run: |
           set -euo pipefail
-          if [ "$LANE" != "admin" ] && [ "$LANE" != "security" ]; then
+          if [ "$LANE" != "admin" ] && [ "$LANE" != "security" ] && [ "$LANE" != "security-rollback" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -165,7 +214,8 @@ jobs:
           main_sha="$(git rev-parse FETCH_HEAD)"
           current="$(git ls-remote origin refs/tags/deployed/production | cut -f1)"
           reason=""
-          if [ "$SHA" != "$main_sha" ]; then
+          # A rollback goes back on purpose, so only the base must be unchanged.
+          if [ "$LANE" != "security-rollback" ] && [ "$SHA" != "$main_sha" ]; then
             reason="$SHA is not the tip of main (main is at $main_sha); production is not moved backwards. The tip gets its own lane when its CI passes."
           elif [ "$current" != "$BASE" ]; then
             reason="production moved from ${BASE:-unknown} to ${current:-unknown} since the lane was picked; deploy by hand if this build should go out."
@@ -196,14 +246,21 @@ jobs:
         # GIT_SHA: the commit goes into the image (Dockerfile), so the app knows it.
         # The script redeploys the same image once when the release machine
         # or the bluegreen green machine never starts.
-        run: .github/scripts/fly_deploy.sh
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error::FLY_API_TOKEN is empty: set it as a secret on the environment $ENVIRONMENT."
+            exit 1
+          fi
+          .github/scripts/fly_deploy.sh
         env:
+          ENVIRONMENT: ${{ needs.verify.outputs.environment }}
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_USE_DEPOT: ${{ vars.FLY_USE_DEPOT }}
           APP: tales-forge
           SHA: ${{ inputs.sha }}
 
-      # The admin lane diffs against this tag (playtest.yml).
+      # The admin lane diffs against deployed/production (playtest.yml); a
+      # security rollback deploys deployed/production-previous.
       - name: Record the deployed commit (tag deployed/production)
         if: steps.guard.outputs.deploy == 'true'
         env:
@@ -211,8 +268,17 @@ jobs:
           LANE: ${{ inputs.lane || 'manual' }}
         run: |
           set -euo pipefail
+          old="$(git ls-remote origin refs/tags/deployed/production | cut -f1)"
           git push --force origin "$SHA:refs/tags/deployed/production"
           echo "Deployed \`$SHA\` to production (tales-forge), lane: $LANE. Tag \`deployed/production\` moved to it." >> "$GITHUB_STEP_SUMMARY"
+          # Not on a rollback: the bad build must not become the rollback target.
+          if [ -n "$old" ] && [ "$old" != "$SHA" ] && [ "$LANE" != "security-rollback" ]; then
+            if git fetch --no-tags --depth=1 origin "$old" && git push --force origin "$old:refs/tags/deployed/production-previous"; then
+              echo "Tag \`deployed/production-previous\` moved to \`$old\` (the rollback target)." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::Could not move deployed/production-previous to $old: no rollback target for this deploy."
+            fi
+          fi
 
       - name: Deployed
         id: done

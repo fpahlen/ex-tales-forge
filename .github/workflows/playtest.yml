@@ -29,7 +29,9 @@
 #           (.github/scripts/smoke_check.py), then "Production (security lane)"
 #           deploys this sha through deploy-production.yml, and "Notify Bobby"
 #           posts to SECURITY_LANE_WEBHOOK_URL when that secret is set. No
-#           founder OK. A failed smoke check stops before production.
+#           founder OK outside working hours (environment production-security);
+#           in working hours it waits for the production reviewer. A failed
+#           smoke check stops before production.
 #   normal  Anything else (game, shared, CI, docs, a mixed merge, an unknown
 #           production commit): playtest only. Production follows once Gentry
 #           and the playtest batch have checked the build and a founder has
@@ -45,8 +47,9 @@
 # tales-forge-playtest (Fly dashboard -> tales-forge-playtest -> Tokens, or
 # `flyctl tokens create deploy -a tales-forge-playtest`). Without it the deploy
 # step fails with a clear message; nothing else is affected. The admin and
-# security lanes' production deploy uses FLY_API_TOKEN, like
-# deploy-production.yml. Optional: SECURITY_LANE_WEBHOOK_URL and
+# security lanes' production deploy passes FLY_API_TOKEN by name; its value is
+# the environment secret of the deploy job's environment (production or
+# production-security, deploy-production.yml). Optional: SECURITY_LANE_WEBHOOK_URL and
 # SECURITY_LANE_WEBHOOK_KEY (the security lane's note to Bobby).
 name: Deploy to playtest
 
