@@ -39,7 +39,7 @@ defmodule TalesForge.IntentEvalTest do
     assert is_number(jev.fields.action.rate)
   end
 
-  test "the heuristic reads self-checks on the tune split and the report shows them; jev does not yet" do
+  test "the heuristic reads self-checks on the tune split and the report shows them; jev only with JEV_SELF_CHECK=on" do
     {report, results} =
       IntentEval.run(split: "tune", readers: [:jev, :heuristic], jev: [api_key: "test-key"])
 

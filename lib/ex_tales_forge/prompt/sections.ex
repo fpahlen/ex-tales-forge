@@ -194,12 +194,9 @@ defmodule TalesForge.Prompt.Sections.DialogueMemory do
   @spec text(map() | nil, [DialogueMemory.npc()]) :: String.t() | nil
   def text(memory, npcs) do
     blocks =
-      npcs
-      |> Enum.map(fn npc -> {npc, Map.get(memory || %{}, npc.id, [])} end)
-      |> Enum.reject(fn {_npc, lines} -> lines == [] end)
-      |> Enum.map(fn {npc, lines} ->
+      for npc <- npcs, lines = Map.get(memory || %{}, npc.id, []), lines != [] do
         "#{hd(npc.names)}:\n" <> Enum.map_join(lines, "\n", &"- \"#{&1}\"")
-      end)
+      end
 
     if blocks != [],
       do:
@@ -392,6 +389,7 @@ defmodule TalesForge.Prompt.Sections.GmTurnAction do
     payload
     |> put_hint("reason", hints["reason"])
     |> put_hint("trade", trade_line(hints["trade"]))
+    |> put_hint("self_check", hints["self_check"])
   end
 
   defp put_hint(payload, _key, nil), do: payload
