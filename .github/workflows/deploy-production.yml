@@ -34,8 +34,13 @@
 #
 # 4. Security rollback (lane=security-rollback, workflow_call only). Deploys the
 #    sha in the tag `deployed/production-previous` while production still runs
-#    production_base. No caller yet: the security-fix deploy calls it when the
-#    production smoke check fails (off-hours security plan, PR c).
+#    production_base. security-fix-deploy.yml calls it when the production smoke
+#    check fails after a security-fix deploy.
+#
+# 5. Security-fix lane (lane=security-fix, workflow_call only; AGENTS.md rule 2
+#    carve-out, docs/environments.md "Off-hours security fixes").
+#    security-fix-deploy.yml calls it after Gentry's qa/gentry-go and the
+#    security-fix guard (TalesForge.DeployLanes.SecurityFix) passed for the sha.
 #
 # After a successful deploy the tag `deployed/production` is moved to the sha:
 # the admin lane diffs against it, so an admin merge never carries a game
@@ -44,7 +49,7 @@
 # target.
 #
 # GitHub environment of the deploy job (picked by "Verify commit"):
-# - `production-security` for the security and security-rollback lanes, but
+# - `production-security` for the security, security-fix and security-rollback lanes, but
 #   only outside working hours (Mon-Fri 08:00-18:00 Europe/Stockholm) and only
 #   for a run on main. It has no reviewer and allows only the branch main.
 # - `production` for everything else: by hand, the admin lane, and the
@@ -70,7 +75,7 @@ on:
         required: true
         type: string
       lane:
-        description: "admin, security or security-rollback: the automatic lane"
+        description: "admin, security, security-fix or security-rollback: the automatic lane"
         required: true
         type: string
       production_base:
@@ -137,9 +142,10 @@ jobs:
             echo "Security rollback: deploying $SHA (deployed/production-previous; on main; Test and Dialyzer passed)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if [ "$LANE" = "admin" ] || [ "$LANE" = "security" ]; then
+          if [ "$LANE" = "admin" ] || [ "$LANE" = "security" ] || [ "$LANE" = "security-fix" ]; then
             # Called from playtest.yml right after it deployed this sha to playtest
-            # (security: and after the smoke check passed).
+            # (security: and after the smoke check passed), or from
+            # security-fix-deploy.yml after Gentry's GO and the guard passed.
             echo "${LANE^} lane: deploying $SHA (on main; Test and Dialyzer passed; deployed to playtest in this run)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -162,7 +168,7 @@ jobs:
           day="$(TZ=Europe/Stockholm date +%u)"
           hour="$(TZ=Europe/Stockholm date +%H)"
           name=production
-          if [ "$LANE" = "security" ] || [ "$LANE" = "security-rollback" ]; then
+          if [[ "$LANE" =~ ^security(-fix|-rollback)?$ ]]; then
             if [ "$REF" != "refs/heads/main" ]; then
               echo "::notice::$REF is not main: environment production."
             elif [ "$day" -le 5 ] && [ "$((10#$hour))" -ge 8 ] && [ "$((10#$hour))" -lt 18 ]; then
@@ -206,7 +212,7 @@ jobs:
           BASE: ${{ inputs.production_base }}
         run: |
           set -euo pipefail
-          if [ "$LANE" != "admin" ] && [ "$LANE" != "security" ] && [ "$LANE" != "security-rollback" ]; then
+          if ! [[ "$LANE" =~ ^(admin|security|security-fix|security-rollback)$ ]]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
