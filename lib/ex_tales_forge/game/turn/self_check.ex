@@ -17,8 +17,12 @@ defmodule TalesForge.Game.Turn.SelfCheck do
   alias TalesForge.Game.StateFacts
   alias TalesForge.Game.Turn
 
-  # The action types that do nothing of their own when they only ask.
-  @asking_types [:other, :observe, :freeform, :none_fits]
+  # The action types that do nothing of their own when they only ask. A
+  # `speak` with no target is a question to the narrator only when it asks
+  # (`asks/1` is not `[]`, checked in `only_ask/2`): a bare one (shouting,
+  # announcing) keeps its time. Playtest 6cb0391: Jev read h-qa19 and h-qa23
+  # as such a speak.
+  @asking_types [:other, :observe, :freeform, :none_fits, :speak]
 
   @doc """
   What the turn asks about the player's own state: `[]` with the flag off, on
@@ -80,13 +84,15 @@ defmodule TalesForge.Game.Turn.SelfCheck do
     end
   end
 
-  defp line(%SelfCheck.Result{coins: coins, pack: pack}) do
-    facts = [{"Coins", coins}, {"Pack", pack}] |> Enum.reject(&is_nil(elem(&1, 1)))
+  defp line(%SelfCheck.Result{} = result) do
+    facts = for {ask, text} <- Map.from_struct(result), text, do: {ask, text}
 
     "Narrator, not an NPC: the player asks about their own " <>
-      Enum.map_join(facts, " and ", fn {name, _} -> String.downcase(name) end) <>
+      Enum.join(Keyword.keys(facts), " and ") <>
       ". " <>
-      Enum.map_join(facts, " ", fn {name, text} -> "#{name}: #{text}." end) <>
+      Enum.map_join(facts, " ", fn {ask, text} ->
+        "#{String.capitalize(to_string(ask))}: #{text}."
+      end) <>
       " State these facts as the narrator, as they are after this turn's action; " <>
       "no character in the scene answers or comments on them."
   end

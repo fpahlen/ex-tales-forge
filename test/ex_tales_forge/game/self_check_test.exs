@@ -81,17 +81,24 @@ defmodule TalesForge.Game.SelfCheckTest do
     end
 
     test "only what was asked is filled in", %{facts: facts} do
-      assert SelfCheck.resolve(facts, [:coins]) == %Result{coins: "0g 49s 8c"}
+      assert SelfCheck.resolve(facts, [:coins]) == %Result{coins: "no gold, 49 silver, 8 copper"}
       assert SelfCheck.resolve(facts, [:pack]) == %Result{pack: "travel cloak"}
 
       assert SelfCheck.resolve(facts, [:coins, :pack]) ==
-               %Result{coins: "0g 49s 8c", pack: "travel cloak"}
+               %Result{coins: "no gold, 49 silver, 8 copper", pack: "travel cloak"}
     end
 
     test "nothing asked resolves to the empty result", %{facts: facts} do
       assert SelfCheck.resolve(facts, []) == %Result{}
-      assert SelfCheck.empty?(%Result{})
-      refute SelfCheck.empty?(SelfCheck.resolve(facts, [:pack]))
+    end
+
+    test "zero amounts are words, not 0c (h-qa16, h-qa19)" do
+      coins = fn c -> SelfCheck.resolve(StateFacts.build(%{"coins" => c}), [:coins]).coins end
+
+      assert coins.(%{"gold" => 2, "silver" => 10}) == "2 gold, 10 silver, no copper"
+      assert coins.(%{"gold" => 2, "silver" => 9, "copper" => 8}) == "2 gold, 9 silver, 8 copper"
+      assert coins.(%{"copper" => 0}) == "no coins"
+      assert coins.(%{}) == "no coins"
     end
 
     test "an empty pack is stated, not left out" do

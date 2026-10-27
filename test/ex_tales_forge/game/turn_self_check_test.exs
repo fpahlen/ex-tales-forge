@@ -18,6 +18,7 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
 
   @h_qa13 "What did I order earlier and what does my pack contain?"
   @h_qa16 "I check: how many coins do I have exactly, and did I just sell anything?"
+  @h_qa19 "How much money do I have left?"
   @h_qa21 "I buy an ale and count my coins"
 
   @context %{
@@ -149,6 +150,26 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
       assert ticks == 0
     end
 
+    test "h-qa19 (a speak with no target that asks): the narrator states the coins, no time",
+         %{session: session} do
+      read = action("speak", %{"self_check" => ["coins"]})
+      {prompt, ticks, world} = play(session, @h_qa19, read, on())
+
+      assert prompt =~ "Coins: #{fact(world, :coins)}."
+      assert_narrator(prompt)
+      assert ticks == 0
+    end
+
+    test "a bare speak with no target that asks nothing keeps its time (shouting)",
+         %{session: session} do
+      read = action("speak", %{"self_check" => []})
+      {prompt, ticks, _world} = play(session, "I shout: the north road is closed!", read, on())
+
+      refute prompt =~ "Narrator, not an NPC"
+      refute prompt =~ ~s("handler": "narrate")
+      assert ticks > 0
+    end
+
     test "h-qa21: the purchase plays, and the coins are the ones after it",
          %{session: session} do
       before = fact(session.world_state, :coins)
@@ -186,7 +207,8 @@ defmodule TalesForge.Game.TurnSelfCheckTest do
     assert prompt =~ ~s("target": null)
   end
 
-  defp fact(world, ask), do: StateFacts.fact(StateFacts.build(world["character"] || %{}), ask)
+  defp fact(world, ask),
+    do: Map.fetch!(SelfCheck.resolve(StateFacts.build(world["character"] || %{}), [ask]), ask)
 
   defp other(params),
     do: %PlayerAction{
