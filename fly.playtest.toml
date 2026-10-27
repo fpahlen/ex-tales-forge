@@ -57,6 +57,8 @@ kill_timeout = "30s"
   # so Fredrik can try 1000, 1500 and 2000; production uses the defaults.
   GM_MIN_DELAY_MS = "1500"
   GM_REVEAL_MIN_MS_PER_CHAR = "8"
+  # Self-check (card 1, #587/#588): Jev reads self_check, pure asks narrate with 0 ticks. Playtest only; production stays off (fly.toml).
+  JEV_SELF_CHECK = "on"
 
 [http_service]
   internal_port = 4000
