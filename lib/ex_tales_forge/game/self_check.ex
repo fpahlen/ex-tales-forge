@@ -15,9 +15,10 @@ defmodule TalesForge.Game.SelfCheck do
       []
       iex> facts = TalesForge.Game.StateFacts.build(%{"coins" => %{"copper" => 12}})
       iex> TalesForge.Game.SelfCheck.resolve(facts, [:coins])
-      %TalesForge.Game.SelfCheck.Result{coins: "0g 1s 2c", pack: nil}
+      %TalesForge.Game.SelfCheck.Result{coins: "no gold, 1 silver, 2 copper", pack: nil}
   """
 
+  alias TalesForge.Game.SelfCheck.Words
   alias TalesForge.Game.StateFacts
 
   defmodule Result do
@@ -79,17 +80,16 @@ defmodule TalesForge.Game.SelfCheck do
 
   def asks(_text), do: []
 
-  @doc "The answer to `asks` from the sheet `facts`."
+  @doc """
+  The answer to `asks` from the sheet `facts`, in words for the GM
+  (`TalesForge.Game.SelfCheck.Words`).
+  """
   @spec resolve(StateFacts.t(), [ask()]) :: Result.t()
   def resolve(%StateFacts{} = facts, asks) do
     Enum.reduce(asks, %Result{}, fn ask, result ->
-      Map.put(result, ask, StateFacts.fact(facts, ask))
+      Map.put(result, ask, Words.fact(facts, ask))
     end)
   end
-
-  @doc "Whether nothing was asked."
-  @spec empty?(Result.t()) :: boolean()
-  def empty?(%Result{} = result), do: result == %Result{}
 
   @doc "The eval label of `asks`: `none`, `coins`, `pack` or `both`."
   @spec label([ask()]) :: String.t()
