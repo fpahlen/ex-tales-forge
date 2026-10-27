@@ -1,0 +1,203 @@
+# The security-fix lane's deploy (AGENTS.md rule 2 carve-out; docs/environments.md
+# "Off-hours security fixes"; Fredrik, 2026-10-27). Outside working hours a fix
+# for a high or critical dependency advisory ships without a founder OK.
+#
+# security-lane.yml merges a qualifying security-fix PR at night. playtest.yml
+# deploys the merge to playtest like any other. Gentry plays it, and the
+# gentry-qa GitHub App posts the commit status qa/gentry-go = success on that
+# sha. The status starts this workflow (an App's status starts workflows;
+# GITHUB_TOKEN's would not; `status` runs main's copy of this file):
+#   1. guard: TalesForge.DeployLanes.SecurityFix from main's checkout
+#      (.github/scripts/security_fix.exs deploy), diffing production
+#      (deployed/production) against the sha: main only and the tip of main,
+#      outside working hours, Test and Dialyzer green on the sha, the newest
+#      qa/gentry-go is success from vars.GENTRY_GO_LOGIN, every merge since
+#      production is a security-fix PR, at most 10 files and 300 lines, no
+#      founder paths but mix.exs/mix.lock, and a high or critical OSV advisory
+#      at production's version that is gone at the sha's;
+#   2. deploy: deploy-production.yml, lane security-fix (environment
+#      production-security only off-hours on main; tip of main and production
+#      unchanged, re-checked inside the deploy concurrency group);
+#   3. smoke check on production; when it fails, roll back to
+#      deployed/production-previous (lane security-rollback);
+#   4. notify Bobby (SECURITY_LANE_WEBHOOK_URL), whatever happened after the deploy.
+#
+# By hand (the same guard; it still needs Gentry's GO and the night):
+#   gh workflow run security-fix-deploy.yml -f sha=<full sha>
+name: Security-fix deploy
+
+on:
+  status:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Full 40-character sha on main with Gentry's qa/gentry-go"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  checks: read
+  statuses: read
+  pull-requests: read
+
+env:
+  ELIXIR_VERSION: "1.18.4"
+  OTP_VERSION: "27.3.4.16"
+
+jobs:
+  guard:
+    name: Security-fix guard
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.context == 'qa/gentry-go' && github.event.state == 'success'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      ok: ${{ steps.check.outputs.ok }}
+      advisories: ${{ steps.check.outputs.advisories }}
+      sha: ${{ steps.facts.outputs.sha }}
+      production: ${{ steps.facts.outputs.production }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      # GitHub's answers for the sha; the rules are in the script.
+      - name: Facts (CI, statuses, merges since production)
+        id: facts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ inputs.sha || github.event.sha }}
+          GO_LOGIN: ${{ vars.GENTRY_GO_LOGIN }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::sha must be a full 40-character lowercase sha, got '$SHA'."
+            exit 1
+          fi
+          git fetch --force origin "+refs/tags/deployed/production:refs/tags/deployed/production"
+          production="$(git rev-parse 'refs/tags/deployed/production^{commit}')"
+          ci=true
+          for check in Test Dialyzer; do
+            conclusion="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?check_name=$check&filter=latest" \
+              --jq '.check_runs[0].conclusion // "missing"')"
+            [ "$conclusion" = "success" ] || ci=false
+          done
+          statuses="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/statuses?per_page=100")"
+          merges="$(for c in $(git rev-list --first-parent "$production..$SHA"); do
+            gh api "repos/$GITHUB_REPOSITORY/commits/$c/pulls" \
+              --jq "{sha: \"$c\", labels: [.[] | select(.merge_commit_sha == \"$c\") | .labels[].name]}"
+          done | jq -s .)"
+          jq -n --arg ref "$GITHUB_REF" --arg main "$(git rev-parse origin/main)" --argjson ci "$ci" \
+            --argjson statuses "$statuses" --argjson merges "$merges" --arg go "$GO_LOGIN" \
+            '{ref: $ref, main_sha: $main, ci_green: $ci, statuses: $statuses, merges: $merges,
+              go_logins: ([$go] | map(select(. != "")))}' > "$RUNNER_TEMP/facts.json"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "production=$production" >> "$GITHUB_OUTPUT"
+
+      - name: Guard (TalesForge.DeployLanes.SecurityFix, from main)
+        id: check
+        env:
+          SHA: ${{ steps.facts.outputs.sha }}
+          PRODUCTION: ${{ steps.facts.outputs.production }}
+        run: elixir .github/scripts/security_fix.exs deploy "$PRODUCTION" "$SHA" "$RUNNER_TEMP/facts.json"
+
+  deploy:
+    name: Production (security-fix lane)
+    needs: guard
+    if: needs.guard.outputs.ok == 'true'
+    permissions:
+      contents: write
+      checks: read
+      actions: read
+    uses: ./.github/workflows/deploy-production.yml
+    with:
+      sha: ${{ needs.guard.outputs.sha }}
+      lane: security-fix
+      production_base: ${{ needs.guard.outputs.production }}
+    secrets:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  smoke:
+    name: Smoke check production
+    needs: deploy
+    if: needs.deploy.outputs.deployed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Smoke check production
+        run: |
+          pip install --quiet websockets==15.0.1
+          python3 .github/scripts/smoke_check.py https://tales-forge.fly.dev
+
+  # Back to the build production ran before (deployed/production-previous).
+  rollback:
+    name: Roll back production (security-rollback lane)
+    needs: [guard, deploy, smoke]
+    if: always() && needs.deploy.outputs.deployed == 'true' && needs.smoke.result == 'failure'
+    permissions:
+      contents: write
+      checks: read
+      actions: read
+    uses: ./.github/workflows/deploy-production.yml
+    with:
+      sha: ${{ needs.guard.outputs.production }}
+      lane: security-rollback
+      production_base: ${{ needs.guard.outputs.sha }}
+    secrets:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  notify:
+    name: Notify Bobby (security-fix lane)
+    needs: [guard, deploy, smoke, rollback]
+    if: always() && needs.deploy.outputs.deployed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: POST to SECURITY_LANE_WEBHOOK_URL
+        env:
+          URL: ${{ secrets.SECURITY_LANE_WEBHOOK_URL }}
+          KEY: ${{ secrets.SECURITY_LANE_WEBHOOK_KEY }}
+          SHA: ${{ needs.guard.outputs.sha }}
+          ADVISORIES: ${{ needs.guard.outputs.advisories }}
+          SMOKE: ${{ needs.smoke.result }}
+          ROLLED_BACK: ${{ needs.rollback.outputs.deployed == 'true' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          event=security_fix.deployed
+          if [ "$ROLLED_BACK" = "true" ]; then event=security_fix.rolled_back
+          elif [ "$SMOKE" != "success" ]; then event=security_fix.smoke_failed; fi
+          echo "$event: \`$SHA\` ($ADVISORIES, smoke $SMOKE)." >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$URL" ]; then
+            echo "SECURITY_LANE_WEBHOOK_URL is not set: no note to Bobby. Tell the founders by hand." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          body="$(jq -cn --arg event "$event" --arg sha "$SHA" --arg adv "$ADVISORIES" --arg smoke "$SMOKE" \
+            --arg run "$RUN_URL" --arg repo "$GITHUB_REPOSITORY" \
+            '{event: $event, repo: $repo, sha: $sha, smoke: $smoke, run_url: $run,
+              advisories: ($adv | split(" ") | map(select(. != ""))),
+              note: "Security fix deployed to production off-hours without a founder OK (AGENTS.md rule 2 carve-out). Tell Gentry and the founders."}')"
+          ts="$(date +%s)"
+          headers=(-H "Content-Type: application/json" -H "X-Security-Lane-Timestamp: $ts")
+          if [ -n "$KEY" ]; then
+            sig="$(printf '%s.%s' "$ts" "$body" | openssl dgst -sha256 -hmac "$KEY" -r | cut -d' ' -f1)"
+            headers+=(-H "Authorization: Bearer $KEY" -H "X-Security-Lane-Signature: sha256=$sig")
+          fi
+          curl -fsS --retry 3 --max-time 20 "${headers[@]}" -d "$body" "$URL"

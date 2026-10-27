@@ -14,6 +14,14 @@
 # playtest, runs the smoke check, deploys production for that sha and
 # notifies Bobby.
 #
+# The security-fix lane (AGENTS.md rule 2 carve-out; TalesForge.DeployLanes.SecurityFix,
+# .github/scripts/security_fix.exs merge): a mix.lock PR the security lane does
+# not take is merged when it has the label `security-fix`, it is outside
+# Mon-Fri 08:00-18:00 Stockholm, CI is green, it changes at most 10 files and
+# 300 lines and no founder path but mix.exs/mix.lock, and a high or critical
+# OSV advisory at the base version is gone at the head version.
+# security-fix-deploy.yml deploys it after Gentry's qa/gentry-go.
+#
 # When a rule fails, the PR takes the normal lane (a founder's Approve). The
 # run summary lists every rule with PASS or FAIL. PRs that do not change
 # mix.lock end after one short step.
@@ -84,7 +92,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
-      lane: ${{ steps.security.outputs.lane || steps.auto.outputs.lane || 'normal' }}
+      lane: ${{ steps.fix.outputs.ok == 'true' && 'security-fix' || steps.security.outputs.lane || steps.auto.outputs.lane || 'normal' }}
       pr: ${{ steps.pr.outputs.number }}
       head: ${{ steps.pr.outputs.head }}
     steps:
@@ -197,6 +205,21 @@ jobs:
           elixir .github/scripts/security_lane.exs pr --base "$BASE" --head "$HEAD" \
             --pr "$RUNNER_TEMP/pr-meta.json" --ci "$CI"
 
+      # Also from main: the security-fix lane, for a mix.lock PR the security
+      # lane did not take. Writes ok=true|false and the rule list.
+      - name: Security-fix lane
+        id: fix
+        if: steps.pr.outputs.lock == 'true' && steps.security.outputs.lane != 'security'
+        env:
+          BASE: ${{ steps.pr.outputs.base }}
+          HEAD: ${{ steps.pr.outputs.head }}
+          CI_GREEN: ${{ steps.ci.outputs.result == 'success' }}
+        run: |
+          set -euo pipefail
+          jq --argjson ci "$CI_GREEN" '{ref: ("refs/heads/" + .baseRefName), ci_green: $ci, labels: [.labels[].name]}' \
+            "$RUNNER_TEMP/pr.json" > "$RUNNER_TEMP/fix.json"
+          elixir .github/scripts/security_fix.exs merge "$(git merge-base "$BASE" "$HEAD")" "$HEAD" "$RUNNER_TEMP/fix.json"
+
       # Also from main. Writes lane=auto|normal, class= and the rule list.
       - name: Auto lane
         id: auto
@@ -217,7 +240,7 @@ jobs:
     needs: classify
     # A dispatched run merges only with dry_run=false.
     if: >-
-      (needs.classify.outputs.lane == 'security' || needs.classify.outputs.lane == 'auto') &&
+      contains(fromJSON('["security", "security-fix", "auto"]'), needs.classify.outputs.lane) &&
       (github.event_name != 'workflow_dispatch' || inputs.dry_run == false)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
