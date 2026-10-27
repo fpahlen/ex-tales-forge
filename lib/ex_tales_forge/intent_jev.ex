@@ -40,7 +40,7 @@ defmodule TalesForge.IntentJev do
   alias TalesForge.AICalls
   alias TalesForge.Config
   alias TalesForge.Game.{CharacterReactions, Clarify, Combat, Intent, IntentClarification}
-  alias TalesForge.Game.{JevIntent, PlayerQuote, Rest}
+  alias TalesForge.Game.{JevIntent, JevSelfCheck, PlayerQuote, Rest}
   alias TalesForge.Game.Schemas.{PlayerAction, SingleAction}
   alias TalesForge.GameCharacter
   alias TalesForge.IntentJev.Read
@@ -195,7 +195,9 @@ defmodule TalesForge.IntentJev do
 
   # The questions of the read, with the open offer's while one is open.
   defp questions(candidates, context) do
-    JevIntent.questions(candidates, JevIntent.catalogue(), Config.skill_split?()) ++
+    questions = JevIntent.questions(candidates, JevIntent.catalogue(), Config.skill_split?())
+
+    JevSelfCheck.ask(questions) ++
       JevIntent.offer_questions(context["open_offer"])
   end
 

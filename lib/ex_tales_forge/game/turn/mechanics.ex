@@ -23,6 +23,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
   alias TalesForge.Game.Turn
   alias TalesForge.Game.Turn.Board
   alias TalesForge.Game.Turn.Combat, as: TurnCombat
+  alias TalesForge.Game.Turn.SelfCheck, as: TurnSelfCheck
   alias TalesForge.Game.TurnApply
   alias TalesForge.Game.TurnRules
   alias TalesForge.World, as: WorldAgents
@@ -73,7 +74,11 @@ defmodule TalesForge.Game.Turn.Mechanics do
     # TURN_APPLY_OUTCOMES=on: the GM gets the handler after the board, for
     # example the short sleep after a failed room payment. Off: the handler
     # before it. Both with the board's decision on a buy or a sale.
-    handler = Board.trade_outcome(if(apply?, do: board.handler, else: ruled), board.handler)
+    # JEV_SELF_CHECK=on: the GM's self-check facts, from after the trade.
+    handler =
+      if(apply?, do: board.handler, else: ruled)
+      |> Board.trade_outcome(board.handler)
+      |> TurnSelfCheck.hint(turn, board.world)
 
     mechanical =
       %{rolled | improvements: board.improvements, training: board.training}
@@ -101,6 +106,7 @@ defmodule TalesForge.Game.Turn.Mechanics do
       premised
       |> lodging_rules(turn, played)
       |> injection_block(turn.injected)
+      |> TurnSelfCheck.only_ask(turn)
 
     # COMBAT_OPPOSED=on: the attack needs a person in the scene. An unclear
     # target blocks the roll, and the turn asks the player.

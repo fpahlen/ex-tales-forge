@@ -133,6 +133,15 @@ defmodule TalesForge.Config do
   def skill_split?, do: on?("SKILL_SPLIT")
 
   @doc """
+  Self-check (`TalesForge.Game.Turn.SelfCheck`): Jev also reads whether the
+  player asks about their own coins or pack, and the GM answers as the
+  narrator from the sheet. JEV_SELF_CHECK=on. Default off. With the flag off,
+  the Jev request, the prompts and the turns do not change.
+  """
+  @spec jev_self_check?() :: boolean()
+  def jev_self_check?, do: on?("JEV_SELF_CHECK")
+
+  @doc """
   The skill split thresholds (d100 scale): `start`, `triple` and
   `min_uneven_part`, from `config :ex_tales_forge, :skill_split`.
   """

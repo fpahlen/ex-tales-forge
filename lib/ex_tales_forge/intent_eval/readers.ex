@@ -13,7 +13,7 @@ defmodule TalesForge.IntentEval.Readers do
 
   require Logger
 
-  alias TalesForge.Game.{Intent, JevIntent, SelfCheck}
+  alias TalesForge.Game.{Intent, JevIntent, JevSelfCheck, SelfCheck}
   alias TalesForge.Game.Schemas.{IntentExtraction, SingleAction}
 
   @jev_model "jev-1.13.0"
@@ -46,7 +46,7 @@ defmodule TalesForge.IntentEval.Readers do
           required(:top2) => [atom()],
           required(:cost) => float(),
           required(:cached) => boolean(),
-          optional(:self_check) => [SelfCheck.ask()],
+          optional(:self_check) => [SelfCheck.ask()] | nil,
           optional(:raw_confidence) => float(),
           optional(:probabilities) => %{atom() => %{atom() => float()}}
         }
@@ -72,7 +72,7 @@ defmodule TalesForge.IntentEval.Readers do
 
   defp jev(item, context, jev_opts) do
     candidates = JevIntent.candidates(context)
-    questions = JevIntent.questions(candidates)
+    questions = JevSelfCheck.ask(JevIntent.questions(candidates))
     state = JevIntent.state(context, item["text"])
 
     post_opts =
@@ -176,7 +176,8 @@ defmodule TalesForge.IntentEval.Readers do
       cost: reading.cost,
       cached: false,
       raw_confidence: reading.raw_confidence,
-      probabilities: reading.probabilities
+      probabilities: reading.probabilities,
+      self_check: reading.self_check
     }
   end
 
