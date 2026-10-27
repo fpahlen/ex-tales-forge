@@ -26,6 +26,8 @@ kill_timeout = "30s"
   PORT = "4000"
   # Fly private networking (.internal / .flycast) is IPv6-only
   ECTO_IPV6 = "true"
+  # Self-check (card 1, #587/#588/#591): Jev reads self_check, pure asks narrate with 0 ticks. On after Gentry's GO on playtest v425; off undoes it.
+  JEV_SELF_CHECK = "on"
 
 [http_service]
   internal_port = 4000
