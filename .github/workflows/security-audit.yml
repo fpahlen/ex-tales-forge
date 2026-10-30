@@ -114,8 +114,8 @@ jobs:
       - name: Hex audit (advisories and retired packages)
         run: |
           set -uo pipefail
-          mix hex.audit > hex-audit.out 2> hex-audit.err
-          status=$?
+          status=0
+          mix hex.audit > hex-audit.out 2> hex-audit.err || status=$?
           if ! elixir .github/scripts/hex_audit.exs hex-audit.out hex-audit.err > hex.json; then
             echo "::error title=Tooling error::.github/scripts/hex_audit.exs could not read the mix hex.audit output."
             exit 1
@@ -159,8 +159,8 @@ jobs:
         id: audit
         run: |
           set -uo pipefail
-          mix deps.audit --format json > audit.out 2> audit.err
-          status=$?
+          status=0
+          mix deps.audit --format json > audit.out 2> audit.err || status=$?
           if ! elixir .github/scripts/security_lane.exs extract-json audit.out > deps-audit.json 2> extract.err \
              || ! jq -e '.vulnerabilities | type == "array"' deps-audit.json > /dev/null 2>&1; then
             echo "::error title=Tooling error::mix deps.audit (exit $status) gave no JSON report; see the job summary."
